@@ -104,6 +104,5 @@ Struktur: `src/Core` (inkl. `Paged` für Listenabfragen) (Lifecycle, Schema, Gel
 
 ## Noch offen (nächste Schritte)
 
-- Test in echter WordPress-/WooCommerce-Umgebung (HPOS an/aus, Classic- und Blocks-Checkout), Integrationstests für Ledger/Payouts.
-- Adapter in Pass Captain und Voucher Captain gegen den Vertrag v1 (siehe `docs/CONTRACT.md`).
+- Live-Test mit HPOS aus und Classic-Checkout (HPOS an und Blocks-Checkout sind auf WordPress 7.1 / WooCommerce 11.3 getestet).
 - SEPA-Format und Beleg-/Steuerlogik mit Bank bzw. Steuerberatung abstimmen.

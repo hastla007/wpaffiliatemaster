@@ -62,6 +62,30 @@ if ( ! function_exists( 'wpac_record_refund' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wpac_current_touch' ) ) {
+	/**
+	 * Referral of the current visitor (contract 1.1.0): the partner link of this shop session
+	 * (method "link") or the consented referral cookie (method "cookie"). Integrations with their
+	 * own checkout (e.g. Pass Captain) store it with their order and pass it back as `touch`
+	 * when the sale is reported. Contains no personal data.
+	 *
+	 * @since 0.6.0
+	 * @return array|null { code, method, campaign, content_id } or null.
+	 */
+	function wpac_current_touch() {
+		$touch = \WPAffiliateCaptain\Tracking\Tracker::current_touch();
+		if ( ! is_array( $touch ) || empty( $touch['code'] ) ) {
+			return null;
+		}
+		return array(
+			'code'       => (string) $touch['code'],
+			'method'     => isset( $touch['method'] ) ? (string) $touch['method'] : 'link',
+			'campaign'   => isset( $touch['campaign'] ) ? (string) $touch['campaign'] : '',
+			'content_id' => isset( $touch['content_id'] ) ? (int) $touch['content_id'] : 0,
+		);
+	}
+}
+
 if ( ! function_exists( 'wpac_resolve_partner_code' ) ) {
 	/**
 	 * Resolve a partner code to an active affiliate.

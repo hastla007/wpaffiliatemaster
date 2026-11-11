@@ -1,6 +1,8 @@
-# Integrationsvertrag v1 (`WPAC_CONTRACT_VERSION = 1.0.0`)
+# Integrationsvertrag v1 (`WPAC_CONTRACT_VERSION = 1.1.0`)
 
 Öffentliche Schnittstelle von WP Affiliate Captain für Verkaufsquellen (Pass Captain, Voucher Captain, WooCommerce-Adapter, Connector-Add-ons wie LearnBoating). Kompatibel ist jede Version mit gleicher Major-Version; andere Versionen werden abgelehnt (`incompatible_contract`) und im Integrationsstatus angezeigt.
+
+Änderungen: **1.1.0** – neue Funktion `wpac_current_touch()` (abwärtskompatibel; Payloads mit `contract => '1.0.0'` bleiben gültig).
 
 Grundregeln:
 
@@ -68,6 +70,15 @@ wpac_record_refund( array(
 
 `cancellation` und `chargeback` kehren immer die gesamte verbleibende Provision um. Korrekturen nach einer Auszahlung werden im nächsten Lauf verrechnet.
 
+## Referral des aktuellen Besuchers (seit 1.1.0)
+
+```php
+$touch = function_exists( 'wpac_current_touch' ) ? wpac_current_touch() : null;
+// null oder array( code, method link|cookie, campaign, content_id ) – ohne personenbezogene Daten.
+```
+
+Für Quellen mit eigenem Checkout: beim Anlegen der Bestellung speichern und später als `touch` an `wpac_record_sale()` übergeben (die Zahlung wird oft erst später, z. B. vom Personal, bestätigt). Nicht bei Kassen-/POS-Verkäufen verwenden – dort gehört die Anfrage dem Personal, nicht dem Käufer.
+
 ## Partnercode auflösen (z. B. App → Shop)
 
 ```php
@@ -117,3 +128,10 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_affiliate_status_changed` | `int $affiliate_id, string $new, string $old` |
 
 Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempotenten Funktionen oben.
+
+## Mitgelieferte Adapter
+
+| Plugin | Ort | Verhalten |
+|---|---|---|
+| WP Pass Captain | `src/Integrations/AffiliateCaptain/Adapter.php` (ab Pass Captain 0.4.0) | Meldet bezahlte **eigene** Ticketbestellungen (Web-Checkout, POS) als `source = pass-captain`. Bestellungen über WooCommerce werden übersprungen – die erfasst Affiliate Captain selbst. Optionales Feld „Partnercode“ im Checkout (mit Prüfung und Fehlversuchs-Limit), Referral-Link/Cookie wird mit der Bestellung gespeichert. Nettobasis je Position nach anteiligem Kampagnenrabatt und ohne USt (aktives Steuerprofil); SKU `PASS-E{Event}-T{Ticketart}` für Regeln (z. B. `PASS-E12-*`). Provision bleibt bis Eventende gesperrt (`hold_until`). Vollerstattung/Storno → Umkehr; Eventabsage → anteilige Umkehr der Positionen dieses Events. |
+| Voucher Captain | `src/Compat/AffiliateCaptain.php` (ab Voucher Captain 1.2.0) | Ordnet ganze Code-Kampagnen (Gutscheine → Codes erzeugen → Kampagnen → Partner) einem Partnercode zu und beantwortet `wpac_coupon_affiliate` (Priorität 20 – direkte Gutschein-Verknüpfung in Affiliate Captain gewinnt). Gekaufte Gutscheine/Geschenkkarten werden nie zugeordnet. Optional keine Provision auf Gutscheinverkäufe: `add_filter( 'vcap_affiliate_commission_on_voucher_sales', '__return_false' );`. |
