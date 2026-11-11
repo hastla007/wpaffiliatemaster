@@ -13,7 +13,23 @@ final class Installer {
 
 	const DB_OPTION = 'wpac_db_version';
 
-	public static function activate() {
+	/**
+	 * Activation hook. On a network-wide activation every site of the network is set up.
+	 *
+	 * @param bool $network_wide Network-wide activation (multisite).
+	 */
+	public static function activate( $network_wide = false ) {
+		if ( is_multisite() && $network_wide ) {
+			self::for_each_site( array( __CLASS__, 'activate_site' ) );
+			return;
+		}
+		self::activate_site();
+	}
+
+	/**
+	 * Set up the current site: schema, capabilities, cron, default settings.
+	 */
+	public static function activate_site() {
 		\WPAffiliateCaptain\Promotion\Landing::reset_rewrite();
 		self::install_schema();
 		Capabilities::install();
@@ -23,10 +39,107 @@ final class Installer {
 		}
 	}
 
-	public static function deactivate() {
+	/**
+	 * Deactivation hook (data is kept).
+	 *
+	 * @param bool $network_wide Network-wide deactivation (multisite).
+	 */
+	public static function deactivate( $network_wide = false ) {
+		if ( is_multisite() && $network_wide ) {
+			self::for_each_site( array( __CLASS__, 'deactivate_site' ) );
+			return;
+		}
+		self::deactivate_site();
+	}
+
+	public static function deactivate_site() {
 		Cron::unschedule();
 		delete_option( 'wpac_rewrite_flushed' );
 		flush_rewrite_rules( false );
+	}
+
+	/**
+	 * Multisite: set up sites created later and drop the plugin tables when a site is deleted.
+	 */
+	public static function register_multisite_hooks() {
+		if ( ! is_multisite() ) {
+			return;
+		}
+		add_action( 'wp_initialize_site', array( __CLASS__, 'on_new_site' ), 200 );
+		// Per-request caches hold data of one site; drop them when code switches to another site.
+		add_action( 'switch_blog', array( __CLASS__, 'flush_site_caches' ) );
+		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_tables' ), 10, 2 );
+	}
+
+	/**
+	 * A new site was created: set it up when the plugin is active for the whole network.
+	 *
+	 * @param \WP_Site $site New site.
+	 */
+	public static function on_new_site( $site ) {
+		if ( ! self::network_active() ) {
+			return;
+		}
+		switch_to_blog( (int) $site->blog_id );
+		try {
+			self::activate_site();
+		} finally {
+			restore_current_blog();
+		}
+	}
+
+	/**
+	 * Add the plugin tables to the tables WordPress drops when a site is deleted.
+	 *
+	 * @param string[] $tables  Table names.
+	 * @param int      $blog_id Site ID.
+	 * @return string[]
+	 */
+	public static function drop_tables( $tables, $blog_id ) {
+		global $wpdb;
+		$prefix = $wpdb->get_blog_prefix( (int) $blog_id );
+		foreach ( Db::TABLES as $name ) {
+			$tables[] = $prefix . 'wpac_' . $name;
+		}
+		return $tables;
+	}
+
+	public static function flush_site_caches() {
+		Settings::flush_cache();
+		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache();
+	}
+
+	public static function network_active() {
+		if ( ! is_multisite() ) {
+			return false;
+		}
+		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		return is_plugin_active_for_network( plugin_basename( WPAC_FILE ) );
+	}
+
+	/**
+	 * Run a callback on every site of the current network.
+	 *
+	 * @param callable $callback Callback.
+	 */
+	public static function for_each_site( callable $callback ) {
+		$ids = get_sites(
+			array(
+				'fields'     => 'ids',
+				'number'     => 0,
+				'network_id' => get_current_network_id(),
+			)
+		);
+		foreach ( $ids as $id ) {
+			switch_to_blog( (int) $id );
+			try {
+				call_user_func( $callback );
+			} finally {
+				restore_current_blog();
+			}
+		}
 	}
 
 	/**

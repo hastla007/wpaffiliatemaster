@@ -236,7 +236,7 @@ final class Settings {
 	}
 
 	/**
-	 * Reset the in-memory cache (tests).
+	 * Reset the in-memory cache (tests, site switch on multisite).
 	 */
 	public static function flush_cache() {
 		self::$cache = null;

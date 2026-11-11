@@ -41,6 +41,7 @@ final class Plugin {
 		);
 
 		Installer::maybe_upgrade();
+		Installer::register_multisite_hooks();
 
 		CodeRepository::register_hooks();
 		ContractApi::register_hooks();
