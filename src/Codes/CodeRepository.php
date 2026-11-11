@@ -61,6 +61,30 @@ final class CodeRepository {
 	}
 
 	/**
+	 * Find the code row linked to a coupon.
+	 *
+	 * @param string $coupon       Coupon code.
+	 * @param bool   $active_only  Only active rows (current link).
+	 * @param int    $affiliate_id Restrict to an affiliate; also finds earlier, unlinked rows whose code equals the coupon.
+	 * @return object|null
+	 */
+	public static function find_by_coupon( $coupon, $active_only = true, $affiliate_id = 0 ) {
+		global $wpdb;
+		$coupon = self::normalize_coupon( $coupon );
+		if ( '' === $coupon ) {
+			return null;
+		}
+		$t = Db::table( 'partner_codes' );
+		if ( $affiliate_id ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d AND (coupon_code = %s OR (coupon_code = '' AND code = %s)) ORDER BY id DESC LIMIT 1", $affiliate_id, $coupon, self::normalize( $coupon ) ) );
+		}
+		$status = $active_only ? " AND status = 'active'" : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE coupon_code = %s{$status} ORDER BY id DESC LIMIT 1", $coupon ) );
+	}
+
+	/**
 	 * Find by ID.
 	 *
 	 * @param int $id ID.

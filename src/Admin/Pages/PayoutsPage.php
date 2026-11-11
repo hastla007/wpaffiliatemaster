@@ -9,6 +9,7 @@ namespace WPAffiliateCaptain\Admin\Pages;
 
 use WPAffiliateCaptain\Admin\Admin;
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
+use WPAffiliateCaptain\Core\Capabilities;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
@@ -50,7 +51,7 @@ final class PayoutsPage {
 			case 'payout_cancel':
 				$reason = sanitize_text_field( Admin::post( 'reason' ) );
 				foreach ( self::selected() as $id ) {
-					$r = PayoutService::cancel( $id, $reason );
+					$r = PayoutService::cancel( $id, $reason, (bool) Admin::post( 'confirm_not_sent' ) );
 					if ( is_wp_error( $r ) ) {
 						Admin::back( $r->get_error_message(), 'error' );
 					}
@@ -59,7 +60,7 @@ final class PayoutsPage {
 				break;
 
 			case 'payout_sepa':
-				$result = PayoutService::sepa_export( self::selected() );
+				$result = PayoutService::sepa_export( self::selected(), (bool) Admin::post( 'reexport' ) );
 				if ( is_wp_error( $result ) ) {
 					Admin::back( $result->get_error_message(), 'error' );
 				}
@@ -75,7 +76,8 @@ final class PayoutsPage {
 				foreach ( $rows as $p ) {
 					$aff   = AffiliateRepository::find( (int) $p->affiliate_id );
 					$snap  = json_decode( (string) $p->profile_snapshot, true );
-					$out[] = array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
+					$tax   = current_user_can( Capabilities::VIEW_TAX_DATA );
+					$out[] = array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, $tax && isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', $tax && isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
 				}
 				Csv::download( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $out );
 				break;
@@ -192,6 +194,8 @@ final class PayoutsPage {
 			esc_attr( wp_create_nonce( 'wpac_payout_cancel' ) ),
 			esc_html__( 'Cancel', 'wp-affiliate-captain' )
 		);
+		echo '<br><label><input type="checkbox" name="reexport" value="1"> ' . esc_html__( 'Export again (only if the bank did not process the previous file)', 'wp-affiliate-captain' ) . '</label>';
+		echo '<br><label><input type="checkbox" name="confirm_not_sent" value="1"> ' . esc_html__( 'Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)', 'wp-affiliate-captain' ) . '</label>';
 		echo '<input type="hidden" name="_wpac_nonce" value=""></p></form>';
 		Admin::pager( $total, $per );
 		echo '</div>';
@@ -212,6 +216,11 @@ final class PayoutsPage {
 		$snap   = json_decode( (string) $p->profile_snapshot, true );
 		$snap   = is_array( $snap ) ? $snap : array();
 		$labels = ProfileRepository::tax_status_labels();
+		if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+			// Address, VAT ID and tax status are restricted to wpac_view_tax_data.
+			$snap = array_intersect_key( $snap, array( 'iban_masked' => 1 ) );
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Tax and address details are hidden (missing permission wpac_view_tax_data).', 'wp-affiliate-captain' ) . '</p></div>';
+		}
 
 		echo '<div class="wrap wpac-receipt">';
 		echo '<p class="wpac-noprint"><a href="' . esc_url( Admin::url( 'wpac-payouts' ) ) . '">&larr; ' . esc_html__( 'All payouts', 'wp-affiliate-captain' ) . '</a> · <a href="#" onclick="window.print();return false;">' . esc_html__( 'Print / save as PDF', 'wp-affiliate-captain' ) . '</a></p>';

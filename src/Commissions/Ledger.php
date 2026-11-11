@@ -89,10 +89,27 @@ final class Ledger {
 
 		$rules   = RuleRepository::active();
 		$default = RuleRepository::default_rate();
+		if ( strtoupper( (string) Settings::get( 'currency' ) ) !== $sale['currency'] ) {
+			// Fixed amounts are stored in the program currency and are never applied to other currencies.
+			$rules = array_values(
+				array_filter(
+					$rules,
+					static function ( $r ) {
+						return 'fixed' !== $r['rate_type'];
+					}
+				)
+			);
+			if ( 'fixed' === $default['rate_type'] ) {
+				$default = array(
+					'rate_type' => 'percent',
+					'rate'      => '0',
+				);
+			}
+		}
 		$hold    = self::hold_until( $sale );
 		$status  = $attr['review'] ? 'review' : 'pending';
 
-		return Db::transaction(
+		$result = Db::transaction(
 			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $hold, $status ) {
 				$ok = $wpdb->insert(
 					Db::table( 'attributions' ),
@@ -192,19 +209,6 @@ final class Ledger {
 					CodeRepository::increment_usage( (int) $attr['code_id'] );
 				}
 
-				/**
-				 * Fires after an attribution was persisted.
-				 *
-				 * @param string $order_id     Source order ID.
-				 * @param int    $affiliate_id Affiliate.
-				 * @param string $method       code|link|cookie|coupon|app|manual.
-				 * @param string $source       Sales source.
-				 */
-				do_action( 'wpac_affiliate_attributed', $sale['order_id'], (int) $aff->id, $attr['method'], $sale['source'] );
-				foreach ( $ids as $cid ) {
-					do_action( 'wpac_commission_created', $cid );
-				}
-
 				return array(
 					'status'         => 'created',
 					'attribution_id' => $attribution_id,
@@ -213,6 +217,23 @@ final class Ledger {
 				);
 			}
 		);
+
+		// Notify listeners only after COMMIT.
+		if ( 'created' === $result['status'] ) {
+			/**
+			 * Fires after an attribution was persisted.
+			 *
+			 * @param string $order_id     Source order ID.
+			 * @param int    $affiliate_id Affiliate.
+			 * @param string $method       code|link|cookie|coupon|app|manual.
+			 * @param string $source       Sales source.
+			 */
+			do_action( 'wpac_affiliate_attributed', $sale['order_id'], (int) $aff->id, $attr['method'], $sale['source'] );
+			foreach ( $result['commission_ids'] as $cid ) {
+				do_action( 'wpac_commission_created', $cid );
+			}
+		}
+		return $result;
 	}
 
 	/**

@@ -137,7 +137,8 @@ final class WooCommerce {
 				'id'                => self::BLOCKS_FIELD,
 				'label'             => __( 'Partner code (optional)', 'wp-affiliate-captain' ),
 				'optionalLabel'     => __( 'Partner code (optional)', 'wp-affiliate-captain' ),
-				'location'          => 'order',
+				// "order" replaced "additional" in newer WooCommerce versions (same meta key _wc_other/...).
+				'location'          => ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '9.2', '<' ) ) ? 'additional' : 'order',
 				'type'              => 'text',
 				'required'          => false,
 				'sanitize_callback' => static function ( $value ) {
@@ -223,8 +224,9 @@ final class WooCommerce {
 				'category_ids' => array_map( 'intval', $category_ids ),
 				'name'         => $item->get_name(),
 				'quantity'     => (int) $item->get_quantity(),
-				// Line total = net after discounts, excluding tax and shipping.
-				'net_minor'    => Money::to_minor( (string) $item->get_total(), $currency ),
+				// Line total = net after discounts, excluding tax and shipping, minus refunds
+				// that happened before the sale was booked (e.g. retries, late manual assignment).
+				'net_minor'    => max( 0, Money::to_minor( (string) $item->get_total(), $currency ) - abs( Money::to_minor( (string) $order->get_total_refunded_for_item( $item_id ), $currency ) ) ),
 			);
 		}
 
@@ -272,7 +274,13 @@ final class WooCommerce {
 		 * @param \WC_Order $order   Order.
 		 */
 		$payload = apply_filters( 'wpac_wc_sale_payload', $payload, $order );
-		$result  = ContractApi::record_sale( $payload );
+		$result  = ContractApi::record_sale(
+			$payload,
+			array(
+				'type'    => 'woo_order',
+				'payload' => array( 'order_id' => (int) $order->get_id() ),
+			)
+		);
 
 		if ( is_array( $result ) && 'created' === $result['status'] ) {
 			$attr = Ledger::attribution_for( self::SOURCE, (string) $order->get_id() );
@@ -401,7 +409,12 @@ final class WooCommerce {
 	 */
 	public static function run_job( $handled, $type, $payload ) {
 		if ( 'woo_order' === $type && ! empty( $payload['order_id'] ) ) {
-			self::sync_order( (int) $payload['order_id'] );
+			$order = wc_get_order( (int) $payload['order_id'] );
+			if ( ! $order || ! $order->is_paid() || Ledger::attribution_for( self::SOURCE, (string) $order->get_id() ) ) {
+				return true; // Nothing (left) to do.
+			}
+			// Rebuilt from the current order (incl. refunds so far); exceptions propagate to the job runner.
+			Ledger::record_sale( ContractApi::normalize_sale( apply_filters( 'wpac_wc_sale_payload', self::payload( $order ), $order ) ) );
 			return true;
 		}
 		return $handled;
@@ -517,7 +530,8 @@ final class WooCommerce {
 		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
 			return;
 		}
-		$current = apply_filters( 'wpac_coupon_affiliate', null, $coupon->get_code() );
+		$row     = CodeRepository::find_by_coupon( $coupon->get_code(), true );
+		$current = $row ? (int) $row->affiliate_id : 0;
 		list( $affiliates ) = AffiliateRepository::query(
 			array(
 				'status' => 'active',
@@ -528,13 +542,18 @@ final class WooCommerce {
 		foreach ( $affiliates as $a ) {
 			$options[ (int) $a->id ] = $a->name . ' (' . $a->slug . ')';
 		}
+		// Keep the current partner selectable even if paused, so saving the coupon never unlinks it by accident.
+		if ( $current && ! isset( $options[ $current ] ) ) {
+			$aff                 = AffiliateRepository::find( $current );
+			$options[ $current ] = ( $aff ? $aff->name : '#' . $current ) . ' – ' . ( $aff ? $aff->status : '' );
+		}
 		wp_nonce_field( 'wpac_coupon', '_wpac_coupon_nonce' );
 		woocommerce_wp_select(
 			array(
 				'id'          => 'wpac_coupon_affiliate',
 				'label'       => __( 'Affiliate partner', 'wp-affiliate-captain' ),
 				'options'     => $options,
-				'value'       => $current ? (string) $current['affiliate_id'] : '',
+				'value'       => $current ? (string) $current : '',
 				'description' => __( 'Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon.', 'wp-affiliate-captain' ),
 				'desc_tip'    => true,
 			)
@@ -542,7 +561,8 @@ final class WooCommerce {
 	}
 
 	/**
-	 * Save coupon ↔ affiliate link as a partner code with coupon reference.
+	 * Save coupon ↔ affiliate link. The link is stored on a partner code row
+	 * (coupon_code column); partner codes of other affiliates are never touched.
 	 *
 	 * @param int        $coupon_id Coupon ID.
 	 * @param \WC_Coupon $coupon    Coupon.
@@ -553,19 +573,26 @@ final class WooCommerce {
 		}
 		$aff_id = isset( $_POST['wpac_coupon_affiliate'] ) ? absint( $_POST['wpac_coupon_affiliate'] ) : 0;
 		$code   = $coupon->get_code();
-		$row    = CodeRepository::find_by_code( $code );
-		if ( $row && (int) $row->affiliate_id === $aff_id ) {
-			if ( CodeRepository::normalize_coupon( $code ) !== $row->coupon_code ) {
-				CodeRepository::set_coupon( (int) $row->id, $code );
-			}
+		$linked = CodeRepository::find_by_coupon( $code, true );
+
+		if ( $linked && (int) $linked->affiliate_id === $aff_id ) {
+			return; // Unchanged.
+		}
+		if ( $linked ) {
+			// Unlink from the previous partner; keep the row for history.
+			CodeRepository::set_coupon( (int) $linked->id, '' );
+			CodeRepository::set_status( (int) $linked->id, 'blocked' );
+		}
+		if ( ! $aff_id ) {
 			return;
 		}
-		if ( $row && (int) $row->affiliate_id !== $aff_id ) {
-			// Reassignment: block the old link instead of deleting history.
-			CodeRepository::set_status( (int) $row->id, 'blocked' );
+		// Re-use an earlier (unlinked) row of the same partner for this coupon if there is one.
+		$previous = CodeRepository::find_by_coupon( $code, false, $aff_id );
+		if ( $previous ) {
+			CodeRepository::set_coupon( (int) $previous->id, $code );
+			CodeRepository::set_status( (int) $previous->id, 'active' );
+			return;
 		}
-		if ( $aff_id ) {
-			CodeRepository::create( $aff_id, $code, array( 'coupon_code' => $code ) );
-		}
+		CodeRepository::create( $aff_id, $code, array( 'coupon_code' => $code ) );
 	}
 }

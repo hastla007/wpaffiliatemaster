@@ -223,15 +223,23 @@ final class PayoutService {
 	/**
 	 * Cancel a payout that was not paid yet; commissions return to the pool.
 	 *
-	 * @param int    $id     Payout.
-	 * @param string $reason Reason.
+	 * An exported payout (SEPA file created) may already have been sent to the bank;
+	 * it can only be cancelled with an explicit confirmation that the transfer was not executed.
+	 *
+	 * @param int    $id                Payout.
+	 * @param string $reason            Reason.
+	 * @param bool   $confirm_not_sent  Confirmation for exported payouts.
 	 * @return true|\WP_Error
 	 */
-	public static function cancel( $id, $reason ) {
+	public static function cancel( $id, $reason, $confirm_not_sent = false ) {
 		global $wpdb;
 		$p = self::find( $id );
 		if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
 			return new \WP_Error( 'wpac_state', __( 'Only unpaid payouts can be cancelled.', 'wp-affiliate-captain' ) );
+		}
+		if ( 'exported' === $p->status && ! $confirm_not_sent ) {
+			/* translators: %s: payout number */
+			return new \WP_Error( 'wpac_exported', sprintf( __( 'Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice.', 'wp-affiliate-captain' ), $p->number ) );
 		}
 		if ( '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
@@ -253,17 +261,30 @@ final class PayoutService {
 				);
 			}
 		);
-		Audit::log( 'payout.cancelled', 'payout', (int) $id, array( 'reason' => $reason ) );
+		Audit::log(
+			'payout.cancelled',
+			'payout',
+			(int) $id,
+			array(
+				'reason'        => $reason,
+				'was_exported'  => 'exported' === $p->status,
+			)
+		);
 		return true;
 	}
 
 	/**
 	 * Build a SEPA file for payouts and mark them exported.
 	 *
-	 * @param int[] $ids Payout IDs.
+	 * Already exported payouts are only included again with $allow_reexport
+	 * (e.g. the bank rejected the file) to avoid sending the same transfers twice.
+	 * Payouts whose partner changed bank details after the payout was created are refused.
+	 *
+	 * @param int[] $ids            Payout IDs.
+	 * @param bool  $allow_reexport Include payouts that were already exported.
 	 * @return array|\WP_Error [ filename, xml ]
 	 */
-	public static function sepa_export( array $ids ) {
+	public static function sepa_export( array $ids, $allow_reexport = false ) {
 		global $wpdb;
 		$debtor = array(
 			'name' => (string) Settings::get( 'debtor_name' ),
@@ -281,11 +302,19 @@ final class PayoutService {
 			if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
 				continue;
 			}
+			if ( 'exported' === $p->status && ! $allow_reexport ) {
+				/* translators: %s: payout number */
+				return new \WP_Error( 'wpac_reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'wp-affiliate-captain' ), $p->number ) );
+			}
 			if ( 'EUR' !== $p->currency ) {
 				return new \WP_Error( 'wpac_currency', __( 'SEPA transfers are only possible in EUR.', 'wp-affiliate-captain' ) );
 			}
 			$profile = ProfileRepository::get( (int) $p->affiliate_id );
 			$iban    = ProfileRepository::iban( $profile );
+			if ( $profile && strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
+				/* translators: %s: payout number */
+				return new \WP_Error( 'wpac_profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'wp-affiliate-captain' ), $p->number ) );
+			}
 			if ( ! $iban ) {
 				/* translators: %s: payout number */
 				return new \WP_Error( 'wpac_iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'wp-affiliate-captain' ), $p->number ) );

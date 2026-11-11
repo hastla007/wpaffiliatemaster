@@ -55,10 +55,12 @@ final class ContractApi {
 	/**
 	 * Record a sale; failures are queued for retry.
 	 *
-	 * @param array $payload Payload.
+	 * @param array      $payload Payload.
+	 * @param array|null $retry   Optional retry job [ type, payload ] used instead of the raw payload
+	 *                            (e.g. WooCommerce re-reads the order on retry).
 	 * @return array|\WP_Error
 	 */
-	public static function record_sale( array $payload ) {
+	public static function record_sale( array $payload, $retry = null ) {
 		try {
 			$sale = self::normalize_sale( $payload );
 		} catch ( IntegrationException $e ) {
@@ -67,9 +69,29 @@ final class ContractApi {
 		try {
 			return Ledger::record_sale( $sale );
 		} catch ( \Throwable $e ) {
-			Jobs::enqueue( 'sale', $sale['source'] . ':' . $sale['order_id'], $payload, $e instanceof IntegrationException ? $e->error_code : 'exception', $e->getMessage() );
+			$code = $e instanceof IntegrationException ? $e->error_code : 'exception';
+			if ( is_array( $retry ) && ! empty( $retry['type'] ) ) {
+				Jobs::enqueue( $retry['type'], $sale['source'] . ':' . $sale['order_id'], (array) $retry['payload'], $code, $e->getMessage() );
+			} else {
+				Jobs::enqueue( 'sale', $sale['source'] . ':' . $sale['order_id'], self::strip_personal_data( $payload ), $code, $e->getMessage() );
+			}
 			return new \WP_Error( 'wpac_queued', __( 'The sale could not be processed and was queued for retry.', 'wp-affiliate-captain' ) );
 		}
+	}
+
+	/**
+	 * Remove personal data before a payload is persisted in the retry queue.
+	 * The customer e-mail is only used for the self-referral check and must not be stored;
+	 * on retry the check falls back to the customer user ID.
+	 *
+	 * @param array $payload Payload.
+	 * @return array
+	 */
+	public static function strip_personal_data( array $payload ) {
+		if ( isset( $payload['customer'] ) && is_array( $payload['customer'] ) ) {
+			unset( $payload['customer']['email'] );
+		}
+		return $payload;
 	}
 
 	/**
