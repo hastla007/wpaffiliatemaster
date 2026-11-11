@@ -2778,26 +2778,6 @@ msgid "Recommended by %s"
 msgstr ""
 
 #: src/Reports/MonthlyMail.php
-msgid "Partner program summary %s"
-msgstr ""
-
-#: src/Reports/MonthlyMail.php
-msgid "Applications waiting"
-msgstr ""
-
-#: src/Reports/MonthlyMail.php
-msgid "Not converted (no reference rate)"
-msgstr ""
-
-#: src/Reports/MonthlyMail.php
-msgid "Top partners"
-msgstr ""
-
-#: src/Reports/MonthlyMail.php
-msgid "Partner program %s"
-msgstr ""
-
-#: src/Reports/MonthlyMail.php
 msgid "Hello %s,"
 msgstr ""
 
@@ -2819,6 +2799,26 @@ msgstr ""
 
 #: src/Reports/MonthlyMail.php
 msgid "Your partner summary %s"
+msgstr ""
+
+#: src/Reports/MonthlyMail.php
+msgid "Partner program summary %s"
+msgstr ""
+
+#: src/Reports/MonthlyMail.php
+msgid "Applications waiting"
+msgstr ""
+
+#: src/Reports/MonthlyMail.php
+msgid "Not converted (no reference rate)"
+msgstr ""
+
+#: src/Reports/MonthlyMail.php
+msgid "Top partners"
+msgstr ""
+
+#: src/Reports/MonthlyMail.php
+msgid "Partner program %s"
 msgstr ""
 
 #: src/Reports/Reports.php
@@ -2866,15 +2866,15 @@ msgid "Coupon of another partner used"
 msgstr ""
 
 #: assets/js/blocks.js
-msgid "Partner application form"
-msgstr ""
-
-#: assets/js/blocks.js
 msgid "Settings"
 msgstr ""
 
 #: assets/js/blocks.js
 msgid "Fixed partner group ID (0 = applicant chooses)"
+msgstr ""
+
+#: assets/js/blocks.js
+msgid "Partner application form"
 msgstr ""
 
 #: assets/js/blocks.js
@@ -2890,10 +2890,6 @@ msgid "Logged-in partners see statistics, links, creatives, commissions and payo
 msgstr ""
 
 #: assets/js/blocks.js
-msgid "Partner welcome"
-msgstr ""
-
-#: assets/js/blocks.js
 msgid "Text (%s = partner name)"
 msgstr ""
 
@@ -2903,4 +2899,44 @@ msgstr ""
 
 #: assets/js/blocks.js
 msgid "Lists the pages marked as \"Recommend as partner target\" with personal partner links."
+msgstr ""
+
+#: blocks
+msgctxt "block title"
+msgid "Recommended partner targets"
+msgstr ""
+
+#: blocks
+msgctxt "block description"
+msgid "Pages recommended as partner targets, with personal partner links."
+msgstr ""
+
+#: blocks
+msgctxt "block title"
+msgid "Partner welcome"
+msgstr ""
+
+#: blocks
+msgctxt "block description"
+msgid "Shows \"Recommended by …\" for visitors coming via a partner link."
+msgstr ""
+
+#: blocks
+msgctxt "block title"
+msgid "Partner area"
+msgstr ""
+
+#: blocks
+msgctxt "block description"
+msgid "Statistics, links, creatives, commissions and payouts for logged-in partners."
+msgstr ""
+
+#: blocks
+msgctxt "block title"
+msgid "Partner application form"
+msgstr ""
+
+#: blocks
+msgctxt "block description"
+msgid "Application form for your partner program."
 msgstr ""

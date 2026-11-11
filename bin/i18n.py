@@ -62,6 +62,21 @@ def js_strings():
     return out
 
 
+def block_strings():
+    """(context, msgid) pairs from blocks/*/block.json (translated by WordPress with these contexts)."""
+    out = []
+    base = os.path.join(ROOT, "blocks")
+    for name in sorted(os.listdir(base)) if os.path.isdir(base) else []:
+        path = os.path.join(base, name, "block.json")
+        if not os.path.exists(path):
+            continue
+        meta = json.load(open(path, encoding="utf-8"))
+        for field, ctx in (("title", "block title"), ("description", "block description")):
+            if meta.get(field) and (ctx, meta[field]) not in out:
+                out.append((ctx, meta[field]))
+    return out
+
+
 def po_escape(s):
     return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
@@ -78,6 +93,8 @@ def write_pot():
             lines += ['msgstr ""', ""]
     for s in js_strings():
         lines += ["#: assets/js/blocks.js", 'msgid "%s"' % po_escape(s), 'msgstr ""', ""]
+    for ctx, s in block_strings():
+        lines += ["#: blocks", 'msgctxt "%s"' % ctx, 'msgid "%s"' % po_escape(s), 'msgstr ""', ""]
     open(os.path.join(ROOT, "languages", DOMAIN + ".pot"), "w", encoding="utf-8").write("\n".join(lines))
     return len(strings) + len(js_strings())
 
@@ -127,6 +144,12 @@ def build(locale):
                 continue
             entries[s] = tr[s]
             po += ['msgid "%s"' % po_escape(s), 'msgstr "%s"' % po_escape(tr[s]), ""]
+    for ctx, s in block_strings():
+        if s not in tr:
+            missing.append(s)
+            continue
+        entries[ctx + "\x04" + s] = tr[s]
+        po += ['msgctxt "%s"' % ctx, 'msgid "%s"' % po_escape(s), 'msgstr "%s"' % po_escape(tr[s]), ""]
     js = {}
     for s in js_strings():
         if s in tr:
@@ -151,7 +174,7 @@ if __name__ == "__main__":
         for (s, p), _ in php_strings().items():
             if s not in tr:
                 print(json.dumps(s, ensure_ascii=False))
-        for s in js_strings():
+        for s in js_strings() + [b for _, b in block_strings()]:
             if s not in tr:
                 print(json.dumps(s, ensure_ascii=False))
     elif cmd == "build":

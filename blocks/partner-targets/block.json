@@ -1,0 +1,15 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wpac/partner-targets",
+	"title": "Recommended partner targets",
+	"category": "widgets",
+	"icon": "admin-links",
+	"description": "Pages recommended as partner targets, with personal partner links.",
+	"textdomain": "wp-affiliate-captain",
+	"attributes": {},
+	"supports": {
+		"html": false
+	},
+	"editorScript": "wpac-blocks"
+}

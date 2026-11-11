@@ -19,7 +19,7 @@ final class Installer {
 		Capabilities::install();
 		Cron::schedule();
 		if ( false === get_option( Settings::OPTION ) ) {
-			add_option( Settings::OPTION, Settings::defaults(), '', false );
+			add_option( Settings::OPTION, Settings::defaults(), '', true );
 		}
 	}
 

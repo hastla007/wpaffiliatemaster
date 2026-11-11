@@ -31,16 +31,52 @@ final class MonthlyMail {
 			return;
 		}
 		update_option( self::OPTION, $month, false ); // Mark first: never send twice even if mails fail.
-		self::send( $month );
+		self::send( $month, true );
+		if ( Settings::get( 'report_partners' ) ) {
+			update_option(
+				self::PROGRESS,
+				array(
+					'month'  => $month,
+					'offset' => 0,
+				),
+				false
+			);
+			wp_schedule_single_event( time() + 30, self::BATCH_HOOK );
+		}
+	}
+
+	const PROGRESS   = 'wpac_report_progress';
+	const BATCH_HOOK = 'wpac_report_batch';
+	const BATCH_SIZE = 50;
+
+	/**
+	 * Send the next batch of partner summaries (single cron events until done).
+	 */
+	public static function batch() {
+		$progress = get_option( self::PROGRESS );
+		if ( ! is_array( $progress ) || empty( $progress['month'] ) ) {
+			return;
+		}
+		$sent = self::send( $progress['month'], false, (int) $progress['offset'], self::BATCH_SIZE );
+		if ( $sent['remaining'] > 0 ) {
+			$progress['offset'] += self::BATCH_SIZE;
+			update_option( self::PROGRESS, $progress, false );
+			wp_schedule_single_event( time() + 60, self::BATCH_HOOK );
+		} else {
+			delete_option( self::PROGRESS );
+		}
 	}
 
 	/**
 	 * Send the summaries for a month.
 	 *
-	 * @param string $month YYYY-MM.
-	 * @return int Number of e-mails.
+	 * @param string $month       YYYY-MM.
+	 * @param bool   $admin_only  Only the operator summary (partners are sent in batches).
+	 * @param int    $offset      Partner offset.
+	 * @param int    $limit       Partner batch size (0 = all).
+	 * @return array|int Number of e-mails (admin) or [ sent, remaining ] (partners).
 	 */
-	public static function send( $month ) {
+	public static function send( $month, $admin_only = false, $offset = 0, $limit = 0 ) {
 		$from     = $month . '-01';
 		$to       = gmdate( 'Y-m-t', strtotime( $from ) );
 		$currency = (string) Settings::get( 'currency' );
@@ -52,50 +88,19 @@ final class MonthlyMail {
 			return html_entity_decode( Money::format( (int) $minor, $currency ), ENT_QUOTES, 'UTF-8' );
 		};
 
-		if ( Settings::get( 'report_admin' ) ) {
-			$tot = array(
-				'visits'      => 0,
-				'orders'      => 0,
-				'revenue'     => 0,
-				'commission'  => 0,
-				'corrections' => 0,
-				'bonus'       => 0,
-			);
-			foreach ( $rows as $r ) {
-				foreach ( $tot as $k => $v ) {
-					$tot[ $k ] += $r[ $k ];
-				}
+		if ( $admin_only ) {
+			if ( Settings::get( 'report_admin' ) ) {
+				self::send_admin( $month, $rows, $unconv, $fmt, $site, $from, $to );
+				Audit::log( 'report.monthly_admin_sent', 'report', 0, array( 'month' => $month ) );
+				return 1;
 			}
-			$lines   = array();
-			$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'wp-affiliate-captain' ), $month );
-			$lines[] = '';
-			$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $tot['visits'];
-			$lines[] = __( 'Attributed orders', 'wp-affiliate-captain' ) . ': ' . $tot['orders'];
-			$lines[] = __( 'Net revenue', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['revenue'] );
-			$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['commission'] );
-			$lines[] = __( 'Corrections', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['corrections'] );
-			$lines[] = __( 'Monthly bonuses', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['bonus'] );
-			$counts  = AffiliateRepository::count_by_status();
-			$lines[] = __( 'Applications waiting', 'wp-affiliate-captain' ) . ': ' . (int) $counts['pending'];
-			$lines[] = __( 'Open payout requests', 'wp-affiliate-captain' ) . ': ' . count( PayoutRequests::query( 'requested' ) );
-			if ( $unconv ) {
-				$lines[] = __( 'Not converted (no reference rate)', 'wp-affiliate-captain' ) . ': ' . implode( ', ', $unconv );
-			}
-			$lines[] = '';
-			$lines[] = __( 'Top partners', 'wp-affiliate-captain' ) . ':';
-			foreach ( array_slice( $rows, 0, 10 ) as $r ) {
-				$lines[] = sprintf( '- %s: %d / %s', $r['name'], $r['orders'], $fmt( $r['commission'] ) );
-			}
-			$lines[] = '';
-			$lines[] = admin_url( 'admin.php?page=wpac&from=' . $from . '&to=' . $to );
-			$to_mail = (string) Settings::get( 'admin_email' );
-			wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) );
-			++$sent;
+			return 0;
 		}
-
+		$remaining = 0;
 		if ( Settings::get( 'report_partners' ) ) {
-			$portal = (int) Settings::get( 'portal_page_id' );
-			foreach ( $rows as $r ) {
+			$portal    = (int) Settings::get( 'portal_page_id' );
+			$remaining = max( 0, count( $rows ) - $offset - ( $limit ? $limit : count( $rows ) ) );
+			foreach ( $limit ? array_slice( $rows, $offset, $limit ) : $rows as $r ) {
 				$aff = AffiliateRepository::find( $r['affiliate_id'] );
 				if ( ! $aff || 'active' !== $aff->status || ( ! $r['orders'] && ! $r['visits'] && ! $r['commission'] ) ) {
 					continue;
@@ -123,14 +128,69 @@ final class MonthlyMail {
 			}
 		}
 		Audit::log(
-			'report.monthly_sent',
+			'report.monthly_partner_batch',
 			'report',
 			0,
 			array(
-				'month' => $month,
-				'mails' => $sent,
+				'month'  => $month,
+				'mails'  => $sent,
+				'offset' => $offset,
 			)
 		);
-		return $sent;
+		return array(
+			'sent'      => $sent,
+			'remaining' => $remaining,
+		);
+	}
+
+	/**
+	 * Operator summary.
+	 *
+	 * @param string   $month  Month.
+	 * @param array    $rows   Partner rows.
+	 * @param array    $unconv Unconverted currencies.
+	 * @param callable $fmt    Money formatter.
+	 * @param string   $site   Site name.
+	 * @param string   $from   From date.
+	 * @param string   $to     To date.
+	 */
+	private static function send_admin( $month, array $rows, array $unconv, $fmt, $site, $from, $to ) {
+		$tot = array(
+			'visits'      => 0,
+			'orders'      => 0,
+			'revenue'     => 0,
+			'commission'  => 0,
+			'corrections' => 0,
+			'bonus'       => 0,
+		);
+		foreach ( $rows as $r ) {
+			foreach ( $tot as $k => $v ) {
+				$tot[ $k ] += $r[ $k ];
+			}
+		}
+		$lines   = array();
+		$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'wp-affiliate-captain' ), $month );
+		$lines[] = '';
+		$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $tot['visits'];
+		$lines[] = __( 'Attributed orders', 'wp-affiliate-captain' ) . ': ' . $tot['orders'];
+		$lines[] = __( 'Net revenue', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['revenue'] );
+		$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['commission'] );
+		$lines[] = __( 'Corrections', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['corrections'] );
+		$lines[] = __( 'Monthly bonuses', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['bonus'] );
+		$counts  = AffiliateRepository::count_by_status();
+		$lines[] = __( 'Applications waiting', 'wp-affiliate-captain' ) . ': ' . (int) $counts['pending'];
+		$lines[] = __( 'Open payout requests', 'wp-affiliate-captain' ) . ': ' . count( PayoutRequests::query( 'requested' ) );
+		if ( $unconv ) {
+			$lines[] = __( 'Not converted (no reference rate)', 'wp-affiliate-captain' ) . ': ' . implode( ', ', $unconv );
+		}
+		$lines[] = '';
+		$lines[] = __( 'Top partners', 'wp-affiliate-captain' ) . ':';
+		foreach ( array_slice( $rows, 0, 10 ) as $r ) {
+			$lines[] = sprintf( '- %s: %d / %s', $r['name'], $r['orders'], $fmt( $r['commission'] ) );
+		}
+		$lines[] = '';
+		$lines[] = admin_url( 'admin.php?page=wpac&from=' . $from . '&to=' . $to );
+		$to_mail = (string) Settings::get( 'admin_email' );
+		wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) );
 	}
 }

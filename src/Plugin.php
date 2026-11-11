@@ -31,7 +31,14 @@ final class Plugin {
 		}
 		self::$booted = true;
 
-		load_plugin_textdomain( 'wp-affiliate-captain', false, dirname( plugin_basename( WPAC_FILE ) ) . '/languages' );
+		// Translations are loaded at init (WordPress 6.7+ warns about earlier loading).
+		add_action(
+			'init',
+			static function () {
+				load_plugin_textdomain( 'wp-affiliate-captain', false, dirname( plugin_basename( WPAC_FILE ) ) . '/languages' );
+			},
+			1
+		);
 
 		Installer::maybe_upgrade();
 

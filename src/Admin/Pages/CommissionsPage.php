@@ -162,6 +162,7 @@ final class CommissionsPage {
 			echo '<tr><td colspan="9">' . esc_html__( 'No commissions found.', 'wp-affiliate-captain' ) . '</td></tr>';
 		}
 		$names = array();
+		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
 		foreach ( $rows as $r ) {
 			if ( ! isset( $names[ $r->affiliate_id ] ) ) {
 				$a                         = AffiliateRepository::find( (int) $r->affiliate_id );

@@ -51,9 +51,8 @@ final class WooCommerce {
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'sync_refund' ), 10, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( __CLASS__, 'full_reversal_refunded' ) );
 		add_action( 'woocommerce_order_status_cancelled', array( __CLASS__, 'full_reversal_cancelled' ) );
-		foreach ( (array) apply_filters( 'wpac_wc_chargeback_statuses', array() ) as $status ) {
-			add_action( 'woocommerce_order_status_' . sanitize_key( $status ), array( __CLASS__, 'full_reversal_chargeback' ) );
-		}
+		// Evaluated at status change time, so filters from themes/snippets (loaded later) apply.
+		add_action( 'woocommerce_order_status_changed', array( __CLASS__, 'maybe_chargeback' ), 10, 3 );
 		add_filter( 'wpac_run_job', array( __CLASS__, 'run_job' ), 10, 3 );
 
 		// Admin: order meta box and coupon ↔ affiliate link.
@@ -268,6 +267,10 @@ final class WooCommerce {
 		if ( Ledger::attribution_for( self::SOURCE, (string) $order->get_id() ) ) {
 			return;
 		}
+		// Already resolved without a partner (payment_complete + processing + completed fire for the same order).
+		if ( 'none' === $order->get_meta( '_wpac_resolved' ) && ! $order->get_meta( self::META_MANUAL ) ) {
+			return;
+		}
 		$payload = self::payload( $order );
 		/**
 		 * Filter the WooCommerce sale payload before it is recorded (e.g. connector add-ons
@@ -285,6 +288,10 @@ final class WooCommerce {
 			)
 		);
 
+		if ( is_array( $result ) && 'unattributed' === $result['status'] ) {
+			$order->update_meta_data( '_wpac_resolved', 'none' );
+			$order->save_meta_data();
+		}
 		if ( is_array( $result ) && 'created' === $result['status'] ) {
 			$attr = Ledger::attribution_for( self::SOURCE, (string) $order->get_id() );
 			if ( $attr ) {
@@ -370,6 +377,20 @@ final class WooCommerce {
 	 */
 	public static function full_reversal_cancelled( $order_id ) {
 		self::full_reversal( $order_id, 'cancellation', __( 'Order cancelled', 'wp-affiliate-captain' ) );
+	}
+
+	/**
+	 * Status change: treat configured statuses as chargeback.
+	 *
+	 * @param int    $order_id Order.
+	 * @param string $from     Old status.
+	 * @param string $to       New status.
+	 */
+	public static function maybe_chargeback( $order_id, $from, $to ) {
+		$statuses = array_map( 'sanitize_key', (array) apply_filters( 'wpac_wc_chargeback_statuses', array() ) );
+		if ( in_array( sanitize_key( $to ), $statuses, true ) ) {
+			self::full_reversal_chargeback( $order_id );
+		}
 	}
 
 	/**

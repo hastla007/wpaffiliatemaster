@@ -123,12 +123,13 @@ final class CodeRepository {
 	 * @return string
 	 */
 	public static function main_code( $affiliate_id ) {
-		foreach ( self::for_affiliate( $affiliate_id ) as $c ) {
+		$codes = self::for_affiliate( $affiliate_id );
+		foreach ( $codes as $c ) {
 			if ( '' === $c->batch && '' === $c->coupon_code && self::validate( $c ) ) {
 				return $c->code;
 			}
 		}
-		foreach ( self::for_affiliate( $affiliate_id ) as $c ) {
+		foreach ( $codes as $c ) {
 			if ( '' === $c->batch && self::validate( $c ) ) {
 				return $c->code;
 			}

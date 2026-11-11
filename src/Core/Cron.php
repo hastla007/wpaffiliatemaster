@@ -19,6 +19,7 @@ final class Cron {
 	public static function register_hooks() {
 		add_action( self::HOURLY, array( __CLASS__, 'hourly' ) );
 		add_action( self::DAILY, array( __CLASS__, 'daily' ) );
+		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'batch' ) );
 	}
 
 	public static function schedule() {
@@ -33,6 +34,7 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
+		wp_clear_scheduled_hook( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK );
 	}
 
 	public static function hourly() {

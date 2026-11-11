@@ -256,7 +256,17 @@ final class RestApi {
 	 */
 	private static function result( $result ) {
 		if ( is_wp_error( $result ) ) {
-			$result->add_data( array( 'status' => 'wpac_queued' === $result->get_error_code() ? 202 : 400 ) );
+			if ( 'wpac_queued' === $result->get_error_code() ) {
+				// Accepted for asynchronous retry – not an error for the client.
+				return new \WP_REST_Response(
+					array(
+						'status'  => 'queued',
+						'message' => $result->get_error_message(),
+					),
+					202
+				);
+			}
+			$result->add_data( array( 'status' => 400 ) );
 		}
 		return $result;
 	}

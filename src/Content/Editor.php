@@ -52,34 +52,31 @@ final class Editor {
 		if ( function_exists( 'wp_set_script_translations' ) ) {
 			wp_set_script_translations( 'wpac-blocks', 'wp-affiliate-captain', WPAC_DIR . 'languages' );
 		}
-		$common = array(
-			'editor_script' => 'wpac-blocks',
-			'category'      => 'widgets',
-		);
+		$dir = WPAC_DIR . 'blocks/';
 		register_block_type(
-			'wpac/registration',
-			$common + array(
-				'attributes'      => array( 'group' => array( 'type' => 'number', 'default' => 0 ) ),
+			$dir . 'registration',
+			array(
 				'render_callback' => static function ( $atts ) {
 					return Registration::render( array( 'group' => isset( $atts['group'] ) ? (int) $atts['group'] : 0 ) );
 				},
 			)
 		);
 		register_block_type(
-			'wpac/portal',
-			$common + array(
+			$dir . 'portal',
+			array(
 				'render_callback' => static function () {
 					return Portal::render();
 				},
 			)
 		);
 		register_block_type(
-			'wpac/partner-welcome',
-			$common + array(
-				'attributes'      => array( 'text' => array( 'type' => 'string', 'default' => '' ) ),
+			$dir . 'partner-welcome',
+			array(
 				'render_callback' => static function ( $atts ) {
 					$text = isset( $atts['text'] ) && '' !== $atts['text'] ? array( 'text' => $atts['text'] ) : array();
-					if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+					// Placeholder only for the editor preview (block renderer, context=edit) – not for headless clients.
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+					if ( defined( 'REST_REQUEST' ) && REST_REQUEST && isset( $_GET['context'] ) && 'edit' === $_GET['context'] ) {
 						return '<div class="wpac-welcome"><strong>' . esc_html__( 'Recommended by [partner name]', 'wp-affiliate-captain' ) . '</strong><p>' . esc_html__( 'Visible only for visitors coming via a partner link.', 'wp-affiliate-captain' ) . '</p></div>';
 					}
 					return Landing::welcome( $text );
@@ -87,8 +84,8 @@ final class Editor {
 			)
 		);
 		register_block_type(
-			'wpac/partner-targets',
-			$common + array(
+			$dir . 'partner-targets',
+			array(
 				'render_callback' => static function () {
 					return self::render_targets();
 				},

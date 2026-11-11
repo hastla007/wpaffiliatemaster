@@ -200,23 +200,41 @@ msgstr "Jetzt bewerben"
 msgid "Invalid field definition: %s"
 msgstr "Ungültige Felddefinition: %s"
 
-msgid "Partner program summary %s"
-msgstr "Zusammenfassung Partnerprogramm %s"
+msgid "Hello %s,"
+msgstr "Hallo %s,"
+
+msgid "here is your summary for %s:"
+msgstr "hier ist Ihre Zusammenfassung für %s:"
 
 msgid "Link visits"
 msgstr "Link-Besuche"
 
-msgid "Attributed orders"
-msgstr "Zugeordnete Bestellungen"
-
-msgid "Net revenue"
-msgstr "Nettoumsatz"
+msgid "Sales"
+msgstr "Verkäufe"
 
 msgid "Commission"
 msgstr "Provision"
 
 msgid "Corrections"
 msgstr "Korrekturen"
+
+msgid "Monthly bonus"
+msgstr "Monatsbonus"
+
+msgid "Available for payout"
+msgstr "Für Auszahlung verfügbar"
+
+msgid "Your partner summary %s"
+msgstr "Ihre Partner-Zusammenfassung %s"
+
+msgid "Partner program summary %s"
+msgstr "Zusammenfassung Partnerprogramm %s"
+
+msgid "Attributed orders"
+msgstr "Zugeordnete Bestellungen"
+
+msgid "Net revenue"
+msgstr "Nettoumsatz"
 
 msgid "Monthly bonuses"
 msgstr "Monatsboni"
@@ -235,24 +253,6 @@ msgstr "Top-Partner"
 
 msgid "Partner program %s"
 msgstr "Partnerprogramm %s"
-
-msgid "Hello %s,"
-msgstr "Hallo %s,"
-
-msgid "here is your summary for %s:"
-msgstr "hier ist Ihre Zusammenfassung für %s:"
-
-msgid "Sales"
-msgstr "Verkäufe"
-
-msgid "Monthly bonus"
-msgstr "Monatsbonus"
-
-msgid "Available for payout"
-msgstr "Für Auszahlung verfügbar"
-
-msgid "Your partner summary %s"
-msgstr "Ihre Partner-Zusammenfassung %s"
 
 msgid "(no content / direct)"
 msgstr "(kein Inhalt / direkt)"
@@ -2152,3 +2152,35 @@ msgstr "Dieser Code wird bereits verwendet."
 
 msgid "The code could not be saved."
 msgstr "Der Code konnte nicht gespeichert werden."
+
+msgctxt "block title"
+msgid "Recommended partner targets"
+msgstr "Empfohlene Partnerziele"
+
+msgctxt "block description"
+msgid "Pages recommended as partner targets, with personal partner links."
+msgstr "Als Partner-Ziel empfohlene Seiten mit persönlichen Partnerlinks."
+
+msgctxt "block title"
+msgid "Partner welcome"
+msgstr "Partner-Begrüßung"
+
+msgctxt "block description"
+msgid "Shows \"Recommended by …\" for visitors coming via a partner link."
+msgstr "Zeigt „Empfohlen von …“ für Besucher, die über einen Partnerlink kommen."
+
+msgctxt "block title"
+msgid "Partner area"
+msgstr "Partnerbereich"
+
+msgctxt "block description"
+msgid "Statistics, links, creatives, commissions and payouts for logged-in partners."
+msgstr "Statistiken, Links, Werbemittel, Provisionen und Auszahlungen für angemeldete Partner."
+
+msgctxt "block title"
+msgid "Partner application form"
+msgstr "Partner-Bewerbungsformular"
+
+msgctxt "block description"
+msgid "Application form for your partner program."
+msgstr "Bewerbungsformular für Ihr Partnerprogramm."

@@ -75,6 +75,7 @@ final class Reports {
 		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, COUNT(*) n FROM {$v} WHERE created_at BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id", $start, $end ), OBJECT_K );
 		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, COUNT(*) n FROM {$at} WHERE created_at BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id", $start, $end ), OBJECT_K );
 		// phpcs:enable
+		AffiliateRepository::find_many( array_merge( wp_list_pluck( $money, 'affiliate_id' ), array_keys( $visits ), array_keys( $orders ) ) );
 		$rows = array();
 		$init = static function ( $id ) {
 			$aff = AffiliateRepository::find( (int) $id );
@@ -195,26 +196,46 @@ final class Reports {
 	}
 
 	/**
-	 * Stats of one content item (editor meta box).
+	 * Stats of one content item (editor panel) – targeted queries for this ID only.
 	 *
 	 * @param int $post_id Post.
 	 * @param int $days    Days.
-	 * @return array visits, orders, revenue, commission
+	 * @return array visits, partners, orders, revenue, commission, conversion
 	 */
 	public static function for_content( $post_id, $days = 90 ) {
-		$from = gmdate( 'Y-m-d', time() - $days * DAY_IN_SECONDS );
-		foreach ( self::by_dimension( 'content_id', $from, gmdate( 'Y-m-d' ) ) as $r ) {
-			if ( (int) $r['key'] === (int) $post_id ) {
-				return $r;
-			}
-		}
-		return array(
-			'visits'     => 0,
+		global $wpdb;
+		self::$unconverted = array();
+		$since             = Db::now( time() - $days * DAY_IN_SECONDS );
+		$v                 = Db::table( 'visits' );
+		$at                = Db::table( 'attributions' );
+		$c                 = Db::table( 'commissions' );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$visits = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE content_id = %d AND created_at >= %s", $post_id, $since ) );
+		$sales  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT c.currency, COUNT(DISTINCT a.id) orders,
+					SUM(CASE WHEN c.kind = 'sale' THEN c.base_minor ELSE 0 END) revenue,
+					SUM(COALESCE(c.amount_minor,0)) commission
+				FROM {$at} a LEFT JOIN {$c} c ON c.source = a.source AND c.source_order_id = a.source_order_id AND c.status <> 'rejected' AND c.kind <> 'bonus'
+				WHERE a.content_id = %d AND a.created_at >= %s GROUP BY c.currency",
+				$post_id,
+				$since
+			)
+		);
+		// phpcs:enable
+		$row = array(
+			'visits'     => $visits ? (int) $visits->n : 0,
+			'partners'   => $visits ? (int) $visits->partners : 0,
 			'orders'     => 0,
 			'revenue'    => 0,
 			'commission' => 0,
-			'partners'   => 0,
-			'conversion' => 0,
 		);
+		foreach ( $sales as $s ) {
+			$row['orders'] += (int) $s->orders;
+			self::add( $row, 'revenue', (int) $s->revenue, $s->currency );
+			self::add( $row, 'commission', (int) $s->commission, $s->currency );
+		}
+		$row['conversion'] = $row['visits'] > 0 ? round( $row['orders'] * 100 / $row['visits'], 1 ) : 0;
+		return $row;
 	}
 }

@@ -12,6 +12,11 @@ if [ "$HEADER_VERSION" != "$CONST_VERSION" ]; then
 	echo "Version mismatch: header $HEADER_VERSION vs WPAC_VERSION $CONST_VERSION" >&2
 	exit 1
 fi
+README_TAG=$(sed -n 's/^Stable tag: *//p' readme.txt | tr -d '\r')
+if [ "$README_TAG" != "$HEADER_VERSION" ]; then
+	echo "Version mismatch: readme.txt Stable tag $README_TAG vs plugin $HEADER_VERSION" >&2
+	exit 1
+fi
 if [ -n "${1:-}" ] && [ "${1#v}" != "$HEADER_VERSION" ]; then
 	echo "Version mismatch: expected ${1#v}, plugin is $HEADER_VERSION" >&2
 	exit 1
@@ -22,7 +27,7 @@ php tests/run.php
 BUILD=$(mktemp -d)
 trap 'rm -rf "$BUILD"' EXIT
 mkdir -p "$BUILD/$SLUG" dist
-cp -R wp-affiliate-captain.php uninstall.php README.md src assets languages docs "$BUILD/$SLUG/"
+cp -R wp-affiliate-captain.php uninstall.php readme.txt README.md src assets blocks languages docs "$BUILD/$SLUG/"
 find "$BUILD/$SLUG" -name '.DS_Store' -delete
 for f in $(find "$BUILD/$SLUG" -name '*.php'); do php -l "$f" >/dev/null; done
 

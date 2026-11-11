@@ -226,6 +226,23 @@ try {
 }
 check( 'K rollback keeps sequence gapless', 4, (int) $GLOBALS['wpdb']->get_var( 'SELECT value FROM ' . t( 'sequences' ) . " WHERE name = 'credit'" ) );
 
+/* M: monthly partner summaries in batches ------------------------------ */
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'report_partners' => 1, 'report_admin' => 1 ) ) );
+Settings::flush_cache();
+$month = gmdate( 'Y-m' );
+$GLOBALS['test_mails'] = array();
+$r1 = WPAffiliateCaptain\Reports\MonthlyMail::send( $month, false, 0, 2 );
+check( 'M first batch: 2 partner mails', 2, $r1['sent'] );
+check( 'M one partner remaining', 1, $r1['remaining'] );
+$r2 = WPAffiliateCaptain\Reports\MonthlyMail::send( $month, false, 2, 2 );
+check( 'M second batch: last partner', array( 'sent' => 1, 'remaining' => 0 ), $r2 );
+check( 'M admin summary separate', 1, WPAffiliateCaptain\Reports\MonthlyMail::send( $month, true ) );
+update_option( 'wpac_report_progress', array( 'month' => $month, 'offset' => 0 ) );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Reports\MonthlyMail::batch();
+check( 'M batch reschedules while partners remain', array(), $GLOBALS['test_scheduled'] ); // 3 partners < batch size 50 → done.
+check( 'M progress cleared', false, get_option( 'wpac_report_progress' ) );
+
 /* J: schema migration v2 → v3 (payout_items) -------------------------- */
 $pi = t( 'payout_items' );
 q( "DROP TABLE {$pi}" );

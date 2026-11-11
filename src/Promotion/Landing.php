@@ -45,7 +45,7 @@ final class Landing {
 		$key = 'v' . WPAC_DB_VERSION . ':' . Settings::get( 'landing_prefix' );
 		if ( get_option( 'wpac_rewrite_flushed' ) !== $key ) {
 			flush_rewrite_rules( false );
-			update_option( 'wpac_rewrite_flushed', $key, false );
+			update_option( 'wpac_rewrite_flushed', $key, true );
 		}
 	}
 

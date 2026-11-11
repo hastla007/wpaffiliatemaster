@@ -1,0 +1,20 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wpac/registration",
+	"title": "Partner application form",
+	"category": "widgets",
+	"icon": "groups",
+	"description": "Application form for your partner program.",
+	"textdomain": "wp-affiliate-captain",
+	"attributes": {
+		"group": {
+			"type": "number",
+			"default": 0
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"editorScript": "wpac-blocks"
+}

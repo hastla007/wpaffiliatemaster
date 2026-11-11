@@ -246,3 +246,7 @@ WPAffiliateCaptain\Codes\CodeRepository::register_hooks();
 WPAffiliateCaptain\Sales\ContractApi::register_hooks();
 function user_can( $u, $c ) { return false; }
 function untrailingslashit( $p ) { return rtrim( $p, '/\\' ); }
+function wp_list_pluck( $l, $f ) { return array_map( function ( $r ) use ( $f ) { return is_object( $r ) ? $r->$f : $r[ $f ]; }, $l ); }
+$GLOBALS['test_scheduled'] = array();
+function wp_schedule_single_event( $ts, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
+function get_permalink( $id ) { return 'http://example.test/?p=' . (int) $id; }

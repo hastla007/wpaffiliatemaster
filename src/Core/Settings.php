@@ -123,7 +123,7 @@ final class Settings {
 	 */
 	public static function update( array $values ) {
 		$merged = array_merge( self::all(), $values );
-		update_option( self::OPTION, $merged, false );
+		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 	}
 
