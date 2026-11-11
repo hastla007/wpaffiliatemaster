@@ -42,6 +42,29 @@ final class Cron {
 		Jobs::run_due();
 	}
 
+	/**
+	 * Run a retention DELETE in small transactions (LIMIT batches) so millions of old rows never become
+	 * one huge transaction with long locks and a large undo log.
+	 *
+	 * @param string $delete_sql Prepared DELETE statement without LIMIT.
+	 * @param int    $batch      Rows per batch.
+	 * @param int    $max        Upper bound of batches per run (the rest follows next day).
+	 * @return int Deleted rows.
+	 */
+	public static function delete_in_batches( $delete_sql, $batch = 5000, $max = 400 ) {
+		global $wpdb;
+		$total = 0;
+		for ( $i = 0; $i < $max; $i++ ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared by the caller.
+			$n = (int) $wpdb->query( $delete_sql . ' LIMIT ' . (int) $batch );
+			$total += max( 0, $n );
+			if ( $n < $batch ) {
+				break;
+			}
+		}
+		return $total;
+	}
+
 	public static function daily() {
 		global $wpdb;
 		\WPAffiliateCaptain\Commissions\TierService::close_due_months();
@@ -52,14 +75,14 @@ final class Cron {
 		if ( $days > 0 ) {
 			$table = Db::table( 'visits' );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
+			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
 		}
 		\WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired();
 		$audit_days = (int) Settings::get( 'audit_retention_days' );
 		if ( $audit_days > 0 ) {
 			$audit = Db::table( 'audit' );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%'", Db::now( time() - $audit_days * DAY_IN_SECONDS ) ) );
+			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%'", Db::now( time() - $audit_days * DAY_IN_SECONDS ) ) );
 		}
 		$jobs = Db::table( 'jobs' );
 		// Failed jobs are kept 180 days for analysis, then removed (payloads may contain order data).

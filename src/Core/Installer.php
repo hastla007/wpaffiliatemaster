@@ -268,7 +268,9 @@ final class Installer {
 			PRIMARY KEY  (id),
 			KEY affiliate_created (affiliate_id,created_at),
 			KEY created_at (created_at),
-			KEY content_id (content_id)
+			KEY content_id (content_id),
+			KEY campaign_created (campaign,created_at,affiliate_id),
+			KEY content_created (content_id,created_at,affiliate_id)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('attributions')} (
