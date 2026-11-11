@@ -44,6 +44,66 @@ final class Notifications {
 	}
 
 	/**
+	 * Double opt-in e-mail for an application.
+	 *
+	 * @param string $email E-mail.
+	 * @param string $name  Name.
+	 * @param string $link  Confirmation link.
+	 */
+	public static function confirm_application( $email, $name, $link ) {
+		wp_mail(
+			$email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Please confirm your partner application', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			/* translators: 1: name, 2: link */
+			sprintf( __( "Hello %1\$s,\n\nplease confirm your e-mail address to complete your partner application:\n%2\$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail.", 'wp-affiliate-captain' ), $name, $link )
+		);
+	}
+
+	/**
+	 * Someone applied with an address that already has a partner account.
+	 *
+	 * @param string $email E-mail.
+	 */
+	public static function already_registered( $email ) {
+		$portal = (int) Settings::get( 'portal_page_id' );
+		wp_mail(
+			$email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Your partner account', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			/* translators: %s: portal URL */
+			sprintf( __( "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail.", 'wp-affiliate-captain' ), $portal ? get_permalink( $portal ) : home_url( '/' ) )
+		);
+	}
+
+	/**
+	 * Bank details changed (sent to the partner and the operator).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	public static function bank_details_changed( $id ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff ) {
+			return;
+		}
+		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		wp_mail(
+			$aff->email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Your bank details were changed', 'wp-affiliate-captain' ), $site ),
+			/* translators: %s: name */
+			sprintf( __( "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately.", 'wp-affiliate-captain' ), $aff->name )
+		);
+		wp_mail(
+			self::admin_email(),
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Partner changed bank details', 'wp-affiliate-captain' ), $site ),
+			/* translators: 1: partner, 2: URL */
+			sprintf( __( "%1\$s changed the bank details for payouts. Please check before the next payout run.\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $id ) )
+		);
+	}
+
+	/**
 	 * Application approved.
 	 *
 	 * @param int $id Affiliate ID.

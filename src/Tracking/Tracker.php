@@ -23,6 +23,8 @@ final class Tracker {
 
 	public static function register_hooks() {
 		add_action( 'template_redirect', array( __CLASS__, 'capture' ), 5 );
+		add_action( 'woocommerce_add_to_cart', array( __CLASS__, 'capture_on_add_to_cart' ), 5 );
+		add_action( 'init', array( __CLASS__, 'drop_cookie_without_consent' ) );
 		add_filter( 'wp_consent_api_registered_' . plugin_basename( WPAC_FILE ), '__return_true' );
 	}
 
@@ -37,9 +39,8 @@ final class Tracker {
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$raw = sanitize_text_field( wp_unslash( $_GET[ $param ] ) );
-		if ( ! RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS ) ) {
-			return;
-		}
+		// The limit only throttles visit statistics – the referral itself is always kept.
+		$count_visit = RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS );
 		$resolved = wpac_resolve_partner_code( $raw, array( 'context' => 'link' ) );
 		if ( ! $resolved ) {
 			return;
@@ -54,7 +55,7 @@ final class Tracker {
 		);
 		// phpcs:enable
 
-		if ( ! self::is_bot() ) {
+		if ( $count_visit && ! self::is_bot() ) {
 			$touch['visit_id'] = self::record_visit( $resolved, $touch );
 		}
 
@@ -77,7 +78,9 @@ final class Tracker {
 	public static function store_touch( array $touch ) {
 		$first = 'first' === Settings::get( 'touch_model' );
 
-		if ( Settings::get( 'use_wc_session' ) && function_exists( 'WC' ) && WC()->session ) {
+		// The shop session is only used when it already exists (e.g. a cart) or with marketing
+		// consent – a click alone never creates a cookie without consent (TTDSG §25).
+		if ( Settings::get( 'use_wc_session' ) && function_exists( 'WC' ) && WC()->session && ( WC()->session->has_session() || Consent::cookie_allowed() ) ) {
 			if ( ! WC()->session->has_session() ) {
 				WC()->session->set_customer_session_cookie( true );
 			}
@@ -103,6 +106,51 @@ final class Tracker {
 					)
 				);
 			}
+		}
+	}
+
+	/**
+	 * Cookie-free fallback: when a product is added to the cart (the shop session
+	 * exists now anyway), take the partner code from the current URL or the
+	 * referring page of this shop.
+	 */
+	public static function capture_on_add_to_cart() {
+		if ( ! Settings::get( 'use_wc_session' ) || ! function_exists( 'WC' ) || ! WC()->session || WC()->session->get( self::SESSION_KEY ) ) {
+			return;
+		}
+		$param = (string) Settings::get( 'referral_param' );
+		$code  = '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! empty( $_GET[ $param ] ) ) {
+			$code = sanitize_text_field( wp_unslash( $_GET[ $param ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		} elseif ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
+			$ref = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
+			if ( wp_parse_url( $ref, PHP_URL_HOST ) === wp_parse_url( home_url(), PHP_URL_HOST ) ) {
+				parse_str( (string) wp_parse_url( $ref, PHP_URL_QUERY ), $query );
+				$code = isset( $query[ $param ] ) ? sanitize_text_field( (string) $query[ $param ] ) : '';
+			}
+		}
+		$resolved = '' !== $code ? wpac_resolve_partner_code( $code, array( 'context' => 'cart' ) ) : null;
+		if ( $resolved ) {
+			WC()->session->set(
+				self::SESSION_KEY,
+				array(
+					'code'       => $resolved['code'],
+					'campaign'   => '',
+					'content_id' => 0,
+					'ts'         => time(),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Remove the affiliate cookie when consent is missing or was withdrawn.
+	 */
+	public static function drop_cookie_without_consent() {
+		if ( ! empty( $_COOKIE[ self::COOKIE ] ) && ! Consent::cookie_allowed() && ! headers_sent() ) {
+			setcookie( self::COOKIE, '', time() - YEAR_IN_SECONDS, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+			unset( $_COOKIE[ self::COOKIE ] );
 		}
 	}
 

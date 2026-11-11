@@ -253,19 +253,28 @@ final class Installer {
 			period_end date NOT NULL,
 			currency char(3) NOT NULL,
 			amount_minor bigint(20) NOT NULL DEFAULT 0,
+			net_minor bigint(20) NOT NULL DEFAULT 0,
+			vat_mode varchar(20) NOT NULL DEFAULT '',
+			vat_rate varchar(10) NOT NULL DEFAULT '0',
+			vat_minor bigint(20) NOT NULL DEFAULT 0,
 			status varchar(20) NOT NULL DEFAULT 'pending',
 			profile_snapshot text NULL,
 			sepa_batch varchar(64) NOT NULL DEFAULT '',
 			statement_file varchar(255) NOT NULL DEFAULT '',
 			statement_hash char(64) NOT NULL DEFAULT '',
 			statement_deleted_at datetime NULL,
+			storno_number varchar(40) NULL,
+			storno_file varchar(255) NOT NULL DEFAULT '',
+			storno_hash char(64) NOT NULL DEFAULT '',
+			storno_at datetime NULL,
 			note varchar(255) NOT NULL DEFAULT '',
 			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
 			exported_at datetime NULL,
 			paid_at datetime NULL,
 			PRIMARY KEY  (id),
-			KEY number (number),
+			UNIQUE KEY number (number),
+			UNIQUE KEY storno_number (storno_number),
 			KEY affiliate_id (affiliate_id),
 			KEY status (status)
 		) $c;";
@@ -364,6 +373,13 @@ final class Installer {
 			KEY status (status)
 		) $c;";
 
+		$sql[] = "CREATE TABLE {$t('sequences')} (
+			name varchar(20) NOT NULL,
+			year smallint(5) unsigned NOT NULL,
+			value int(10) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (name,year)
+		) $c;";
+
 		$sql[] = "CREATE TABLE {$t('payout_requests')} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
@@ -394,6 +410,37 @@ final class Installer {
 	 */
 	private static function migrate_before( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 4 ) {
+			// v4: payout numbers become UNIQUE (credit note numbers), net/VAT/storno columns.
+			$t = Db::table( 'payouts' );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $t ) ) ) {
+				$columns = array(
+					'net_minor'     => "bigint(20) NOT NULL DEFAULT 0 AFTER amount_minor",
+					'vat_mode'      => "varchar(20) NOT NULL DEFAULT '' AFTER net_minor",
+					'vat_rate'      => "varchar(10) NOT NULL DEFAULT '0' AFTER vat_mode",
+					'vat_minor'     => "bigint(20) NOT NULL DEFAULT 0 AFTER vat_rate",
+					'storno_number' => 'varchar(40) NULL',
+					'storno_file'   => "varchar(255) NOT NULL DEFAULT ''",
+					'storno_hash'   => "char(64) NOT NULL DEFAULT ''",
+					'storno_at'     => 'datetime NULL',
+				);
+				foreach ( $columns as $col => $def ) {
+					if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$t} LIKE '{$col}'" ) ) {
+						$wpdb->query( "ALTER TABLE {$t} ADD COLUMN {$col} {$def}" );
+					}
+				}
+				// Existing payouts: amount was the net amount without VAT.
+				$wpdb->query( "UPDATE {$t} SET net_minor = amount_minor WHERE net_minor = 0 AND vat_mode = ''" );
+				if ( $wpdb->get_var( "SHOW INDEX FROM {$t} WHERE Key_name = 'number' AND Non_unique = 1" ) ) {
+					$wpdb->query( "ALTER TABLE {$t} DROP INDEX number, ADD UNIQUE KEY number (number)" );
+				}
+				if ( ! $wpdb->get_var( "SHOW INDEX FROM {$t} WHERE Key_name = 'storno_number'" ) ) {
+					$wpdb->query( "ALTER TABLE {$t} ADD UNIQUE KEY storno_number (storno_number)" );
+				}
+			}
+			// phpcs:enable
+		}
 		if ( $previous > 0 && $previous < 3 ) {
 			// v3: payout_items keep released rows → commission_id is no longer UNIQUE.
 			$t = Db::table( 'payout_items' );

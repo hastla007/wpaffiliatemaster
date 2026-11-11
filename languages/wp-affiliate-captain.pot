@@ -19,7 +19,7 @@ msgstr ""
 msgid "Commissions"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php
+#: src/Admin/Admin.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Payouts"
 msgstr ""
 
@@ -159,7 +159,7 @@ msgstr ""
 msgid "Website / channel"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Since"
 msgstr ""
 
@@ -203,7 +203,7 @@ msgstr ""
 msgid "Commissions of this partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Last reason"
 msgstr ""
 
@@ -251,7 +251,7 @@ msgstr ""
 msgid "WordPress user"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Vanity slug"
 msgstr ""
 
@@ -263,7 +263,7 @@ msgstr ""
 msgid "— default —"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Welcome message on landing page"
 msgstr ""
 
@@ -332,14 +332,22 @@ msgid "Add code"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "Desired code (optional)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Coupon code (optional)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Empty = random code (recommended). Speaking codes like SAILING-NORTH are easy to guess and can be misused for own purchases."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Usage limit"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Valid until"
 msgstr ""
 
@@ -351,7 +359,7 @@ msgstr ""
 msgid "Generate code batch"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Number"
 msgstr ""
 
@@ -491,7 +499,7 @@ msgstr ""
 msgid "Select all"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Amount"
 msgstr ""
 
@@ -515,7 +523,7 @@ msgstr ""
 msgid "All statuses"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Privacy/Privacy.php
 msgid "Partner ID"
 msgstr ""
 
@@ -856,6 +864,22 @@ msgid "Company account for SEPA export configured"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements stored outside the web root (WPAC_STATEMENT_DIR)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements folder is not publicly reachable"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Address and VAT ID / tax number for credit notes configured"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "Scheduled tasks active (hold period release, retries)"
 msgstr ""
 
@@ -893,6 +917,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php
 msgid "Description"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php
+msgid "Net amount"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1062,6 +1090,10 @@ msgid "Download PDF statement"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Download cancellation %s"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Statement deleted after the retention period."
 msgstr ""
 
@@ -1077,7 +1109,7 @@ msgstr ""
 msgid "Bank account"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
+#: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
 msgid "Period until"
 msgstr ""
 
@@ -1089,8 +1121,16 @@ msgstr ""
 msgid "Correction"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Total"
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "plus VAT %s %%"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "VAT"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "Total payout"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1406,10 +1446,6 @@ msgid "Tag IDs"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
-msgid "Net amount"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
 msgid "Calculate"
 msgstr ""
 
@@ -1510,6 +1546,10 @@ msgid "Keep the code from a partner link in the WooCommerce shop session"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Without marketing consent only if a shop session already exists (e.g. a cart) – a click alone never sets a cookie."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Affiliate cookie"
 msgstr ""
 
@@ -1590,7 +1630,15 @@ msgid "Abuse protection"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Max. link visits per client and minute"
+msgid "Max. counted link visits per client and minute"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Trusted proxies / CDN"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -1710,6 +1758,46 @@ msgid "Counted from the end of the calendar year. After that, the PDF and the pa
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "VAT rate in %"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your country (ISO code)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your address (for credit notes)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your VAT ID"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your tax number (if no VAT ID)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Prefix credit note numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Numbers are gapless per year, e.g. GS-2026-000001."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Prefix cancellation numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Company account holder (SEPA)"
 msgstr ""
 
@@ -1743,6 +1831,14 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Housekeeping"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Keep audit log (days, 0 = forever)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Terms acceptance records are always kept as proof."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -1806,6 +1902,38 @@ msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
+msgid "[%s] Please confirm your partner application"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nplease confirm your e-mail address to complete your partner application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your partner account"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your bank details were changed"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "[%s] Partner changed bank details"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
 msgid "[%s] Your affiliate application was approved"
 msgstr ""
 
@@ -1854,6 +1982,10 @@ msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this ti
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application."
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "Thank you! Your partner account is active. Check your e-mail for login details."
 msgstr ""
 
@@ -1887,6 +2019,10 @@ msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Please fill in all required fields."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "The confirmation link is invalid or has expired. Please apply again."
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -2226,19 +2362,87 @@ msgid "Business (VAT registered)"
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "The commission rates are net amounts; VAT is added at the statutory rate."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "No VAT is shown because the partner is a small business (§19 UStG)."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "No VAT: the partner is a private individual and not an entrepreneur."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Cancellation of credit note %s"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Credit note (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Issued by (recipient of the service)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Partner (provider of the service)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Tax number"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Cancellation number"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Credit note number"
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "Statement number"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "Statement date"
+msgid "Cancels"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "Total payout"
+msgid "Service"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "This statement lists the commissions credited in this payout. VAT treatment depends on the partner's tax status; please consult your tax advisor. Partners subject to VAT issue a separate invoice unless self-billing (Gutschrift) has been agreed."
+msgid "Referral of customers (affiliate commission)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Service period until"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "VAT ID of the partner"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Net"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Total cancelled"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document is a credit note (self-billing) agreed with the partner. Please check it and object within 14 days if anything is incorrect; the partner does not issue a separate invoice."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -2446,6 +2650,14 @@ msgid "Statement"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Credit note"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Cancellation"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Name / company for the statement"
 msgstr ""
 
@@ -2478,7 +2690,15 @@ msgid "Affiliate Captain partner data"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Partner referral (lifetime link)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Partner account"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Payout requests"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -2490,19 +2710,39 @@ msgid "Payout details were retained because the partner still has an open commis
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Commission and payout records are retained for bookkeeping obligations."
+msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO) and deleted after the configured retention period."
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. An affiliate cookie is only set if you consented to marketing cookies. Partners do not receive your name or contact details."
+msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "For partners we store application details, accepted terms (version and time), partner codes, commission records and payout details. Bank details are stored encrypted."
+msgid "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "This text is a suggestion and must be reviewed by your data protection advisor."
+msgid "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "For partners we store application details, accepted terms (version and time), partner codes, commission records and payout details. Bank details are stored encrypted. Credit notes are kept for the statutory retention period."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "This text is a suggestion based on your current settings and must be reviewed by your data protection advisor."
 msgstr ""
 
 #: src/Promotion/Creatives.php

@@ -116,7 +116,12 @@ final class PayoutsPage {
 				if ( ! $p || ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
 					wp_die( esc_html__( 'Not allowed.', 'wp-affiliate-captain' ), 403 );
 				}
-				\WPAffiliateCaptain\Core\Audit::log( 'statement.downloaded', 'payout', (int) $p->id );
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$storno = ! empty( $_GET['storno'] );
+				\WPAffiliateCaptain\Core\Audit::log( $storno ? 'statement.storno_downloaded' : 'statement.downloaded', 'payout', (int) $p->id );
+				if ( $storno ) {
+					Statement::send_storno( $p );
+				}
 				Statement::send( $p );
 				break;
 
@@ -265,12 +270,13 @@ final class PayoutsPage {
 	 * @param int $id Payout.
 	 * @return string
 	 */
-	public static function statement_url( $id ) {
+	public static function statement_url( $id, $storno = false ) {
 		return add_query_arg(
 			array(
 				'action'      => 'wpac',
 				'do'          => 'statement_download',
 				'id'          => (int) $id,
+				'storno'      => $storno ? 1 : 0,
 				'_wpac_nonce' => wp_create_nonce( 'wpac_statement_download' ),
 			),
 			admin_url( 'admin-post.php' )
@@ -302,6 +308,10 @@ final class PayoutsPage {
 		echo '<p class="wpac-noprint"><a href="' . esc_url( Admin::url( 'wpac-payouts' ) ) . '">&larr; ' . esc_html__( 'All payouts', 'wp-affiliate-captain' ) . '</a>';
 		if ( $p->statement_file && current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 			echo ' · <a class="button button-primary" href="' . esc_url( self::statement_url( (int) $p->id ) ) . '">' . esc_html__( 'Download PDF statement', 'wp-affiliate-captain' ) . '</a> <small>SHA-256 ' . esc_html( substr( $p->statement_hash, 0, 16 ) ) . '…</small>';
+			if ( $p->storno_file ) {
+				/* translators: %s: cancellation number */
+				echo ' · <a class="button" href="' . esc_url( self::statement_url( (int) $p->id, true ) ) . '">' . esc_html( sprintf( __( 'Download cancellation %s', 'wp-affiliate-captain' ), $p->storno_number ) ) . '</a>';
+			}
 		} elseif ( $p->statement_deleted_at ) {
 			echo ' · ' . esc_html__( 'Statement deleted after the retention period.', 'wp-affiliate-captain' );
 		}
@@ -324,7 +334,16 @@ final class PayoutsPage {
 				esc_html( Money::format( (int) $item->amount_minor, $p->currency ) )
 			);
 		}
-		echo '</tbody><tfoot><tr><th colspan="3">' . esc_html__( 'Total', 'wp-affiliate-captain' ) . '</th><th>' . esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ) . '</th></tr></tfoot></table>';
+		$net = (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor;
+		echo '</tbody><tfoot>';
+		echo '<tr><th colspan="3">' . esc_html__( 'Net amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html( Money::format( $net, $p->currency ) ) . '</th></tr>';
+		/* translators: %s: VAT rate */
+		echo '<tr><th colspan="3">' . esc_html( (int) $p->vat_minor ? sprintf( __( 'plus VAT %s %%', 'wp-affiliate-captain' ), $p->vat_rate ) : __( 'VAT', 'wp-affiliate-captain' ) ) . '</th><th>' . esc_html( Money::format( (int) $p->vat_minor, $p->currency ) ) . '</th></tr>';
+		echo '<tr><th colspan="3">' . esc_html__( 'Total payout', 'wp-affiliate-captain' ) . '</th><th>' . esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ) . '</th></tr>';
+		echo '</tfoot></table>';
+		if ( $p->vat_mode ) {
+			echo '<p class="description">' . esc_html( Statement::vat_note( (string) $p->vat_mode ) ) . '</p>';
+		}
 		echo '<p class="description">' . esc_html__( 'VAT treatment depends on the partner\'s tax status and must be confirmed by your tax advisor. This statement does not calculate VAT.', 'wp-affiliate-captain' ) . '</p>';
 		echo '</div>';
 	}

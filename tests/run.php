@@ -26,10 +26,12 @@ spl_autoload_register(
 use WPAffiliateCaptain\Commissions\Calculator;
 use WPAffiliateCaptain\Commissions\Tiers;
 use WPAffiliateCaptain\Payouts\Pdf;
+use WPAffiliateCaptain\Payouts\Vat;
 use WPAffiliateCaptain\Promotion\Qr;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Fx;
 use WPAffiliateCaptain\Tracking\FraudCheck;
+use WPAffiliateCaptain\Tracking\RateLimiter;
 use WPAffiliateCaptain\Core\Iban;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Payouts\SepaXml;
@@ -280,6 +282,29 @@ check( 'friday → monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 
 check( 'thursday before good friday → easter tuesday', '2026-04-07', SepaXml::next_business_day( gmmktime( 10, 0, 0, 4, 2, 2026 ) ) );
 check( 'christmas eve → 28 dec', '2026-12-28', SepaXml::next_business_day( gmmktime( 10, 0, 0, 12, 24, 2026 ) ) );
 check( 'normal weekday', '2026-11-12', SepaXml::next_business_day( gmmktime( 10, 0, 0, 11, 11, 2026 ) ) );
+
+/* Client IP / proxies ----------------------------------------------------- */
+$cf = array( '173.245.48.0/20', '2400:cb00::/32' );
+check( 'no proxy: remote addr', '203.0.113.5', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '203.0.113.5', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4' ), array() ) );
+check( 'untrusted peer: XFF ignored', '203.0.113.5', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '203.0.113.5', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4' ), $cf ) );
+check( 'trusted CF: CF-Connecting-IP', '198.51.100.7', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '173.245.50.1', 'HTTP_CF_CONNECTING_IP' => '198.51.100.7' ), $cf ) );
+check( 'trusted: right-most untrusted XFF hop', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_FORWARDED_FOR' => '6.6.6.6, 198.51.100.9, 10.0.0.2' ), array( '10.0.0.0/8' ) ) );
+check( 'cidr v4', true, RateLimiter::in_cidr( '173.245.63.255', '173.245.48.0/20' ) );
+check( 'cidr v4 outside', false, RateLimiter::in_cidr( '173.245.64.0', '173.245.48.0/20' ) );
+check( 'cidr v6', true, RateLimiter::in_cidr( '2400:cb00:2049::1', '2400:cb00::/32' ) );
+check( 'cidr mixed families', false, RateLimiter::in_cidr( '10.0.0.1', '2400:cb00::/32' ) );
+check( 'ipv6 /64 bucket', '2001:db8:1:2::/64', RateLimiter::bucket_ip( '2001:db8:1:2:aaaa:bbbb:cccc:dddd' ) );
+check( 'ipv4 bucket unchanged', '203.0.113.5', RateLimiter::bucket_ip( '203.0.113.5' ) );
+
+/* VAT treatment of credit notes ------------------------------------------- */
+check( 'vat domestic business', array( 'mode' => 'standard', 'rate' => '19' ), Vat::treatment( 'business', 'de', 'DE', '19' ) );
+check( 'vat business without country = domestic', 'standard', Vat::treatment( 'business', '', 'DE', '19' )['mode'] );
+check( 'vat foreign business', array( 'mode' => 'reverse_charge', 'rate' => '0' ), Vat::treatment( 'business', 'AT', 'DE', '19' ) );
+check( 'vat small business', array( 'mode' => 'small_business', 'rate' => '0' ), Vat::treatment( 'small_business', 'DE', 'DE', '19' ) );
+check( 'vat private', 'private', Vat::treatment( 'private', 'DE', 'DE', '19' )['mode'] );
+check( 'vat amount 19 % of 100,00', 1900, Vat::amount( 10000, '19' ) );
+check( 'vat amount rounding', 2, Vat::amount( 13, '19' ) );
+check( 'vat amount zero rate', 0, Vat::amount( 10000, '0' ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

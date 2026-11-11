@@ -63,7 +63,7 @@ final class SettingsPage {
 		/* translators: %s: example URL */
 		self::text( 'referral_param', __( 'Link parameter', 'wp-affiliate-captain' ), $s, sprintf( __( 'Example: %s', 'wp-affiliate-captain' ), home_url( '/?' . $s['referral_param'] . '=CODE' ) ) );
 		self::checkbox( 'checkout_field', __( 'Show partner code field at checkout (classic + blocks)', 'wp-affiliate-captain' ), $s );
-		self::checkbox( 'use_wc_session', __( 'Keep the code from a partner link in the WooCommerce shop session', 'wp-affiliate-captain' ), $s );
+		self::checkbox( 'use_wc_session', __( 'Keep the code from a partner link in the WooCommerce shop session', 'wp-affiliate-captain' ), $s, __( 'Without marketing consent only if a shop session already exists (e.g. a cart) – a click alone never sets a cookie.', 'wp-affiliate-captain' ) );
 		self::select(
 			'cookie_mode',
 			__( 'Affiliate cookie', 'wp-affiliate-captain' ),
@@ -91,7 +91,8 @@ final class SettingsPage {
 		self::end();
 
 		self::section( __( 'Abuse protection', 'wp-affiliate-captain' ) );
-		self::number( 'rate_limit_per_minute', __( 'Max. link visits per client and minute', 'wp-affiliate-captain' ), $s );
+		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'wp-affiliate-captain' ), $s );
+		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1">' . esc_textarea( (string) $s['trusted_proxies'] ) . '</textarea><p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'wp-affiliate-captain' ), $s );
 		self::end();
 
@@ -123,6 +124,14 @@ final class SettingsPage {
 		self::select( 'payout_period', __( 'Payout period', 'wp-affiliate-captain' ), $s, array( 'monthly' => __( 'Monthly', 'wp-affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'wp-affiliate-captain' ), 'manual' => __( 'Manual', 'wp-affiliate-captain' ) ) );
 		self::checkbox( 'payout_requests', __( 'Partners can request payouts in the partner area', 'wp-affiliate-captain' ), $s );
 		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Counted from the end of the calendar year. After that, the PDF and the partner data snapshot are deleted; amounts remain. Check your statutory retention period (e.g. §147 AO).', 'wp-affiliate-captain' ) );
+		self::checkbox( 'self_billing', __( 'Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)', 'wp-affiliate-captain' ), $s, __( 'Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor.', 'wp-affiliate-captain' ) );
+		self::text( 'vat_rate', __( 'VAT rate in %', 'wp-affiliate-captain' ), $s );
+		self::text( 'operator_country', __( 'Your country (ISO code)', 'wp-affiliate-captain' ), $s );
+		echo '<tr><th><label for="wpac-operator_address">' . esc_html__( 'Your address (for credit notes)', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-operator_address" name="wpac[operator_address]" rows="3" class="regular-text">' . esc_textarea( (string) $s['operator_address'] ) . '</textarea></td></tr>';
+		self::text( 'operator_vat_id', __( 'Your VAT ID', 'wp-affiliate-captain' ), $s );
+		self::text( 'operator_tax_number', __( 'Your tax number (if no VAT ID)', 'wp-affiliate-captain' ), $s );
+		self::text( 'credit_prefix', __( 'Prefix credit note numbers', 'wp-affiliate-captain' ), $s, __( 'Numbers are gapless per year, e.g. GS-2026-000001.', 'wp-affiliate-captain' ) );
+		self::text( 'storno_prefix', __( 'Prefix cancellation numbers', 'wp-affiliate-captain' ), $s );
 		self::text( 'debtor_name', __( 'Company account holder (SEPA)', 'wp-affiliate-captain' ), $s );
 		self::text( 'debtor_iban', __( 'Company IBAN (SEPA)', 'wp-affiliate-captain' ), $s );
 		self::text( 'debtor_bic', __( 'Company BIC (optional)', 'wp-affiliate-captain' ), $s );
@@ -135,6 +144,7 @@ final class SettingsPage {
 		self::end();
 
 		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ) );
+		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Terms acceptance records are always kept as proof.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'wp-affiliate-captain' ), $s, __( 'Includes commission and payout records – make sure bookkeeping retention obligations are met.', 'wp-affiliate-captain' ) );
 		self::end();
 

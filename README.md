@@ -16,7 +16,13 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 1. Ordner nach `wp-content/plugins/wp-affiliate-captain/` kopieren und aktivieren.
 2. Seiten anlegen: `[wpac_affiliate_registration]` (Bewerbung), `[wpac_affiliate_portal]` (Partnerbereich), optional eine Landingpage mit `[wpac_partner_welcome]`.
 3. Unter **Affiliate Captain → Einstellungen** Seiten, Teilnahmebedingungen (Seite + Version), Standardprovision, Haltefrist, Mindestbetrag und das Firmenkonto für SEPA setzen.
-4. Empfohlen in `wp-config.php`: eigener Schlüssel für die IBAN-Verschlüsselung (64 Hex-Zeichen, z. B. `php -r 'echo bin2hex(random_bytes(32));'`):
+4. Für Gutschriften unter **Einstellungen → Auszahlungen** Anschrift, USt-IdNr./Steuernummer und USt-Satz hinterlegen. Das Gutschriftverfahren in den Partnerbedingungen vereinbaren.
+5. Empfohlen in `wp-config.php` – Belege außerhalb des Webroots (auf nginx Pflicht, dort wirkt `.htaccess` nicht):
+   ```php
+   define( 'WPAC_STATEMENT_DIR', '/var/www/private/wpac-statements' );
+   ```
+6. Hinter Cloudflare oder einem Reverse-Proxy dessen IP-Bereiche unter **Einstellungen → Missbrauchsschutz** eintragen.
+7. Empfohlen in `wp-config.php`: eigener Schlüssel für die IBAN-Verschlüsselung (64 Hex-Zeichen, z. B. `php -r 'echo bin2hex(random_bytes(32));'`):
    ```php
    define( 'WPAC_ENCRYPTION_KEY', '…' );
    ```
@@ -28,7 +34,7 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 
 | Schritt | Umsetzung |
 |---|---|
-| Bewerbung | Formular mit Website/Kanal, Honeypot + Rate-Limit, Annahme der Bedingungen mit Version + SHA-256 der Bedingungsseite. Freigabe/Ablehnung/Pause/Beendigung mit Grund im Admin. Bei Freigabe wird ein WP-Konto verknüpft/angelegt und ein Partnercode erzeugt. |
+| Bewerbung | Formular mit Website/Kanal, Double-Opt-in per E-Mail (keine Auskunft, ob eine Adresse schon existiert), Honeypot + Rate-Limit, Annahme der Bedingungen mit Version + SHA-256 der Bedingungsseite. Freigabe/Ablehnung/Pause/Beendigung mit Grund im Admin. Bei Freigabe wird ein WP-Konto verknüpft (nie Konten mit Redakteurs-/Admin-Rechten) oder angelegt und ein zufälliger Partnercode erzeugt (Wunschcode optional). |
 | Partnergruppen | z. B. „Ausbildungspartner“ / „Content-Partner“ mit eigenen Provisionsregeln. |
 | Partnercode (cookie-frei) | Feld an der Kasse (Classic + Blocks), Übergabe durch Apps/Integrationen, optional mit WooCommerce-/Voucher-Coupon verknüpft (Rabatt bleibt Sache des Coupons). Limits, Ablaufdatum, Sperre, Massencode-Batches mit CSV-Export. |
 | Referral-Link | `?partner=CODE` (Parameter konfigurierbar, Vanity-Slug möglich). Besuch wird minimiert erfasst (keine IP, nur Referrer-Host, UTM-Kampagne, Content-ID). Code bleibt in der WooCommerce-Shop-Session; ein Affiliate-Cookie nur nach Marketing-Einwilligung (WP Consent API oder Filter `wpac_has_marketing_consent`). |
@@ -47,6 +53,7 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 | QR & Landingpages | QR-Code (SVG, eigener Encoder ohne externe Dienste) im Portal. Landing-URL `/partner/{slug}/` leitet mit Partnercode auf die Partner- oder Standard-Landingpage; `[wpac_partner_welcome]` zeigt „Empfohlen von …“ und die vom Betreiber gepflegte Begrüßung. |
 | Auszahlungsanträge | Optional: Partner beantragen die Auszahlung ihres freigegebenen Saldos (Mindestbetrag, vollständiges Profil); Admin erzeugt daraus die Auszahlung oder lehnt mit Grund ab. |
 | PDF-Beleg | Bei jeder Auszahlung wird einmalig ein PDF-Abrechnungsbeleg erzeugt, geschützt abgelegt (`uploads/wpac-statements`), per SHA-256 gegen Veränderung geprüft; Download im Admin (`wpac_view_tax_data`) und für den Partner im Portal. |
+| Gutschrift | Beleg als Gutschrift (§ 14 Abs. 2 UStG) mit allen Pflichtangaben: lückenlose Nummer pro Jahr (`GS-2026-000001`), Leistung und Zeitraum, Netto, USt-Satz und -Betrag. Provisionssätze sind netto; regelbesteuerte Partner im Inland erhalten USt obendrauf (Auszahlung = brutto), ausländische Unternehmen Reverse-Charge, Kleinunternehmer/Privatpersonen keine USt. Storno einer Auszahlung erzeugt eine Storno-Gutschrift (`ST-…`) mit Verweis. Steuerliche Behandlung per Filter `wpac_vat_treatment` anpassbar – mit der Steuerberatung abstimmen. |
 | Aufbewahrung | Belege werden nach der eingestellten Frist (Standard 10 Jahre ab Jahresende) samt Partner-Snapshot gelöscht, Beträge bleiben erhalten. Frist fachlich prüfen (z. B. §147 AO). |
 | Betrieb | Retry-Warteschlange für fehlgeschlagene Integrationsereignisse, Integrationsstatus/Vertragsprüfung, Audit-Log, CSV-Exporte mit Formel-Injection-Schutz, WordPress-Datenexport/-löschung, Aufbewahrungsfrist für Besuche, eigene Capabilities (`wpac_manage_program`, `wpac_manage_affiliates`, `wpac_manage_payouts`, `wpac_view_tax_data`). |
 | Berichte | Dashboard nach Partner, nach Inhalt (Beitrag/Seite/CPT, auf dem der Partnerlink landete) und nach Kampagne, jeweils mit CSV. Monatliche Zusammenfassung per E-Mail an Betreiber und optional an Partner. |

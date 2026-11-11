@@ -42,9 +42,59 @@ final class AffiliateRepository {
 	 */
 	public static function find( $id ) {
 		global $wpdb;
-		$t = Db::table( 'affiliates' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d", $id ) );
+		$id = (int) $id;
+		if ( ! array_key_exists( $id, self::$cache ) ) {
+			$t = Db::table( 'affiliates' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::$cache[ $id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d", $id ) );
+		}
+		return self::$cache[ $id ];
+	}
+
+	/** @var array Per-request cache id => row|null. */
+	private static $cache = array();
+
+	/**
+	 * Load many affiliates into the cache with one query.
+	 *
+	 * @param int[] $ids IDs.
+	 * @return array id => row
+	 */
+	public static function find_many( array $ids ) {
+		global $wpdb;
+		$ids     = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		$missing = array_values( array_diff( $ids, array_keys( self::$cache ) ) );
+		if ( $missing ) {
+			$t            = Db::table( 'affiliates' );
+			$placeholders = implode( ',', array_fill( 0, count( $missing ), '%d' ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE id IN ({$placeholders})", $missing ) ) as $row ) {
+				self::$cache[ (int) $row->id ] = $row;
+			}
+			foreach ( $missing as $id ) {
+				if ( ! array_key_exists( $id, self::$cache ) ) {
+					self::$cache[ $id ] = null;
+				}
+			}
+		}
+		$out = array();
+		foreach ( $ids as $id ) {
+			$out[ $id ] = self::$cache[ $id ];
+		}
+		return $out;
+	}
+
+	/**
+	 * Invalidate the per-request cache.
+	 *
+	 * @param int $id Affiliate (0 = all).
+	 */
+	public static function clear_cache( $id = 0 ) {
+		if ( $id ) {
+			unset( self::$cache[ (int) $id ] );
+		} else {
+			self::$cache = array();
+		}
 	}
 
 	/**
@@ -165,6 +215,7 @@ final class AffiliateRepository {
 			return new \WP_Error( 'wpac_db', __( 'The affiliate could not be saved.', 'wp-affiliate-captain' ) );
 		}
 		$id = (int) $wpdb->insert_id;
+		self::clear_cache( $id );
 		Audit::log( 'affiliate.created', 'affiliate', $id, array( 'status' => $status ) );
 
 		if ( 'active' === $status ) {
@@ -212,6 +263,7 @@ final class AffiliateRepository {
 		}
 		$fields['updated_at'] = Db::now();
 		$wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id ) );
+		self::clear_cache( $id );
 		Audit::log( 'affiliate.updated', 'affiliate', (int) $id, array( 'fields' => array_keys( $fields ) ) );
 	}
 
@@ -249,6 +301,7 @@ final class AffiliateRepository {
 			$fields['approved_by'] = get_current_user_id();
 		}
 		$wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id ) );
+		self::clear_cache( $id );
 		Audit::log(
 			'affiliate.status',
 			'affiliate',
@@ -292,7 +345,11 @@ final class AffiliateRepository {
 		}
 		if ( ! $aff->user_id ) {
 			$user = get_user_by( 'email', $aff->email );
-			if ( $user ) {
+			if ( $user && user_can( $user, 'edit_posts' ) ) {
+				// Never link privileged accounts automatically (e.g. an administrator's address).
+				Audit::log( 'affiliate.user_link_skipped', 'affiliate', $id, array( 'reason' => 'privileged_account' ) );
+				$user_id = 0;
+			} elseif ( $user ) {
 				$user_id = (int) $user->ID;
 			} else {
 				$login   = sanitize_user( strstr( $aff->email, '@', true ), true );
@@ -315,10 +372,12 @@ final class AffiliateRepository {
 			}
 			if ( $user_id ) {
 				$wpdb->update( Db::table( 'affiliates' ), array( 'user_id' => $user_id ), array( 'id' => $id ) );
+				self::clear_cache( $id );
 			}
 		}
 		if ( ! CodeRepository::for_affiliate( $id ) ) {
-			CodeRepository::create( $id, strtoupper( str_replace( '-', '', $aff->slug ) ) );
+			// Random by default: name-based codes are easy to guess (commission fraud).
+			CodeRepository::create( $id, CodeRepository::random_code() );
 		}
 	}
 

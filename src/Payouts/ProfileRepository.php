@@ -103,6 +103,9 @@ final class ProfileRepository {
 		} else {
 			$wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
 		}
+		if ( '' !== $iban && $existing && '' !== (string) $existing->iban_encrypted && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) {
+			\WPAffiliateCaptain\Affiliates\Notifications::bank_details_changed( (int) $affiliate_id );
+		}
 		Audit::log(
 			'payout_profile.updated',
 			'affiliate',

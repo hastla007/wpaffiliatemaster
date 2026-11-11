@@ -76,9 +76,10 @@ final class AffiliatesPage {
 				break;
 
 			case 'code_create':
+				$wish   = sanitize_text_field( Admin::post( 'code' ) );
 				$result = CodeRepository::create(
 					$id,
-					sanitize_text_field( Admin::post( 'code' ) ),
+					'' !== $wish ? $wish : CodeRepository::random_code(),
 					array(
 						'coupon_code' => Admin::post( 'coupon_code' ),
 						'usage_limit' => absint( Admin::post( 'usage_limit', 0 ) ),
@@ -393,7 +394,8 @@ final class AffiliatesPage {
 		echo '<h4>' . esc_html__( 'Add code', 'wp-affiliate-captain' ) . '</h4>';
 		Admin::form_open( 'code_create' );
 		echo '<input type="hidden" name="id" value="' . (int) $id . '">';
-		echo '<p><input type="text" name="code" placeholder="' . esc_attr__( 'Code', 'wp-affiliate-captain' ) . '" required> <input type="text" name="coupon_code" placeholder="' . esc_attr__( 'Coupon code (optional)', 'wp-affiliate-captain' ) . '"></p>';
+		echo '<p><label for="wpac-wish-code">' . esc_html__( 'Desired code (optional)', 'wp-affiliate-captain' ) . '</label><br><input type="text" name="code" id="wpac-wish-code"> <label for="wpac-coupon-code" class="screen-reader-text">' . esc_html__( 'Coupon code (optional)', 'wp-affiliate-captain' ) . '</label><input type="text" name="coupon_code" id="wpac-coupon-code" placeholder="' . esc_attr__( 'Coupon code (optional)', 'wp-affiliate-captain' ) . '"></p>';
+		echo '<p class="description">' . esc_html__( 'Empty = random code (recommended). Speaking codes like SAILING-NORTH are easy to guess and can be misused for own purchases.', 'wp-affiliate-captain' ) . '</p>';
 		echo '<p><label>' . esc_html__( 'Usage limit', 'wp-affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="0" class="small-text"></label> <label>' . esc_html__( 'Valid until', 'wp-affiliate-captain' ) . ' <input type="date" name="expires_at"></label> <button class="button">' . esc_html__( 'Add', 'wp-affiliate-captain' ) . '</button></p></form>';
 
 		echo '<h4>' . esc_html__( 'Generate code batch', 'wp-affiliate-captain' ) . '</h4>';

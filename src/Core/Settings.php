@@ -33,7 +33,9 @@ final class Settings {
 			'coupon_priority'         => 1,
 			'self_referral'           => 'block',    // block|review.
 			'rate_limit_per_minute'   => 30,
+			'trusted_proxies'         => '',
 			'visit_retention_days'    => 90,
+			'audit_retention_days'    => 1095,
 			// Commissions.
 			'currency'                => 'EUR',
 			'exchange_rates'          => '',
@@ -66,6 +68,15 @@ final class Settings {
 			'debtor_iban'             => '',
 			'debtor_bic'              => '',
 			'remittance_prefix'       => 'Provision',
+			// Credit notes (self-billing).
+			'self_billing'            => 1,
+			'vat_rate'                => '19',
+			'operator_country'        => 'DE',
+			'operator_address'        => '',
+			'operator_vat_id'         => '',
+			'operator_tax_number'     => '',
+			'credit_prefix'           => 'GS',
+			'storno_prefix'           => 'ST',
 			// Fraud rules (0 = off).
 			'fraud_max_orders_day'    => 0,
 			'fraud_max_order_minor'   => 0,
@@ -139,11 +150,11 @@ final class Settings {
 		$lifetime_rate        = isset( $in['lifetime_rate'] ) ? Money::normalize_decimal( (string) $in['lifetime_rate'] ) : null;
 		$out['lifetime_rate'] = ( null !== $lifetime_rate && (float) $lifetime_rate >= 0 && (float) $lifetime_rate <= 100 ) ? $lifetime_rate : '';
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'audit_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			$out[ $int ] = isset( $in[ $int ] ) ? max( 0, (int) $in[ $int ] ) : $d[ $int ];
 		}
 
@@ -166,6 +177,15 @@ final class Settings {
 			$out['default_rate'] = (string) Money::to_minor( $out['default_rate'], $out['currency'] );
 		}
 
+		$proxies = array();
+		foreach ( preg_split( '/[\s,]+/', isset( $in['trusted_proxies'] ) ? (string) $in['trusted_proxies'] : '', -1, PREG_SPLIT_NO_EMPTY ) as $entry ) {
+			$ip = explode( '/', $entry, 2 )[0];
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				$proxies[] = $entry;
+			}
+		}
+		$out['trusted_proxies'] = implode( "\n", $proxies );
+
 		$max_order                    = isset( $in['fraud_max_order'] ) ? Money::normalize_decimal( (string) $in['fraud_max_order'] ) : null;
 		$out['fraud_max_order_minor'] = null !== $max_order ? max( 0, Money::to_minor( $max_order, $out['currency'] ) ) : 0;
 		$out['fraud_blocked_domains'] = isset( $in['fraud_blocked_domains'] ) ? implode( "\n", array_filter( array_map( 'sanitize_text_field', preg_split( '/[\s,]+/', strtolower( (string) $in['fraud_blocked_domains'] ) ) ) ) ) : '';
@@ -182,6 +202,17 @@ final class Settings {
 		$out['terms_version']     = isset( $in['terms_version'] ) ? sanitize_text_field( (string) $in['terms_version'] ) : $d['terms_version'];
 		$out['admin_email']       = isset( $in['admin_email'] ) ? sanitize_email( (string) $in['admin_email'] ) : '';
 		$out['debtor_name']       = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
+		$vat                         = isset( $in['vat_rate'] ) ? Money::normalize_decimal( (string) $in['vat_rate'] ) : null;
+		$out['vat_rate']             = ( null !== $vat && (float) $vat >= 0 && (float) $vat < 100 ) ? $vat : $d['vat_rate'];
+		$country                     = isset( $in['operator_country'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['operator_country'] ) ) : '';
+		$out['operator_country']     = 2 === strlen( $country ) ? $country : $d['operator_country'];
+		$out['operator_address']     = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
+		$out['operator_vat_id']      = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
+		$out['operator_tax_number']  = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
+		foreach ( array( 'credit_prefix', 'storno_prefix' ) as $k ) {
+			$prefix    = isset( $in[ $k ] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in[ $k ] ) ) : '';
+			$out[ $k ] = '' !== $prefix ? substr( $prefix, 0, 8 ) : $d[ $k ];
+		}
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];
 		$out['debtor_bic']        = isset( $in['debtor_bic'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['debtor_bic'] ) ) : '';
 		$iban                     = isset( $in['debtor_iban'] ) ? Iban::normalize( (string) $in['debtor_iban'] ) : '';

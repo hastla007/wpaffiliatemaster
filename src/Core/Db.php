@@ -30,6 +30,7 @@ final class Db {
 		'customer_links',
 		'creatives',
 		'payout_requests',
+		'sequences',
 	);
 
 	/**

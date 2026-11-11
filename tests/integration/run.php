@@ -84,8 +84,10 @@ update_option(
 Settings::flush_cache();
 
 $aff  = AffiliateRepository::create( array( 'name' => 'Anna Partner', 'email' => 'anna@example.de', 'status' => 'active' ) );
-$code = 'ANNAPARTNER';
+$code = WPAffiliateCaptain\Codes\CodeRepository::main_code( $aff );
 check( 'affiliate created', true, is_int( $aff ) );
+check( 'random default code', 1, preg_match( '/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/', $code ) );
+check( 'code without hyphen resolves', $aff, wpac_resolve_partner_code( str_replace( '-', '', strtolower( $code ) ) )['affiliate_id'] );
 ProfileRepository::save( $aff, array( 'tax_status' => 'private', 'country' => 'DE', 'account_holder' => 'Anna Partner', 'iban' => 'DE89370400440532013000' ) );
 
 /* A: sale + idempotency ---------------------------------------------- */
@@ -178,6 +180,52 @@ $p = PayoutService::preview( gmdate( 'Y-m-d' ), 'EUR' );
 check( 'I −100 € carried forward', -10000, $p[0]['total_minor'] );
 check( 'I not payable', false, $p[0]['eligible'] );
 
+/* K: credit notes – numbering, VAT, cancellation document ------------- */
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_address' => "Hafenstr. 1\n24103 Kiel", 'operator_vat_id' => 'DE123456789' ) ) );
+Settings::flush_cache();
+$biz = AffiliateRepository::create( array( 'name' => 'Segelschule Nord GmbH', 'email' => 'nord@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $biz, array( 'tax_status' => 'business', 'country' => 'DE', 'vat_id' => 'DE999999999', 'account_holder' => 'Segelschule Nord GmbH', 'iban' => 'DE89370400440532013000', 'address' => "Kai 2\n24937 Flensburg" ) );
+$bcode = WPAffiliateCaptain\Codes\CodeRepository::main_code( $biz );
+$r     = sale( 2001, $bcode, array( 1000000 ) ); // 1.000 € commission (10 % of 10.000 €).
+q( 'UPDATE ' . t( 'commissions' ) . " SET status = 'approved' WHERE id = " . (int) $r['commission_ids'][0] );
+$bp = PayoutService::find( PayoutService::create_for_affiliate( $biz, gmdate( 'Y-m-d' ), 'EUR' ) );
+check( 'K domestic business: VAT mode', 'standard', $bp->vat_mode );
+check( 'K net', 100000, (int) $bp->net_minor );
+check( 'K 19 % VAT', 19000, (int) $bp->vat_minor );
+check( 'K payout = gross', 119000, (int) $bp->amount_minor );
+$y = gmdate( 'Y' );
+// Anna's two payouts (one cancelled) used numbers 1 and 2.
+check( 'K gapless credit note number', 'GS-' . $y . '-000003', $bp->number );
+check( 'K cancelled payout got a cancellation number', 'ST-' . $y . '-000001', (string) PayoutService::find( $payout )->storno_number );
+check( 'K cancellation PDF stored', 64, strlen( (string) PayoutService::find( $payout )->storno_hash ) );
+$pdf = file_get_contents( WPAffiliateCaptain\Payouts\Statement::dir() . '/' . $bp->statement_file );
+check( 'K credit note PDF has VAT line', true, false !== strpos( $pdf, 'plus VAT 19' ) );
+check( 'K credit note PDF has partner VAT ID', true, false !== strpos( $pdf, 'DE999999999' ) );
+
+// Foreign business partner → reverse charge, private → no VAT.
+$at = AffiliateRepository::create( array( 'name' => 'Wien Partner', 'email' => 'wien@example.at', 'status' => 'active' ) );
+ProfileRepository::save( $at, array( 'tax_status' => 'business', 'country' => 'AT', 'vat_id' => 'ATU12345678', 'account_holder' => 'Wien Partner', 'iban' => 'AT611904300234573201' ) );
+$r = sale( 2002, WPAffiliateCaptain\Codes\CodeRepository::main_code( $at ), array( 1000000 ) );
+q( 'UPDATE ' . t( 'commissions' ) . " SET status = 'approved' WHERE id = " . (int) $r['commission_ids'][0] );
+$ap = PayoutService::find( PayoutService::create_for_affiliate( $at, gmdate( 'Y-m-d' ), 'EUR' ) );
+check( 'K EU business: reverse charge', 'reverse_charge', $ap->vat_mode );
+check( 'K reverse charge: no VAT added', 100000, (int) $ap->amount_minor );
+check( 'K numbers unique', 'GS-' . $y . '-000004', $ap->number );
+
+// A failing payout (rollback) must not consume a number.
+$GLOBALS['wpdb']->query( 'SET @x = 1' );
+try {
+	WPAffiliateCaptain\Core\Db::transaction(
+		static function () {
+			WPAffiliateCaptain\Core\Sequence::number( 'GS', 'credit', (int) gmdate( 'Y' ) );
+			throw new RuntimeException( 'abort' );
+		}
+	);
+} catch ( RuntimeException $e ) {
+	// Expected.
+}
+check( 'K rollback keeps sequence gapless', 4, (int) $GLOBALS['wpdb']->get_var( 'SELECT value FROM ' . t( 'sequences' ) . " WHERE name = 'credit'" ) );
+
 /* J: schema migration v2 → v3 (payout_items) -------------------------- */
 $pi = t( 'payout_items' );
 q( "DROP TABLE {$pi}" );
@@ -188,7 +236,16 @@ WPAffiliateCaptain\Core\Installer::install_schema();
 check( 'J old unique index replaced', '1', (string) $GLOBALS['wpdb']->get_var( "SHOW INDEX FROM {$pi} WHERE Key_name = 'commission_id'" ) ? (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$pi} WHERE Key_name = 'commission_id'" )->Non_unique : 'missing' );
 check( 'J new unique index', '0', (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$pi} WHERE Key_name = 'active_commission'" )->Non_unique );
 check( 'J existing item marked active', '77', (string) $GLOBALS['wpdb']->get_var( "SELECT active_commission_id FROM {$pi} WHERE commission_id = 77" ) );
-check( 'J version stored', 3, (int) get_option( 'wpac_db_version' ) );
+check( 'J version stored', 4, (int) get_option( 'wpac_db_version' ) );
+
+/* L: schema migration v3 → v4 (payouts) ----------------------------------- */
+$po = t( 'payouts' );
+q( "ALTER TABLE {$po} DROP INDEX number, ADD KEY number (number), DROP INDEX storno_number, DROP COLUMN net_minor, DROP COLUMN vat_mode, DROP COLUMN vat_rate, DROP COLUMN vat_minor, DROP COLUMN storno_number, DROP COLUMN storno_file, DROP COLUMN storno_hash, DROP COLUMN storno_at" );
+update_option( 'wpac_db_version', 3 );
+WPAffiliateCaptain\Core\Installer::install_schema();
+check( 'L number unique again', '0', (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$po} WHERE Key_name = 'number'" )->Non_unique );
+check( 'L storno column back', 'storno_number', (string) $GLOBALS['wpdb']->get_var( "SHOW COLUMNS FROM {$po} LIKE 'storno_number'" ) );
+check( 'L old payouts: net = amount', 0, (int) $GLOBALS['wpdb']->get_var( "SELECT COUNT(*) FROM {$po} WHERE net_minor <> amount_minor" ) );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

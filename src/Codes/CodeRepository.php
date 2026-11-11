@@ -57,7 +57,13 @@ final class CodeRepository {
 		}
 		$t = Db::table( 'partner_codes' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE code = %s", $code ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE code = %s", $code ) );
+		if ( ! $row && false === strpos( $code, '-' ) && strlen( $code ) >= 6 ) {
+			// Typed without hyphen (K7Q3MX2P → K7Q3-MX2P).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE REPLACE(code, '-', '') = %s LIMIT 1", $code ) );
+		}
+		return $row;
 	}
 
 	/**
@@ -181,6 +187,22 @@ final class CodeRepository {
 			)
 		);
 		return $id;
+	}
+
+	/**
+	 * Random, hard to guess code like "K7Q3-MX2P" (32 symbols ^ 8 ≈ 10^12, no 0/O/1/I).
+	 *
+	 * @param string $prefix Optional prefix.
+	 * @return string
+	 */
+	public static function random_code( $prefix = '' ) {
+		$alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+		$rand  = '';
+		for ( $i = 0; $i < 8; $i++ ) {
+			$rand .= $alpha[ random_int( 0, strlen( $alpha ) - 1 ) ] . ( 3 === $i ? '-' : '' );
+		}
+		$prefix = self::normalize( $prefix );
+		return ( '' !== $prefix ? $prefix . '-' : '' ) . $rand;
 	}
 
 	/**

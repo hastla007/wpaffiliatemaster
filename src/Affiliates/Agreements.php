@@ -42,13 +42,14 @@ final class Agreements {
 	/**
 	 * Record an acceptance (or decline).
 	 *
-	 * @param int    $affiliate_id Affiliate.
-	 * @param string $result       accepted|declined.
+	 * @param int        $affiliate_id Affiliate.
+	 * @param string     $result       accepted|declined.
+	 * @param array|null $terms        Terms (version/hash) shown when accepting; defaults to current.
 	 * @return int
 	 */
-	public static function record( $affiliate_id, $result = 'accepted' ) {
+	public static function record( $affiliate_id, $result = 'accepted', $terms = null ) {
 		global $wpdb;
-		$terms = self::current( self::group_of( $affiliate_id ) );
+		$terms = is_array( $terms ) ? $terms : self::current( self::group_of( $affiliate_id ) );
 		$wpdb->insert(
 			Db::table( 'agreements' ),
 			array(

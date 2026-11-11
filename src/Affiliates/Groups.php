@@ -187,6 +187,7 @@ final class Groups {
 		global $wpdb;
 		$wpdb->delete( Db::table( 'partner_groups' ), array( 'id' => (int) $id ) );
 		$wpdb->update( Db::table( 'affiliates' ), array( 'group_id' => 0 ), array( 'group_id' => (int) $id ) );
+		AffiliateRepository::clear_cache();
 		Audit::log( 'group.deleted', 'group', (int) $id );
 	}
 }

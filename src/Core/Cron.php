@@ -51,7 +51,17 @@ final class Cron {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
 		}
+		\WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired();
+		$audit_days = (int) Settings::get( 'audit_retention_days' );
+		if ( $audit_days > 0 ) {
+			$audit = Db::table( 'audit' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%'", Db::now( time() - $audit_days * DAY_IN_SECONDS ) ) );
+		}
 		$jobs = Db::table( 'jobs' );
+		// Failed jobs are kept 180 days for analysis, then removed (payloads may contain order data).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'failed' AND updated_at < %s", Db::now( time() - 180 * DAY_IN_SECONDS ) ) );
 		// Done jobs are only kept for 30 days.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'done' AND updated_at < %s", Db::now( time() - 30 * DAY_IN_SECONDS ) ) );

@@ -52,8 +52,11 @@ final class Portal {
 		}
 		$aff = self::current();
 		$p   = PayoutService::find( $id );
-		if ( ! $aff || ! $p || (int) $p->affiliate_id !== (int) $aff->id || 'cancelled' === $p->status ) {
+		if ( ! $aff || ! $p || (int) $p->affiliate_id !== (int) $aff->id ) {
 			wp_die( esc_html__( 'Not allowed.', 'wp-affiliate-captain' ), 403 );
+		}
+		if ( ! empty( $_GET['storno'] ) ) {
+			Statement::send_storno( $p );
 		}
 		Statement::send( $p );
 	}
@@ -458,17 +461,23 @@ final class Portal {
 		$labels = PayoutService::status_labels();
 		echo '<table class="wpac-table"><thead><tr><th>' . esc_html__( 'Number', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Statement', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $p ) {
-			if ( 'cancelled' === $p->status ) {
+			if ( 'cancelled' === $p->status && ! $p->storno_file ) {
 				continue;
 			}
-			$pdf = $p->statement_file ? wp_nonce_url( add_query_arg( 'wpac_statement', (int) $p->id, home_url( '/' ) ), 'wpac_statement_' . (int) $p->id ) : '';
+			$url = static function ( $storno ) use ( $p ) {
+				return wp_nonce_url( add_query_arg( array( 'wpac_statement' => (int) $p->id, 'storno' => $storno ? 1 : 0 ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id );
+			};
+			$pdf = $p->statement_file ? '<a href="' . esc_url( $url( false ) ) . '">' . esc_html__( 'Credit note', 'wp-affiliate-captain' ) . '</a>' : '—';
+			if ( $p->storno_file ) {
+				$pdf .= ' · <a href="' . esc_url( $url( true ) ) . '">' . esc_html__( 'Cancellation', 'wp-affiliate-captain' ) . '</a>';
+			}
 			printf(
 				'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( $p->number ),
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $p->period_end ) ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
 				esc_html( 'exported' === $p->status ? $labels['pending'] : $labels[ $p->status ] ),
-				$pdf ? '<a href="' . esc_url( $pdf ) . '">PDF</a>' : '—'
+				$pdf // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 			);
 		}
 		echo '</tbody></table>';

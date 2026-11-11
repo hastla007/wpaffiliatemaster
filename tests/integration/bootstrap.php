@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 3 );
+define( 'WPAC_DB_VERSION', 4 );
 define( 'WPAC_CONTRACT_VERSION', '1.0.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/wp-affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -232,6 +232,10 @@ spl_autoload_register(
 );
 require WPAC_DIR . 'src/functions.php';
 
+// Fresh statement directory and schema.
+foreach ( (array) glob( sys_get_temp_dir() . '/wpac-uploads/wpac-statements/*' ) as $f ) {
+	@unlink( $f );
+}
 // Fresh schema.
 global $wpdb;
 foreach ( WPAffiliateCaptain\Core\Db::TABLES as $t ) {
@@ -240,3 +244,5 @@ foreach ( WPAffiliateCaptain\Core\Db::TABLES as $t ) {
 WPAffiliateCaptain\Core\Installer::install_schema();
 WPAffiliateCaptain\Codes\CodeRepository::register_hooks();
 WPAffiliateCaptain\Sales\ContractApi::register_hooks();
+function user_can( $u, $c ) { return false; }
+function untrailingslashit( $p ) { return rtrim( $p, '/\\' ); }

@@ -27,7 +27,34 @@ final class CustomerLinks {
 	 * @return string
 	 */
 	private static function hash( $identifier ) {
-		return hash_hmac( 'sha256', $identifier, wp_salt( 'auth' ) . '|wpac-customer' );
+		return hash_hmac( 'sha256', $identifier, self::key() );
+	}
+
+	/**
+	 * Dedicated, persistent key (independent of WordPress salt rotation, so
+	 * erasure requests still find the hashes).
+	 *
+	 * @return string
+	 */
+	private static function key() {
+		$key = get_option( 'wpac_customer_key' );
+		if ( ! is_string( $key ) || strlen( $key ) < 32 ) {
+			$key = bin2hex( random_bytes( 32 ) );
+			add_option( 'wpac_customer_key', $key, '', false );
+		}
+		return $key;
+	}
+
+	/**
+	 * Delete expired links (cron).
+	 *
+	 * @return int
+	 */
+	public static function purge_expired() {
+		global $wpdb;
+		$t = Db::table( 'customer_links' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$t} WHERE expires_at IS NOT NULL AND expires_at <= %s", Db::now() ) );
 	}
 
 	/**

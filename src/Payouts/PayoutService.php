@@ -19,6 +19,7 @@ use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\IntegrationException;
+use WPAffiliateCaptain\Core\Sequence;
 use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -174,16 +175,41 @@ final class PayoutService {
 				if ( ! $rows || $total <= 0 || null === $min || $total < $min ) {
 					return 0;
 				}
-				$profile = ProfileRepository::get( $affiliate_id );
-				$ok      = $wpdb->insert(
+				$profile  = ProfileRepository::get( $affiliate_id );
+				$snapshot = ProfileRepository::snapshot( $profile );
+				// Commission rates are net; VAT is added for domestic VAT-registered partners.
+				$vat = Vat::treatment(
+					isset( $snapshot['tax_status'] ) ? $snapshot['tax_status'] : '',
+					isset( $snapshot['country'] ) ? $snapshot['country'] : '',
+					(string) Settings::get( 'operator_country' ),
+					(string) Settings::get( 'vat_rate' )
+				);
+				/**
+				 * Filter the VAT treatment of a credit note (mode, rate).
+				 *
+				 * @param array $vat          Treatment.
+				 * @param array $snapshot     Partner tax data snapshot.
+				 * @param int   $affiliate_id Partner.
+				 */
+				$vat       = (array) apply_filters( 'wpac_vat_treatment', $vat, $snapshot, $affiliate_id );
+				$vat_minor = Vat::amount( $total, $vat['rate'] );
+				$year      = (int) gmdate( 'Y' );
+				// Gapless credit note number, allocated inside this transaction.
+				$number = Sequence::number( (string) Settings::get( 'credit_prefix' ), 'credit', $year );
+				$ok     = $wpdb->insert(
 					Db::table( 'payouts' ),
 					array(
+						'number'           => $number,
 						'affiliate_id'     => (int) $affiliate_id,
 						'period_end'       => $period_end,
 						'currency'         => $currency,
-						'amount_minor'     => $total,
+						'net_minor'        => $total,
+						'vat_mode'         => $vat['mode'],
+						'vat_rate'         => (string) $vat['rate'],
+						'vat_minor'        => $vat_minor,
+						'amount_minor'     => $total + $vat_minor, // Amount paid out (gross).
 						'status'           => 'pending',
-						'profile_snapshot' => wp_json_encode( ProfileRepository::snapshot( $profile ) ),
+						'profile_snapshot' => wp_json_encode( $snapshot ),
 						'created_by'       => get_current_user_id(),
 						'created_at'       => Db::now(),
 					)
@@ -192,10 +218,6 @@ final class PayoutService {
 					throw new IntegrationException( 'db_payout', $wpdb->last_error );
 				}
 				$payout_id = (int) $wpdb->insert_id;
-				$number    = sprintf( 'AC-%s-%05d', substr( $period_end, 0, 4 ), $payout_id );
-				if ( 1 !== (int) $wpdb->update( Db::table( 'payouts' ), array( 'number' => $number ), array( 'id' => $payout_id ) ) ) {
-					throw new IntegrationException( 'db_payout_number', $wpdb->last_error );
-				}
 
 				foreach ( $rows as $r ) {
 					$ok = $wpdb->insert(
@@ -327,6 +349,12 @@ final class PayoutService {
 					if ( 1 !== $rows ) {
 						throw new IntegrationException( 'state', __( 'Only unpaid payouts can be cancelled.', 'wp-affiliate-captain' ) );
 					}
+					// A credit note that was issued is cancelled by its own document with a new number.
+					if ( '' !== (string) $p->statement_file || '' !== (string) $p->statement_hash ) {
+						$storno = Sequence::number( (string) Settings::get( 'storno_prefix' ), 'storno', (int) gmdate( 'Y' ) );
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						$wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET storno_number = %s, storno_at = %s WHERE id = %d", $storno, Db::now(), $id ) );
+					}
 					foreach ( self::items( $id, true ) as $item ) {
 						Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
 					}
@@ -342,6 +370,7 @@ final class PayoutService {
 		} catch ( IntegrationException $e ) {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
+		Statement::generate_storno( (int) $id );
 		Audit::log(
 			'payout.cancelled',
 			'payout',

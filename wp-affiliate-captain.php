@@ -19,7 +19,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'WPAC_VERSION', '0.2.1' );
-define( 'WPAC_DB_VERSION', 3 );
+define( 'WPAC_DB_VERSION', 4 );
 /** Version of the public integration contract (hooks + payload schema). */
 define( 'WPAC_CONTRACT_VERSION', '1.0.0' );
 define( 'WPAC_FILE', __FILE__ );
