@@ -1,0 +1,21 @@
+{
+    "name": "hastla007/wp-affiliate-captain",
+    "description": "WP Affiliate Captain \u2013 partner program, attribution, commissions and payouts for WordPress.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "WPAffiliateCaptain\\": "src/"
+        }
+    },
+    "scripts": {
+        "test": "php tests/run.php",
+        "lint": "find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

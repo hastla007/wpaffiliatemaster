@@ -1,0 +1,175 @@
+<?php
+/**
+ * Retryable integration jobs. When processing a sale/refund fails (e.g. a DB
+ * error or an unavailable integration), the event is queued here and retried
+ * with exponential backoff. Failed jobs are visible and retryable in the admin.
+ *
+ * @package WPAffiliateCaptain
+ */
+
+namespace WPAffiliateCaptain\Core;
+
+defined( 'ABSPATH' ) || exit;
+
+final class Jobs {
+
+	const MAX_ATTEMPTS = 8;
+
+	/**
+	 * Queue (or re-queue) a job. The idempotency key prevents duplicates.
+	 *
+	 * @param string $type    Job type (sale|refund|woo_order|woo_refund).
+	 * @param string $key     Idempotency key.
+	 * @param array  $payload Payload.
+	 * @param string $code    Error code of the first failure.
+	 * @param string $message Error message of the first failure.
+	 */
+	public static function enqueue( $type, $key, array $payload, $code = '', $message = '' ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		$key   = substr( $type . ':' . $key, 0, 191 );
+		$now   = Db::now();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE idempotency_key = %s", $key ) );
+		if ( $exists ) {
+			$wpdb->update(
+				$table,
+				array(
+					'status'          => 'queued',
+					'payload'         => wp_json_encode( $payload ),
+					'next_attempt_at' => Db::now( time() + 300 ),
+					'last_error_code' => substr( (string) $code, 0, 64 ),
+					'last_error'      => substr( (string) $message, 0, 255 ),
+					'updated_at'      => $now,
+				),
+				array( 'id' => (int) $exists )
+			);
+			return;
+		}
+		$wpdb->insert(
+			$table,
+			array(
+				'type'            => $type,
+				'idempotency_key' => $key,
+				'payload'         => wp_json_encode( $payload ),
+				'status'          => 'queued',
+				'attempts'        => 1,
+				'next_attempt_at' => Db::now( time() + 300 ),
+				'last_error_code' => substr( (string) $code, 0, 64 ),
+				'last_error'      => substr( (string) $message, 0, 255 ),
+				'created_at'      => $now,
+				'updated_at'      => $now,
+			)
+		);
+	}
+
+	/**
+	 * Process due jobs.
+	 *
+	 * @param int $limit Max jobs per run.
+	 */
+	public static function run_due( $limit = 25 ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'queued' AND next_attempt_at <= %s ORDER BY next_attempt_at ASC LIMIT %d", Db::now(), $limit ) );
+		foreach ( $ids as $id ) {
+			self::run( (int) $id );
+		}
+	}
+
+	/**
+	 * Run one job now.
+	 *
+	 * @param int $id Job ID.
+	 * @return bool Success.
+	 */
+	public static function run( $id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) );
+		if ( ! $job || 'done' === $job->status ) {
+			return false;
+		}
+		$payload = json_decode( (string) $job->payload, true );
+		$payload = is_array( $payload ) ? $payload : array();
+
+		try {
+			/**
+			 * Run a job. Handlers must be idempotent and throw on failure.
+			 *
+			 * @param bool   $handled Whether a handler processed the job.
+			 * @param string $type    Job type.
+			 * @param array  $payload Payload.
+			 */
+			$handled = apply_filters( 'wpac_run_job', false, $job->type, $payload );
+			if ( ! $handled ) {
+				throw new IntegrationException( 'no_handler', 'No handler available for job type ' . $job->type );
+			}
+			$wpdb->update(
+				$table,
+				array(
+					'status'     => 'done',
+					'updated_at' => Db::now(),
+				),
+				array( 'id' => (int) $job->id )
+			);
+			return true;
+		} catch ( \Throwable $e ) {
+			$attempts = (int) $job->attempts + 1;
+			$delay    = min( DAY_IN_SECONDS, 300 * ( 2 ** min( $attempts, 10 ) ) );
+			$wpdb->update(
+				$table,
+				array(
+					'status'          => $attempts >= self::MAX_ATTEMPTS ? 'failed' : 'queued',
+					'attempts'        => $attempts,
+					'next_attempt_at' => Db::now( time() + $delay ),
+					'last_error_code' => substr( $e instanceof IntegrationException ? $e->error_code : 'exception', 0, 64 ),
+					'last_error'      => substr( $e->getMessage(), 0, 255 ),
+					'updated_at'      => Db::now(),
+				),
+				array( 'id' => (int) $job->id )
+			);
+			return false;
+		}
+	}
+
+	/**
+	 * Reset a failed job so it runs at the next opportunity.
+	 *
+	 * @param int $id Job ID.
+	 */
+	public static function retry( $id ) {
+		global $wpdb;
+		$wpdb->update(
+			Db::table( 'jobs' ),
+			array(
+				'status'          => 'queued',
+				'next_attempt_at' => Db::now(),
+				'updated_at'      => Db::now(),
+			),
+			array( 'id' => (int) $id )
+		);
+		Audit::log( 'job.retry', 'job', (int) $id );
+		return self::run( (int) $id );
+	}
+
+	/**
+	 * Jobs list for the admin.
+	 *
+	 * @param string $status Optional status filter.
+	 * @param int    $limit  Limit.
+	 * @return array
+	 */
+	public static function query( $status = '', $limit = 100 ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		if ( $status ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status = %s ORDER BY id DESC LIMIT %d", $status, $limit ) );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status <> 'done' ORDER BY id DESC LIMIT %d", $limit ) );
+	}
+}

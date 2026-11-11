@@ -1,0 +1,29 @@
+.wpac-portal,.wpac-form{--wpac-accent:#0b6e99;--wpac-border:rgba(0,0,0,.12);--wpac-muted:rgba(0,0,0,.6);max-width:960px}
+.wpac-form p{margin:0 0 1em}
+.wpac-form label{display:block;font-weight:600;margin-bottom:.25em}
+.wpac-form .wpac-check label{font-weight:400}
+.wpac-form input[type=text],.wpac-form input[type=email],.wpac-form input[type=url],.wpac-form select,.wpac-form textarea{width:100%;max-width:520px;box-sizing:border-box}
+.wpac-form--inline label{display:inline-block;margin-right:.75em}
+.wpac-form--inline input{width:auto}
+.wpac-hp{position:absolute!important;left:-9999px!important;height:1px;overflow:hidden}
+.wpac-button{background:var(--wpac-accent);color:#fff;border:0;border-radius:4px;padding:.6em 1.2em;cursor:pointer}
+.wpac-button:hover{filter:brightness(1.1)}
+.wpac-notice{border-left:4px solid var(--wpac-accent);background:rgba(11,110,153,.06);padding:.75em 1em;margin:0 0 1em}
+.wpac-notice--success{border-color:#2e7d32;background:rgba(46,125,50,.07)}
+.wpac-notice--error{border-color:#c62828;background:rgba(198,40,40,.07)}
+.wpac-tabs{display:flex;flex-wrap:wrap;gap:.25em;border-bottom:1px solid var(--wpac-border);margin-bottom:1em}
+.wpac-tabs a{padding:.5em 1em;text-decoration:none;border-bottom:3px solid transparent}
+.wpac-tabs a.is-active{border-color:var(--wpac-accent);font-weight:600}
+.wpac-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1em}
+.wpac-card{border:1px solid var(--wpac-border);border-radius:6px;padding:1em}
+.wpac-card__label{display:block;color:var(--wpac-muted);font-size:.85em}
+.wpac-card__value{display:block;font-size:1.4em;margin-top:.25em}
+.wpac-table{width:100%;border-collapse:collapse;font-size:.95em}
+.wpac-table th,.wpac-table td{border-bottom:1px solid var(--wpac-border);padding:.5em;text-align:left}
+.wpac-negative{color:#c62828}
+.wpac-copy{width:100%;font-family:monospace}
+.wpac-code{font-family:monospace;font-size:1.1em;letter-spacing:.05em}
+.wpac-muted{color:var(--wpac-muted);font-size:.9em}
+.wpac-pager a{padding:.25em .5em}
+.wpac-pager a.is-active{font-weight:700}
+@media (max-width:600px){.wpac-table{display:block;overflow-x:auto}}
