@@ -228,7 +228,7 @@ final class PayoutsPage {
 		echo '<button class="button">' . esc_html__( 'Export CSV', 'wp-affiliate-captain' ) . '</button></form>';
 
 		Admin::form_open( 'payout_bulk' );
-		echo '<table class="wp-list-table widefat striped"><thead><tr><td class="check-column"><input type="checkbox" class="wpac-cb-all" aria-label="' . esc_attr__( 'Select all', 'wp-affiliate-captain' ) . '"></td><th>' . esc_html__( 'Number', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Period end', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Bank details', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wp-list-table widefat striped"><thead><tr><td class="check-column"><input type="checkbox" class="wpac-cb-all" aria-label="' . esc_attr__( 'Select all', 'wp-affiliate-captain' ) . '"></td><th>' . esc_html_x( 'Number', 'document number', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Period end', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Bank details', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		if ( ! $rows ) {
 			echo '<tr><td colspan="7">' . esc_html__( 'No payouts yet.', 'wp-affiliate-captain' ) . '</td></tr>';
 		}

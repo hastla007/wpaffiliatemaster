@@ -32,6 +32,13 @@ final class Registration {
 		$redirect = wp_get_referer() ? wp_get_referer() : home_url( '/' );
 		$redirect = remove_query_arg( array( 'wpac_reg', 'wpac_err' ), $redirect );
 
+		// Keep the entries for the form if something has to be corrected.
+		foreach ( $_POST as $k => $v ) {
+			if ( is_string( $v ) && 0 === strpos( (string) $k, 'wpac_' ) && ! in_array( $k, array( 'wpac_register', 'wpac_url_confirm', 'wpac_group_sig' ), true ) ) {
+				self::$values[ sanitize_key( $k ) ] = sanitize_textarea_field( wp_unslash( $v ) );
+			}
+		}
+
 		if ( ! isset( $_POST['_wpac_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpac_nonce'] ) ), 'wpac_register' ) ) {
 			self::back( $redirect, 'nonce' );
 		}
@@ -72,6 +79,7 @@ final class Registration {
 					$value = sanitize_text_field( $value );
 			}
 			if ( $field['required'] && '' === $value ) {
+				self::$field = 'wpac_f_' . $field['key'];
 				self::back( $redirect, 'required' );
 			}
 			$application_data[ $field['key'] ] = array(
@@ -82,12 +90,14 @@ final class Registration {
 
 		$terms = Agreements::current( $group_id );
 		if ( $terms['page_id'] && empty( $_POST['wpac_terms'] ) ) {
+			self::$field = 'wpac_terms';
 			self::back( $redirect, 'terms' );
 		}
 
 		$user  = wp_get_current_user();
 		$email = $user && $user->exists() ? $user->user_email : ( isset( $_POST['wpac_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_email'] ) ) : '' );
 		if ( ! is_email( $email ) ) {
+			self::$field = 'wpac_email';
 			self::back( $redirect, 'invalid' );
 		}
 		if ( $user && $user->exists() && AffiliateRepository::find_by_user( $user->ID ) ) {
@@ -187,9 +197,46 @@ final class Registration {
 	 * @param string $success Success state (ok|confirm).
 	 */
 	private static function back( $url, $code, $success = '' ) {
-		$url = remove_query_arg( array( 'wpac_reg', 'wpac_err', 'wpac_confirm' ), $url );
+		$url = remove_query_arg( array( 'wpac_reg', 'wpac_err', 'wpac_confirm', 'wpac_form' ), $url );
+		if ( '' !== $code && self::$values ) {
+			$token = wp_generate_password( 20, false );
+			set_transient(
+				'wpac_form_' . $token,
+				array(
+					'values' => self::$values,
+					'field'  => self::$field,
+				),
+				15 * MINUTE_IN_SECONDS
+			);
+			$url = add_query_arg( 'wpac_form', $token, $url );
+		}
 		wp_safe_redirect( '' !== $code ? add_query_arg( 'wpac_err', $code, $url ) : add_query_arg( 'wpac_reg', $success, $url ) );
 		exit;
+	}
+
+	/** @var array Submitted values (kept for correction). */
+	private static $values = array();
+
+	/** @var string Field with the error. */
+	private static $field = '';
+
+	/**
+	 * Attributes for a form control: kept value, aria-invalid/describedby.
+	 *
+	 * @param array  $form   Kept form state.
+	 * @param string $name   Field name.
+	 * @param bool   $value  Output a value attribute.
+	 * @return string
+	 */
+	private static function attrs( array $form, $name, $value = true ) {
+		$out = '';
+		if ( $value && isset( $form['values'][ $name ] ) ) {
+			$out .= ' value="' . esc_attr( $form['values'][ $name ] ) . '"';
+		}
+		if ( isset( $form['field'] ) && $form['field'] === $name ) {
+			$out .= ' aria-invalid="true" aria-describedby="wpac-form-error" autofocus';
+		}
+		return $out;
 	}
 
 	/**
@@ -245,6 +292,11 @@ final class Registration {
 			'invalid' => __( 'Please check your entries.', 'wp-affiliate-captain' ),
 		);
 		$err    = isset( $_GET['wpac_err'] ) ? sanitize_key( wp_unslash( $_GET['wpac_err'] ) ) : '';
+		$form   = isset( $_GET['wpac_form'] ) ? get_transient( 'wpac_form_' . sanitize_text_field( wp_unslash( $_GET['wpac_form'] ) ) ) : array();
+		$form   = is_array( $form ) ? $form : array();
+		$kept   = static function ( $name ) use ( $form ) {
+			return isset( $form['values'][ $name ] ) ? (string) $form['values'][ $name ] : '';
+		};
 		// phpcs:enable
 
 		$group_id = absint( $atts['group'] );
@@ -272,10 +324,11 @@ final class Registration {
 		?>
 		<form class="wpac-form" method="post">
 			<?php if ( $err && isset( $errors[ $err ] ) ) : ?>
-				<div class="wpac-notice wpac-notice--error" role="alert"><?php echo esc_html( $errors[ $err ] ); ?></div>
+				<div class="wpac-notice wpac-notice--error" role="alert" id="wpac-form-error"><?php echo esc_html( $errors[ $err ] ); ?></div>
 			<?php endif; ?>
 			<?php wp_nonce_field( 'wpac_register', '_wpac_nonce' ); ?>
 			<input type="hidden" name="wpac_register" value="1">
+			<p class="wpac-required-note"><?php esc_html_e( 'Fields marked with * are required.', 'wp-affiliate-captain' ); ?></p>
 			<input type="hidden" name="wpac_group" value="<?php echo (int) $group_id; ?>">
 			<?php if ( $fixed ) : ?>
 				<input type="hidden" name="wpac_group_sig" value="<?php echo esc_attr( self::group_sig( $group_id ) ); ?>">
@@ -286,37 +339,37 @@ final class Registration {
 			<p class="wpac-hp" aria-hidden="true"><label>URL <input type="text" name="wpac_url_confirm" tabindex="-1" autocomplete="off"></label></p>
 			<p>
 				<label for="wpac_name"><?php esc_html_e( 'Name / company', 'wp-affiliate-captain' ); ?> *</label>
-				<input type="text" id="wpac_name" name="wpac_name" required value="<?php echo esc_attr( $user->exists() ? $user->display_name : '' ); ?>">
+				<input type="text" id="wpac_name" name="wpac_name" required autocomplete="name" value="<?php echo esc_attr( '' !== $kept( 'wpac_name' ) ? $kept( 'wpac_name' ) : ( $user->exists() ? $user->display_name : '' ) ); ?>"<?php echo self::attrs( $form, 'wpac_name', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<?php if ( ! $user->exists() ) : ?>
 			<p>
 				<label for="wpac_email"><?php esc_html_e( 'E-mail', 'wp-affiliate-captain' ); ?> *</label>
-				<input type="email" id="wpac_email" name="wpac_email" required autocomplete="email">
+				<input type="email" id="wpac_email" name="wpac_email" required autocomplete="email"<?php echo self::attrs( $form, 'wpac_email' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<?php endif; ?>
 			<p>
 				<label for="wpac_website"><?php esc_html_e( 'Website', 'wp-affiliate-captain' ); ?></label>
-				<input type="url" id="wpac_website" name="wpac_website" placeholder="https://">
+				<input type="url" id="wpac_website" name="wpac_website" placeholder="https://" autocomplete="url"<?php echo self::attrs( $form, 'wpac_website' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<p>
 				<label for="wpac_channel"><?php esc_html_e( 'Channel (e.g. Instagram, YouTube, newsletter, school)', 'wp-affiliate-captain' ); ?></label>
-				<input type="text" id="wpac_channel" name="wpac_channel">
+				<input type="text" id="wpac_channel" name="wpac_channel"<?php echo self::attrs( $form, 'wpac_channel' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<p>
 				<label for="wpac_note"><?php esc_html_e( 'How do you want to promote us?', 'wp-affiliate-captain' ); ?></label>
-				<textarea id="wpac_note" name="wpac_note" rows="4"></textarea>
+				<textarea id="wpac_note" name="wpac_note" rows="4"><?php echo esc_textarea( $kept( 'wpac_note' ) ); ?></textarea>
 			</p>
 			<?php foreach ( Groups::fields( $group ) as $field ) : ?>
 				<?php $fid = 'wpac_f_' . $field['key']; ?>
 				<p class="<?php echo 'checkbox' === $field['type'] ? 'wpac-check' : ''; ?>">
 				<?php if ( 'checkbox' === $field['type'] ) : ?>
-					<label><input type="checkbox" name="<?php echo esc_attr( $fid ); ?>" value="1" <?php echo $field['required'] ? 'required' : ''; ?>> <?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
+					<label><input type="checkbox" name="<?php echo esc_attr( $fid ); ?>" value="1" <?php echo $field['required'] ? 'required' : ''; ?> <?php checked( '1', $kept( $fid ) ); ?><?php echo self::attrs( $form, $fid, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>> <?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
 				<?php else : ?>
 					<label for="<?php echo esc_attr( $fid ); ?>"><?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
 					<?php if ( 'textarea' === $field['type'] ) : ?>
-						<textarea id="<?php echo esc_attr( $fid ); ?>" name="<?php echo esc_attr( $fid ); ?>" rows="3" <?php echo $field['required'] ? 'required' : ''; ?>></textarea>
+						<textarea id="<?php echo esc_attr( $fid ); ?>" name="<?php echo esc_attr( $fid ); ?>" rows="3" <?php echo $field['required'] ? 'required' : ''; ?><?php echo self::attrs( $form, $fid, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>><?php echo esc_textarea( $kept( $fid ) ); ?></textarea>
 					<?php else : ?>
-						<input type="<?php echo esc_attr( 'url' === $field['type'] ? 'url' : ( 'number' === $field['type'] ? 'number' : 'text' ) ); ?>" id="<?php echo esc_attr( $fid ); ?>" name="<?php echo esc_attr( $fid ); ?>" <?php echo $field['required'] ? 'required' : ''; ?>>
+						<input type="<?php echo esc_attr( 'url' === $field['type'] ? 'url' : ( 'number' === $field['type'] ? 'number' : 'text' ) ); ?>" id="<?php echo esc_attr( $fid ); ?>" name="<?php echo esc_attr( $fid ); ?>" <?php echo $field['required'] ? 'required' : ''; ?><?php echo self::attrs( $form, $fid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 					<?php endif; ?>
 				<?php endif; ?>
 				</p>
@@ -324,7 +377,7 @@ final class Registration {
 			<?php if ( $terms['page_id'] ) : ?>
 			<p class="wpac-check">
 				<label>
-					<input type="checkbox" name="wpac_terms" value="1" required>
+					<input type="checkbox" name="wpac_terms" value="1" required<?php echo self::attrs( $form, 'wpac_terms', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 					<?php
 					printf(
 						/* translators: 1: link to terms, 2: version */

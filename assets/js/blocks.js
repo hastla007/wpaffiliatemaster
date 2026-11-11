@@ -7,6 +7,8 @@
 	var Inspector = wp.blockEditor.InspectorControls;
 	var PanelBody = wp.components.PanelBody;
 	var TextControl = wp.components.TextControl;
+	var SelectControl = wp.components.SelectControl;
+	var data = window.wpacBlocks || { groups: [] };
 	var Placeholder = wp.components.Placeholder;
 
 	function save() {
@@ -26,10 +28,11 @@
 				useBlockProps(),
 				el( Inspector, null,
 					el( PanelBody, { title: __( 'Settings', 'wp-affiliate-captain' ) },
-						el( TextControl, {
-							label: __( 'Fixed partner group ID (0 = applicant chooses)', 'wp-affiliate-captain' ),
-							type: 'number',
-							value: props.attributes.group,
+						el( SelectControl, {
+							label: __( 'Partner group', 'wp-affiliate-captain' ),
+							help: __( 'Fix the group of this form, or let applicants choose among the public groups.', 'wp-affiliate-captain' ),
+							value: String( props.attributes.group || 0 ),
+							options: data.groups.map( function ( g ) { return { value: String( g.value ), label: g.label }; } ),
 							onChange: function ( v ) { props.setAttributes( { group: parseInt( v, 10 ) || 0 } ); }
 						} )
 					)

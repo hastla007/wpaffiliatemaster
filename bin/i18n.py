@@ -9,7 +9,8 @@ import hashlib, json, os, re, struct, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOMAIN = "wp-affiliate-captain"
-FUNCS = r"(?:__|_e|esc_html__|esc_attr__|esc_html_e|esc_attr_e|_x|_n)"
+FUNCS = r"(?:__|_e|esc_html__|esc_attr__|esc_html_e|esc_attr_e|_n)"
+XFUNCS = r"(?:_x|esc_html_x|esc_attr_x)"
 SQ = r"'((?:[^'\\]|\\.)*)'"
 DQ = r'"((?:[^"\\]|\\.)*)"'
 
@@ -51,6 +52,20 @@ def php_strings():
     return found
 
 
+def php_ctx_strings():
+    """(context, msgid) pairs from _x()/esc_html_x()/esc_attr_x() calls."""
+    out = []
+    pat = re.compile(XFUNCS + r"\(\s*" + SQ + r"\s*,\s*" + SQ + r"\s*,\s*'" + DOMAIN + "'")
+    for dirpath, _, files in os.walk(os.path.join(ROOT, "src")):
+        for f in files:
+            if f.endswith(".php"):
+                for m in pat.finditer(open(os.path.join(dirpath, f), encoding="utf-8").read()):
+                    pair = (unescape_sq(m.group(2)), unescape_sq(m.group(1)))
+                    if pair not in out:
+                        out.append(pair)
+    return out
+
+
 def js_strings():
     path = os.path.join(ROOT, "assets/js/blocks.js")
     text = open(path, encoding="utf-8").read()
@@ -60,6 +75,10 @@ def js_strings():
         if s not in out:
             out.append(s)
     return out
+
+
+def ctx_strings():
+    return block_strings() + php_ctx_strings()
 
 
 def block_strings():
@@ -93,8 +112,8 @@ def write_pot():
             lines += ['msgstr ""', ""]
     for s in js_strings():
         lines += ["#: assets/js/blocks.js", 'msgid "%s"' % po_escape(s), 'msgstr ""', ""]
-    for ctx, s in block_strings():
-        lines += ["#: blocks", 'msgctxt "%s"' % ctx, 'msgid "%s"' % po_escape(s), 'msgstr ""', ""]
+    for ctx, s in ctx_strings():
+        lines += ["#: blocks/src", 'msgctxt "%s"' % ctx, 'msgid "%s"' % po_escape(s), 'msgstr ""', ""]
     open(os.path.join(ROOT, "languages", DOMAIN + ".pot"), "w", encoding="utf-8").write("\n".join(lines))
     return len(strings) + len(js_strings())
 
@@ -144,12 +163,13 @@ def build(locale):
                 continue
             entries[s] = tr[s]
             po += ['msgid "%s"' % po_escape(s), 'msgstr "%s"' % po_escape(tr[s]), ""]
-    for ctx, s in block_strings():
-        if s not in tr:
-            missing.append(s)
+    for ctx, s in ctx_strings():
+        key = ctx + "\x04" + s if (ctx + "\x04" + s) in tr else s
+        if key not in tr:
+            missing.append(ctx + "|" + s)
             continue
-        entries[ctx + "\x04" + s] = tr[s]
-        po += ['msgctxt "%s"' % ctx, 'msgid "%s"' % po_escape(s), 'msgstr "%s"' % po_escape(tr[s]), ""]
+        entries[ctx + "\x04" + s] = tr[key]
+        po += ['msgctxt "%s"' % ctx, 'msgid "%s"' % po_escape(s), 'msgstr "%s"' % po_escape(tr[key]), ""]
     js = {}
     for s in js_strings():
         if s in tr:
@@ -174,9 +194,12 @@ if __name__ == "__main__":
         for (s, p), _ in php_strings().items():
             if s not in tr:
                 print(json.dumps(s, ensure_ascii=False))
-        for s in js_strings() + [b for _, b in block_strings()]:
+        for s in js_strings():
             if s not in tr:
                 print(json.dumps(s, ensure_ascii=False))
+        for c, s in ctx_strings():
+            if s not in tr and (c + "\x04" + s) not in tr:
+                print(json.dumps(c + "\x04" + s, ensure_ascii=False))
     elif cmd == "build":
         missing = build(sys.argv[2])
         print("missing:", len(missing))

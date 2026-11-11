@@ -25,8 +25,12 @@ final class SettingsPage {
 		if ( 'settings_save' !== $do ) {
 			return;
 		}
-		$raw = (array) Admin::post( 'wpac', array() );
-		$new = Settings::sanitize( $raw );
+		$raw  = (array) Admin::post( 'wpac', array() );
+		$tabs = self::tab_keys();
+		$tab  = sanitize_key( Admin::post( 'tab' ) );
+		$tab  = isset( $tabs[ $tab ] ) ? $tab : 'program';
+		// Only the fields of the submitted tab are changed (unchecked checkboxes are absent from POST).
+		$new = array_intersect_key( Settings::sanitize( $raw ), array_flip( $tabs[ $tab ] ) );
 		$old = Settings::all();
 		Settings::update( $new );
 		$changed = array();
@@ -36,20 +40,63 @@ final class SettingsPage {
 			}
 		}
 		Audit::log( 'settings.updated', 'settings', 0, array( 'changed' => $changed ) );
-		Admin::back( __( 'Settings saved.', 'wp-affiliate-captain' ) );
+		Admin::back( __( 'Settings saved.', 'wp-affiliate-captain' ), 'success', Admin::url( 'wpac-settings', array( 'tab' => $tab ) ) );
 	}
+
+	/**
+	 * Setting keys per tab.
+	 *
+	 * @return array
+	 */
+	public static function tab_keys() {
+		return array(
+			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'admin_email' ),
+			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'touch_model', 'coupon_priority', 'self_referral' ),
+			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'visit_retention_days' ),
+			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days' ),
+			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
+			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
+			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall' ),
+		);
+	}
+
+	/** @var string Active tab while rendering. */
+	private static $tab = 'program';
+
+	/** @var string Tab of the section being rendered. */
+	private static $section_tab = '';
+
+	/** @var string Title of the section being rendered. */
+	private static $section_title = '';
 
 	/**
 	 * Render.
 	 */
 	public static function render() {
+		$labels = array(
+			'program'     => __( 'Program', 'wp-affiliate-captain' ),
+			'tracking'    => __( 'Tracking', 'wp-affiliate-captain' ),
+			'security'    => __( 'Fraud & abuse', 'wp-affiliate-captain' ),
+			'commissions' => __( 'Commissions', 'wp-affiliate-captain' ),
+			'promotion'   => __( 'Promotion', 'wp-affiliate-captain' ),
+			'payouts'     => __( 'Payouts & credit notes', 'wp-affiliate-captain' ),
+			'reports'     => __( 'Reports & data', 'wp-affiliate-captain' ),
+		);
+		$tab       = Admin::get( 'tab' );
+		self::$tab = isset( $labels[ $tab ] ) ? $tab : 'program';
 		$s        = Settings::all();
 		$currency = $s['currency'];
 		echo '<div class="wrap"><h1>' . esc_html__( 'Affiliate Captain settings', 'wp-affiliate-captain' ) . '</h1>';
 		Admin::notice();
-		Admin::form_open( 'settings_save' );
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Settings sections', 'wp-affiliate-captain' ) . '">';
+		foreach ( $labels as $key => $label ) {
+			printf( '<a class="nav-tab %s" href="%s"%s>%s</a>', $key === self::$tab ? 'nav-tab-active' : '', esc_url( Admin::url( 'wpac-settings', array( 'tab' => $key ) ) ), $key === self::$tab ? ' aria-current="page"' : '', esc_html( $label ) );
+		}
+		echo '</nav>';
+		Admin::form_open( 'settings_save', 'wpac-tabs-content' );
+		echo '<input type="hidden" name="tab" value="' . esc_attr( self::$tab ) . '">';
 
-		self::section( __( 'Program & pages', 'wp-affiliate-captain' ) );
+		self::section( __( 'Program & pages', 'wp-affiliate-captain' ), 'program' );
 		self::page_select( 'registration_page_id', __( 'Application page', 'wp-affiliate-captain' ), $s, '[wpac_affiliate_registration]' );
 		self::page_select( 'portal_page_id', __( 'Partner area page', 'wp-affiliate-captain' ), $s, '[wpac_affiliate_portal]' );
 		self::page_select( 'terms_page_id', __( 'Partner program terms', 'wp-affiliate-captain' ), $s, __( 'Version and SHA-256 hash of this page are stored with every acceptance.', 'wp-affiliate-captain' ) );
@@ -59,7 +106,7 @@ final class SettingsPage {
 		self::text( 'admin_email', __( 'Notification e-mail', 'wp-affiliate-captain' ), $s, __( 'Defaults to the site admin e-mail.', 'wp-affiliate-captain' ) );
 		self::end();
 
-		self::section( __( 'Tracking & attribution', 'wp-affiliate-captain' ) );
+		self::section( __( 'Tracking & attribution', 'wp-affiliate-captain' ), 'tracking' );
 		/* translators: %s: example URL */
 		self::text( 'referral_param', __( 'Link parameter', 'wp-affiliate-captain' ), $s, sprintf( __( 'Example: %s', 'wp-affiliate-captain' ), home_url( '/?' . $s['referral_param'] . '=CODE' ) ) );
 		self::checkbox( 'checkout_field', __( 'Show partner code field at checkout (classic + blocks)', 'wp-affiliate-captain' ), $s );
@@ -80,7 +127,7 @@ final class SettingsPage {
 		self::select( 'self_referral', __( 'Self-referrals', 'wp-affiliate-captain' ), $s, array( 'block' => __( 'Block', 'wp-affiliate-captain' ), 'review' => __( 'Flag for review', 'wp-affiliate-captain' ) ) );
 		self::end();
 
-		self::section( __( 'Fraud rules', 'wp-affiliate-captain' ) );
+		self::section( __( 'Fraud rules', 'wp-affiliate-captain' ), 'security' );
 		echo '<tr><td colspan="2" class="description">' . esc_html__( 'Matches do not block a sale: its commissions get the status "needs review" with the reason. 0 = rule off.', 'wp-affiliate-captain' ) . '</td></tr>';
 		self::number( 'fraud_max_orders_day', __( 'Max. orders per partner in 24 hours', 'wp-affiliate-captain' ), $s );
 		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html__( 'Review orders above (net)', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
@@ -90,13 +137,13 @@ final class SettingsPage {
 		echo '<tr><th><label for="wpac-fraud_blocked_domains">' . esc_html__( 'Additional blocked domains', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-fraud_blocked_domains" name="wpac[fraud_blocked_domains]" rows="3" class="regular-text code">' . esc_textarea( (string) $s['fraud_blocked_domains'] ) . '</textarea></td></tr>';
 		self::end();
 
-		self::section( __( 'Abuse protection', 'wp-affiliate-captain' ) );
+		self::section( __( 'Abuse protection', 'wp-affiliate-captain' ), 'security' );
 		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'wp-affiliate-captain' ), $s );
 		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1">' . esc_textarea( (string) $s['trusted_proxies'] ) . '</textarea><p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'wp-affiliate-captain' ), $s );
 		self::end();
 
-		self::section( __( 'Commissions', 'wp-affiliate-captain' ) );
+		self::section( __( 'Commissions', 'wp-affiliate-captain' ), 'commissions' );
 		self::text( 'currency', __( 'Program currency', 'wp-affiliate-captain' ), $s );
 		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html__( 'Reference exchange rates', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05">' . esc_textarea( (string) $s['exchange_rates'] ) . '</textarea><p class="description">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'wp-affiliate-captain' ), $currency ) ) . '</p></td></tr>';
 		self::select( 'default_rate_type', __( 'Default commission type', 'wp-affiliate-captain' ), $s, array( 'percent' => __( 'Percent of net', 'wp-affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'wp-affiliate-captain' ) ) );
@@ -111,7 +158,7 @@ final class SettingsPage {
 		self::number( 'hold_days', __( 'Hold period (days after payment)', 'wp-affiliate-captain' ), $s, __( 'Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until.', 'wp-affiliate-captain' ) );
 		self::end();
 
-		self::section( __( 'Promotion', 'wp-affiliate-captain' ) );
+		self::section( __( 'Promotion', 'wp-affiliate-captain' ), 'promotion' );
 		/* translators: %s: example URL */
 		self::text( 'landing_prefix', __( 'Landing page path', 'wp-affiliate-captain' ), $s, sprintf( __( 'Partner landing URLs look like %s', 'wp-affiliate-captain' ), home_url( '/' . $s['landing_prefix'] . '/partner-slug/' ) ) );
 		self::page_select( 'landing_page_id', __( 'Default landing page', 'wp-affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'wp-affiliate-captain' ) );
@@ -119,7 +166,7 @@ final class SettingsPage {
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		self::end();
 
-		self::section( __( 'Payouts', 'wp-affiliate-captain' ) );
+		self::section( __( 'Payouts', 'wp-affiliate-captain' ), 'payouts' );
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
 		self::select( 'payout_period', __( 'Payout period', 'wp-affiliate-captain' ), $s, array( 'monthly' => __( 'Monthly', 'wp-affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'wp-affiliate-captain' ), 'manual' => __( 'Manual', 'wp-affiliate-captain' ) ) );
 		self::checkbox( 'payout_requests', __( 'Partners can request payouts in the partner area', 'wp-affiliate-captain' ), $s );
@@ -138,12 +185,12 @@ final class SettingsPage {
 		self::text( 'remittance_prefix', __( 'Remittance text prefix', 'wp-affiliate-captain' ), $s );
 		self::end();
 
-		self::section( __( 'Reporting', 'wp-affiliate-captain' ) );
+		self::section( __( 'Reporting', 'wp-affiliate-captain' ), 'reports' );
 		self::checkbox( 'report_admin', __( 'Monthly summary e-mail to the operator', 'wp-affiliate-captain' ), $s );
 		self::checkbox( 'report_partners', __( 'Monthly summary e-mail to active partners', 'wp-affiliate-captain' ), $s, __( 'Sent on the first days of the month for the previous month.', 'wp-affiliate-captain' ) );
 		self::end();
 
-		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ) );
+		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ), 'reports' );
 		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Terms acceptance records are always kept as proof.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'wp-affiliate-captain' ), $s, __( 'Includes commission and payout records – make sure bookkeeping retention obligations are met.', 'wp-affiliate-captain' ) );
 		self::end();
@@ -153,17 +200,23 @@ final class SettingsPage {
 	}
 
 	/**
-	 * Section start.
+	 * Section start (output is buffered and only shown on its tab).
 	 *
 	 * @param string $title Title.
+	 * @param string $tab   Tab.
 	 */
-	private static function section( $title ) {
-		echo '<h2>' . esc_html( $title ) . '</h2><table class="form-table">';
+	private static function section( $title, $tab ) {
+		self::$section_tab   = $tab;
+		self::$section_title = $title;
+		ob_start();
 	}
 
 	/** Section end. */
 	private static function end() {
-		echo '</table>';
+		$html = (string) ob_get_clean();
+		if ( self::$section_tab === self::$tab ) {
+			echo '<h2>' . esc_html( self::$section_title ) . '</h2><table class="form-table" role="presentation">' . $html . '</table>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped fields.
+		}
 	}
 
 	/**
@@ -214,9 +267,23 @@ final class SettingsPage {
 	 * @param string $desc  Description.
 	 */
 	private static function checkbox( $key, $label, $s, $desc = '' ) {
-		printf( '<tr><th>%2$s</th><td><label><input type="checkbox" name="wpac[%1$s]" value="1" %3$s> %2$s</label>', esc_attr( $key ), esc_html( $label ), checked( (int) $s[ $key ], 1, false ) );
-		self::desc( $desc );
+		printf( '<tr><th scope="row">%2$s</th><td><label><input type="checkbox" name="wpac[%1$s]" value="1" %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html__( 'Enabled', 'wp-affiliate-captain' ) );
+		self::desc( '' !== $desc ? $label . ' – ' . $desc : $label );
 		echo '</td></tr>';
+	}
+
+	/**
+	 * Short row title for long checkbox labels (text before a colon or the first 6 words).
+	 *
+	 * @param string $label Label.
+	 * @return string
+	 */
+	private static function short_label( $label ) {
+		if ( false !== strpos( $label, ':' ) ) {
+			return trim( strstr( $label, ':', true ) );
+		}
+		$words = preg_split( '/\s+/', $label );
+		return count( $words ) > 6 ? implode( ' ', array_slice( $words, 0, 6 ) ) . ' …' : $label;
 	}
 
 	/**

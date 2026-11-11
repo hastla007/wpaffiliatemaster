@@ -46,6 +46,37 @@ final class Ledger {
 	}
 
 	/**
+	 * Labels for commission kinds.
+	 *
+	 * @return array
+	 */
+	public static function kind_labels() {
+		return array(
+			'sale'         => __( 'Sale', 'wp-affiliate-captain' ),
+			'refund'       => __( 'Refund', 'wp-affiliate-captain' ),
+			'cancellation' => __( 'Cancellation', 'wp-affiliate-captain' ),
+			'chargeback'   => __( 'Chargeback', 'wp-affiliate-captain' ),
+			'bonus'        => __( 'Monthly bonus', 'wp-affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Human readable sales source.
+	 *
+	 * @param string $source Source slug.
+	 * @return string
+	 */
+	public static function source_label( $source ) {
+		$map = array(
+			'woocommerce'     => 'WooCommerce',
+			'wpac'            => 'Affiliate Captain',
+			'pass-captain'    => 'Pass Captain',
+			'voucher-captain' => 'Voucher Captain',
+		);
+		return isset( $map[ $source ] ) ? $map[ $source ] : ucwords( str_replace( array( '-', '_' ), ' ', (string) $source ) );
+	}
+
+	/**
 	 * Record a normalized sale.
 	 *
 	 * @param array $sale Normalized sale (see ContractApi::normalize_sale()).

@@ -30,6 +30,7 @@ final class Editor {
 
 	public static function register_hooks() {
 		add_action( 'init', array( __CLASS__, 'register_blocks' ) );
+		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'editor_data' ) );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'add_meta_box' ) );
 		add_action( 'save_post', array( __CLASS__, 'save_meta_box' ), 10, 2 );
 		add_shortcode( 'wpac_partner_targets', array( __CLASS__, 'render_targets' ) );
@@ -91,6 +92,25 @@ final class Editor {
 				},
 			)
 		);
+	}
+
+	/**
+	 * Data for the block editor (partner groups for the application form block).
+	 */
+	public static function editor_data() {
+		$groups = array(
+			array(
+				'value' => 0,
+				'label' => __( '— Applicant chooses —', 'wp-affiliate-captain' ),
+			),
+		);
+		foreach ( \WPAffiliateCaptain\Affiliates\Groups::options() as $id => $name ) {
+			$groups[] = array(
+				'value' => (int) $id,
+				'label' => $name,
+			);
+		}
+		wp_add_inline_script( 'wpac-blocks', 'window.wpacBlocks = ' . wp_json_encode( array( 'groups' => $groups ) ) . ';', 'before' );
 	}
 
 	/**

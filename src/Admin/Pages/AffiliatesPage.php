@@ -274,8 +274,9 @@ final class AffiliatesPage {
 		echo '</div>';
 		echo '<p><a class="button" href="' . esc_url( Admin::url( 'wpac-commissions', array( 'affiliate_id' => $id ) ) ) . '">' . esc_html__( 'Commissions of this partner', 'wp-affiliate-captain' ) . '</a></p>';
 
-		echo '<div class="wpac-columns"><div class="wpac-col">';
+		$parts = array();
 
+		ob_start();
 		// Status actions.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
 		if ( $a->status_reason ) {
@@ -319,6 +320,8 @@ final class AffiliatesPage {
 		}
 		echo '</form></div></div>';
 
+		$parts['overview'][] = ob_get_clean();
+		ob_start();
 		// Profile.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Profile', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
 		Admin::form_open( 'affiliate_update' );
@@ -344,6 +347,8 @@ final class AffiliatesPage {
 		submit_button( __( 'Save', 'wp-affiliate-captain' ), 'secondary' );
 		echo '</form></div></div>';
 
+		$parts['profile'][] = ob_get_clean();
+		ob_start();
 		// Agreements.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Terms acceptance', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
 		$agreements = Agreements::for_affiliate( $id );
@@ -358,8 +363,10 @@ final class AffiliatesPage {
 		}
 		echo '</div></div>';
 
-		echo '</div><div class="wpac-col">';
 
+
+		$parts['overview'][] = ob_get_clean();
+		ob_start();
 		// Codes.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner codes', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
 		$codes = CodeRepository::for_affiliate( $id );
@@ -401,9 +408,11 @@ final class AffiliatesPage {
 		echo '<h4>' . esc_html__( 'Generate code batch', 'wp-affiliate-captain' ) . '</h4>';
 		Admin::form_open( 'code_batch' );
 		echo '<input type="hidden" name="id" value="' . (int) $id . '">';
-		echo '<p><label>' . esc_html__( 'Number', 'wp-affiliate-captain' ) . ' <input type="number" name="count" min="1" max="1000" value="10" class="small-text"></label> <label>' . esc_html__( 'Prefix', 'wp-affiliate-captain' ) . ' <input type="text" name="prefix" size="8"></label> <label>' . esc_html__( 'Uses per code', 'wp-affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="1" class="small-text"></label> <label>' . esc_html__( 'Valid until', 'wp-affiliate-captain' ) . ' <input type="date" name="expires_at"></label> <button class="button">' . esc_html__( 'Generate', 'wp-affiliate-captain' ) . '</button></p></form>';
+		echo '<p><label>' . esc_html_x( 'Number', 'count', 'wp-affiliate-captain' ) . ' <input type="number" name="count" min="1" max="1000" value="10" class="small-text"></label> <label>' . esc_html__( 'Prefix', 'wp-affiliate-captain' ) . ' <input type="text" name="prefix" size="8"></label> <label>' . esc_html__( 'Uses per code', 'wp-affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="1" class="small-text"></label> <label>' . esc_html__( 'Valid until', 'wp-affiliate-captain' ) . ' <input type="date" name="expires_at"></label> <button class="button">' . esc_html__( 'Generate', 'wp-affiliate-captain' ) . '</button></p></form>';
 		echo '</div></div>';
 
+		$parts['codes'][] = ob_get_clean();
+		ob_start();
 		// Payout details.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Payout details', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
 		$p = ProfileRepository::get( $id );
@@ -434,6 +443,8 @@ final class AffiliatesPage {
 		}
 		echo '</div></div>';
 
+		$parts['payout'][] = ob_get_clean();
+		ob_start();
 		// Audit.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'History', 'wp-affiliate-captain' ) . '</h2><div class="inside"><ul class="wpac-history">';
 		foreach ( Audit::query( array( 'object_type' => 'affiliate', 'object_id' => $id, 'limit' => 20 ) ) as $log ) {
@@ -442,7 +453,34 @@ final class AffiliatesPage {
 		}
 		echo '</ul></div></div>';
 
-		echo '</div></div></div>';
+		$parts['history'][] = ob_get_clean();
+		self::render_tabs( $id, $parts );
+		echo '</div>';
+	}
+
+	/**
+	 * Tab navigation + content of the partner detail page.
+	 *
+	 * @param int   $id    Affiliate.
+	 * @param array $parts Rendered sections per tab.
+	 */
+	private static function render_tabs( $id, array $parts ) {
+		$tabs = array(
+			'overview' => __( 'Overview', 'wp-affiliate-captain' ),
+			'profile'  => __( 'Profile', 'wp-affiliate-captain' ),
+			'codes'    => __( 'Partner codes', 'wp-affiliate-captain' ),
+			'payout'   => __( 'Payout details', 'wp-affiliate-captain' ),
+			'history'  => __( 'History', 'wp-affiliate-captain' ),
+		);
+		$tab = Admin::get( 'tab' );
+		$tab = isset( $tabs[ $tab ] ) ? $tab : 'overview';
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Partner sections', 'wp-affiliate-captain' ) . '">';
+		foreach ( $tabs as $key => $label ) {
+			printf( '<a class="nav-tab %s" href="%s"%s>%s</a>', $key === $tab ? 'nav-tab-active' : '', esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $id, 'tab' => $key ) ) ), $key === $tab ? ' aria-current="page"' : '', esc_html( $label ) );
+		}
+		echo '</nav><div class="wpac-tabs-content">';
+		echo implode( '', isset( $parts[ $tab ] ) ? $parts[ $tab ] : array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sections are escaped while rendering.
+		echo '</div>';
 	}
 
 	/**

@@ -4,7 +4,7 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.3.0 – noch nicht in einer echten WordPress-Installation getestet.** Ledger und Auszahlungen sind per Integrationstests gegen MariaDB geprüft. Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
+> Status: **0.4.0 – noch nicht in einer echten WordPress-Installation getestet.** Ledger und Auszahlungen sind per Integrationstests gegen MariaDB geprüft. Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
 
 ## Anforderungen
 
@@ -15,7 +15,7 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 
 1. Ordner nach `wp-content/plugins/wp-affiliate-captain/` kopieren und aktivieren.
 2. Seiten anlegen: `[wpac_affiliate_registration]` (Bewerbung), `[wpac_affiliate_portal]` (Partnerbereich), optional eine Landingpage mit `[wpac_partner_welcome]`.
-3. Unter **Affiliate Captain → Einstellungen** Seiten, Teilnahmebedingungen (Seite + Version), Standardprovision, Haltefrist, Mindestbetrag und das Firmenkonto für SEPA setzen.
+3. Im **Dashboard** führt eine Einrichtungs-Checkliste durch die Schritte; „Seiten automatisch anlegen“ erstellt Bewerbung, Partnerbereich und Landingpage mit den passenden Blöcken. Unter **Affiliate Captain → Einstellungen** Seiten, Teilnahmebedingungen (Seite + Version), Standardprovision, Haltefrist, Mindestbetrag und das Firmenkonto für SEPA setzen.
 4. Für Gutschriften unter **Einstellungen → Auszahlungen** Anschrift, USt-IdNr./Steuernummer und USt-Satz hinterlegen. Das Gutschriftverfahren in den Partnerbedingungen vereinbaren.
 5. Empfohlen in `wp-config.php` – Belege außerhalb des Webroots (auf nginx Pflicht, dort wirkt `.htaccess` nicht):
    ```php

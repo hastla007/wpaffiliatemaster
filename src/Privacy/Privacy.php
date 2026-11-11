@@ -209,7 +209,7 @@ final class Privacy {
 				'group_label' => __( 'Payouts', 'wp-affiliate-captain' ),
 				'item_id'     => 'wpac-payout-' . $p->id,
 				'data'        => array(
-					array( 'name' => __( 'Number', 'wp-affiliate-captain' ), 'value' => $p->number ),
+					array( 'name' => _x( 'Number', 'document number', 'wp-affiliate-captain' ), 'value' => $p->number ),
 					array( 'name' => __( 'Date', 'wp-affiliate-captain' ), 'value' => $p->created_at ),
 					array( 'name' => __( 'Amount', 'wp-affiliate-captain' ), 'value' => Money::format( (int) $p->amount_minor, $p->currency ) ),
 					array( 'name' => __( 'Status', 'wp-affiliate-captain' ), 'value' => $p->status ),

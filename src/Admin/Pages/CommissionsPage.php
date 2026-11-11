@@ -162,6 +162,7 @@ final class CommissionsPage {
 			echo '<tr><td colspan="9">' . esc_html__( 'No commissions found.', 'wp-affiliate-captain' ) . '</td></tr>';
 		}
 		$names = array();
+		$kinds = Ledger::kind_labels();
 		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
 		foreach ( $rows as $r ) {
 			if ( ! isset( $names[ $r->affiliate_id ] ) ) {
@@ -176,10 +177,10 @@ final class CommissionsPage {
 				esc_html( Admin::date( $r->created_at ) ),
 				esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $r->affiliate_id ) ) ),
 				esc_html( $names[ $r->affiliate_id ] ),
-				esc_html( $r->source . ' ' ),
+				esc_html( Ledger::source_label( $r->source ) . ' ' ),
 				$order_link ? '<a href="' . esc_url( $order_link ) . '">#' . esc_html( $r->source_order_id ) . '</a>' : '#' . esc_html( $r->source_order_id ),
 				esc_html( $r->description ),
-				'sale' !== $r->kind ? ' <em>(' . esc_html( $r->kind ) . ')</em>' : '',
+				'sale' !== $r->kind ? ' <em>(' . esc_html( isset( $kinds[ $r->kind ] ) ? $kinds[ $r->kind ] : $r->kind ) . ')</em>' : '',
 				esc_html( Money::format( (int) $r->base_minor, $r->currency ) ),
 				esc_html( RuleRepository::format_rate( $r->rate_type, $r->rate, $r->currency ) ),
 				(int) $r->amount_minor < 0 ? 'wpac-negative' : '',
@@ -216,8 +217,8 @@ final class CommissionsPage {
 		echo '<table class="widefat striped wpac-dl"><tbody>';
 		$rows = array(
 			__( 'Partner', 'wp-affiliate-captain' )      => $aff ? $aff->name : '#' . $c->affiliate_id,
-			__( 'Source / order', 'wp-affiliate-captain' ) => $c->source . ' #' . $c->source_order_id . ' / ' . $c->source_item_id,
-			__( 'Type', 'wp-affiliate-captain' )         => $c->kind . ( $c->parent_id ? ' → #' . $c->parent_id : '' ),
+			__( 'Source / order', 'wp-affiliate-captain' ) => Ledger::source_label( $c->source ) . ' #' . $c->source_order_id . ( $c->source_item_id ? ' / ' . __( 'item', 'wp-affiliate-captain' ) . ' ' . $c->source_item_id : '' ),
+			__( 'Type', 'wp-affiliate-captain' )         => ( isset( Ledger::kind_labels()[ $c->kind ] ) ? Ledger::kind_labels()[ $c->kind ] : $c->kind ) . ( $c->parent_id ? ' → #' . $c->parent_id : '' ),
 			__( 'Item', 'wp-affiliate-captain' )         => $c->description . ( $c->product_ref ? ' (' . $c->product_ref . ')' : '' ),
 			__( 'Base', 'wp-affiliate-captain' )         => Money::format( (int) $c->base_minor, $c->currency ),
 			__( 'Rate', 'wp-affiliate-captain' )         => RuleRepository::format_rate( $c->rate_type, $c->rate, $c->currency ) . ( $c->rule_id ? ' (' . __( 'rule', 'wp-affiliate-captain' ) . ' #' . $c->rule_id . ')' : ' (' . __( 'default', 'wp-affiliate-captain' ) . ')' ),

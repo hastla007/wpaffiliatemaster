@@ -159,7 +159,8 @@ final class Settings {
 		}
 
 		$currency        = isset( $in['currency'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['currency'] ) ) : '';
-		$out['currency'] = 3 === strlen( $currency ) ? $currency : $d['currency'];
+		// Fields of other tabs are not posted: fall back to the stored value (needed for amount conversions).
+		$out['currency'] = 3 === strlen( $currency ) ? $currency : ( self::get( 'currency' ) ? self::get( 'currency' ) : $d['currency'] );
 
 		$rates = Fx::parse( isset( $in['exchange_rates'] ) ? (string) $in['exchange_rates'] : '' );
 		$lines = array();

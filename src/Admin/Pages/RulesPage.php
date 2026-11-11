@@ -149,6 +149,40 @@ final class RulesPage {
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Rules & groups', 'wp-affiliate-captain' ) . '</h1>';
 		Admin::notice();
+		$tabs = array(
+			'rules'   => __( 'Rules', 'wp-affiliate-captain' ),
+			'preview' => __( 'Rule preview', 'wp-affiliate-captain' ),
+			'tiers'   => __( 'Monthly tiers', 'wp-affiliate-captain' ),
+			'groups'  => __( 'Partner groups', 'wp-affiliate-captain' ),
+		);
+		$tab  = Admin::get( 'tab' );
+		$tab  = isset( $tabs[ $tab ] ) ? $tab : ( Admin::get( 'preview' ) ? 'preview' : 'rules' );
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Sections', 'wp-affiliate-captain' ) . '">';
+		foreach ( $tabs as $key => $label ) {
+			printf( '<a class="nav-tab %s" href="%s"%s>%s</a>', $key === $tab ? 'nav-tab-active' : '', esc_url( Admin::url( 'wpac-rules', array( 'tab' => $key ) ) ), $key === $tab ? ' aria-current="page"' : '', esc_html( $label ) );
+		}
+		echo '</nav><div class="wpac-tabs-content">';
+		if ( 'preview' === $tab ) {
+			self::render_preview( $aff_names, $currency );
+		} elseif ( 'tiers' === $tab ) {
+			self::render_tiers( $groups, $aff_names, $currency );
+		} elseif ( 'groups' === $tab ) {
+			self::render_groups();
+		} else {
+			self::render_rules( $groups, $aff_names, $currency, $edit );
+		}
+		echo '</div></div>';
+	}
+
+	/**
+	 * Rules tab.
+	 *
+	 * @param array       $groups    Groups.
+	 * @param array       $aff_names Affiliates.
+	 * @param string      $currency  Currency.
+	 * @param object|null $edit      Rule being edited.
+	 */
+	private static function render_rules( array $groups, array $aff_names, $currency, $edit ) {
 		/* translators: %s: default rate */
 		echo '<p>' . esc_html( sprintf( __( 'Program default: %s. Basis is the net line amount after discount, excluding tax and shipping.', 'wp-affiliate-captain' ), RuleRepository::format_rate( Settings::get( 'default_rate_type' ), Settings::get( 'default_rate' ), $currency ) ) ) . ' ';
 		echo esc_html__( 'Resolution: an exclusion always wins; otherwise the most specific rule applies (partner > group > global, product/SKU > category > all, then priority).', 'wp-affiliate-captain' ) . '</p>';
@@ -203,29 +237,29 @@ final class RulesPage {
 		echo '<h2>' . esc_html( $edit ? __( 'Edit rule', 'wp-affiliate-captain' ) . ' #' . $edit->id : __( 'Add rule', 'wp-affiliate-captain' ) ) . '</h2>';
 		Admin::form_open( 'rule_save' );
 		echo '<input type="hidden" name="id" value="' . (int) ( $edit ? $edit->id : 0 ) . '"><table class="form-table">';
-		echo '<tr><th>' . esc_html__( 'Applies to', 'wp-affiliate-captain' ) . '</th><td><select name="scope">';
+		echo '<tr><th><label for="wpac-rule-scope">' . esc_html__( 'Applies to', 'wp-affiliate-captain' ) . '</label></th><td><select name="scope" id="wpac-rule-scope">';
 		foreach ( array( 'global' => __( 'All partners', 'wp-affiliate-captain' ), 'group' => __( 'Partner group', 'wp-affiliate-captain' ), 'affiliate' => __( 'Single partner', 'wp-affiliate-captain' ) ) as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'scope', 'global' ), $k, false ), esc_html( $l ) );
 		}
-		echo '</select> <select name="group_id"><option value="">' . esc_html__( '– group –', 'wp-affiliate-captain' ) . '</option>';
+		echo '</select> <select name="group_id" aria-label="' . esc_attr__( 'Partner group', 'wp-affiliate-captain' ) . '" data-wpac-depends="scope=group"><option value="">' . esc_html__( '– group –', 'wp-affiliate-captain' ) . '</option>';
 		foreach ( $groups as $gid => $name ) {
 			printf( '<option value="%d" %s>%s</option>', (int) $gid, selected( 'group' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $gid, false ), esc_html( $name ) );
 		}
-		echo '</select> <select name="affiliate_id"><option value="">' . esc_html__( '– partner –', 'wp-affiliate-captain' ) . '</option>';
+		echo '</select> <select name="affiliate_id" aria-label="' . esc_attr__( 'Partner', 'wp-affiliate-captain' ) . '" data-wpac-depends="scope=affiliate"><option value="">' . esc_html__( '– partner –', 'wp-affiliate-captain' ) . '</option>';
 		foreach ( $aff_names as $aid => $name ) {
 			printf( '<option value="%d" %s>%s</option>', (int) $aid, selected( 'affiliate' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $aid, false ), esc_html( $name ) );
 		}
 		echo '</select></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Products', 'wp-affiliate-captain' ) . '</th><td><select name="target">';
+		echo '<tr><th><label for="wpac-rule-target">' . esc_html__( 'Products', 'wp-affiliate-captain' ) . '</label></th><td><select name="target" id="wpac-rule-target">';
 		foreach ( $targets as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'target', 'all' ), $k, false ), esc_html( $l ) );
 		}
-		echo '</select> <input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" placeholder="' . esc_attr__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'wp-affiliate-captain' ) . '"></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th><td><select name="rate_type">';
+		echo '</select> <span data-wpac-depends="target=product|category|tag|sku"><input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'IDs or SKUs', 'wp-affiliate-captain' ) . '" aria-describedby="wpac-target-hint"><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'wp-affiliate-captain' ) . '</span></span></td></tr>';
+		echo '<tr><th><label for="wpac-rule-type">' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</label></th><td><select name="rate_type" id="wpac-rule-type">';
 		foreach ( array( 'percent' => __( 'Percent of net', 'wp-affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'wp-affiliate-captain' ), 'exclude' => __( 'Exclude (no commission)', 'wp-affiliate-captain' ) ) as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'rate_type', 'percent' ), $k, false ), esc_html( $l ) );
 		}
-		echo '</select> <input type="text" name="rate" value="' . esc_attr( $rate_display ) . '" size="8" placeholder="10"> <span class="description">' . esc_html( '% / ' . $currency ) . '</span></td></tr>';
+		echo '</select> <span data-wpac-depends="rate_type=percent|fixed"><input type="text" name="rate" value="' . esc_attr( $rate_display ) . '" size="8" aria-label="' . esc_attr__( 'Rate', 'wp-affiliate-captain' ) . '"> <span data-wpac-depends="rate_type=percent">%</span><span data-wpac-depends="rate_type=fixed">' . esc_html( $currency . ' ' . __( 'per unit', 'wp-affiliate-captain' ) ) . '</span></span></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Priority', 'wp-affiliate-captain' ) . '</th><td><input type="number" name="priority" value="' . esc_attr( $v( 'priority', '0' ) ) . '" class="small-text"> <label><input type="checkbox" name="active" value="1" ' . checked( $v( 'active', '1' ), '1', false ) . '> ' . esc_html__( 'Active', 'wp-affiliate-captain' ) . '</label></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Note', 'wp-affiliate-captain' ) . '</th><td><input type="text" name="note" value="' . esc_attr( $v( 'note' ) ) . '" class="regular-text"></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Reason for change', 'wp-affiliate-captain' ) . '</th><td><input type="text" name="reason" class="regular-text" ' . ( $edit ? 'required' : '' ) . '></td></tr>';
@@ -233,10 +267,12 @@ final class RulesPage {
 		submit_button( $edit ? __( 'Save rule', 'wp-affiliate-captain' ) : __( 'Add rule', 'wp-affiliate-captain' ) );
 		echo '</form>';
 
-		self::render_preview( $aff_names, $currency );
+	}
 
-		self::render_tiers( $groups, $aff_names, $currency );
-
+	/**
+	 * Groups tab.
+	 */
+	private static function render_groups() {
 		// Groups.
 		echo '<h2>' . esc_html__( 'Partner groups', 'wp-affiliate-captain' ) . '</h2><p class="description">' . esc_html__( 'e.g. "Training partner" and "Content partner" – each group can get its own rules.', 'wp-affiliate-captain' ) . '</p><ul>';
 		foreach ( Groups::all() as $g ) {
@@ -264,7 +300,6 @@ final class RulesPage {
 		echo '</ul>';
 		Admin::form_open( 'group_create' );
 		echo '<input type="text" name="name" placeholder="' . esc_attr__( 'Name', 'wp-affiliate-captain' ) . '" required> <input type="text" name="description" placeholder="' . esc_attr__( 'Description', 'wp-affiliate-captain' ) . '" class="regular-text"> <button class="button">' . esc_html__( 'Add group', 'wp-affiliate-captain' ) . '</button></form>';
-		echo '</div>';
 	}
 
 	/**
@@ -331,7 +366,7 @@ final class RulesPage {
 	 */
 	private static function render_preview( array $aff_names, $currency ) {
 		echo '<h2>' . esc_html__( 'Rule preview', 'wp-affiliate-captain' ) . '</h2>';
-		echo '<form method="get"><input type="hidden" name="page" value="wpac-rules"><input type="hidden" name="preview" value="1">';
+		echo '<form method="get"><input type="hidden" name="page" value="wpac-rules"><input type="hidden" name="tab" value="preview"><input type="hidden" name="preview" value="1">';
 		echo '<select name="p_affiliate">';
 		foreach ( $aff_names as $aid => $name ) {
 			printf( '<option value="%d" %s>%s</option>', (int) $aid, selected( absint( Admin::get( 'p_affiliate' ) ), $aid, false ), esc_html( $name ) );

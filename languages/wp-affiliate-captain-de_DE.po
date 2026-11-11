@@ -6,7 +6,7 @@ msgstr ""
 "X-Domain: wp-affiliate-captain\n"
 
 msgid "Self-referral"
-msgstr "Selbstempfehlung"
+msgstr "Eigenkauf über eigenen Link/Code"
 
 msgid "Unusually many orders in 24 hours"
 msgstr "Ungewöhnlich viele Bestellungen in 24 Stunden"
@@ -170,6 +170,9 @@ msgstr "Bitte prüfen Sie Ihre Eingaben."
 msgid "Which kind of partner are you?"
 msgstr "Welche Art von Partner sind Sie?"
 
+msgid "Fields marked with * are required."
+msgstr "Mit * markierte Felder sind Pflichtfelder."
+
 msgid "Application as: %s"
 msgstr "Bewerbung als: %s"
 
@@ -296,8 +299,11 @@ msgstr "Audit-Log"
 msgid "Settings"
 msgstr "Einstellungen"
 
-msgid "<strong>Affiliate Captain setup:</strong> create a page with %1$s (application) and one with %2$s (partner area), then select them in the <a href=\"%3$s\">settings</a>."
-msgstr "<strong>Einrichtung Affiliate Captain:</strong> Legen Sie eine Seite mit %1$s (Bewerbung) und eine mit %2$s (Partnerbereich) an und wählen Sie diese in den <a href=\"%3$s\">Einstellungen</a> aus."
+msgid "Affiliate Captain is not fully set up yet."
+msgstr "Affiliate Captain ist noch nicht vollständig eingerichtet."
+
+msgid "Open the setup checklist"
+msgstr "Zur Einrichtungs-Checkliste"
 
 msgid "The link has expired. Please go back and try again."
 msgstr "Der Link ist abgelaufen. Bitte gehen Sie zurück und versuchen Sie es erneut."
@@ -320,6 +326,54 @@ msgid "%d integration job failed"
 msgid_plural "%d integration jobs failed"
 msgstr[0] "%d Integrationsauftrag fehlgeschlagen"
 msgstr[1] "%d Integrationsaufträge fehlgeschlagen"
+
+msgid "Pages created and selected in the settings."
+msgstr "Seiten angelegt und in den Einstellungen ausgewählt."
+
+msgid "Become a partner"
+msgstr "Partner werden"
+
+msgid "Partner area"
+msgstr "Partnerbereich"
+
+msgid "Recommended by our partner"
+msgstr "Empfohlen von unserem Partner"
+
+msgid "Welcome! Here you can introduce your offer to visitors referred by a partner."
+msgstr "Willkommen! Hier können Sie Besuchern, die über einen Partner kommen, Ihr Angebot vorstellen."
+
+msgid "Application page and partner area page"
+msgstr "Bewerbungsseite und Partnerbereich"
+
+msgid "Partner program terms (page and version)"
+msgstr "Bedingungen des Partnerprogramms (Seite und Version)"
+
+msgid "Your address and VAT ID for credit notes"
+msgstr "Ihre Anschrift und USt-IdNr. für Gutschriften"
+
+msgid "Company bank account for SEPA payouts"
+msgstr "Firmenkonto für SEPA-Auszahlungen"
+
+msgid "Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php"
+msgstr "Eigener Schlüssel WPAC_ENCRYPTION_KEY in der wp-config.php"
+
+msgid "First partner approved"
+msgstr "Ersten Partner freigegeben"
+
+msgid "Setup checklist"
+msgstr "Einrichtungs-Checkliste"
+
+msgid "done"
+msgstr "erledigt"
+
+msgid "open"
+msgstr "offen"
+
+msgid "Create pages automatically"
+msgstr "Seiten automatisch anlegen"
+
+msgid "Creates \"Become a partner\", \"Partner area\" and a landing page with the matching blocks."
+msgstr "Legt „Partner werden“, „Partnerbereich“ und eine Landingpage mit den passenden Blöcken an."
 
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr "Beträge in %s sind in den Geldspalten nicht enthalten (kein Referenzkurs in den Einstellungen)."
@@ -408,6 +462,21 @@ msgstr "Gruppe gespeichert."
 msgid "Group deleted."
 msgstr "Gruppe gelöscht."
 
+msgid "Rules"
+msgstr "Regeln"
+
+msgid "Rule preview"
+msgstr "Regelvorschau"
+
+msgid "Monthly tiers"
+msgstr "Monatsstufen"
+
+msgid "Partner groups"
+msgstr "Partnergruppen"
+
+msgid "Sections"
+msgstr "Bereiche"
+
 msgid "Program default: %s. Basis is the net line amount after discount, excluding tax and shipping."
 msgstr "Programmstandard: %s. Basis ist der Netto-Positionsbetrag nach Rabatt, ohne Steuer und Versand."
 
@@ -483,6 +552,9 @@ msgstr "– Gruppe –"
 msgid "– partner –"
 msgstr "– Partner –"
 
+msgid "IDs or SKUs"
+msgstr "IDs oder SKUs"
+
 msgid "Comma separated; SKUs support trailing * (e.g. GROUP-*)"
 msgstr "Kommagetrennt; SKUs unterstützen ein * am Ende (z. B. GRUPPE-*)"
 
@@ -495,14 +567,14 @@ msgstr "Festbetrag pro Stück"
 msgid "Exclude (no commission)"
 msgstr "Ausschließen (keine Provision)"
 
+msgid "per unit"
+msgstr "pro Stück"
+
 msgid "Reason for change"
 msgstr "Grund der Änderung"
 
 msgid "Save rule"
 msgstr "Regel speichern"
-
-msgid "Partner groups"
-msgstr "Partnergruppen"
 
 msgid "e.g. \"Training partner\" and \"Content partner\" – each group can get its own rules."
 msgstr "z. B. „Ausbildungspartner“ und „Content-Partner“ – jede Gruppe kann eigene Regeln erhalten."
@@ -538,7 +610,7 @@ msgid "Additional application fields"
 msgstr "Zusätzliche Bewerbungsfelder"
 
 msgid "One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox."
-msgstr "Ein Feld pro Zeile: schlüssel|Bezeichnung|Typ|required – Typen: text, textarea, url, number, checkbox."
+msgstr "Ein Feld pro Zeile: schlüssel|Bezeichnung|Typ|required – Typen: text (Text), textarea (mehrzeilig), url, number (Zahl), checkbox (Kontrollkästchen)."
 
 msgid "Save group"
 msgstr "Gruppe speichern"
@@ -551,9 +623,6 @@ msgstr "Gruppe löschen"
 
 msgid "Add group"
 msgstr "Gruppe hinzufügen"
-
-msgid "Monthly tiers"
-msgstr "Monatsstufen"
 
 msgid "Additional bonus in percent of the monthly net revenue (after refunds). The most specific active plan applies (partner > group > global). Months are closed automatically after the hold period; the plan is frozen in the booked bonus."
 msgstr "Zusatzbonus in Prozent des monatlichen Nettoumsatzes (nach Rückerstattungen). Es gilt der spezifischste aktive Plan (Partner > Gruppe > global). Monate werden nach Ablauf der Haltefrist automatisch abgeschlossen; der Plan wird im gebuchten Bonus eingefroren."
@@ -577,7 +646,7 @@ msgid "Retroactive"
 msgstr "Rückwirkend"
 
 msgid "Marginal"
-msgstr "Marginal"
+msgstr "Gestaffelt"
 
 msgid "Deactivate this tier plan?"
 msgstr "Diesen Stufenplan deaktivieren?"
@@ -595,7 +664,7 @@ msgid "Basis: number of orders per month"
 msgstr "Basis: Anzahl Bestellungen pro Monat"
 
 msgid "Marginal (only above the threshold)"
-msgstr "Marginal (nur oberhalb der Schwelle)"
+msgstr "Gestaffelt (nur Anteil über der Schwelle)"
 
 msgid "Retroactive (whole month)"
 msgstr "Rückwirkend (ganzer Monat)"
@@ -611,9 +680,6 @@ msgstr "Monatsboni jetzt buchen? Spätere Rückerstattungen ändern den Bonus ni
 
 msgid "Close month now"
 msgstr "Monat jetzt abschließen"
-
-msgid "Rule preview"
-msgstr "Regelvorschau"
 
 msgid "Product ID"
 msgstr "Produkt-ID"
@@ -642,8 +708,29 @@ msgstr "Programmstandard"
 msgid "Settings saved."
 msgstr "Einstellungen gespeichert."
 
+msgid "Program"
+msgstr "Programm"
+
+msgid "Tracking"
+msgstr "Tracking"
+
+msgid "Fraud & abuse"
+msgstr "Betrug & Missbrauch"
+
+msgid "Promotion"
+msgstr "Werbung"
+
+msgid "Payouts & credit notes"
+msgstr "Auszahlungen & Gutschriften"
+
+msgid "Reports & data"
+msgstr "Berichte & Daten"
+
 msgid "Affiliate Captain settings"
 msgstr "Einstellungen Affiliate Captain"
+
+msgid "Settings sections"
+msgstr "Einstellungsbereiche"
 
 msgid "Program & pages"
 msgstr "Programm & Seiten"
@@ -730,7 +817,7 @@ msgid "Affiliate coupon has priority over partner links"
 msgstr "Affiliate-Gutschein hat Vorrang vor Partnerlinks"
 
 msgid "Self-referrals"
-msgstr "Selbstempfehlungen"
+msgstr "Eigenkäufe über eigenen Link/Code"
 
 msgid "Block"
 msgstr "Sperren"
@@ -813,11 +900,8 @@ msgstr "Haltefrist (Tage nach Zahlung)"
 msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until."
 msgstr "Provisionen werden nach dieser Frist freigegeben. Integrationen können sie je Auftrag verlängern (z. B. Garantieende) über hold_until / wpac_hold_until."
 
-msgid "Promotion"
-msgstr "Werbung"
-
 msgid "Landing page path"
-msgstr "Pfad der Landingpages"
+msgstr "URL-Pfad der Landingpages"
 
 msgid "Partner landing URLs look like %s"
 msgstr "Partner-Landing-URLs sehen so aus: %s"
@@ -841,7 +925,7 @@ msgid "Minimum payout"
 msgstr "Mindestauszahlung"
 
 msgid "Payout period"
-msgstr "Abrechnungszeitraum"
+msgstr "Auszahlungsrhythmus"
 
 msgid "Monthly"
 msgstr "Monatlich"
@@ -916,7 +1000,7 @@ msgid "Sent on the first days of the month for the previous month."
 msgstr "Wird in den ersten Tagen des Monats für den Vormonat versendet."
 
 msgid "Housekeeping"
-msgstr "Wartung"
+msgstr "Daten & Deinstallation"
 
 msgid "Keep audit log (days, 0 = forever)"
 msgstr "Audit-Log aufbewahren (Tage, 0 = unbegrenzt)"
@@ -929,6 +1013,9 @@ msgstr "Alle Daten löschen, wenn das Plugin gelöscht wird"
 
 msgid "Includes commission and payout records – make sure bookkeeping retention obligations are met."
 msgstr "Einschließlich Provisions- und Auszahlungsdaten – stellen Sie sicher, dass die Aufbewahrungspflichten erfüllt sind."
+
+msgid "Enabled"
+msgstr "Aktiviert"
 
 msgid "Job processed successfully."
 msgstr "Auftrag erfolgreich verarbeitet."
@@ -1123,7 +1210,7 @@ msgid "WordPress user"
 msgstr "WordPress-Benutzer"
 
 msgid "Vanity slug"
-msgstr "Vanity-Slug"
+msgstr "Kurzname (für Links)"
 
 msgid "Landing page"
 msgstr "Landingpage"
@@ -1203,9 +1290,6 @@ msgstr "Hinzufügen"
 msgid "Generate code batch"
 msgstr "Code-Stapel erzeugen"
 
-msgid "Number"
-msgstr "Anzahl"
-
 msgid "Prefix"
 msgstr "Präfix"
 
@@ -1263,6 +1347,12 @@ msgstr "Verlauf"
 msgid "System"
 msgstr "System"
 
+msgid "Overview"
+msgstr "Übersicht"
+
+msgid "Partner sections"
+msgstr "Partnerbereiche"
+
 msgid "Create %d payout"
 msgid_plural "Create %d payouts"
 msgstr[0] "%d Auszahlung anlegen"
@@ -1308,7 +1398,7 @@ msgid "New payout run"
 msgstr "Neuer Auszahlungslauf"
 
 msgid "Period end"
-msgstr "Periodenende"
+msgstr "Stichtag"
 
 msgid "Currency"
 msgstr "Währung"
@@ -1395,7 +1485,7 @@ msgid "All payouts"
 msgstr "Alle Auszahlungen"
 
 msgid "Download PDF statement"
-msgstr "PDF-Beleg herunterladen"
+msgstr "Beleg (PDF) herunterladen"
 
 msgid "Download cancellation %s"
 msgstr "Storno %s herunterladen"
@@ -1413,7 +1503,7 @@ msgid "Bank account"
 msgstr "Bankkonto"
 
 msgid "Period until"
-msgstr "Zeitraum bis"
+msgstr "Stichtag"
 
 msgid "Created"
 msgstr "Erstellt"
@@ -1559,6 +1649,9 @@ msgstr "Nicht gefunden."
 msgid "Source / order"
 msgstr "Quelle / Bestellung"
 
+msgid "item"
+msgstr "Position"
+
 msgid "rule"
 msgstr "Regel"
 
@@ -1581,7 +1674,7 @@ msgid "Payout"
 msgstr "Auszahlung"
 
 msgid "Idempotency key"
-msgstr "Idempotenz-Schlüssel"
+msgstr "Technische Kennung"
 
 msgid "Decision"
 msgstr "Entscheidung"
@@ -1593,10 +1686,10 @@ msgid "Event"
 msgstr "Ereignis"
 
 msgid "By"
-msgstr "Durch"
+msgstr "Von"
 
 msgid "Rule snapshot"
-msgstr "Regel-Snapshot"
+msgstr "Regel zum Zeitpunkt der Berechnung"
 
 msgid "Object type"
 msgstr "Objekttyp"
@@ -1643,6 +1736,18 @@ msgstr "Ausstehend (Haltefrist)"
 msgid "Needs review"
 msgstr "Prüfung nötig"
 
+msgid "Sale"
+msgstr "Verkauf"
+
+msgid "Refund"
+msgstr "Rückerstattung"
+
+msgid "Cancellation"
+msgstr "Storno"
+
+msgid "Chargeback"
+msgstr "Rückbuchung"
+
 msgid "Hold period ended"
 msgstr "Haltefrist abgelaufen"
 
@@ -1685,6 +1790,9 @@ msgstr "Empfohlen von [Partnername]"
 msgid "Visible only for visitors coming via a partner link."
 msgstr "Nur für Besucher sichtbar, die über einen Partnerlink kommen."
 
+msgid "— Applicant chooses —"
+msgstr "— Bewerber wählt —"
+
 msgid "Partner deep link"
 msgstr "Partner-Deeplink"
 
@@ -1712,6 +1820,12 @@ msgstr "Empfohlene Zielseiten"
 msgid "The link has expired."
 msgstr "Der Link ist abgelaufen."
 
+msgid "Copied to the clipboard."
+msgstr "In die Zwischenablage kopiert."
+
+msgid "Please copy the text manually."
+msgstr "Bitte kopieren Sie den Text manuell."
+
 msgid "Please log in to access your partner area."
 msgstr "Bitte melden Sie sich an, um Ihren Partnerbereich zu öffnen."
 
@@ -1727,14 +1841,14 @@ msgstr "Ihre Bewerbung wird geprüft. Wir benachrichtigen Sie per E-Mail."
 msgid "Your partner account is not active."
 msgstr "Ihr Partnerkonto ist nicht aktiv."
 
-msgid "Overview"
-msgstr "Übersicht"
-
 msgid "Links & codes"
 msgstr "Links & Codes"
 
 msgid "Your partner account is paused. New sales are currently not attributed."
 msgstr "Ihr Partnerkonto ist pausiert. Neue Verkäufe werden derzeit nicht zugeordnet."
+
+msgid "Copy"
+msgstr "Kopieren"
 
 msgid "Your details have been saved."
 msgstr "Ihre Angaben wurden gespeichert."
@@ -1775,8 +1889,35 @@ msgstr "Insgesamt ausgezahlt"
 msgid "Minimum payout amount"
 msgstr "Mindestauszahlung"
 
+msgid "Partner code received"
+msgstr "Partnercode erhalten"
+
+msgid "Current terms accepted"
+msgstr "Aktuelle Bedingungen akzeptiert"
+
+msgid "Payout details completed"
+msgstr "Auszahlungsdaten vervollständigt"
+
+msgid "First visitor via your link"
+msgstr "Erster Besucher über Ihren Link"
+
+msgid "First sale"
+msgstr "Erster Verkauf"
+
+msgid "Share your partner link"
+msgstr "Teilen Sie Ihren Partnerlink"
+
 msgid "Your partner link"
 msgstr "Ihr Partnerlink"
+
+msgid "Or tell customers your code %s – they enter it at checkout, no cookies needed."
+msgstr "Oder nennen Sie Kunden Ihren Code %s – sie geben ihn an der Kasse ein, ganz ohne Cookies."
+
+msgid "Your partner code is being prepared. Please contact us if it does not appear soon."
+msgstr "Ihr Partnercode wird vorbereitet. Bitte melden Sie sich, falls er nicht bald erscheint."
+
+msgid "Your next steps"
+msgstr "Ihre nächsten Schritte"
 
 msgid "Your partner code"
 msgstr "Ihr Partnercode"
@@ -1795,6 +1936,9 @@ msgstr "Kampagne (optional)"
 
 msgid "Only pages of this website can be linked."
 msgstr "Es können nur Seiten dieser Website verlinkt werden."
+
+msgid "Generated link"
+msgstr "Erzeugter Link"
 
 msgid "Your codes"
 msgstr "Ihre Codes"
@@ -1826,8 +1970,8 @@ msgstr "Werberichtlinien"
 msgid "Approved creatives"
 msgstr "Freigegebene Werbemittel"
 
-msgid "No creatives available yet."
-msgstr "Noch keine Werbemittel verfügbar."
+msgid "No creatives available yet. You can already use your partner link and QR code above."
+msgstr "Noch keine Werbemittel verfügbar. Ihren Partnerlink und QR-Code oben können Sie bereits nutzen."
 
 msgid "Mandatory label: \"%s\" – clearly visible at the beginning of your post."
 msgstr "Pflichtkennzeichnung: „%s“ – gut sichtbar am Anfang Ihres Beitrags."
@@ -1835,8 +1979,11 @@ msgstr "Pflichtkennzeichnung: „%s“ – gut sichtbar am Anfang Ihres Beitrags
 msgid "Download image"
 msgstr "Bild herunterladen"
 
-msgid "No commissions yet."
-msgstr "Noch keine Provisionen."
+msgid "No commissions yet. As soon as a customer buys via your link or code, the commission appears here."
+msgstr "Noch keine Provisionen. Sobald jemand über Ihren Link oder Code kauft, erscheint die Provision hier."
+
+msgid "Get your link"
+msgstr "Zu Ihrem Link"
 
 msgid "Product"
 msgstr "Produkt"
@@ -1862,14 +2009,17 @@ msgstr "Auszahlung beantragt am %s – in Bearbeitung."
 msgid "Request payout"
 msgstr "Auszahlung beantragen"
 
+msgid "No payouts yet. Approved commissions are paid out once the minimum amount is reached."
+msgstr "Noch keine Auszahlungen. Freigegebene Provisionen werden ausgezahlt, sobald der Mindestbetrag erreicht ist."
+
+msgid "Complete payout details"
+msgstr "Auszahlungsdaten vervollständigen"
+
 msgid "Statement"
 msgstr "Beleg"
 
 msgid "Credit note"
 msgstr "Gutschrift"
-
-msgid "Cancellation"
-msgstr "Storno"
 
 msgid "Name / company for the statement"
 msgstr "Name / Firma für die Abrechnung"
@@ -1954,9 +2104,6 @@ msgstr "Bestellung erstattet"
 
 msgid "Order cancelled"
 msgstr "Bestellung storniert"
-
-msgid "Chargeback"
-msgstr "Rückbuchung"
 
 msgid "Method"
 msgstr "Methode"
@@ -2184,3 +2331,11 @@ msgstr "Partner-Bewerbungsformular"
 msgctxt "block description"
 msgid "Application form for your partner program."
 msgstr "Bewerbungsformular für Ihr Partnerprogramm."
+
+msgctxt "count"
+msgid "Number"
+msgstr "Anzahl"
+
+msgctxt "document number"
+msgid "Number"
+msgstr "Nummer"

@@ -25,6 +25,10 @@ final class DashboardPage {
 	 * @param string $do Action.
 	 */
 	public static function handle( $do ) {
+		if ( 'setup_pages' === $do ) {
+			self::create_pages();
+			Admin::back( __( 'Pages created and selected in the settings.', 'wp-affiliate-captain' ) );
+		}
 		if ( 'report_export' !== $do ) {
 			return;
 		}
@@ -43,6 +47,72 @@ final class DashboardPage {
 			$out[] = array( $r['affiliate_id'], $r['name'], $r['visits'], $r['orders'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ), Money::to_decimal( $r['corrections'], $currency ), Money::to_decimal( $r['bonus'], $currency ), $r['refund_rate'] );
 		}
 		Csv::download( "partner-report-{$from}-{$to}.csv", array( 'affiliate_id', 'partner', 'visits', 'orders', 'net_revenue_' . $currency, 'commission_' . $currency, 'corrections_' . $currency, 'bonus_' . $currency, 'refund_rate_percent' ), $out );
+	}
+
+	/**
+	 * Create application, partner area and landing pages (with blocks) if missing.
+	 */
+	private static function create_pages() {
+		$pages = array(
+			'registration_page_id' => array( __( 'Become a partner', 'wp-affiliate-captain' ), '<!-- wp:wpac/registration /-->' ),
+			'portal_page_id'       => array( __( 'Partner area', 'wp-affiliate-captain' ), '<!-- wp:wpac/portal /-->' ),
+			'landing_page_id'      => array( __( 'Recommended by our partner', 'wp-affiliate-captain' ), "<!-- wp:wpac/partner-welcome /-->\n<!-- wp:paragraph --><p>" . esc_html__( 'Welcome! Here you can introduce your offer to visitors referred by a partner.', 'wp-affiliate-captain' ) . '</p><!-- /wp:paragraph -->' ),
+		);
+		$update = array();
+		foreach ( $pages as $key => $page ) {
+			$current = (int) Settings::get( $key );
+			if ( $current && get_post( $current ) && 'trash' !== get_post_status( $current ) ) {
+				continue;
+			}
+			$id = wp_insert_post(
+				array(
+					'post_type'    => 'page',
+					'post_status'  => 'publish',
+					'post_title'   => $page[0],
+					'post_content' => $page[1],
+				)
+			);
+			if ( $id && ! is_wp_error( $id ) ) {
+				$update[ $key ] = (int) $id;
+			}
+		}
+		if ( $update ) {
+			Settings::update( $update );
+			\WPAffiliateCaptain\Core\Audit::log( 'setup.pages_created', 'settings', 0, $update );
+		}
+	}
+
+	/**
+	 * Setup checklist (shown until everything is done).
+	 */
+	private static function checklist() {
+		$items = array(
+			array( (bool) Settings::get( 'registration_page_id' ) && (bool) Settings::get( 'portal_page_id' ), __( 'Application page and partner area page', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
+			array( (bool) Settings::get( 'terms_page_id' ), __( 'Partner program terms (page and version)', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
+			array( '' !== (string) Settings::get( 'operator_address' ) && ( '' !== (string) Settings::get( 'operator_vat_id' ) || '' !== (string) Settings::get( 'operator_tax_number' ) ), __( 'Your address and VAT ID for credit notes', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( '' !== (string) Settings::get( 'debtor_iban' ), __( 'Company bank account for SEPA payouts', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php', 'wp-affiliate-captain' ), Admin::url( 'wpac-integrations' ) ),
+			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'wp-affiliate-captain' ), Admin::url( 'wpac-affiliates' ) ),
+		);
+		$open = array_filter(
+			$items,
+			static function ( $i ) {
+				return ! $i[0];
+			}
+		);
+		if ( ! $open ) {
+			return;
+		}
+		echo '<div class="wpac-checklist"><h2>' . esc_html__( 'Setup checklist', 'wp-affiliate-captain' ) . '</h2><ul>';
+		foreach ( $items as $i ) {
+			echo '<li class="' . ( $i[0] ? 'done' : 'todo' ) . '">' . ( $i[0] ? esc_html( $i[1] ) : '<a href="' . esc_url( $i[2] ) . '">' . esc_html( $i[1] ) . '</a>' ) . '<span class="screen-reader-text"> – ' . esc_html( $i[0] ? __( 'done', 'wp-affiliate-captain' ) : __( 'open', 'wp-affiliate-captain' ) ) . '</span></li>';
+		}
+		echo '</ul>';
+		if ( ! Settings::get( 'registration_page_id' ) || ! Settings::get( 'portal_page_id' ) ) {
+			Admin::form_open( 'setup_pages' );
+			echo '<p><button class="button button-primary">' . esc_html__( 'Create pages automatically', 'wp-affiliate-captain' ) . '</button> <span class="description">' . esc_html__( 'Creates "Become a partner", "Partner area" and a landing page with the matching blocks.', 'wp-affiliate-captain' ) . '</span></p></form>';
+		}
+		echo '</div>';
 	}
 
 	/**
@@ -86,6 +156,9 @@ final class DashboardPage {
 
 		echo '<div class="wrap wpac-wrap"><h1>' . esc_html__( 'Affiliate Captain', 'wp-affiliate-captain' ) . '</h1>';
 		Admin::notice();
+		if ( current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
+			self::checklist();
+		}
 		if ( $counts['pending'] ) {
 			/* translators: %d: count */
 			echo '<div class="notice notice-warning inline"><p><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'status' => 'pending' ) ) ) . '">' . esc_html( sprintf( _n( '%d application waiting for review', '%d applications waiting for review', $counts['pending'], 'wp-affiliate-captain' ), $counts['pending'] ) ) . '</a></p></div>';

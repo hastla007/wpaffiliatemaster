@@ -70,25 +70,17 @@ final class Admin {
 	}
 
 	/**
-	 * Hint until the portal page is configured.
+	 * Hint on other plugin screens until the setup is complete (the dashboard shows the checklist).
 	 */
 	public static function setup_notice() {
 		if ( ! current_user_can( Capabilities::MANAGE_PROGRAM ) || \WPAffiliateCaptain\Core\Settings::get( 'portal_page_id' ) ) {
 			return;
 		}
 		$screen = get_current_screen();
-		if ( ! $screen || false === strpos( (string) $screen->id, 'wpac' ) ) {
+		if ( ! $screen || false === strpos( (string) $screen->id, 'wpac' ) || 'toplevel_page_wpac' === $screen->id ) {
 			return;
 		}
-		echo '<div class="notice notice-info"><p>' . wp_kses_post(
-			sprintf(
-				/* translators: 1: shortcode, 2: shortcode, 3: settings URL */
-				__( '<strong>Affiliate Captain setup:</strong> create a page with %1$s (application) and one with %2$s (partner area), then select them in the <a href="%3$s">settings</a>.', 'wp-affiliate-captain' ),
-				'<code>[wpac_affiliate_registration]</code>',
-				'<code>[wpac_affiliate_portal]</code>',
-				esc_url( self::url( 'wpac-settings' ) )
-			)
-		) . '</p></div>';
+		echo '<div class="notice notice-info"><p>' . esc_html__( 'Affiliate Captain is not fully set up yet.', 'wp-affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac' ) ) . '">' . esc_html__( 'Open the setup checklist', 'wp-affiliate-captain' ) . '</a></p></div>';
 	}
 
 	/**
@@ -128,14 +120,16 @@ final class Admin {
 	 * Show a flash notice from the query string.
 	 */
 	public static function notice() {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended
-		if ( empty( $_GET['wpac_notice'] ) ) {
+		// Messages are stored per user (not in the URL): no spoofed notices via crafted links,
+		// and they do not reappear on reload or end up in the browser history.
+		$key  = 'wpac_notice_' . get_current_user_id();
+		$data = get_transient( $key );
+		if ( ! is_array( $data ) || empty( $data['message'] ) ) {
 			return;
 		}
-		$type = isset( $_GET['wpac_type'] ) && 'error' === $_GET['wpac_type'] ? 'error' : 'success';
-		$msg  = sanitize_text_field( wp_unslash( $_GET['wpac_notice'] ) );
-		// phpcs:enable
-		printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $type ), esc_html( $msg ) );
+		delete_transient( $key );
+		$type = 'error' === $data['type'] ? 'error' : 'success';
+		printf( '<div class="notice notice-%s is-dismissible" role="%s"><p>%s</p></div>', esc_attr( $type ), 'error' === $type ? 'alert' : 'status', esc_html( $data['message'] ) );
 	}
 
 	/**
@@ -149,15 +143,15 @@ final class Admin {
 		$url = $url ? $url : wp_get_referer();
 		$url = $url ? $url : admin_url( 'admin.php?page=wpac' );
 		$url = remove_query_arg( array( 'wpac_notice', 'wpac_type' ), $url );
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'wpac_notice' => rawurlencode( $message ),
-					'wpac_type'   => $type,
-				),
-				$url
-			)
+		set_transient(
+			'wpac_notice_' . get_current_user_id(),
+			array(
+				'message' => (string) $message,
+				'type'    => $type,
+			),
+			5 * MINUTE_IN_SECONDS
 		);
+		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -215,6 +209,7 @@ final class Admin {
 			'job_retry'         => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_save'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),
 		);
 		if ( ! isset( $routes[ $do ] ) ) {
 			wp_die( esc_html__( 'Unknown action.', 'wp-affiliate-captain' ), 400 );

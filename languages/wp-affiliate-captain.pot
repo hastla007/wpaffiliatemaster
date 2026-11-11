@@ -44,7 +44,11 @@ msgid "Settings"
 msgstr ""
 
 #: src/Admin/Admin.php
-msgid "<strong>Affiliate Captain setup:</strong> create a page with %1$s (application) and one with %2$s (partner area), then select them in the <a href=\"%3$s\">settings</a>."
+msgid "Affiliate Captain is not fully set up yet."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Open the setup checklist"
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -359,10 +363,6 @@ msgstr ""
 msgid "Generate code batch"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Number"
-msgstr ""
-
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Prefix"
 msgstr ""
@@ -437,6 +437,14 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
 msgid "System"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+msgid "Overview"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Partner sections"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
@@ -572,6 +580,10 @@ msgid "Source / order"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
+msgid "item"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
 msgid "rule"
 msgstr ""
 
@@ -675,7 +687,7 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php
+#: src/Admin/Pages/CreativesPage.php src/Portal/Portal.php
 msgid "Text"
 msgstr ""
 
@@ -746,6 +758,70 @@ msgid "%d integration job failed"
 msgid_plural "%d integration jobs failed"
 msgstr[0] ""
 msgstr[1] ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Pages created and selected in the settings."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Become a partner"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php src/Portal/Portal.php
+msgid "Partner area"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Recommended by our partner"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Welcome! Here you can introduce your offer to visitors referred by a partner."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Application page and partner area page"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Partner program terms (page and version)"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Your address and VAT ID for credit notes"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Company bank account for SEPA payouts"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "First partner approved"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Setup checklist"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php src/Portal/Portal.php
+msgid "done"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php src/Portal/Portal.php
+msgid "open"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Create pages automatically"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Creates \"Become a partner\", \"Partner area\" and a landing page with the matching blocks."
+msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
@@ -1029,7 +1105,7 @@ msgstr ""
 msgid "Bank details"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/PayoutsPage.php
 msgid "No payouts yet."
 msgstr ""
 
@@ -1190,6 +1266,26 @@ msgid "Group deleted."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "Rules"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Rule preview"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Monthly tiers"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Partner groups"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Sections"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "Program default: %s. Basis is the net line amount after discount, excluding tax and shipping."
 msgstr ""
 
@@ -1274,6 +1370,10 @@ msgid "– partner –"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "IDs or SKUs"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "Comma separated; SKUs support trailing * (e.g. GROUP-*)"
 msgstr ""
 
@@ -1290,15 +1390,15 @@ msgid "Exclude (no commission)"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "per unit"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "Reason for change"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Save rule"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Partner groups"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -1351,10 +1451,6 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Add group"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Monthly tiers"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -1434,10 +1530,6 @@ msgid "Close month now"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
-msgid "Rule preview"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
 msgid "Product ID"
 msgstr ""
 
@@ -1470,7 +1562,35 @@ msgid "Settings saved."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Program"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Tracking"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Fraud & abuse"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Promotion"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Payouts & credit notes"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reports & data"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Affiliate Captain settings"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Settings sections"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -1694,10 +1814,6 @@ msgid "Commissions are released after this period. Integrations can extend it pe
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Promotion"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Landing page path"
 msgstr ""
 
@@ -1847,6 +1963,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Includes commission and payout records – make sure bookkeeping retention obligations are met."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Enabled"
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
@@ -2034,6 +2154,10 @@ msgid "Which kind of partner are you?"
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Fields marked with * are required."
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "Application as: %s"
 msgstr ""
 
@@ -2069,12 +2193,32 @@ msgstr ""
 msgid "The code could not be saved."
 msgstr ""
 
+#: src/Commissions/Ledger.php src/Reports/MonthlyMail.php
+msgid "Monthly bonus"
+msgstr ""
+
 #: src/Commissions/Ledger.php src/Portal/Portal.php
 msgid "Pending (hold period)"
 msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "Needs review"
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Sale"
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Refund"
+msgstr ""
+
+#: src/Commissions/Ledger.php src/Portal/Portal.php
+msgid "Cancellation"
+msgstr ""
+
+#: src/Commissions/Ledger.php src/Integrations/WooCommerce.php
+msgid "Chargeback"
 msgstr ""
 
 #: src/Commissions/Ledger.php
@@ -2134,6 +2278,10 @@ msgid "Visible only for visitors coming via a partner link."
 msgstr ""
 
 #: src/Content/Editor.php
+msgid "— Applicant chooses —"
+msgstr ""
+
+#: src/Content/Editor.php
 msgid "Partner deep link"
 msgstr ""
 
@@ -2187,10 +2335,6 @@ msgstr ""
 
 #: src/Integrations/WooCommerce.php
 msgid "Order cancelled"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Chargeback"
 msgstr ""
 
 #: src/Integrations/WooCommerce.php
@@ -2458,6 +2602,14 @@ msgid "The link has expired."
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Copied to the clipboard."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please copy the text manually."
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Please log in to access your partner area."
 msgstr ""
 
@@ -2474,15 +2626,15 @@ msgid "Your application is being reviewed. We will notify you by e-mail."
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Overview"
-msgstr ""
-
-#: src/Portal/Portal.php
 msgid "Links & codes"
 msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your partner account is paused. New sales are currently not attributed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Copy"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -2530,7 +2682,43 @@ msgid "Minimum payout amount"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Partner code received"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Current terms accepted"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Payout details completed"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "First visitor via your link"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "First sale"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Share your partner link"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Your partner link"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Or tell customers your code %s – they enter it at checkout, no cookies needed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your partner code is being prepared. Please contact us if it does not appear soon."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your next steps"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -2555,6 +2743,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Only pages of this website can be linked."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Generated link"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -2598,7 +2790,7 @@ msgid "Approved creatives"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "No creatives available yet."
+msgid "No creatives available yet. You can already use your partner link and QR code above."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -2610,7 +2802,11 @@ msgid "Download image"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "No commissions yet."
+msgid "No commissions yet. As soon as a customer buys via your link or code, the commission appears here."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Get your link"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -2646,15 +2842,19 @@ msgid "Request payout"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "No payouts yet. Approved commissions are paid out once the minimum amount is reached."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Complete payout details"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Statement"
 msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Credit note"
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "Cancellation"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -2790,10 +2990,6 @@ msgid "Sales"
 msgstr ""
 
 #: src/Reports/MonthlyMail.php
-msgid "Monthly bonus"
-msgstr ""
-
-#: src/Reports/MonthlyMail.php
 msgid "Available for payout"
 msgstr ""
 
@@ -2870,7 +3066,11 @@ msgid "Settings"
 msgstr ""
 
 #: assets/js/blocks.js
-msgid "Fixed partner group ID (0 = applicant chooses)"
+msgid "Partner group"
+msgstr ""
+
+#: assets/js/blocks.js
+msgid "Fix the group of this form, or let applicants choose among the public groups."
 msgstr ""
 
 #: assets/js/blocks.js
@@ -2901,42 +3101,52 @@ msgstr ""
 msgid "Lists the pages marked as \"Recommend as partner target\" with personal partner links."
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block title"
 msgid "Recommended partner targets"
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block description"
 msgid "Pages recommended as partner targets, with personal partner links."
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block title"
 msgid "Partner welcome"
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block description"
 msgid "Shows \"Recommended by …\" for visitors coming via a partner link."
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block title"
 msgid "Partner area"
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block description"
 msgid "Statistics, links, creatives, commissions and payouts for logged-in partners."
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block title"
 msgid "Partner application form"
 msgstr ""
 
-#: blocks
+#: blocks/src
 msgctxt "block description"
 msgid "Application form for your partner program."
+msgstr ""
+
+#: blocks/src
+msgctxt "count"
+msgid "Number"
+msgstr ""
+
+#: blocks/src
+msgctxt "document number"
+msgid "Number"
 msgstr ""
