@@ -232,6 +232,10 @@ msgid "Reason (required for reject/pause/terminate)"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "Really \"%s\"? The partner will be notified by e-mail."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "On termination, open commissions are rejected (see settings)."
 msgstr ""
 
@@ -427,6 +431,10 @@ msgstr ""
 msgid "System"
 msgstr ""
 
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
+msgid "Action"
+msgstr ""
+
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
 msgid "Filter"
 msgstr ""
@@ -437,10 +445,6 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "User"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php
-msgid "Action"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -481,6 +485,10 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php
 msgid "Type"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php
+msgid "Select all"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
@@ -533,6 +541,10 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Approve selected"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Reject the selected commissions? This cannot be undone."
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -636,6 +648,10 @@ msgid "New version"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
+msgid "Archive this creative? Partners will no longer see it."
+msgstr ""
+
+#: src/Admin/Pages/CreativesPage.php
 msgid "Archive"
 msgstr ""
 
@@ -727,7 +743,7 @@ msgstr[1] ""
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php
 msgid "Apply"
 msgstr ""
 
@@ -894,6 +910,22 @@ msgid "%1$d payouts created, %2$d partners carried forward."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Please select at least one payout."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Please choose an action."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Please tick the confirmation box: this affects %1$d payout(s) totalling %2$s."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The SEPA file contains bank details. You need the permission to view tax and bank data."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Some payouts could not be marked as paid."
 msgstr ""
 
@@ -974,6 +1006,14 @@ msgid "No payouts yet."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Bulk action for selected payouts"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "— Choose action —"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Download SEPA XML"
 msgstr ""
 
@@ -982,11 +1022,19 @@ msgid "Mark as paid"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
-msgid "Cancellation reason"
+msgid "Cancel"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
-msgid "Cancel"
+msgid "Run this action for the selected payouts?"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Cancellation reason (required for \"Cancel\")"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "I confirm this action for the selected payouts (required for \"Mark as paid\" and \"Cancel\")."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1158,6 +1206,10 @@ msgid "Edit"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "Delete this rule? Existing commissions are not changed."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "Delete"
 msgstr ""
 
@@ -1295,6 +1347,10 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Marginal"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Deactivate this tier plan?"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -1894,11 +1950,19 @@ msgid "Only pending commissions or commissions under review can be approved."
 msgstr ""
 
 #: src/Commissions/Ledger.php
+msgid "The commission was changed in the meantime. Please reload and try again."
+msgstr ""
+
+#: src/Commissions/Ledger.php
 msgid "Paid or rejected commissions cannot be rejected."
 msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "This commission is part of a payout. Cancel the payout first."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
 msgstr ""
 
 #: src/Commissions/RuleRepository.php
@@ -2122,6 +2186,10 @@ msgid "Please enter the account holder and IBAN of your company account in the s
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "No exportable payouts selected."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "Payout %s was already exported. Tick \"export again\" only if the bank did not process the previous file."
 msgstr ""
 
@@ -2135,10 +2203,6 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Bank details for payout %s are missing or cannot be decrypted."
-msgstr ""
-
-#: src/Payouts/PayoutService.php
-msgid "No exportable payouts selected."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php

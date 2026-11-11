@@ -157,7 +157,7 @@ final class CommissionsPage {
 		echo '</p>';
 
 		Admin::form_open( 'commission_status' );
-		echo '<table class="wp-list-table widefat fixed striped"><thead><tr><td class="check-column"><input type="checkbox" onclick="document.querySelectorAll(\'.wpac-cb\').forEach(c=>c.checked=this.checked)"></td><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Item', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Base', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Rate', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wp-list-table widefat fixed striped"><thead><tr><td class="check-column"><input type="checkbox" class="wpac-cb-all" aria-label="' . esc_attr__( 'Select all', 'wp-affiliate-captain' ) . '"></td><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Item', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Base', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Rate', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		if ( ! $rows ) {
 			echo '<tr><td colspan="9">' . esc_html__( 'No commissions found.', 'wp-affiliate-captain' ) . '</td></tr>';
 		}
@@ -190,7 +190,7 @@ final class CommissionsPage {
 		echo '</tbody></table>';
 		echo '<p class="wpac-bulk"><input type="text" name="reason" class="regular-text" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'wp-affiliate-captain' ) . '"> ';
 		echo '<button class="button" name="to" value="approved">' . esc_html__( 'Approve selected', 'wp-affiliate-captain' ) . '</button> ';
-		echo '<button class="button" name="to" value="rejected">' . esc_html__( 'Reject selected', 'wp-affiliate-captain' ) . '</button></p></form>';
+		echo '<button class="button" name="to" value="rejected" data-wpac-confirm="' . esc_attr__( 'Reject the selected commissions? This cannot be undone.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Reject selected', 'wp-affiliate-captain' ) . '</button></p></form>';
 		Admin::pager( $total, $per );
 		echo '</div>';
 	}

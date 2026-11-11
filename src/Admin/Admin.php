@@ -54,6 +54,7 @@ final class Admin {
 	public static function assets( $hook ) {
 		if ( false !== strpos( (string) $hook, 'wpac' ) ) {
 			wp_enqueue_style( 'wpac-admin', WPAC_URL . 'assets/css/admin.css', array(), WPAC_VERSION );
+			wp_enqueue_script( 'wpac-admin', WPAC_URL . 'assets/js/admin.js', array(), WPAC_VERSION, true );
 		}
 	}
 
@@ -195,9 +196,7 @@ final class Admin {
 			'commission_status' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'commission_export' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'payout_run'        => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
-			'payout_paid'       => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
-			'payout_cancel'     => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
-			'payout_sepa'       => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'payout_bulk'       => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_export'     => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_request_process' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_request_reject'  => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),

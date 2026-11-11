@@ -320,8 +320,11 @@ final class WooCommerce {
 			}
 		}
 
+		if ( ! $items && $refund->get_items( array( 'line_item', 'shipping', 'fee', 'tax' ) ) ) {
+			return; // Only shipping/fee/tax refunded – the commission base (net products) is unchanged.
+		}
 		if ( ! $items ) {
-			// Amount-only refund: distribute pro rata over the net line totals.
+			// Amount-only refund (no items at all): distribute pro rata over the net line totals.
 			$order_total = Money::to_minor( (string) $order->get_total(), $currency );
 			$refunded    = abs( Money::to_minor( (string) $refund->get_amount(), $currency ) );
 			if ( $order_total > 0 && $refunded > 0 ) {

@@ -307,12 +307,15 @@ final class Ledger {
 			}
 		}
 
-		return Db::transaction(
+		$result = Db::transaction(
 			static function () use ( $wpdb, $refund, $by_item, $lines ) {
 				$ids = array();
+				$t   = Db::table( 'commissions' );
 				foreach ( $lines as $item_id => $refunded_net ) {
-					$parent = $by_item[ $item_id ];
-					if ( 'rejected' === $parent->status ) {
+					// Lock the original commission so parallel refunds/chargebacks are serialized.
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$parent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d FOR UPDATE", $by_item[ $item_id ]->id ) );
+					if ( ! $parent || 'rejected' === $parent->status ) {
 						continue;
 					}
 					$key = substr( 'refund:' . $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'] . ':' . $item_id, 0, 191 );
@@ -320,7 +323,8 @@ final class Ledger {
 						continue; // Idempotent.
 					}
 					$adjusted = self::adjusted_sum( (int) $parent->id );
-					$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor, (int) $parent->base_minor, $adjusted, $refunded_net, $refund['full'] );
+					$refunded = self::refunded_base( (int) $parent->id );
+					$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor, (int) $parent->base_minor, $adjusted, $refunded_net, $refund['full'], $refunded );
 					if ( 0 === $amount ) {
 						continue;
 					}
@@ -338,7 +342,7 @@ final class Ledger {
 							'product_ref'     => $parent->product_ref,
 							'description'     => substr( $refund['reason'], 0, 255 ),
 							'currency'        => $parent->currency,
-							'base_minor'      => $refund['full'] ? -(int) $parent->base_minor : -abs( (int) $refunded_net ),
+							'base_minor'      => -( $refund['full'] ? max( 0, (int) $parent->base_minor - $refunded ) : min( abs( (int) $refunded_net ), max( 0, (int) $parent->base_minor - $refunded ) ) ),
 							'amount_minor'    => $amount,
 							'rate_type'       => $parent->rate_type,
 							'rate'            => $parent->rate,
@@ -362,31 +366,57 @@ final class Ledger {
 					self::event( $aid, 'created', '', $status, $amount, $refund['type'] . ': ' . $refund['reason'], $refund['refund_id'] );
 					self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount, $refund['type'], $refund['refund_id'] );
 				}
-				if ( $ids ) {
-					do_action( 'wpac_commission_adjusted', $refund, $ids );
-				}
 				return array(
 					'status'         => $ids ? 'adjusted' : 'unchanged',
 					'adjustment_ids' => $ids,
 				);
 			}
 		);
+		if ( $result['adjustment_ids'] ) {
+			do_action( 'wpac_commission_adjusted', $refund, $result['adjustment_ids'] ); // After COMMIT.
+		}
+		return $result;
 	}
 
 	/**
+	 * Allowed status transitions: to => allowed from-statuses.
+	 * Paid and rejected are final.
+	 */
+	const TRANSITIONS = array(
+		'pending'  => array( 'review' ),
+		'approved' => array( 'pending', 'review' ),
+		'rejected' => array( 'pending', 'review', 'approved' ),
+		'paid'     => array( 'approved' ),
+	);
+
+	/**
 	 * Release pending commissions whose hold period has passed (cron).
+	 * Works in batches until done (bounded per run).
 	 *
 	 * @return int Number released.
 	 */
 	public static function approve_due() {
 		global $wpdb;
-		$t   = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE status = 'pending' AND hold_until <= %s ORDER BY id ASC LIMIT 500", Db::now() ) );
-		foreach ( $ids as $id ) {
-			self::transition( (int) $id, 'approved', __( 'Hold period ended', 'wp-affiliate-captain' ), 0 );
+		$t     = Db::table( 'commissions' );
+		$count = 0;
+		for ( $batch = 0; $batch < 40; $batch++ ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE status = 'pending' AND hold_until <= %s ORDER BY id ASC LIMIT 500", Db::now() ) );
+			if ( ! $ids ) {
+				break;
+			}
+			$moved = 0;
+			foreach ( $ids as $id ) {
+				if ( self::transition( (int) $id, 'approved', __( 'Hold period ended', 'wp-affiliate-captain' ), 0 ) ) {
+					++$moved;
+				}
+			}
+			$count += $moved;
+			if ( ! $moved ) {
+				break; // Nothing changed (concurrent run) – avoid looping on the same rows.
+			}
 		}
-		return count( $ids );
+		return $count;
 	}
 
 	/**
@@ -402,10 +432,12 @@ final class Ledger {
 			return new \WP_Error( 'wpac_state', __( 'Only pending commissions or commissions under review can be approved.', 'wp-affiliate-captain' ) );
 		}
 		$to = 'review' === $c->status && strtotime( $c->hold_until . ' UTC' ) > time() ? 'pending' : 'approved';
-		self::transition( (int) $id, $to, $reason, get_current_user_id() );
+		if ( ! self::transition( (int) $id, $to, $reason, get_current_user_id(), 0, $c->status ) ) {
+			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime. Please reload and try again.', 'wp-affiliate-captain' ) );
+		}
 		foreach ( self::children( (int) $id ) as $child ) {
 			if ( $child->status === $c->status ) {
-				self::transition( (int) $child->id, $to, $reason, get_current_user_id() );
+				self::transition( (int) $child->id, $to, $reason, get_current_user_id(), 0, $c->status );
 			}
 		}
 		return true;
@@ -429,7 +461,10 @@ final class Ledger {
 		if ( '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
 		}
-		self::transition( (int) $id, 'rejected', $reason, get_current_user_id() );
+		// Atomic: only if still unassigned to a payout and in the status we saw.
+		if ( ! self::transition( (int) $id, 'rejected', $reason, get_current_user_id(), 0, $c->status ) ) {
+			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime (e.g. added to a payout). Please reload and try again.', 'wp-affiliate-captain' ) );
+		}
 		foreach ( self::children( (int) $id ) as $child ) {
 			if ( in_array( $child->status, array( 'pending', 'review', 'approved' ), true ) ) {
 				self::transition( (int) $child->id, 'rejected', $reason, get_current_user_id() );
@@ -448,37 +483,64 @@ final class Ledger {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND amount_minor > 0", $affiliate_id ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND payout_id = 0 AND amount_minor > 0", $affiliate_id ) );
 		foreach ( $ids as $id ) {
 			self::reject( (int) $id, $reason );
 		}
 	}
 
 	/**
-	 * Status transition with event.
+	 * Atomic status transition (compare-and-set) with event.
 	 *
-	 * @param int    $id     Commission.
-	 * @param string $to     New status.
-	 * @param string $reason Reason.
-	 * @param int    $actor  Actor.
-	 * @param int    $payout Payout ID (for paid).
+	 * The UPDATE only succeeds if the row is still in an allowed (or the
+	 * expected) from-status; for "rejected" it must not be assigned to a payout,
+	 * for "paid" it must be assigned to the given payout.
+	 *
+	 * @param int         $id         Commission.
+	 * @param string      $to         New status.
+	 * @param string      $reason     Reason.
+	 * @param int         $actor      Actor.
+	 * @param int         $payout     Payout ID (required for paid).
+	 * @param string|null $expected   Expected current status (optional, stricter).
+	 * @param bool        $fire_hooks Fire wpac_commission_{status} (false inside transactions; caller fires later).
+	 * @return bool Whether the transition happened.
 	 */
-	public static function transition( $id, $to, $reason = '', $actor = 0, $payout = 0 ) {
+	public static function transition( $id, $to, $reason = '', $actor = 0, $payout = 0, $expected = null, $fire_hooks = true ) {
 		global $wpdb;
+		if ( ! isset( self::TRANSITIONS[ $to ] ) ) {
+			return false;
+		}
+		$from = null === $expected ? self::TRANSITIONS[ $to ] : array_intersect( array( $expected ), self::TRANSITIONS[ $to ] );
+		if ( ! $from ) {
+			return false;
+		}
 		$c = self::find( $id );
-		if ( ! $c || $c->status === $to ) {
-			return;
+		if ( ! $c ) {
+			return false;
 		}
-		$fields = array(
-			'status'     => $to,
-			'updated_at' => Db::now(),
-		);
-		if ( $payout ) {
-			$fields['payout_id'] = (int) $payout;
+		$t     = Db::table( 'commissions' );
+		$in    = implode( ',', array_fill( 0, count( $from ), '%s' ) );
+		$extra = '';
+		$args  = array( $to, Db::now(), (int) $id );
+		if ( 'rejected' === $to ) {
+			$extra = ' AND payout_id = 0';
+		} elseif ( 'paid' === $to ) {
+			$extra  = ' AND payout_id = %d';
+			$args[] = (int) $payout;
 		}
-		$wpdb->update( Db::table( 'commissions' ), $fields, array( 'id' => (int) $id ) );
+		$args = array_merge( $args, array_values( $from ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql  = "UPDATE {$t} SET status = %s, updated_at = %s WHERE id = %d{$extra} AND status IN ({$in})";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = (int) $wpdb->query( $wpdb->prepare( $sql, $args ) );
+		if ( 1 !== $rows ) {
+			return false;
+		}
 		self::event( (int) $id, $to, $c->status, $to, (int) $c->amount_minor, $reason, '', $actor );
-		do_action( 'wpac_commission_' . $to, (int) $id );
+		if ( $fire_hooks ) {
+			do_action( 'wpac_commission_' . $to, (int) $id );
+		}
+		return true;
 	}
 
 	/**
@@ -616,6 +678,19 @@ final class Ledger {
 		$t = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected'", $id ) );
+	}
+
+	/**
+	 * Net base already refunded (positive), from non-rejected corrections.
+	 *
+	 * @param int $id Parent.
+	 * @return int
+	 */
+	public static function refunded_base( $id ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND base_minor < 0", $id ) ) );
 	}
 
 	/**

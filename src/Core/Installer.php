@@ -14,6 +14,7 @@ final class Installer {
 	const DB_OPTION = 'wpac_db_version';
 
 	public static function activate() {
+		\WPAffiliateCaptain\Promotion\Landing::reset_rewrite();
 		self::install_schema();
 		Capabilities::install();
 		Cron::schedule();
@@ -24,6 +25,8 @@ final class Installer {
 
 	public static function deactivate() {
 		Cron::unschedule();
+		delete_option( 'wpac_rewrite_flushed' );
+		flush_rewrite_rules( false );
 	}
 
 	/**
@@ -44,7 +47,9 @@ final class Installer {
 		global $wpdb;
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-		$c = $wpdb->get_charset_collate();
+		$c        = $wpdb->get_charset_collate();
+		$previous = (int) get_option( self::DB_OPTION, 0 );
+		self::migrate_before( $previous );
 		$t = static function ( $name ) {
 			return Db::table( $name );
 		};
@@ -169,7 +174,9 @@ final class Installer {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY source_order (source,source_order_id),
-			KEY affiliate_id (affiliate_id)
+			KEY affiliate_id (affiliate_id),
+			KEY affiliate_created (affiliate_id,created_at),
+			KEY created_at (created_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('rules')} (
@@ -219,7 +226,9 @@ final class Installer {
 			KEY source_order (source,source_order_id),
 			KEY parent_id (parent_id),
 			KEY status_hold (status,hold_until),
-			KEY payout_id (payout_id)
+			KEY payout_id (payout_id),
+			KEY affiliate_created (affiliate_id,created_at),
+			KEY created_at (created_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('commission_events')} (
@@ -265,9 +274,12 @@ final class Installer {
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			payout_id bigint(20) unsigned NOT NULL,
 			commission_id bigint(20) unsigned NOT NULL,
+			active_commission_id bigint(20) unsigned NULL,
 			amount_minor bigint(20) NOT NULL DEFAULT 0,
+			released_at datetime NULL,
 			PRIMARY KEY  (id),
-			UNIQUE KEY commission_id (commission_id),
+			UNIQUE KEY active_commission (active_commission_id),
+			KEY commission_id (commission_id),
 			KEY payout_id (payout_id)
 		) $c;";
 
@@ -371,6 +383,54 @@ final class Installer {
 			dbDelta( $statement );
 		}
 
-		update_option( self::DB_OPTION, WPAC_DB_VERSION, false );
+		self::migrate_after( $previous );
+		update_option( self::DB_OPTION, WPAC_DB_VERSION, true );
+	}
+
+	/**
+	 * Changes dbDelta cannot do (dropping/redefining indexes).
+	 *
+	 * @param int $previous Previous schema version.
+	 */
+	private static function migrate_before( $previous ) {
+		global $wpdb;
+		if ( $previous > 0 && $previous < 3 ) {
+			// v3: payout_items keep released rows → commission_id is no longer UNIQUE.
+			$t = Db::table( 'payout_items' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $t ) ) ) {
+				return;
+			}
+			if ( $wpdb->get_var( "SHOW INDEX FROM {$t} WHERE Key_name = 'commission_id' AND Non_unique = 0" ) ) {
+				$wpdb->query( "ALTER TABLE {$t} DROP INDEX commission_id, ADD KEY commission_id (commission_id)" );
+			}
+			if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$t} LIKE 'active_commission_id'" ) ) {
+				$wpdb->query( "ALTER TABLE {$t} ADD COLUMN active_commission_id bigint(20) unsigned NULL AFTER commission_id" );
+			}
+			if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$t} LIKE 'released_at'" ) ) {
+				$wpdb->query( "ALTER TABLE {$t} ADD COLUMN released_at datetime NULL AFTER amount_minor" );
+			}
+			$wpdb->query( "UPDATE {$t} SET active_commission_id = commission_id WHERE released_at IS NULL AND active_commission_id IS NULL" );
+			if ( ! $wpdb->get_var( "SHOW INDEX FROM {$t} WHERE Key_name = 'active_commission'" ) ) {
+				$wpdb->query( "ALTER TABLE {$t} ADD UNIQUE KEY active_commission (active_commission_id)" );
+			}
+			// phpcs:enable
+		}
+	}
+
+	/**
+	 * Data migrations after dbDelta.
+	 *
+	 * @param int $previous Previous schema version.
+	 */
+	private static function migrate_after( $previous ) {
+		global $wpdb;
+		if ( $previous > 0 && $previous < 3 ) {
+			$t = Db::table( 'payout_items' );
+			// Existing items are all active (cancelled ones were deleted before v3).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "UPDATE {$t} SET active_commission_id = commission_id WHERE released_at IS NULL AND active_commission_id IS NULL" );
+		}
 	}
 }

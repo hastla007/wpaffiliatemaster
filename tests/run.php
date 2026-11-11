@@ -145,16 +145,28 @@ check( 'group rule needs group', 0, Calculator::calculate( $item, array( $rule( 
 
 /* Refund adjustments ---------------------------------------------------- */
 check( 'partial refund 50%', -2500, Calculator::refund_adjustment( 5000, 50000, 0, 25000 ) );
-check( 'second refund capped', -2500, Calculator::refund_adjustment( 5000, 50000, -2500, 40000 ) );
 check( 'nothing left', 0, Calculator::refund_adjustment( 5000, 50000, -5000, 10000 ) );
 check( 'full reversal remaining', -3000, Calculator::refund_adjustment( 5000, 50000, -2000, 0, true ) );
 check( 'refund rounding', -333, Calculator::refund_adjustment( 1000, 3000, 0, 1000 ) );
-$sum = 0;
+$sum      = 0;
+$refunded = 0;
+$steps    = array();
 foreach ( array( 1000, 1000, 1000 ) as $part ) {
-	$sum += Calculator::refund_adjustment( 1000, 3000, $sum, $part );
+	$adj      = Calculator::refund_adjustment( 1000, 3000, $sum, $part, false, $refunded );
+	$steps[]  = $adj;
+	$sum     += $adj;
+	$refunded += $part;
 }
-check( 'three thirds never exceed original', -999, $sum );
-check( 'final full reversal closes rounding gap', -1, Calculator::refund_adjustment( 1000, 3000, $sum, 0, true ) );
+check( 'three thirds: cumulative rounding', array( -333, -334, -333 ), $steps );
+check( 'three thirds sum exactly original', -1000, $sum );
+$sum = 0;
+$ref = 0;
+foreach ( array( 333, 333, 334 ) as $part ) {
+	$sum += Calculator::refund_adjustment( 100, 1000, $sum, $part, false, $ref );
+	$ref += $part;
+}
+check( 'no cent left after full refund in parts', -100, $sum );
+check( 'refund beyond base capped', -2500, Calculator::refund_adjustment( 5000, 50000, -2500, 40000, false, 25000 ) );
 
 /* SEPA ------------------------------------------------------------------ */
 $xml = SepaXml::build(
@@ -260,6 +272,14 @@ check( 'subdomain of blocked', true, FraudCheck::domain_blocked( 'x@mx.yopmail.c
 check( 'custom blocked', true, FraudCheck::domain_blocked( 'a@spam.example', array( 'spam.example' ) ) );
 check( 'normal domain', false, FraudCheck::domain_blocked( 'kunde@segelschule.de' ) );
 check( 'no false suffix match', false, FraudCheck::domain_blocked( 'a@notmailinator.com' ) );
+
+/* SEPA execution date ---------------------------------------------------- */
+check( 'easter 2026', '2026-04-05', gmdate( 'Y-m-d', SepaXml::easter( 2026 ) ) );
+check( 'easter 2027', '2027-03-28', gmdate( 'Y-m-d', SepaXml::easter( 2027 ) ) );
+check( 'friday → monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 10, 0, 0, 11, 13, 2026 ) ) );
+check( 'thursday before good friday → easter tuesday', '2026-04-07', SepaXml::next_business_day( gmmktime( 10, 0, 0, 4, 2, 2026 ) ) );
+check( 'christmas eve → 28 dec', '2026-12-28', SepaXml::next_business_day( gmmktime( 10, 0, 0, 12, 24, 2026 ) ) );
+check( 'normal weekday', '2026-11-12', SepaXml::next_business_day( gmmktime( 10, 0, 0, 11, 11, 2026 ) ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

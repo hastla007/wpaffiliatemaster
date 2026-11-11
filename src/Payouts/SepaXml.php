@@ -32,6 +32,53 @@ final class SepaXml {
 	}
 
 	/**
+	 * Easter Sunday (Gregorian, anonymous Gauss/Meeus algorithm) as UTC timestamp.
+	 *
+	 * @param int $year Year.
+	 * @return int
+	 */
+	public static function easter( $year ) {
+		$a = $year % 19;
+		$b = intdiv( $year, 100 );
+		$c = $year % 100;
+		$d = intdiv( $b, 4 );
+		$e = $b % 4;
+		$f = intdiv( $b + 8, 25 );
+		$g = intdiv( $b - $f + 1, 3 );
+		$h = ( 19 * $a + $b - $d - $g + 15 ) % 30;
+		$i = intdiv( $c, 4 );
+		$k = $c % 4;
+		$l = ( 32 + 2 * $e + 2 * $i - $h - $k ) % 7;
+		$m = intdiv( $a + 11 * $h + 22 * $l, 451 );
+		$month = intdiv( $h + $l - 7 * $m + 114, 31 );
+		$day   = ( ( $h + $l - 7 * $m + 114 ) % 31 ) + 1;
+		return gmmktime( 0, 0, 0, $month, $day, $year );
+	}
+
+	/**
+	 * Requested execution date: next TARGET2 business day after $from
+	 * (skips weekends, 1 Jan, Good Friday, Easter Monday, 1 May, 25/26 Dec).
+	 *
+	 * @param int $from Timestamp.
+	 * @return string Y-m-d
+	 */
+	public static function next_business_day( $from ) {
+		$ts = (int) $from + 86400;
+		for ( $i = 0; $i < 10; $i++ ) {
+			$day    = gmdate( 'Y-m-d', $ts );
+			$easter = self::easter( (int) gmdate( 'Y', $ts ) );
+			$closed = in_array( gmdate( 'm-d', $ts ), array( '01-01', '05-01', '12-25', '12-26' ), true )
+				|| gmdate( 'Y-m-d', $easter - 2 * 86400 ) === $day
+				|| gmdate( 'Y-m-d', $easter + 86400 ) === $day;
+			if ( (int) gmdate( 'N', $ts ) < 6 && ! $closed ) {
+				break;
+			}
+			$ts += 86400;
+		}
+		return gmdate( 'Y-m-d', $ts );
+	}
+
+	/**
 	 * Build the XML document.
 	 *
 	 * @param array  $debtor    name, iban, bic.
@@ -111,7 +158,8 @@ final class SepaXml {
 			if ( ! empty( $t['bic'] ) ) {
 				$el( $el( $el( $tx, 'CdtrAgt' ), 'FinInstnId' ), 'BIC', $t['bic'] );
 			}
-			$el( $el( $tx, 'Cdtr' ), 'Nm', self::clean( $t['name'], 70 ) );
+			$name = self::clean( $t['name'], 70 );
+			$el( $el( $tx, 'Cdtr' ), 'Nm', '' !== $name ? $name : 'NOTPROVIDED' );
 			$el( $el( $el( $tx, 'CdtrAcct' ), 'Id' ), 'IBAN', Iban::normalize( $t['iban'] ) );
 			$el( $el( $tx, 'RmtInf' ), 'Ustrd', self::clean( $t['remittance'], 140 ) );
 		}

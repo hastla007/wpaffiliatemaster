@@ -191,7 +191,7 @@ final class RulesPage {
 				esc_html__( 'Edit', 'wp-affiliate-captain' )
 			);
 			Admin::form_open( 'rule_delete', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" size="10"> <button class="button-link wpac-danger">' . esc_html__( 'Delete', 'wp-affiliate-captain' ) . '</button></form></td></tr>';
+			echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" size="10"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this rule? Existing commissions are not changed.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Delete', 'wp-affiliate-captain' ) . '</button></form></td></tr>';
 		}
 		echo '</tbody></table>';
 
@@ -259,7 +259,7 @@ final class RulesPage {
 			echo '<tr><th>' . esc_html__( 'Additional application fields', 'wp-affiliate-captain' ) . '</th><td><textarea name="fields" rows="4" class="large-text code" placeholder="school_name|Name der Bootsschule|text|required&#10;students|Schüler pro Jahr|number">' . esc_textarea( Groups::fields_text( $g ) ) . '</textarea><p class="description">' . esc_html__( 'One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 			echo '</table><p><button class="button button-primary">' . esc_html__( 'Save group', 'wp-affiliate-captain' ) . '</button></p></form>';
 			Admin::form_open( 'group_delete', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><button class="button-link wpac-danger" onclick="return confirm(\'' . esc_js( __( 'Delete this group?', 'wp-affiliate-captain' ) ) . '\')">' . esc_html__( 'Delete group', 'wp-affiliate-captain' ) . '</button></form></details></li>';
+			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this group?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Delete group', 'wp-affiliate-captain' ) . '</button></form></details></li>';
 		}
 		echo '</ul>';
 		Admin::form_open( 'group_create' );
@@ -295,7 +295,7 @@ final class RulesPage {
 			);
 			if ( $p->active ) {
 				Admin::form_open( 'tier_deactivate', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $p->id . '"><input type="text" name="reason" size="10" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '"> <button class="button-link wpac-danger">' . esc_html__( 'Deactivate', 'wp-affiliate-captain' ) . '</button></form>';
+				echo '<input type="hidden" name="id" value="' . (int) $p->id . '"><input type="text" name="reason" size="10" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Deactivate this tier plan?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Deactivate', 'wp-affiliate-captain' ) . '</button></form>';
 			}
 			echo '</td></tr>';
 		}
@@ -320,7 +320,7 @@ final class RulesPage {
 
 		Admin::form_open( 'tier_close_month' );
 		/* translators: %s: last closed month */
-		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'wp-affiliate-captain' ), Settings::get( 'tier_month_closed' ) ? Settings::get( 'tier_month_closed' ) : '—' ) ) . ' <input type="month" name="month" value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of previous month' ) ) ) . '"> <button class="button" onclick="return confirm(\'' . esc_js( __( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'wp-affiliate-captain' ) ) . '\')">' . esc_html__( 'Close month now', 'wp-affiliate-captain' ) . '</button></p></form>';
+		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'wp-affiliate-captain' ), Settings::get( 'tier_month_closed' ) ? Settings::get( 'tier_month_closed' ) : '—' ) ) . ' <input type="month" name="month" value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of previous month' ) ) ) . '"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Close month now', 'wp-affiliate-captain' ) . '</button></p></form>';
 	}
 
 	/**

@@ -302,7 +302,11 @@ final class AffiliatesPage {
 		);
 		echo '<p><input type="text" name="reason" class="regular-text" placeholder="' . esc_attr__( 'Reason (required for reject/pause/terminate)', 'wp-affiliate-captain' ) . '"></p><p>';
 		foreach ( $transitions[ $a->status ] as $to => $label ) {
-			echo '<button type="submit" name="status" value="' . esc_attr( $to ) . '" class="button ' . ( 'active' === $to ? 'button-primary' : '' ) . '">' . esc_html( $label ) . '</button> ';
+			$confirm = in_array( $to, array( 'terminated', 'rejected', 'paused' ), true )
+				/* translators: %s: action */
+				? ' data-wpac-confirm="' . esc_attr( sprintf( __( 'Really "%s"? The partner will be notified by e-mail.', 'wp-affiliate-captain' ), $label ) ) . '"'
+				: '';
+			echo '<button type="submit" name="status" value="' . esc_attr( $to ) . '" class="button ' . ( 'active' === $to ? 'button-primary' : '' ) . '"' . $confirm . '>' . esc_html( $label ) . '</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		echo '</p>';
 		if ( isset( $transitions[ $a->status ]['terminated'] ) ) {

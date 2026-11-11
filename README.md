@@ -4,7 +4,7 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.2.0 – noch nicht in einer echten WordPress-Installation getestet.** Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
+> Status: **0.2.1 – noch nicht in einer echten WordPress-Installation getestet.** Ledger und Auszahlungen sind per Integrationstests gegen MariaDB geprüft. Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
 
 ## Anforderungen
 
@@ -60,6 +60,12 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 
 ```bash
 php tests/run.php
+```
+
+Integrationstests für Ledger und Auszahlungen gegen eine echte MySQL/MariaDB (die Testdatenbank wird bei jedem Lauf geleert):
+
+```bash
+WPAC_TEST_DB_NAME=wpac_test WPAC_TEST_DB_USER=wpac WPAC_TEST_DB_PASS=wpac php tests/integration/run.php
 ```
 
 Release-ZIP bauen (prüft Versionen und Tests):

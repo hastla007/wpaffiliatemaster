@@ -29,6 +29,31 @@ jobs:
       - name: Unit tests
         run: php tests/run.php
 
+  integration:
+    name: Integration (MariaDB)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_test
+          MARIADB_USER: wpac
+          MARIADB_PASSWORD: wpac
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring
+          coverage: none
+      - name: Ledger and payout integration tests
+        env:
+          WPAC_TEST_DB_HOST: 127.0.0.1
+        run: php tests/integration/run.php
+
   qr-decode:
     name: QR decode + translations
     runs-on: ubuntu-latest
@@ -45,7 +70,7 @@ jobs:
 
   release:
     name: Release ZIP
-    needs: [test, qr-decode]
+    needs: [test, integration, qr-decode]
     runs-on: ubuntu-latest
     permissions:
       contents: write

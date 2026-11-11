@@ -40,6 +40,34 @@ final class PayoutService {
 	}
 
 	/**
+	 * FROM/WHERE for commissions payable in a run (alias c).
+	 *
+	 * - approved and not assigned to a payout, in the payout currency;
+	 * - booked up to the period end – corrections (refund/chargeback) are always
+	 *   included together with their original commission, even if booked later,
+	 *   so a chargeback after the cut-off is never left behind;
+	 * - original commissions with corrections still in hold/review are held back.
+	 *
+	 * @param string $currency     Currency.
+	 * @param string $end          Period end (Y-m-d H:i:s).
+	 * @param int    $affiliate_id Optional partner.
+	 * @return array [ sql, params ]
+	 */
+	private static function payable_sql( $currency, $end, $affiliate_id = 0 ) {
+		$t      = Db::table( 'commissions' );
+		$sql    = "FROM {$t} c LEFT JOIN {$t} p ON p.id = c.parent_id
+			WHERE c.status = 'approved' AND c.payout_id = 0 AND c.currency = %s
+			AND ( c.created_at <= %s OR ( c.parent_id > 0 AND p.created_at <= %s ) )
+			AND NOT EXISTS ( SELECT 1 FROM {$t} ch WHERE ch.parent_id = c.id AND ch.status IN ('pending','review') )";
+		$params = array( $currency, $end, $end );
+		if ( $affiliate_id ) {
+			$sql     .= ' AND c.affiliate_id = %d';
+			$params[] = (int) $affiliate_id;
+		}
+		return array( $sql, $params );
+	}
+
+	/**
 	 * Balances available for a run.
 	 *
 	 * @param string $period_end Y-m-d.
@@ -48,10 +76,9 @@ final class PayoutService {
 	 */
 	public static function preview( $period_end, $currency ) {
 		global $wpdb;
-		$t   = Db::table( 'commissions' );
-		$end = $period_end . ' 23:59:59';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, SUM(amount_minor) total, COUNT(*) c FROM {$t} WHERE status = 'approved' AND payout_id = 0 AND currency = %s AND created_at <= %s GROUP BY affiliate_id ORDER BY total DESC", $currency, $end ) );
+		list( $from, $params ) = self::payable_sql( $currency, $period_end . ' 23:59:59' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.affiliate_id, SUM(c.amount_minor) total, COUNT(*) c {$from} GROUP BY c.affiliate_id ORDER BY total DESC", $params ) );
 		$min  = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
 		$out  = array();
 		foreach ( $rows as $r ) {
@@ -135,9 +162,10 @@ final class PayoutService {
 		global $wpdb;
 		$payout_id = Db::transaction(
 			static function () use ( $wpdb, $affiliate_id, $period_end, $currency ) {
-				$t = Db::table( 'commissions' );
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT id, amount_minor FROM {$t} WHERE affiliate_id = %d AND status = 'approved' AND payout_id = 0 AND currency = %s AND created_at <= %s FOR UPDATE", $affiliate_id, $currency, $period_end . ' 23:59:59' ) );
+				$t                     = Db::table( 'commissions' );
+				list( $from, $params ) = self::payable_sql( $currency, $period_end . ' 23:59:59', $affiliate_id );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor {$from} FOR UPDATE", $params ) );
 				$total = 0;
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
@@ -165,21 +193,29 @@ final class PayoutService {
 				}
 				$payout_id = (int) $wpdb->insert_id;
 				$number    = sprintf( 'AC-%s-%05d', substr( $period_end, 0, 4 ), $payout_id );
-				$wpdb->update( Db::table( 'payouts' ), array( 'number' => $number ), array( 'id' => $payout_id ) );
+				if ( 1 !== (int) $wpdb->update( Db::table( 'payouts' ), array( 'number' => $number ), array( 'id' => $payout_id ) ) ) {
+					throw new IntegrationException( 'db_payout_number', $wpdb->last_error );
+				}
 
 				foreach ( $rows as $r ) {
 					$ok = $wpdb->insert(
 						Db::table( 'payout_items' ),
 						array(
-							'payout_id'     => $payout_id,
-							'commission_id' => (int) $r->id,
-							'amount_minor'  => (int) $r->amount_minor,
+							'payout_id'            => $payout_id,
+							'commission_id'        => (int) $r->id,
+							'active_commission_id' => (int) $r->id, // UNIQUE: one active payout per commission.
+							'amount_minor'         => (int) $r->amount_minor,
 						)
 					);
 					if ( ! $ok ) {
 						throw new IntegrationException( 'double_payout', 'Commission ' . $r->id . ' is already part of a payout.' );
 					}
-					$wpdb->update( $t, array( 'payout_id' => $payout_id ), array( 'id' => (int) $r->id ) );
+					// Compare-and-set: only if still approved and unassigned.
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$moved = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET payout_id = %d, updated_at = %s WHERE id = %d AND payout_id = 0 AND status = 'approved'", $payout_id, Db::now(), (int) $r->id ) );
+					if ( 1 !== $moved ) {
+						throw new IntegrationException( 'commission_changed', 'Commission ' . $r->id . ' changed during the payout run.' );
+					}
 					Ledger::event( (int) $r->id, 'payout_assigned', 'approved', 'approved', (int) $r->amount_minor, $number );
 				}
 				Audit::log(
@@ -201,88 +237,125 @@ final class PayoutService {
 	}
 
 	/**
-	 * Mark a payout as paid → commissions become "paid".
+	 * Lock and read a payout inside a transaction.
+	 *
+	 * @param int $id Payout.
+	 * @return object|null
+	 */
+	private static function lock( $id ) {
+		global $wpdb;
+		$t = Db::table( 'payouts' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d FOR UPDATE", $id ) );
+	}
+
+	/**
+	 * Mark a payout as paid → commissions become "paid". Atomic: either the
+	 * payout and all its commissions change, or nothing does.
 	 *
 	 * @param int $id Payout.
 	 * @return true|\WP_Error
 	 */
 	public static function mark_paid( $id ) {
 		global $wpdb;
-		$p = self::find( $id );
-		if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
+		try {
+			$paid = Db::transaction(
+				static function () use ( $wpdb, $id ) {
+					$p = self::lock( $id );
+					if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
+						throw new IntegrationException( 'state', 'not payable' );
+					}
+					$t = Db::table( 'payouts' );
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET status = 'paid', paid_at = %s WHERE id = %d AND status IN ('pending','exported')", Db::now(), $id ) );
+					if ( 1 !== $rows ) {
+						throw new IntegrationException( 'state', 'changed' );
+					}
+					$ids = array();
+					foreach ( self::items( $id, true ) as $item ) {
+						if ( ! Ledger::transition( (int) $item->commission_id, 'paid', $p->number, get_current_user_id(), (int) $id, 'approved', false ) ) {
+							throw new IntegrationException( 'commission_changed', 'Commission ' . $item->commission_id . ' could not be marked as paid.' );
+						}
+						$ids[] = (int) $item->commission_id;
+					}
+					return array( $p, $ids );
+				}
+			);
+		} catch ( IntegrationException $e ) {
 			return new \WP_Error( 'wpac_state', __( 'This payout cannot be marked as paid.', 'wp-affiliate-captain' ) );
 		}
-		$wpdb->update(
-			Db::table( 'payouts' ),
-			array(
-				'status'  => 'paid',
-				'paid_at' => Db::now(),
-			),
-			array( 'id' => (int) $id )
-		);
-		foreach ( self::items( $id ) as $item ) {
-			Ledger::transition( (int) $item->commission_id, 'paid', $p->number, get_current_user_id(), (int) $id );
-		}
+		list( $p, $ids ) = $paid;
 		Audit::log( 'payout.paid', 'payout', (int) $id, array( 'number' => $p->number ) );
+		foreach ( $ids as $cid ) {
+			do_action( 'wpac_commission_paid', $cid );
+		}
 		do_action( 'wpac_payout_paid', (int) $id );
 		return true;
 	}
 
 	/**
 	 * Cancel a payout that was not paid yet; commissions return to the pool.
+	 * Payout items are kept (marked as released) for the audit trail.
 	 *
 	 * An exported payout (SEPA file created) may already have been sent to the bank;
 	 * it can only be cancelled with an explicit confirmation that the transfer was not executed.
 	 *
-	 * @param int    $id                Payout.
-	 * @param string $reason            Reason.
-	 * @param bool   $confirm_not_sent  Confirmation for exported payouts.
+	 * @param int    $id               Payout.
+	 * @param string $reason           Reason.
+	 * @param bool   $confirm_not_sent Confirmation for exported payouts.
 	 * @return true|\WP_Error
 	 */
 	public static function cancel( $id, $reason, $confirm_not_sent = false ) {
 		global $wpdb;
-		$p = self::find( $id );
-		if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
-			return new \WP_Error( 'wpac_state', __( 'Only unpaid payouts can be cancelled.', 'wp-affiliate-captain' ) );
-		}
-		if ( 'exported' === $p->status && ! $confirm_not_sent ) {
-			/* translators: %s: payout number */
-			return new \WP_Error( 'wpac_exported', sprintf( __( 'Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice.', 'wp-affiliate-captain' ), $p->number ) );
-		}
 		if ( '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
 		}
-		Db::transaction(
-			static function () use ( $wpdb, $id, $p, $reason ) {
-				foreach ( self::items( $id ) as $item ) {
-					$wpdb->update( Db::table( 'commissions' ), array( 'payout_id' => 0 ), array( 'id' => (int) $item->commission_id ) );
-					Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
+		try {
+			$p = Db::transaction(
+				static function () use ( $wpdb, $id, $reason, $confirm_not_sent ) {
+					$p = self::lock( $id );
+					if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
+						throw new IntegrationException( 'state', __( 'Only unpaid payouts can be cancelled.', 'wp-affiliate-captain' ) );
+					}
+					if ( 'exported' === $p->status && ! $confirm_not_sent ) {
+						/* translators: %s: payout number */
+						throw new IntegrationException( 'exported', sprintf( __( 'Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice.', 'wp-affiliate-captain' ), $p->number ) );
+					}
+					$pt = Db::table( 'payouts' );
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'cancelled', note = %s WHERE id = %d AND status = %s", substr( sanitize_text_field( $reason ), 0, 255 ), $id, $p->status ) );
+					if ( 1 !== $rows ) {
+						throw new IntegrationException( 'state', __( 'Only unpaid payouts can be cancelled.', 'wp-affiliate-captain' ) );
+					}
+					foreach ( self::items( $id, true ) as $item ) {
+						Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
+					}
+					$it = Db::table( 'payout_items' );
+					$ct = Db::table( 'commissions' );
+					// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$wpdb->query( $wpdb->prepare( "UPDATE {$it} SET released_at = %s, active_commission_id = NULL WHERE payout_id = %d AND released_at IS NULL", Db::now(), $id ) );
+					$wpdb->query( $wpdb->prepare( "UPDATE {$ct} SET payout_id = 0, updated_at = %s WHERE payout_id = %d AND status = 'approved'", Db::now(), $id ) );
+					// phpcs:enable
+					return $p;
 				}
-				$wpdb->delete( Db::table( 'payout_items' ), array( 'payout_id' => (int) $id ) );
-				$wpdb->update(
-					Db::table( 'payouts' ),
-					array(
-						'status' => 'cancelled',
-						'note'   => substr( sanitize_text_field( $reason ), 0, 255 ),
-					),
-					array( 'id' => (int) $id )
-				);
-			}
-		);
+			);
+		} catch ( IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
+		}
 		Audit::log(
 			'payout.cancelled',
 			'payout',
 			(int) $id,
 			array(
-				'reason'        => $reason,
-				'was_exported'  => 'exported' === $p->status,
+				'reason'       => $reason,
+				'was_exported' => 'exported' === $p->status,
 			)
 		);
 		return true;
 	}
 
 	/**
-	 * Build a SEPA file for payouts and mark them exported.
+	 * Build a SEPA file for payouts and mark them exported (atomically).
 	 *
 	 * Already exported payouts are only included again with $allow_reexport
 	 * (e.g. the bank rejected the file) to avoid sending the same transfers twice.
@@ -302,61 +375,73 @@ final class PayoutService {
 		if ( '' === $debtor['name'] || '' === $debtor['iban'] ) {
 			return new \WP_Error( 'wpac_debtor', __( 'Please enter the account holder and IBAN of your company account in the settings first.', 'wp-affiliate-captain' ) );
 		}
-		$transfers = array();
-		$prefix    = (string) Settings::get( 'remittance_prefix' );
-		$used      = array();
-		foreach ( array_unique( array_map( 'intval', $ids ) ) as $id ) {
-			$p = self::find( $id );
-			if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
-				continue;
-			}
-			if ( 'exported' === $p->status && ! $allow_reexport ) {
-				/* translators: %s: payout number */
-				return new \WP_Error( 'wpac_reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'wp-affiliate-captain' ), $p->number ) );
-			}
-			if ( 'EUR' !== $p->currency ) {
-				return new \WP_Error( 'wpac_currency', __( 'SEPA transfers are only possible in EUR.', 'wp-affiliate-captain' ) );
-			}
-			$profile = ProfileRepository::get( (int) $p->affiliate_id );
-			$iban    = ProfileRepository::iban( $profile );
-			if ( $profile && strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
-				/* translators: %s: payout number */
-				return new \WP_Error( 'wpac_profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'wp-affiliate-captain' ), $p->number ) );
-			}
-			if ( ! $iban ) {
-				/* translators: %s: payout number */
-				return new \WP_Error( 'wpac_iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'wp-affiliate-captain' ), $p->number ) );
-			}
-			$transfers[] = array(
-				'end_to_end_id' => $p->number,
-				'name'          => $profile->account_holder,
-				'iban'          => $iban,
-				'bic'           => $profile->bic,
-				'amount_minor'  => (int) $p->amount_minor,
-				'remittance'    => trim( $prefix . ' ' . $p->number ),
-			);
-			$used[] = (int) $p->id;
-		}
-		if ( ! $transfers ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		if ( ! $ids ) {
 			return new \WP_Error( 'wpac_empty', __( 'No exportable payouts selected.', 'wp-affiliate-captain' ) );
 		}
-		$batch = 'ACSEPA' . gmdate( 'YmdHis' );
 		try {
-			$xml = SepaXml::build( $debtor, $transfers, $batch, gmdate( 'Y-m-d', time() + DAY_IN_SECONDS ) );
-		} catch ( \InvalidArgumentException $e ) {
-			return new \WP_Error( 'wpac_sepa', $e->getMessage() );
-		}
-		foreach ( $used as $id ) {
-			$wpdb->update(
-				Db::table( 'payouts' ),
-				array(
-					'status'      => 'exported',
-					'sepa_batch'  => $batch,
-					'exported_at' => Db::now(),
-				),
-				array( 'id' => $id )
+			$result = Db::transaction(
+				static function () use ( $wpdb, $ids, $allow_reexport, $debtor ) {
+					$transfers = array();
+					$prefix    = (string) Settings::get( 'remittance_prefix' );
+					$used      = array();
+					foreach ( $ids as $id ) {
+						$p = self::lock( $id ); // Serializes concurrent exports and cancellations.
+						if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
+							continue;
+						}
+						if ( 'exported' === $p->status && ! $allow_reexport ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'wp-affiliate-captain' ), $p->number ) );
+						}
+						if ( 'EUR' !== $p->currency ) {
+							throw new IntegrationException( 'currency', __( 'SEPA transfers are only possible in EUR.', 'wp-affiliate-captain' ) );
+						}
+						$profile = ProfileRepository::get( (int) $p->affiliate_id );
+						if ( $profile && strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'wp-affiliate-captain' ), $p->number ) );
+						}
+						$iban = ProfileRepository::iban( $profile );
+						if ( ! $iban || '' === (string) $p->number ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'wp-affiliate-captain' ), $p->number ) );
+						}
+						$transfers[]          = array(
+							'end_to_end_id' => $p->number,
+							'name'          => $profile->account_holder,
+							'iban'          => $iban,
+							'bic'           => $profile->bic,
+							'amount_minor'  => (int) $p->amount_minor,
+							'remittance'    => trim( $prefix . ' ' . $p->number ),
+						);
+						$used[ (int) $p->id ] = $p->status;
+					}
+					if ( ! $transfers ) {
+						throw new IntegrationException( 'empty', __( 'No exportable payouts selected.', 'wp-affiliate-captain' ) );
+					}
+					// Unique message ID, even for two exports in the same second.
+					$batch = 'ACSEPA' . gmdate( 'YmdHis' ) . strtoupper( wp_generate_password( 4, false ) );
+					try {
+						$xml = SepaXml::build( $debtor, $transfers, $batch, SepaXml::next_business_day( time() ) );
+					} catch ( \InvalidArgumentException $e ) {
+						throw new IntegrationException( 'sepa', $e->getMessage() );
+					}
+					$pt = Db::table( 'payouts' );
+					foreach ( $used as $id => $status ) {
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'exported', sepa_batch = %s, exported_at = %s WHERE id = %d AND status = %s", $batch, Db::now(), $id, $status ) );
+						if ( 1 !== $rows ) {
+							throw new IntegrationException( 'state', 'Payout ' . $id . ' changed during export.' );
+						}
+					}
+					return array( $batch, $xml, array_keys( $used ) );
+				}
 			);
+		} catch ( IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
+		list( $batch, $xml, $used ) = $result;
 		Audit::log(
 			'payout.sepa_exported',
 			'payout',
@@ -385,15 +470,16 @@ final class PayoutService {
 	/**
 	 * Items with commission data.
 	 *
-	 * @param int $id Payout.
+	 * @param int  $id          Payout.
+	 * @param bool $active_only Only items not released by a cancellation.
 	 * @return array
 	 */
-	public static function items( $id ) {
+	public static function items( $id, $active_only = false ) {
 		global $wpdb;
 		$i = Db::table( 'payout_items' );
 		$c = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_results( $wpdb->prepare( "SELECT i.*, c.source, c.source_order_id, c.description, c.kind, c.created_at AS commission_date FROM {$i} i LEFT JOIN {$c} c ON c.id = i.commission_id WHERE i.payout_id = %d ORDER BY i.id ASC", $id ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT i.*, c.source, c.source_order_id, c.description, c.kind, c.created_at AS commission_date FROM {$i} i LEFT JOIN {$c} c ON c.id = i.commission_id WHERE i.payout_id = %d" . ( $active_only ? ' AND i.released_at IS NULL' : '' ) . ' ORDER BY i.id ASC', $id ) );
 	}
 
 	/**

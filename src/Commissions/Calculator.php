@@ -174,17 +174,19 @@ final class Calculator {
 	}
 
 	/**
-	 * Adjustment for a (partial) refund of a line: negative, pro rata, capped so
+	 * Adjustment for a (partial) refund of a line: negative, pro rata on the
+	 * CUMULATIVE refunded net (so rounding never leaves cents behind), capped so
 	 * the total of all adjustments never exceeds the original commission.
 	 *
-	 * @param int $original_amount    Original commission (minor).
-	 * @param int $original_base      Original base (minor).
-	 * @param int $already_adjusted   Sum of earlier adjustments (<= 0).
-	 * @param int $refunded_net_minor Refunded net amount of the line (positive).
-	 * @param bool $full              Reverse everything that remains.
+	 * @param int  $original_amount      Original commission (minor).
+	 * @param int  $original_base        Original base (minor).
+	 * @param int  $already_adjusted     Sum of earlier adjustments (<= 0).
+	 * @param int  $refunded_net_minor   Net amount refunded now (positive).
+	 * @param bool $full                 Reverse everything that remains.
+	 * @param int  $already_refunded_net Net amount refunded earlier (positive).
 	 * @return int Adjustment (<= 0).
 	 */
-	public static function refund_adjustment( $original_amount, $original_base, $already_adjusted, $refunded_net_minor, $full = false ) {
+	public static function refund_adjustment( $original_amount, $original_base, $already_adjusted, $refunded_net_minor, $full = false, $already_refunded_net = 0 ) {
 		$remaining = max( 0, (int) $original_amount + (int) $already_adjusted );
 		if ( 0 === $remaining ) {
 			return 0;
@@ -192,7 +194,9 @@ final class Calculator {
 		if ( $full || (int) $original_base <= 0 ) {
 			return -$remaining;
 		}
-		$adj = Money::prorate( (int) $original_amount, abs( (int) $refunded_net_minor ), (int) $original_base );
+		$cumulative = min( (int) $original_base, abs( (int) $already_refunded_net ) + abs( (int) $refunded_net_minor ) );
+		$target     = Money::prorate( (int) $original_amount, $cumulative, (int) $original_base );
+		$adj        = $target - abs( min( 0, (int) $already_adjusted ) );
 		return -min( $remaining, max( 0, $adj ) );
 	}
 }

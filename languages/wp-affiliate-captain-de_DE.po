@@ -426,6 +426,9 @@ msgstr "Noch keine Regeln – für alle Verkäufe gilt der Programmstandard."
 msgid "Edit"
 msgstr "Bearbeiten"
 
+msgid "Delete this rule? Existing commissions are not changed."
+msgstr "Diese Regel löschen? Bestehende Provisionen bleiben unverändert."
+
 msgid "Delete"
 msgstr "Löschen"
 
@@ -545,6 +548,9 @@ msgstr "Rückwirkend"
 
 msgid "Marginal"
 msgstr "Marginal"
+
+msgid "Deactivate this tier plan?"
+msgstr "Diesen Stufenplan deaktivieren?"
 
 msgid "Deactivate"
 msgstr "Deaktivieren"
@@ -1014,6 +1020,9 @@ msgstr "Reaktivieren"
 msgid "Reason (required for reject/pause/terminate)"
 msgstr "Grund (Pflicht bei Ablehnen/Pausieren/Beenden)"
 
+msgid "Really \"%s\"? The partner will be notified by e-mail."
+msgstr "Wirklich „%s“? Der Partner wird per E-Mail benachrichtigt."
+
 msgid "On termination, open commissions are rejected (see settings)."
 msgstr "Bei Beendigung werden offene Provisionen abgelehnt (siehe Einstellungen)."
 
@@ -1172,6 +1181,18 @@ msgstr "Bitte wählen Sie Periodenende und Währung."
 msgid "%1$d payouts created, %2$d partners carried forward."
 msgstr "%1$d Auszahlungen angelegt, %2$d Partner vorgetragen."
 
+msgid "Please select at least one payout."
+msgstr "Bitte wählen Sie mindestens eine Auszahlung aus."
+
+msgid "Please choose an action."
+msgstr "Bitte wählen Sie eine Aktion."
+
+msgid "Please tick the confirmation box: this affects %1$d payout(s) totalling %2$s."
+msgstr "Bitte setzen Sie das Bestätigungshäkchen: Betroffen sind %1$d Auszahlung(en) über insgesamt %2$s."
+
+msgid "The SEPA file contains bank details. You need the permission to view tax and bank data."
+msgstr "Die SEPA-Datei enthält Bankdaten. Dafür benötigen Sie die Berechtigung für Steuer- und Bankdaten."
+
 msgid "Some payouts could not be marked as paid."
 msgstr "Einige Auszahlungen konnten nicht als bezahlt markiert werden."
 
@@ -1226,6 +1247,9 @@ msgstr "Jetzt verfügbar"
 msgid "Create payout"
 msgstr "Auszahlung anlegen"
 
+msgid "Select all"
+msgstr "Alle auswählen"
+
 msgid "Amount"
 msgstr "Betrag"
 
@@ -1235,17 +1259,32 @@ msgstr "Bankverbindung"
 msgid "No payouts yet."
 msgstr "Noch keine Auszahlungen."
 
+msgid "Bulk action for selected payouts"
+msgstr "Sammelaktion für ausgewählte Auszahlungen"
+
+msgid "Action"
+msgstr "Aktion"
+
+msgid "— Choose action —"
+msgstr "— Aktion wählen —"
+
 msgid "Download SEPA XML"
 msgstr "SEPA-XML herunterladen"
 
 msgid "Mark as paid"
 msgstr "Als bezahlt markieren"
 
-msgid "Cancellation reason"
-msgstr "Stornierungsgrund"
-
 msgid "Cancel"
 msgstr "Stornieren"
+
+msgid "Run this action for the selected payouts?"
+msgstr "Diese Aktion für die ausgewählten Auszahlungen ausführen?"
+
+msgid "Cancellation reason (required for \"Cancel\")"
+msgstr "Stornierungsgrund (Pflicht bei „Stornieren“)"
+
+msgid "I confirm this action for the selected payouts (required for \"Mark as paid\" and \"Cancel\")."
+msgstr "Ich bestätige diese Aktion für die ausgewählten Auszahlungen (Pflicht bei „Als bezahlt markieren“ und „Stornieren“)."
 
 msgid "Export again (only if the bank did not process the previous file)"
 msgstr "Erneut exportieren (nur wenn die Bank die vorherige Datei nicht verarbeitet hat)"
@@ -1318,6 +1357,9 @@ msgstr "Noch keine Werbemittel."
 
 msgid "New version"
 msgstr "Neue Version"
+
+msgid "Archive this creative? Partners will no longer see it."
+msgstr "Dieses Werbemittel archivieren? Partner sehen es dann nicht mehr."
 
 msgid "Archive"
 msgstr "Archivieren"
@@ -1400,6 +1442,9 @@ msgstr "Grund (Pflicht bei Ablehnung)"
 msgid "Approve selected"
 msgstr "Auswahl freigeben"
 
+msgid "Reject the selected commissions? This cannot be undone."
+msgstr "Ausgewählte Provisionen ablehnen? Das kann nicht rückgängig gemacht werden."
+
 msgid "Reject selected"
 msgstr "Auswahl ablehnen"
 
@@ -1457,9 +1502,6 @@ msgstr "Objekttyp"
 msgid "User"
 msgstr "Benutzer"
 
-msgid "Action"
-msgstr "Aktion"
-
 msgid "Object"
 msgstr "Objekt"
 
@@ -1505,11 +1547,17 @@ msgstr "Haltefrist abgelaufen"
 msgid "Only pending commissions or commissions under review can be approved."
 msgstr "Nur ausstehende oder zu prüfende Provisionen können freigegeben werden."
 
+msgid "The commission was changed in the meantime. Please reload and try again."
+msgstr "Die Provision wurde zwischenzeitlich geändert. Bitte laden Sie die Seite neu und versuchen Sie es erneut."
+
 msgid "Paid or rejected commissions cannot be rejected."
 msgstr "Ausgezahlte oder abgelehnte Provisionen können nicht abgelehnt werden."
 
 msgid "This commission is part of a payout. Cancel the payout first."
 msgstr "Diese Provision ist Teil einer Auszahlung. Stornieren Sie zuerst die Auszahlung."
+
+msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
+msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung zugeordnet). Bitte laden Sie die Seite neu und versuchen Sie es erneut."
 
 msgid "Monthly bonus %1$s (tier %2$s %%)"
 msgstr "Monatsbonus %1$s (Stufe %2$s %%)"
@@ -1841,6 +1889,9 @@ msgstr "Auszahlung %s wurde bereits per SEPA exportiert. Bestätigen Sie vor dem
 msgid "Please enter the account holder and IBAN of your company account in the settings first."
 msgstr "Bitte hinterlegen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos in den Einstellungen."
 
+msgid "No exportable payouts selected."
+msgstr "Keine exportierbaren Auszahlungen ausgewählt."
+
 msgid "Payout %s was already exported. Tick \"export again\" only if the bank did not process the previous file."
 msgstr "Auszahlung %s wurde bereits exportiert. Wählen Sie „Erneut exportieren“ nur, wenn die Bank die vorherige Datei nicht verarbeitet hat."
 
@@ -1852,9 +1903,6 @@ msgstr "Der Partner hat seine Auszahlungsdaten nach dem Anlegen der Auszahlung %
 
 msgid "Bank details for payout %s are missing or cannot be decrypted."
 msgstr "Die Bankdaten für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
-
-msgid "No exportable payouts selected."
-msgstr "Keine exportierbaren Auszahlungen ausgewählt."
 
 msgid "Payout requests are not enabled."
 msgstr "Auszahlungsanträge sind nicht aktiviert."

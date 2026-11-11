@@ -62,6 +62,11 @@ final class Db {
 	 */
 	public static function transaction( callable $fn ) {
 		global $wpdb;
+		// Nested calls run inside the outer transaction (START TRANSACTION would commit it implicitly).
+		if ( self::$depth > 0 ) {
+			return $fn();
+		}
+		self::$depth = 1;
 		$wpdb->query( 'START TRANSACTION' );
 		try {
 			$result = $fn();
@@ -70,6 +75,11 @@ final class Db {
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
 			throw $e;
+		} finally {
+			self::$depth = 0;
 		}
 	}
+
+	/** @var int Transaction nesting depth. */
+	private static $depth = 0;
 }

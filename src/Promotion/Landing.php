@@ -24,6 +24,7 @@ final class Landing {
 	public static function register_hooks() {
 		add_action( 'init', array( __CLASS__, 'rewrite' ) );
 		add_filter( 'query_vars', array( __CLASS__, 'query_vars' ) );
+		add_filter( 'request', array( __CLASS__, 'fallback_to_page' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'redirect' ), 1 );
 		add_shortcode( 'wpac_partner_welcome', array( __CLASS__, 'welcome' ) );
 		add_action( 'init', array( __CLASS__, 'maybe_flush' ), 99 );
@@ -46,6 +47,31 @@ final class Landing {
 			flush_rewrite_rules( false );
 			update_option( 'wpac_rewrite_flushed', $key, false );
 		}
+	}
+
+	/**
+	 * Real pages win: if /{prefix}/{slug}/ is not an active partner, resolve the
+	 * URL as a normal page (e.g. a page "partner" with a child page "bewerbung").
+	 *
+	 * @param array $vars Query vars.
+	 * @return array
+	 */
+	public static function fallback_to_page( $vars ) {
+		if ( empty( $vars[ self::QUERY_VAR ] ) ) {
+			return $vars;
+		}
+		$aff = AffiliateRepository::find_by_slug( (string) $vars[ self::QUERY_VAR ] );
+		if ( $aff && 'active' === $aff->status ) {
+			return $vars;
+		}
+		return array( 'pagename' => Settings::get( 'landing_prefix' ) . '/' . sanitize_title( (string) $vars[ self::QUERY_VAR ] ) );
+	}
+
+	/**
+	 * Force rewrite rules to be rebuilt (activation/deactivation).
+	 */
+	public static function reset_rewrite() {
+		delete_option( 'wpac_rewrite_flushed' );
 	}
 
 	/**
@@ -83,8 +109,11 @@ final class Landing {
 		if ( ! $slug ) {
 			return;
 		}
-		$aff  = AffiliateRepository::find_by_slug( $slug );
-		$code = $aff && 'active' === $aff->status ? CodeRepository::main_code( (int) $aff->id ) : '';
+		$aff = AffiliateRepository::find_by_slug( $slug );
+		if ( ! $aff || 'active' !== $aff->status ) {
+			return; // Handled as a normal page / 404 (see fallback_to_page()).
+		}
+		$code = CodeRepository::main_code( (int) $aff->id );
 		$page = $aff && (int) $aff->landing_page_id ? (int) $aff->landing_page_id : (int) Settings::get( 'landing_page_id' );
 		$url  = $page ? get_permalink( $page ) : home_url( '/' );
 		if ( $code ) {
@@ -126,7 +155,16 @@ final class Landing {
 			return '';
 		}
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
-		$out = '<div class="wpac-welcome"><strong>' . esc_html( sprintf( $atts['text'], $aff->name ) ) . '</strong>';
+		// Visitor-specific output must not end up in a page cache.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+		// No sprintf(): editor text may contain "%" (e.g. "10% Rabatt") – only %s is replaced.
+		$text = (string) $atts['text'];
+		$out  = '<div class="wpac-welcome"><strong>' . ( false !== strpos( $text, '%s' ) ? str_replace( '%s', esc_html( $aff->name ), esc_html( $text ) ) : esc_html( $text . ' ' . $aff->name ) ) . '</strong>';
 		if ( $aff->landing_message ) {
 			$out .= '<p>' . nl2br( esc_html( $aff->landing_message ) ) . '</p>';
 		}

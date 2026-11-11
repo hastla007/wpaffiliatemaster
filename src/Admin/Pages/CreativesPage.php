@@ -96,7 +96,7 @@ final class CreativesPage {
 			}
 			if ( 'archived' !== $c->status ) {
 				Admin::form_open( 'creative_archive', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $c->id . '"><button class="button-link wpac-danger">' . esc_html__( 'Archive', 'wp-affiliate-captain' ) . '</button></form>';
+				echo '<input type="hidden" name="id" value="' . (int) $c->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Archive this creative? Partners will no longer see it.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Archive', 'wp-affiliate-captain' ) . '</button></form>';
 			}
 			echo '</td></tr>';
 		}
