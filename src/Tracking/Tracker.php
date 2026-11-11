@@ -118,26 +118,33 @@ final class Tracker {
 		if ( ! Settings::get( 'use_wc_session' ) || ! function_exists( 'WC' ) || ! WC()->session || WC()->session->get( self::SESSION_KEY ) ) {
 			return;
 		}
-		$param = (string) Settings::get( 'referral_param' );
-		$code  = '';
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$param      = (string) Settings::get( 'referral_param' );
+		$code       = '';
+		$campaign   = '';
+		$content_id = 0;
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		if ( ! empty( $_GET[ $param ] ) ) {
-			$code = sanitize_text_field( wp_unslash( $_GET[ $param ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$code     = sanitize_text_field( wp_unslash( $_GET[ $param ] ) );
+			$campaign = isset( $_GET['utm_campaign'] ) ? sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ) : '';
 		} elseif ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
 			$ref = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
 			if ( wp_parse_url( $ref, PHP_URL_HOST ) === wp_parse_url( home_url(), PHP_URL_HOST ) ) {
 				parse_str( (string) wp_parse_url( $ref, PHP_URL_QUERY ), $query );
-				$code = isset( $query[ $param ] ) ? sanitize_text_field( (string) $query[ $param ] ) : '';
+				$code     = isset( $query[ $param ] ) ? sanitize_text_field( (string) $query[ $param ] ) : '';
+				$campaign = isset( $query['utm_campaign'] ) ? sanitize_text_field( (string) $query['utm_campaign'] ) : '';
+				// The referring page is the content the visitor came through (same as a direct link visit).
+				$content_id = '' !== $code ? (int) url_to_postid( $ref ) : 0;
 			}
 		}
+		// phpcs:enable
 		$resolved = '' !== $code ? wpac_resolve_partner_code( $code, array( 'context' => 'cart' ) ) : null;
 		if ( $resolved ) {
 			WC()->session->set(
 				self::SESSION_KEY,
 				array(
 					'code'       => $resolved['code'],
-					'campaign'   => '',
-					'content_id' => 0,
+					'campaign'   => substr( $campaign, 0, 100 ),
+					'content_id' => $content_id,
 					'ts'         => time(),
 				)
 			);
