@@ -307,5 +307,17 @@ check( 'O opening balance booked', 5000, WPAffiliateCaptain\Commissions\Balance:
 check( 'O opening type', 'opening', (string) $GLOBALS['wpdb']->get_var( 'SELECT type FROM ' . t( 'balance_entries' ) . " WHERE affiliate_id = {$legacy}" ) );
 check( 'O existing accounts not booked twice', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
+echo "P consent (WP Consent API)\n";
+if ( ! function_exists( 'plugin_basename' ) ) { function plugin_basename( $f ) { return basename( dirname( $f ) ) . '/' . basename( $f ); } }
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'cookie_mode' => 'consent' ) ) );
+WPAffiliateCaptain\Core\Settings::flush_cache();
+check( 'P no consent banner registered → no cookie (API alone is not a consent)', false, WPAffiliateCaptain\Tracking\Consent::cookie_allowed() );
+$GLOBALS['test_consent_type'] = 'optin';
+check( 'P opt-in without choice → no cookie', false, WPAffiliateCaptain\Tracking\Consent::cookie_allowed() );
+$GLOBALS['test_consent_cookie'] = 'allow';
+check( 'P opt-in with marketing consent → cookie', true, WPAffiliateCaptain\Tracking\Consent::cookie_allowed() );
+$GLOBALS['test_consent_cookie'] = 'deny';
+check( 'P opt-in, marketing denied → no cookie', false, WPAffiliateCaptain\Tracking\Consent::cookie_allowed() );
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

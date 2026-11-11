@@ -209,7 +209,15 @@ function get_userdata( $id ) { return false; }
 function username_exists( $u ) { return false; }
 function wp_insert_user( $u ) { static $id = 100; return ++$id; }
 function wp_new_user_notification( $id, $x = null, $n = '' ) {}
-function wp_has_consent( $c ) { return false; }
+// WP Consent API stand-in with the real semantics: "true" when no consent type is registered.
+$GLOBALS['test_consent_type']   = '';
+$GLOBALS['test_consent_cookie'] = '';
+function wp_get_consent_type() { return $GLOBALS['test_consent_type']; }
+function wp_has_consent( $c, $requested_by = null ) {
+	if ( '' === $GLOBALS['test_consent_type'] ) { return true; }
+	if ( false !== strpos( $GLOBALS['test_consent_type'], 'optout' ) && '' === $GLOBALS['test_consent_cookie'] ) { return true; }
+	return 'allow' === $GLOBALS['test_consent_cookie'];
+}
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 class WP_Error {
 	private $code; private $message; private $data = array();
