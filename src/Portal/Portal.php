@@ -18,8 +18,13 @@ use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Iban;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Payouts\PayoutRequests;
 use WPAffiliateCaptain\Payouts\PayoutService;
+use WPAffiliateCaptain\Payouts\Statement;
 use WPAffiliateCaptain\Payouts\ProfileRepository;
+use WPAffiliateCaptain\Promotion\Creatives;
+use WPAffiliateCaptain\Promotion\Landing;
+use WPAffiliateCaptain\Promotion\Qr;
 use WPAffiliateCaptain\Tracking\Tracker;
 
 defined( 'ABSPATH' ) || exit;
@@ -31,6 +36,26 @@ final class Portal {
 	public static function register_hooks() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_action( 'init', array( __CLASS__, 'handle_post' ) );
+		add_action( 'init', array( __CLASS__, 'statement_download' ) );
+	}
+
+	/**
+	 * PDF statement download for the partner's own payouts.
+	 */
+	public static function statement_download() {
+		if ( empty( $_GET['wpac_statement'] ) ) {
+			return;
+		}
+		$id = absint( $_GET['wpac_statement'] );
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'wpac_statement_' . $id ) ) {
+			wp_die( esc_html__( 'The link has expired.', 'wp-affiliate-captain' ), 403 );
+		}
+		$aff = self::current();
+		$p   = PayoutService::find( $id );
+		if ( ! $aff || ! $p || (int) $p->affiliate_id !== (int) $aff->id || 'cancelled' === $p->status ) {
+			wp_die( esc_html__( 'Not allowed.', 'wp-affiliate-captain' ), 403 );
+		}
+		Statement::send( $p );
 	}
 
 	/**
@@ -65,6 +90,11 @@ final class Portal {
 			$result = ProfileRepository::save( (int) $aff->id, $in );
 			$msg    = is_wp_error( $result ) ? $result->get_error_code() : 'saved';
 			wp_safe_redirect( add_query_arg( 'wpac_msg', $msg, $redirect ) );
+			exit;
+		}
+		if ( 'payout_request' === $action ) {
+			$result = PayoutRequests::request( $aff );
+			wp_safe_redirect( add_query_arg( 'wpac_msg', is_wp_error( $result ) ? 'request_failed' : 'requested', $redirect ) );
 			exit;
 		}
 		if ( 'accept_terms' === $action && ! empty( $_POST['wpac_terms'] ) ) {
@@ -107,6 +137,7 @@ final class Portal {
 		$tabs = array(
 			'overview'    => __( 'Overview', 'wp-affiliate-captain' ),
 			'links'       => __( 'Links & codes', 'wp-affiliate-captain' ),
+			'promotion'   => __( 'Creatives', 'wp-affiliate-captain' ),
 			'commissions' => __( 'Commissions', 'wp-affiliate-captain' ),
 			'payouts'     => __( 'Payouts', 'wp-affiliate-captain' ),
 			'profile'     => __( 'Payout details', 'wp-affiliate-captain' ),
@@ -121,8 +152,9 @@ final class Portal {
 		if ( 'paused' === $aff->status ) {
 			echo '<div class="wpac-notice">' . esc_html__( 'Your partner account is paused. New sales are currently not attributed.', 'wp-affiliate-captain' ) . '</div>';
 		}
-		if ( Settings::get( 'terms_page_id' ) && ! Agreements::has_current( (int) $aff->id ) ) {
-			self::terms_notice();
+		$terms = Agreements::current( (int) $aff->group_id );
+		if ( $terms['page_id'] && ! Agreements::has_current( (int) $aff->id ) ) {
+			self::terms_notice( $terms );
 		}
 		echo '<nav class="wpac-tabs">';
 		foreach ( $tabs as $key => $label ) {
@@ -145,6 +177,8 @@ final class Portal {
 	private static function messages() {
 		$messages = array(
 			'saved'     => array( 'success', __( 'Your details have been saved.', 'wp-affiliate-captain' ) ),
+			'requested' => array( 'success', __( 'Your payout request was sent.', 'wp-affiliate-captain' ) ),
+			'request_failed' => array( 'error', __( 'The payout request could not be created.', 'wp-affiliate-captain' ) ),
 			'terms'     => array( 'success', __( 'Thank you for accepting the terms.', 'wp-affiliate-captain' ) ),
 			'wpac_iban' => array( 'error', __( 'The IBAN is not valid.', 'wp-affiliate-captain' ) ),
 			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID.', 'wp-affiliate-captain' ) ),
@@ -158,9 +192,10 @@ final class Portal {
 
 	/**
 	 * Re-acceptance of changed terms.
+	 *
+	 * @param array $terms Current terms of the partner's group.
 	 */
-	private static function terms_notice() {
-		$terms = Agreements::current();
+	private static function terms_notice( array $terms ) {
 		echo '<form method="post" class="wpac-notice">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="accept_terms">';
@@ -214,13 +249,7 @@ final class Portal {
 	 */
 	private static function tab_links( $aff ) {
 		$codes = CodeRepository::for_affiliate( (int) $aff->id );
-		$main  = '';
-		foreach ( $codes as $c ) {
-			if ( CodeRepository::validate( $c ) && '' === $c->batch ) {
-				$main = $c->code;
-				break;
-			}
-		}
+		$main  = CodeRepository::main_code( (int) $aff->id );
 		$param = (string) Settings::get( 'referral_param' );
 
 		if ( $main ) {
@@ -283,6 +312,60 @@ final class Portal {
 	}
 
 	/**
+	 * Creatives tab: landing page, QR code, guidelines, approved creatives.
+	 *
+	 * @param object $aff Affiliate.
+	 */
+	private static function tab_promotion( $aff ) {
+		$code = CodeRepository::main_code( (int) $aff->id );
+		if ( '' === $code ) {
+			echo '<p>' . esc_html__( 'No active partner code yet.', 'wp-affiliate-captain' ) . '</p>';
+			return;
+		}
+		$landing = Landing::url( $aff );
+		echo '<h3>' . esc_html__( 'Your landing page', 'wp-affiliate-captain' ) . '</h3>';
+		echo '<p><input type="text" readonly class="wpac-copy" value="' . esc_attr( $landing ) . '" onclick="this.select()"></p>';
+
+		echo '<h3>' . esc_html__( 'QR code', 'wp-affiliate-captain' ) . '</h3>';
+		try {
+			$svg = Qr::svg( $landing, 6, 4 );
+			echo '<div class="wpac-qr">' . $svg . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated SVG, no user input in markup.
+			echo '<p><a class="wpac-button" download="qr-' . esc_attr( $aff->slug ) . '.svg" href="data:image/svg+xml;base64,' . esc_attr( base64_encode( $svg ) ) . '">' . esc_html__( 'Download QR code (SVG)', 'wp-affiliate-captain' ) . '</a></p>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+		} catch ( \InvalidArgumentException $e ) {
+			echo '<p>' . esc_html__( 'The link is too long for a QR code.', 'wp-affiliate-captain' ) . '</p>';
+		}
+
+		$guidelines = (string) Settings::get( 'promotion_guidelines' );
+		if ( '' !== trim( $guidelines ) ) {
+			echo '<h3>' . esc_html__( 'Promotion guidelines', 'wp-affiliate-captain' ) . '</h3><div class="wpac-guidelines">' . wp_kses_post( wpautop( $guidelines ) ) . '</div>';
+		}
+
+		$creatives = Creatives::approved_for_group( (int) $aff->group_id );
+		echo '<h3>' . esc_html__( 'Approved creatives', 'wp-affiliate-captain' ) . '</h3>';
+		if ( ! $creatives ) {
+			echo '<p>' . esc_html__( 'No creatives available yet.', 'wp-affiliate-captain' ) . '</p>';
+			return;
+		}
+		foreach ( $creatives as $c ) {
+			echo '<div class="wpac-creative"><h4>' . esc_html( $c->title ) . ' <small class="wpac-muted">v' . (int) $c->version . '</small></h4>';
+			/* translators: %s: disclosure note */
+			echo '<p class="wpac-disclosure">' . esc_html( sprintf( __( 'Mandatory label: "%s" – clearly visible at the beginning of your post.', 'wp-affiliate-captain' ), $c->disclosure ) ) . '</p>';
+			if ( 'image' === $c->type ) {
+				$src = wp_get_attachment_image_url( (int) $c->attachment_id, 'full' );
+				echo wp_get_attachment_image( (int) $c->attachment_id, 'medium' );
+				if ( $src ) {
+					echo '<p><a href="' . esc_url( $src ) . '" download>' . esc_html__( 'Download image', 'wp-affiliate-captain' ) . '</a></p>';
+				}
+				echo '<p>' . esc_html__( 'Link', 'wp-affiliate-captain' ) . ':</p><input type="text" readonly class="wpac-copy" value="' . esc_attr( Creatives::link( $c, $code ) ) . '" onclick="this.select()">';
+			}
+			if ( '' !== (string) $c->content ) {
+				echo '<textarea readonly class="wpac-copy" rows="4" onclick="this.select()">' . esc_textarea( Creatives::personalize( $c, $code, $aff->name ) ) . '</textarea>';
+			}
+			echo '</div>';
+		}
+	}
+
+	/**
 	 * Commissions tab (minimized data).
 	 *
 	 * @param object $aff Affiliate.
@@ -304,11 +387,11 @@ final class Portal {
 		$labels = Ledger::status_labels();
 		echo '<table class="wpac-table"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Product', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Available from', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $r ) {
-			$product = 'sale' === $r->kind ? $r->description : sprintf( '%s (%s)', __( 'Correction', 'wp-affiliate-captain' ), self::kind_label( $r->kind ) );
+			$product = in_array( $r->kind, array( 'sale', 'bonus' ), true ) ? $r->description : sprintf( '%s (%s)', __( 'Correction', 'wp-affiliate-captain' ), self::kind_label( $r->kind ) );
 			printf(
 				'<tr><td>%s</td><td>#%s</td><td>%s</td><td class="%s">%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $r->created_at . ' UTC' ) ) ),
-				esc_html( $r->source_order_id ),
+				esc_html( 'wpac' === $r->source ? '—' : $r->source_order_id ),
 				esc_html( $product ),
 				(int) $r->amount_minor < 0 ? 'wpac-negative' : '',
 				esc_html( Money::format( (int) $r->amount_minor, $r->currency ) ),
@@ -341,6 +424,25 @@ final class Portal {
 	 * @param object $aff Affiliate.
 	 */
 	private static function tab_payouts( $aff ) {
+		if ( Settings::get( 'payout_requests' ) ) {
+			$open      = PayoutRequests::open_for( (int) $aff->id );
+			$available = PayoutRequests::available( (int) $aff->id );
+			/* translators: %s: amount */
+			echo '<p>' . esc_html( sprintf( __( 'Available for payout: %s', 'wp-affiliate-captain' ), Money::format( $available, Settings::get( 'currency' ) ) ) ) . '</p>';
+			if ( $open ) {
+				/* translators: %s: date */
+				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'wp-affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
+			} else {
+				$can = PayoutRequests::can_request( $aff );
+				if ( true === $can ) {
+					echo '<form method="post">';
+					wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
+					echo '<input type="hidden" name="wpac_portal_action" value="payout_request"><button class="wpac-button">' . esc_html__( 'Request payout', 'wp-affiliate-captain' ) . '</button></form>';
+				} else {
+					echo '<p class="wpac-muted">' . esc_html( $can ) . '</p>';
+				}
+			}
+		}
 		list( $rows ) = PayoutService::query(
 			array(
 				'affiliate_id' => (int) $aff->id,
@@ -352,17 +454,19 @@ final class Portal {
 			return;
 		}
 		$labels = PayoutService::status_labels();
-		echo '<table class="wpac-table"><thead><tr><th>' . esc_html__( 'Number', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wpac-table"><thead><tr><th>' . esc_html__( 'Number', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Statement', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $p ) {
 			if ( 'cancelled' === $p->status ) {
 				continue;
 			}
+			$pdf = $p->statement_file ? wp_nonce_url( add_query_arg( 'wpac_statement', (int) $p->id, home_url( '/' ) ), 'wpac_statement_' . (int) $p->id ) : '';
 			printf(
-				'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+				'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( $p->number ),
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $p->period_end ) ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
-				esc_html( 'exported' === $p->status ? $labels['pending'] : $labels[ $p->status ] )
+				esc_html( 'exported' === $p->status ? $labels['pending'] : $labels[ $p->status ] ),
+				$pdf ? '<a href="' . esc_url( $pdf ) . '">PDF</a>' : '—'
 			);
 		}
 		echo '</tbody></table>';

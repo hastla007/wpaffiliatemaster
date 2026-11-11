@@ -39,6 +39,10 @@ final class Settings {
 			'default_rate_type'       => 'percent',  // percent|fixed.
 			'default_rate'            => '10',
 			'hold_days'               => 30,
+			'lifetime_enabled'        => 0,
+			'lifetime_days'           => 365,
+			'lifetime_rate'           => '',
+			'tier_month_closed'       => '',
 			// Program.
 			'auto_approve'            => 0,
 			'terms_page_id'           => 0,
@@ -47,8 +51,15 @@ final class Settings {
 			'registration_page_id'    => 0,
 			'terminated_open'         => 'pay',      // pay|reject.
 			'admin_email'             => '',
+			// Promotion.
+			'landing_prefix'          => 'partner',
+			'landing_page_id'         => 0,
+			'default_disclosure'      => 'Werbung',
+			'promotion_guidelines'    => '',
 			// Payouts.
 			'min_payout_minor'        => 5000,
+			'payout_requests'         => 0,
+			'statement_retention_years' => 10,
 			'payout_period'           => 'monthly',
 			'debtor_name'             => '',
 			'debtor_iban'             => '',
@@ -114,11 +125,14 @@ final class Settings {
 		$out['terminated_open']   = self::choice( $in, 'terminated_open', array( 'pay', 'reject' ), $d );
 		$out['payout_period']     = self::choice( $in, 'payout_period', array( 'monthly', 'quarterly', 'manual' ), $d );
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall' ) as $flag ) {
+		$lifetime_rate        = isset( $in['lifetime_rate'] ) ? Money::normalize_decimal( (string) $in['lifetime_rate'] ) : null;
+		$out['lifetime_rate'] = ( null !== $lifetime_rate && (float) $lifetime_rate >= 0 && (float) $lifetime_rate <= 100 ) ? $lifetime_rate : '';
+
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			$out[ $int ] = isset( $in[ $int ] ) ? max( 0, (int) $in[ $int ] ) : $d[ $int ];
 		}
 
@@ -136,6 +150,12 @@ final class Settings {
 
 		$min                     = isset( $in['min_payout'] ) ? Money::normalize_decimal( (string) $in['min_payout'] ) : null;
 		$out['min_payout_minor'] = null !== $min ? Money::to_minor( $min, $out['currency'] ) : $d['min_payout_minor'];
+
+		$landing               = isset( $in['landing_prefix'] ) ? sanitize_title( (string) $in['landing_prefix'] ) : '';
+		$out['landing_prefix'] = '' !== $landing ? $landing : $d['landing_prefix'];
+		$out['landing_page_id']      = isset( $in['landing_page_id'] ) ? absint( $in['landing_page_id'] ) : 0;
+		$out['default_disclosure']   = isset( $in['default_disclosure'] ) && '' !== trim( (string) $in['default_disclosure'] ) ? sanitize_text_field( (string) $in['default_disclosure'] ) : $d['default_disclosure'];
+		$out['promotion_guidelines'] = isset( $in['promotion_guidelines'] ) ? wp_kses_post( (string) $in['promotion_guidelines'] ) : '';
 
 		$out['terms_version']     = isset( $in['terms_version'] ) ? sanitize_text_field( (string) $in['terms_version'] ) : $d['terms_version'];
 		$out['admin_email']       = isset( $in['admin_email'] ) ? sanitize_email( (string) $in['admin_email'] ) : '';

@@ -111,6 +111,26 @@ final class CodeRepository {
 	}
 
 	/**
+	 * Main (non-batch, valid) code of an affiliate.
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return string
+	 */
+	public static function main_code( $affiliate_id ) {
+		foreach ( self::for_affiliate( $affiliate_id ) as $c ) {
+			if ( '' === $c->batch && '' === $c->coupon_code && self::validate( $c ) ) {
+				return $c->code;
+			}
+		}
+		foreach ( self::for_affiliate( $affiliate_id ) as $c ) {
+			if ( '' === $c->batch && self::validate( $c ) ) {
+				return $c->code;
+			}
+		}
+		return '';
+	}
+
+	/**
 	 * Create a code.
 	 *
 	 * @param int    $affiliate_id Affiliate.

@@ -130,7 +130,7 @@ final class PayoutService {
 	 */
 	public static function create_for_affiliate( $affiliate_id, $period_end, $currency ) {
 		global $wpdb;
-		return Db::transaction(
+		$payout_id = Db::transaction(
 			static function () use ( $wpdb, $affiliate_id, $period_end, $currency ) {
 				$t = Db::table( 'commissions' );
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -190,6 +190,10 @@ final class PayoutService {
 				return $payout_id;
 			}
 		);
+		if ( $payout_id ) {
+			Statement::generate( $payout_id );
+		}
+		return $payout_id;
 	}
 
 	/**

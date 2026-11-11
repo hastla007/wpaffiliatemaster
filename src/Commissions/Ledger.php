@@ -22,6 +22,7 @@ use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\IntegrationException;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Tracking\AttributionResolver;
+use WPAffiliateCaptain\Tracking\CustomerLinks;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -105,6 +106,21 @@ final class Ledger {
 					'rate'      => '0',
 				);
 			}
+		}
+		if ( 'lifetime' === $attr['method'] && '' !== (string) Settings::get( 'lifetime_rate' ) ) {
+			// Separate rate for repeat purchases of linked customers (exclusions still apply).
+			$rules   = array_values(
+				array_filter(
+					$rules,
+					static function ( $r ) {
+						return 'exclude' === $r['rate_type'];
+					}
+				)
+			);
+			$default = array(
+				'rate_type' => 'percent',
+				'rate'      => (string) Settings::get( 'lifetime_rate' ),
+			);
 		}
 		$hold    = self::hold_until( $sale );
 		$status  = $attr['review'] ? 'review' : 'pending';
@@ -220,6 +236,9 @@ final class Ledger {
 
 		// Notify listeners only after COMMIT.
 		if ( 'created' === $result['status'] ) {
+			if ( Settings::get( 'lifetime_enabled' ) && 'lifetime' !== $attr['method'] && ! $attr['review'] ) {
+				CustomerLinks::link( (int) $aff->id, CustomerLinks::hashes( $sale['customer']['user_id'], $sale['customer']['email'] ), $sale['source'], $sale['order_id'] );
+			}
 			/**
 			 * Fires after an attribution was persisted.
 			 *

@@ -156,6 +156,7 @@ final class AffiliateRepository {
 				'website'          => esc_url_raw( isset( $data['website'] ) ? $data['website'] : '' ),
 				'channel'          => sanitize_text_field( isset( $data['channel'] ) ? $data['channel'] : '' ),
 				'application_note' => sanitize_textarea_field( isset( $data['application_note'] ) ? $data['application_note'] : '' ),
+				'application_data' => ! empty( $data['application_data'] ) ? wp_json_encode( $data['application_data'] ) : null,
 				'created_at'       => $now,
 				'updated_at'       => $now,
 			)
@@ -192,6 +193,12 @@ final class AffiliateRepository {
 		}
 		if ( isset( $data['group_id'] ) ) {
 			$fields['group_id'] = (int) $data['group_id'];
+		}
+		if ( isset( $data['landing_page_id'] ) ) {
+			$fields['landing_page_id'] = absint( $data['landing_page_id'] );
+		}
+		if ( isset( $data['landing_message'] ) ) {
+			$fields['landing_message'] = sanitize_textarea_field( $data['landing_message'] );
 		}
 		if ( isset( $data['slug'] ) && '' !== $data['slug'] ) {
 			$current = self::find( $id );
@@ -260,8 +267,12 @@ final class AffiliateRepository {
 			}
 		} elseif ( 'rejected' === $status && 'pending' === $aff->status ) {
 			Notifications::application_rejected( (int) $id, $reason );
-		} elseif ( 'terminated' === $status && 'reject' === Settings::get( 'terminated_open' ) ) {
+		}
+		if ( 'terminated' === $status && 'reject' === Settings::get( 'terminated_open' ) ) {
 			Ledger::reject_open_for_affiliate( (int) $id, __( 'Partnership terminated', 'wp-affiliate-captain' ) . ': ' . $reason );
+		}
+		if ( in_array( $status, array( 'paused', 'terminated' ), true ) || ( 'active' === $status && in_array( $aff->status, array( 'paused', 'terminated' ), true ) ) ) {
+			Notifications::status_changed( (int) $id, $status, $aff->status, $reason );
 		}
 
 		do_action( 'wpac_affiliate_status_changed', (int) $id, $status, $aff->status );

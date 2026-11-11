@@ -21,6 +21,9 @@ spl_autoload_register(
 );
 
 use WPAffiliateCaptain\Commissions\Calculator;
+use WPAffiliateCaptain\Commissions\Tiers;
+use WPAffiliateCaptain\Payouts\Pdf;
+use WPAffiliateCaptain\Promotion\Qr;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Iban;
 use WPAffiliateCaptain\Core\Money;
@@ -175,6 +178,66 @@ throws( 'sepa rejects invalid creditor iban', static function () {
 throws( 'sepa rejects non-positive amount', static function () {
 	SepaXml::build( array( 'name' => 'X', 'iban' => 'DE89370400440532013000', 'bic' => '' ), array( array( 'end_to_end_id' => '1', 'name' => 'A', 'iban' => 'DE89370400440532013000', 'bic' => '', 'amount_minor' => -5, 'remittance' => '' ) ), 'M', '2026-01-01' );
 } );
+
+/* Tag rules -------------------------------------------------------------- */
+$tag_item = array_merge( $item, array( 'tag_ids' => array( 42 ) ) );
+$r        = Calculator::calculate( $tag_item, array( $rule( 1, 'global', 0, 'all', '', 'percent', '5' ), $rule( 2, 'global', 0, 'tag', '41,42', 'percent', '9' ) ), 1, 0, $default );
+check( 'tag rule beats all', 2, $r['rule_id'] );
+check( 'tag rule amount', 4500, $r['amount_minor'] );
+check( 'tag rule needs tag', 1, Calculator::calculate( $item, array( $rule( 1, 'global', 0, 'all', '', 'percent', '5' ), $rule( 2, 'global', 0, 'tag', '42', 'percent', '9' ) ), 1, 0, $default )['rule_id'] );
+check( 'tag exclusion', true, Calculator::calculate( $tag_item, array( $rule( 3, 'global', 0, 'tag', '42', 'exclude', '0' ) ), 1, 0, $default )['excluded'] );
+
+/* Monthly tiers ---------------------------------------------------------- */
+$steps = Tiers::parse_steps( "5000:3\n1000:2", 'revenue', 'EUR' );
+check( 'tiers parse sorted', array( array( 'threshold' => 100000, 'rate' => '2' ), array( 'threshold' => 500000, 'rate' => '3' ) ), $steps );
+check( 'tiers parse invalid', null, Tiers::parse_steps( 'abc', 'revenue', 'EUR' ) );
+check( 'tiers parse rate > 100', null, Tiers::parse_steps( '10:150', 'revenue', 'EUR' ) );
+$orders = array( array( 'revenue' => 300000 ), array( 'revenue' => 400000 ) ); // 7.000 €.
+$r      = Tiers::bonus( $orders, $steps, 'revenue', 'retroactive' );
+check( 'retroactive: 3% of 7000', 21000, $r['amount'] );
+$r = Tiers::bonus( $orders, $steps, 'revenue', 'marginal' );
+// 2% of (5000-1000) + 3% of (7000-5000) = 80 + 60 = 140 €.
+check( 'marginal revenue bands', 14000, $r['amount'] );
+check( 'below first step', 0, Tiers::bonus( array( array( 'revenue' => 50000 ) ), $steps, 'revenue', 'marginal' )['amount'] );
+$ostep  = Tiers::parse_steps( "3:1\n5:2", 'orders', 'EUR' );
+$orders = array_fill( 0, 6, array( 'revenue' => 10000 ) );
+// Orders 3,4 → 1 %, orders 5,6 → 2 %: 2*100 + 2*200 = 600.
+check( 'marginal orders', 600, Tiers::bonus( $orders, $ostep, 'orders', 'marginal' )['amount'] );
+check( 'retroactive orders', 1200, Tiers::bonus( $orders, $ostep, 'orders', 'retroactive' )['amount'] );
+$orders[1]['revenue'] = 0; // Fully refunded order does not count.
+check( 'refunded order not counted', 5, Tiers::bonus( $orders, $ostep, 'orders', 'retroactive' )['orders'] );
+
+/* PDF -------------------------------------------------------------------- */
+$pdf = new Pdf( array( 'title' => 'Test', 'created' => 0 ) );
+$pdf->text( 50, 50, 'Größe (1) \\ 12,00 €' );
+$pdf->add_page();
+$out = $pdf->output();
+check( 'pdf header', '%PDF-1.4', substr( $out, 0, 8 ) );
+check( 'pdf eof', "%%EOF\n", substr( $out, -6 ) );
+check( 'pdf escaping + winansi', true, false !== strpos( $out, '(Gr' . "\xF6\xDF" . 'e \\(1\\) \\\\ 12,00 ' . "\x80" . ')' ) );
+check( 'pdf page count', true, false !== strpos( $out, '/Count 2' ) );
+preg_match( '/startxref\n(\d+)/', $out, $m );
+check( 'pdf xref offset', 'xref', substr( $out, (int) $m[1], 4 ) );
+check( 'pdf wrap', array( 'aaaa bbbb', 'cccc' ), Pdf::wrap( 'aaaa bbbb cccc', 50, 10 ) );
+
+/* QR (structure; decoding is verified with tests/qr_decode_check.py) ------ */
+$q = Qr::matrix( 'https://example.com/?partner=ANNA' );
+check( 'qr version 3 size', 29, count( $q ) );
+$finder = static function ( $m, $x0, $y0 ) {
+	$ok = true;
+	for ( $i = 0; $i < 7; $i++ ) {
+		$ok = $ok && $m[ $y0 ][ $x0 + $i ] && $m[ $y0 + 6 ][ $x0 + $i ] && $m[ $y0 + $i ][ $x0 ] && $m[ $y0 + $i ][ $x0 + 6 ];
+	}
+	return $ok && $m[ $y0 + 3 ][ $x0 + 3 ] && ! $m[ $y0 + 1 ][ $x0 + 1 ];
+};
+check( 'qr finder top-left', true, $finder( $q, 0, 0 ) );
+check( 'qr finder top-right', true, $finder( $q, 22, 0 ) );
+check( 'qr finder bottom-left', true, $finder( $q, 0, 22 ) );
+check( 'qr v10 for 213 bytes', 57, count( Qr::matrix( str_repeat( 'x', 213 ) ) ) );
+throws( 'qr too long', static function () {
+	Qr::matrix( str_repeat( 'x', 214 ) );
+} );
+check( 'qr svg', 0, strpos( Qr::svg( 'A' ), '<svg' ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

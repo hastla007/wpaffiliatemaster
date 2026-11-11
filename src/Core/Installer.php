@@ -62,6 +62,9 @@ final class Installer {
 			website varchar(255) NOT NULL DEFAULT '',
 			channel varchar(255) NOT NULL DEFAULT '',
 			application_note text NULL,
+			application_data text NULL,
+			landing_page_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			landing_message text NULL,
 			status_reason varchar(255) NOT NULL DEFAULT '',
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
@@ -79,6 +82,9 @@ final class Installer {
 			name varchar(190) NOT NULL,
 			description text NULL,
 			agreement_version varchar(40) NOT NULL DEFAULT '',
+			terms_page_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			public tinyint(1) NOT NULL DEFAULT 0,
+			fields text NULL,
 			status varchar(20) NOT NULL DEFAULT 'active',
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id)
@@ -241,6 +247,9 @@ final class Installer {
 			status varchar(20) NOT NULL DEFAULT 'pending',
 			profile_snapshot text NULL,
 			sepa_batch varchar(64) NOT NULL DEFAULT '',
+			statement_file varchar(255) NOT NULL DEFAULT '',
+			statement_hash char(64) NOT NULL DEFAULT '',
+			statement_deleted_at datetime NULL,
 			note varchar(255) NOT NULL DEFAULT '',
 			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
@@ -290,6 +299,72 @@ final class Installer {
 			PRIMARY KEY  (id),
 			KEY object (object_type,object_id),
 			KEY created_at (created_at)
+		) $c;";
+
+		$sql[] = "CREATE TABLE {$t('tiers')} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			scope varchar(20) NOT NULL DEFAULT 'global',
+			scope_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			basis varchar(20) NOT NULL DEFAULT 'revenue',
+			mode varchar(20) NOT NULL DEFAULT 'marginal',
+			steps text NOT NULL,
+			active tinyint(1) NOT NULL DEFAULT 1,
+			note varchar(255) NOT NULL DEFAULT '',
+			version int(10) unsigned NOT NULL DEFAULT 1,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY scope (scope,scope_id)
+		) $c;";
+
+		$sql[] = "CREATE TABLE {$t('customer_links')} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			affiliate_id bigint(20) unsigned NOT NULL,
+			customer_hash char(64) NOT NULL,
+			source varchar(40) NOT NULL DEFAULT '',
+			source_order_id varchar(64) NOT NULL DEFAULT '',
+			created_at datetime NOT NULL,
+			expires_at datetime NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY customer_hash (customer_hash),
+			KEY affiliate_id (affiliate_id)
+		) $c;";
+
+		$sql[] = "CREATE TABLE {$t('creatives')} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			family_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			version int(10) unsigned NOT NULL DEFAULT 1,
+			title varchar(190) NOT NULL,
+			type varchar(20) NOT NULL DEFAULT 'text',
+			content text NULL,
+			attachment_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			landing_url varchar(255) NOT NULL DEFAULT '',
+			disclosure varchar(255) NOT NULL DEFAULT '',
+			group_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			status varchar(20) NOT NULL DEFAULT 'draft',
+			change_note varchar(255) NOT NULL DEFAULT '',
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			approved_at datetime NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY family_id (family_id),
+			KEY status (status)
+		) $c;";
+
+		$sql[] = "CREATE TABLE {$t('payout_requests')} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			affiliate_id bigint(20) unsigned NOT NULL,
+			currency char(3) NOT NULL,
+			amount_minor bigint(20) NOT NULL DEFAULT 0,
+			status varchar(20) NOT NULL DEFAULT 'requested',
+			payout_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			note varchar(255) NOT NULL DEFAULT '',
+			created_at datetime NOT NULL,
+			processed_at datetime NULL,
+			processed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY affiliate_status (affiliate_id,status)
 		) $c;";
 
 		foreach ( $sql as $statement ) {

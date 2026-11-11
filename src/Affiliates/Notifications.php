@@ -65,6 +65,43 @@ final class Notifications {
 	}
 
 	/**
+	 * Pause, termination or reactivation.
+	 *
+	 * @param int    $id     Affiliate ID.
+	 * @param string $status New status.
+	 * @param string $old    Previous status.
+	 * @param string $reason Reason.
+	 */
+	public static function status_changed( $id, $status, $old, $reason ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff ) {
+			return;
+		}
+		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		switch ( $status ) {
+			case 'paused':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your partner account has been paused', 'wp-affiliate-captain' ), $site );
+				$body    = __( 'Your partner account has been paused. During the pause, new sales are not attributed to you. Commissions already earned remain unaffected.', 'wp-affiliate-captain' );
+				break;
+			case 'terminated':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your partnership has been terminated', 'wp-affiliate-captain' ), $site );
+				$body    = 'reject' === Settings::get( 'terminated_open' )
+					? __( 'Your partnership has been terminated. Open commissions that were not yet paid have been cancelled according to the program terms.', 'wp-affiliate-captain' )
+					: __( 'Your partnership has been terminated. Approved commissions will still be paid out according to the program terms.', 'wp-affiliate-captain' );
+				break;
+			default:
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your partner account is active again', 'wp-affiliate-captain' ), $site );
+				$body    = __( 'Your partner account has been reactivated. Your links and codes work again.', 'wp-affiliate-captain' );
+		}
+		/* translators: 1: name, 2: message, 3: reason */
+		$message = sprintf( __( "Hello %1\$s,\n\n%2\$s\n\n%3\$s", 'wp-affiliate-captain' ), $aff->name, $body, $reason ? __( 'Reason', 'wp-affiliate-captain' ) . ': ' . $reason : '' );
+		wp_mail( $aff->email, $subject, $message );
+	}
+
+	/**
 	 * Application rejected.
 	 *
 	 * @param int    $id     Affiliate ID.

@@ -40,6 +40,7 @@ final class Plugin {
 		Tracker::register_hooks();
 		Registration::register_hooks();
 		Portal::register_hooks();
+		\WPAffiliateCaptain\Promotion\Landing::register_hooks();
 		Cron::register_hooks();
 		Privacy::register_hooks();
 

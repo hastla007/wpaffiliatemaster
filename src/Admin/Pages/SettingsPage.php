@@ -90,12 +90,25 @@ final class SettingsPage {
 			$display['default_rate'] = Money::to_decimal( (int) $s['default_rate'], $currency );
 		}
 		self::text( 'default_rate', __( 'Default rate', 'wp-affiliate-captain' ), $display, __( 'Percent, or amount in program currency for fixed commissions. Use rules for partners, groups, products and course codes.', 'wp-affiliate-captain' ) );
+		self::checkbox( 'lifetime_enabled', __( 'Lifetime commissions: repeat purchases of referred customers go to the same partner', 'wp-affiliate-captain' ), $s, __( 'Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only.', 'wp-affiliate-captain' ) );
+		self::number( 'lifetime_days', __( 'Lifetime link duration (days, 0 = unlimited)', 'wp-affiliate-captain' ), $s );
+		self::text( 'lifetime_rate', __( 'Lifetime rate in % (empty = normal rules)', 'wp-affiliate-captain' ), $s );
 		self::number( 'hold_days', __( 'Hold period (days after payment)', 'wp-affiliate-captain' ), $s, __( 'Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until.', 'wp-affiliate-captain' ) );
+		self::end();
+
+		self::section( __( 'Promotion', 'wp-affiliate-captain' ) );
+		/* translators: %s: example URL */
+		self::text( 'landing_prefix', __( 'Landing page path', 'wp-affiliate-captain' ), $s, sprintf( __( 'Partner landing URLs look like %s', 'wp-affiliate-captain' ), home_url( '/' . $s['landing_prefix'] . '/partner-slug/' ) ) );
+		self::page_select( 'landing_page_id', __( 'Default landing page', 'wp-affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'wp-affiliate-captain' ) );
+		self::text( 'default_disclosure', __( 'Default disclosure note', 'wp-affiliate-captain' ), $s );
+		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		self::end();
 
 		self::section( __( 'Payouts', 'wp-affiliate-captain' ) );
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
 		self::select( 'payout_period', __( 'Payout period', 'wp-affiliate-captain' ), $s, array( 'monthly' => __( 'Monthly', 'wp-affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'wp-affiliate-captain' ), 'manual' => __( 'Manual', 'wp-affiliate-captain' ) ) );
+		self::checkbox( 'payout_requests', __( 'Partners can request payouts in the partner area', 'wp-affiliate-captain' ), $s );
+		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Counted from the end of the calendar year. After that, the PDF and the partner data snapshot are deleted; amounts remain. Check your statutory retention period (e.g. §147 AO).', 'wp-affiliate-captain' ) );
 		self::text( 'debtor_name', __( 'Company account holder (SEPA)', 'wp-affiliate-captain' ), $s );
 		self::text( 'debtor_iban', __( 'Company IBAN (SEPA)', 'wp-affiliate-captain' ), $s );
 		self::text( 'debtor_bic', __( 'Company BIC (optional)', 'wp-affiliate-captain' ), $s );

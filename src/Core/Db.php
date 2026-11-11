@@ -26,6 +26,10 @@ final class Db {
 		'payout_items',
 		'jobs',
 		'audit',
+		'tiers',
+		'customer_links',
+		'creatives',
+		'payout_requests',
 	);
 
 	/**

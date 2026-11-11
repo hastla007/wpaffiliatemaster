@@ -216,12 +216,14 @@ final class WooCommerce {
 			$product_id   = $item->get_variation_id() ? $item->get_variation_id() : $item->get_product_id();
 			$parent_id    = $item->get_variation_id() ? $item->get_product_id() : 0;
 			$category_ids = $item->get_product_id() ? wc_get_product_term_ids( $item->get_product_id(), 'product_cat' ) : array();
+			$tag_ids      = $item->get_product_id() ? wc_get_product_term_ids( $item->get_product_id(), 'product_tag' ) : array();
 			$items[]      = array(
 				'item_id'      => (string) $item_id,
 				'product_id'   => (int) $product_id,
 				'parent_id'    => (int) $parent_id,
 				'sku'          => $product ? (string) $product->get_sku() : '',
 				'category_ids' => array_map( 'intval', $category_ids ),
+				'tag_ids'      => array_map( 'intval', $tag_ids ),
 				'name'         => $item->get_name(),
 				'quantity'     => (int) $item->get_quantity(),
 				// Line total = net after discounts, excluding tax and shipping, minus refunds

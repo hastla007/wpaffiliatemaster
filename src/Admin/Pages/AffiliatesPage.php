@@ -60,6 +60,8 @@ final class AffiliatesPage {
 						'channel'  => Admin::post( 'channel' ),
 						'group_id' => absint( Admin::post( 'group_id', 0 ) ),
 						'slug'     => Admin::post( 'slug' ),
+						'landing_page_id' => absint( Admin::post( 'landing_page_id', 0 ) ),
+						'landing_message' => (string) Admin::post( 'landing_message' ),
 					)
 				);
 				Admin::back( __( 'Partner saved.', 'wp-affiliate-captain' ) );
@@ -281,6 +283,14 @@ final class AffiliatesPage {
 		if ( $a->application_note ) {
 			echo '<p><strong>' . esc_html__( 'Application', 'wp-affiliate-captain' ) . ':</strong><br>' . nl2br( esc_html( $a->application_note ) ) . '</p>';
 		}
+		$app_data = json_decode( (string) $a->application_data, true );
+		if ( is_array( $app_data ) && $app_data ) {
+			echo '<table class="widefat striped"><tbody>';
+			foreach ( $app_data as $field ) {
+				echo '<tr><th>' . esc_html( isset( $field['label'] ) ? $field['label'] : '' ) . '</th><td>' . nl2br( esc_html( isset( $field['value'] ) ? ( '1' === $field['value'] ? '✔' : $field['value'] ) : '' ) ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
 		Admin::form_open( 'affiliate_status' );
 		echo '<input type="hidden" name="id" value="' . (int) $id . '">';
 		$transitions = array(
@@ -314,6 +324,17 @@ final class AffiliatesPage {
 		self::row_input( 'website', __( 'Website', 'wp-affiliate-captain' ), $a->website, 'type="url"' );
 		self::row_input( 'channel', __( 'Channel', 'wp-affiliate-captain' ), $a->channel );
 		self::row_group( (int) $a->group_id );
+		echo '<tr><th>' . esc_html__( 'Landing page', 'wp-affiliate-captain' ) . '</th><td>';
+		wp_dropdown_pages(
+			array(
+				'name'              => 'landing_page_id',
+				'selected'          => (int) $a->landing_page_id,
+				'show_option_none'  => esc_html__( '— default —', 'wp-affiliate-captain' ),
+				'option_none_value' => '0',
+			)
+		);
+		echo '<p class="description">' . esc_html( \WPAffiliateCaptain\Promotion\Landing::url( $a ) ) . '</p></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Welcome message on landing page', 'wp-affiliate-captain' ) . '</th><td><textarea name="landing_message" rows="3" class="large-text">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		echo '</table>';
 		submit_button( __( 'Save', 'wp-affiliate-captain' ), 'secondary' );
 		echo '</form></div></div>';

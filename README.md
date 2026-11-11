@@ -14,7 +14,7 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 ## Installation
 
 1. Ordner nach `wp-content/plugins/wp-affiliate-captain/` kopieren und aktivieren.
-2. Zwei Seiten anlegen: eine mit `[wpac_affiliate_registration]` (Bewerbung), eine mit `[wpac_affiliate_portal]` (Partnerbereich).
+2. Seiten anlegen: `[wpac_affiliate_registration]` (Bewerbung), `[wpac_affiliate_portal]` (Partnerbereich), optional eine Landingpage mit `[wpac_partner_welcome]`.
 3. Unter **Affiliate Captain → Einstellungen** Seiten, Teilnahmebedingungen (Seite + Version), Standardprovision, Haltefrist, Mindestbetrag und das Firmenkonto für SEPA setzen.
 4. Empfohlen in `wp-config.php`: eigener Schlüssel für die IBAN-Verschlüsselung (64 Hex-Zeichen, z. B. `php -r 'echo bin2hex(random_bytes(32));'`):
    ```php
@@ -38,12 +38,28 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 | Refunds | Teilrefunds positionsgenau anteilig, Storno/Chargeback als Restumkehr. Korrekturen sind eigene negative Ledger-Zeilen; wiederholte Ereignisse buchen nie doppelt (Idempotency-Key, Obergrenze = ursprüngliche Provision). Nach Auszahlung wird die Korrektur im nächsten Lauf verrechnet. |
 | Auszahlung | Lauf mit Periodenende + Mindestbetrag; negative Salden/Beträge unter Minimum werden vorgetragen. Jede Provision kann nur einmal in einer Auszahlung stehen (UNIQUE). Abrechnungsbeleg (druckbar) mit Steuerstatus-Snapshot, SEPA-XML (pain.001.001.03), „bezahlt“ markieren, Stornieren gibt Provisionen frei. |
 | Partnerportal | Kennzahlen, Link-Generator mit Kampagne, Codes, Provisionen (nur Bestellreferenz, Datum, Produkt, Betrag, Status – keine Kundendaten), Auszahlungen, Steuer-/Bankdaten (IBAN verschlüsselt, maskiert angezeigt), erneute Annahme geänderter Bedingungen. |
+| Monatsstufen | Zusatzbonus in % des Monats-Nettoumsatzes (nach Refunds), Basis Umsatz oder Anzahl Bestellungen, **marginal** (nur Anteil über der Schwelle) oder **rückwirkend** (ganzer Monat). Spezifischster Plan gilt (Partner > Gruppe > global). Abschluss automatisch nach Ablauf der Haltefrist, Plan wird im Bonus eingefroren; manueller Abschluss möglich. |
+| Lifetime | Optional: Folgekäufe eines geworbenen Kunden gehen an denselben Partner (Dauer und eigener Satz einstellbar), nur wenn kein neuer Link/Code/Coupon genutzt wird. Kunden nur als HMAC-Hash gespeichert, Löschung über den WordPress-Datenschutz-Eraser. |
+| Tags | Provisionsregeln auch nach Produkt-Tags. |
+| Partnergruppen | Eigene Bedingungsseite + Version je Gruppe, Gruppe im Antrag wählbar oder per `[wpac_affiliate_registration group="ID"]` fest, zusätzliche Antragsfelder je Gruppe (`key|Label|Typ|required`). |
+| Benachrichtigungen | E-Mails bei Antragseingang, Freigabe, Ablehnung, Pause, Beendigung, Reaktivierung, Auszahlungsantrag. |
+| Werbemittel | Texte/Bilder versioniert: jede Änderung = neuer Entwurf, nur freigegebene Versionen sichtbar (je Gruppe), Kennzeichnungshinweis Pflicht, Platzhalter `{link}`, `{code}`, `{partner}`, Werberichtlinien im Portal. |
+| QR & Landingpages | QR-Code (SVG, eigener Encoder ohne externe Dienste) im Portal. Landing-URL `/partner/{slug}/` leitet mit Partnercode auf die Partner- oder Standard-Landingpage; `[wpac_partner_welcome]` zeigt „Empfohlen von …“ und die vom Betreiber gepflegte Begrüßung. |
+| Auszahlungsanträge | Optional: Partner beantragen die Auszahlung ihres freigegebenen Saldos (Mindestbetrag, vollständiges Profil); Admin erzeugt daraus die Auszahlung oder lehnt mit Grund ab. |
+| PDF-Beleg | Bei jeder Auszahlung wird einmalig ein PDF-Abrechnungsbeleg erzeugt, geschützt abgelegt (`uploads/wpac-statements`), per SHA-256 gegen Veränderung geprüft; Download im Admin (`wpac_view_tax_data`) und für den Partner im Portal. |
+| Aufbewahrung | Belege werden nach der eingestellten Frist (Standard 10 Jahre ab Jahresende) samt Partner-Snapshot gelöscht, Beträge bleiben erhalten. Frist fachlich prüfen (z. B. §147 AO). |
 | Betrieb | Retry-Warteschlange für fehlgeschlagene Integrationsereignisse, Integrationsstatus/Vertragsprüfung, Audit-Log, CSV-Exporte mit Formel-Injection-Schutz, WordPress-Datenexport/-löschung, Aufbewahrungsfrist für Besuche, eigene Capabilities (`wpac_manage_program`, `wpac_manage_affiliates`, `wpac_manage_payouts`, `wpac_view_tax_data`). |
 
 ## Entwicklung
 
 ```bash
 php tests/run.php
+```
+
+Optional (braucht `zbarimg` und Pillow): QR-Codes wirklich dekodieren:
+
+```bash
+python3 tests/qr_decode_check.py
 ```
 
 ```bash
@@ -56,5 +72,6 @@ Struktur: `src/Core` (Lifecycle, Schema, Geld, Krypto, Jobs, Audit), `src/Affili
 
 - Test in echter WordPress-/WooCommerce-Umgebung (HPOS an/aus, Classic- und Blocks-Checkout), Integrationstests für Ledger/Payouts.
 - Adapter in Pass Captain und Voucher Captain gegen den Vertrag v1 (siehe `docs/CONTRACT.md`).
-- Monatsstufen, Creatives/Werbemittel-Freigabe, QR-Codes, REST-API, Übersetzung `de_DE`.
+- REST-API, Übersetzung `de_DE`, Editor-Blocks, monatliche Report-Mail, erweiterte Betrugsregeln.
+- Monatsstufen: Refunds nach Monatsabschluss ändern einen gebuchten Bonus nicht (Abschluss erst nach der Haltefrist).
 - SEPA-Format und Beleg-/Steuerlogik mit Bank bzw. Steuerberatung abstimmen.

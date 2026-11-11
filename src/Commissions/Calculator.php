@@ -2,14 +2,14 @@
 /**
  * Pure commission calculation (no WordPress dependency → unit tested).
  *
- * Rule shape: [ id, scope (global|group|affiliate), scope_id, target (all|product|category|sku),
+ * Rule shape: [ id, scope (global|group|affiliate), scope_id, target (all|product|category|tag|sku),
  *               target_value, rate_type (percent|fixed|exclude), rate, priority, active ]
  * Item shape: [ product_id, parent_id, sku, category_ids[], quantity, net_minor ]
  *
  * Resolution:
  *  - A matching "exclude" rule on any level excludes the item (explicit exclusions win).
  *  - Otherwise the most specific matching rule wins: affiliate > group > global,
- *    then product/SKU > category > all, then priority, then newest rule.
+ *    then product/SKU > category/tag > all, then priority, then newest rule.
  *  - Without a matching rule the program default applies.
  *
  * @package WPAffiliateCaptain
@@ -30,6 +30,7 @@ final class Calculator {
 		'product'  => 30,
 		'sku'      => 30,
 		'category' => 20,
+		'tag'      => 20,
 		'all'      => 10,
 	);
 
@@ -72,6 +73,9 @@ final class Calculator {
 			case 'category':
 				$ids = array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
 				return (bool) array_intersect( $ids, array_map( 'intval', (array) $item['category_ids'] ) );
+			case 'tag':
+				$ids = array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
+				return (bool) array_intersect( $ids, array_map( 'intval', isset( $item['tag_ids'] ) ? (array) $item['tag_ids'] : array() ) );
 			case 'sku':
 				// Also used for course codes. Supports comma separated lists and trailing * wildcard.
 				$sku = strtoupper( trim( (string) $item['sku'] ) );

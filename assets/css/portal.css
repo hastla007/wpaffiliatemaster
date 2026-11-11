@@ -27,3 +27,10 @@
 .wpac-pager a{padding:.25em .5em}
 .wpac-pager a.is-active{font-weight:700}
 @media (max-width:600px){.wpac-table{display:block;overflow-x:auto}}
+.wpac-qr svg{width:180px;height:180px}
+.wpac-creative{border:1px solid var(--wpac-border);border-radius:6px;padding:1em;margin:0 0 1em}
+.wpac-creative h4{margin-top:0}
+.wpac-disclosure{background:#fff8e1;border-left:4px solid #f9a825;padding:.5em .75em;font-size:.9em}
+.wpac-welcome{border:1px solid var(--wpac-border,rgba(0,0,0,.12));border-left:4px solid #0b6e99;border-radius:4px;padding:.75em 1em;margin:0 0 1em}
+.wpac-group-choice{list-style:none;padding:0}
+.wpac-group-choice li{margin:0 0 1em}

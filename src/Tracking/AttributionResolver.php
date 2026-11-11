@@ -8,6 +8,7 @@
  *  3. affiliate coupon (if "coupon has priority" is enabled)
  *  4. referral link (shop session) or consented cookie – first/last touch per setting
  *  5. affiliate coupon (if coupon priority is disabled)
+ *  6. lifetime customer link (if enabled)
  *
  * Self-referrals are blocked or flagged for review.
  *
@@ -76,6 +77,21 @@ final class AttributionResolver {
 
 		if ( $coupon && ! $coupon_first ) {
 			$candidates[] = $coupon;
+		}
+
+		// Lifetime link: lowest priority, only when no explicit/new referral exists.
+		if ( ! $candidates && Settings::get( 'lifetime_enabled' ) ) {
+			$link = CustomerLinks::find( CustomerLinks::hashes( $sale['customer']['user_id'], $sale['customer']['email'] ) );
+			if ( $link ) {
+				$aff = AffiliateRepository::find( (int) $link->affiliate_id );
+				if ( $aff && 'active' === $aff->status ) {
+					$candidates[] = array(
+						'affiliate_id' => (int) $aff->id,
+						'code_id'      => 0,
+						'method'       => 'lifetime',
+					);
+				}
+			}
 		}
 
 		/**

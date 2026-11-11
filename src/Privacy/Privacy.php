@@ -178,10 +178,14 @@ final class Privacy {
 	 */
 	public static function erase( $email, $page = 1 ) {
 		global $wpdb;
+		// Customers: remove lifetime partner links (stored as hashes).
+		$user    = get_user_by( 'email', $email );
+		$removed = \WPAffiliateCaptain\Tracking\CustomerLinks::forget( $user ? (int) $user->ID : 0, $email ) > 0;
+
 		$aff = self::affiliate( $email );
 		if ( ! $aff ) {
 			return array(
-				'items_removed'  => false,
+				'items_removed'  => $removed,
 				'items_retained' => false,
 				'messages'       => array(),
 				'done'           => true,

@@ -13,7 +13,9 @@ use WPAffiliateCaptain\Core\Capabilities;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Payouts\PayoutRequests;
 use WPAffiliateCaptain\Payouts\PayoutService;
+use WPAffiliateCaptain\Payouts\Statement;
 use WPAffiliateCaptain\Payouts\ProfileRepository;
 
 defined( 'ABSPATH' ) || exit;
@@ -69,6 +71,32 @@ final class PayoutsPage {
 				header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $result[0] ) . '"' );
 				echo $result[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				exit;
+
+			case 'payout_request_process':
+				$r = PayoutRequests::process( absint( Admin::post( 'id' ) ) );
+				if ( is_wp_error( $r ) ) {
+					Admin::back( $r->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'Payout created from the request.', 'wp-affiliate-captain' ) );
+				break;
+
+			case 'payout_request_reject':
+				$r = PayoutRequests::reject( absint( Admin::post( 'id' ) ), sanitize_text_field( Admin::post( 'reason' ) ) );
+				if ( is_wp_error( $r ) ) {
+					Admin::back( $r->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'Request rejected.', 'wp-affiliate-captain' ) );
+				break;
+
+			case 'statement_download':
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified in dispatch().
+				$p = PayoutService::find( isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0 );
+				if ( ! $p || ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
+					wp_die( esc_html__( 'Not allowed.', 'wp-affiliate-captain' ), 403 );
+				}
+				\WPAffiliateCaptain\Core\Audit::log( 'statement.downloaded', 'payout', (int) $p->id );
+				Statement::send( $p );
+				break;
 
 			case 'payout_export':
 				list( $rows ) = PayoutService::query( array( 'limit' => 100000 ) );
@@ -142,6 +170,21 @@ final class PayoutsPage {
 			}
 		}
 
+		// Requests.
+		$requests = PayoutRequests::query( 'requested' );
+		if ( $requests ) {
+			echo '<h2>' . esc_html__( 'Open payout requests', 'wp-affiliate-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Requested', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Available now', 'wp-affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
+			foreach ( $requests as $r ) {
+				$aff = AffiliateRepository::find( (int) $r->affiliate_id );
+				printf( '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>', esc_html( Admin::date( $r->created_at, true ) ), esc_html( $aff ? $aff->name : '#' . $r->affiliate_id ), esc_html( Money::format( (int) $r->amount_minor, $r->currency ) ), esc_html( Money::format( PayoutRequests::available( (int) $r->affiliate_id ), $r->currency ) ) );
+				Admin::form_open( 'payout_request_process', 'wpac-inline' );
+				echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><button class="button button-primary button-small">' . esc_html__( 'Create payout', 'wp-affiliate-captain' ) . '</button></form> ';
+				Admin::form_open( 'payout_request_reject', 'wpac-inline' );
+				echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" size="14" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '"> <button class="button button-small">' . esc_html__( 'Reject', 'wp-affiliate-captain' ) . '</button></form></td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+
 		// List.
 		$status = Admin::get( 'status' );
 		$per    = 50;
@@ -202,6 +245,24 @@ final class PayoutsPage {
 	}
 
 	/**
+	 * Admin download URL of a statement.
+	 *
+	 * @param int $id Payout.
+	 * @return string
+	 */
+	public static function statement_url( $id ) {
+		return add_query_arg(
+			array(
+				'action'      => 'wpac',
+				'do'          => 'statement_download',
+				'id'          => (int) $id,
+				'_wpac_nonce' => wp_create_nonce( 'wpac_statement_download' ),
+			),
+			admin_url( 'admin-post.php' )
+		);
+	}
+
+	/**
 	 * Printable statement.
 	 *
 	 * @param int $id Payout.
@@ -223,7 +284,13 @@ final class PayoutsPage {
 		}
 
 		echo '<div class="wrap wpac-receipt">';
-		echo '<p class="wpac-noprint"><a href="' . esc_url( Admin::url( 'wpac-payouts' ) ) . '">&larr; ' . esc_html__( 'All payouts', 'wp-affiliate-captain' ) . '</a> · <a href="#" onclick="window.print();return false;">' . esc_html__( 'Print / save as PDF', 'wp-affiliate-captain' ) . '</a></p>';
+		echo '<p class="wpac-noprint"><a href="' . esc_url( Admin::url( 'wpac-payouts' ) ) . '">&larr; ' . esc_html__( 'All payouts', 'wp-affiliate-captain' ) . '</a>';
+		if ( $p->statement_file && current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+			echo ' · <a class="button button-primary" href="' . esc_url( self::statement_url( (int) $p->id ) ) . '">' . esc_html__( 'Download PDF statement', 'wp-affiliate-captain' ) . '</a> <small>SHA-256 ' . esc_html( substr( $p->statement_hash, 0, 16 ) ) . '…</small>';
+		} elseif ( $p->statement_deleted_at ) {
+			echo ' · ' . esc_html__( 'Statement deleted after the retention period.', 'wp-affiliate-captain' );
+		}
+		echo '</p>';
 		echo '<h1>' . esc_html__( 'Commission statement', 'wp-affiliate-captain' ) . ' ' . esc_html( $p->number ) . '</h1>';
 		echo '<div class="wpac-columns"><div class="wpac-col"><h3>' . esc_html__( 'Issued by', 'wp-affiliate-captain' ) . '</h3><p>' . esc_html( Settings::get( 'debtor_name' ) ? Settings::get( 'debtor_name' ) : get_bloginfo( 'name' ) ) . '</p></div>';
 		echo '<div class="wpac-col"><h3>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</h3><p>' . esc_html( ! empty( $snap['legal_name'] ) ? $snap['legal_name'] : ( $aff ? $aff->name : '' ) ) . '<br>' . nl2br( esc_html( isset( $snap['address'] ) ? $snap['address'] : '' ) ) . '<br>' . esc_html( isset( $snap['country'] ) ? $snap['country'] : '' ) . '</p>';

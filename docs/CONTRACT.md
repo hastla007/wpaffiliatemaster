@@ -35,6 +35,7 @@ add_action( 'wpac_loaded', function () {
                 'parent_id'    => 0,
                 'sku'          => 'SBF-SEE',    // auch Kurscode
                 'category_ids' => array( 3 ),
+                'tag_ids'      => array( 12 ),     // optional: Produkt-Tags für Tag-Regeln
                 'name'         => 'SBF See Kurs',
                 'quantity'     => 1,
                 'net_minor'    => 49900,        // netto nach Rabatt, ohne Steuer
@@ -46,7 +47,9 @@ add_action( 'wpac_loaded', function () {
 
 Alternativ ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_sale', $payload );` (ohne Rückgabewert).
 
-Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, commission_ids, reason )` oder `WP_Error`. Bei technischen Fehlern wird das Ereignis in die Retry-Warteschlange gelegt (`wpac_queued`).
+Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, commission_ids, reason )` oder `WP_Error`. Bei technischen Fehlern wird das Ereignis in die Retry-Warteschlange gelegt (`wpac_queued`); die Kunden-E-Mail wird dabei entfernt (der Self-Referral-Vergleich nutzt beim Retry nur noch die User-ID).
+
+Refunds, die **vor** einem erfolgreich gebuchten Verkauf passieren, sollte die Quelle bereits von `net_minor` abziehen (der WooCommerce-Adapter macht das automatisch). `wpac_record_refund()` ohne vorhandene Provision liefert `no_commission`.
 
 ## Refund, Storno, Chargeback
 
@@ -86,6 +89,7 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_is_self_referral` | `bool, int $affiliate_id, array $sale` | Zusätzliche Self-Referral-Prüfung. |
 | `wpac_has_marketing_consent` | `bool` | Consent-Banner anbinden (Cookie nur bei `true`). |
 | `wpac_wc_sale_payload` | `array $payload, WC_Order $order` | WooCommerce-Payload ergänzen (z. B. `hold_until`). |
+| `wpac_statement_note` | `string $note, object $payout` | Hinweistext im PDF-Abrechnungsbeleg anpassen. |
 | `wpac_wc_chargeback_statuses` | `string[]` | WooCommerce-Status, die als Chargeback gelten. |
 | `wpac_registered_integrations` | `array` | Integration für die Statusseite registrieren. |
 

@@ -13,6 +13,7 @@ namespace WPAffiliateCaptain\Admin;
 use WPAffiliateCaptain\Admin\Pages\AffiliatesPage;
 use WPAffiliateCaptain\Admin\Pages\AuditPage;
 use WPAffiliateCaptain\Admin\Pages\CommissionsPage;
+use WPAffiliateCaptain\Admin\Pages\CreativesPage;
 use WPAffiliateCaptain\Admin\Pages\DashboardPage;
 use WPAffiliateCaptain\Admin\Pages\IntegrationsPage;
 use WPAffiliateCaptain\Admin\Pages\PayoutsPage;
@@ -38,6 +39,7 @@ final class Admin {
 		add_submenu_page( 'wpac', __( 'Partners', 'wp-affiliate-captain' ), __( 'Partners', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-affiliates', array( AffiliatesPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Commissions', 'wp-affiliate-captain' ), __( 'Commissions', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Payouts', 'wp-affiliate-captain' ), __( 'Payouts', 'wp-affiliate-captain' ), Capabilities::MANAGE_PAYOUTS, 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
+		add_submenu_page( 'wpac', __( 'Creatives', 'wp-affiliate-captain' ), __( 'Creatives', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'wp-affiliate-captain' ), __( 'Rules & groups', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Integrations', 'wp-affiliate-captain' ), __( 'Integrations', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Audit log', 'wp-affiliate-captain' ), __( 'Audit log', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
@@ -197,10 +199,20 @@ final class Admin {
 			'payout_cancel'     => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_sepa'       => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_export'     => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'payout_request_process' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'payout_request_reject'  => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'statement_download'     => array( PayoutsPage::class, Capabilities::VIEW_TAX_DATA ),
 			'rule_save'         => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'rule_delete'       => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'group_create'      => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'group_update'      => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'tier_create'       => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'tier_deactivate'   => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'tier_close_month'  => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'group_delete'      => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'creative_save'     => array( CreativesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'creative_approve'  => array( CreativesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'creative_archive'  => array( CreativesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'job_retry'         => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_save'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),

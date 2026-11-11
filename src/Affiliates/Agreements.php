@@ -17,15 +17,23 @@ final class Agreements {
 
 	/**
 	 * Current terms: page, version and SHA-256 of the page content.
+	 * A partner group may define its own terms page and version.
 	 *
+	 * @param int $group_id Group (0 = program terms).
 	 * @return array { page_id, version, hash, url }
 	 */
-	public static function current() {
+	public static function current( $group_id = 0 ) {
 		$page_id = (int) Settings::get( 'terms_page_id' );
-		$post    = $page_id ? get_post( $page_id ) : null;
+		$version = (string) Settings::get( 'terms_version' );
+		$group   = $group_id ? Groups::find( (int) $group_id ) : null;
+		if ( $group && (int) $group->terms_page_id ) {
+			$page_id = (int) $group->terms_page_id;
+			$version = '' !== (string) $group->agreement_version ? (string) $group->agreement_version : $version;
+		}
+		$post = $page_id ? get_post( $page_id ) : null;
 		return array(
 			'page_id' => $page_id,
-			'version' => (string) Settings::get( 'terms_version' ),
+			'version' => $version,
 			'hash'    => $post ? hash( 'sha256', $post->post_title . "\n" . $post->post_content ) : '',
 			'url'     => $post ? get_permalink( $post ) : '',
 		);
@@ -40,7 +48,7 @@ final class Agreements {
 	 */
 	public static function record( $affiliate_id, $result = 'accepted' ) {
 		global $wpdb;
-		$terms = self::current();
+		$terms = self::current( self::group_of( $affiliate_id ) );
 		$wpdb->insert(
 			Db::table( 'agreements' ),
 			array(
@@ -86,8 +94,19 @@ final class Agreements {
 	 */
 	public static function has_current( $affiliate_id ) {
 		$latest = self::latest( $affiliate_id );
-		$terms  = self::current();
+		$terms  = self::current( self::group_of( $affiliate_id ) );
 		return $latest && $latest->version === $terms['version'] && ( '' === $terms['hash'] || $latest->doc_hash === $terms['hash'] );
+	}
+
+	/**
+	 * Group of an affiliate.
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return int
+	 */
+	public static function group_of( $affiliate_id ) {
+		$aff = AffiliateRepository::find( (int) $affiliate_id );
+		return $aff ? (int) $aff->group_id : 0;
 	}
 
 	/**

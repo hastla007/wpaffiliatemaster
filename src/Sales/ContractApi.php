@@ -172,6 +172,7 @@ final class ContractApi {
 				'parent_id'    => isset( $raw['parent_id'] ) ? (int) $raw['parent_id'] : 0,
 				'sku'          => isset( $raw['sku'] ) ? sanitize_text_field( (string) $raw['sku'] ) : '',
 				'category_ids' => isset( $raw['category_ids'] ) ? array_map( 'intval', (array) $raw['category_ids'] ) : array(),
+				'tag_ids'      => isset( $raw['tag_ids'] ) ? array_map( 'intval', (array) $raw['tag_ids'] ) : array(),
 				'name'         => isset( $raw['name'] ) ? sanitize_text_field( (string) $raw['name'] ) : '',
 				'quantity'     => isset( $raw['quantity'] ) ? max( 1, (int) $raw['quantity'] ) : 1,
 				'net_minor'    => max( 0, (int) $raw['net_minor'] ),

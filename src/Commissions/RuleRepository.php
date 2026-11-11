@@ -62,7 +62,7 @@ final class RuleRepository {
 	 */
 	public static function sanitize( array $in ) {
 		$scope     = isset( $in['scope'] ) && in_array( $in['scope'], array( 'global', 'group', 'affiliate' ), true ) ? $in['scope'] : 'global';
-		$target    = isset( $in['target'] ) && in_array( $in['target'], array( 'all', 'product', 'category', 'sku' ), true ) ? $in['target'] : 'all';
+		$target    = isset( $in['target'] ) && in_array( $in['target'], array( 'all', 'product', 'category', 'tag', 'sku' ), true ) ? $in['target'] : 'all';
 		$rate_type = isset( $in['rate_type'] ) && in_array( $in['rate_type'], array( 'percent', 'fixed', 'exclude' ), true ) ? $in['rate_type'] : 'percent';
 		$rate      = '0';
 		if ( 'exclude' !== $rate_type ) {
@@ -81,7 +81,7 @@ final class RuleRepository {
 		}
 		$value = 'all' === $target ? '' : sanitize_text_field( isset( $in['target_value'] ) ? (string) $in['target_value'] : '' );
 		if ( 'all' !== $target && '' === $value ) {
-			return new \WP_Error( 'wpac_target', __( 'Please enter product IDs, category IDs or SKUs/course codes.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_target', __( 'Please enter product IDs, category/tag IDs or SKUs/course codes.', 'wp-affiliate-captain' ) );
 		}
 		return array(
 			'scope'        => $scope,
