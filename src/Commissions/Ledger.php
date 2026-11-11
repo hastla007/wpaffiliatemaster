@@ -176,7 +176,11 @@ final class Ledger {
 
 		$result = Db::transaction(
 			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $hold, $status ) {
-				$ok = $wpdb->insert(
+				// A concurrent report of the same order loses on the unique key; that is expected under
+				// load and answered as "duplicate" below, so it must not flood the PHP error log. Any other
+				// failure is raised as IntegrationException with the database error (retry queue, audit).
+				$suppress = $wpdb->suppress_errors( true );
+				$ok       = $wpdb->insert(
 					Db::table( 'attributions' ),
 					array(
 						'source'          => $sale['source'],
@@ -193,6 +197,7 @@ final class Ledger {
 						'created_at'      => Db::now(),
 					)
 				);
+				$wpdb->suppress_errors( $suppress );
 				if ( ! $ok ) {
 					// Unique (source, order) – a concurrent request won.
 					if ( self::attribution_for( $sale['source'], $sale['order_id'] ) ) {

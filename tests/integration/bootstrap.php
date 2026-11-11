@@ -28,6 +28,8 @@ class Test_WPDB {
 	public $prefix = 'wp_';
 	public $insert_id = 0;
 	public $last_error = '';
+	public $suppress   = false;
+	public function suppress_errors( $s = true ) { $old = $this->suppress; $this->suppress = (bool) $s; return $old; }
 	/** @var mysqli */
 	public $db;
 
