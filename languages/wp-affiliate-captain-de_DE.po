@@ -5,270 +5,6 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: wp-affiliate-captain\n"
 
-msgid "Self-referral"
-msgstr "Eigenkauf über eigenen Link/Code"
-
-msgid "Unusually many orders in 24 hours"
-msgstr "Ungewöhnlich viele Bestellungen in 24 Stunden"
-
-msgid "Unusually high order value"
-msgstr "Ungewöhnlich hoher Bestellwert"
-
-msgid "Order immediately after the click"
-msgstr "Bestellung unmittelbar nach dem Klick"
-
-msgid "High refund rate of the partner"
-msgstr "Hohe Rückerstattungsquote des Partners"
-
-msgid "Blocked or disposable e-mail domain"
-msgstr "Gesperrte oder Wegwerf-E-Mail-Domain"
-
-msgid "Coupon of another partner used"
-msgstr "Gutschein eines anderen Partners verwendet"
-
-msgid "[%s] New affiliate application"
-msgstr "[%s] Neue Partnerbewerbung"
-
-msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
-msgstr "Neue Partnerbewerbung von %1$s (%2$s).\n\nPrüfen: %3$s"
-
-msgid "[%s] Please confirm your partner application"
-msgstr "[%s] Bitte bestätigen Sie Ihre Partnerbewerbung"
-
-msgid "Hello %1$s,\n\nplease confirm your e-mail address to complete your partner application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
-msgstr "Hallo %1$s,\n\nbitte bestätigen Sie Ihre E-Mail-Adresse, um Ihre Partnerbewerbung abzuschließen:\n%2$s\n\nDer Link ist 48 Stunden gültig. Wenn Sie sich nicht beworben haben, können Sie diese E-Mail ignorieren."
-
-msgid "[%s] Your partner account"
-msgstr "[%s] Ihr Partnerkonto"
-
-msgid "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail."
-msgstr "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für unser Partnerprogramm beworben. Sie haben bereits ein Partnerkonto: %s\n\nWenn Sie das nicht waren, können Sie diese E-Mail ignorieren."
-
-msgid "[%s] Your bank details were changed"
-msgstr "[%s] Ihre Bankverbindung wurde geändert"
-
-msgid "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately."
-msgstr "Hallo %s,\n\ndie Bankverbindung für Ihre Provisionsauszahlungen wurde soeben geändert. Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie uns bitte umgehend."
-
-msgid "[%s] Partner changed bank details"
-msgstr "[%s] Partner hat Bankverbindung geändert"
-
-msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
-msgstr "%1$s hat die Bankverbindung für Auszahlungen geändert. Bitte vor dem nächsten Auszahlungslauf prüfen.\n\n%2$s"
-
-msgid "[%s] Your affiliate application was approved"
-msgstr "[%s] Ihre Partnerbewerbung wurde angenommen"
-
-msgid "Hello %1$s,\n\nwelcome to our partner program! Your partner area with links, codes and statistics: %2$s"
-msgstr "Hallo %1$s,\n\nwillkommen in unserem Partnerprogramm! Ihr Partnerbereich mit Links, Codes und Statistiken: %2$s"
-
-msgid "[%s] Your partner account has been paused"
-msgstr "[%s] Ihr Partnerkonto wurde pausiert"
-
-msgid "Your partner account has been paused. During the pause, new sales are not attributed to you. Commissions already earned remain unaffected."
-msgstr "Ihr Partnerkonto wurde pausiert. Während der Pause werden Ihnen neue Verkäufe nicht zugeordnet. Bereits verdiente Provisionen bleiben unberührt."
-
-msgid "[%s] Your partnership has been terminated"
-msgstr "[%s] Ihre Partnerschaft wurde beendet"
-
-msgid "Your partnership has been terminated. Open commissions that were not yet paid have been cancelled according to the program terms."
-msgstr "Ihre Partnerschaft wurde beendet. Offene, noch nicht ausgezahlte Provisionen wurden gemäß den Programmbedingungen storniert."
-
-msgid "Your partnership has been terminated. Approved commissions will still be paid out according to the program terms."
-msgstr "Ihre Partnerschaft wurde beendet. Freigegebene Provisionen werden gemäß den Programmbedingungen weiterhin ausgezahlt."
-
-msgid "[%s] Your partner account is active again"
-msgstr "[%s] Ihr Partnerkonto ist wieder aktiv"
-
-msgid "Your partner account has been reactivated. Your links and codes work again."
-msgstr "Ihr Partnerkonto wurde reaktiviert. Ihre Links und Codes funktionieren wieder."
-
-msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
-msgstr "Hallo %1$s,\n\n%2$s\n\n%3$s"
-
-msgid "Reason"
-msgstr "Grund"
-
-msgid "[%s] Your affiliate application"
-msgstr "[%s] Ihre Partnerbewerbung"
-
-msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
-msgstr "Hallo %1$s,\n\nleider können wir Ihre Bewerbung derzeit nicht annehmen.\n\n%2$s"
-
-msgid "Application pending"
-msgstr "Bewerbung offen"
-
-msgid "Active"
-msgstr "Aktiv"
-
-msgid "Paused"
-msgstr "Pausiert"
-
-msgid "Terminated"
-msgstr "Beendet"
-
-msgid "Rejected"
-msgstr "Abgelehnt"
-
-msgid "Please enter a valid e-mail address."
-msgstr "Bitte geben Sie eine gültige E-Mail-Adresse ein."
-
-msgid "An affiliate account with this e-mail address already exists."
-msgstr "Mit dieser E-Mail-Adresse existiert bereits ein Partnerkonto."
-
-msgid "The affiliate could not be saved."
-msgstr "Der Partner konnte nicht gespeichert werden."
-
-msgid "Affiliate not found."
-msgstr "Partner nicht gefunden."
-
-msgid "Invalid status."
-msgstr "Ungültiger Status."
-
-msgid "Please enter a reason."
-msgstr "Bitte geben Sie einen Grund an."
-
-msgid "Partnership terminated"
-msgstr "Partnerschaft beendet"
-
-msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application."
-msgstr "Fast geschafft! Wir haben Ihnen eine E-Mail geschickt. Bitte bestätigen Sie Ihre E-Mail-Adresse über den Link darin, um Ihre Bewerbung abzuschließen."
-
-msgid "Thank you! Your partner account is active. Check your e-mail for login details."
-msgstr "Vielen Dank! Ihr Partnerkonto ist aktiv. Die Zugangsdaten erhalten Sie per E-Mail."
-
-msgid "Thank you for your application! We will review it and get back to you by e-mail."
-msgstr "Vielen Dank für Ihre Bewerbung! Wir prüfen sie und melden uns per E-Mail."
-
-msgid "Go to partner area"
-msgstr "Zum Partnerbereich"
-
-msgid "You already have a partner account."
-msgstr "Sie haben bereits ein Partnerkonto."
-
-msgid "The form expired. Please try again."
-msgstr "Das Formular ist abgelaufen. Bitte versuchen Sie es erneut."
-
-msgid "Your submission could not be processed."
-msgstr "Ihre Eingabe konnte nicht verarbeitet werden."
-
-msgid "Too many attempts. Please try again later."
-msgstr "Zu viele Versuche. Bitte versuchen Sie es später erneut."
-
-msgid "Please accept the partner program terms."
-msgstr "Bitte akzeptieren Sie die Bedingungen des Partnerprogramms."
-
-msgid "Please fill in all required fields."
-msgstr "Bitte füllen Sie alle Pflichtfelder aus."
-
-msgid "The confirmation link is invalid or has expired. Please apply again."
-msgstr "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte bewerben Sie sich erneut."
-
-msgid "Please check your entries."
-msgstr "Bitte prüfen Sie Ihre Eingaben."
-
-msgid "Which kind of partner are you?"
-msgstr "Welche Art von Partner sind Sie?"
-
-msgid "Fields marked with * are required."
-msgstr "Mit * markierte Felder sind Pflichtfelder."
-
-msgid "Application as: %s"
-msgstr "Bewerbung als: %s"
-
-msgid "Name / company"
-msgstr "Name / Firma"
-
-msgid "E-mail"
-msgstr "E-Mail"
-
-msgid "Website"
-msgstr "Website"
-
-msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
-msgstr "Kanal (z. B. Instagram, YouTube, Newsletter, Schule)"
-
-msgid "How do you want to promote us?"
-msgstr "Wie möchten Sie uns bewerben?"
-
-msgid "I accept the %1$s (version %2$s)."
-msgstr "Ich akzeptiere die %1$s (Version %2$s)."
-
-msgid "partner program terms"
-msgstr "Bedingungen des Partnerprogramms"
-
-msgid "Apply now"
-msgstr "Jetzt bewerben"
-
-msgid "Invalid field definition: %s"
-msgstr "Ungültige Felddefinition: %s"
-
-msgid "Hello %s,"
-msgstr "Hallo %s,"
-
-msgid "here is your summary for %s:"
-msgstr "hier ist Ihre Zusammenfassung für %s:"
-
-msgid "Link visits"
-msgstr "Link-Besuche"
-
-msgid "Sales"
-msgstr "Verkäufe"
-
-msgid "Commission"
-msgstr "Provision"
-
-msgid "Corrections"
-msgstr "Korrekturen"
-
-msgid "Monthly bonus"
-msgstr "Monatsbonus"
-
-msgid "Available for payout"
-msgstr "Für Auszahlung verfügbar"
-
-msgid "Your partner summary %s"
-msgstr "Ihre Partner-Zusammenfassung %s"
-
-msgid "Partner program summary %s"
-msgstr "Zusammenfassung Partnerprogramm %s"
-
-msgid "Attributed orders"
-msgstr "Zugeordnete Bestellungen"
-
-msgid "Net revenue"
-msgstr "Nettoumsatz"
-
-msgid "Monthly bonuses"
-msgstr "Monatsboni"
-
-msgid "Applications waiting"
-msgstr "Offene Bewerbungen"
-
-msgid "Open payout requests"
-msgstr "Offene Auszahlungsanträge"
-
-msgid "Not converted (no reference rate)"
-msgstr "Nicht umgerechnet (kein Referenzkurs)"
-
-msgid "Top partners"
-msgstr "Top-Partner"
-
-msgid "Partner program %s"
-msgstr "Partnerprogramm %s"
-
-msgid "(no content / direct)"
-msgstr "(kein Inhalt / direkt)"
-
-msgid "(no campaign)"
-msgstr "(keine Kampagne)"
-
-msgid "The sale could not be processed and was queued for retry."
-msgstr "Der Verkauf konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
-
-msgid "The refund could not be processed and was queued for retry."
-msgstr "Die Rückerstattung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
-
 msgid "Affiliate Captain"
 msgstr "Affiliate Captain"
 
@@ -317,14 +53,376 @@ msgstr "Sie dürfen diese Aktion nicht ausführen."
 msgid "Done."
 msgstr "Erledigt."
 
+msgid "%d application approved."
+msgid_plural "%d applications approved."
+msgstr[0] "%d Bewerbung freigegeben."
+msgstr[1] "%d Bewerbungen freigegeben."
+
+msgid "Partner created and activated."
+msgstr "Partner angelegt und aktiviert."
+
+msgid "Partner saved."
+msgstr "Partner gespeichert."
+
+msgid "Status updated."
+msgstr "Status aktualisiert."
+
+msgid "Code created."
+msgstr "Code angelegt."
+
+msgid "%1$d codes created (batch %2$s)."
+msgstr "%1$d Codes angelegt (Stapel %2$s)."
+
+msgid "Code updated."
+msgstr "Code aktualisiert."
+
+msgid "Coupon link updated."
+msgstr "Gutschein-Verknüpfung aktualisiert."
+
+msgid "Payout details saved."
+msgstr "Auszahlungsdaten gespeichert."
+
+msgid "Add partner"
+msgstr "Partner hinzufügen"
+
+msgid "Search partners"
+msgstr "Partner suchen"
+
+msgid "Name / company"
+msgstr "Name / Firma"
+
+msgid "E-mail"
+msgstr "E-Mail"
+
+msgid "Website"
+msgstr "Website"
+
+msgid "Channel"
+msgstr "Kanal"
+
+msgid "The partner is activated immediately. A WordPress account is linked by e-mail or created, and a partner code is generated."
+msgstr "Der Partner wird sofort aktiviert. Ein WordPress-Konto wird über die E-Mail verknüpft oder angelegt und ein Partnercode erzeugt."
+
+msgid "Create partner"
+msgstr "Partner anlegen"
+
+msgid "Partner not found."
+msgstr "Partner nicht gefunden."
+
+msgid "All partners"
+msgstr "Alle Partner"
+
+msgid "Visits (30 days)"
+msgstr "Besuche (30 Tage)"
+
+msgid "Pending"
+msgstr "Ausstehend"
+
+msgid "Approved"
+msgstr "Freigegeben"
+
+msgid "Paid"
+msgstr "Ausgezahlt"
+
+msgid "Commissions of this partner"
+msgstr "Provisionen dieses Partners"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Last reason"
+msgstr "Letzter Grund"
+
+msgid "Application"
+msgstr "Bewerbung"
+
+msgid "Approve"
+msgstr "Freigeben"
+
+msgid "Reject"
+msgstr "Ablehnen"
+
+msgid "Pause"
+msgstr "Pausieren"
+
+msgid "Terminate"
+msgstr "Beenden"
+
+msgid "Reactivate"
+msgstr "Reaktivieren"
+
+msgid "Reason (required for reject/pause/terminate)"
+msgstr "Grund (Pflicht bei Ablehnen/Pausieren/Beenden)"
+
+msgid "Really \"%s\"? The partner will be notified by e-mail."
+msgstr "Wirklich „%s“? Der Partner wird per E-Mail benachrichtigt."
+
+msgid "On termination, open commissions are rejected (see settings)."
+msgstr "Bei Beendigung werden offene Provisionen abgelehnt (siehe Einstellungen)."
+
+msgid "On termination, open commissions remain payable (see settings)."
+msgstr "Bei Beendigung bleiben offene Provisionen auszahlbar (siehe Einstellungen)."
+
+msgid "Profile"
+msgstr "Profil"
+
+msgid "WordPress user"
+msgstr "WordPress-Benutzer"
+
+msgid "Vanity slug"
+msgstr "Kurzname (für Links)"
+
+msgid "Landing page"
+msgstr "Landingpage"
+
+msgid "— default —"
+msgstr "— Standard —"
+
+msgid "Welcome message on landing page"
+msgstr "Begrüßungstext auf der Landingpage"
+
+msgid "Shown via [wpac_partner_welcome]. Maintained by the operator only."
+msgstr "Wird über [wpac_partner_welcome] angezeigt. Wird nur vom Betreiber gepflegt."
+
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Terms acceptance"
+msgstr "Annahme der Bedingungen"
+
+msgid "No acceptance recorded."
+msgstr "Keine Annahme protokolliert."
+
 msgid "Date"
 msgstr "Datum"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Document hash"
+msgstr "Dokument-Hash"
+
+msgid "Result"
+msgstr "Ergebnis"
+
+msgid "Partner codes"
+msgstr "Partnercodes"
+
+msgid "Code"
+msgstr "Code"
+
+msgid "Coupon"
+msgstr "Gutschein"
+
+msgid "Used"
+msgstr "Verwendet"
+
+msgid "Link"
+msgstr "Link"
+
+msgid "until"
+msgstr "bis"
+
+msgid "Block"
+msgstr "Sperren"
+
+msgid "Unblock"
+msgstr "Entsperren"
+
+msgid "Batch %1$s: %2$d codes"
+msgstr "Stapel %1$s: %2$d Codes"
+
+msgid "Export CSV"
+msgstr "CSV exportieren"
+
+msgid "Add code"
+msgstr "Code hinzufügen"
+
+msgid "Desired code (optional)"
+msgstr "Wunschcode (optional)"
+
+msgid "Coupon code (optional)"
+msgstr "Gutscheincode (optional)"
+
+msgid "Empty = random code (recommended). Speaking codes like SAILING-NORTH are easy to guess and can be misused for own purchases."
+msgstr "Leer = zufälliger Code (empfohlen). Sprechende Codes wie SEGELSCHULE-NORD sind leicht zu erraten und können für Eigenkäufe missbraucht werden."
+
+msgid "Usage limit"
+msgstr "Nutzungslimit"
+
+msgid "Valid until"
+msgstr "Gültig bis"
+
+msgid "Add"
+msgstr "Hinzufügen"
+
+msgid "Generate code batch"
+msgstr "Code-Stapel erzeugen"
+
+msgid "Prefix"
+msgstr "Präfix"
+
+msgid "Uses per code"
+msgstr "Nutzungen pro Code"
+
+msgid "Generate"
+msgstr "Erzeugen"
+
+msgid "Payout details"
+msgstr "Auszahlungsdaten"
+
+msgid "Complete."
+msgstr "Vollständig."
+
+msgid "Incomplete."
+msgstr "Unvollständig."
+
+msgid "You are not allowed to view tax and bank details."
+msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
+
+msgid "Tax status"
+msgstr "Steuerstatus"
+
+msgid "Legal name"
+msgstr "Rechtlicher Name"
+
+msgid "Address"
+msgstr "Anschrift"
+
+msgid "Country"
+msgstr "Land"
+
+msgid "VAT ID"
+msgstr "USt-IdNr."
+
+msgid "Account holder"
+msgstr "Kontoinhaber"
+
+msgid "IBAN"
+msgstr "IBAN"
+
+msgid "leave empty to keep"
+msgstr "leer lassen, um beizubehalten"
+
+msgid "BIC"
+msgstr "BIC"
+
+msgid "Save payout details"
+msgstr "Auszahlungsdaten speichern"
+
+msgid "History"
+msgstr "Verlauf"
+
+msgid "System"
+msgstr "System"
+
+msgid "No bookings yet. The account starts with the first approved commission."
+msgstr "Noch keine Buchungen. Das Konto beginnt mit der ersten freigegebenen Provision."
+
+msgid "Account %1$s – balance %2$s"
+msgstr "Konto %1$s – Saldo %2$s"
+
+msgid "Integrity check failed:"
+msgstr "Integritätsprüfung fehlgeschlagen:"
+
+msgid "Integrity check passed: booking chain intact, balance matches the approved, unpaid commissions."
+msgstr "Integritätsprüfung bestanden: Buchungskette intakt, Saldo entspricht den freigegebenen, nicht ausgezahlten Provisionen."
+
+msgid "Booking"
+msgstr "Buchung"
+
+msgid "Reference"
+msgstr "Referenz"
+
+msgid "Amount"
+msgstr "Betrag"
+
+msgid "Balance"
+msgstr "Saldo"
+
+msgid "Overview"
+msgstr "Übersicht"
+
+msgid "Account statement"
+msgstr "Kontoauszug"
+
+msgid "Partner sections"
+msgstr "Partnerbereiche"
+
+msgid "Partner group"
+msgstr "Partnergruppe"
+
+msgid "Object type"
+msgstr "Objekttyp"
+
+msgid "Filter"
+msgstr "Filtern"
+
+msgid "User"
+msgstr "Benutzer"
+
+msgid "Action"
+msgstr "Aktion"
+
+msgid "Object"
+msgstr "Objekt"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Older entries"
+msgstr "Ältere Einträge"
+
+msgid "Approved manually"
+msgstr "Manuell freigegeben"
+
+msgid "%1$d commission(s) could not be changed: %2$s"
+msgstr "%1$d Provision(en) konnten nicht geändert werden: %2$s"
+
+msgid "Commissions updated."
+msgstr "Provisionen aktualisiert."
+
+msgid "Please enter a reason for the rejection."
+msgstr "Bitte geben Sie einen Grund für die Ablehnung an."
+
+msgid "All statuses"
+msgstr "Alle Status"
+
+msgid "Partner ID"
+msgstr "Partner-ID"
+
+msgid "Source"
+msgstr "Quelle"
+
+msgid "Order"
+msgstr "Bestellung"
+
+msgid "from"
+msgstr "von"
+
+msgid "to"
+msgstr "bis"
+
+msgid "Commission"
+msgstr "Provision"
+
+msgid "All commissions"
+msgstr "Alle Provisionen"
+
+msgid "Not found."
+msgstr "Nicht gefunden."
 
 msgid "Partner"
 msgstr "Partner"
 
-msgid "Order"
-msgstr "Bestellung"
+msgid "Source / order"
+msgstr "Quelle / Bestellung"
+
+msgid "item"
+msgstr "Position"
+
+msgid "Type"
+msgstr "Typ"
 
 msgid "Item"
 msgstr "Position"
@@ -335,53 +433,128 @@ msgstr "Basis"
 msgid "Rate"
 msgstr "Satz"
 
-msgid "Status"
-msgstr "Status"
+msgid "rule"
+msgstr "Regel"
 
-msgid "Approve"
-msgstr "Freigeben"
+msgid "default"
+msgstr "Standard"
 
-msgid "Reject (reason required)"
-msgstr "Ablehnen (Grund erforderlich)"
+msgid "Hold until"
+msgstr "Gehalten bis"
 
-msgid "Reason (required for rejection)"
-msgstr "Grund (Pflicht bei Ablehnung)"
+msgid "Attribution"
+msgstr "Zuordnung"
 
-msgid "No commissions found."
-msgstr "Keine Provisionen gefunden."
+msgid "content"
+msgstr "Inhalt"
 
-msgid "Select commission #%d"
-msgstr "Provision #%d auswählen"
+msgid "Review reasons"
+msgstr "Prüfgründe"
 
-msgid "Details"
-msgstr "Details"
+msgid "Payout"
+msgstr "Auszahlung"
 
-msgid "until"
-msgstr "bis"
+msgid "Idempotency key"
+msgstr "Technische Kennung"
 
-msgid "Website / channel"
-msgstr "Website / Kanal"
+msgid "Decision"
+msgstr "Entscheidung"
+
+msgid "Reason"
+msgstr "Grund"
+
+msgid "Events"
+msgstr "Ereignisse"
+
+msgid "Event"
+msgstr "Ereignis"
+
+msgid "By"
+msgstr "Von"
+
+msgid "Corrections"
+msgstr "Korrekturen"
+
+msgid "Rule snapshot"
+msgstr "Regel zum Zeitpunkt der Berechnung"
+
+msgid "Draft saved. Approve it to make it visible to partners."
+msgstr "Entwurf gespeichert. Geben Sie ihn frei, damit Partner ihn sehen."
+
+msgid "Creative approved and visible to partners."
+msgstr "Werbemittel freigegeben und für Partner sichtbar."
+
+msgid "Creative archived."
+msgstr "Werbemittel archiviert."
+
+msgid "Only approved versions are shown to partners. Every change creates a new version that needs approval. Placeholders in texts: {link}, {code}, {partner}."
+msgstr "Partner sehen nur freigegebene Versionen. Jede Änderung erzeugt eine neue Version, die freigegeben werden muss. Platzhalter in Texten: {link}, {code}, {partner}."
+
+msgid "Creative"
+msgstr "Werbemittel"
 
 msgid "Group"
 msgstr "Gruppe"
 
-msgid "Since"
-msgstr "Seit"
+msgid "Disclosure"
+msgstr "Kennzeichnung"
 
-msgid "Approve applications"
-msgstr "Bewerbungen freigeben"
+msgid "No creatives yet."
+msgstr "Noch keine Werbemittel."
 
 msgid "All"
 msgstr "Alle"
 
-msgid "No partners found."
-msgstr "Keine Partner gefunden."
+msgid "New version"
+msgstr "Neue Version"
 
-msgid "Select %s"
-msgstr "%s auswählen"
+msgid "Archive this creative? Partners will no longer see it."
+msgstr "Dieses Werbemittel archivieren? Partner sehen es dann nicht mehr."
 
-msgid "Edit"
-msgstr "Bearbeiten"
+msgid "Archive"
+msgstr "Archivieren"
+
+msgid "New version of \"%1$s\" (based on v%2$d)"
+msgstr "Neue Version von „%1$s“ (basierend auf v%2$d)"
+
+msgid "Add creative"
+msgstr "Werbemittel hinzufügen"
+
+msgid "Title"
+msgstr "Titel"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Image / banner"
+msgstr "Bild / Banner"
+
+msgid "For images: optional suggested caption."
+msgstr "Bei Bildern: optionaler Vorschlag für die Bildunterschrift."
+
+msgid "Image"
+msgstr "Bild"
+
+msgid "Choose from media library"
+msgstr "Aus Mediathek wählen"
+
+msgid "Target page"
+msgstr "Zielseite"
+
+msgid "Disclosure note"
+msgstr "Kennzeichnungshinweis"
+
+msgid "How partners must label posts, e.g. \"Werbung\" or \"Anzeige\"."
+msgstr "Wie Partner Beiträge kennzeichnen müssen, z. B. „Werbung“ oder „Anzeige“."
+
+msgid "Visible for"
+msgstr "Sichtbar für"
+
+msgid "Change note"
+msgstr "Änderungsnotiz"
+
+msgid "Save draft"
+msgstr "Entwurf speichern"
 
 msgid "%d application waiting for review"
 msgid_plural "%d applications waiting for review"
@@ -444,17 +617,20 @@ msgstr "Legt „Partner werden“, „Partnerbereich“ und eine Landingpage mit
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr "Beträge in %s sind in den Geldspalten nicht enthalten (kein Referenzkurs in den Einstellungen)."
 
-msgid "from"
-msgstr "von"
-
-msgid "to"
-msgstr "bis"
-
 msgid "Apply"
 msgstr "Anwenden"
 
 msgid "Active partners"
 msgstr "Aktive Partner"
+
+msgid "Link visits"
+msgstr "Link-Besuche"
+
+msgid "Attributed orders"
+msgstr "Zugeordnete Bestellungen"
+
+msgid "Net revenue"
+msgstr "Nettoumsatz"
 
 msgid "By partner"
 msgstr "Nach Partner"
@@ -464,9 +640,6 @@ msgstr "Nach Inhalt"
 
 msgid "By campaign"
 msgstr "Nach Kampagne"
-
-msgid "Export CSV"
-msgstr "CSV exportieren"
 
 msgid "Content"
 msgstr "Inhalt"
@@ -489,14 +662,274 @@ msgstr "Keine Aktivität in diesem Zeitraum."
 msgid "Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution."
 msgstr "Inhalt = der Beitrag bzw. die Seite, auf der der Partnerlink gelandet ist. Bestellungen werden dem Inhalt bzw. der Kampagne ihrer Zuordnung zugerechnet."
 
+msgid "Monthly bonuses"
+msgstr "Monatsboni"
+
 msgid "Refund rate"
 msgstr "Rückerstattungsquote"
+
+msgid "Job processed successfully."
+msgstr "Auftrag erfolgreich verarbeitet."
+
+msgid "Job failed again – see error."
+msgstr "Auftrag erneut fehlgeschlagen – siehe Fehler."
+
+msgid "Public contract version: %s. Integrations with a different major version are not called."
+msgstr "Öffentliche Vertragsversion: %s. Integrationen mit einer anderen Hauptversion werden nicht aufgerufen."
+
+msgid "Integration"
+msgstr "Integration"
+
+msgid "Contract"
+msgstr "Vertrag"
+
+msgid "Not installed / not registered"
+msgstr "Nicht installiert / nicht registriert"
+
+msgid "Incompatible contract"
+msgstr "Inkompatibler Vertrag"
+
+msgid "Connected"
+msgstr "Verbunden"
+
+msgid "Environment"
+msgstr "Umgebung"
+
+msgid "WooCommerce active"
+msgstr "WooCommerce aktiv"
+
+msgid "legacy order storage"
+msgstr "klassische Bestellspeicherung"
+
+msgid "Partner code field available in block checkout (WooCommerce 8.9+)"
+msgstr "Partnercode-Feld im Blocks-Checkout verfügbar (WooCommerce 8.9+)"
+
+msgid "WP Consent API detected (marketing consent for the affiliate cookie)"
+msgstr "WP Consent API erkannt (Marketing-Einwilligung für das Affiliate-Cookie)"
+
+msgid "Dedicated encryption key WPAC_ENCRYPTION_KEY defined (otherwise derived from WordPress salts)"
+msgstr "Eigener Schlüssel WPAC_ENCRYPTION_KEY definiert (sonst aus den WordPress-Salts abgeleitet)"
+
+msgid "Company account for SEPA export configured"
+msgstr "Firmenkonto für SEPA-Export eingerichtet"
+
+msgid "Statements stored outside the web root (WPAC_STATEMENT_DIR)"
+msgstr "Belege werden außerhalb des Webroots gespeichert (WPAC_STATEMENT_DIR)"
+
+msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
+msgstr "WARNUNG: Der Belegordner ist öffentlich erreichbar (z. B. ignoriert nginx die .htaccess). Definieren Sie WPAC_STATEMENT_DIR außerhalb des Webroots oder sperren Sie /wp-content/uploads/wpac-statements/."
+
+msgid "Statements folder is not publicly reachable"
+msgstr "Belegordner ist nicht öffentlich erreichbar"
+
+msgid "Address and VAT ID / tax number for credit notes configured"
+msgstr "Anschrift und USt-IdNr./Steuernummer für Gutschriften hinterlegt"
+
+msgid "Partner accounts: booking chains intact and balances match the commission ledger"
+msgstr "Partnerkonten: Buchungsketten intakt, Salden stimmen mit dem Provisionsledger überein"
+
+msgid "Scheduled tasks active (hold period release, retries)"
+msgstr "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)"
+
+msgid "Retry queue"
+msgstr "Wiederholungs-Warteschlange"
+
+msgid "No open or failed jobs."
+msgstr "Keine offenen oder fehlgeschlagenen Aufträge."
+
+msgid "Key"
+msgstr "Schlüssel"
+
+msgid "Attempts"
+msgstr "Versuche"
+
+msgid "Error"
+msgstr "Fehler"
+
+msgid "Next attempt"
+msgstr "Nächster Versuch"
+
+msgid "Retry now"
+msgstr "Jetzt wiederholen"
+
+msgid "Create %d payout"
+msgid_plural "Create %d payouts"
+msgstr[0] "%d Auszahlung anlegen"
+msgstr[1] "%d Auszahlungen anlegen"
+
+msgid "Please choose a period end and currency."
+msgstr "Bitte wählen Sie Periodenende und Währung."
+
+msgid "%1$d payouts created, %2$d partners carried forward."
+msgstr "%1$d Auszahlungen angelegt, %2$d Partner vorgetragen."
+
+msgid "Please select at least one payout."
+msgstr "Bitte wählen Sie mindestens eine Auszahlung aus."
+
+msgid "Please choose an action."
+msgstr "Bitte wählen Sie eine Aktion."
+
+msgid "Please tick the confirmation box: this affects %1$d payout(s) totalling %2$s."
+msgstr "Bitte setzen Sie das Bestätigungshäkchen: Betroffen sind %1$d Auszahlung(en) über insgesamt %2$s."
+
+msgid "The SEPA file contains bank details. You need the permission to view tax and bank data."
+msgstr "Die SEPA-Datei enthält Bankdaten. Dafür benötigen Sie die Berechtigung für Steuer- und Bankdaten."
+
+msgid "Some payouts could not be marked as paid."
+msgstr "Einige Auszahlungen konnten nicht als bezahlt markiert werden."
+
+msgid "Payouts marked as paid."
+msgstr "Auszahlungen als bezahlt markiert."
+
+msgid "Payouts cancelled. The commissions are available for the next run."
+msgstr "Auszahlungen storniert. Die Provisionen stehen für den nächsten Lauf zur Verfügung."
+
+msgid "Payout created from the request."
+msgstr "Auszahlung aus dem Antrag angelegt."
+
+msgid "Request rejected."
+msgstr "Antrag abgelehnt."
+
+msgid "Not allowed."
+msgstr "Nicht erlaubt."
+
+msgid "New payout run"
+msgstr "Neuer Auszahlungslauf"
+
+msgid "Period end"
+msgstr "Stichtag"
+
+msgid "Currency"
+msgstr "Währung"
+
+msgid "Preview"
+msgstr "Vorschau"
+
+msgid "Includes approved commissions and corrections up to the period end. Minimum payout: %s. Negative balances and amounts below the minimum are carried forward."
+msgstr "Enthält freigegebene Provisionen und Korrekturen bis zum Periodenende. Mindestauszahlung: %s. Negative Salden und Beträge unter dem Minimum werden vorgetragen."
+
+msgid "Entries"
+msgstr "Einträge"
+
+msgid "No approved commissions in this period."
+msgstr "Keine freigegebenen Provisionen in diesem Zeitraum."
+
+msgid "Will be paid"
+msgstr "Wird ausgezahlt"
+
+msgid "Open payout requests"
+msgstr "Offene Auszahlungsanträge"
+
+msgid "Requested"
+msgstr "Beantragt"
+
+msgid "Available now"
+msgstr "Jetzt verfügbar"
+
+msgid "Create payout"
+msgstr "Auszahlung anlegen"
+
+msgid "Select all"
+msgstr "Alle auswählen"
+
+msgid "Bank details"
+msgstr "Bankverbindung"
+
+msgid "No payouts yet."
+msgstr "Noch keine Auszahlungen."
+
+msgid "Bulk action for selected payouts"
+msgstr "Sammelaktion für ausgewählte Auszahlungen"
+
+msgid "— Choose action —"
+msgstr "— Aktion wählen —"
+
+msgid "Download SEPA XML"
+msgstr "SEPA-XML herunterladen"
+
+msgid "Mark as paid"
+msgstr "Als bezahlt markieren"
+
+msgid "Cancel"
+msgstr "Stornieren"
+
+msgid "Run this action for the selected payouts?"
+msgstr "Diese Aktion für die ausgewählten Auszahlungen ausführen?"
+
+msgid "Cancellation reason (required for \"Cancel\")"
+msgstr "Stornierungsgrund (Pflicht bei „Stornieren“)"
+
+msgid "I confirm this action for the selected payouts (required for \"Mark as paid\" and \"Cancel\")."
+msgstr "Ich bestätige diese Aktion für die ausgewählten Auszahlungen (Pflicht bei „Als bezahlt markieren“ und „Stornieren“)."
+
+msgid "Export again (only if the bank did not process the previous file)"
+msgstr "Erneut exportieren (nur wenn die Bank die vorherige Datei nicht verarbeitet hat)"
+
+msgid "Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)"
+msgstr "Bestätigung: Die Bank hat die exportierte Überweisung NICHT ausgeführt (nötig zum Stornieren exportierter Auszahlungen)"
+
+msgid "Payout not found."
+msgstr "Auszahlung nicht gefunden."
+
+msgid "Tax and address details are hidden (missing permission wpac_view_tax_data)."
+msgstr "Steuer- und Adressdaten sind ausgeblendet (fehlende Berechtigung wpac_view_tax_data)."
+
+msgid "All payouts"
+msgstr "Alle Auszahlungen"
+
+msgid "Download PDF statement"
+msgstr "Beleg (PDF) herunterladen"
+
+msgid "Download cancellation %s"
+msgstr "Storno %s herunterladen"
+
+msgid "Statement deleted after the retention period."
+msgstr "Beleg nach Ablauf der Aufbewahrungsfrist gelöscht."
+
+msgid "Commission statement"
+msgstr "Provisionsabrechnung"
+
+msgid "Issued by"
+msgstr "Aussteller"
+
+msgid "Bank account"
+msgstr "Bankkonto"
+
+msgid "Period until"
+msgstr "Stichtag"
+
+msgid "Created"
+msgstr "Erstellt"
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "Correction"
+msgstr "Korrektur"
+
+msgid "Net amount"
+msgstr "Nettobetrag"
+
+msgid "plus VAT %s %%"
+msgstr "zzgl. USt %s %%"
+
+msgid "VAT"
+msgstr "USt"
+
+msgid "Total payout"
+msgstr "Auszahlungsbetrag"
+
+msgid "VAT treatment depends on the partner's tax status and must be confirmed by your tax advisor. This statement does not calculate VAT."
+msgstr "Die umsatzsteuerliche Behandlung hängt vom Steuerstatus des Partners ab und ist mit Ihrer Steuerberatung abzustimmen. Dieser Beleg berechnet keine Umsatzsteuer."
 
 msgid "Please enter a reason for the change."
 msgstr "Bitte geben Sie einen Grund für die Änderung an."
 
 msgid "Rule saved. Existing commissions are not changed."
 msgstr "Regel gespeichert. Bestehende Provisionen werden nicht geändert."
+
+msgid "Please enter a reason."
+msgstr "Bitte geben Sie einen Grund an."
 
 msgid "Rule deleted."
 msgstr "Regel gelöscht."
@@ -579,6 +1012,9 @@ msgstr "Notiz"
 msgid "No rules yet – the program default applies to all sales."
 msgstr "Noch keine Regeln – für alle Verkäufe gilt der Programmstandard."
 
+msgid "Edit"
+msgstr "Bearbeiten"
+
 msgid "Delete this rule? Existing commissions are not changed."
 msgstr "Diese Regel löschen? Bestehende Provisionen bleiben unverändert."
 
@@ -590,12 +1026,6 @@ msgstr "Regel bearbeiten"
 
 msgid "Add rule"
 msgstr "Regel hinzufügen"
-
-msgid "All partners"
-msgstr "Alle Partner"
-
-msgid "Partner group"
-msgstr "Partnergruppe"
 
 msgid "Single partner"
 msgstr "Einzelner Partner"
@@ -624,6 +1054,9 @@ msgstr "Ausschließen (keine Provision)"
 msgid "per unit"
 msgstr "pro Stück"
 
+msgid "Active"
+msgstr "Aktiv"
+
 msgid "Reason for change"
 msgstr "Grund der Änderung"
 
@@ -642,20 +1075,11 @@ msgstr "eigene Bedingungen"
 msgid "Name"
 msgstr "Name"
 
-msgid "Description"
-msgstr "Beschreibung"
-
 msgid "Own terms page"
 msgstr "Eigene Bedingungsseite"
 
 msgid "— program terms —"
 msgstr "— Programmbedingungen —"
-
-msgid "Version"
-msgstr "Version"
-
-msgid "Application"
-msgstr "Bewerbung"
 
 msgid "Applicants can choose this group"
 msgstr "Bewerber können diese Gruppe wählen"
@@ -740,9 +1164,6 @@ msgstr "Produkt-ID"
 
 msgid "Tag IDs"
 msgstr "Tag-IDs"
-
-msgid "Net amount"
-msgstr "Nettobetrag"
 
 msgid "Calculate"
 msgstr "Berechnen"
@@ -872,9 +1293,6 @@ msgstr "Affiliate-Gutschein hat Vorrang vor Partnerlinks"
 
 msgid "Self-referrals"
 msgstr "Eigenkäufe über eigenen Link/Code"
-
-msgid "Block"
-msgstr "Sperren"
 
 msgid "Flag for review"
 msgstr "Zur Prüfung markieren"
@@ -1071,741 +1489,200 @@ msgstr "Einschließlich Provisions- und Auszahlungsdaten – stellen Sie sicher,
 msgid "Enabled"
 msgstr "Aktiviert"
 
-msgid "Job processed successfully."
-msgstr "Auftrag erfolgreich verarbeitet."
+msgid "Website / channel"
+msgstr "Website / Kanal"
 
-msgid "Job failed again – see error."
-msgstr "Auftrag erneut fehlgeschlagen – siehe Fehler."
+msgid "Since"
+msgstr "Seit"
 
-msgid "Public contract version: %s. Integrations with a different major version are not called."
-msgstr "Öffentliche Vertragsversion: %s. Integrationen mit einer anderen Hauptversion werden nicht aufgerufen."
+msgid "Approve applications"
+msgstr "Bewerbungen freigeben"
 
-msgid "Integration"
-msgstr "Integration"
+msgid "No partners found."
+msgstr "Keine Partner gefunden."
 
-msgid "Contract"
-msgstr "Vertrag"
+msgid "Select %s"
+msgstr "%s auswählen"
 
-msgid "Not installed / not registered"
-msgstr "Nicht installiert / nicht registriert"
+msgid "Reject (reason required)"
+msgstr "Ablehnen (Grund erforderlich)"
 
-msgid "Incompatible contract"
-msgstr "Inkompatibler Vertrag"
+msgid "Reason (required for rejection)"
+msgstr "Grund (Pflicht bei Ablehnung)"
 
-msgid "Connected"
-msgstr "Verbunden"
+msgid "No commissions found."
+msgstr "Keine Provisionen gefunden."
 
-msgid "Environment"
-msgstr "Umgebung"
+msgid "Select commission #%d"
+msgstr "Provision #%d auswählen"
 
-msgid "WooCommerce active"
-msgstr "WooCommerce aktiv"
+msgid "Application pending"
+msgstr "Bewerbung offen"
 
-msgid "legacy order storage"
-msgstr "klassische Bestellspeicherung"
+msgid "Paused"
+msgstr "Pausiert"
 
-msgid "Partner code field available in block checkout (WooCommerce 8.9+)"
-msgstr "Partnercode-Feld im Blocks-Checkout verfügbar (WooCommerce 8.9+)"
+msgid "Terminated"
+msgstr "Beendet"
 
-msgid "WP Consent API detected (marketing consent for the affiliate cookie)"
-msgstr "WP Consent API erkannt (Marketing-Einwilligung für das Affiliate-Cookie)"
+msgid "Rejected"
+msgstr "Abgelehnt"
 
-msgid "Dedicated encryption key WPAC_ENCRYPTION_KEY defined (otherwise derived from WordPress salts)"
-msgstr "Eigener Schlüssel WPAC_ENCRYPTION_KEY definiert (sonst aus den WordPress-Salts abgeleitet)"
+msgid "Please enter a valid e-mail address."
+msgstr "Bitte geben Sie eine gültige E-Mail-Adresse ein."
 
-msgid "Company account for SEPA export configured"
-msgstr "Firmenkonto für SEPA-Export eingerichtet"
+msgid "An affiliate account with this e-mail address already exists."
+msgstr "Mit dieser E-Mail-Adresse existiert bereits ein Partnerkonto."
 
-msgid "Statements stored outside the web root (WPAC_STATEMENT_DIR)"
-msgstr "Belege werden außerhalb des Webroots gespeichert (WPAC_STATEMENT_DIR)"
+msgid "The affiliate could not be saved."
+msgstr "Der Partner konnte nicht gespeichert werden."
 
-msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
-msgstr "WARNUNG: Der Belegordner ist öffentlich erreichbar (z. B. ignoriert nginx die .htaccess). Definieren Sie WPAC_STATEMENT_DIR außerhalb des Webroots oder sperren Sie /wp-content/uploads/wpac-statements/."
-
-msgid "Statements folder is not publicly reachable"
-msgstr "Belegordner ist nicht öffentlich erreichbar"
-
-msgid "Address and VAT ID / tax number for credit notes configured"
-msgstr "Anschrift und USt-IdNr./Steuernummer für Gutschriften hinterlegt"
-
-msgid "Partner accounts: booking chains intact and balances match the commission ledger"
-msgstr "Partnerkonten: Buchungsketten intakt, Salden stimmen mit dem Provisionsledger überein"
-
-msgid "Scheduled tasks active (hold period release, retries)"
-msgstr "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)"
-
-msgid "Retry queue"
-msgstr "Wiederholungs-Warteschlange"
-
-msgid "No open or failed jobs."
-msgstr "Keine offenen oder fehlgeschlagenen Aufträge."
-
-msgid "Type"
-msgstr "Typ"
-
-msgid "Key"
-msgstr "Schlüssel"
-
-msgid "Attempts"
-msgstr "Versuche"
-
-msgid "Error"
-msgstr "Fehler"
-
-msgid "Next attempt"
-msgstr "Nächster Versuch"
-
-msgid "Retry now"
-msgstr "Jetzt wiederholen"
-
-msgid "%d application approved."
-msgid_plural "%d applications approved."
-msgstr[0] "%d Bewerbung freigegeben."
-msgstr[1] "%d Bewerbungen freigegeben."
-
-msgid "Partner created and activated."
-msgstr "Partner angelegt und aktiviert."
-
-msgid "Partner saved."
-msgstr "Partner gespeichert."
-
-msgid "Status updated."
-msgstr "Status aktualisiert."
-
-msgid "Code created."
-msgstr "Code angelegt."
-
-msgid "%1$d codes created (batch %2$s)."
-msgstr "%1$d Codes angelegt (Stapel %2$s)."
-
-msgid "Code updated."
-msgstr "Code aktualisiert."
-
-msgid "Coupon link updated."
-msgstr "Gutschein-Verknüpfung aktualisiert."
-
-msgid "Payout details saved."
-msgstr "Auszahlungsdaten gespeichert."
-
-msgid "Add partner"
-msgstr "Partner hinzufügen"
-
-msgid "Search partners"
-msgstr "Partner suchen"
-
-msgid "Channel"
-msgstr "Kanal"
-
-msgid "The partner is activated immediately. A WordPress account is linked by e-mail or created, and a partner code is generated."
-msgstr "Der Partner wird sofort aktiviert. Ein WordPress-Konto wird über die E-Mail verknüpft oder angelegt und ein Partnercode erzeugt."
-
-msgid "Create partner"
-msgstr "Partner anlegen"
-
-msgid "Partner not found."
+msgid "Affiliate not found."
 msgstr "Partner nicht gefunden."
 
-msgid "Visits (30 days)"
-msgstr "Besuche (30 Tage)"
+msgid "Invalid status."
+msgstr "Ungültiger Status."
 
-msgid "Pending"
-msgstr "Ausstehend"
+msgid "Partnership terminated"
+msgstr "Partnerschaft beendet"
 
-msgid "Approved"
-msgstr "Freigegeben"
+msgid "Invalid field definition: %s"
+msgstr "Ungültige Felddefinition: %s"
 
-msgid "Paid"
-msgstr "Ausgezahlt"
+msgid "[%s] New affiliate application"
+msgstr "[%s] Neue Partnerbewerbung"
 
-msgid "Commissions of this partner"
-msgstr "Provisionen dieses Partners"
+msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
+msgstr "Neue Partnerbewerbung von %1$s (%2$s).\n\nPrüfen: %3$s"
 
-msgid "Last reason"
-msgstr "Letzter Grund"
+msgid "[%s] Please confirm your partner application"
+msgstr "[%s] Bitte bestätigen Sie Ihre Partnerbewerbung"
 
-msgid "Reject"
-msgstr "Ablehnen"
+msgid "Hello %1$s,\n\nplease confirm your e-mail address to complete your partner application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
+msgstr "Hallo %1$s,\n\nbitte bestätigen Sie Ihre E-Mail-Adresse, um Ihre Partnerbewerbung abzuschließen:\n%2$s\n\nDer Link ist 48 Stunden gültig. Wenn Sie sich nicht beworben haben, können Sie diese E-Mail ignorieren."
 
-msgid "Pause"
-msgstr "Pausieren"
+msgid "[%s] Your partner account"
+msgstr "[%s] Ihr Partnerkonto"
 
-msgid "Terminate"
-msgstr "Beenden"
+msgid "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail."
+msgstr "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für unser Partnerprogramm beworben. Sie haben bereits ein Partnerkonto: %s\n\nWenn Sie das nicht waren, können Sie diese E-Mail ignorieren."
 
-msgid "Reactivate"
-msgstr "Reaktivieren"
+msgid "[%s] Your bank details were changed"
+msgstr "[%s] Ihre Bankverbindung wurde geändert"
 
-msgid "Reason (required for reject/pause/terminate)"
-msgstr "Grund (Pflicht bei Ablehnen/Pausieren/Beenden)"
+msgid "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately."
+msgstr "Hallo %s,\n\ndie Bankverbindung für Ihre Provisionsauszahlungen wurde soeben geändert. Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie uns bitte umgehend."
 
-msgid "Really \"%s\"? The partner will be notified by e-mail."
-msgstr "Wirklich „%s“? Der Partner wird per E-Mail benachrichtigt."
+msgid "[%s] Partner changed bank details"
+msgstr "[%s] Partner hat Bankverbindung geändert"
 
-msgid "On termination, open commissions are rejected (see settings)."
-msgstr "Bei Beendigung werden offene Provisionen abgelehnt (siehe Einstellungen)."
+msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
+msgstr "%1$s hat die Bankverbindung für Auszahlungen geändert. Bitte vor dem nächsten Auszahlungslauf prüfen.\n\n%2$s"
 
-msgid "On termination, open commissions remain payable (see settings)."
-msgstr "Bei Beendigung bleiben offene Provisionen auszahlbar (siehe Einstellungen)."
+msgid "[%s] Your affiliate application was approved"
+msgstr "[%s] Ihre Partnerbewerbung wurde angenommen"
 
-msgid "Profile"
-msgstr "Profil"
+msgid "Hello %1$s,\n\nwelcome to our partner program! Your partner area with links, codes and statistics: %2$s"
+msgstr "Hallo %1$s,\n\nwillkommen in unserem Partnerprogramm! Ihr Partnerbereich mit Links, Codes und Statistiken: %2$s"
 
-msgid "WordPress user"
-msgstr "WordPress-Benutzer"
+msgid "[%s] Your partner account has been paused"
+msgstr "[%s] Ihr Partnerkonto wurde pausiert"
 
-msgid "Vanity slug"
-msgstr "Kurzname (für Links)"
+msgid "Your partner account has been paused. During the pause, new sales are not attributed to you. Commissions already earned remain unaffected."
+msgstr "Ihr Partnerkonto wurde pausiert. Während der Pause werden Ihnen neue Verkäufe nicht zugeordnet. Bereits verdiente Provisionen bleiben unberührt."
 
-msgid "Landing page"
-msgstr "Landingpage"
+msgid "[%s] Your partnership has been terminated"
+msgstr "[%s] Ihre Partnerschaft wurde beendet"
 
-msgid "— default —"
-msgstr "— Standard —"
+msgid "Your partnership has been terminated. Open commissions that were not yet paid have been cancelled according to the program terms."
+msgstr "Ihre Partnerschaft wurde beendet. Offene, noch nicht ausgezahlte Provisionen wurden gemäß den Programmbedingungen storniert."
 
-msgid "Welcome message on landing page"
-msgstr "Begrüßungstext auf der Landingpage"
+msgid "Your partnership has been terminated. Approved commissions will still be paid out according to the program terms."
+msgstr "Ihre Partnerschaft wurde beendet. Freigegebene Provisionen werden gemäß den Programmbedingungen weiterhin ausgezahlt."
 
-msgid "Shown via [wpac_partner_welcome]. Maintained by the operator only."
-msgstr "Wird über [wpac_partner_welcome] angezeigt. Wird nur vom Betreiber gepflegt."
+msgid "[%s] Your partner account is active again"
+msgstr "[%s] Ihr Partnerkonto ist wieder aktiv"
 
-msgid "Save"
-msgstr "Speichern"
+msgid "Your partner account has been reactivated. Your links and codes work again."
+msgstr "Ihr Partnerkonto wurde reaktiviert. Ihre Links und Codes funktionieren wieder."
 
-msgid "Terms acceptance"
-msgstr "Annahme der Bedingungen"
+msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
+msgstr "Hallo %1$s,\n\n%2$s\n\n%3$s"
 
-msgid "No acceptance recorded."
-msgstr "Keine Annahme protokolliert."
+msgid "[%s] Your affiliate application"
+msgstr "[%s] Ihre Partnerbewerbung"
 
-msgid "Document hash"
-msgstr "Dokument-Hash"
+msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
+msgstr "Hallo %1$s,\n\nleider können wir Ihre Bewerbung derzeit nicht annehmen.\n\n%2$s"
 
-msgid "Result"
-msgstr "Ergebnis"
+msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application."
+msgstr "Fast geschafft! Wir haben Ihnen eine E-Mail geschickt. Bitte bestätigen Sie Ihre E-Mail-Adresse über den Link darin, um Ihre Bewerbung abzuschließen."
 
-msgid "Partner codes"
-msgstr "Partnercodes"
+msgid "Thank you! Your partner account is active. Check your e-mail for login details."
+msgstr "Vielen Dank! Ihr Partnerkonto ist aktiv. Die Zugangsdaten erhalten Sie per E-Mail."
 
-msgid "Code"
-msgstr "Code"
+msgid "Thank you for your application! We will review it and get back to you by e-mail."
+msgstr "Vielen Dank für Ihre Bewerbung! Wir prüfen sie und melden uns per E-Mail."
 
-msgid "Coupon"
-msgstr "Gutschein"
+msgid "Go to partner area"
+msgstr "Zum Partnerbereich"
 
-msgid "Used"
-msgstr "Verwendet"
+msgid "You already have a partner account."
+msgstr "Sie haben bereits ein Partnerkonto."
 
-msgid "Link"
-msgstr "Link"
+msgid "The form expired. Please try again."
+msgstr "Das Formular ist abgelaufen. Bitte versuchen Sie es erneut."
 
-msgid "Unblock"
-msgstr "Entsperren"
+msgid "Your submission could not be processed."
+msgstr "Ihre Eingabe konnte nicht verarbeitet werden."
 
-msgid "Batch %1$s: %2$d codes"
-msgstr "Stapel %1$s: %2$d Codes"
+msgid "Too many attempts. Please try again later."
+msgstr "Zu viele Versuche. Bitte versuchen Sie es später erneut."
 
-msgid "Add code"
-msgstr "Code hinzufügen"
+msgid "Please accept the partner program terms."
+msgstr "Bitte akzeptieren Sie die Bedingungen des Partnerprogramms."
 
-msgid "Desired code (optional)"
-msgstr "Wunschcode (optional)"
+msgid "Please fill in all required fields."
+msgstr "Bitte füllen Sie alle Pflichtfelder aus."
 
-msgid "Coupon code (optional)"
-msgstr "Gutscheincode (optional)"
+msgid "The confirmation link is invalid or has expired. Please apply again."
+msgstr "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte bewerben Sie sich erneut."
 
-msgid "Empty = random code (recommended). Speaking codes like SAILING-NORTH are easy to guess and can be misused for own purchases."
-msgstr "Leer = zufälliger Code (empfohlen). Sprechende Codes wie SEGELSCHULE-NORD sind leicht zu erraten und können für Eigenkäufe missbraucht werden."
+msgid "Please check your entries."
+msgstr "Bitte prüfen Sie Ihre Eingaben."
 
-msgid "Usage limit"
-msgstr "Nutzungslimit"
+msgid "Which kind of partner are you?"
+msgstr "Welche Art von Partner sind Sie?"
 
-msgid "Valid until"
-msgstr "Gültig bis"
+msgid "Fields marked with * are required."
+msgstr "Mit * markierte Felder sind Pflichtfelder."
 
-msgid "Add"
-msgstr "Hinzufügen"
+msgid "Application as: %s"
+msgstr "Bewerbung als: %s"
 
-msgid "Generate code batch"
-msgstr "Code-Stapel erzeugen"
+msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
+msgstr "Kanal (z. B. Instagram, YouTube, Newsletter, Schule)"
 
-msgid "Prefix"
-msgstr "Präfix"
+msgid "How do you want to promote us?"
+msgstr "Wie möchten Sie uns bewerben?"
 
-msgid "Uses per code"
-msgstr "Nutzungen pro Code"
+msgid "I accept the %1$s (version %2$s)."
+msgstr "Ich akzeptiere die %1$s (Version %2$s)."
 
-msgid "Generate"
-msgstr "Erzeugen"
+msgid "partner program terms"
+msgstr "Bedingungen des Partnerprogramms"
 
-msgid "Payout details"
-msgstr "Auszahlungsdaten"
+msgid "Apply now"
+msgstr "Jetzt bewerben"
 
-msgid "Complete."
-msgstr "Vollständig."
+msgid "Codes need at least 3 characters."
+msgstr "Codes benötigen mindestens 3 Zeichen."
 
-msgid "Incomplete."
-msgstr "Unvollständig."
+msgid "This code is already in use."
+msgstr "Dieser Code wird bereits verwendet."
 
-msgid "You are not allowed to view tax and bank details."
-msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
-
-msgid "Tax status"
-msgstr "Steuerstatus"
-
-msgid "Legal name"
-msgstr "Rechtlicher Name"
-
-msgid "Address"
-msgstr "Anschrift"
-
-msgid "Country"
-msgstr "Land"
-
-msgid "VAT ID"
-msgstr "USt-IdNr."
-
-msgid "Account holder"
-msgstr "Kontoinhaber"
-
-msgid "IBAN"
-msgstr "IBAN"
-
-msgid "leave empty to keep"
-msgstr "leer lassen, um beizubehalten"
-
-msgid "BIC"
-msgstr "BIC"
-
-msgid "Save payout details"
-msgstr "Auszahlungsdaten speichern"
-
-msgid "History"
-msgstr "Verlauf"
-
-msgid "System"
-msgstr "System"
-
-msgid "No bookings yet. The account starts with the first approved commission."
-msgstr "Noch keine Buchungen. Das Konto beginnt mit der ersten freigegebenen Provision."
-
-msgid "Account %1$s – balance %2$s"
-msgstr "Konto %1$s – Saldo %2$s"
-
-msgid "Integrity check failed:"
-msgstr "Integritätsprüfung fehlgeschlagen:"
-
-msgid "Integrity check passed: booking chain intact, balance matches the approved, unpaid commissions."
-msgstr "Integritätsprüfung bestanden: Buchungskette intakt, Saldo entspricht den freigegebenen, nicht ausgezahlten Provisionen."
-
-msgid "Booking"
-msgstr "Buchung"
-
-msgid "Reference"
-msgstr "Referenz"
-
-msgid "Amount"
-msgstr "Betrag"
-
-msgid "Balance"
-msgstr "Saldo"
-
-msgid "Overview"
-msgstr "Übersicht"
-
-msgid "Account statement"
-msgstr "Kontoauszug"
-
-msgid "Partner sections"
-msgstr "Partnerbereiche"
-
-msgid "Create %d payout"
-msgid_plural "Create %d payouts"
-msgstr[0] "%d Auszahlung anlegen"
-msgstr[1] "%d Auszahlungen anlegen"
-
-msgid "Please choose a period end and currency."
-msgstr "Bitte wählen Sie Periodenende und Währung."
-
-msgid "%1$d payouts created, %2$d partners carried forward."
-msgstr "%1$d Auszahlungen angelegt, %2$d Partner vorgetragen."
-
-msgid "Please select at least one payout."
-msgstr "Bitte wählen Sie mindestens eine Auszahlung aus."
-
-msgid "Please choose an action."
-msgstr "Bitte wählen Sie eine Aktion."
-
-msgid "Please tick the confirmation box: this affects %1$d payout(s) totalling %2$s."
-msgstr "Bitte setzen Sie das Bestätigungshäkchen: Betroffen sind %1$d Auszahlung(en) über insgesamt %2$s."
-
-msgid "The SEPA file contains bank details. You need the permission to view tax and bank data."
-msgstr "Die SEPA-Datei enthält Bankdaten. Dafür benötigen Sie die Berechtigung für Steuer- und Bankdaten."
-
-msgid "Some payouts could not be marked as paid."
-msgstr "Einige Auszahlungen konnten nicht als bezahlt markiert werden."
-
-msgid "Payouts marked as paid."
-msgstr "Auszahlungen als bezahlt markiert."
-
-msgid "Payouts cancelled. The commissions are available for the next run."
-msgstr "Auszahlungen storniert. Die Provisionen stehen für den nächsten Lauf zur Verfügung."
-
-msgid "Payout created from the request."
-msgstr "Auszahlung aus dem Antrag angelegt."
-
-msgid "Request rejected."
-msgstr "Antrag abgelehnt."
-
-msgid "Not allowed."
-msgstr "Nicht erlaubt."
-
-msgid "New payout run"
-msgstr "Neuer Auszahlungslauf"
-
-msgid "Period end"
-msgstr "Stichtag"
-
-msgid "Currency"
-msgstr "Währung"
-
-msgid "Preview"
-msgstr "Vorschau"
-
-msgid "Includes approved commissions and corrections up to the period end. Minimum payout: %s. Negative balances and amounts below the minimum are carried forward."
-msgstr "Enthält freigegebene Provisionen und Korrekturen bis zum Periodenende. Mindestauszahlung: %s. Negative Salden und Beträge unter dem Minimum werden vorgetragen."
-
-msgid "Entries"
-msgstr "Einträge"
-
-msgid "No approved commissions in this period."
-msgstr "Keine freigegebenen Provisionen in diesem Zeitraum."
-
-msgid "Will be paid"
-msgstr "Wird ausgezahlt"
-
-msgid "Requested"
-msgstr "Beantragt"
-
-msgid "Available now"
-msgstr "Jetzt verfügbar"
-
-msgid "Create payout"
-msgstr "Auszahlung anlegen"
-
-msgid "Select all"
-msgstr "Alle auswählen"
-
-msgid "Bank details"
-msgstr "Bankverbindung"
-
-msgid "No payouts yet."
-msgstr "Noch keine Auszahlungen."
-
-msgid "Bulk action for selected payouts"
-msgstr "Sammelaktion für ausgewählte Auszahlungen"
-
-msgid "Action"
-msgstr "Aktion"
-
-msgid "— Choose action —"
-msgstr "— Aktion wählen —"
-
-msgid "Download SEPA XML"
-msgstr "SEPA-XML herunterladen"
-
-msgid "Mark as paid"
-msgstr "Als bezahlt markieren"
-
-msgid "Cancel"
-msgstr "Stornieren"
-
-msgid "Run this action for the selected payouts?"
-msgstr "Diese Aktion für die ausgewählten Auszahlungen ausführen?"
-
-msgid "Cancellation reason (required for \"Cancel\")"
-msgstr "Stornierungsgrund (Pflicht bei „Stornieren“)"
-
-msgid "I confirm this action for the selected payouts (required for \"Mark as paid\" and \"Cancel\")."
-msgstr "Ich bestätige diese Aktion für die ausgewählten Auszahlungen (Pflicht bei „Als bezahlt markieren“ und „Stornieren“)."
-
-msgid "Export again (only if the bank did not process the previous file)"
-msgstr "Erneut exportieren (nur wenn die Bank die vorherige Datei nicht verarbeitet hat)"
-
-msgid "Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)"
-msgstr "Bestätigung: Die Bank hat die exportierte Überweisung NICHT ausgeführt (nötig zum Stornieren exportierter Auszahlungen)"
-
-msgid "Payout not found."
-msgstr "Auszahlung nicht gefunden."
-
-msgid "Tax and address details are hidden (missing permission wpac_view_tax_data)."
-msgstr "Steuer- und Adressdaten sind ausgeblendet (fehlende Berechtigung wpac_view_tax_data)."
-
-msgid "All payouts"
-msgstr "Alle Auszahlungen"
-
-msgid "Download PDF statement"
-msgstr "Beleg (PDF) herunterladen"
-
-msgid "Download cancellation %s"
-msgstr "Storno %s herunterladen"
-
-msgid "Statement deleted after the retention period."
-msgstr "Beleg nach Ablauf der Aufbewahrungsfrist gelöscht."
-
-msgid "Commission statement"
-msgstr "Provisionsabrechnung"
-
-msgid "Issued by"
-msgstr "Aussteller"
-
-msgid "Bank account"
-msgstr "Bankkonto"
-
-msgid "Period until"
-msgstr "Stichtag"
-
-msgid "Created"
-msgstr "Erstellt"
-
-msgid "Correction"
-msgstr "Korrektur"
-
-msgid "plus VAT %s %%"
-msgstr "zzgl. USt %s %%"
-
-msgid "VAT"
-msgstr "USt"
-
-msgid "Total payout"
-msgstr "Auszahlungsbetrag"
-
-msgid "VAT treatment depends on the partner's tax status and must be confirmed by your tax advisor. This statement does not calculate VAT."
-msgstr "Die umsatzsteuerliche Behandlung hängt vom Steuerstatus des Partners ab und ist mit Ihrer Steuerberatung abzustimmen. Dieser Beleg berechnet keine Umsatzsteuer."
-
-msgid "Draft saved. Approve it to make it visible to partners."
-msgstr "Entwurf gespeichert. Geben Sie ihn frei, damit Partner ihn sehen."
-
-msgid "Creative approved and visible to partners."
-msgstr "Werbemittel freigegeben und für Partner sichtbar."
-
-msgid "Creative archived."
-msgstr "Werbemittel archiviert."
-
-msgid "Only approved versions are shown to partners. Every change creates a new version that needs approval. Placeholders in texts: {link}, {code}, {partner}."
-msgstr "Partner sehen nur freigegebene Versionen. Jede Änderung erzeugt eine neue Version, die freigegeben werden muss. Platzhalter in Texten: {link}, {code}, {partner}."
-
-msgid "Creative"
-msgstr "Werbemittel"
-
-msgid "Disclosure"
-msgstr "Kennzeichnung"
-
-msgid "No creatives yet."
-msgstr "Noch keine Werbemittel."
-
-msgid "New version"
-msgstr "Neue Version"
-
-msgid "Archive this creative? Partners will no longer see it."
-msgstr "Dieses Werbemittel archivieren? Partner sehen es dann nicht mehr."
-
-msgid "Archive"
-msgstr "Archivieren"
-
-msgid "New version of \"%1$s\" (based on v%2$d)"
-msgstr "Neue Version von „%1$s“ (basierend auf v%2$d)"
-
-msgid "Add creative"
-msgstr "Werbemittel hinzufügen"
-
-msgid "Title"
-msgstr "Titel"
-
-msgid "Text"
-msgstr "Text"
-
-msgid "Image / banner"
-msgstr "Bild / Banner"
-
-msgid "For images: optional suggested caption."
-msgstr "Bei Bildern: optionaler Vorschlag für die Bildunterschrift."
-
-msgid "Image"
-msgstr "Bild"
-
-msgid "Choose from media library"
-msgstr "Aus Mediathek wählen"
-
-msgid "Target page"
-msgstr "Zielseite"
-
-msgid "Disclosure note"
-msgstr "Kennzeichnungshinweis"
-
-msgid "How partners must label posts, e.g. \"Werbung\" or \"Anzeige\"."
-msgstr "Wie Partner Beiträge kennzeichnen müssen, z. B. „Werbung“ oder „Anzeige“."
-
-msgid "Visible for"
-msgstr "Sichtbar für"
-
-msgid "Change note"
-msgstr "Änderungsnotiz"
-
-msgid "Save draft"
-msgstr "Entwurf speichern"
-
-msgid "Approved manually"
-msgstr "Manuell freigegeben"
-
-msgid "%1$d commission(s) could not be changed: %2$s"
-msgstr "%1$d Provision(en) konnten nicht geändert werden: %2$s"
-
-msgid "Commissions updated."
-msgstr "Provisionen aktualisiert."
-
-msgid "Please enter a reason for the rejection."
-msgstr "Bitte geben Sie einen Grund für die Ablehnung an."
-
-msgid "All statuses"
-msgstr "Alle Status"
-
-msgid "Partner ID"
-msgstr "Partner-ID"
-
-msgid "Source"
-msgstr "Quelle"
-
-msgid "Filter"
-msgstr "Filtern"
-
-msgid "All commissions"
-msgstr "Alle Provisionen"
-
-msgid "Not found."
-msgstr "Nicht gefunden."
-
-msgid "Source / order"
-msgstr "Quelle / Bestellung"
-
-msgid "item"
-msgstr "Position"
-
-msgid "rule"
-msgstr "Regel"
-
-msgid "default"
-msgstr "Standard"
-
-msgid "Hold until"
-msgstr "Gehalten bis"
-
-msgid "Attribution"
-msgstr "Zuordnung"
-
-msgid "content"
-msgstr "Inhalt"
-
-msgid "Review reasons"
-msgstr "Prüfgründe"
-
-msgid "Payout"
-msgstr "Auszahlung"
-
-msgid "Idempotency key"
-msgstr "Technische Kennung"
-
-msgid "Decision"
-msgstr "Entscheidung"
-
-msgid "Events"
-msgstr "Ereignisse"
-
-msgid "Event"
-msgstr "Ereignis"
-
-msgid "By"
-msgstr "Von"
-
-msgid "Rule snapshot"
-msgstr "Regel zum Zeitpunkt der Berechnung"
-
-msgid "Object type"
-msgstr "Objekttyp"
-
-msgid "User"
-msgstr "Benutzer"
-
-msgid "Object"
-msgstr "Objekt"
-
-msgid "Older entries"
-msgstr "Ältere Einträge"
-
-msgid "Recommended by %s"
-msgstr "Empfohlen von %s"
-
-msgid "Draft (not visible)"
-msgstr "Entwurf (nicht sichtbar)"
-
-msgid "Archived"
-msgstr "Archiviert"
-
-msgid "Please enter a title."
-msgstr "Bitte geben Sie einen Titel ein."
-
-msgid "Please choose an image from the media library."
-msgstr "Bitte wählen Sie ein Bild aus der Mediathek."
-
-msgid "Please enter the text."
-msgstr "Bitte geben Sie den Text ein."
-
-msgid "The target page must be on this website."
-msgstr "Die Zielseite muss auf dieser Website liegen."
-
-msgid "Only drafts can be approved."
-msgstr "Nur Entwürfe können freigegeben werden."
-
-msgid "Pending (hold period)"
-msgstr "Ausstehend (Haltefrist)"
-
-msgid "Needs review"
-msgstr "Prüfung nötig"
-
-msgid "Sale"
-msgstr "Verkauf"
-
-msgid "Refund"
-msgstr "Rückerstattung"
-
-msgid "Cancellation"
-msgstr "Storno"
-
-msgid "Chargeback"
-msgstr "Rückbuchung"
-
-msgid "Hold period ended"
-msgstr "Haltefrist abgelaufen"
-
-msgid "Only pending commissions or commissions under review can be approved."
-msgstr "Nur ausstehende oder zu prüfende Provisionen können freigegeben werden."
-
-msgid "The commission was changed in the meantime. Please reload and try again."
-msgstr "Die Provision wurde zwischenzeitlich geändert. Bitte laden Sie die Seite neu und versuchen Sie es erneut."
-
-msgid "Paid or rejected commissions cannot be rejected."
-msgstr "Ausgezahlte oder abgelehnte Provisionen können nicht abgelehnt werden."
-
-msgid "This commission is part of a payout. Cancel the payout first."
-msgstr "Diese Provision ist Teil einer Auszahlung. Stornieren Sie zuerst die Auszahlung."
-
-msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
-msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung zugeordnet). Bitte laden Sie die Seite neu und versuchen Sie es erneut."
-
-msgid "Monthly bonus %1$s (tier %2$s %%)"
-msgstr "Monatsbonus %1$s (Stufe %2$s %%)"
-
-msgid "Monthly bonus correction %s"
-msgstr "Korrektur Monatsbonus %s"
+msgid "The code could not be saved."
+msgstr "Der Code konnte nicht gespeichert werden."
 
 msgid "Booking #%d: chain broken (a booking was removed or reordered)."
 msgstr "Buchung #%d: Kette unterbrochen (eine Buchung wurde entfernt oder umsortiert)."
@@ -1834,6 +1711,45 @@ msgstr "Auszahlung storniert"
 msgid "Opening balance"
 msgstr "Eröffnungssaldo"
 
+msgid "Pending (hold period)"
+msgstr "Ausstehend (Haltefrist)"
+
+msgid "Needs review"
+msgstr "Prüfung nötig"
+
+msgid "Sale"
+msgstr "Verkauf"
+
+msgid "Refund"
+msgstr "Rückerstattung"
+
+msgid "Cancellation"
+msgstr "Storno"
+
+msgid "Chargeback"
+msgstr "Rückbuchung"
+
+msgid "Monthly bonus"
+msgstr "Monatsbonus"
+
+msgid "Hold period ended"
+msgstr "Haltefrist abgelaufen"
+
+msgid "Only pending commissions or commissions under review can be approved."
+msgstr "Nur ausstehende oder zu prüfende Provisionen können freigegeben werden."
+
+msgid "The commission was changed in the meantime. Please reload and try again."
+msgstr "Die Provision wurde zwischenzeitlich geändert. Bitte laden Sie die Seite neu und versuchen Sie es erneut."
+
+msgid "Paid or rejected commissions cannot be rejected."
+msgstr "Ausgezahlte oder abgelehnte Provisionen können nicht abgelehnt werden."
+
+msgid "This commission is part of a payout. Cancel the payout first."
+msgstr "Diese Provision ist Teil einer Auszahlung. Stornieren Sie zuerst die Auszahlung."
+
+msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
+msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung zugeordnet). Bitte laden Sie die Seite neu und versuchen Sie es erneut."
+
 msgid "Please enter a valid rate."
 msgstr "Bitte geben Sie einen gültigen Satz ein."
 
@@ -1848,6 +1764,12 @@ msgstr "Bitte geben Sie Produkt-IDs, Kategorie-/Tag-IDs oder SKUs/Kurscodes ein.
 
 msgid "excluded"
 msgstr "ausgeschlossen"
+
+msgid "Monthly bonus %1$s (tier %2$s %%)"
+msgstr "Monatsbonus %1$s (Stufe %2$s %%)"
+
+msgid "Monthly bonus correction %s"
+msgstr "Korrektur Monatsbonus %s"
 
 msgid "Recommended by [partner name]"
 msgstr "Empfohlen von [Partnername]"
@@ -1882,6 +1804,219 @@ msgstr "Empfohlene Ziele erscheinen im Partnerbereich mit fertigem Partnerlink."
 msgid "Recommended target pages"
 msgstr "Empfohlene Zielseiten"
 
+msgid "Partner code (optional)"
+msgstr "Partnercode (optional)"
+
+msgid "e.g. from your sailing school"
+msgstr "z. B. von Ihrer Segelschule"
+
+msgid "The partner code is not valid."
+msgstr "Der Partnercode ist ungültig."
+
+msgid "Affiliate partner"
+msgstr "Affiliate-Partner"
+
+msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
+msgstr "Bestellungen mit diesem Gutschein werden dem Partner zugeordnet. Den Rabatt steuert weiterhin der Gutschein."
+
+msgid "Method"
+msgstr "Methode"
+
+msgid "View commissions"
+msgstr "Provisionen ansehen"
+
+msgid "Partner code entered: %s"
+msgstr "Eingegebener Partnercode: %s"
+
+msgid "Not attributed."
+msgstr "Nicht zugeordnet."
+
+msgid "Assign manually"
+msgstr "Manuell zuordnen"
+
+msgid "Reason (required)"
+msgstr "Grund (Pflicht)"
+
+msgid "Commission is created once the order is paid."
+msgstr "Die Provision wird angelegt, sobald die Bestellung bezahlt ist."
+
+msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
+msgstr "Affiliate Captain: dem Partner „%1$s“ zugeordnet (%2$s)."
+
+msgid "Order refunded"
+msgstr "Bestellung erstattet"
+
+msgid "Order cancelled"
+msgstr "Bestellung storniert"
+
+msgid "Payout requests are not enabled."
+msgstr "Auszahlungsanträge sind nicht aktiviert."
+
+msgid "Your partner account is not active."
+msgstr "Ihr Partnerkonto ist nicht aktiv."
+
+msgid "You already have an open payout request."
+msgstr "Sie haben bereits einen offenen Auszahlungsantrag."
+
+msgid "Please complete your payout details first."
+msgstr "Bitte vervollständigen Sie zuerst Ihre Auszahlungsdaten."
+
+msgid "Your approved balance is below the minimum payout of %s."
+msgstr "Ihr freigegebenes Guthaben liegt unter der Mindestauszahlung von %s."
+
+msgid "Payout request from %s"
+msgstr "Auszahlungsantrag von %s"
+
+msgid "%1$s requested a payout of %2$s.\n\n%3$s"
+msgstr "%1$s hat eine Auszahlung von %2$s beantragt.\n\n%3$s"
+
+msgid "This request was already handled."
+msgstr "Dieser Antrag wurde bereits bearbeitet."
+
+msgid "Payout profile incomplete."
+msgstr "Auszahlungsprofil unvollständig."
+
+msgid "The approved balance is no longer above the minimum."
+msgstr "Das freigegebene Guthaben liegt nicht mehr über dem Mindestbetrag."
+
+msgid "Your payout request"
+msgstr "Ihr Auszahlungsantrag"
+
+msgid "Hello %1$s,\n\nyour payout request could not be processed.\n\n%2$s"
+msgstr "Hallo %1$s,\n\nIhr Auszahlungsantrag konnte nicht bearbeitet werden.\n\n%2$s"
+
+msgid "SEPA exported"
+msgstr "SEPA exportiert"
+
+msgid "Cancelled"
+msgstr "Storniert"
+
+msgid "Affiliate not found"
+msgstr "Partner nicht gefunden"
+
+msgid "No reference rate for %s – minimum cannot be checked"
+msgstr "Kein Referenzkurs für %s – Mindestbetrag kann nicht geprüft werden"
+
+msgid "Negative balance – carried forward"
+msgstr "Negativer Saldo – vorgetragen"
+
+msgid "Below minimum – carried forward"
+msgstr "Unter Mindestbetrag – vorgetragen"
+
+msgid "Payout profile incomplete"
+msgstr "Auszahlungsprofil unvollständig"
+
+msgid "This payout cannot be marked as paid."
+msgstr "Diese Auszahlung kann nicht als bezahlt markiert werden."
+
+msgid "Only unpaid payouts can be cancelled."
+msgstr "Nur nicht bezahlte Auszahlungen können storniert werden."
+
+msgid "Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice."
+msgstr "Auszahlung %s wurde bereits per SEPA exportiert. Bestätigen Sie vor dem Stornieren, dass die Bank die Überweisung nicht ausgeführt hat – sonst könnten Provisionen doppelt ausgezahlt werden."
+
+msgid "Please enter the account holder and IBAN of your company account in the settings first."
+msgstr "Bitte hinterlegen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos in den Einstellungen."
+
+msgid "No exportable payouts selected."
+msgstr "Keine exportierbaren Auszahlungen ausgewählt."
+
+msgid "Payout %s was already exported. Tick \"export again\" only if the bank did not process the previous file."
+msgstr "Auszahlung %s wurde bereits exportiert. Wählen Sie „Erneut exportieren“ nur, wenn die Bank die vorherige Datei nicht verarbeitet hat."
+
+msgid "SEPA transfers are only possible in EUR."
+msgstr "SEPA-Überweisungen sind nur in EUR möglich."
+
+msgid "The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again."
+msgstr "Der Partner hat seine Auszahlungsdaten nach dem Anlegen der Auszahlung %s geändert. Bitte prüfen Sie die Änderung, stornieren Sie die Auszahlung und legen Sie sie neu an."
+
+msgid "Bank details for payout %s are missing or cannot be decrypted."
+msgstr "Die Bankdaten für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
+
+msgid "Private individual"
+msgstr "Privatperson"
+
+msgid "Small business (no VAT, e.g. §19 UStG)"
+msgstr "Kleinunternehmer (ohne USt., z. B. § 19 UStG)"
+
+msgid "Business (VAT registered)"
+msgstr "Unternehmen (umsatzsteuerpflichtig)"
+
+msgid "Please enter your VAT ID."
+msgstr "Bitte geben Sie Ihre USt-IdNr. ein."
+
+msgid "The IBAN is not valid."
+msgstr "Die IBAN ist ungültig."
+
+msgid "The commission rates are net amounts; VAT is added at the statutory rate."
+msgstr "Die Provisionssätze sind Nettobeträge; die Umsatzsteuer wird in gesetzlicher Höhe hinzugerechnet."
+
+msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
+msgstr "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge, § 13b UStG / Art. 196 MwStSystRL)."
+
+msgid "No VAT is shown because the partner is a small business (§19 UStG)."
+msgstr "Kein Ausweis der Umsatzsteuer, da der Partner Kleinunternehmer ist (§ 19 UStG)."
+
+msgid "No VAT: the partner is a private individual and not an entrepreneur."
+msgstr "Keine Umsatzsteuer: Der Partner ist Privatperson und kein Unternehmer."
+
+msgid "Cancellation of credit note %s"
+msgstr "Storno zur Gutschrift %s"
+
+msgid "Credit note (Gutschrift)"
+msgstr "Gutschrift"
+
+msgid "Issued by (recipient of the service)"
+msgstr "Aussteller (Leistungsempfänger)"
+
+msgid "Partner (provider of the service)"
+msgstr "Partner (Leistender)"
+
+msgid "Tax number"
+msgstr "Steuernummer"
+
+msgid "Cancellation number"
+msgstr "Stornonummer"
+
+msgid "Credit note number"
+msgstr "Gutschriftnummer"
+
+msgid "Statement number"
+msgstr "Belegnummer"
+
+msgid "Cancels"
+msgstr "Storniert"
+
+msgid "Service"
+msgstr "Leistung"
+
+msgid "Referral of customers (affiliate commission)"
+msgstr "Vermittlung von Kunden (Partnerprovision)"
+
+msgid "Service period until"
+msgstr "Leistungszeitraum bis"
+
+msgid "VAT ID of the partner"
+msgstr "USt-IdNr. des Partners"
+
+msgid "Net"
+msgstr "Netto"
+
+msgid "Total cancelled"
+msgstr "Storniert gesamt"
+
+msgid "This document is a credit note (self-billing) agreed with the partner. Please check it and object within 14 days if anything is incorrect; the partner does not issue a separate invoice."
+msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift. Bitte prüfen Sie sie und widersprechen Sie innerhalb von 14 Tagen, falls etwas nicht stimmt; der Partner stellt keine eigene Rechnung."
+
+msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
+msgstr "Dieses Dokument storniert die oben genannte Gutschrift vollständig. Die Provisionen stehen für eine spätere Auszahlung zur Verfügung."
+
+msgid "The statement is not available (anymore)."
+msgstr "Der Beleg ist nicht (mehr) verfügbar."
+
+msgid "The stored statement failed the integrity check."
+msgstr "Der gespeicherte Beleg hat die Integritätsprüfung nicht bestanden."
+
 msgid "The link has expired."
 msgstr "Der Link ist abgelaufen."
 
@@ -1903,9 +2038,6 @@ msgstr "Sie haben noch kein Partnerkonto."
 msgid "Your application is being reviewed. We will notify you by e-mail."
 msgstr "Ihre Bewerbung wird geprüft. Wir benachrichtigen Sie per E-Mail."
 
-msgid "Your partner account is not active."
-msgstr "Ihr Partnerkonto ist nicht aktiv."
-
 msgid "Links & codes"
 msgstr "Links & Codes"
 
@@ -1926,12 +2058,6 @@ msgstr "Der Auszahlungsantrag konnte nicht erstellt werden."
 
 msgid "Thank you for accepting the terms."
 msgstr "Vielen Dank für die Annahme der Bedingungen."
-
-msgid "The IBAN is not valid."
-msgstr "Die IBAN ist ungültig."
-
-msgid "Please enter your VAT ID."
-msgstr "Bitte geben Sie Ihre USt-IdNr. ein."
 
 msgid "Our partner program terms have been updated."
 msgstr "Die Bedingungen unseres Partnerprogramms wurden aktualisiert."
@@ -2152,218 +2278,92 @@ msgstr "Für Partner speichern wir Bewerbungsangaben, akzeptierte Bedingungen (V
 msgid "This text is a suggestion based on your current settings and must be reviewed by your data protection advisor."
 msgstr "Dieser Text ist ein Vorschlag auf Basis Ihrer aktuellen Einstellungen und muss von Ihrer Datenschutzberatung geprüft werden."
 
-msgid "Affiliate partner"
-msgstr "Affiliate-Partner"
+msgid "Draft (not visible)"
+msgstr "Entwurf (nicht sichtbar)"
 
-msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
-msgstr "Bestellungen mit diesem Gutschein werden dem Partner zugeordnet. Den Rabatt steuert weiterhin der Gutschein."
+msgid "Archived"
+msgstr "Archiviert"
 
-msgid "Partner code (optional)"
-msgstr "Partnercode (optional)"
+msgid "Please enter a title."
+msgstr "Bitte geben Sie einen Titel ein."
 
-msgid "e.g. from your sailing school"
-msgstr "z. B. von Ihrer Segelschule"
+msgid "Please choose an image from the media library."
+msgstr "Bitte wählen Sie ein Bild aus der Mediathek."
 
-msgid "The partner code is not valid."
-msgstr "Der Partnercode ist ungültig."
+msgid "Please enter the text."
+msgstr "Bitte geben Sie den Text ein."
 
-msgid "Method"
-msgstr "Methode"
+msgid "The target page must be on this website."
+msgstr "Die Zielseite muss auf dieser Website liegen."
 
-msgid "View commissions"
-msgstr "Provisionen ansehen"
+msgid "Only drafts can be approved."
+msgstr "Nur Entwürfe können freigegeben werden."
 
-msgid "Partner code entered: %s"
-msgstr "Eingegebener Partnercode: %s"
+msgid "Recommended by %s"
+msgstr "Empfohlen von %s"
 
-msgid "Not attributed."
-msgstr "Nicht zugeordnet."
+msgid "Hello %s,"
+msgstr "Hallo %s,"
 
-msgid "Assign manually"
-msgstr "Manuell zuordnen"
+msgid "here is your summary for %s:"
+msgstr "hier ist Ihre Zusammenfassung für %s:"
 
-msgid "Reason (required)"
-msgstr "Grund (Pflicht)"
+msgid "Sales"
+msgstr "Verkäufe"
 
-msgid "Commission is created once the order is paid."
-msgstr "Die Provision wird angelegt, sobald die Bestellung bezahlt ist."
+msgid "Available for payout"
+msgstr "Für Auszahlung verfügbar"
 
-msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
-msgstr "Affiliate Captain: dem Partner „%1$s“ zugeordnet (%2$s)."
+msgid "Your partner summary %s"
+msgstr "Ihre Partner-Zusammenfassung %s"
 
-msgid "Order refunded"
-msgstr "Bestellung erstattet"
+msgid "Partner program summary %s"
+msgstr "Zusammenfassung Partnerprogramm %s"
 
-msgid "Order cancelled"
-msgstr "Bestellung storniert"
+msgid "Applications waiting"
+msgstr "Offene Bewerbungen"
 
-msgid "SEPA exported"
-msgstr "SEPA exportiert"
+msgid "Not converted (no reference rate)"
+msgstr "Nicht umgerechnet (kein Referenzkurs)"
 
-msgid "Cancelled"
-msgstr "Storniert"
+msgid "Top partners"
+msgstr "Top-Partner"
 
-msgid "Affiliate not found"
-msgstr "Partner nicht gefunden"
+msgid "Partner program %s"
+msgstr "Partnerprogramm %s"
 
-msgid "No reference rate for %s – minimum cannot be checked"
-msgstr "Kein Referenzkurs für %s – Mindestbetrag kann nicht geprüft werden"
+msgid "(no content / direct)"
+msgstr "(kein Inhalt / direkt)"
 
-msgid "Negative balance – carried forward"
-msgstr "Negativer Saldo – vorgetragen"
+msgid "(no campaign)"
+msgstr "(keine Kampagne)"
 
-msgid "Below minimum – carried forward"
-msgstr "Unter Mindestbetrag – vorgetragen"
+msgid "The sale could not be processed and was queued for retry."
+msgstr "Der Verkauf konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
 
-msgid "Payout profile incomplete"
-msgstr "Auszahlungsprofil unvollständig"
+msgid "The refund could not be processed and was queued for retry."
+msgstr "Die Rückerstattung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
 
-msgid "This payout cannot be marked as paid."
-msgstr "Diese Auszahlung kann nicht als bezahlt markiert werden."
+msgid "Self-referral"
+msgstr "Eigenkauf über eigenen Link/Code"
 
-msgid "Only unpaid payouts can be cancelled."
-msgstr "Nur nicht bezahlte Auszahlungen können storniert werden."
+msgid "Unusually many orders in 24 hours"
+msgstr "Ungewöhnlich viele Bestellungen in 24 Stunden"
 
-msgid "Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice."
-msgstr "Auszahlung %s wurde bereits per SEPA exportiert. Bestätigen Sie vor dem Stornieren, dass die Bank die Überweisung nicht ausgeführt hat – sonst könnten Provisionen doppelt ausgezahlt werden."
+msgid "Unusually high order value"
+msgstr "Ungewöhnlich hoher Bestellwert"
 
-msgid "Please enter the account holder and IBAN of your company account in the settings first."
-msgstr "Bitte hinterlegen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos in den Einstellungen."
+msgid "Order immediately after the click"
+msgstr "Bestellung unmittelbar nach dem Klick"
 
-msgid "No exportable payouts selected."
-msgstr "Keine exportierbaren Auszahlungen ausgewählt."
+msgid "High refund rate of the partner"
+msgstr "Hohe Rückerstattungsquote des Partners"
 
-msgid "Payout %s was already exported. Tick \"export again\" only if the bank did not process the previous file."
-msgstr "Auszahlung %s wurde bereits exportiert. Wählen Sie „Erneut exportieren“ nur, wenn die Bank die vorherige Datei nicht verarbeitet hat."
+msgid "Blocked or disposable e-mail domain"
+msgstr "Gesperrte oder Wegwerf-E-Mail-Domain"
 
-msgid "SEPA transfers are only possible in EUR."
-msgstr "SEPA-Überweisungen sind nur in EUR möglich."
-
-msgid "The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again."
-msgstr "Der Partner hat seine Auszahlungsdaten nach dem Anlegen der Auszahlung %s geändert. Bitte prüfen Sie die Änderung, stornieren Sie die Auszahlung und legen Sie sie neu an."
-
-msgid "Bank details for payout %s are missing or cannot be decrypted."
-msgstr "Die Bankdaten für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
-
-msgid "Payout requests are not enabled."
-msgstr "Auszahlungsanträge sind nicht aktiviert."
-
-msgid "You already have an open payout request."
-msgstr "Sie haben bereits einen offenen Auszahlungsantrag."
-
-msgid "Please complete your payout details first."
-msgstr "Bitte vervollständigen Sie zuerst Ihre Auszahlungsdaten."
-
-msgid "Your approved balance is below the minimum payout of %s."
-msgstr "Ihr freigegebenes Guthaben liegt unter der Mindestauszahlung von %s."
-
-msgid "Payout request from %s"
-msgstr "Auszahlungsantrag von %s"
-
-msgid "%1$s requested a payout of %2$s.\n\n%3$s"
-msgstr "%1$s hat eine Auszahlung von %2$s beantragt.\n\n%3$s"
-
-msgid "This request was already handled."
-msgstr "Dieser Antrag wurde bereits bearbeitet."
-
-msgid "Payout profile incomplete."
-msgstr "Auszahlungsprofil unvollständig."
-
-msgid "The approved balance is no longer above the minimum."
-msgstr "Das freigegebene Guthaben liegt nicht mehr über dem Mindestbetrag."
-
-msgid "Your payout request"
-msgstr "Ihr Auszahlungsantrag"
-
-msgid "Hello %1$s,\n\nyour payout request could not be processed.\n\n%2$s"
-msgstr "Hallo %1$s,\n\nIhr Auszahlungsantrag konnte nicht bearbeitet werden.\n\n%2$s"
-
-msgid "The commission rates are net amounts; VAT is added at the statutory rate."
-msgstr "Die Provisionssätze sind Nettobeträge; die Umsatzsteuer wird in gesetzlicher Höhe hinzugerechnet."
-
-msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
-msgstr "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge, § 13b UStG / Art. 196 MwStSystRL)."
-
-msgid "No VAT is shown because the partner is a small business (§19 UStG)."
-msgstr "Kein Ausweis der Umsatzsteuer, da der Partner Kleinunternehmer ist (§ 19 UStG)."
-
-msgid "No VAT: the partner is a private individual and not an entrepreneur."
-msgstr "Keine Umsatzsteuer: Der Partner ist Privatperson und kein Unternehmer."
-
-msgid "Cancellation of credit note %s"
-msgstr "Storno zur Gutschrift %s"
-
-msgid "Credit note (Gutschrift)"
-msgstr "Gutschrift"
-
-msgid "Issued by (recipient of the service)"
-msgstr "Aussteller (Leistungsempfänger)"
-
-msgid "Partner (provider of the service)"
-msgstr "Partner (Leistender)"
-
-msgid "Tax number"
-msgstr "Steuernummer"
-
-msgid "Cancellation number"
-msgstr "Stornonummer"
-
-msgid "Credit note number"
-msgstr "Gutschriftnummer"
-
-msgid "Statement number"
-msgstr "Belegnummer"
-
-msgid "Cancels"
-msgstr "Storniert"
-
-msgid "Service"
-msgstr "Leistung"
-
-msgid "Referral of customers (affiliate commission)"
-msgstr "Vermittlung von Kunden (Partnerprovision)"
-
-msgid "Service period until"
-msgstr "Leistungszeitraum bis"
-
-msgid "VAT ID of the partner"
-msgstr "USt-IdNr. des Partners"
-
-msgid "Net"
-msgstr "Netto"
-
-msgid "Total cancelled"
-msgstr "Storniert gesamt"
-
-msgid "This document is a credit note (self-billing) agreed with the partner. Please check it and object within 14 days if anything is incorrect; the partner does not issue a separate invoice."
-msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift. Bitte prüfen Sie sie und widersprechen Sie innerhalb von 14 Tagen, falls etwas nicht stimmt; der Partner stellt keine eigene Rechnung."
-
-msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
-msgstr "Dieses Dokument storniert die oben genannte Gutschrift vollständig. Die Provisionen stehen für eine spätere Auszahlung zur Verfügung."
-
-msgid "The statement is not available (anymore)."
-msgstr "Der Beleg ist nicht (mehr) verfügbar."
-
-msgid "The stored statement failed the integrity check."
-msgstr "Der gespeicherte Beleg hat die Integritätsprüfung nicht bestanden."
-
-msgid "Private individual"
-msgstr "Privatperson"
-
-msgid "Small business (no VAT, e.g. §19 UStG)"
-msgstr "Kleinunternehmer (ohne USt., z. B. § 19 UStG)"
-
-msgid "Business (VAT registered)"
-msgstr "Unternehmen (umsatzsteuerpflichtig)"
-
-msgid "Codes need at least 3 characters."
-msgstr "Codes benötigen mindestens 3 Zeichen."
-
-msgid "This code is already in use."
-msgstr "Dieser Code wird bereits verwendet."
-
-msgid "The code could not be saved."
-msgstr "Der Code konnte nicht gespeichert werden."
+msgid "Coupon of another partner used"
+msgstr "Gutschein eines anderen Partners verwendet"
 
 msgctxt "block title"
 msgid "Recommended partner targets"

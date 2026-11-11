@@ -28,10 +28,11 @@ def php_strings():
     pat = re.compile(FUNCS + r"\(\s*(" + SQ + "|" + DQ + r")(?:\s*,\s*(" + SQ + "|" + DQ + r"))?\s*,\s*'" + DOMAIN + "'")
     pat_n = re.compile(r"_n\(\s*" + SQ + r"\s*,\s*" + SQ + r"\s*,")
     for base in ("src", "."):
-        for dirpath, _, files in os.walk(os.path.join(ROOT, base)):
+        for dirpath, dirnames, files in os.walk(os.path.join(ROOT, base)):
+            dirnames.sort()  # Deterministic order: the .pot must not depend on the file system.
             if base == "." and dirpath != ROOT:
                 continue
-            for f in files:
+            for f in sorted(files):
                 if not f.endswith(".php"):
                     continue
                 path = os.path.join(dirpath, f)
@@ -56,8 +57,9 @@ def php_ctx_strings():
     """(context, msgid) pairs from _x()/esc_html_x()/esc_attr_x() calls."""
     out = []
     pat = re.compile(XFUNCS + r"\(\s*" + SQ + r"\s*,\s*" + SQ + r"\s*,\s*'" + DOMAIN + "'")
-    for dirpath, _, files in os.walk(os.path.join(ROOT, "src")):
-        for f in files:
+    for dirpath, dirnames, files in os.walk(os.path.join(ROOT, "src")):
+        dirnames.sort()
+        for f in sorted(files):
             if f.endswith(".php"):
                 for m in pat.finditer(open(os.path.join(dirpath, f), encoding="utf-8").read()):
                     pair = (unescape_sq(m.group(2)), unescape_sq(m.group(1)))
