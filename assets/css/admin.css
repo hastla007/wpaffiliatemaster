@@ -1,0 +1,39 @@
+.wpac-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0}
+.wpac-kpi{background:#fff;border:1px solid #dcdcde;border-radius:4px;padding:12px 14px}
+.wpac-kpi span{display:block;color:#646970;font-size:12px}
+.wpac-kpi strong{display:block;font-size:20px;margin-top:4px}
+.wpac-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:1100px){.wpac-columns{grid-template-columns:1fr}}
+.wpac-wrap .postbox .inside{overflow-x:auto}
+.wpac-inline{display:inline}
+.wpac-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;background:#f0f0f1;color:#1d2327;vertical-align:middle}
+.wpac-badge--active,.wpac-badge--approved,.wpac-badge--paid{background:#d1e7dd;color:#0f5132}
+.wpac-badge--pending,.wpac-badge--exported{background:#fff3cd;color:#664d03}
+.wpac-badge--review{background:#cfe2ff;color:#084298}
+.wpac-badge--rejected,.wpac-badge--terminated,.wpac-badge--cancelled{background:#f8d7da;color:#842029}
+.wpac-badge--paused{background:#e2e3e5;color:#41464b}
+.wpac-negative{color:#b32d2e}
+.wpac-danger{color:#b32d2e!important}
+.wpac-inactive td{color:#50575e;background:#f6f7f7}
+.wpac-inactive td::after{content:''}
+.wpac-filters{margin:12px 0}
+.wpac-totals span{margin-right:16px}
+.wpac-bulk{margin-top:12px}
+.wpac-history{margin:0}
+.wpac-history li{border-bottom:1px solid #f0f0f1;padding:6px 0}
+.wpac-history code,.wpac-pre{white-space:pre-wrap;word-break:break-all;font-size:11px}
+.wpac-checks li.ok{color:#0f5132}
+.wpac-checks li.warn{color:#8a6d00}
+.wpac-dl th{width:220px}
+@media print{#adminmenumain,#wpadminbar,#wpfooter,.wpac-noprint,.notice{display:none!important}#wpcontent{margin:0!important}}
+.wpac-tabs-content{margin-top:16px}
+.wpac-checklist{background:#fff;border:1px solid #dcdcde;border-left:4px solid #2271b1;padding:12px 16px;margin:16px 0}
+.wpac-checklist ul{margin:8px 0}
+.wpac-checklist li{margin:4px 0}
+.wpac-checklist .done{color:#00704a}
+.wpac-checklist .todo{color:#8a2424}
+.wpac-checklist .done::before{content:'✔ '}
+.wpac-checklist .todo::before{content:'✖ '}
+.wpac-field-hint{color:#50575e;font-size:12px;margin:4px 0 0}
+fieldset.wpac-bulk{border:1px solid #dcdcde;padding:8px 12px;margin-top:12px}
+fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}

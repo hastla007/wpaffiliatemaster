@@ -1,0 +1,20 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "wpac/partner-welcome",
+	"title": "Partner welcome",
+	"category": "widgets",
+	"icon": "megaphone",
+	"description": "Shows \"Recommended by \u2026\" for visitors coming via a partner link.",
+	"textdomain": "wp-affiliate-captain",
+	"attributes": {
+		"text": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"editorScript": "wpac-blocks"
+}

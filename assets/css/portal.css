@@ -1,0 +1,57 @@
+.wpac-portal,.wpac-form{--wpac-accent:#0b6e99;--wpac-border:rgba(0,0,0,.12);--wpac-muted:rgba(0,0,0,.6);max-width:960px}
+.wpac-form p{margin:0 0 1em}
+.wpac-form label{display:block;font-weight:600;margin-bottom:.25em}
+.wpac-form .wpac-check label{font-weight:400}
+.wpac-form input[type=text],.wpac-form input[type=email],.wpac-form input[type=url],.wpac-form select,.wpac-form textarea{width:100%;max-width:520px;box-sizing:border-box}
+.wpac-form--inline label{display:inline-block;margin-right:.75em}
+.wpac-form--inline input{width:auto}
+.wpac-hp{position:absolute!important;left:-9999px!important;height:1px;overflow:hidden}
+.wpac-button{background:var(--wpac-accent);color:#fff;border:0;border-radius:4px;padding:.6em 1.2em;cursor:pointer}
+.wpac-button:hover{filter:brightness(1.1)}
+.wpac-notice{border-left:4px solid var(--wpac-accent);background:rgba(11,110,153,.06);padding:.75em 1em;margin:0 0 1em}
+.wpac-notice--success{border-color:#2e7d32;background:rgba(46,125,50,.07)}
+.wpac-notice--error{border-color:#c62828;background:rgba(198,40,40,.07)}
+.wpac-tabs{display:flex;flex-wrap:wrap;gap:.25em;border-bottom:1px solid var(--wpac-border);margin-bottom:1em}
+.wpac-tabs a{padding:.5em 1em;text-decoration:none;border-bottom:3px solid transparent}
+.wpac-tabs a.is-active{border-color:var(--wpac-accent);font-weight:600}
+.wpac-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1em}
+.wpac-card{border:1px solid var(--wpac-border);border-radius:6px;padding:1em}
+.wpac-card__label{display:block;color:var(--wpac-muted);font-size:.85em}
+.wpac-card__value{display:block;font-size:1.4em;margin-top:.25em}
+.wpac-table{width:100%;border-collapse:collapse;font-size:.95em}
+.wpac-table th,.wpac-table td{border-bottom:1px solid var(--wpac-border);padding:.5em;text-align:left}
+.wpac-negative{color:#c62828}
+.wpac-copy{width:100%;font-family:monospace}
+.wpac-code{font-family:monospace;font-size:1.1em;letter-spacing:.05em}
+.wpac-muted{color:var(--wpac-muted);font-size:.9em}
+.wpac-pager a{padding:.25em .5em}
+.wpac-pager a.is-active{font-weight:700}
+@media (max-width:600px){.wpac-table{display:block;overflow-x:auto}}
+.wpac-qr svg{width:180px;height:180px}
+.wpac-creative{border:1px solid var(--wpac-border);border-radius:6px;padding:1em;margin:0 0 1em}
+.wpac-creative h4{margin-top:0}
+.wpac-disclosure{background:#fff8e1;border-left:4px solid #f9a825;padding:.5em .75em;font-size:.9em}
+.wpac-welcome{border:1px solid var(--wpac-border,rgba(0,0,0,.12));border-left:4px solid #0b6e99;border-radius:4px;padding:.75em 1em;margin:0 0 1em}
+.wpac-group-choice{list-style:none;padding:0}
+.wpac-group-choice li{margin:0 0 1em}
+.wpac-button:focus-visible,.wpac-tabs a:focus-visible,.wpac-copy:focus-visible,.wpac-copy-btn:focus-visible{outline:3px solid #f9a825;outline-offset:2px}
+.wpac-tabs a[aria-current="page"]{border-color:var(--wpac-accent);font-weight:600}
+.wpac-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}
+.wpac-copy-row{display:flex;gap:.5em;align-items:stretch;margin:0 0 1em}
+.wpac-copy-row .wpac-copy{flex:1;min-width:0}
+.wpac-copy-btn{border:1px solid var(--wpac-accent);background:transparent;color:inherit;border-radius:4px;padding:.4em .8em;cursor:pointer}
+.wpac-hero{border:1px solid var(--wpac-border);border-left:4px solid var(--wpac-accent);border-radius:6px;padding:1em 1.25em;margin:0 0 1.25em}
+.wpac-hero h3{margin-top:0}
+.wpac-steps{list-style:none;padding:0;margin:.5em 0 0}
+.wpac-steps li{margin:.3em 0}
+.wpac-steps .done::before{content:'✔ ';color:#2e7d32}
+.wpac-steps .todo::before{content:'○ ';color:var(--wpac-muted)}
+.wpac-empty{border:1px dashed var(--wpac-border);border-radius:6px;padding:1em;text-align:center}
+.wpac-status{display:inline-block;padding:.1em .6em;border-radius:1em;font-size:.85em;background:rgba(0,0,0,.06)}
+.wpac-status--approved,.wpac-status--paid{background:#e8f5e9;color:#1b5e20}
+.wpac-status--pending,.wpac-status--review{background:#fff8e1;color:#6d4c00}
+.wpac-status--rejected,.wpac-status--cancelled{background:#ffebee;color:#8e1c1c}
+.wpac-field-error{color:#c62828;font-size:.9em;margin:.25em 0 0}
+.wpac-form [aria-invalid="true"]{border-color:#c62828;outline:1px solid #c62828}
+.wpac-required-note{font-size:.9em;color:var(--wpac-muted)}
+@media (prefers-color-scheme:dark){.wpac-portal,.wpac-form{--wpac-border:rgba(255,255,255,.2);--wpac-muted:rgba(255,255,255,.7)}}
