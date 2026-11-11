@@ -29,7 +29,7 @@ final class Registration {
 		if ( empty( $_POST['wpac_register'] ) ) {
 			return;
 		}
-		$redirect = wp_get_referer() ? wp_get_referer() : home_url( '/' );
+		$redirect = wpac_return_url();
 		$redirect = remove_query_arg( array( 'wpac_reg', 'wpac_err' ), $redirect );
 
 		// Keep the entries for the form if something has to be corrected.

@@ -21,6 +21,23 @@ if ( ! function_exists( 'wpac_contract_version' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wpac_return_url' ) ) {
+	/**
+	 * URL to return to after a frontend form post. wp_get_referer() returns false
+	 * when the form posts to the same URL, so the raw referer is used as fallback;
+	 * only local URLs are accepted.
+	 *
+	 * @return string
+	 */
+	function wpac_return_url() {
+		$ref = wp_get_referer();
+		if ( ! $ref ) {
+			$ref = wp_get_raw_referer();
+		}
+		return wp_validate_redirect( $ref ? $ref : '', home_url( '/' ) );
+	}
+}
+
 if ( ! function_exists( 'wpac_record_sale' ) ) {
 	/**
 	 * Report a paid sale. Idempotent per source + order ID.

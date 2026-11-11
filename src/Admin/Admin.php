@@ -143,7 +143,7 @@ final class Admin {
 	 * @param string $url     Target (defaults to referer).
 	 */
 	public static function back( $message, $type = 'success', $url = '' ) {
-		$url = $url ? $url : wp_get_referer();
+		$url = $url ? $url : wpac_return_url();
 		$url = $url ? $url : admin_url( 'admin.php?page=wpac' );
 		$url = remove_query_arg( array( 'wpac_notice', 'wpac_type' ), $url );
 		set_transient(

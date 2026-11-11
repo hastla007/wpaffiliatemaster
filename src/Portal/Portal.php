@@ -82,7 +82,7 @@ final class Portal {
 			return;
 		}
 		$action   = sanitize_key( wp_unslash( $_POST['wpac_portal_action'] ) );
-		$redirect = remove_query_arg( array( 'wpac_msg' ), wp_get_referer() ? wp_get_referer() : home_url( '/' ) );
+		$redirect = remove_query_arg( array( 'wpac_msg' ), wpac_return_url() );
 
 		if ( 'profile' === $action ) {
 			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'account_holder', 'iban', 'bic' );
