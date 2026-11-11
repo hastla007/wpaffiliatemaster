@@ -225,7 +225,7 @@ final class RulesPage {
 				esc_html__( 'Edit', 'wp-affiliate-captain' )
 			);
 			Admin::form_open( 'rule_delete', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" size="10"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this rule? Existing commissions are not changed.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Delete', 'wp-affiliate-captain' ) . '</button></form></td></tr>';
+			echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" aria-label="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" size="10"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this rule? Existing commissions are not changed.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Delete', 'wp-affiliate-captain' ) . '</button></form></td></tr>';
 		}
 		echo '</tbody></table>';
 
@@ -260,9 +260,9 @@ final class RulesPage {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'rate_type', 'percent' ), $k, false ), esc_html( $l ) );
 		}
 		echo '</select> <span data-wpac-depends="rate_type=percent|fixed"><input type="text" name="rate" value="' . esc_attr( $rate_display ) . '" size="8" aria-label="' . esc_attr__( 'Rate', 'wp-affiliate-captain' ) . '"> <span data-wpac-depends="rate_type=percent">%</span><span data-wpac-depends="rate_type=fixed">' . esc_html( $currency . ' ' . __( 'per unit', 'wp-affiliate-captain' ) ) . '</span></span></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Priority', 'wp-affiliate-captain' ) . '</th><td><input type="number" name="priority" value="' . esc_attr( $v( 'priority', '0' ) ) . '" class="small-text"> <label><input type="checkbox" name="active" value="1" ' . checked( $v( 'active', '1' ), '1', false ) . '> ' . esc_html__( 'Active', 'wp-affiliate-captain' ) . '</label></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Note', 'wp-affiliate-captain' ) . '</th><td><input type="text" name="note" value="' . esc_attr( $v( 'note' ) ) . '" class="regular-text"></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Reason for change', 'wp-affiliate-captain' ) . '</th><td><input type="text" name="reason" class="regular-text" ' . ( $edit ? 'required' : '' ) . '></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Priority', 'wp-affiliate-captain' ) . '</th><td><input type="number" name="priority" value="' . esc_attr( $v( 'priority', '0' ) ) . '" class="small-text" aria-label="' . esc_attr__( 'Priority', 'wp-affiliate-captain' ) . '"> <label><input type="checkbox" name="active" value="1" ' . checked( $v( 'active', '1' ), '1', false ) . '> ' . esc_html__( 'Active', 'wp-affiliate-captain' ) . '</label></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Note', 'wp-affiliate-captain' ) . '</th><td><input type="text" name="note" value="' . esc_attr( $v( 'note' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'Note', 'wp-affiliate-captain' ) . '"></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Reason for change', 'wp-affiliate-captain' ) . '</th><td><input type="text" name="reason" class="regular-text" aria-label="' . esc_attr__( 'Reason for change', 'wp-affiliate-captain' ) . '" ' . ( $edit ? 'required' : '' ) . '></td></tr>';
 		echo '</table>';
 		submit_button( $edit ? __( 'Save rule', 'wp-affiliate-captain' ) : __( 'Add rule', 'wp-affiliate-captain' ) );
 		echo '</form>';
@@ -299,7 +299,7 @@ final class RulesPage {
 		}
 		echo '</ul>';
 		Admin::form_open( 'group_create' );
-		echo '<input type="text" name="name" placeholder="' . esc_attr__( 'Name', 'wp-affiliate-captain' ) . '" required> <input type="text" name="description" placeholder="' . esc_attr__( 'Description', 'wp-affiliate-captain' ) . '" class="regular-text"> <button class="button">' . esc_html__( 'Add group', 'wp-affiliate-captain' ) . '</button></form>';
+		echo '<input type="text" name="name" aria-label="' . esc_attr__( 'Name', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Name', 'wp-affiliate-captain' ) . '" required> <input type="text" name="description" aria-label="' . esc_attr__( 'Description', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Description', 'wp-affiliate-captain' ) . '" class="regular-text"> <button class="button">' . esc_html__( 'Add group', 'wp-affiliate-captain' ) . '</button></form>';
 	}
 
 	/**
@@ -330,7 +330,7 @@ final class RulesPage {
 			);
 			if ( $p->active ) {
 				Admin::form_open( 'tier_deactivate', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $p->id . '"><input type="text" name="reason" size="10" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Deactivate this tier plan?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Deactivate', 'wp-affiliate-captain' ) . '</button></form>';
+				echo '<input type="hidden" name="id" value="' . (int) $p->id . '"><input type="text" name="reason" size="10" aria-label="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Deactivate this tier plan?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Deactivate', 'wp-affiliate-captain' ) . '</button></form>';
 			}
 			echo '</td></tr>';
 		}
@@ -351,7 +351,7 @@ final class RulesPage {
 		echo '<select name="mode"><option value="marginal">' . esc_html__( 'Marginal (only above the threshold)', 'wp-affiliate-captain' ) . '</option><option value="retroactive">' . esc_html__( 'Retroactive (whole month)', 'wp-affiliate-captain' ) . '</option></select></p>';
 		/* translators: %s: currency */
 		echo '<p><textarea name="steps" rows="3" cols="40" placeholder="' . esc_attr( sprintf( __( "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)", 'wp-affiliate-captain' ), $currency ) ) . '"></textarea></p>';
-		echo '<p><input type="text" name="note" placeholder="' . esc_attr__( 'Note', 'wp-affiliate-captain' ) . '" class="regular-text"> <input type="text" name="reason" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" class="regular-text"> <button class="button">' . esc_html__( 'Add tier plan', 'wp-affiliate-captain' ) . '</button></p></form>';
+		echo '<p><input type="text" name="note" aria-label="' . esc_attr__( 'Note', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Note', 'wp-affiliate-captain' ) . '" class="regular-text"> <input type="text" name="reason" aria-label="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '" class="regular-text"> <button class="button">' . esc_html__( 'Add tier plan', 'wp-affiliate-captain' ) . '</button></p></form>';
 
 		Admin::form_open( 'tier_close_month' );
 		/* translators: %s: last closed month */
@@ -372,11 +372,11 @@ final class RulesPage {
 			printf( '<option value="%d" %s>%s</option>', (int) $aid, selected( absint( Admin::get( 'p_affiliate' ) ), $aid, false ), esc_html( $name ) );
 		}
 		echo '</select> ';
-		echo '<input type="number" name="p_product" placeholder="' . esc_attr__( 'Product ID', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_product' ) ) . '" class="small-text"> ';
-		echo '<input type="text" name="p_sku" placeholder="' . esc_attr__( 'SKU / course code', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_sku' ) ) . '" size="10"> ';
-		echo '<input type="text" name="p_cats" placeholder="' . esc_attr__( 'Category IDs', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8"> ';
-		echo '<input type="text" name="p_tags" placeholder="' . esc_attr__( 'Tag IDs', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_tags' ) ) . '" size="8"> ';
-		echo '<input type="text" name="p_net" placeholder="' . esc_attr__( 'Net amount', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_net' ) ? Admin::get( 'p_net' ) : '100' ) . '" size="7"> ';
+		echo '<input type="number" name="p_product" aria-label="' . esc_attr__( 'Product ID', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Product ID', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_product' ) ) . '" class="small-text"> ';
+		echo '<input type="text" name="p_sku" aria-label="' . esc_attr__( 'SKU / course code', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'SKU / course code', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_sku' ) ) . '" size="10"> ';
+		echo '<input type="text" name="p_cats" aria-label="' . esc_attr__( 'Category IDs', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Category IDs', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8"> ';
+		echo '<input type="text" name="p_tags" aria-label="' . esc_attr__( 'Tag IDs', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Tag IDs', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_tags' ) ) . '" size="8"> ';
+		echo '<input type="text" name="p_net" aria-label="' . esc_attr__( 'Net amount', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Net amount', 'wp-affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_net' ) ? Admin::get( 'p_net' ) : '100' ) . '" size="7"> ';
 		echo '<button class="button">' . esc_html__( 'Calculate', 'wp-affiliate-captain' ) . '</button></form>';
 
 		if ( ! Admin::get( 'preview' ) ) {

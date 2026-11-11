@@ -838,6 +838,9 @@ msgstr "Bankverbindung"
 msgid "No payouts yet."
 msgstr "Noch keine Auszahlungen."
 
+msgid "Select %s"
+msgstr "%s auswählen"
+
 msgid "Bulk action for selected payouts"
 msgstr "Sammelaktion für ausgewählte Auszahlungen"
 
@@ -1500,9 +1503,6 @@ msgstr "Bewerbungen freigeben"
 
 msgid "No partners found."
 msgstr "Keine Partner gefunden."
-
-msgid "Select %s"
-msgstr "%s auswählen"
 
 msgid "Reject (reason required)"
 msgstr "Ablehnen (Grund erforderlich)"

@@ -3,3 +3,5 @@
 .phpunit.result.cache
 *.zip
 /dist/
+/tests/e2e/node_modules/
+/tests/e2e/artifacts/

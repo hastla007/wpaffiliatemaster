@@ -160,7 +160,7 @@ final class CommissionsPage {
 
 		// Filters.
 		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac-commissions">';
-		echo '<select name="status"><option value="">' . esc_html__( 'All statuses', 'wp-affiliate-captain' ) . '</option>';
+		echo '<select name="status" aria-label="' . esc_attr__( 'Status', 'wp-affiliate-captain' ) . '"><option value="">' . esc_html__( 'All statuses', 'wp-affiliate-captain' ) . '</option>';
 		foreach ( $labels as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $filters['status'], $k, false ), esc_html( $l ) );
 		}

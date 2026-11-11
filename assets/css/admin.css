@@ -23,7 +23,7 @@
 .wpac-history li{border-bottom:1px solid #f0f0f1;padding:6px 0}
 .wpac-history code,.wpac-pre{white-space:pre-wrap;word-break:break-all;font-size:11px}
 .wpac-checks li.ok{color:#0f5132}
-.wpac-checks li.warn{color:#8a6d00}
+.wpac-checks li.warn{color:#6b5300}
 .wpac-dl th{width:220px}
 @media print{#adminmenumain,#wpadminbar,#wpfooter,.wpac-noprint,.notice{display:none!important}#wpcontent{margin:0!important}}
 .wpac-tabs-content{margin-top:16px}
@@ -37,3 +37,6 @@
 .wpac-field-hint{color:#50575e;font-size:12px;margin:4px 0 0}
 fieldset.wpac-bulk{border:1px solid #dcdcde;padding:8px 12px;margin-top:12px}
 fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
+
+/* Links inside table text must not rely on colour alone (WCAG 1.4.1). */
+.wp-list-table td.column-order a,.wp-list-table td a.wpac-link{text-decoration:underline}
