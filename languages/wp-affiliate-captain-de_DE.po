@@ -317,6 +317,72 @@ msgstr "Sie dürfen diese Aktion nicht ausführen."
 msgid "Done."
 msgstr "Erledigt."
 
+msgid "Date"
+msgstr "Datum"
+
+msgid "Partner"
+msgstr "Partner"
+
+msgid "Order"
+msgstr "Bestellung"
+
+msgid "Item"
+msgstr "Position"
+
+msgid "Base"
+msgstr "Basis"
+
+msgid "Rate"
+msgstr "Satz"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Approve"
+msgstr "Freigeben"
+
+msgid "Reject (reason required)"
+msgstr "Ablehnen (Grund erforderlich)"
+
+msgid "Reason (required for rejection)"
+msgstr "Grund (Pflicht bei Ablehnung)"
+
+msgid "No commissions found."
+msgstr "Keine Provisionen gefunden."
+
+msgid "Select commission #%d"
+msgstr "Provision #%d auswählen"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "until"
+msgstr "bis"
+
+msgid "Website / channel"
+msgstr "Website / Kanal"
+
+msgid "Group"
+msgstr "Gruppe"
+
+msgid "Since"
+msgstr "Seit"
+
+msgid "Approve applications"
+msgstr "Bewerbungen freigeben"
+
+msgid "All"
+msgstr "Alle"
+
+msgid "No partners found."
+msgstr "Keine Partner gefunden."
+
+msgid "Select %s"
+msgstr "%s auswählen"
+
+msgid "Edit"
+msgstr "Bearbeiten"
+
 msgid "%d application waiting for review"
 msgid_plural "%d applications waiting for review"
 msgstr[0] "%d Bewerbung wartet auf Prüfung"
@@ -423,9 +489,6 @@ msgstr "Keine Aktivität in diesem Zeitraum."
 msgid "Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution."
 msgstr "Inhalt = der Beitrag bzw. die Seite, auf der der Partnerlink gelandet ist. Bestellungen werden dem Inhalt bzw. der Kampagne ihrer Zuordnung zugerechnet."
 
-msgid "Partner"
-msgstr "Partner"
-
 msgid "Refund rate"
 msgstr "Rückerstattungsquote"
 
@@ -483,9 +546,6 @@ msgstr "Programmstandard: %s. Basis ist der Netto-Positionsbetrag nach Rabatt, o
 msgid "Resolution: an exclusion always wins; otherwise the most specific rule applies (partner > group > global, product/SKU > category > all, then priority)."
 msgstr "Auflösung: Ein Ausschluss gewinnt immer; sonst gilt die spezifischste Regel (Partner > Gruppe > global, Produkt/SKU > Kategorie > alle, dann Priorität)."
 
-msgid "Group"
-msgstr "Gruppe"
-
 msgid "Global"
 msgstr "Global"
 
@@ -510,9 +570,6 @@ msgstr "Gilt für"
 msgid "Products"
 msgstr "Produkte"
 
-msgid "Rate"
-msgstr "Satz"
-
 msgid "Priority"
 msgstr "Priorität"
 
@@ -521,9 +578,6 @@ msgstr "Notiz"
 
 msgid "No rules yet – the program default applies to all sales."
 msgstr "Noch keine Regeln – für alle Verkäufe gilt der Programmstandard."
-
-msgid "Edit"
-msgstr "Bearbeiten"
 
 msgid "Delete this rule? Existing commissions are not changed."
 msgstr "Diese Regel löschen? Bestehende Provisionen bleiben unverändert."
@@ -1032,9 +1086,6 @@ msgstr "Integration"
 msgid "Contract"
 msgstr "Vertrag"
 
-msgid "Status"
-msgstr "Status"
-
 msgid "Not installed / not registered"
 msgstr "Nicht installiert / nicht registriert"
 
@@ -1107,6 +1158,11 @@ msgstr "Nächster Versuch"
 msgid "Retry now"
 msgstr "Jetzt wiederholen"
 
+msgid "%d application approved."
+msgid_plural "%d applications approved."
+msgstr[0] "%d Bewerbung freigegeben."
+msgstr[1] "%d Bewerbungen freigegeben."
+
 msgid "Partner created and activated."
 msgstr "Partner angelegt und aktiviert."
 
@@ -1134,20 +1190,8 @@ msgstr "Auszahlungsdaten gespeichert."
 msgid "Add partner"
 msgstr "Partner hinzufügen"
 
-msgid "All"
-msgstr "Alle"
-
-msgid "Search"
-msgstr "Suchen"
-
-msgid "Website / channel"
-msgstr "Website / Kanal"
-
-msgid "Since"
-msgstr "Seit"
-
-msgid "No partners found."
-msgstr "Keine Partner gefunden."
+msgid "Search partners"
+msgstr "Partner suchen"
 
 msgid "Channel"
 msgstr "Kanal"
@@ -1178,9 +1222,6 @@ msgstr "Provisionen dieses Partners"
 
 msgid "Last reason"
 msgstr "Letzter Grund"
-
-msgid "Approve"
-msgstr "Freigeben"
 
 msgid "Reject"
 msgstr "Ablehnen"
@@ -1236,9 +1277,6 @@ msgstr "Annahme der Bedingungen"
 msgid "No acceptance recorded."
 msgstr "Keine Annahme protokolliert."
 
-msgid "Date"
-msgstr "Datum"
-
 msgid "Document hash"
 msgstr "Dokument-Hash"
 
@@ -1259,9 +1297,6 @@ msgstr "Verwendet"
 
 msgid "Link"
 msgstr "Link"
-
-msgid "until"
-msgstr "bis"
 
 msgid "Unblock"
 msgstr "Entsperren"
@@ -1532,9 +1567,6 @@ msgstr "Stichtag"
 msgid "Created"
 msgstr "Erstellt"
 
-msgid "Order"
-msgstr "Bestellung"
-
 msgid "Correction"
 msgstr "Korrektur"
 
@@ -1631,6 +1663,9 @@ msgstr "%1$d Provision(en) konnten nicht geändert werden: %2$s"
 msgid "Commissions updated."
 msgstr "Provisionen aktualisiert."
 
+msgid "Please enter a reason for the rejection."
+msgstr "Bitte geben Sie einen Grund für die Ablehnung an."
+
 msgid "All statuses"
 msgstr "Alle Status"
 
@@ -1642,27 +1677,6 @@ msgstr "Quelle"
 
 msgid "Filter"
 msgstr "Filtern"
-
-msgid "Item"
-msgstr "Position"
-
-msgid "Base"
-msgstr "Basis"
-
-msgid "No commissions found."
-msgstr "Keine Provisionen gefunden."
-
-msgid "Reason (required for rejection)"
-msgstr "Grund (Pflicht bei Ablehnung)"
-
-msgid "Approve selected"
-msgstr "Auswahl freigeben"
-
-msgid "Reject the selected commissions? This cannot be undone."
-msgstr "Ausgewählte Provisionen ablehnen? Das kann nicht rückgängig gemacht werden."
-
-msgid "Reject selected"
-msgstr "Auswahl ablehnen"
 
 msgid "All commissions"
 msgstr "Alle Provisionen"
@@ -1723,9 +1737,6 @@ msgstr "Benutzer"
 
 msgid "Object"
 msgstr "Objekt"
-
-msgid "Details"
-msgstr "Details"
 
 msgid "Older entries"
 msgstr "Ältere Einträge"
@@ -2141,6 +2152,12 @@ msgstr "Für Partner speichern wir Bewerbungsangaben, akzeptierte Bedingungen (V
 msgid "This text is a suggestion based on your current settings and must be reviewed by your data protection advisor."
 msgstr "Dieser Text ist ein Vorschlag auf Basis Ihrer aktuellen Einstellungen und muss von Ihrer Datenschutzberatung geprüft werden."
 
+msgid "Affiliate partner"
+msgstr "Affiliate-Partner"
+
+msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
+msgstr "Bestellungen mit diesem Gutschein werden dem Partner zugeordnet. Den Rabatt steuert weiterhin der Gutschein."
+
 msgid "Partner code (optional)"
 msgstr "Partnercode (optional)"
 
@@ -2149,15 +2166,6 @@ msgstr "z. B. von Ihrer Segelschule"
 
 msgid "The partner code is not valid."
 msgstr "Der Partnercode ist ungültig."
-
-msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
-msgstr "Affiliate Captain: dem Partner „%1$s“ zugeordnet (%2$s)."
-
-msgid "Order refunded"
-msgstr "Bestellung erstattet"
-
-msgid "Order cancelled"
-msgstr "Bestellung storniert"
 
 msgid "Method"
 msgstr "Methode"
@@ -2180,11 +2188,14 @@ msgstr "Grund (Pflicht)"
 msgid "Commission is created once the order is paid."
 msgstr "Die Provision wird angelegt, sobald die Bestellung bezahlt ist."
 
-msgid "Affiliate partner"
-msgstr "Affiliate-Partner"
+msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
+msgstr "Affiliate Captain: dem Partner „%1$s“ zugeordnet (%2$s)."
 
-msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
-msgstr "Bestellungen mit diesem Gutschein werden dem Partner zugeordnet. Den Rabatt steuert weiterhin der Gutschein."
+msgid "Order refunded"
+msgstr "Bestellung erstattet"
+
+msgid "Order cancelled"
+msgstr "Bestellung storniert"
 
 msgid "SEPA exported"
 msgstr "SEPA exportiert"

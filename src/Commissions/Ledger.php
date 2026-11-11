@@ -766,21 +766,7 @@ final class Ledger {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
 		list( $where, $params ) = self::where( $args );
-		$count_sql              = "SELECT COUNT(*) FROM {$t} WHERE {$where}";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$total = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) ) : $wpdb->get_var( $count_sql ) );
-		$limit = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
-		if ( $limit > 0 ) {
-			$params[] = $limit;
-			$params[] = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", $params ) );
-		} else {
-			$sql = "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC";
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			$rows = $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
-		}
-		return array( $rows, $total );
+		return \WPAffiliateCaptain\Core\Paged::fetch( $t, $where, $params, $args, array( 'id', 'created_at', 'amount_minor', 'status', 'affiliate_id' ) );
 	}
 
 	/**

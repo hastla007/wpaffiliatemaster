@@ -91,6 +91,39 @@ final class CommissionsPage {
 	}
 
 	/**
+	 * Bulk approve/reject of the list table (load-{page} hook, before output).
+	 */
+	public static function process_bulk() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- verified below.
+		$action = isset( $_REQUEST['action'] ) && '-1' !== $_REQUEST['action'] ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : ( isset( $_REQUEST['action2'] ) ? sanitize_key( wp_unslash( $_REQUEST['action2'] ) ) : '' );
+		if ( ! in_array( $action, array( 'approve', 'reject' ), true ) || empty( $_REQUEST['ids'] ) ) {
+			return;
+		}
+		check_admin_referer( 'bulk-commissions' );
+		$ids    = array_map( 'absint', (array) wp_unslash( $_REQUEST['ids'] ) );
+		$reason = isset( $_REQUEST['reason'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['reason'] ) ) : '';
+		// phpcs:enable
+		$back = remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer', 'reason' ) );
+		if ( 'reject' === $action && '' === $reason ) {
+			Admin::back( __( 'Please enter a reason for the rejection.', 'wp-affiliate-captain' ), 'error', $back );
+		}
+		$errors = 0;
+		$last   = '';
+		foreach ( $ids as $id ) {
+			$result = 'approve' === $action ? Ledger::approve( $id, '' !== $reason ? $reason : __( 'Approved manually', 'wp-affiliate-captain' ) ) : Ledger::reject( $id, $reason );
+			if ( is_wp_error( $result ) ) {
+				++$errors;
+				$last = $result->get_error_message();
+			}
+		}
+		if ( $errors ) {
+			/* translators: 1: number of errors, 2: message */
+			Admin::back( sprintf( __( '%1$d commission(s) could not be changed: %2$s', 'wp-affiliate-captain' ), $errors, $last ), 'error', $back );
+		}
+		Admin::back( __( 'Commissions updated.', 'wp-affiliate-captain' ), 'success', $back );
+	}
+
+	/**
 	 * Read filters from GET or POST.
 	 *
 	 * @param string $from get|post.
@@ -119,8 +152,6 @@ final class CommissionsPage {
 			return;
 		}
 		$filters = self::filters_from( 'get' );
-		$per     = 50;
-		list( $rows, $total ) = Ledger::query( $filters + array( 'limit' => $per, 'offset' => ( Admin::paged() - 1 ) * $per ) );
 		$labels  = Ledger::status_labels();
 		$totals  = Ledger::totals( $filters );
 
@@ -156,45 +187,16 @@ final class CommissionsPage {
 		}
 		echo '</p>';
 
-		Admin::form_open( 'commission_status' );
-		echo '<table class="wp-list-table widefat fixed striped"><thead><tr><td class="check-column"><input type="checkbox" class="wpac-cb-all" aria-label="' . esc_attr__( 'Select all', 'wp-affiliate-captain' ) . '"></td><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Item', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Base', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Rate', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
-		if ( ! $rows ) {
-			echo '<tr><td colspan="9">' . esc_html__( 'No commissions found.', 'wp-affiliate-captain' ) . '</td></tr>';
-		}
-		$names = array();
-		$kinds = Ledger::kind_labels();
-		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
-		foreach ( $rows as $r ) {
-			if ( ! isset( $names[ $r->affiliate_id ] ) ) {
-				$a                         = AffiliateRepository::find( (int) $r->affiliate_id );
-				$names[ $r->affiliate_id ] = $a ? $a->name : '#' . $r->affiliate_id;
+		$table = new \WPAffiliateCaptain\Admin\Tables\CommissionsTable( $filters );
+		$table->prepare_items();
+		echo '<form method="get"><input type="hidden" name="page" value="wpac-commissions">';
+		foreach ( $filters as $k => $v ) {
+			if ( '' !== (string) $v && 0 !== $v ) {
+				echo '<input type="hidden" name="' . esc_attr( $k ) . '" value="' . esc_attr( $v ) . '">';
 			}
-			$order_link = 'woocommerce' === $r->source && function_exists( 'wc_get_order' ) && ( $o = wc_get_order( (int) $r->source_order_id ) ) ? $o->get_edit_order_url() : ''; // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition, Squiz.PHP.DisallowMultipleAssignments
-			printf(
-				'<tr><th class="check-column"><input type="checkbox" class="wpac-cb" name="ids[]" value="%d"></th><td><a href="%s">%s</a></td><td><a href="%s">%s</a></td><td>%s%s</td><td>%s%s</td><td>%s</td><td>%s</td><td class="%s"><strong>%s</strong></td><td>%s%s</td></tr>',
-				(int) $r->id,
-				esc_url( Admin::url( 'wpac-commissions', array( 'action' => 'view', 'id' => $r->id ) ) ),
-				esc_html( Admin::date( $r->created_at ) ),
-				esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $r->affiliate_id ) ) ),
-				esc_html( $names[ $r->affiliate_id ] ),
-				esc_html( Ledger::source_label( $r->source ) . ' ' ),
-				$order_link ? '<a href="' . esc_url( $order_link ) . '">#' . esc_html( $r->source_order_id ) . '</a>' : '#' . esc_html( $r->source_order_id ),
-				esc_html( $r->description ),
-				'sale' !== $r->kind ? ' <em>(' . esc_html( isset( $kinds[ $r->kind ] ) ? $kinds[ $r->kind ] : $r->kind ) . ')</em>' : '',
-				esc_html( Money::format( (int) $r->base_minor, $r->currency ) ),
-				esc_html( RuleRepository::format_rate( $r->rate_type, $r->rate, $r->currency ) ),
-				(int) $r->amount_minor < 0 ? 'wpac-negative' : '',
-				esc_html( Money::format( (int) $r->amount_minor, $r->currency ) ),
-				Admin::badge( $r->status, isset( $labels[ $r->status ] ) ? $labels[ $r->status ] : $r->status ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				in_array( $r->status, array( 'pending', 'review' ), true ) ? '<br><small>' . esc_html__( 'until', 'wp-affiliate-captain' ) . ' ' . esc_html( Admin::date( $r->hold_until ) ) . '</small>' : ''
-			);
 		}
-		echo '</tbody></table>';
-		echo '<p class="wpac-bulk"><input type="text" name="reason" class="regular-text" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'wp-affiliate-captain' ) . '"> ';
-		echo '<button class="button" name="to" value="approved">' . esc_html__( 'Approve selected', 'wp-affiliate-captain' ) . '</button> ';
-		echo '<button class="button" name="to" value="rejected" data-wpac-confirm="' . esc_attr__( 'Reject the selected commissions? This cannot be undone.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Reject selected', 'wp-affiliate-captain' ) . '</button></p></form>';
-		Admin::pager( $total, $per );
-		echo '</div>';
+		$table->display();
+		echo '</form></div>';
 	}
 
 	/**

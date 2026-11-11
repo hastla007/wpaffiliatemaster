@@ -3,7 +3,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "X-Domain: wp-affiliate-captain\n"
 
-#: src/Admin/Admin.php src/Admin/Pages/DashboardPage.php src/Content/Editor.php src/Integrations/WooCommerce.php
+#: src/Admin/Admin.php src/Admin/Pages/DashboardPage.php src/Content/Editor.php src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Affiliate Captain"
 msgstr ""
 
@@ -15,7 +15,7 @@ msgstr ""
 msgid "Partners"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Admin.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/SettingsPage.php src/Admin/Tables/AffiliatesTable.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Commissions"
 msgstr ""
 
@@ -79,16 +79,24 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Date"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Status"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Tables/CommissionsTable.php
+msgid "Approve"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Tables/CommissionsTable.php
+msgid "until"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php
 msgid "Export CSV"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php
-msgid "Partner"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php
-msgid "Group"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php
@@ -111,9 +119,11 @@ msgstr ""
 msgid "Block"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Status"
-msgstr ""
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%d application approved."
+msgid_plural "%d applications approved."
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Partner created and activated."
@@ -151,24 +161,8 @@ msgstr ""
 msgid "Add partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CreativesPage.php
-msgid "All"
-msgstr ""
-
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "Search"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Website / channel"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
-msgid "Since"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "No partners found."
+msgid "Search partners"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
@@ -209,10 +203,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Last reason"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php
-msgid "Approve"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php
@@ -287,10 +277,6 @@ msgstr ""
 msgid "No acceptance recorded."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Date"
-msgstr ""
-
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Document hash"
 msgstr ""
@@ -317,10 +303,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
 msgid "Link"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php
-msgid "until"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -483,6 +465,10 @@ msgstr ""
 msgid "Partner sections"
 msgstr ""
 
+#: src/Admin/Pages/AuditPage.php src/Admin/Tables/CommissionsTable.php
+msgid "Details"
+msgstr ""
+
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
 msgid "Action"
 msgstr ""
@@ -504,23 +490,39 @@ msgid "Object"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
-msgid "Details"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php
 msgid "Older entries"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Affiliates/Notifications.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Affiliates/Notifications.php
 msgid "Reason"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Integrations/WooCommerce.php src/Reports/MonthlyMail.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Reports/MonthlyMail.php
 msgid "Commission"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Reports/MonthlyMail.php
 msgid "Corrections"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php
+msgid "Partner"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Order"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Tables/CommissionsTable.php
+msgid "Item"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Tables/CommissionsTable.php
+msgid "Base"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php
+msgid "Rate"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php
@@ -531,20 +533,8 @@ msgstr ""
 msgid "to"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/RulesPage.php
-msgid "Rate"
-msgstr ""
-
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php
 msgid "Type"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php
-msgid "Select all"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Order"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -560,6 +550,10 @@ msgid "Commissions updated."
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
+msgid "Please enter a reason for the rejection."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
 msgid "All statuses"
 msgstr ""
 
@@ -569,34 +563,6 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Source"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
-msgid "Item"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
-msgid "Base"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
-msgid "No commissions found."
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
-msgid "Reason (required for rejection)"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
-msgid "Approve selected"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
-msgid "Reject the selected commissions? This cannot be undone."
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
-msgid "Reject selected"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -665,6 +631,14 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Rule snapshot"
+msgstr ""
+
+#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
+msgid "Group"
+msgstr ""
+
+#: src/Admin/Pages/CreativesPage.php src/Admin/Tables/AffiliatesTable.php
+msgid "All"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
@@ -1134,6 +1108,10 @@ msgid "Create payout"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Select all"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Bank details"
 msgstr ""
 
@@ -1253,6 +1231,10 @@ msgstr ""
 msgid "Please enter a reason."
 msgstr ""
 
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
+msgid "Edit"
+msgstr ""
+
 #: src/Admin/Pages/RulesPage.php
 msgid "Please enter a reason for the change."
 msgstr ""
@@ -1367,10 +1349,6 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "No rules yet – the program default applies to all sales."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Edit"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -2001,6 +1979,42 @@ msgstr ""
 msgid "Enabled"
 msgstr ""
 
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "Website / channel"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php src/Privacy/Privacy.php
+msgid "Since"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "Approve applications"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "No partners found."
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "Select %s"
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "Reject (reason required)"
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "Reason (required for rejection)"
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "No commissions found."
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "Select commission #%d"
+msgstr ""
+
 #: src/Affiliates/AffiliateRepository.php
 msgid "Application pending"
 msgstr ""
@@ -2285,7 +2299,7 @@ msgstr ""
 msgid "Cancellation"
 msgstr ""
 
-#: src/Commissions/Ledger.php src/Integrations/WooCommerce.php
+#: src/Commissions/Ledger.php src/Integrations/WooCommerce/OrderSync.php
 msgid "Chargeback"
 msgstr ""
 
@@ -2385,64 +2399,64 @@ msgstr ""
 msgid "Recommended target pages"
 msgstr ""
 
-#: src/Integrations/WooCommerce.php
+#: src/Integrations/WooCommerce/CheckoutField.php
 msgid "Partner code (optional)"
 msgstr ""
 
-#: src/Integrations/WooCommerce.php
+#: src/Integrations/WooCommerce/CheckoutField.php
 msgid "e.g. from your sailing school"
 msgstr ""
 
-#: src/Integrations/WooCommerce.php
+#: src/Integrations/WooCommerce/CheckoutField.php
 msgid "The partner code is not valid."
 msgstr ""
 
-#: src/Integrations/WooCommerce.php
-msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Order refunded"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Order cancelled"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Method"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "View commissions"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Partner code entered: %s"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Not attributed."
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Assign manually"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Reason (required)"
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
-msgid "Commission is created once the order is paid."
-msgstr ""
-
-#: src/Integrations/WooCommerce.php
+#: src/Integrations/WooCommerce/CouponLink.php
 msgid "Affiliate partner"
 msgstr ""
 
-#: src/Integrations/WooCommerce.php
+#: src/Integrations/WooCommerce/CouponLink.php
 msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Method"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "View commissions"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Partner code entered: %s"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Not attributed."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Assign manually"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Reason (required)"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Commission is created once the order is paid."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Order refunded"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Order cancelled"
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php src/Portal/Portal.php

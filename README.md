@@ -4,7 +4,7 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.4.0 – noch nicht in einer echten WordPress-Installation getestet.** Ledger und Auszahlungen sind per Integrationstests gegen MariaDB geprüft. Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
+> Status: **0.5.0 – noch nicht in einer echten WordPress-Installation getestet.** Ledger und Auszahlungen sind per Integrationstests gegen MariaDB geprüft. Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
 
 ## Anforderungen
 
@@ -44,7 +44,7 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 | Refunds | Teilrefunds positionsgenau anteilig, Storno/Chargeback als Restumkehr. Korrekturen sind eigene negative Ledger-Zeilen; wiederholte Ereignisse buchen nie doppelt (Idempotency-Key, Obergrenze = ursprüngliche Provision). Nach Auszahlung wird die Korrektur im nächsten Lauf verrechnet. |
 | Auszahlung | Lauf mit Periodenende + Mindestbetrag; negative Salden/Beträge unter Minimum werden vorgetragen. Jede Provision kann nur einmal in einer Auszahlung stehen (UNIQUE). Abrechnungsbeleg (druckbar) mit Steuerstatus-Snapshot, SEPA-XML (pain.001.001.03), „bezahlt“ markieren, Stornieren gibt Provisionen frei. |
 | Partnerportal | Kennzahlen, Link-Generator mit Kampagne, Codes, Provisionen (nur Bestellreferenz, Datum, Produkt, Betrag, Status – keine Kundendaten), Auszahlungen, Steuer-/Bankdaten (IBAN verschlüsselt, maskiert angezeigt), erneute Annahme geänderter Bedingungen. |
-| Monatsstufen | Zusatzbonus in % des Monats-Nettoumsatzes (nach Refunds), Basis Umsatz oder Anzahl Bestellungen, **marginal** (nur Anteil über der Schwelle) oder **rückwirkend** (ganzer Monat). Spezifischster Plan gilt (Partner > Gruppe > global). Abschluss automatisch nach Ablauf der Haltefrist, Plan wird im Bonus eingefroren; manueller Abschluss möglich. |
+| Monatsstufen | Zusatzbonus in % des Monats-Nettoumsatzes (nach Refunds), Basis Umsatz oder Anzahl Bestellungen, **marginal** (nur Anteil über der Schwelle) oder **rückwirkend** (ganzer Monat). Spezifischster Plan gilt (Partner > Gruppe > global). Abschluss automatisch nach Ablauf der Haltefrist, Plan wird im Bonus eingefroren; manueller Abschluss möglich. Spätere Rückerstattungen, Ablehnungen oder Freigaben werden täglich (letzte 3 Monate) als Bonus-Korrektur verbucht; gezählt werden nur freigegebene/bezahlte Provisionen. |
 | Lifetime | Optional: Folgekäufe eines geworbenen Kunden gehen an denselben Partner (Dauer und eigener Satz einstellbar), nur wenn kein neuer Link/Code/Coupon genutzt wird. Kunden nur als HMAC-Hash gespeichert, Löschung über den WordPress-Datenschutz-Eraser. |
 | Tags | Provisionsregeln auch nach Produkt-Tags. |
 | Partnergruppen | Eigene Bedingungsseite + Version je Gruppe, Gruppe im Antrag wählbar oder per `[wpac_affiliate_registration group="ID"]` fest, zusätzliche Antragsfelder je Gruppe (`key|Label|Typ|required`). |
@@ -54,6 +54,7 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 | Auszahlungsanträge | Optional: Partner beantragen die Auszahlung ihres freigegebenen Saldos (Mindestbetrag, vollständiges Profil); Admin erzeugt daraus die Auszahlung oder lehnt mit Grund ab. |
 | PDF-Beleg | Bei jeder Auszahlung wird einmalig ein PDF-Abrechnungsbeleg erzeugt, geschützt abgelegt (`uploads/wpac-statements`), per SHA-256 gegen Veränderung geprüft; Download im Admin (`wpac_view_tax_data`) und für den Partner im Portal. |
 | Gutschrift | Beleg als Gutschrift (§ 14 Abs. 2 UStG) mit allen Pflichtangaben: lückenlose Nummer pro Jahr (`GS-2026-000001`), Leistung und Zeitraum, Netto, USt-Satz und -Betrag. Provisionssätze sind netto; regelbesteuerte Partner im Inland erhalten USt obendrauf (Auszahlung = brutto), ausländische Unternehmen Reverse-Charge, Kleinunternehmer/Privatpersonen keine USt. Storno einer Auszahlung erzeugt eine Storno-Gutschrift (`ST-…`) mit Verweis. Steuerliche Behandlung per Filter `wpac_vat_treatment` anpassbar – mit der Steuerberatung abstimmen. |
+| Partnerkonto | Unveränderliches Saldo-Ledger je Partner und Währung: jede Freigabe, Ablehnung, Auszahlung und Auszahlungs-Storno ist eine Buchung mit laufendem Saldo, hash-verkettet (nachträgliche Änderungen werden erkannt), pro Konto serialisiert. Kontoauszug mit Integritätsprüfung auf der Partnerseite; Saldo = freigegebene, nicht ausgezahlte Provisionen. |
 | Aufbewahrung | Belege werden nach der eingestellten Frist (Standard 10 Jahre ab Jahresende) samt Partner-Snapshot gelöscht, Beträge bleiben erhalten. Frist fachlich prüfen (z. B. §147 AO). |
 | Betrieb | Retry-Warteschlange für fehlgeschlagene Integrationsereignisse, Integrationsstatus/Vertragsprüfung, Audit-Log, CSV-Exporte mit Formel-Injection-Schutz, WordPress-Datenexport/-löschung, Aufbewahrungsfrist für Besuche, eigene Capabilities (`wpac_manage_program`, `wpac_manage_affiliates`, `wpac_manage_payouts`, `wpac_view_tax_data`). |
 | Berichte | Dashboard nach Partner, nach Inhalt (Beitrag/Seite/CPT, auf dem der Partnerlink landete) und nach Kampagne, jeweils mit CSV. Monatliche Zusammenfassung per E-Mail an Betreiber und optional an Partner. |
@@ -99,11 +100,10 @@ python3 tests/qr_decode_check.py
 composer lint
 ```
 
-Struktur: `src/Core` (Lifecycle, Schema, Geld, Krypto, Jobs, Audit), `src/Affiliates`, `src/Codes`, `src/Tracking`, `src/Commissions`, `src/Sales` (öffentlicher Vertrag), `src/Integrations/WooCommerce.php`, `src/Payouts`, `src/Portal`, `src/Admin`, `src/Privacy`.
+Struktur: `src/Core` (inkl. `Paged` für Listenabfragen) (Lifecycle, Schema, Geld, Krypto, Jobs, Audit), `src/Affiliates`, `src/Codes`, `src/Tracking`, `src/Commissions`, `src/Sales` (öffentlicher Vertrag), `src/Integrations/WooCommerce.php` + `src/Integrations/WooCommerce/` (CheckoutField, OrderSync, OrderMetaBox, CouponLink), `src/Payouts`, `src/Portal`, `src/Admin` (+ `Tables/` mit WP_List_Table), `src/Privacy`.
 
 ## Noch offen (nächste Schritte)
 
 - Test in echter WordPress-/WooCommerce-Umgebung (HPOS an/aus, Classic- und Blocks-Checkout), Integrationstests für Ledger/Payouts.
 - Adapter in Pass Captain und Voucher Captain gegen den Vertrag v1 (siehe `docs/CONTRACT.md`).
 - SEPA-Format und Beleg-/Steuerlogik mit Bank bzw. Steuerberatung abstimmen.
-- Monatsstufen: Refunds nach Monatsabschluss ändern einen gebuchten Bonus nicht (Abschluss erst nach der Haltefrist).

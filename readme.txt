@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,6 +46,12 @@ Yes. Partner codes entered at checkout work without any cookie. The optional aff
 No. Other sales sources report sales and refunds through the public contract (`wpac_record_sale()`, REST `wpac/v1/sales`).
 
 == Changelog ==
+
+= 0.5.0 =
+* Partner account ledger: append-only, hash-chained bookings with running balance and integrity check (account statement per partner)
+* Monthly tier bonuses are recalculated after closing; differences are booked as corrections
+* Partner and commission lists use the WordPress list table (sorting, views, search, bulk actions)
+* Internal restructuring: WooCommerce integration split into focused classes, shared paging helper
 
 = 0.4.0 =
 * Setup checklist with automatic creation of the application, partner area and landing pages

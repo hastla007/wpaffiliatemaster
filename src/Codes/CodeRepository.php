@@ -389,13 +389,6 @@ final class CodeRepository {
 			$params[] = $like;
 			$params[] = '%' . $wpdb->esc_like( strtolower( $args['search'] ) ) . '%';
 		}
-		$count_sql = "SELECT COUNT(*) FROM {$t} WHERE {$where}";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$total    = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) ) : $wpdb->get_var( $count_sql ) );
-		$params[] = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
-		$params[] = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", $params ) );
-		return array( $rows, $total );
+		return \WPAffiliateCaptain\Core\Paged::fetch( $t, $where, $params, $args, array( 'id', 'code', 'usage_count', 'status' ) );
 	}
 }

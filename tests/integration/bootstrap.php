@@ -232,6 +232,7 @@ spl_autoload_register(
 );
 require WPAC_DIR . 'src/functions.php';
 
+if ( ! defined( 'WPAC_SKIP_RESET' ) ) :
 // Fresh statement directory and schema.
 foreach ( (array) glob( sys_get_temp_dir() . '/wpac-uploads/wpac-statements/*' ) as $f ) {
 	@unlink( $f );
@@ -242,6 +243,7 @@ foreach ( WPAffiliateCaptain\Core\Db::TABLES as $t ) {
 	$wpdb->query( 'DROP TABLE IF EXISTS ' . WPAffiliateCaptain\Core\Db::table( $t ) );
 }
 WPAffiliateCaptain\Core\Installer::install_schema();
+endif;
 WPAffiliateCaptain\Codes\CodeRepository::register_hooks();
 WPAffiliateCaptain\Sales\ContractApi::register_hooks();
 function user_can( $u, $c ) { return false; }
@@ -250,3 +252,4 @@ function wp_list_pluck( $l, $f ) { return array_map( function ( $r ) use ( $f ) 
 $GLOBALS['test_scheduled'] = array();
 function wp_schedule_single_event( $ts, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
 function get_permalink( $id ) { return 'http://example.test/?p=' . (int) $id; }
+function wp_unslash( $v ) { return is_array( $v ) ? array_map( "wp_unslash", $v ) : stripslashes( (string) $v ); }

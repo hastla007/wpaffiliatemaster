@@ -36,8 +36,11 @@ final class Admin {
 	public static function menu() {
 		add_menu_page( __( 'Affiliate Captain', 'wp-affiliate-captain' ), __( 'Affiliate Captain', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ), 'dashicons-groups', 56 );
 		add_submenu_page( 'wpac', __( 'Dashboard', 'wp-affiliate-captain' ), __( 'Dashboard', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Partners', 'wp-affiliate-captain' ), __( 'Partners', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-affiliates', array( AffiliatesPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Commissions', 'wp-affiliate-captain' ), __( 'Commissions', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
+		$partners = add_submenu_page( 'wpac', __( 'Partners', 'wp-affiliate-captain' ), __( 'Partners', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-affiliates', array( AffiliatesPage::class, 'render' ) );
+		$ledger   = add_submenu_page( 'wpac', __( 'Commissions', 'wp-affiliate-captain' ), __( 'Commissions', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
+		// List table bulk actions are processed before any output (then redirected).
+		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
+		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
 		add_submenu_page( 'wpac', __( 'Payouts', 'wp-affiliate-captain' ), __( 'Payouts', 'wp-affiliate-captain' ), Capabilities::MANAGE_PAYOUTS, 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Creatives', 'wp-affiliate-captain' ), __( 'Creatives', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'wp-affiliate-captain' ), __( 'Rules & groups', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );

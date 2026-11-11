@@ -164,59 +164,45 @@ final class AffiliatesPage {
 	}
 
 	/**
+	 * Bulk actions of the list table (load-{page} hook, before output).
+	 */
+	public static function process_bulk() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- verified below.
+		$action = isset( $_REQUEST['action'] ) && '-1' !== $_REQUEST['action'] ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : ( isset( $_REQUEST['action2'] ) ? sanitize_key( wp_unslash( $_REQUEST['action2'] ) ) : '' );
+		if ( 'approve' !== $action || empty( $_REQUEST['ids'] ) ) {
+			return;
+		}
+		check_admin_referer( 'bulk-partners' );
+		$ids = array_map( 'absint', (array) wp_unslash( $_REQUEST['ids'] ) );
+		// phpcs:enable
+		$done = 0;
+		foreach ( $ids as $id ) {
+			$aff = AffiliateRepository::find( $id );
+			if ( $aff && 'pending' === $aff->status && true === AffiliateRepository::set_status( $id, 'active' ) ) {
+				++$done;
+			}
+		}
+		/* translators: %d: number */
+		Admin::back( sprintf( _n( '%d application approved.', '%d applications approved.', $done, 'wp-affiliate-captain' ), $done ), 'success', remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer' ) ) );
+	}
+
+	/**
 	 * List.
 	 */
 	private static function render_list() {
-		$status = Admin::get( 'status' );
-		$search = Admin::get( 's' );
-		$per    = 30;
-		list( $rows, $total ) = AffiliateRepository::query(
-			array(
-				'status' => $status,
-				'search' => $search,
-				'limit'  => $per,
-				'offset' => ( Admin::paged() - 1 ) * $per,
-			)
-		);
-		$labels = AffiliateRepository::status_labels();
-		$counts = AffiliateRepository::count_by_status();
-		$groups = Groups::options();
-
+		$table = new \WPAffiliateCaptain\Admin\Tables\AffiliatesTable();
+		$table->prepare_items();
 		echo '<div class="wrap"><h1 class="wp-heading-inline">' . esc_html__( 'Partners', 'wp-affiliate-captain' ) . '</h1> ';
 		echo '<a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Add partner', 'wp-affiliate-captain' ) . '</a><hr class="wp-header-end">';
 		Admin::notice();
-
-		echo '<ul class="subsubsub">';
-		$links = array( '<li><a href="' . esc_url( Admin::url( 'wpac-affiliates' ) ) . '"' . ( '' === $status ? ' class="current"' : '' ) . '>' . esc_html__( 'All', 'wp-affiliate-captain' ) . ' <span class="count">(' . (int) array_sum( $counts ) . ')</span></a>' );
-		foreach ( $labels as $key => $label ) {
-			$links[] = '<li><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'status' => $key ) ) ) . '"' . ( $status === $key ? ' class="current"' : '' ) . '>' . esc_html( $label ) . ' <span class="count">(' . (int) $counts[ $key ] . ')</span></a>';
+		$table->views();
+		echo '<form method="get"><input type="hidden" name="page" value="wpac-affiliates">';
+		if ( Admin::get( 'status' ) ) {
+			echo '<input type="hidden" name="status" value="' . esc_attr( Admin::get( 'status' ) ) . '">';
 		}
-		echo implode( ' | </li>', $links ) . '</li></ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-
-		echo '<form method="get" class="search-box"><input type="hidden" name="page" value="wpac-affiliates"><input type="hidden" name="status" value="' . esc_attr( $status ) . '"><input type="search" name="s" value="' . esc_attr( $search ) . '"> <button class="button">' . esc_html__( 'Search', 'wp-affiliate-captain' ) . '</button></form>';
-
-		echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Website / channel', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Group', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Since', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
-		if ( ! $rows ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No partners found.', 'wp-affiliate-captain' ) . '</td></tr>';
-		}
-		foreach ( $rows as $a ) {
-			$edit = Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $a->id ) );
-			printf(
-				'<tr><td><strong><a href="%s">%s</a></strong><br><span class="description">%s · %s</span></td><td>%s<br>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
-				esc_url( $edit ),
-				esc_html( $a->name ? $a->name : '#' . $a->id ),
-				esc_html( $a->email ),
-				esc_html( $a->slug ),
-				$a->website ? '<a href="' . esc_url( $a->website ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $a->website ) . '</a>' : '—',
-				esc_html( $a->channel ),
-				esc_html( isset( $groups[ (int) $a->group_id ] ) ? $groups[ (int) $a->group_id ] : '—' ),
-				Admin::badge( $a->status, isset( $labels[ $a->status ] ) ? $labels[ $a->status ] : $a->status ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				esc_html( Admin::date( $a->created_at ) )
-			);
-		}
-		echo '</tbody></table>';
-		Admin::pager( $total, $per );
-		echo '</div>';
+		$table->search_box( __( 'Search partners', 'wp-affiliate-captain' ), 'wpac-partner' );
+		$table->display();
+		echo '</form></div>';
 	}
 
 	/**

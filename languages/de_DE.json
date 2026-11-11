@@ -6,6 +6,10 @@
  "%1$d visits from %2$d partners, %3$d orders": "%1$d Besuche von %2$d Partnern, %3$d Bestellungen",
  "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s": "%1$s hat die Bankverbindung für Auszahlungen geändert. Bitte vor dem nächsten Auszahlungslauf prüfen.\n\n%2$s",
  "%1$s requested a payout of %2$s.\n\n%3$s": "%1$s hat eine Auszahlung von %2$s beantragt.\n\n%3$s",
+ "%d application approved.": [
+  "%d Bewerbung freigegeben.",
+  "%d Bewerbungen freigegeben."
+ ],
  "%d application waiting for review": [
   "%d Bewerbung wartet auf Prüfung",
   "%d Bewerbungen warten auf Prüfung"
@@ -77,6 +81,7 @@
  "Apply": "Anwenden",
  "Apply now": "Jetzt bewerben",
  "Approve": "Freigeben",
+ "Approve applications": "Bewerbungen freigeben",
  "Approve applications automatically": "Bewerbungen automatisch freigeben",
  "Approve selected": "Auswahl freigeben",
  "Approved": "Freigegeben",
@@ -517,6 +522,7 @@
  "Please copy the text manually.": "Bitte kopieren Sie den Text manuell.",
  "Please enter a name.": "Bitte geben Sie einen Namen ein.",
  "Please enter a reason for the change.": "Bitte geben Sie einen Grund für die Änderung an.",
+ "Please enter a reason for the rejection.": "Bitte geben Sie einen Grund für die Ablehnung an.",
  "Please enter a reason.": "Bitte geben Sie einen Grund an.",
  "Please enter a title.": "Bitte geben Sie einen Titel ein.",
  "Please enter a valid e-mail address.": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
@@ -573,6 +579,7 @@
  "Refund": "Rückerstattung",
  "Refund rate": "Rückerstattungsquote",
  "Reject": "Ablehnen",
+ "Reject (reason required)": "Ablehnen (Grund erforderlich)",
  "Reject selected": "Auswahl ablehnen",
  "Reject the selected commissions? This cannot be undone.": "Ausgewählte Provisionen ablehnen? Das kann nicht rückgängig gemacht werden.",
  "Rejected": "Abgelehnt",
@@ -613,8 +620,11 @@
  "Save rule": "Regel speichern",
  "Scheduled tasks active (hold period release, retries)": "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)",
  "Search": "Suchen",
+ "Search partners": "Partner suchen",
  "Sections": "Bereiche",
+ "Select %s": "%s auswählen",
  "Select all": "Alle auswählen",
+ "Select commission #%d": "Provision #%d auswählen",
  "Self-referral": "Eigenkauf über eigenen Link/Code",
  "Self-referrals": "Eigenkäufe über eigenen Link/Code",
  "Sent on the first days of the month for the previous month.": "Wird in den ersten Tagen des Monats für den Vormonat versendet.",

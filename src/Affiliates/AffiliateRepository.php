@@ -418,14 +418,7 @@ final class AffiliateRepository {
 			$where   .= ' AND (name LIKE %s OR email LIKE %s OR slug LIKE %s OR website LIKE %s)';
 			$params   = array_merge( $params, array( $like, $like, $like, $like ) );
 		}
-		$count_sql = "SELECT COUNT(*) FROM {$t} WHERE {$where}";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$total    = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) ) : $wpdb->get_var( $count_sql ) );
-		$params[] = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
-		$params[] = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", $params ) );
-		return array( $rows, $total );
+		return \WPAffiliateCaptain\Core\Paged::fetch( $t, $where, $params, $args, array( 'id', 'name', 'status', 'created_at' ) );
 	}
 
 	/**
