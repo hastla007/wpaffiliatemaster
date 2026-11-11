@@ -31,6 +31,8 @@ if ( is_dir( $wpac_dir ) ) {
 foreach ( array( 'wpac_settings', 'wpac_db_version', 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key' ) as $wpac_option ) {
 	delete_option( $wpac_option );
 }
+// Monthly report claims (one per month).
+$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_report\\_claim\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 // Rate-limit and other transients.
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_wpac\\_%' OR option_name LIKE '\\_transient\\_timeout\\_wpac\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 // Content meta (recommended partner targets).

@@ -27,7 +27,7 @@ final class MonthlyMail {
 			return;
 		}
 		$month = gmdate( 'Y-m', strtotime( 'first day of previous month' ) );
-		if ( get_option( self::OPTION ) === $month ) {
+		if ( get_option( self::OPTION ) === $month || ! self::claim( $month ) ) {
 			return;
 		}
 		update_option( self::OPTION, $month, false ); // Mark first: never send twice even if mails fail.
@@ -45,7 +45,23 @@ final class MonthlyMail {
 		}
 	}
 
-	const PROGRESS   = 'wpac_report_progress';
+	/**
+	 * Atomically claim the report run of a month. WP-Cron and a system cron can run at the same time;
+	 * both would read "not sent" before either marks the month, so the claim is an INSERT that only
+	 * one process can win.
+	 *
+	 * @param string $month Month (Y-m).
+	 * @return bool Whether this process won the claim.
+	 */
+	private static function claim( $month ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", self::CLAIM_PREFIX . $month, (string) time() ) );
+		return 1 === (int) $wpdb->rows_affected;
+	}
+
+	const CLAIM_PREFIX = 'wpac_report_claim_';
+	const PROGRESS     = 'wpac_report_progress';
 	const BATCH_HOOK = 'wpac_report_batch';
 	const BATCH_SIZE = 50;
 
