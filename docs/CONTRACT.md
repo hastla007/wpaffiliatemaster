@@ -89,6 +89,7 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_is_self_referral` | `bool, int $affiliate_id, array $sale` | Zusätzliche Self-Referral-Prüfung. |
 | `wpac_has_marketing_consent` | `bool` | Consent-Banner anbinden (Cookie nur bei `true`). |
 | `wpac_wc_sale_payload` | `array $payload, WC_Order $order` | WooCommerce-Payload ergänzen (z. B. `hold_until`). |
+| `wpac_fraud_flags` | `string[] $flags, array $sale, array $attr` | Eigene Betrugsregeln; jeder Treffer setzt die Provision auf „Prüfung nötig“. |
 | `wpac_statement_note` | `string $note, object $payout` | Hinweistext im PDF-Abrechnungsbeleg anpassen. |
 | `wpac_wc_chargeback_statuses` | `string[]` | WooCommerce-Status, die als Chargeback gelten. |
 | `wpac_registered_integrations` | `array` | Integration für die Statusseite registrieren. |

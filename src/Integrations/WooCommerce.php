@@ -178,6 +178,7 @@ final class WooCommerce {
 					'method'     => (string) $touch['method'],
 					'campaign'   => isset( $touch['campaign'] ) ? (string) $touch['campaign'] : '',
 					'content_id' => isset( $touch['content_id'] ) ? (int) $touch['content_id'] : 0,
+					'ts'         => isset( $touch['ts'] ) ? (int) $touch['ts'] : 0,
 				)
 			);
 		}

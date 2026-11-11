@@ -291,6 +291,8 @@ final class Portal {
 			}
 		}
 
+		echo \WPAffiliateCaptain\Content\Editor::render_targets(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside.
+
 		echo '<h3>' . esc_html__( 'Your codes', 'wp-affiliate-captain' ) . '</h3>';
 		if ( ! $codes ) {
 			echo '<p>' . esc_html__( 'No codes assigned yet.', 'wp-affiliate-captain' ) . '</p>';

@@ -89,7 +89,7 @@ final class Tracker {
 
 		if ( Consent::cookie_allowed() && ! headers_sent() ) {
 			if ( ! $first || empty( $_COOKIE[ self::COOKIE ] ) ) {
-				$value = $touch['code'] . '|' . rawurlencode( $touch['campaign'] ) . '|' . (int) $touch['content_id'];
+				$value = $touch['code'] . '|' . rawurlencode( $touch['campaign'] ) . '|' . (int) $touch['content_id'] . '|' . (int) $touch['ts'];
 				setcookie(
 					self::COOKIE,
 					$value,
@@ -125,6 +125,7 @@ final class Tracker {
 				'code'       => $parts[0],
 				'campaign'   => isset( $parts[1] ) ? substr( rawurldecode( $parts[1] ), 0, 100 ) : '',
 				'content_id' => isset( $parts[2] ) ? (int) $parts[2] : 0,
+				'ts'         => isset( $parts[3] ) ? (int) $parts[3] : 0,
 				'method'     => 'cookie',
 			);
 		}

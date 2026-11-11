@@ -78,12 +78,26 @@ final class SettingsPage {
 		self::select( 'touch_model', __( 'Link attribution', 'wp-affiliate-captain' ), $s, array( 'last' => __( 'Last touch', 'wp-affiliate-captain' ), 'first' => __( 'First touch', 'wp-affiliate-captain' ) ) );
 		self::checkbox( 'coupon_priority', __( 'Affiliate coupon has priority over partner links', 'wp-affiliate-captain' ), $s );
 		self::select( 'self_referral', __( 'Self-referrals', 'wp-affiliate-captain' ), $s, array( 'block' => __( 'Block', 'wp-affiliate-captain' ), 'review' => __( 'Flag for review', 'wp-affiliate-captain' ) ) );
+		self::end();
+
+		self::section( __( 'Fraud rules', 'wp-affiliate-captain' ) );
+		echo '<tr><td colspan="2" class="description">' . esc_html__( 'Matches do not block a sale: its commissions get the status "needs review" with the reason. 0 = rule off.', 'wp-affiliate-captain' ) . '</td></tr>';
+		self::number( 'fraud_max_orders_day', __( 'Max. orders per partner in 24 hours', 'wp-affiliate-captain' ), $s );
+		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html__( 'Review orders above (net)', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
+		self::number( 'fraud_min_click_seconds', __( 'Min. seconds between click and order', 'wp-affiliate-captain' ), $s );
+		self::number( 'fraud_max_refund_rate', __( 'Max. refund rate of a partner in % (90 days, min. 5 orders)', 'wp-affiliate-captain' ), $s );
+		self::checkbox( 'fraud_check_domains', __( 'Review orders with disposable or blocked e-mail domains', 'wp-affiliate-captain' ), $s );
+		echo '<tr><th><label for="wpac-fraud_blocked_domains">' . esc_html__( 'Additional blocked domains', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-fraud_blocked_domains" name="wpac[fraud_blocked_domains]" rows="3" class="regular-text code">' . esc_textarea( (string) $s['fraud_blocked_domains'] ) . '</textarea></td></tr>';
+		self::end();
+
+		self::section( __( 'Abuse protection', 'wp-affiliate-captain' ) );
 		self::number( 'rate_limit_per_minute', __( 'Max. link visits per client and minute', 'wp-affiliate-captain' ), $s );
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'wp-affiliate-captain' ), $s );
 		self::end();
 
 		self::section( __( 'Commissions', 'wp-affiliate-captain' ) );
 		self::text( 'currency', __( 'Program currency', 'wp-affiliate-captain' ), $s );
+		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html__( 'Reference exchange rates', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05">' . esc_textarea( (string) $s['exchange_rates'] ) . '</textarea><p class="description">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'wp-affiliate-captain' ), $currency ) ) . '</p></td></tr>';
 		self::select( 'default_rate_type', __( 'Default commission type', 'wp-affiliate-captain' ), $s, array( 'percent' => __( 'Percent of net', 'wp-affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'wp-affiliate-captain' ) ) );
 		$display = $s;
 		if ( 'fixed' === $s['default_rate_type'] ) {
@@ -113,6 +127,11 @@ final class SettingsPage {
 		self::text( 'debtor_iban', __( 'Company IBAN (SEPA)', 'wp-affiliate-captain' ), $s );
 		self::text( 'debtor_bic', __( 'Company BIC (optional)', 'wp-affiliate-captain' ), $s );
 		self::text( 'remittance_prefix', __( 'Remittance text prefix', 'wp-affiliate-captain' ), $s );
+		self::end();
+
+		self::section( __( 'Reporting', 'wp-affiliate-captain' ) );
+		self::checkbox( 'report_admin', __( 'Monthly summary e-mail to the operator', 'wp-affiliate-captain' ), $s );
+		self::checkbox( 'report_partners', __( 'Monthly summary e-mail to active partners', 'wp-affiliate-captain' ), $s, __( 'Sent on the first days of the month for the previous month.', 'wp-affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ) );

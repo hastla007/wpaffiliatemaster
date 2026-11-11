@@ -52,7 +52,7 @@ final class PayoutService {
 		$end = $period_end . ' 23:59:59';
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, SUM(amount_minor) total, COUNT(*) c FROM {$t} WHERE status = 'approved' AND payout_id = 0 AND currency = %s AND created_at <= %s GROUP BY affiliate_id ORDER BY total DESC", $currency, $end ) );
-		$min  = (int) Settings::get( 'min_payout_minor' );
+		$min  = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
 		$out  = array();
 		foreach ( $rows as $r ) {
 			$aff     = AffiliateRepository::find( (int) $r->affiliate_id );
@@ -61,6 +61,9 @@ final class PayoutService {
 			$reason  = '';
 			if ( ! $aff ) {
 				$reason = __( 'Affiliate not found', 'wp-affiliate-captain' );
+			} elseif ( null === $min ) {
+				/* translators: %s: currency */
+				$reason = sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'wp-affiliate-captain' ), $currency );
 			} elseif ( $total <= 0 ) {
 				$reason = __( 'Negative balance – carried forward', 'wp-affiliate-captain' );
 			} elseif ( $total < $min ) {
@@ -139,7 +142,8 @@ final class PayoutService {
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
 				}
-				if ( ! $rows || $total <= 0 || $total < (int) Settings::get( 'min_payout_minor' ) ) {
+				$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+				if ( ! $rows || $total <= 0 || null === $min || $total < $min ) {
 					return 0;
 				}
 				$profile = ProfileRepository::get( $affiliate_id );

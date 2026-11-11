@@ -223,7 +223,17 @@ final class CommissionsPage {
 			__( 'Commission', 'wp-affiliate-captain' )   => Money::format( (int) $c->amount_minor, $c->currency ),
 			__( 'Status', 'wp-affiliate-captain' )       => isset( $labels[ $c->status ] ) ? $labels[ $c->status ] : $c->status,
 			__( 'Hold until', 'wp-affiliate-captain' )   => Admin::date( $c->hold_until, true ),
-			__( 'Attribution', 'wp-affiliate-captain' )  => $attr ? $attr->method . ( $attr->campaign ? ' · ' . $attr->campaign : '' ) . ( $attr->note ? ' · ' . $attr->note : '' ) : '—',
+			__( 'Attribution', 'wp-affiliate-captain' )  => $attr ? $attr->method . ( $attr->campaign ? ' · ' . $attr->campaign : '' ) . ( $attr->content_id ? ' · ' . __( 'content', 'wp-affiliate-captain' ) . ' #' . $attr->content_id : '' ) : '—',
+			__( 'Review reasons', 'wp-affiliate-captain' ) => $attr && $attr->note ? implode(
+				', ',
+				array_map(
+					static function ( $flag ) {
+						$labels = \WPAffiliateCaptain\Tracking\FraudCheck::labels();
+						return isset( $labels[ $flag ] ) ? $labels[ $flag ] : $flag;
+					},
+					explode( ',', $attr->note )
+				)
+			) : '—',
 			__( 'Payout', 'wp-affiliate-captain' )       => $c->payout_id ? '#' . $c->payout_id : '—',
 			__( 'Idempotency key', 'wp-affiliate-captain' ) => $c->idempotency_key,
 		);

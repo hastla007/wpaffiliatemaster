@@ -187,6 +187,7 @@ final class ContractApi {
 				'method'     => isset( $p['touch']['method'] ) ? sanitize_key( $p['touch']['method'] ) : 'link',
 				'campaign'   => isset( $p['touch']['campaign'] ) ? sanitize_text_field( (string) $p['touch']['campaign'] ) : '',
 				'content_id' => isset( $p['touch']['content_id'] ) ? (int) $p['touch']['content_id'] : 0,
+				'ts'         => isset( $p['touch']['ts'] ) ? (int) $p['touch']['ts'] : 0,
 			);
 		}
 

@@ -36,6 +36,7 @@ final class Settings {
 			'visit_retention_days'    => 90,
 			// Commissions.
 			'currency'                => 'EUR',
+			'exchange_rates'          => '',
 			'default_rate_type'       => 'percent',  // percent|fixed.
 			'default_rate'            => '10',
 			'hold_days'               => 30,
@@ -65,6 +66,16 @@ final class Settings {
 			'debtor_iban'             => '',
 			'debtor_bic'              => '',
 			'remittance_prefix'       => 'Provision',
+			// Fraud rules (0 = off).
+			'fraud_max_orders_day'    => 0,
+			'fraud_max_order_minor'   => 0,
+			'fraud_min_click_seconds' => 0,
+			'fraud_max_refund_rate'   => 0,
+			'fraud_check_domains'     => 1,
+			'fraud_blocked_domains'   => '',
+			// Reporting.
+			'report_admin'            => 1,
+			'report_partners'         => 0,
 			// Housekeeping.
 			'delete_on_uninstall'     => 0,
 		);
@@ -128,16 +139,23 @@ final class Settings {
 		$lifetime_rate        = isset( $in['lifetime_rate'] ) ? Money::normalize_decimal( (string) $in['lifetime_rate'] ) : null;
 		$out['lifetime_rate'] = ( null !== $lifetime_rate && (float) $lifetime_rate >= 0 && (float) $lifetime_rate <= 100 ) ? $lifetime_rate : '';
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			$out[ $int ] = isset( $in[ $int ] ) ? max( 0, (int) $in[ $int ] ) : $d[ $int ];
 		}
 
 		$currency        = isset( $in['currency'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['currency'] ) ) : '';
 		$out['currency'] = 3 === strlen( $currency ) ? $currency : $d['currency'];
+
+		$rates = Fx::parse( isset( $in['exchange_rates'] ) ? (string) $in['exchange_rates'] : '' );
+		$lines = array();
+		foreach ( $rates as $cur => $rate ) {
+			$lines[] = $cur . '=' . $rate;
+		}
+		$out['exchange_rates'] = implode( "\n", $lines );
 
 		$out['default_rate'] = isset( $in['default_rate'] ) ? Money::normalize_decimal( (string) $in['default_rate'] ) : $d['default_rate'];
 		if ( null === $out['default_rate'] ) {
@@ -147,6 +165,10 @@ final class Settings {
 			// Fixed default rate is entered as a decimal amount, stored as minor units.
 			$out['default_rate'] = (string) Money::to_minor( $out['default_rate'], $out['currency'] );
 		}
+
+		$max_order                    = isset( $in['fraud_max_order'] ) ? Money::normalize_decimal( (string) $in['fraud_max_order'] ) : null;
+		$out['fraud_max_order_minor'] = null !== $max_order ? max( 0, Money::to_minor( $max_order, $out['currency'] ) ) : 0;
+		$out['fraud_blocked_domains'] = isset( $in['fraud_blocked_domains'] ) ? implode( "\n", array_filter( array_map( 'sanitize_text_field', preg_split( '/[\s,]+/', strtolower( (string) $in['fraud_blocked_domains'] ) ) ) ) ) : '';
 
 		$min                     = isset( $in['min_payout'] ) ? Money::normalize_decimal( (string) $in['min_payout'] ) : null;
 		$out['min_payout_minor'] = null !== $min ? Money::to_minor( $min, $out['currency'] ) : $d['min_payout_minor'];

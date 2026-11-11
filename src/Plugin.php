@@ -41,6 +41,8 @@ final class Plugin {
 		Registration::register_hooks();
 		Portal::register_hooks();
 		\WPAffiliateCaptain\Promotion\Landing::register_hooks();
+		\WPAffiliateCaptain\Content\Editor::register_hooks();
+		\WPAffiliateCaptain\Rest\RestApi::register_hooks();
 		Cron::register_hooks();
 		Privacy::register_hooks();
 

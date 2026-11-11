@@ -4,7 +4,7 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.1.0 – V1-Kern, noch nicht in einer echten WordPress-Installation getestet.** Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
+> Status: **0.2.0 – noch nicht in einer echten WordPress-Installation getestet.** Die reine Rechenlogik ist per `php tests/run.php` abgedeckt. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind fachlich zu prüfen.
 
 ## Anforderungen
 
@@ -49,12 +49,32 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 | PDF-Beleg | Bei jeder Auszahlung wird einmalig ein PDF-Abrechnungsbeleg erzeugt, geschützt abgelegt (`uploads/wpac-statements`), per SHA-256 gegen Veränderung geprüft; Download im Admin (`wpac_view_tax_data`) und für den Partner im Portal. |
 | Aufbewahrung | Belege werden nach der eingestellten Frist (Standard 10 Jahre ab Jahresende) samt Partner-Snapshot gelöscht, Beträge bleiben erhalten. Frist fachlich prüfen (z. B. §147 AO). |
 | Betrieb | Retry-Warteschlange für fehlgeschlagene Integrationsereignisse, Integrationsstatus/Vertragsprüfung, Audit-Log, CSV-Exporte mit Formel-Injection-Schutz, WordPress-Datenexport/-löschung, Aufbewahrungsfrist für Besuche, eigene Capabilities (`wpac_manage_program`, `wpac_manage_affiliates`, `wpac_manage_payouts`, `wpac_view_tax_data`). |
+| Berichte | Dashboard nach Partner, nach Inhalt (Beitrag/Seite/CPT, auf dem der Partnerlink landete) und nach Kampagne, jeweils mit CSV. Monatliche Zusammenfassung per E-Mail an Betreiber und optional an Partner. |
+| Editor | Blocks „Partner-Bewerbungsformular“, „Partnerbereich“, „Partner-Begrüßung“, „Empfohlene Partnerziele“ (ohne Build-Schritt). Panel „Affiliate Captain“ an Beiträgen/Seiten/CPTs: Partner-Traffic der Seite, Deeplink-Format, „Als Partner-Ziel empfehlen“ mit Hinweis für Partner. |
+| Mehrwährung | Ledger, Auszahlungen und SEPA bleiben immer in der Bestellwährung. Manuell gepflegte Referenzkurse (`USD=0,92`) dienen nur Berichten und dem Mindestbetrag in Fremdwährungen; Währungen ohne Kurs werden in Berichten ausgewiesen statt still verrechnet. Festbetragsregeln gelten nur in der Programmwährung. |
+| Betrugsregeln | Self-Referral, zu viele Bestellungen in 24 h, hoher Bestellwert, Bestellung direkt nach dem Klick, hohe Refund-Quote des Partners, Wegwerf-/gesperrte E-Mail-Domains, Gutschein eines anderen Partners, eigene Regeln per Filter. Treffer → Status „Prüfung nötig“ mit Grund. |
+| REST-API | `wpac/v1`, siehe [docs/REST.md](docs/REST.md). |
+| Sprache | Deutsch (`de_DE`) vollständig, inkl. Editor-Blocks. Quelltexte englisch. |
 
 ## Entwicklung
 
 ```bash
 php tests/run.php
 ```
+
+Release-ZIP bauen (prüft Versionen und Tests):
+
+```bash
+bin/build-zip.sh
+```
+
+Übersetzungen: Texte in `languages/de_DE.json` pflegen, dann:
+
+```bash
+python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
+```
+
+CI (GitHub Actions) prüft PHP 7.4–8.4, Unit-Tests, QR-Dekodierung und Vollständigkeit der Übersetzung; ein Tag `v*` erzeugt ein GitHub-Release mit ZIP.
 
 Optional (braucht `zbarimg` und Pillow): QR-Codes wirklich dekodieren:
 
@@ -72,6 +92,5 @@ Struktur: `src/Core` (Lifecycle, Schema, Geld, Krypto, Jobs, Audit), `src/Affili
 
 - Test in echter WordPress-/WooCommerce-Umgebung (HPOS an/aus, Classic- und Blocks-Checkout), Integrationstests für Ledger/Payouts.
 - Adapter in Pass Captain und Voucher Captain gegen den Vertrag v1 (siehe `docs/CONTRACT.md`).
-- REST-API, Übersetzung `de_DE`, Editor-Blocks, monatliche Report-Mail, erweiterte Betrugsregeln.
-- Monatsstufen: Refunds nach Monatsabschluss ändern einen gebuchten Bonus nicht (Abschluss erst nach der Haltefrist).
 - SEPA-Format und Beleg-/Steuerlogik mit Bank bzw. Steuerberatung abstimmen.
+- Monatsstufen: Refunds nach Monatsabschluss ändern einen gebuchten Bonus nicht (Abschluss erst nach der Haltefrist).

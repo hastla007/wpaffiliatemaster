@@ -8,6 +8,9 @@
  * @package WPAffiliateCaptain
  */
 
+// Pure classes only; the guard constant lets files with an ABSPATH check load.
+define( 'ABSPATH', __DIR__ . '/' );
+
 spl_autoload_register(
 	static function ( $class ) {
 		$prefix = 'WPAffiliateCaptain\\';
@@ -25,6 +28,8 @@ use WPAffiliateCaptain\Commissions\Tiers;
 use WPAffiliateCaptain\Payouts\Pdf;
 use WPAffiliateCaptain\Promotion\Qr;
 use WPAffiliateCaptain\Core\Csv;
+use WPAffiliateCaptain\Core\Fx;
+use WPAffiliateCaptain\Tracking\FraudCheck;
 use WPAffiliateCaptain\Core\Iban;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Payouts\SepaXml;
@@ -238,6 +243,23 @@ throws( 'qr too long', static function () {
 	Qr::matrix( str_repeat( 'x', 214 ) );
 } );
 check( 'qr svg', 0, strpos( Qr::svg( 'A' ), '<svg' ) );
+
+/* Multi-currency -------------------------------------------------------- */
+$rates = Fx::parse( "usd = 0,92\nCHF:1.05\nbad line\nJPY=0.0062" );
+check( 'fx parse', array( 'USD' => '0.92', 'CHF' => '1.05', 'JPY' => '0.0062' ), $rates );
+check( 'fx same currency', 1234, Fx::to_program( 1234, 'EUR', 'EUR', $rates ) );
+check( 'fx usd→eur', 9200, Fx::to_program( 10000, 'USD', 'EUR', $rates ) );
+check( 'fx jpy (0 decimals)→eur', 620, Fx::to_program( 1000, 'JPY', 'EUR', $rates ) );
+check( 'fx unknown currency', null, Fx::to_program( 100, 'GBP', 'EUR', $rates ) );
+check( 'fx min payout in usd', 5435, Fx::from_program( 5000, 'USD', 'EUR', $rates ) );
+check( 'fx min payout in jpy', 8065, Fx::from_program( 5000, 'JPY', 'EUR', $rates ) );
+
+/* Fraud: e-mail domains -------------------------------------------------- */
+check( 'disposable domain', true, FraudCheck::domain_blocked( 'x@Mailinator.com' ) );
+check( 'subdomain of blocked', true, FraudCheck::domain_blocked( 'x@mx.yopmail.com' ) );
+check( 'custom blocked', true, FraudCheck::domain_blocked( 'a@spam.example', array( 'spam.example' ) ) );
+check( 'normal domain', false, FraudCheck::domain_blocked( 'kunde@segelschule.de' ) );
+check( 'no false suffix match', false, FraudCheck::domain_blocked( 'a@notmailinator.com' ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

@@ -85,8 +85,26 @@ final class Ledger {
 				'reason'         => $resolved['reason'],
 			);
 		}
-		$attr = $resolved['attribution'];
-		$aff  = AffiliateRepository::find( (int) $attr['affiliate_id'] );
+		$attr  = $resolved['attribution'];
+		$aff   = AffiliateRepository::find( (int) $attr['affiliate_id'] );
+		$flags = \WPAffiliateCaptain\Tracking\FraudCheck::flags( $sale, $attr );
+		if ( $attr['review'] ) {
+			array_unshift( $flags, 'self_referral' );
+		}
+		if ( $flags ) {
+			$attr['review'] = true;
+			$attr['note']   = substr( implode( ',', array_unique( $flags ) ), 0, 255 );
+			Audit::log(
+				'attribution.flagged',
+				'affiliate',
+				(int) $attr['affiliate_id'],
+				array(
+					'source'   => $sale['source'],
+					'order_id' => $sale['order_id'],
+					'flags'    => $flags,
+				)
+			);
+		}
 
 		$rules   = RuleRepository::active();
 		$default = RuleRepository::default_rate();
@@ -218,7 +236,7 @@ final class Ledger {
 					}
 					$cid   = (int) $wpdb->insert_id;
 					$ids[] = $cid;
-					self::event( $cid, 'created', '', $status, $calc['amount_minor'], $attr['review'] ? 'self_referral_review' : '', $sale['idempotency_key'] );
+					self::event( $cid, 'created', '', $status, $calc['amount_minor'], $attr['review'] ? 'review: ' . $attr['note'] : '', $sale['idempotency_key'] );
 				}
 
 				if ( $attr['code_id'] ) {
