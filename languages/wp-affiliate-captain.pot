@@ -439,8 +439,44 @@ msgstr ""
 msgid "System"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "No bookings yet. The account starts with the first approved commission."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Account %1$s – balance %2$s"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Integrity check failed:"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Integrity check passed: booking chain intact, balance matches the approved, unpaid commissions."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Booking"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reference"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Amount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php
+msgid "Balance"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
 msgid "Overview"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Account statement"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -505,10 +541,6 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php
 msgid "Select all"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Amount"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
@@ -607,7 +639,7 @@ msgstr ""
 msgid "Review reasons"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Balance.php
 msgid "Payout"
 msgstr ""
 
@@ -956,6 +988,10 @@ msgid "Address and VAT ID / tax number for credit notes configured"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Partner accounts: booking chains intact and balances match the commission ledger"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "Scheduled tasks active (hold period release, retries)"
 msgstr ""
 
@@ -1075,10 +1111,6 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Entries"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Balance"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -2193,6 +2225,42 @@ msgstr ""
 msgid "The code could not be saved."
 msgstr ""
 
+#: src/Commissions/Balance.php
+msgid "Booking #%d: chain broken (a booking was removed or reordered)."
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Booking #%d: content was modified."
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Booking #%d: running balance does not match."
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Stored account balance does not match the bookings."
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Balance (%1$d) differs from approved, unpaid commissions (%2$d)."
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Commission approved"
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Commission rejected"
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Payout cancelled"
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "Opening balance"
+msgstr ""
+
 #: src/Commissions/Ledger.php src/Reports/MonthlyMail.php
 msgid "Monthly bonus"
 msgstr ""
@@ -2267,6 +2335,10 @@ msgstr ""
 
 #: src/Commissions/TierService.php
 msgid "Monthly bonus %1$s (tier %2$s %%)"
+msgstr ""
+
+#: src/Commissions/TierService.php
+msgid "Monthly bonus correction %s"
 msgstr ""
 
 #: src/Content/Editor.php

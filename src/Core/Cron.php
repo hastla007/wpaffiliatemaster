@@ -45,6 +45,7 @@ final class Cron {
 	public static function daily() {
 		global $wpdb;
 		\WPAffiliateCaptain\Commissions\TierService::close_due_months();
+		\WPAffiliateCaptain\Commissions\TierService::recalculate_closed_months();
 		\WPAffiliateCaptain\Payouts\Statement::purge_expired();
 		\WPAffiliateCaptain\Reports\MonthlyMail::send_due();
 		$days = (int) Settings::get( 'visit_retention_days' );

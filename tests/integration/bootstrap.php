@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 4 );
+define( 'WPAC_DB_VERSION', 5 );
 define( 'WPAC_CONTRACT_VERSION', '1.0.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/wp-affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );

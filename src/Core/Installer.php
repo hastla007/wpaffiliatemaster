@@ -373,6 +373,36 @@ final class Installer {
 			KEY status (status)
 		) $c;";
 
+		$sql[] = "CREATE TABLE {$t('balances')} (
+			affiliate_id bigint(20) unsigned NOT NULL,
+			currency char(3) NOT NULL,
+			balance_minor bigint(20) NOT NULL DEFAULT 0,
+			entries int(10) unsigned NOT NULL DEFAULT 0,
+			last_hash char(64) NOT NULL DEFAULT '',
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (affiliate_id,currency)
+		) $c;";
+
+		$sql[] = "CREATE TABLE {$t('balance_entries')} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			affiliate_id bigint(20) unsigned NOT NULL,
+			currency char(3) NOT NULL,
+			type varchar(30) NOT NULL,
+			amount_minor bigint(20) NOT NULL,
+			balance_minor bigint(20) NOT NULL,
+			commission_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			payout_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			reference varchar(191) NOT NULL DEFAULT '',
+			actor_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			prev_hash char(64) NOT NULL DEFAULT '',
+			hash char(64) NOT NULL,
+			PRIMARY KEY  (id),
+			KEY account (affiliate_id,currency,id),
+			KEY commission_id (commission_id),
+			KEY payout_id (payout_id)
+		) $c;";
+
 		$sql[] = "CREATE TABLE {$t('sequences')} (
 			name varchar(20) NOT NULL,
 			year smallint(5) unsigned NOT NULL,
@@ -400,6 +430,10 @@ final class Installer {
 		}
 
 		self::migrate_after( $previous );
+		if ( $previous > 0 && $previous < 5 ) {
+			// v5: opening balance entries for existing approved, unassigned commissions.
+			\WPAffiliateCaptain\Commissions\Balance::open_from_ledger();
+		}
 		update_option( self::DB_OPTION, WPAC_DB_VERSION, true );
 	}
 

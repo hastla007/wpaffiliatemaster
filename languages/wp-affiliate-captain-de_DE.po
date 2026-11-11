@@ -1077,6 +1077,9 @@ msgstr "Belegordner ist nicht öffentlich erreichbar"
 msgid "Address and VAT ID / tax number for credit notes configured"
 msgstr "Anschrift und USt-IdNr./Steuernummer für Gutschriften hinterlegt"
 
+msgid "Partner accounts: booking chains intact and balances match the commission ledger"
+msgstr "Partnerkonten: Buchungsketten intakt, Salden stimmen mit dem Provisionsledger überein"
+
 msgid "Scheduled tasks active (hold period release, retries)"
 msgstr "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)"
 
@@ -1347,8 +1350,35 @@ msgstr "Verlauf"
 msgid "System"
 msgstr "System"
 
+msgid "No bookings yet. The account starts with the first approved commission."
+msgstr "Noch keine Buchungen. Das Konto beginnt mit der ersten freigegebenen Provision."
+
+msgid "Account %1$s – balance %2$s"
+msgstr "Konto %1$s – Saldo %2$s"
+
+msgid "Integrity check failed:"
+msgstr "Integritätsprüfung fehlgeschlagen:"
+
+msgid "Integrity check passed: booking chain intact, balance matches the approved, unpaid commissions."
+msgstr "Integritätsprüfung bestanden: Buchungskette intakt, Saldo entspricht den freigegebenen, nicht ausgezahlten Provisionen."
+
+msgid "Booking"
+msgstr "Buchung"
+
+msgid "Reference"
+msgstr "Referenz"
+
+msgid "Amount"
+msgstr "Betrag"
+
+msgid "Balance"
+msgstr "Saldo"
+
 msgid "Overview"
 msgstr "Übersicht"
+
+msgid "Account statement"
+msgstr "Kontoauszug"
 
 msgid "Partner sections"
 msgstr "Partnerbereiche"
@@ -1412,9 +1442,6 @@ msgstr "Enthält freigegebene Provisionen und Korrekturen bis zum Periodenende. 
 msgid "Entries"
 msgstr "Einträge"
 
-msgid "Balance"
-msgstr "Saldo"
-
 msgid "No approved commissions in this period."
 msgstr "Keine freigegebenen Provisionen in diesem Zeitraum."
 
@@ -1432,9 +1459,6 @@ msgstr "Auszahlung anlegen"
 
 msgid "Select all"
 msgstr "Alle auswählen"
-
-msgid "Amount"
-msgstr "Betrag"
 
 msgid "Bank details"
 msgstr "Bankverbindung"
@@ -1768,6 +1792,36 @@ msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung z
 
 msgid "Monthly bonus %1$s (tier %2$s %%)"
 msgstr "Monatsbonus %1$s (Stufe %2$s %%)"
+
+msgid "Monthly bonus correction %s"
+msgstr "Korrektur Monatsbonus %s"
+
+msgid "Booking #%d: chain broken (a booking was removed or reordered)."
+msgstr "Buchung #%d: Kette unterbrochen (eine Buchung wurde entfernt oder umsortiert)."
+
+msgid "Booking #%d: content was modified."
+msgstr "Buchung #%d: Inhalt wurde verändert."
+
+msgid "Booking #%d: running balance does not match."
+msgstr "Buchung #%d: laufender Saldo stimmt nicht."
+
+msgid "Stored account balance does not match the bookings."
+msgstr "Der gespeicherte Kontostand stimmt nicht mit den Buchungen überein."
+
+msgid "Balance (%1$d) differs from approved, unpaid commissions (%2$d)."
+msgstr "Saldo (%1$d) weicht von den freigegebenen, nicht ausgezahlten Provisionen (%2$d) ab."
+
+msgid "Commission approved"
+msgstr "Provision freigegeben"
+
+msgid "Commission rejected"
+msgstr "Provision abgelehnt"
+
+msgid "Payout cancelled"
+msgstr "Auszahlung storniert"
+
+msgid "Opening balance"
+msgstr "Eröffnungssaldo"
 
 msgid "Please enter a valid rate."
 msgstr "Bitte geben Sie einen gültigen Satz ein."

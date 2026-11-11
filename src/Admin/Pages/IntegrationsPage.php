@@ -78,6 +78,7 @@ final class IntegrationsPage {
 			array( '' !== (string) Settings::get( 'debtor_iban' ), __( 'Company account for SEPA export configured', 'wp-affiliate-captain' ) ),
 			array( true !== \WPAffiliateCaptain\Payouts\Statement::publicly_accessible(), defined( 'WPAC_STATEMENT_DIR' ) ? __( 'Statements stored outside the web root (WPAC_STATEMENT_DIR)', 'wp-affiliate-captain' ) : ( true === \WPAffiliateCaptain\Payouts\Statement::publicly_accessible() ? __( 'WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/.', 'wp-affiliate-captain' ) : __( 'Statements folder is not publicly reachable', 'wp-affiliate-captain' ) ) ),
 			array( '' !== (string) Settings::get( 'operator_address' ) && ( '' !== (string) Settings::get( 'operator_vat_id' ) || '' !== (string) Settings::get( 'operator_tax_number' ) ), __( 'Address and VAT ID / tax number for credit notes configured', 'wp-affiliate-captain' ) ),
+			array( ! \WPAffiliateCaptain\Commissions\Balance::verify_all( 200 ), __( 'Partner accounts: booking chains intact and balances match the commission ledger', 'wp-affiliate-captain' ) ),
 			array( (bool) wp_next_scheduled( 'wpac_hourly' ), __( 'Scheduled tasks active (hold period release, retries)', 'wp-affiliate-captain' ) ),
 		);
 		foreach ( $checks as $c ) {

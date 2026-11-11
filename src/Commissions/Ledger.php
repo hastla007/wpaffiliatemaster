@@ -394,6 +394,10 @@ final class Ledger {
 					}
 					$aid   = (int) $wpdb->insert_id;
 					$ids[] = $aid;
+					if ( 'approved' === $status ) {
+						// Correction of an approved/paid commission: payable balance changes immediately.
+						Balance::post( (int) $parent->affiliate_id, $parent->currency, 'approved', $amount, $aid, 0, $refund['type'] );
+					}
 					self::event( $aid, 'created', '', $status, $amount, $refund['type'] . ': ' . $refund['reason'], $refund['refund_id'] );
 					self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount, $refund['type'], $refund['refund_id'] );
 				}
@@ -561,13 +565,28 @@ final class Ledger {
 		}
 		$args = array_merge( $args, array_values( $from ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$sql  = "UPDATE {$t} SET status = %s, updated_at = %s WHERE id = %d{$extra} AND status IN ({$in})";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$rows = (int) $wpdb->query( $wpdb->prepare( $sql, $args ) );
-		if ( 1 !== $rows ) {
+		$sql = "UPDATE {$t} SET status = %s, updated_at = %s WHERE id = %d{$extra} AND status IN ({$in})";
+		$ok  = Db::transaction(
+			static function () use ( $wpdb, $sql, $args, $id, $to, $c, $reason, $actor ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				$rows = (int) $wpdb->query( $wpdb->prepare( $sql, $args ) );
+				if ( 1 !== $rows ) {
+					return false;
+				}
+				// Re-read the previous status inside the transaction for the balance booking.
+				$from_status = $c->status;
+				self::event( (int) $id, $to, $from_status, $to, (int) $c->amount_minor, $reason, '', $actor );
+				if ( 'approved' === $to ) {
+					Balance::post( (int) $c->affiliate_id, $c->currency, 'approved', (int) $c->amount_minor, (int) $id );
+				} elseif ( 'rejected' === $to && 'approved' === $from_status ) {
+					Balance::post( (int) $c->affiliate_id, $c->currency, 'rejected', -(int) $c->amount_minor, (int) $id, 0, substr( (string) $reason, 0, 191 ) );
+				}
+				return true;
+			}
+		);
+		if ( ! $ok ) {
 			return false;
 		}
-		self::event( (int) $id, $to, $c->status, $to, (int) $c->amount_minor, $reason, '', $actor );
 		if ( $fire_hooks ) {
 			do_action( 'wpac_commission_' . $to, (int) $id );
 		}

@@ -454,8 +454,54 @@ final class AffiliatesPage {
 		echo '</ul></div></div>';
 
 		$parts['history'][] = ob_get_clean();
+		ob_start();
+		self::render_balance( $id );
+		$parts['balance'][] = ob_get_clean();
 		self::render_tabs( $id, $parts );
 		echo '</div>';
+	}
+
+	/**
+	 * Account statement (balance ledger) with integrity check.
+	 *
+	 * @param int $id Affiliate.
+	 */
+	private static function render_balance( $id ) {
+		$currencies = \WPAffiliateCaptain\Commissions\Balance::currencies( $id );
+		if ( ! $currencies ) {
+			echo '<p>' . esc_html__( 'No bookings yet. The account starts with the first approved commission.', 'wp-affiliate-captain' ) . '</p>';
+			return;
+		}
+		$labels = \WPAffiliateCaptain\Commissions\Balance::type_labels();
+		foreach ( $currencies as $cur ) {
+			$problems = \WPAffiliateCaptain\Commissions\Balance::verify( $id, $cur );
+			/* translators: 1: currency, 2: balance */
+			echo '<h3>' . esc_html( sprintf( __( 'Account %1$s – balance %2$s', 'wp-affiliate-captain' ), $cur, Money::format( \WPAffiliateCaptain\Commissions\Balance::get( $id, $cur ), $cur ) ) ) . '</h3>';
+			if ( $problems ) {
+				echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'Integrity check failed:', 'wp-affiliate-captain' ) . '</strong></p><ul>';
+				foreach ( $problems as $p ) {
+					echo '<li>' . esc_html( $p ) . '</li>';
+				}
+				echo '</ul></div>';
+			} else {
+				echo '<p class="description">✔ ' . esc_html__( 'Integrity check passed: booking chain intact, balance matches the approved, unpaid commissions.', 'wp-affiliate-captain' ) . '</p>';
+			}
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Booking', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Reference', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Balance', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( \WPAffiliateCaptain\Commissions\Balance::entries( $id, $cur ) as $e ) {
+				$ref = $e->commission_id ? '<a href="' . esc_url( Admin::url( 'wpac-commissions', array( 'action' => 'view', 'id' => $e->commission_id ) ) ) . '">#' . (int) $e->commission_id . '</a> ' : '';
+				$ref .= $e->payout_id ? '<a href="' . esc_url( Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => $e->payout_id ) ) ) . '">' . esc_html( $e->reference ) . '</a>' : esc_html( $e->reference );
+				printf(
+					'<tr><td>%s</td><td>%s</td><td>%s</td><td class="%s">%s</td><td>%s</td></tr>',
+					esc_html( Admin::date( $e->created_at, true ) ),
+					esc_html( isset( $labels[ $e->type ] ) ? $labels[ $e->type ] : $e->type ),
+					$ref, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					(int) $e->amount_minor < 0 ? 'wpac-negative' : '',
+					esc_html( Money::format( (int) $e->amount_minor, $cur ) ),
+					esc_html( Money::format( (int) $e->balance_minor, $cur ) )
+				);
+			}
+			echo '</tbody></table>';
+		}
 	}
 
 	/**
@@ -470,6 +516,7 @@ final class AffiliatesPage {
 			'profile'  => __( 'Profile', 'wp-affiliate-captain' ),
 			'codes'    => __( 'Partner codes', 'wp-affiliate-captain' ),
 			'payout'   => __( 'Payout details', 'wp-affiliate-captain' ),
+			'balance'  => __( 'Account statement', 'wp-affiliate-captain' ),
 			'history'  => __( 'History', 'wp-affiliate-captain' ),
 		);
 		$tab = Admin::get( 'tab' );

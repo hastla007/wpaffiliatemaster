@@ -31,6 +31,8 @@ final class Db {
 		'creatives',
 		'payout_requests',
 		'sequences',
+		'balances',
+		'balance_entries',
 	);
 
 	/**

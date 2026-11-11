@@ -125,7 +125,8 @@ check( 'C status approved', 'approved', Ledger::find( $cid )->status );
 /* D: chargeback after the cut-off is paid together with its sale ---- */
 $r   = sale( 1003, $code, array( 300000 ) ); // 300 € commission.
 $cid = $r['commission_ids'][0];
-q( 'UPDATE ' . t( 'commissions' ) . " SET status = 'approved', created_at = '2026-10-15 10:00:00', hold_until = '2026-10-16' WHERE id = {$cid}" );
+q( 'UPDATE ' . t( 'commissions' ) . " SET created_at = '2026-10-15 10:00:00', hold_until = '2026-10-16' WHERE id = {$cid}" );
+Ledger::transition( $cid, 'approved' );
 refund( 1003, 'cb', array(), 'chargeback' ); // booked "now" (after 31.10.).
 $preview = PayoutService::preview( '2026-10-31', 'EUR' );
 $row     = $preview ? $preview[0] : null;
@@ -141,7 +142,9 @@ Ledger::transition( $cid, 'approved' ); // only parent approved.
 $ids = $GLOBALS['wpdb']->get_col( 'SELECT c.id FROM ' . t( 'commissions' ) . ' c' );
 $p   = PayoutService::preview( gmdate( 'Y-m-d' ), 'EUR' );
 check( 'E only 1002 (200 €) payable, 1004 held back', 20000, $p[0]['total_minor'] );
-q( 'UPDATE ' . t( 'commissions' ) . " SET status = 'approved' WHERE parent_id = {$cid}" );
+foreach ( $GLOBALS['wpdb']->get_col( 'SELECT id FROM ' . t( 'commissions' ) . " WHERE parent_id = {$cid}" ) as $child ) {
+	Ledger::transition( (int) $child, 'approved' );
+}
 $p = PayoutService::preview( gmdate( 'Y-m-d' ), 'EUR' );
 check( 'E after child approved: 200 + 1000 − 500 + 300 − 300', 70000, $p[0]['total_minor'] );
 
@@ -187,7 +190,7 @@ $biz = AffiliateRepository::create( array( 'name' => 'Segelschule Nord GmbH', 'e
 ProfileRepository::save( $biz, array( 'tax_status' => 'business', 'country' => 'DE', 'vat_id' => 'DE999999999', 'account_holder' => 'Segelschule Nord GmbH', 'iban' => 'DE89370400440532013000', 'address' => "Kai 2\n24937 Flensburg" ) );
 $bcode = WPAffiliateCaptain\Codes\CodeRepository::main_code( $biz );
 $r     = sale( 2001, $bcode, array( 1000000 ) ); // 1.000 € commission (10 % of 10.000 €).
-q( 'UPDATE ' . t( 'commissions' ) . " SET status = 'approved' WHERE id = " . (int) $r['commission_ids'][0] );
+Ledger::transition( (int) $r['commission_ids'][0], 'approved' );
 $bp = PayoutService::find( PayoutService::create_for_affiliate( $biz, gmdate( 'Y-m-d' ), 'EUR' ) );
 check( 'K domestic business: VAT mode', 'standard', $bp->vat_mode );
 check( 'K net', 100000, (int) $bp->net_minor );
@@ -206,7 +209,7 @@ check( 'K credit note PDF has partner VAT ID', true, false !== strpos( $pdf, 'DE
 $at = AffiliateRepository::create( array( 'name' => 'Wien Partner', 'email' => 'wien@example.at', 'status' => 'active' ) );
 ProfileRepository::save( $at, array( 'tax_status' => 'business', 'country' => 'AT', 'vat_id' => 'ATU12345678', 'account_holder' => 'Wien Partner', 'iban' => 'AT611904300234573201' ) );
 $r = sale( 2002, WPAffiliateCaptain\Codes\CodeRepository::main_code( $at ), array( 1000000 ) );
-q( 'UPDATE ' . t( 'commissions' ) . " SET status = 'approved' WHERE id = " . (int) $r['commission_ids'][0] );
+Ledger::transition( (int) $r['commission_ids'][0], 'approved' );
 $ap = PayoutService::find( PayoutService::create_for_affiliate( $at, gmdate( 'Y-m-d' ), 'EUR' ) );
 check( 'K EU business: reverse charge', 'reverse_charge', $ap->vat_mode );
 check( 'K reverse charge: no VAT added', 100000, (int) $ap->amount_minor );
@@ -225,6 +228,18 @@ try {
 	// Expected.
 }
 check( 'K rollback keeps sequence gapless', 4, (int) $GLOBALS['wpdb']->get_var( 'SELECT value FROM ' . t( 'sequences' ) . " WHERE name = 'credit'" ) );
+
+/* N: balance ledger invariant + tamper detection ------------------------ */
+$bad = WPAffiliateCaptain\Commissions\Balance::verify_all();
+check( 'N all accounts consistent with commission ledger', array(), $bad );
+check( 'N Anna balance = −100 € carried forward', -10000, WPAffiliateCaptain\Commissions\Balance::get( $aff, 'EUR' ) );
+$types = $GLOBALS['wpdb']->get_col( 'SELECT DISTINCT type FROM ' . t( 'balance_entries' ) . ' ORDER BY type' );
+check( 'N booking types used', array( 'approved', 'payout', 'payout_cancelled' ), $types );
+$eid = (int) $GLOBALS['wpdb']->get_var( 'SELECT id FROM ' . t( 'balance_entries' ) . " WHERE affiliate_id = {$aff} ORDER BY id LIMIT 1" );
+q( 'UPDATE ' . t( 'balance_entries' ) . " SET amount_minor = amount_minor + 1 WHERE id = {$eid}" );
+check( 'N tampering detected', true, count( WPAffiliateCaptain\Commissions\Balance::verify( $aff, 'EUR' ) ) > 0 );
+q( 'UPDATE ' . t( 'balance_entries' ) . " SET amount_minor = amount_minor - 1 WHERE id = {$eid}" );
+check( 'N restored → consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify( $aff, 'EUR' ) );
 
 /* M: monthly partner summaries in batches ------------------------------ */
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'report_partners' => 1, 'report_admin' => 1 ) ) );
@@ -253,7 +268,7 @@ WPAffiliateCaptain\Core\Installer::install_schema();
 check( 'J old unique index replaced', '1', (string) $GLOBALS['wpdb']->get_var( "SHOW INDEX FROM {$pi} WHERE Key_name = 'commission_id'" ) ? (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$pi} WHERE Key_name = 'commission_id'" )->Non_unique : 'missing' );
 check( 'J new unique index', '0', (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$pi} WHERE Key_name = 'active_commission'" )->Non_unique );
 check( 'J existing item marked active', '77', (string) $GLOBALS['wpdb']->get_var( "SELECT active_commission_id FROM {$pi} WHERE commission_id = 77" ) );
-check( 'J version stored', 4, (int) get_option( 'wpac_db_version' ) );
+check( 'J version stored', 5, (int) get_option( 'wpac_db_version' ) );
 
 /* L: schema migration v3 → v4 (payouts) ----------------------------------- */
 $po = t( 'payouts' );
@@ -263,6 +278,34 @@ WPAffiliateCaptain\Core\Installer::install_schema();
 check( 'L number unique again', '0', (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$po} WHERE Key_name = 'number'" )->Non_unique );
 check( 'L storno column back', 'storno_number', (string) $GLOBALS['wpdb']->get_var( "SHOW COLUMNS FROM {$po} LIKE 'storno_number'" ) );
 check( 'L old payouts: net = amount', 0, (int) $GLOBALS['wpdb']->get_var( "SELECT COUNT(*) FROM {$po} WHERE net_minor <> amount_minor" ) );
+
+/* P: monthly tier bonus + correction after the month was closed ---------- */
+WPAffiliateCaptain\Commissions\TierService::create( array( 'scope' => 'global', 'scope_id' => 0, 'basis' => 'revenue', 'mode' => 'retroactive', 'steps' => array( array( 'threshold' => 100000, 'rate' => '2' ) ) ) );
+$tp    = AffiliateRepository::create( array( 'name' => 'Tier Partner', 'email' => 'tier@example.de', 'status' => 'active' ) );
+$tcode = WPAffiliateCaptain\Codes\CodeRepository::main_code( $tp );
+$last  = gmdate( 'Y-m', strtotime( 'first day of previous month' ) );
+foreach ( array( 3001 => 80000, 3002 => 60000 ) as $order => $net ) {
+	$r = sale( $order, $tcode, array( $net ) );
+	q( 'UPDATE ' . t( 'commissions' ) . " SET created_at = '{$last}-10 10:00:00' WHERE id = " . (int) $r['commission_ids'][0] );
+	Ledger::transition( (int) $r['commission_ids'][0], 'approved' );
+}
+check( 'P month closed with bonus', 1, WPAffiliateCaptain\Commissions\TierService::close_month( $last ) );
+$bonus = (int) $GLOBALS['wpdb']->get_var( 'SELECT amount_minor FROM ' . t( 'commissions' ) . " WHERE affiliate_id = {$tp} AND kind = 'bonus'" );
+check( 'P 2 % of 1.400 € = 28 €', 2800, $bonus );
+refund( 3002, 'late-refund', array( array( 'item_id' => '1', 'net_minor' => 60000 ) ) ); // Revenue drops to 800 € < threshold.
+check( 'P correction booked', 1, WPAffiliateCaptain\Commissions\TierService::recalculate_month( $last ) );
+check( 'P bonus fully reversed', 0, (int) $GLOBALS['wpdb']->get_var( 'SELECT SUM(amount_minor) FROM ' . t( 'commissions' ) . " WHERE affiliate_id = {$tp} AND kind = 'bonus'" ) );
+check( 'P recalculation idempotent', 0, WPAffiliateCaptain\Commissions\TierService::recalculate_month( $last ) );
+check( 'P accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
+/* O: migration v4 → v5 creates opening balances for existing data -------- */
+$legacy = AffiliateRepository::create( array( 'name' => 'Legacy Partner', 'email' => 'legacy@example.de', 'status' => 'active' ) );
+q( 'INSERT INTO ' . t( 'commissions' ) . " (affiliate_id, source, source_order_id, kind, currency, base_minor, amount_minor, status, idempotency_key, created_at, updated_at) VALUES ({$legacy}, 'test', 'legacy-1', 'sale', 'EUR', 50000, 5000, 'approved', 'legacy-1', NOW(), NOW())" );
+update_option( 'wpac_db_version', 4 );
+WPAffiliateCaptain\Core\Installer::install_schema();
+check( 'O opening balance booked', 5000, WPAffiliateCaptain\Commissions\Balance::get( $legacy, 'EUR' ) );
+check( 'O opening type', 'opening', (string) $GLOBALS['wpdb']->get_var( 'SELECT type FROM ' . t( 'balance_entries' ) . " WHERE affiliate_id = {$legacy}" ) );
+check( 'O existing accounts not booked twice', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

@@ -240,6 +240,7 @@ final class PayoutService {
 					}
 					Ledger::event( (int) $r->id, 'payout_assigned', 'approved', 'approved', (int) $r->amount_minor, $number );
 				}
+				\WPAffiliateCaptain\Commissions\Balance::post( (int) $affiliate_id, $currency, 'payout', -$total, 0, $payout_id, $number );
 				Audit::log(
 					'payout.created',
 					'payout',
@@ -358,6 +359,11 @@ final class PayoutService {
 					foreach ( self::items( $id, true ) as $item ) {
 						Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
 					}
+					$released = 0;
+					foreach ( self::items( $id, true ) as $item ) {
+						$released += (int) $item->amount_minor;
+					}
+					\WPAffiliateCaptain\Commissions\Balance::post( (int) $p->affiliate_id, $p->currency, 'payout_cancelled', $released, 0, (int) $id, $p->number );
 					$it = Db::table( 'payout_items' );
 					$ct = Db::table( 'commissions' );
 					// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
