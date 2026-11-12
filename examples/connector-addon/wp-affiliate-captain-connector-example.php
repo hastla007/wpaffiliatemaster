@@ -86,4 +86,5 @@ final class WPAC_Connector_Example {
 	}
 }
 
-add_action( 'plugins_loaded', array( 'WPAC_Connector_Example', 'boot' ) );
+// Run before WP Affiliate Captain's plugins_loaded priority 5 boot hook.
+add_action( 'plugins_loaded', array( 'WPAC_Connector_Example', 'boot' ), 4 );
