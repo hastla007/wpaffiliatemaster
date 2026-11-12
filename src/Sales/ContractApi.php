@@ -18,6 +18,7 @@
 namespace WPAffiliateCaptain\Sales;
 
 use WPAffiliateCaptain\Commissions\Ledger;
+use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\IntegrationException;
 use WPAffiliateCaptain\Core\Jobs;
 use WPAffiliateCaptain\Core\Settings;
@@ -69,7 +70,7 @@ final class ContractApi {
 		// Mark the sale as in flight: a refund arriving meanwhile (parallel webhook) is queued
 		// instead of being dropped as "no commission" (Jobs::sale_pending()).
 		$inflight = Jobs::inflight_key( $sale['source'], $sale['order_id'] );
-		add_option( $inflight, time(), '', false );
+		$owner    = Db::lock( $inflight, 10 * MINUTE_IN_SECONDS ); // '' when a parallel request books it: keep its marker.
 		try {
 			return Ledger::record_sale( $sale );
 		} catch ( \Throwable $e ) {
@@ -84,7 +85,7 @@ final class ContractApi {
 			}
 			return new \WP_Error( 'wpac_queued', __( 'The sale could not be processed and was queued for retry.', 'wp-affiliate-captain' ) );
 		} finally {
-			delete_option( $inflight );
+			Db::unlock( $inflight, $owner );
 		}
 	}
 

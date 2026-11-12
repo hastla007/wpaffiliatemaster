@@ -153,31 +153,29 @@ final class Installer {
 		if ( get_option( 'wpac_schema_problems' ) && get_transient( 'wpac_upgrade_retry' ) ) {
 			return;
 		}
-		// Only one request migrates (after a deploy many requests see the old version at once;
-		// parallel runs would repeat ALTERs and data migrations). add_option() is atomic.
-		if ( ! add_option( 'wpac_upgrade_lock', time(), '', false ) ) {
-			global $wpdb;
-			wp_cache_delete( 'wpac_upgrade_lock', 'options' );
-			$held = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'wpac_upgrade_lock' ) );
-			if ( time() - (int) $held < 10 * MINUTE_IN_SECONDS ) {
-				// Another request is migrating. Background work (cron, jobs) waits for the new
-				// schema (see schema_current()); page requests keep running.
-				return;
+		// Migrations run in admin, cron or WP-CLI requests – never inline in a checkout, payment
+		// webhook or REST call. Background work waits meanwhile (schema_current()).
+		if ( ! is_admin() && ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			if ( ! wp_next_scheduled( Cron::HOURLY ) ) {
+				Cron::schedule(); // Make sure a cron request comes to run it.
 			}
-			// Stale lock of a run that died: take it over atomically (only one request wins).
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$won = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) time(), 'wpac_upgrade_lock', $held ) );
-			wp_cache_delete( 'wpac_upgrade_lock', 'options' );
-			if ( 1 !== (int) $won ) {
-				return;
-			}
+			return;
+		}
+		// Only one request migrates (parallel runs would repeat ALTERs and data migrations).
+		$owner = Db::lock( 'wpac_upgrade_lock', 15 * MINUTE_IN_SECONDS );
+		if ( '' === $owner ) {
+			return; // Another request is migrating.
+		}
+		ignore_user_abort( true );
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 		try {
 			self::install_schema();
 			Capabilities::install();
 			Cron::schedule();
 		} finally {
-			delete_option( 'wpac_upgrade_lock' );
+			Db::unlock( 'wpac_upgrade_lock', $owner );
 		}
 	}
 

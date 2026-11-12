@@ -175,11 +175,10 @@ function remove_all_filters( $tag ) { unset( $GLOBALS['test_hooks'][ $tag ] ); }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['test_options'] ) ? $GLOBALS['test_options'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['test_options'][ $k ] = $v; return true; }
 function add_option( $k, $v, $x = '', $a = null ) {
-	// Like WordPress: atomic (fails when the option exists), stored in the real options table too.
+	// Like WordPress core: a cached read, then an UPSERT – NOT atomic (use Db::lock() for locks).
 	global $wpdb;
 	if ( array_key_exists( $k, $GLOBALS['test_options'] ) ) { return false; }
-	$ok = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $k, is_scalar( $v ) ? (string) $v : serialize( $v ) ) );
-	if ( 1 !== (int) $ok ) { return false; }
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)", $k, is_scalar( $v ) ? (string) $v : serialize( $v ) ) );
 	$GLOBALS['test_options'][ $k ] = $v;
 	return true;
 }

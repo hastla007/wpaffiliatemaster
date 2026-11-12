@@ -525,11 +525,24 @@ for ( $i = 0; $i < 5; $i++ ) { $hits[] = WPAffiliateCaptain\Tracking\RateLimiter
 check( 'U1 rate limit: 3 allowed, then refused', array( true, true, true, false, false ), $hits );
 // U2 a refund arriving while the sale is being booked is queued, not dropped.
 $inflight = WPAffiliateCaptain\Core\Jobs::inflight_key( 'test', '7001' );
-add_option( $inflight, time(), '', false );
+$owner    = WPAffiliateCaptain\Core\Db::lock( $inflight, 600 );
 $rr = refund( 7001, 'parallel', array( array( 'item_id' => '1', 'net_minor' => 1000 ) ) );
 check( 'U2 refund during an in-flight sale is queued', 'queued', is_array( $rr ) ? $rr['status'] : 'error' );
-delete_option( $inflight );
-check( 'U2 marker is removed after a sale was booked', false, get_option( WPAffiliateCaptain\Core\Jobs::inflight_key( 'test', '7002' ) ) || ( sale( 7002, $rc, array( 1000 ) ) && false !== get_option( WPAffiliateCaptain\Core\Jobs::inflight_key( 'test', '7002' ) ) ) );
+WPAffiliateCaptain\Core\Db::unlock( $inflight, $owner );
+sale( 7002, $rc, array( 1000 ) );
+check( 'U2 marker is removed after a sale was booked', null, $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", WPAffiliateCaptain\Core\Jobs::inflight_key( 'test', '7002' ) ) ) );
+// U2b locks are exclusive, owned, and taken over only when expired.
+$a = WPAffiliateCaptain\Core\Db::lock( 'wpac_test_lock', 600 );
+$b = WPAffiliateCaptain\Core\Db::lock( 'wpac_test_lock', 600 );
+check( 'U2b second lock attempt fails while held', array( true, '' ), array( '' !== $a, $b ) );
+WPAffiliateCaptain\Core\Db::unlock( 'wpac_test_lock', 'not-the-owner' );
+check( 'U2b a foreign owner cannot release it', '', WPAffiliateCaptain\Core\Db::lock( 'wpac_test_lock', 600 ) );
+q( "UPDATE {$wpdb->options} SET option_value = '1:old' WHERE option_name = 'wpac_test_lock'" );
+$c = WPAffiliateCaptain\Core\Db::lock( 'wpac_test_lock', 600 );
+check( 'U2b expired lock is taken over', true, '' !== $c );
+WPAffiliateCaptain\Core\Db::unlock( 'wpac_test_lock', $a ); // stale owner: must not delete the new lock
+check( 'U2b the previous owner cannot delete the taken-over lock', '', WPAffiliateCaptain\Core\Db::lock( 'wpac_test_lock', 600 ) );
+WPAffiliateCaptain\Core\Db::unlock( 'wpac_test_lock', $c );
 // U3 enqueue reports whether the job was stored.
 check( 'U3 enqueue returns true when stored', true, WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'u3', array(), 'e', 'e' ) );
 // U4 payout requests: no second open request; rejecting twice fails the second time.
