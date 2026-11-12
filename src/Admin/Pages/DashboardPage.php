@@ -93,6 +93,7 @@ final class DashboardPage {
 			array( '' !== (string) Settings::get( 'debtor_iban' ), __( 'Company bank account for SEPA payouts', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
 			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php', 'wp-affiliate-captain' ), Admin::url( 'wpac-integrations' ) ),
 			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'wp-affiliate-captain' ), Admin::url( 'wpac-affiliates' ) ),
+			array( 'always' !== Settings::get( 'cookie_mode' ), __( 'Affiliate cookie only with consent (not "always")', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ),
 		);
 		$open = array_filter(
 			$items,

@@ -31,6 +31,14 @@ final class OrderSync {
 	public static function payload( $order ) {
 		$currency = $order->get_currency();
 		$items    = array();
+		// Refunds that happened before the sale was booked (retries, late manual assignment),
+		// including amount-only refunds, per line.
+		$refunded = array();
+		foreach ( $order->get_refunds() as $refund ) {
+			foreach ( self::refund_lines( $order, $refund ) as $line ) {
+				$refunded[ $line['item_id'] ] = ( isset( $refunded[ $line['item_id'] ] ) ? $refunded[ $line['item_id'] ] : 0 ) + $line['net_minor'];
+			}
+		}
 		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
 			/** @var \WC_Order_Item_Product $item */
 			$product      = $item->get_product();
@@ -47,9 +55,8 @@ final class OrderSync {
 				'tag_ids'      => array_map( 'intval', $tag_ids ),
 				'name'         => $item->get_name(),
 				'quantity'     => (int) $item->get_quantity(),
-				// Line total = net after discounts, excluding tax and shipping, minus refunds
-				// that happened before the sale was booked (e.g. retries, late manual assignment).
-				'net_minor'    => max( 0, Money::to_minor( (string) $item->get_total(), $currency ) - abs( Money::to_minor( (string) $order->get_total_refunded_for_item( $item_id ), $currency ) ) ),
+				// Line total = net after discounts, excluding tax and shipping, minus earlier refunds.
+				'net_minor'    => max( 0, Money::to_minor( (string) $item->get_total(), $currency ) - ( isset( $refunded[ (string) $item_id ] ) ? $refunded[ (string) $item_id ] : 0 ) ),
 			);
 		}
 
@@ -135,36 +142,7 @@ final class OrderSync {
 		if ( ! $order || ! $refund || ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) ) {
 			return;
 		}
-		$currency = $order->get_currency();
-		$items    = array();
-		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
-			$original = (int) $refund_item->get_meta( '_refunded_item_id' );
-			$net      = abs( Money::to_minor( (string) $refund_item->get_total(), $currency ) );
-			if ( $original && $net > 0 ) {
-				$items[] = array(
-					'item_id'   => (string) $original,
-					'net_minor' => $net,
-				);
-			}
-		}
-
-		if ( ! $items && $refund->get_items( array( 'line_item', 'shipping', 'fee', 'tax' ) ) ) {
-			return; // Only shipping/fee/tax refunded – the commission base (net products) is unchanged.
-		}
-		if ( ! $items ) {
-			// Amount-only refund (no items at all): distribute pro rata over the net line totals.
-			$order_total = Money::to_minor( (string) $order->get_total(), $currency );
-			$refunded    = abs( Money::to_minor( (string) $refund->get_amount(), $currency ) );
-			if ( $order_total > 0 && $refunded > 0 ) {
-				foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
-					$net = Money::to_minor( (string) $item->get_total(), $currency );
-					$items[] = array(
-						'item_id'   => (string) $item_id,
-						'net_minor' => Money::prorate( $net, min( $refunded, $order_total ), $order_total ),
-					);
-				}
-			}
-		}
+		$items = self::refund_lines( $order, $refund );
 		if ( ! $items ) {
 			return;
 		}
@@ -180,6 +158,53 @@ final class OrderSync {
 				'reason'    => (string) $refund->get_reason(),
 			)
 		);
+	}
+
+	/**
+	 * Commission-relevant lines of a WooCommerce refund: [ item_id, net_minor ].
+	 *
+	 * - Refund lines with an amount: position-exact.
+	 * - Only shipping/fee/tax lines with an amount: nothing (the net product base is unchanged).
+	 * - Otherwise (amount-only refund, or lines with 0 total, e.g. only a restock quantity
+	 *   with a manually typed amount): the amount pro rata over the net line totals.
+	 *
+	 * @param \WC_Order        $order  Order.
+	 * @param \WC_Order_Refund $refund Refund.
+	 * @return array
+	 */
+	public static function refund_lines( $order, $refund ) {
+		$currency = $order->get_currency();
+		$items    = array();
+		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
+			$original = (int) $refund_item->get_meta( '_refunded_item_id' );
+			$net      = abs( Money::to_minor( (string) $refund_item->get_total(), $currency ) );
+			if ( $original && $net > 0 ) {
+				$items[] = array(
+					'item_id'   => (string) $original,
+					'net_minor' => $net,
+				);
+			}
+		}
+		if ( $items ) {
+			return $items;
+		}
+		foreach ( $refund->get_items( array( 'shipping', 'fee', 'tax' ) ) as $other ) {
+			if ( 0 !== Money::to_minor( (string) $other->get_total(), $currency ) || ( method_exists( $other, 'get_total_tax' ) && 0 !== Money::to_minor( (string) $other->get_total_tax(), $currency ) ) ) {
+				return array(); // Only shipping/fee/tax refunded.
+			}
+		}
+		$order_total = Money::to_minor( (string) $order->get_total(), $currency );
+		$refunded    = abs( Money::to_minor( (string) $refund->get_amount(), $currency ) );
+		if ( $order_total <= 0 || $refunded <= 0 ) {
+			return array();
+		}
+		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
+			$items[] = array(
+				'item_id'   => (string) $item_id,
+				'net_minor' => Money::prorate( Money::to_minor( (string) $item->get_total(), $currency ), min( $refunded, $order_total ), $order_total ),
+			);
+		}
+		return $items;
 	}
 
 	/**
@@ -208,7 +233,9 @@ final class OrderSync {
 	 * @param string $to       New status.
 	 */
 	public static function maybe_chargeback( $order_id, $from, $to ) {
-		$statuses = array_map( 'sanitize_key', (array) apply_filters( 'wpac_wc_chargeback_statuses', array() ) );
+		// Default: "failed" after the order was paid (payment reversed/disputed by the gateway).
+		// Commissions only exist for paid orders, so this never affects unpaid ones.
+		$statuses = array_map( 'sanitize_key', (array) apply_filters( 'wpac_wc_chargeback_statuses', array( 'failed' ) ) );
 		if ( in_array( sanitize_key( $to ), $statuses, true ) ) {
 			self::full_reversal_chargeback( $order_id );
 		}

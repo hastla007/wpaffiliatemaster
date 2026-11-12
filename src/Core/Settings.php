@@ -36,6 +36,7 @@ final class Settings {
 			'trusted_proxies'         => '',
 			'visit_retention_days'    => 90,
 			'audit_retention_days'    => 1095,
+			'application_retention_days' => 180,
 			// Commissions.
 			'currency'                => 'EUR',
 			'exchange_rates'          => '',
@@ -63,6 +64,7 @@ final class Settings {
 			'min_payout_minor'        => 5000,
 			'payout_requests'         => 0,
 			'statement_retention_years' => 10,
+			'retention_hold'          => 0,
 			'payout_period'           => 'monthly',
 			'debtor_name'             => '',
 			'debtor_iban'             => '',
@@ -150,12 +152,16 @@ final class Settings {
 		$lifetime_rate        = isset( $in['lifetime_rate'] ) ? Money::normalize_decimal( (string) $in['lifetime_rate'] ) : null;
 		$out['lifetime_rate'] = ( null !== $lifetime_rate && (float) $lifetime_rate >= 0 && (float) $lifetime_rate <= 100 ) ? $lifetime_rate : '';
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'audit_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			$out[ $int ] = isset( $in[ $int ] ) ? max( 0, (int) $in[ $int ] ) : $d[ $int ];
+		}
+		// Credit notes: at least 10 years (DE §147 AO/§14b UStG, AT §132 BAO, CH Art. 958f OR); 0 = forever.
+		if ( $out['statement_retention_years'] > 0 ) {
+			$out['statement_retention_years'] = max( 10, $out['statement_retention_years'] );
 		}
 
 		$currency        = isset( $in['currency'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['currency'] ) ) : '';

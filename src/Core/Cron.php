@@ -38,6 +38,7 @@ final class Cron {
 	}
 
 	public static function hourly() {
+		\WPAffiliateCaptain\Payouts\PayoutService::generate_missing_statements();
 		Ledger::approve_due();
 		Jobs::run_due();
 	}
@@ -67,10 +68,20 @@ final class Cron {
 
 	public static function daily() {
 		global $wpdb;
-		\WPAffiliateCaptain\Commissions\TierService::close_due_months();
-		\WPAffiliateCaptain\Commissions\TierService::recalculate_closed_months();
-		\WPAffiliateCaptain\Payouts\Statement::purge_expired();
-		\WPAffiliateCaptain\Reports\MonthlyMail::send_due();
+		// Each step runs on its own: an error or timeout in one (e.g. a large tier
+		// recalculation) must not skip retention and the other tasks every day.
+		foreach ( array(
+			array( '\WPAffiliateCaptain\Commissions\TierService', 'close_due_months' ),
+			array( '\WPAffiliateCaptain\Commissions\TierService', 'recalculate_closed_months' ),
+			array( '\WPAffiliateCaptain\Payouts\Statement', 'purge_expired' ),
+			array( '\WPAffiliateCaptain\Reports\MonthlyMail', 'send_due' ),
+		) as $step ) {
+			try {
+				call_user_func( $step );
+			} catch ( \Throwable $e ) {
+				Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $step[1], 'error' => substr( $e->getMessage(), 0, 190 ) ) );
+			}
+		}
 		$days = (int) Settings::get( 'visit_retention_days' );
 		if ( $days > 0 ) {
 			$table = Db::table( 'visits' );
@@ -78,18 +89,24 @@ final class Cron {
 			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
 		}
 		\WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired();
+		\WPAffiliateCaptain\Privacy\Privacy::finish_pending_erasures();
+		\WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
 		$audit_days = (int) Settings::get( 'audit_retention_days' );
 		if ( $audit_days > 0 ) {
 			$audit = Db::table( 'audit' );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%'", Db::now( time() - $audit_days * DAY_IN_SECONDS ) ) );
+			// Acceptance records stay as proof; the change log of booking-relevant data (payouts,
+			// statements, bank details) is kept as long as the statements (GoBD).
+			$years     = max( 10, (int) Settings::get( 'statement_retention_years' ) );
+			$financial = Db::now( strtotime( gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) ) . ' UTC' ) );
+			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' ) OR created_at < %s )", Db::now( time() - $audit_days * DAY_IN_SECONDS ), $financial ) );
 		}
 		$jobs = Db::table( 'jobs' );
 		// Failed jobs are kept 180 days for analysis, then removed (payloads may contain order data).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'failed' AND updated_at < %s", Db::now( time() - 180 * DAY_IN_SECONDS ) ) );
+		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'failed' AND updated_at < %s", Db::now( time() - 180 * DAY_IN_SECONDS ) ) );
 		// Done jobs are only kept for 30 days.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'done' AND updated_at < %s", Db::now( time() - 30 * DAY_IN_SECONDS ) ) );
+		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'done' AND updated_at < %s", Db::now( time() - 30 * DAY_IN_SECONDS ) ) );
 	}
 }

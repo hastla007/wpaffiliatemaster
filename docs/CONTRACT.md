@@ -51,7 +51,7 @@ Alternativ ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_sale', $payload
 
 Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, commission_ids, reason )` oder `WP_Error`. Bei technischen Fehlern wird das Ereignis in die Retry-Warteschlange gelegt (`wpac_queued`); die Kunden-E-Mail wird dabei entfernt (der Self-Referral-Vergleich nutzt beim Retry nur noch die User-ID).
 
-Refunds, die **vor** einem erfolgreich gebuchten Verkauf passieren, sollte die Quelle bereits von `net_minor` abziehen (der WooCommerce-Adapter macht das automatisch). `wpac_record_refund()` ohne vorhandene Provision liefert `no_commission`.
+Refunds, die **vor** einem erfolgreich gebuchten Verkauf passieren, sollte die Quelle bereits von `net_minor` abziehen (der WooCommerce-Adapter macht das automatisch). `wpac_record_refund()` ohne vorhandene Provision liefert `no_commission` – außer der Verkauf dieser Bestellung wartet noch in der Wiederholungsschlange: Dann wird die Erstattung ebenfalls eingereiht (`queued`) und nach dem Verkauf gebucht (seit 0.8.0).
 
 ## Refund, Storno, Chargeback
 
@@ -102,7 +102,7 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_wc_sale_payload` | `array $payload, WC_Order $order` | WooCommerce-Payload ergänzen (z. B. `hold_until`). |
 | `wpac_fraud_flags` | `string[] $flags, array $sale, array $attr` | Eigene Betrugsregeln; jeder Treffer setzt die Provision auf „Prüfung nötig“. |
 | `wpac_statement_note` | `string $note, object $payout` | Hinweistext im PDF-Abrechnungsbeleg anpassen. |
-| `wpac_wc_chargeback_statuses` | `string[]` | WooCommerce-Status, die als Chargeback gelten. |
+| `wpac_wc_chargeback_statuses` | `string[]` | WooCommerce-Status, die als Chargeback gelten (Standard seit 0.8.0: `failed`, also eine bezahlte Bestellung, deren Zahlung zurückgebucht wurde). |
 | `wpac_registered_integrations` | `array` | Integration für die Statusseite registrieren. |
 
 Integration registrieren:

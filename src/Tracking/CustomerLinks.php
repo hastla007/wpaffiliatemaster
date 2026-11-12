@@ -146,6 +146,25 @@ final class CustomerLinks {
 	}
 
 	/**
+	 * Remove the links created by an order (the order was fully refunded, cancelled
+	 * or rejected – a reversed first order must not bind the customer to the partner).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order.
+	 * @return int Deleted rows.
+	 */
+	public static function forget_order( $source, $order_id ) {
+		global $wpdb;
+		return (int) $wpdb->delete(
+			Db::table( 'customer_links' ),
+			array(
+				'source'          => substr( (string) $source, 0, 40 ),
+				'source_order_id' => substr( (string) $order_id, 0, 64 ),
+			)
+		);
+	}
+
+	/**
 	 * Number of linked customers of a partner.
 	 *
 	 * @param int $affiliate_id Affiliate.

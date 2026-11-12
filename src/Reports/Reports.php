@@ -177,6 +177,10 @@ final class Reports {
 			self::add( $rows[ $k ], 'revenue', (int) $s->revenue, $s->currency );
 			self::add( $rows[ $k ], 'commission', (int) $s->commission, $s->currency );
 		}
+		if ( 'content_id' === $dim && function_exists( '_prime_post_caches' ) ) {
+			// One query for all titles instead of one per row.
+			_prime_post_caches( array_filter( array_map( 'intval', array_column( $rows, 'key' ) ) ), false, false );
+		}
 		foreach ( $rows as &$r ) {
 			$r['conversion'] = $r['visits'] > 0 ? round( $r['orders'] * 100 / $r['visits'], 1 ) : 0;
 			if ( 'content_id' === $dim ) {

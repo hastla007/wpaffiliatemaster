@@ -108,19 +108,32 @@ final class TierService {
 	}
 
 	/**
+	 * Whether a month can be closed: it has ended and its hold period has passed
+	 * (before that, the result is still incomplete).
+	 *
+	 * @param string $month YYYY-MM.
+	 * @return bool
+	 */
+	public static function is_due( $month ) {
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ) {
+			return false;
+		}
+		$end = strtotime( gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) ) . ' UTC' );
+		return time() >= $end + ( (int) Settings::get( 'hold_days' ) + 1 ) * DAY_IN_SECONDS;
+	}
+
+	/**
 	 * Close all months that are due (cron).
 	 */
 	public static function close_due_months() {
 		if ( ! self::all() ) {
 			return;
 		}
-		$hold = (int) Settings::get( 'hold_days' );
 		$last = (string) Settings::get( 'tier_month_closed' );
 		// Without history: start with the previous month.
 		$month = $last ? gmdate( 'Y-m', strtotime( $last . '-01 +1 month' ) ) : gmdate( 'Y-m', strtotime( 'first day of previous month' ) );
 		for ( $guard = 0; $guard < 24; $guard++ ) {
-			$end = strtotime( gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) ) . ' UTC' );
-			if ( time() < $end + ( $hold + 1 ) * DAY_IN_SECONDS ) {
+			if ( ! self::is_due( $month ) ) {
 				break;
 			}
 			self::close_month( $month );
@@ -149,8 +162,9 @@ final class TierService {
 		$created    = 0;
 
 		foreach ( $affiliates as $affiliate_id ) {
-			$aff  = AffiliateRepository::find( (int) $affiliate_id );
-			$plan = $aff ? self::plan_for( $aff ) : null;
+			$aff = AffiliateRepository::find( (int) $affiliate_id );
+			// No bonus for paused or terminated partners.
+			$plan = $aff && 'active' === $aff->status ? self::plan_for( $aff ) : null;
 			if ( ! $plan ) {
 				continue;
 			}
@@ -254,9 +268,20 @@ final class TierService {
 		if ( '' === $last || ! self::all() ) {
 			return 0;
 		}
-		$n = 0;
+		global $wpdb;
+		$months = array();
 		for ( $i = 0; $i < 3; $i++ ) {
-			$n += self::recalculate_month( gmdate( 'Y-m', strtotime( $last . '-01 -' . $i . ' month' ) ) );
+			$months[] = gmdate( 'Y-m', strtotime( $last . '-01 -' . $i . ' month' ) );
+		}
+		// Older closed months whose commissions changed recently (late approvals after a
+		// long hold, e.g. event or money-back periods; late rejections and refunds).
+		$c = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$changed = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT DATE_FORMAT(created_at, '%%Y-%%m') FROM {$c} WHERE kind <> 'bonus' AND updated_at >= %s AND created_at >= %s AND created_at <= %s", Db::now( time() - 3 * DAY_IN_SECONDS ), gmdate( 'Y-m-01 00:00:00', strtotime( $last . '-01 -24 month' ) ), gmdate( 'Y-m-t 23:59:59', strtotime( $last . '-01' ) ) ) );
+		$months  = array_unique( array_merge( $months, array_map( 'strval', (array) $changed ) ) );
+		$n       = 0;
+		foreach ( $months as $month ) {
+			$n += self::recalculate_month( $month );
 		}
 		return $n;
 	}
@@ -310,7 +335,16 @@ final class TierService {
 			if ( 0 === $delta ) {
 				continue;
 			}
-			$key = 'bonus:tier:' . $affiliate_id . ':' . $month . ( $rows ? ':corr:' . count( $rows ) : '' );
+			if ( $delta > 0 ) {
+				$aff = AffiliateRepository::find( $affiliate_id );
+				if ( ! $aff || 'active' !== $aff->status ) {
+					continue; // No additional bonus for paused or terminated partners (clawbacks still apply).
+				}
+			}
+			// Suffix from ALL rows of the month (incl. rejected ones), so a key never repeats.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$all = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d AND kind = 'bonus' AND source = 'wpac' AND source_order_id = %s", $affiliate_id, 'tier-' . $month ) );
+			$key = 'bonus:tier:' . $affiliate_id . ':' . $month . ( $all ? ':corr:' . $all : '' );
 			if ( Ledger::find_by_key( $key ) ) {
 				continue;
 			}

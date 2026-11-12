@@ -59,9 +59,14 @@ final class Statement {
 		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
 			return null;
 		}
+		static $memo = false;
+		if ( false !== $memo ) {
+			return $memo;
+		}
 		$cached = get_transient( 'wpac_statement_probe' );
 		if ( false !== $cached ) {
-			return 'exposed' === $cached;
+			$memo = 'unknown' === $cached ? null : 'exposed' === $cached;
+			return $memo;
 		}
 		$dir   = self::dir();
 		$name  = 'probe-' . wp_generate_password( 12, false ) . '.txt';
@@ -70,26 +75,45 @@ final class Statement {
 		$res    = wp_remote_get( trailingslashit( $upload['baseurl'] ) . 'wpac-statements/' . $name, array( 'timeout' => 5, 'sslverify' => false ) );
 		wp_delete_file( $dir . '/' . $name );
 		if ( is_wp_error( $res ) ) {
+			// Hosts that block loopback requests: remember "unknown" for an hour instead of
+			// probing (with timeouts) on every page view.
+			set_transient( 'wpac_statement_probe', 'unknown', HOUR_IN_SECONDS );
+			$memo = null;
 			return null;
 		}
 		$exposed = 200 === (int) wp_remote_retrieve_response_code( $res ) && 'wpac' === trim( (string) wp_remote_retrieve_body( $res ) );
 		set_transient( 'wpac_statement_probe', $exposed ? 'exposed' : 'protected', DAY_IN_SECONDS );
+		$memo = $exposed;
 		return $exposed;
 	}
 
 	/**
 	 * Note text for the VAT treatment.
 	 *
-	 * @param string $mode Mode.
+	 * @param string $mode    Mode.
+	 * @param string $country Operator country (legal references follow it).
 	 * @return string
 	 */
-	public static function vat_note( $mode ) {
+	public static function vat_note( $mode, $country = '' ) {
+		$country = strtoupper( '' !== (string) $country ? (string) $country : (string) Settings::get( 'operator_country' ) );
 		switch ( $mode ) {
 			case Vat::STANDARD:
 				return __( 'The commission rates are net amounts; VAT is added at the statutory rate.', 'wp-affiliate-captain' );
 			case Vat::REVERSE_CHARGE:
+				if ( 'AT' === $country ) {
+					return __( 'Reverse charge: the recipient of the service is liable for VAT (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 VAT Directive).', 'wp-affiliate-captain' );
+				}
+				if ( 'CH' === $country ) {
+					return __( 'Reverse charge: the recipient of the service is liable for VAT (Bezugsteuer, Art. 45 MWSTG).', 'wp-affiliate-captain' );
+				}
 				return __( 'Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive).', 'wp-affiliate-captain' );
 			case Vat::SMALL_BUSINESS:
+				if ( 'AT' === $country ) {
+					return __( 'No VAT is shown because the partner is a small business (§6 Abs. 1 Z 27 UStG (AT)).', 'wp-affiliate-captain' );
+				}
+				if ( 'CH' === $country ) {
+					return __( 'No VAT is shown because the partner is not registered for VAT (Art. 10 MWSTG).', 'wp-affiliate-captain' );
+				}
 				return __( 'No VAT is shown because the partner is a small business (§19 UStG).', 'wp-affiliate-captain' );
 			case Vat::PRIVATE_PERSON:
 				return __( 'No VAT: the partner is a private individual and not an entrepreneur.', 'wp-affiliate-captain' );
@@ -184,6 +208,11 @@ final class Statement {
 			__( 'Service period until', 'wp-affiliate-captain' ) => $date( $p->period_end ),
 			__( 'Tax status', 'wp-affiliate-captain' )      => isset( $snap['tax_status'], $labels[ $snap['tax_status'] ] ) ? $labels[ $snap['tax_status'] ] : '—',
 			__( 'VAT ID of the partner', 'wp-affiliate-captain' ) => ! empty( $snap['vat_id'] ) ? $snap['vat_id'] : '—',
+		);
+		if ( ! empty( $snap['tax_number'] ) ) {
+			$facts[ __( 'Tax number of the partner', 'wp-affiliate-captain' ) ] = $snap['tax_number'];
+		}
+		$facts += array(
 			__( 'Bank account', 'wp-affiliate-captain' )    => ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—',
 		);
 		foreach ( $facts as $k => $v ) {
@@ -358,14 +387,15 @@ final class Statement {
 	public static function purge_expired() {
 		global $wpdb;
 		$years = (int) Settings::get( 'statement_retention_years' );
-		if ( $years <= 0 ) {
+		if ( $years <= 0 || Settings::get( 'retention_hold' ) ) {
 			return 0;
 		}
+		$years = max( 10, $years ); // Never below the statutory minimum (older settings).
 		$t      = Db::table( 'payouts' );
 		$cutoff = gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) );
 		// Retention starts at the end of the calendar year of the statement.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE statement_deleted_at IS NULL AND created_at <= %s LIMIT 200", $cutoff ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE statement_deleted_at IS NULL AND created_at <= %s AND ( storno_at IS NULL OR storno_at <= %s ) LIMIT 200", $cutoff, $cutoff ) );
 		foreach ( $rows as $r ) {
 			foreach ( array( $r->statement_file, $r->storno_file ) as $file ) {
 				if ( '' !== (string) $file && file_exists( self::dir() . '/' . basename( (string) $file ) ) ) {

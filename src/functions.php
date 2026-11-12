@@ -70,7 +70,7 @@ if ( ! function_exists( 'wpac_current_touch' ) ) {
 	 * when the sale is reported. Contains no personal data.
 	 *
 	 * @since 0.6.0
-	 * @return array|null { code, method, campaign, content_id } or null.
+	 * @return array|null { code, method, campaign, content_id, ts } or null (ts = click time, since 0.8.0).
 	 */
 	function wpac_current_touch() {
 		$touch = \WPAffiliateCaptain\Tracking\Tracker::current_touch();
@@ -82,6 +82,7 @@ if ( ! function_exists( 'wpac_current_touch' ) ) {
 			'method'     => isset( $touch['method'] ) ? (string) $touch['method'] : 'link',
 			'campaign'   => isset( $touch['campaign'] ) ? (string) $touch['campaign'] : '',
 			'content_id' => isset( $touch['content_id'] ) ? (int) $touch['content_id'] : 0,
+			'ts'         => isset( $touch['ts'] ) ? (int) $touch['ts'] : 0,
 		);
 	}
 }

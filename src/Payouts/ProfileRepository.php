@@ -60,7 +60,35 @@ final class ProfileRepository {
 	 * @return bool
 	 */
 	public static function is_complete( $profile ) {
-		return $profile && '' !== $profile->tax_status && '' !== $profile->account_holder && '' !== (string) $profile->iban_encrypted && '' !== $profile->country;
+		return true === self::missing( $profile );
+	}
+
+	/**
+	 * First missing mandatory field of a profile (credit notes need name and address of
+	 * both parties; businesses and small businesses a VAT ID or tax number), or true.
+	 *
+	 * @param object|null $profile Profile.
+	 * @return true|string Field key.
+	 */
+	public static function missing( $profile ) {
+		if ( ! $profile ) {
+			return 'tax_status';
+		}
+		foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'account_holder' ) as $f ) {
+			if ( '' === trim( (string) $profile->$f ) ) {
+				return $f;
+			}
+		}
+		if ( '' === (string) $profile->iban_encrypted ) {
+			return 'iban';
+		}
+		if ( 'business' === $profile->tax_status && '' === (string) $profile->vat_id ) {
+			return 'vat_id';
+		}
+		if ( 'small_business' === $profile->tax_status && '' === (string) $profile->vat_id && '' === trim( (string) ( isset( $profile->tax_number ) ? $profile->tax_number : '' ) ) ) {
+			return 'tax_number';
+		}
+		return true;
 	}
 
 	/**
@@ -81,12 +109,16 @@ final class ProfileRepository {
 			'address'        => sanitize_textarea_field( isset( $in['address'] ) ? $in['address'] : '' ),
 			'country'        => strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', isset( $in['country'] ) ? (string) $in['country'] : '' ), 0, 2 ) ),
 			'vat_id'         => strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', isset( $in['vat_id'] ) ? (string) $in['vat_id'] : '' ) ),
+			'tax_number'     => substr( preg_replace( '/[^A-Za-z0-9\/ .\-]/', '', isset( $in['tax_number'] ) ? (string) $in['tax_number'] : '' ), 0, 40 ),
 			'account_holder' => sanitize_text_field( isset( $in['account_holder'] ) ? $in['account_holder'] : '' ),
 			'bic'            => strtoupper( substr( preg_replace( '/[^A-Za-z0-9]/', '', isset( $in['bic'] ) ? (string) $in['bic'] : '' ), 0, 11 ) ),
 			'updated_at'     => Db::now(),
 		);
 		if ( 'business' === $tax && '' === $data['vat_id'] ) {
 			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID.', 'wp-affiliate-captain' ) );
+		}
+		if ( 'small_business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
+			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'wp-affiliate-captain' ) );
 		}
 		$iban = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
 		if ( '' !== $iban ) {
@@ -134,6 +166,7 @@ final class ProfileRepository {
 			'address'        => $profile->address,
 			'country'        => $profile->country,
 			'vat_id'         => $profile->vat_id,
+			'tax_number'     => isset( $profile->tax_number ) ? $profile->tax_number : '',
 			'account_holder' => $profile->account_holder,
 			'iban_masked'    => Iban::mask( $profile->iban_last4, $profile->iban_country ),
 			'bic'            => $profile->bic,

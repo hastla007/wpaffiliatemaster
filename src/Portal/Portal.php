@@ -85,23 +85,50 @@ final class Portal {
 		$redirect = remove_query_arg( array( 'wpac_msg' ), wpac_return_url() );
 
 		if ( 'profile' === $action ) {
-			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'account_holder', 'iban', 'bic' );
+			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic' );
 			$in     = array();
 			foreach ( $fields as $f ) {
 				$in[ $f ] = isset( $_POST[ 'wpac_' . $f ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'wpac_' . $f ] ) ) : '';
 			}
 			$result = ProfileRepository::save( (int) $aff->id, $in );
 			$msg    = is_wp_error( $result ) ? $result->get_error_code() : 'saved';
+			if ( is_wp_error( $result ) ) {
+				// Keep what the partner typed (never the IBAN) and mark the field with the error.
+				unset( $in['iban'] );
+				$fields = array(
+					'wpac_iban'       => 'iban',
+					'wpac_vat'        => 'vat_id',
+					'wpac_tax_number' => 'tax_number',
+				);
+				set_transient(
+					'wpac_profile_form_' . get_current_user_id(),
+					array(
+						'values' => $in,
+						'field'  => isset( $fields[ $msg ] ) ? $fields[ $msg ] : '',
+					),
+					15 * MINUTE_IN_SECONDS
+				);
+			}
 			wp_safe_redirect( add_query_arg( 'wpac_msg', $msg, $redirect ) );
 			exit;
 		}
 		if ( 'payout_request' === $action ) {
 			$result = PayoutRequests::request( $aff );
+			if ( is_wp_error( $result ) ) {
+				set_transient( 'wpac_portal_error_' . get_current_user_id(), $result->get_error_message(), 5 * MINUTE_IN_SECONDS );
+			}
 			wp_safe_redirect( add_query_arg( 'wpac_msg', is_wp_error( $result ) ? 'request_failed' : 'requested', $redirect ) );
 			exit;
 		}
 		if ( 'accept_terms' === $action && ! empty( $_POST['wpac_terms'] ) ) {
-			Agreements::record( (int) $aff->id, 'accepted' );
+			// Only the version that was displayed can be accepted (it may have changed meanwhile).
+			$terms = Agreements::current( (int) $aff->group_id );
+			$shown = isset( $_POST['wpac_terms_hash'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_terms_hash'] ) ) : '';
+			if ( ! hash_equals( (string) $terms['hash'], $shown ) ) {
+				wp_safe_redirect( add_query_arg( 'wpac_msg', 'terms_changed', $redirect ) );
+				exit;
+			}
+			Agreements::record( (int) $aff->id, 'accepted', $terms );
 			wp_safe_redirect( add_query_arg( 'wpac_msg', 'terms', $redirect ) );
 			exit;
 		}
@@ -128,6 +155,7 @@ final class Portal {
 			$reg = (int) Settings::get( 'registration_page_id' );
 			$out = '<div class="wpac-portal"><p>' . esc_html__( 'Please log in to access your partner area.', 'wp-affiliate-captain' ) . '</p>';
 			$out .= wp_login_form( array( 'echo' => false ) );
+			$out .= '<p><a href="' . esc_url( wp_lostpassword_url( get_permalink() ) ) . '">' . esc_html__( 'Forgot your password or no password set yet?', 'wp-affiliate-captain' ) . '</a></p>';
 			if ( $reg ) {
 				$out .= '<p><a href="' . esc_url( get_permalink( $reg ) ) . '">' . esc_html__( 'Not a partner yet? Apply now.', 'wp-affiliate-captain' ) . '</a></p>';
 			}
@@ -142,8 +170,12 @@ final class Portal {
 		if ( 'pending' === $aff->status ) {
 			return '<div class="wpac-notice">' . esc_html__( 'Your application is being reviewed. We will notify you by e-mail.', 'wp-affiliate-captain' ) . '</div>';
 		}
-		if ( in_array( $aff->status, array( 'rejected', 'terminated' ), true ) ) {
-			return '<div class="wpac-notice">' . esc_html__( 'Your partner account is not active.', 'wp-affiliate-captain' ) . '</div>';
+		$closed = in_array( $aff->status, array( 'rejected', 'terminated' ), true );
+		$reason = 'privacy_erasure' !== (string) $aff->status_reason ? trim( (string) $aff->status_reason ) : '';
+		$admin  = (string) Settings::get( 'admin_email' );
+		$admin  = is_email( $admin ) ? $admin : (string) get_option( 'admin_email' );
+		if ( 'rejected' === $aff->status ) {
+			return '<div class="wpac-notice">' . esc_html__( 'Your application was not accepted.', 'wp-affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html__( 'Reason:', 'wp-affiliate-captain' ) . ' ' . esc_html( $reason ) : '' ) . ' ' . sprintf( /* translators: %s: e-mail link */ esc_html__( 'Questions? Contact us at %s.', 'wp-affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' ) . '</div>';
 		}
 
 		$tabs = array(
@@ -154,18 +186,26 @@ final class Portal {
 			'payouts'     => __( 'Payouts', 'wp-affiliate-captain' ),
 			'profile'     => __( 'Payout details', 'wp-affiliate-captain' ),
 		);
+		if ( $closed ) {
+			// Terminated partners keep read access to commissions, payouts and their credit
+			// notes (open commissions are still paid out; the documents are needed for taxes).
+			$tabs = array_intersect_key( $tabs, array_flip( array( 'commissions', 'payouts' ) ) );
+		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$tab = isset( $_GET['wpac_tab'] ) ? sanitize_key( wp_unslash( $_GET['wpac_tab'] ) ) : 'overview';
-		$tab = isset( $tabs[ $tab ] ) ? $tab : 'overview';
+		$tab = isset( $_GET['wpac_tab'] ) ? sanitize_key( wp_unslash( $_GET['wpac_tab'] ) ) : key( $tabs );
+		$tab = isset( $tabs[ $tab ] ) ? $tab : key( $tabs );
 
 		ob_start();
 		echo '<div class="wpac-portal">';
 		self::messages();
 		if ( 'paused' === $aff->status ) {
-			echo '<div class="wpac-notice">' . esc_html__( 'Your partner account is paused. New sales are currently not attributed.', 'wp-affiliate-captain' ) . '</div>';
+			echo '<div class="wpac-notice">' . esc_html__( 'Your partner account is paused. New sales are currently not attributed.', 'wp-affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html__( 'Reason:', 'wp-affiliate-captain' ) . ' ' . esc_html( $reason ) : '' ) . '</div>';
+		}
+		if ( $closed ) {
+			echo '<div class="wpac-notice">' . esc_html__( 'Your partnership has ended. You can still see your commissions and payouts and download your credit notes.', 'wp-affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html__( 'Reason:', 'wp-affiliate-captain' ) . ' ' . esc_html( $reason ) : '' ) . ' ' . sprintf( /* translators: %s: e-mail link */ esc_html__( 'Questions? Contact us at %s.', 'wp-affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' ) . '</div>';
 		}
 		$terms = Agreements::current( (int) $aff->group_id );
-		if ( $terms['page_id'] && ! Agreements::has_current( (int) $aff->id ) ) {
+		if ( ! $closed && $terms['page_id'] && ! Agreements::has_current( (int) $aff->id ) ) {
 			self::terms_notice( $terms );
 		}
 		echo '<nav class="wpac-tabs" aria-label="' . esc_attr__( 'Partner area', 'wp-affiliate-captain' ) . '">';
@@ -242,13 +282,24 @@ final class Portal {
 			'requested' => array( 'success', __( 'Your payout request was sent.', 'wp-affiliate-captain' ) ),
 			'request_failed' => array( 'error', __( 'The payout request could not be created.', 'wp-affiliate-captain' ) ),
 			'terms'     => array( 'success', __( 'Thank you for accepting the terms.', 'wp-affiliate-captain' ) ),
+			'terms_changed' => array( 'error', __( 'The terms were changed in the meantime. Please read the current version and accept it again.', 'wp-affiliate-captain' ) ),
 			'wpac_iban' => array( 'error', __( 'The IBAN is not valid.', 'wp-affiliate-captain' ) ),
 			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID.', 'wp-affiliate-captain' ) ),
+			'wpac_tax_number' => array( 'error', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'wp-affiliate-captain' ) ),
 		);
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$key = isset( $_GET['wpac_msg'] ) ? sanitize_key( wp_unslash( $_GET['wpac_msg'] ) ) : '';
 		if ( isset( $messages[ $key ] ) ) {
-			printf( '<div class="wpac-notice wpac-notice--%s" role="status">%s</div>', esc_attr( $messages[ $key ][0] ), esc_html( $messages[ $key ][1] ) );
+			$text = $messages[ $key ][1];
+			if ( 'request_failed' === $key ) {
+				// The actual reason (e.g. below the minimum, profile incomplete).
+				$detail = get_transient( 'wpac_portal_error_' . get_current_user_id() );
+				if ( $detail ) {
+					$text .= ' ' . $detail;
+					delete_transient( 'wpac_portal_error_' . get_current_user_id() );
+				}
+			}
+			printf( '<div class="wpac-notice wpac-notice--%s" role="%s" id="wpac-portal-error">%s</div>', esc_attr( $messages[ $key ][0] ), 'error' === $messages[ $key ][0] ? 'alert' : 'status', esc_html( $text ) );
 		}
 	}
 
@@ -261,6 +312,7 @@ final class Portal {
 		echo '<form method="post" class="wpac-notice">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="accept_terms">';
+		echo '<input type="hidden" name="wpac_terms_hash" value="' . esc_attr( $terms['hash'] ) . '">';
 		echo '<p>' . esc_html__( 'Our partner program terms have been updated.', 'wp-affiliate-captain' ) . '</p>';
 		echo '<label><input type="checkbox" name="wpac_terms" value="1" required> ';
 		printf(
@@ -304,7 +356,7 @@ final class Portal {
 			array( '' !== $code, __( 'Partner code received', 'wp-affiliate-captain' ), 'links' ),
 			array( ! $terms['page_id'] || Agreements::has_current( (int) $aff->id ), __( 'Current terms accepted', 'wp-affiliate-captain' ), 'overview' ),
 			array( ProfileRepository::is_complete( $profile ), __( 'Payout details completed', 'wp-affiliate-captain' ), 'profile' ),
-			array( Tracker::count_visits( (int) $aff->id, 3650 ) > 0, __( 'First visitor via your link', 'wp-affiliate-captain' ), 'promotion' ),
+			array( Tracker::has_visits( (int) $aff->id ), __( 'First visitor via your link', 'wp-affiliate-captain' ), 'promotion' ),
 			array( $conversions > 0 || $sum( 'approved' ) + $sum( 'paid' ) > 0, __( 'First sale', 'wp-affiliate-captain' ), 'links' ),
 		);
 		echo '<section class="wpac-hero" aria-labelledby="wpac-hero-title"><h3 id="wpac-hero-title">' . esc_html__( 'Share your partner link', 'wp-affiliate-captain' ) . '</h3>';
@@ -481,18 +533,30 @@ final class Portal {
 			echo self::empty_state( __( 'No commissions yet. As soon as a customer buys via your link or code, the commission appears here.', 'wp-affiliate-captain' ), __( 'Get your link', 'wp-affiliate-captain' ), 'links' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			return;
 		}
-		$labels = Ledger::status_labels();
-		echo '<table class="wpac-table"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Product', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Available from', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		$labels  = Ledger::status_labels();
+		$reasons = self::rejection_reasons( $rows );
+		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your commissions', 'wp-affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Product', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Available from', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $r ) {
 			$product = in_array( $r->kind, array( 'sale', 'bonus' ), true ) ? $r->description : sprintf( '%s (%s)', __( 'Correction', 'wp-affiliate-captain' ), self::kind_label( $r->kind ) );
+			$status  = self::status( $r->status, isset( $labels[ $r->status ] ) ? $labels[ $r->status ] : $r->status );
+			if ( 'rejected' === $r->status && ! empty( $reasons[ (int) $r->id ] ) ) {
+				// Partners see why a commission was rejected.
+				$status .= '<br><small class="wpac-muted">' . esc_html( $reasons[ (int) $r->id ] ) . '</small>';
+			}
 			printf(
-				'<tr><td>%s</td><td>%s</td><td>%s</td><td class="%s">%s</td><td>%s</td><td>%s</td></tr>',
+				'<tr><td data-label="%7$s">%1$s</td><td data-label="%8$s">%2$s</td><td data-label="%9$s">%3$s</td><td data-label="%10$s" class="%4$s">%5$s</td><td data-label="%11$s">%6$s</td><td data-label="%12$s">%13$s</td></tr>',
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $r->created_at . ' UTC' ) ) ),
 				esc_html( 'wpac' === $r->source ? '—' : '#' . $r->source_order_id ),
 				esc_html( $product ),
 				(int) $r->amount_minor < 0 ? 'wpac-negative' : '',
 				esc_html( Money::format( (int) $r->amount_minor, $r->currency ) ),
-				self::status( $r->status, isset( $labels[ $r->status ] ) ? $labels[ $r->status ] : $r->status ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				$status, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				esc_attr__( 'Date', 'wp-affiliate-captain' ),
+				esc_attr__( 'Order', 'wp-affiliate-captain' ),
+				esc_attr__( 'Product', 'wp-affiliate-captain' ),
+				esc_attr__( 'Amount', 'wp-affiliate-captain' ),
+				esc_attr__( 'Status', 'wp-affiliate-captain' ),
+				esc_attr__( 'Available from', 'wp-affiliate-captain' ),
 				esc_html( in_array( $r->status, array( 'pending', 'review' ), true ) && $r->hold_until ? date_i18n( get_option( 'date_format' ), strtotime( $r->hold_until . ' UTC' ) ) : '—' )
 			);
 		}
@@ -530,11 +594,17 @@ final class Portal {
 				/* translators: %s: date */
 				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'wp-affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
 			} else {
+				$last = PayoutRequests::last_rejected( (int) $aff->id );
+				if ( $last ) {
+					/* translators: 1: date, 2: reason */
+					echo '<div class="wpac-notice wpac-notice--error">' . esc_html( sprintf( __( 'Your payout request of %1$s was not processed: %2$s', 'wp-affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $last->created_at . ' UTC' ) ), $last->note ) ) . '</div>';
+				}
 				$can = PayoutRequests::can_request( $aff );
 				if ( true === $can ) {
 					echo '<form method="post">';
 					wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
-					echo '<input type="hidden" name="wpac_portal_action" value="payout_request"><button class="wpac-button">' . esc_html__( 'Request payout', 'wp-affiliate-captain' ) . '</button></form>';
+					/* translators: %s: amount */
+					echo '<input type="hidden" name="wpac_portal_action" value="payout_request"><button class="wpac-button">' . esc_html( sprintf( __( 'Request payout of %s', 'wp-affiliate-captain' ), Money::format( $available, Settings::get( 'currency' ) ) ) ) . '</button></form>';
 				} else {
 					echo '<p class="wpac-muted">' . esc_html( $can ) . '</p>';
 				}
@@ -551,7 +621,7 @@ final class Portal {
 			return;
 		}
 		$labels = PayoutService::status_labels();
-		echo '<table class="wpac-table"><thead><tr><th>' . esc_html_x( 'Number', 'document number', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Statement', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your payouts', 'wp-affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html_x( 'Number', 'document number', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Credit note', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $p ) {
 			if ( 'cancelled' === $p->status && ! $p->storno_file ) {
 				continue;
@@ -564,12 +634,17 @@ final class Portal {
 				$pdf .= ' · <a href="' . esc_url( $url( true ) ) . '">' . esc_html__( 'Cancellation', 'wp-affiliate-captain' ) . '</a>';
 			}
 			printf(
-				'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+				'<tr><td data-label="%6$s">%1$s</td><td data-label="%7$s">%2$s</td><td data-label="%8$s">%3$s</td><td data-label="%9$s">%4$s</td><td data-label="%10$s">%5$s</td></tr>',
 				esc_html( $p->number ),
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $p->period_end ) ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
-				self::status( 'exported' === $p->status ? 'pending' : $p->status, 'exported' === $p->status ? $labels['pending'] : $labels[ $p->status ] ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				$pdf // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				self::payout_status( $p, $labels ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				$pdf, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				esc_attr_x( 'Number', 'document number', 'wp-affiliate-captain' ),
+				esc_attr__( 'Period until', 'wp-affiliate-captain' ),
+				esc_attr__( 'Amount', 'wp-affiliate-captain' ),
+				esc_attr__( 'Status', 'wp-affiliate-captain' ),
+				esc_attr__( 'Credit note', 'wp-affiliate-captain' )
 			);
 		}
 		echo '</tbody></table>';
@@ -581,8 +656,16 @@ final class Portal {
 	 * @param object $aff Affiliate.
 	 */
 	private static function tab_profile( $aff ) {
-		$p      = ProfileRepository::get( (int) $aff->id );
-		$v      = static function ( $key ) use ( $p ) {
+		$p    = ProfileRepository::get( (int) $aff->id );
+		$kept = get_transient( 'wpac_profile_form_' . get_current_user_id() );
+		if ( is_array( $kept ) ) {
+			delete_transient( 'wpac_profile_form_' . get_current_user_id() );
+			self::$invalid = (string) $kept['field'];
+		}
+		$v = static function ( $key ) use ( $p, $kept ) {
+			if ( is_array( $kept ) && isset( $kept['values'][ $key ] ) ) {
+				return (string) $kept['values'][ $key ];
+			}
 			return $p && isset( $p->$key ) ? (string) $p->$key : '';
 		};
 		$labels = ProfileRepository::tax_status_labels();
@@ -594,10 +677,11 @@ final class Portal {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $v( 'tax_status' ), $key, false ), esc_html( $label ) );
 		}
 		echo '</select></p>';
-		self::input( 'legal_name', __( 'Name / company for the statement', 'wp-affiliate-captain' ), $v( 'legal_name' ) );
-		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'wp-affiliate-captain' ) . '</label><textarea id="wpac_address" name="wpac_address" rows="3">' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
+		self::input( 'legal_name', __( 'Name / company for the statement', 'wp-affiliate-captain' ), $v( 'legal_name' ), true );
+		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'wp-affiliate-captain' ) . ' *</label><textarea id="wpac_address" name="wpac_address" rows="3" required>' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
 		self::input( 'country', __( 'Country (ISO code, e.g. DE)', 'wp-affiliate-captain' ), $v( 'country' ), true, 'maxlength="2"' );
 		self::input( 'vat_id', __( 'VAT ID (businesses)', 'wp-affiliate-captain' ), $v( 'vat_id' ) );
+		self::input( 'tax_number', __( 'Tax number (small businesses without VAT ID)', 'wp-affiliate-captain' ), $v( 'tax_number' ) );
 		self::input( 'account_holder', __( 'Account holder', 'wp-affiliate-captain' ), $v( 'account_holder' ), true );
 		$masked = $p ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 		self::input( 'iban', __( 'IBAN', 'wp-affiliate-captain' ) . ( $masked ? ' (' . __( 'stored', 'wp-affiliate-captain' ) . ': ' . $masked . ')' : '' ), '', ! $masked, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'wp-affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
@@ -616,6 +700,9 @@ final class Portal {
 	 * @param string $extra    Extra attributes (already escaped).
 	 */
 	private static function input( $name, $label, $value, $required = false, $extra = '' ) {
+		if ( self::$invalid === $name ) {
+			$extra .= ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus';
+		}
 		printf(
 			'<p><label for="wpac_%1$s">%2$s%3$s</label><input type="text" id="wpac_%1$s" name="wpac_%1$s" value="%4$s" %5$s %6$s></p>',
 			esc_attr( $name ),
@@ -626,6 +713,9 @@ final class Portal {
 			$extra // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		);
 	}
+
+	/** @var string Field with the last validation error (profile form). */
+	private static $invalid = '';
 
 	/**
 	 * Simple pager.
@@ -639,10 +729,59 @@ final class Portal {
 		if ( $pages <= 1 ) {
 			return;
 		}
-		echo '<nav class="wpac-pager">';
+		echo '<nav class="wpac-pager" aria-label="' . esc_attr__( 'Pages', 'wp-affiliate-captain' ) . '">';
 		for ( $i = 1; $i <= $pages; $i++ ) {
-			printf( '<a href="%s" class="%s">%d</a> ', esc_url( add_query_arg( 'wpac_page', $i ) ), $i === $page ? 'is-active' : '', (int) $i );
+			printf( '<a href="%s" class="%s"%s>%d</a> ', esc_url( add_query_arg( 'wpac_page', $i ) ), $i === $page ? 'is-active' : '', $i === $page ? ' aria-current="page"' : '', (int) $i );
 		}
 		echo '</nav>';
+	}
+
+	/**
+	 * Partner-facing payout status: "in progress" (created or transfer prepared) or
+	 * "transferred on <date>".
+	 *
+	 * @param object $p      Payout.
+	 * @param array  $labels Admin labels.
+	 * @return string HTML.
+	 */
+	private static function payout_status( $p, array $labels ) {
+		if ( 'paid' === $p->status && $p->paid_at ) {
+			/* translators: %s: date */
+			return self::status( 'paid', sprintf( __( 'Transferred on %s', 'wp-affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $p->paid_at . ' UTC' ) ) ) );
+		}
+		if ( in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
+			return self::status( 'pending', __( 'In progress', 'wp-affiliate-captain' ) );
+		}
+		return self::status( $p->status, isset( $labels[ $p->status ] ) ? $labels[ $p->status ] : $p->status );
+	}
+
+	/**
+	 * Latest rejection reason per rejected commission of a page.
+	 *
+	 * @param array $rows Commission rows.
+	 * @return array id => reason
+	 */
+	private static function rejection_reasons( array $rows ) {
+		global $wpdb;
+		$ids = array();
+		foreach ( $rows as $r ) {
+			if ( 'rejected' === $r->status ) {
+				$ids[] = (int) $r->id;
+			}
+		}
+		if ( ! $ids ) {
+			return array();
+		}
+		$t   = \WPAffiliateCaptain\Core\Db::table( 'commission_events' );
+		$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$out = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT commission_id, reason FROM {$t} WHERE to_status = 'rejected' AND reason <> '' AND commission_id IN ({$in}) ORDER BY id ASC", $ids ) ) as $e ) {
+			// Internal fraud notes start with "review:" and are not shown.
+			if ( 0 !== strpos( (string) $e->reason, 'review:' ) ) {
+				$out[ (int) $e->commission_id ] = (string) $e->reason;
+			}
+		}
+		return $out;
 	}
 }

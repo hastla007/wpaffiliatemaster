@@ -117,7 +117,8 @@ final class Landing {
 		$page = $aff && (int) $aff->landing_page_id ? (int) $aff->landing_page_id : (int) Settings::get( 'landing_page_id' );
 		$url  = $page ? get_permalink( $page ) : home_url( '/' );
 		if ( $code ) {
-			$args = array( (string) Settings::get( 'referral_param' ) => $code );
+			// The slug is passed on (it resolves in link context), so the code itself is not disclosed.
+			$args = array( (string) Settings::get( 'referral_param' ) => $aff->slug );
 			// Keep campaign parameters from the partner's link.
 			foreach ( array( 'utm_campaign', 'utm_source', 'utm_medium' ) as $k ) {
 				if ( isset( $_GET[ $k ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended

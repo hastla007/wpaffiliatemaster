@@ -7,6 +7,7 @@
 
 namespace WPAffiliateCaptain\Affiliates;
 
+use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Tracking\RateLimiter;
 
@@ -32,13 +33,7 @@ final class Registration {
 		$redirect = wpac_return_url();
 		$redirect = remove_query_arg( array( 'wpac_reg', 'wpac_err' ), $redirect );
 
-		// Keep the entries for the form if something has to be corrected.
-		foreach ( $_POST as $k => $v ) {
-			if ( is_string( $v ) && 0 === strpos( (string) $k, 'wpac_' ) && ! in_array( $k, array( 'wpac_register', 'wpac_url_confirm', 'wpac_group_sig' ), true ) ) {
-				self::$values[ sanitize_key( $k ) ] = sanitize_textarea_field( wp_unslash( $v ) );
-			}
-		}
-
+		// Checks first: nothing is stored for requests that fail them (no storage abuse).
 		if ( ! isset( $_POST['_wpac_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpac_nonce'] ) ), 'wpac_register' ) ) {
 			self::back( $redirect, 'nonce' );
 		}
@@ -50,11 +45,22 @@ final class Registration {
 			self::back( $redirect, 'rate' );
 		}
 
+		// Keep the entries for the form if something has to be corrected (bounded).
+		foreach ( $_POST as $k => $v ) {
+			if ( count( self::$values ) >= 40 ) {
+				break;
+			}
+			if ( is_string( $v ) && 0 === strpos( (string) $k, 'wpac_' ) && strlen( (string) $k ) <= 64 && ! in_array( $k, array( 'wpac_register', 'wpac_url_confirm', 'wpac_group_sig', 'wpac_group_post' ), true ) ) {
+				self::$values[ sanitize_key( $k ) ] = mb_substr( sanitize_textarea_field( wp_unslash( $v ) ), 0, 2000 );
+			}
+		}
+
 		$group_id = isset( $_POST['wpac_group'] ) ? absint( $_POST['wpac_group'] ) : 0;
 		$group    = $group_id ? Groups::find( $group_id ) : null;
 		$sig      = isset( $_POST['wpac_group_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_group_sig'] ) ) : '';
-		// Only public groups or the group fixed by the shortcode (signed) can be chosen.
-		if ( $group_id && ( ! $group || 'active' !== $group->status || ( ! (int) $group->public && ! hash_equals( self::group_sig( $group_id ), $sig ) ) ) ) {
+		$post_id  = isset( $_POST['wpac_group_post'] ) ? absint( $_POST['wpac_group_post'] ) : 0;
+		// Only public groups or the group fixed by the shortcode/block of a published page (signed) can be chosen.
+		if ( $group_id && ( ! $group || 'active' !== $group->status || ( ! (int) $group->public && ! self::fixed_group_valid( $group_id, $post_id, $sig ) ) ) ) {
 			self::back( $redirect, 'invalid' );
 		}
 
@@ -113,7 +119,7 @@ final class Registration {
 			'application_note' => isset( $_POST['wpac_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_note'] ) ) : '',
 			'application_data' => $application_data,
 			'group_id'         => $group_id,
-			'terms'            => $terms['page_id'] ? $terms : null, // Version + hash accepted now.
+			'terms'            => $terms['page_id'] ? $terms + array( 'accepted_at' => Db::now() ) : null, // Version + hash accepted now.
 			'redirect'         => $redirect,
 		);
 
@@ -185,6 +191,9 @@ final class Registration {
 		}
 		if ( ! Settings::get( 'auto_approve' ) ) {
 			Notifications::application_received( $result );
+		} else {
+			// Approved right away: the partner gets the welcome mail with the portal link.
+			Notifications::application_approved( $result );
 		}
 		return $result;
 	}
@@ -245,8 +254,29 @@ final class Registration {
 	 * @param int $group_id Group.
 	 * @return string
 	 */
-	private static function group_sig( $group_id ) {
-		return wp_hash( 'wpac_group_' . (int) $group_id );
+	private static function group_sig( $group_id, $post_id ) {
+		return wp_hash( 'wpac_group_' . (int) $group_id . '_' . (int) $post_id );
+	}
+
+	/**
+	 * A non-public group is only accepted from the published page that embeds it
+	 * (a preview of a draft by a contributor cannot be used to join a private group).
+	 *
+	 * @param int    $group_id Group.
+	 * @param int    $post_id  Page that showed the form.
+	 * @param string $sig      Signature.
+	 * @return bool
+	 */
+	private static function fixed_group_valid( $group_id, $post_id, $sig ) {
+		if ( ! $post_id || ! hash_equals( self::group_sig( $group_id, $post_id ), (string) $sig ) ) {
+			return false;
+		}
+		$post = get_post( $post_id );
+		if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) {
+			return false;
+		}
+		// Shortcode group="7" / group='7' or block attribute "group":7.
+		return (bool) preg_match( '/group\s*=\s*["\']?' . (int) $group_id . '\b|"group"\s*:\s*' . (int) $group_id . '\b/', (string) $post->post_content );
 	}
 
 	/**
@@ -268,7 +298,7 @@ final class Registration {
 			$msg = Settings::get( 'auto_approve' )
 				? __( 'Thank you! Your partner account is active. Check your e-mail for login details.', 'wp-affiliate-captain' )
 				: __( 'Thank you for your application! We will review it and get back to you by e-mail.', 'wp-affiliate-captain' );
-			return '<div class="wpac-notice wpac-notice--success">' . esc_html( $msg ) . '</div>';
+			return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html( $msg ) . '</div>';
 		}
 
 		$user = wp_get_current_user();
@@ -331,7 +361,9 @@ final class Registration {
 			<p class="wpac-required-note"><?php esc_html_e( 'Fields marked with * are required.', 'wp-affiliate-captain' ); ?></p>
 			<input type="hidden" name="wpac_group" value="<?php echo (int) $group_id; ?>">
 			<?php if ( $fixed ) : ?>
-				<input type="hidden" name="wpac_group_sig" value="<?php echo esc_attr( self::group_sig( $group_id ) ); ?>">
+				<?php $wpac_post = (int) get_the_ID(); ?>
+				<input type="hidden" name="wpac_group_post" value="<?php echo (int) $wpac_post; ?>">
+				<input type="hidden" name="wpac_group_sig" value="<?php echo esc_attr( self::group_sig( $group_id, $wpac_post ) ); ?>">
 			<?php endif; ?>
 			<?php if ( $group ) : ?>
 				<p class="wpac-muted"><?php echo esc_html( sprintf( /* translators: %s: group */ __( 'Application as: %s', 'wp-affiliate-captain' ), $group->name ) ); ?></p>

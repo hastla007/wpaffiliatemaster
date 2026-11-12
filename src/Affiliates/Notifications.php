@@ -14,6 +14,42 @@ defined( 'ABSPATH' ) || exit;
 final class Notifications {
 
 	/**
+	 * Hooks for partner notifications about money.
+	 */
+	public static function register_hooks() {
+		add_action( 'wpac_payout_paid', array( __CLASS__, 'payout_paid' ) );
+	}
+
+	/**
+	 * Payout transferred: amount, number and where to find the credit note.
+	 *
+	 * @param int $payout_id Payout.
+	 */
+	public static function payout_paid( $payout_id ) {
+		/**
+		 * Whether partners get an e-mail when a payout was transferred.
+		 *
+		 * @param bool $send Send.
+		 */
+		if ( ! apply_filters( 'wpac_notify_payout_paid', true ) ) {
+			return;
+		}
+		$p   = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $payout_id );
+		$aff = $p ? AffiliateRepository::find( (int) $p->affiliate_id ) : null;
+		if ( ! $p || ! $aff || 0 === strpos( (string) $aff->email, 'deleted-' ) ) {
+			return;
+		}
+		$portal = (int) Settings::get( 'portal_page_id' );
+		wp_mail(
+			$aff->email,
+			/* translators: 1: site name, 2: payout number */
+			sprintf( __( '[%1$s] Payout %2$s transferred', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
+			/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
+			sprintf( __( "Hello %1\$s,\n\nwe have transferred %2\$s to your bank account (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'wp-affiliate-captain' ), $aff->name, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), $p->number, $portal ? add_query_arg( 'wpac_tab', 'payouts', get_permalink( $portal ) ) : home_url( '/' ) )
+		);
+	}
+
+	/**
 	 * Admin recipient.
 	 *
 	 * @return string
@@ -119,8 +155,8 @@ final class Notifications {
 			$aff->email,
 			/* translators: %s: site name */
 			sprintf( __( '[%s] Your affiliate application was approved', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: 1: name, 2: portal URL */
-			sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program! Your partner area with links, codes and statistics: %2\$s", 'wp-affiliate-captain' ), $aff->name, $url )
+			/* translators: 1: name, 2: portal URL, 3: set-password URL */
+			sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program! Your partner area with links, codes and statistics: %2\$s\n\nNo password yet? Set one here: %3\$s", 'wp-affiliate-captain' ), $aff->name, $url, wp_lostpassword_url( $url ) )
 		);
 	}
 

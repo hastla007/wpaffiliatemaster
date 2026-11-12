@@ -146,10 +146,23 @@ final class Installer {
 	 * Run migrations when the stored schema version is outdated.
 	 */
 	public static function maybe_upgrade() {
-		if ( (int) get_option( self::DB_OPTION, 0 ) < WPAC_DB_VERSION ) {
+		if ( (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION ) {
+			return;
+		}
+		// Only one request migrates (after a deploy many requests see the old version at once;
+		// parallel runs would repeat ALTERs and data migrations). add_option() is atomic.
+		if ( ! add_option( 'wpac_upgrade_lock', time(), '', false ) ) {
+			if ( time() - (int) get_option( 'wpac_upgrade_lock' ) < 10 * MINUTE_IN_SECONDS ) {
+				return; // Another request is migrating; this one keeps running on the old schema.
+			}
+			update_option( 'wpac_upgrade_lock', time(), false ); // Stale lock of a run that died.
+		}
+		try {
 			self::install_schema();
 			Capabilities::install();
 			Cron::schedule();
+		} finally {
+			delete_option( 'wpac_upgrade_lock' );
 		}
 	}
 
@@ -245,6 +258,7 @@ final class Installer {
 			address text NULL,
 			country char(2) NOT NULL DEFAULT '',
 			vat_id varchar(40) NOT NULL DEFAULT '',
+			tax_number varchar(40) NOT NULL DEFAULT '',
 			account_holder varchar(190) NOT NULL DEFAULT '',
 			iban_encrypted text NULL,
 			iban_country char(2) NOT NULL DEFAULT '',
@@ -291,7 +305,9 @@ final class Installer {
 			UNIQUE KEY source_order (source,source_order_id),
 			KEY affiliate_id (affiliate_id),
 			KEY affiliate_created (affiliate_id,created_at),
-			KEY created_at (created_at)
+			KEY created_at (created_at),
+			KEY content_created (content_id,created_at),
+			KEY campaign_created (campaign,created_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('rules')} (

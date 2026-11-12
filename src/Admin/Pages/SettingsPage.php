@@ -52,10 +52,10 @@ final class SettingsPage {
 		return array(
 			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'admin_email' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'touch_model', 'coupon_priority', 'self_referral' ),
-			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'visit_retention_days' ),
+			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'visit_retention_days', 'application_retention_days' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
-			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
+			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'retention_hold', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall' ),
 		);
 	}
@@ -118,9 +118,12 @@ final class SettingsPage {
 			array(
 				'off'     => __( 'Never set', 'wp-affiliate-captain' ),
 				'consent' => __( 'Only with marketing consent (WP Consent API / wpac_has_marketing_consent filter)', 'wp-affiliate-captain' ),
-				'always'  => __( 'Always (only if legally permitted)', 'wp-affiliate-captain' ),
+				'always'  => __( 'Always, without consent (not permitted in the EU – §25 TDDDG, ePrivacy)', 'wp-affiliate-captain' ),
 			)
 		);
+		if ( 'always' === $s['cookie_mode'] ) {
+			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html__( 'An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use "Only with marketing consent" unless your shop is outside the EU and you checked the local law.', 'wp-affiliate-captain' ) . '</p></div></td></tr>';
+		}
 		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'wp-affiliate-captain' ), $s );
 		self::select( 'touch_model', __( 'Link attribution', 'wp-affiliate-captain' ), $s, array( 'last' => __( 'Last touch', 'wp-affiliate-captain' ), 'first' => __( 'First touch', 'wp-affiliate-captain' ) ) );
 		self::checkbox( 'coupon_priority', __( 'Affiliate coupon has priority over partner links', 'wp-affiliate-captain' ), $s );
@@ -141,6 +144,7 @@ final class SettingsPage {
 		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'wp-affiliate-captain' ), $s );
 		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1">' . esc_textarea( (string) $s['trusted_proxies'] ) . '</textarea><p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'wp-affiliate-captain' ), $s );
+		self::number( 'application_retention_days', __( 'Keep rejected applications (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised.', 'wp-affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'Commissions', 'wp-affiliate-captain' ), 'commissions' );
@@ -170,7 +174,8 @@ final class SettingsPage {
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
 		self::select( 'payout_period', __( 'Payout period', 'wp-affiliate-captain' ), $s, array( 'monthly' => __( 'Monthly', 'wp-affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'wp-affiliate-captain' ), 'manual' => __( 'Manual', 'wp-affiliate-captain' ) ) );
 		self::checkbox( 'payout_requests', __( 'Partners can request payouts in the partner area', 'wp-affiliate-captain' ), $s );
-		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Counted from the end of the calendar year. After that, the PDF and the partner data snapshot are deleted; amounts remain. Check your statutory retention period (e.g. §147 AO).', 'wp-affiliate-captain' ) );
+		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'At least 10 years. Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain.', 'wp-affiliate-captain' ) );
+		self::checkbox( 'retention_hold', __( 'Tax audit or legal hold: do not delete any statements', 'wp-affiliate-captain' ), $s, __( 'The retention period is suspended while a tax audit is running (§147 Abs. 3 AO).', 'wp-affiliate-captain' ) );
 		self::checkbox( 'self_billing', __( 'Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)', 'wp-affiliate-captain' ), $s, __( 'Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor.', 'wp-affiliate-captain' ) );
 		self::text( 'vat_rate', __( 'VAT rate in %', 'wp-affiliate-captain' ), $s );
 		self::text( 'operator_country', __( 'Your country (ISO code)', 'wp-affiliate-captain' ), $s );
@@ -192,7 +197,7 @@ final class SettingsPage {
 
 		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ), 'reports' );
 		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Terms acceptance records are always kept as proof.', 'wp-affiliate-captain' ) );
-		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'wp-affiliate-captain' ), $s, __( 'Includes commission and payout records – make sure bookkeeping retention obligations are met.', 'wp-affiliate-captain' ) );
+		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'wp-affiliate-captain' ), $s, __( 'Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.', 'wp-affiliate-captain' ) );
 		self::end();
 
 		submit_button();

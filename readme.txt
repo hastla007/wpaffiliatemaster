@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 0.7.0
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,6 +46,25 @@ Yes. Partner codes entered at checkout work without any cookie. The optional aff
 No. Other sales sources report sales and refunds through the public contract (`wpac_record_sale()`, REST `wpac/v1/sales`).
 
 == Changelog ==
+
+= 0.8.0 =
+Review of all modules (security, money, legal, operations, usability):
+* Money: a refund that arrives while the sale is still in the retry queue is no longer lost; corrections are only paid out after their commission is approved; balances are booked from the locked current status; refunds with a filtered commission base, several refund lines per item and WooCommerce refunds with 0-total lines are handled correctly
+* Foreign currencies: fixed-amount rules are converted with the exchange rates (never replaced by a broader percent rule)
+* WooCommerce: "failed" after payment counts as chargeback; the checkout code field is no longer prefilled from the link/cookie
+* Tiers: no bonuses for paused or terminated partners, late approvals are re-checked, months cannot be closed before their hold period ended
+* Payout requests are settled by regular payout runs
+* Lifetime customer links: removed when the first order is fully reversed; Pass Captain no longer maps a typed guest e-mail to a user
+* Tracking: signed referral cookie with a server-side attribution window, first touch also across shop sessions, withdrawing consent also ignores the consent-based session referral, referral landings bypass full-page caches
+* Security: registration stores nothing before nonce/honeypot/rate-limit checks; private group signatures are bound to the published page; vanity slugs only work in links (not at checkout or via REST); unknown codes no longer cause full table scans
+* Credit notes: name, address and (for small businesses) tax number or VAT ID are required, also the operator's address and VAT ID/tax number; with self-billing a payout needs accepted terms; VAT notes follow the operator country (DE/AT/CH); every payout needs its PDF before export or payment
+* Retention: statements at least 10 years, cancellations from their own date, new "tax audit / legal hold" switch, financial audit log kept as long as the statements, uninstall keeps records that must still be retained
+* Privacy: bank details of erased partners are deleted once everything is settled; free-text reasons are scrubbed; rejected applications are anonymised after 180 days; terms acceptance stores text, page, revision and time
+* Operations: schema upgrades with a lock, warning when scheduled tasks do not run, isolated daily steps, jobs with lease (a crashed run no longer retries forever), time budget for the hourly approval, stable batches for the monthly mail, new report indexes (database schema 7)
+* Partner area: reasons for rejected commissions, payout requests and account status; read-only access for terminated partners; "transferred on" dates; the payout form keeps entries after an error; mobile-friendly tables
+* E-mails: welcome mail for auto-approved partners, "payout transferred" mail
+* Admin: confirmations for destructive actions, labelled reason fields, readable statuses
+* Note for the update: partners whose payout details lack name or address (or, as small businesses, a tax number or VAT ID) are held back from payouts until they complete them; the payout preview shows the reason. Enter your own address and VAT ID or tax number under Settings → Payouts.
 
 = 0.7.0 =
 * Faster campaign and content reports with many visits (new indexes, database schema 6)

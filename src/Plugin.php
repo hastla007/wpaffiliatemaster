@@ -48,6 +48,7 @@ final class Plugin {
 		Tracker::register_hooks();
 		\WPAffiliateCaptain\Tracking\Consent::register_hooks();
 		Registration::register_hooks();
+		\WPAffiliateCaptain\Affiliates\Notifications::register_hooks();
 		Portal::register_hooks();
 		\WPAffiliateCaptain\Promotion\Landing::register_hooks();
 		\WPAffiliateCaptain\Content\Editor::register_hooks();

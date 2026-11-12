@@ -50,6 +50,17 @@ final class Agreements {
 	public static function record( $affiliate_id, $result = 'accepted', $terms = null ) {
 		global $wpdb;
 		$terms = is_array( $terms ) ? $terms : self::current( self::group_of( $affiliate_id ) );
+		// Proof of what was accepted: the text of each version is kept once (by hash),
+		// together with page and revision (editing the page later does not change it).
+		$post     = ! empty( $terms['page_id'] ) ? get_post( (int) $terms['page_id'] ) : null;
+		$revision = 0;
+		if ( $post && function_exists( 'wp_get_post_revisions' ) ) {
+			$revs     = wp_get_post_revisions( $post->ID, array( 'numberposts' => 1, 'fields' => 'ids' ) );
+			$revision = $revs ? (int) reset( $revs ) : 0;
+		}
+		if ( $post && '' !== (string) $terms['hash'] && hash( 'sha256', $post->post_title . "\n" . $post->post_content ) === $terms['hash'] && false === get_option( 'wpac_terms_text_' . $terms['hash'] ) ) {
+			add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'stored_at' => Db::now() ), '', false );
+		}
 		$wpdb->insert(
 			Db::table( 'agreements' ),
 			array(
@@ -67,8 +78,12 @@ final class Agreements {
 			'affiliate',
 			(int) $affiliate_id,
 			array(
-				'version' => $terms['version'],
-				'hash'    => $terms['hash'],
+				'version'     => $terms['version'],
+				'hash'        => $terms['hash'],
+				'page_id'     => isset( $terms['page_id'] ) ? (int) $terms['page_id'] : 0,
+				'revision_id' => $revision,
+				// Time of the tick (for guests the record is created at the e-mail confirmation).
+				'accepted_at' => ! empty( $terms['accepted_at'] ) ? (string) $terms['accepted_at'] : Db::now(),
 			)
 		);
 		return $id;

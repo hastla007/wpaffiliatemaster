@@ -88,7 +88,7 @@ final class CommissionsTable extends \WP_List_Table {
 	protected function get_bulk_actions() {
 		return array(
 			'approve' => __( 'Approve', 'wp-affiliate-captain' ),
-			'reject'  => __( 'Reject (reason required)', 'wp-affiliate-captain' ),
+			'reject'  => __( 'Reject (reason required, shown to the partner)', 'wp-affiliate-captain' ),
 		);
 	}
 

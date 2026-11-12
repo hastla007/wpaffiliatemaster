@@ -17,13 +17,32 @@ function wpac_uninstall_site() {
 		return;
 	}
 
+	// Credit notes and the bookings behind them must be kept for the statutory period
+	// (DE §147 AO/§14b UStG, AT §132 BAO, CH Art. 958f OR): as long as a payout is younger
+	// than that, the financial tables, the statement files and the audit log stay.
+	$wpac_years   = isset( $wpac_settings['statement_retention_years'] ) ? (int) $wpac_settings['statement_retention_years'] : 10;
+	$wpac_payouts = $wpdb->prefix . 'wpac_payouts';
+	$wpac_keep    = false;
+	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_payouts ) ) === $wpac_payouts ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpac_cutoff = 0 === $wpac_years ? '9999-12-31 23:59:59' : gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( max( 10, $wpac_years ) + 1 ) . ' years' ) );
+		$wpac_keep   = ! empty( $wpac_settings['retention_hold'] ) || (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpac_payouts} WHERE created_at > %s", 0 === $wpac_years ? '0000-00-00 00:00:00' : $wpac_cutoff ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+	}
+	$wpac_financial = array( 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements' );
+
 	$wpac_tables = array( 'affiliates', 'partner_groups', 'partner_codes', 'agreements', 'payout_profiles', 'visits', 'attributions', 'rules', 'commissions', 'commission_events', 'payouts', 'payout_items', 'jobs', 'audit', 'tiers', 'customer_links', 'creatives', 'payout_requests', 'sequences', 'balances', 'balance_entries' );
 	foreach ( $wpac_tables as $wpac_table ) {
+		if ( $wpac_keep && in_array( $wpac_table, $wpac_financial, true ) ) {
+			continue;
+		}
 		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wpac_' . $wpac_table ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
 	}
-	// Statements / credit notes (only reached when "delete all data" was explicitly enabled).
+	if ( $wpac_keep ) {
+		update_option( 'wpac_retained_after_uninstall', gmdate( 'Y-m-d H:i:s' ), false );
+	}
+	// Statements / credit notes (only when "delete all data" was explicitly enabled
+	// and no statement is within the retention period anymore).
 	$wpac_dir = defined( 'WPAC_STATEMENT_DIR' ) && WPAC_STATEMENT_DIR ? untrailingslashit( WPAC_STATEMENT_DIR ) : trailingslashit( wp_upload_dir( null, false )['basedir'] ) . 'wpac-statements';
-	if ( is_dir( $wpac_dir ) ) {
+	if ( ! $wpac_keep && is_dir( $wpac_dir ) ) {
 		foreach ( (array) glob( $wpac_dir . '/{,.}*', GLOB_BRACE ) as $wpac_file ) {
 			if ( is_file( $wpac_file ) ) {
 				wp_delete_file( $wpac_file );
@@ -32,7 +51,8 @@ function wpac_uninstall_site() {
 		@rmdir( $wpac_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 	}
 
-	foreach ( array( 'wpac_settings', 'wpac_db_version', 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key' ) as $wpac_option ) {
+	// Kept records keep their settings (operator data, numbering prefixes) and schema version.
+	foreach ( $wpac_keep ? array( 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key' ) : array( 'wpac_settings', 'wpac_db_version', 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key' ) as $wpac_option ) {
 		delete_option( $wpac_option );
 	}
 	// Monthly report claims (one per month).

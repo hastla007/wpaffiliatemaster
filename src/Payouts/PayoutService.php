@@ -59,7 +59,8 @@ final class PayoutService {
 		$sql    = "FROM {$t} c LEFT JOIN {$t} p ON p.id = c.parent_id
 			WHERE c.status = 'approved' AND c.payout_id = 0 AND c.currency = %s
 			AND ( c.created_at <= %s OR ( c.parent_id > 0 AND p.created_at <= %s ) )
-			AND NOT EXISTS ( SELECT 1 FROM {$t} ch WHERE ch.parent_id = c.id AND ch.status IN ('pending','review') )";
+			AND NOT EXISTS ( SELECT 1 FROM {$t} ch WHERE ch.parent_id = c.id AND ch.status IN ('pending','review') )
+			AND ( c.parent_id = 0 OR p.status IN ('approved','paid') )";
 		$params = array( $currency, $end, $end );
 		if ( $affiliate_id ) {
 			$sql     .= ' AND c.affiliate_id = %d';
@@ -80,8 +81,9 @@ final class PayoutService {
 		list( $from, $params ) = self::payable_sql( $currency, $period_end . ' 23:59:59' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.affiliate_id, SUM(c.amount_minor) total, COUNT(*) c {$from} GROUP BY c.affiliate_id ORDER BY total DESC", $params ) );
-		$min  = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-		$out  = array();
+		$min      = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+		$operator = self::operator_missing();
+		$out      = array();
 		foreach ( $rows as $r ) {
 			$aff     = AffiliateRepository::find( (int) $r->affiliate_id );
 			$profile = ProfileRepository::get( (int) $r->affiliate_id );
@@ -89,6 +91,8 @@ final class PayoutService {
 			$reason  = '';
 			if ( ! $aff ) {
 				$reason = __( 'Affiliate not found', 'wp-affiliate-captain' );
+			} elseif ( $operator ) {
+				$reason = $operator;
 			} elseif ( null === $min ) {
 				/* translators: %s: currency */
 				$reason = sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'wp-affiliate-captain' ), $currency );
@@ -98,6 +102,9 @@ final class PayoutService {
 				$reason = __( 'Below minimum – carried forward', 'wp-affiliate-captain' );
 			} elseif ( ! ProfileRepository::is_complete( $profile ) ) {
 				$reason = __( 'Payout profile incomplete', 'wp-affiliate-captain' );
+			} elseif ( Settings::get( 'self_billing' ) && Settings::get( 'terms_page_id' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::latest( (int) $r->affiliate_id ) ) {
+				// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the accepted terms.
+				$reason = __( 'No accepted partner terms (self-billing agreement)', 'wp-affiliate-captain' );
 			}
 			$out[] = array(
 				'affiliate'   => $aff,
@@ -108,6 +115,22 @@ final class PayoutService {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Mandatory data of the operator for credit notes (self-billing): name, address and
+	 * VAT ID or tax number. Returns the reason when something is missing, '' otherwise.
+	 *
+	 * @return string
+	 */
+	public static function operator_missing() {
+		if ( ! Settings::get( 'self_billing' ) ) {
+			return '';
+		}
+		if ( '' === trim( (string) Settings::get( 'operator_address' ) ) || ( '' === (string) Settings::get( 'operator_vat_id' ) && '' === trim( (string) Settings::get( 'operator_tax_number' ) ) ) ) {
+			return __( 'Your address and VAT ID or tax number are missing (Settings → Payouts) – credit notes need them.', 'wp-affiliate-captain' );
+		}
+		return '';
 	}
 
 	/**
@@ -161,6 +184,10 @@ final class PayoutService {
 	 */
 	public static function create_for_affiliate( $affiliate_id, $period_end, $currency ) {
 		global $wpdb;
+		$operator = self::operator_missing();
+		if ( $operator ) {
+			throw new IntegrationException( 'operator_data', $operator ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		}
 		$payout_id = Db::transaction(
 			static function () use ( $wpdb, $affiliate_id, $period_end, $currency ) {
 				$t                     = Db::table( 'commissions' );
@@ -193,7 +220,7 @@ final class PayoutService {
 				 */
 				$vat       = (array) apply_filters( 'wpac_vat_treatment', $vat, $snapshot, $affiliate_id );
 				$vat_minor = Vat::amount( $total, $vat['rate'] );
-				$year      = (int) gmdate( 'Y' );
+				$year      = (int) wp_date( 'Y' );
 				// Gapless credit note number, allocated inside this transaction.
 				$number = Sequence::number( (string) Settings::get( 'credit_prefix' ), 'credit', $year );
 				$ok     = $wpdb->insert(
@@ -255,8 +282,47 @@ final class PayoutService {
 		);
 		if ( $payout_id ) {
 			Statement::generate( $payout_id );
+			// A regular run also settles an open payout request of the partner.
+			PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id );
 		}
 		return $payout_id;
+	}
+
+	/**
+	 * Every payout needs its document before money moves: a missing statement (e.g. the
+	 * file could not be written) is generated now; if that fails, an error is returned.
+	 *
+	 * @param int $id Payout.
+	 * @return \WP_Error|null
+	 */
+	public static function statement_missing( $id ) {
+		$p = self::find( $id );
+		if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at ) {
+			return null;
+		}
+		Statement::generate( (int) $id );
+		$p = self::find( $id );
+		if ( $p && '' === (string) $p->statement_file ) {
+			/* translators: %s: payout number */
+			return new \WP_Error( 'wpac_statement', sprintf( __( 'The statement of payout %s could not be stored. Please check that the statement folder is writable and try again.', 'wp-affiliate-captain' ), $p->number ) );
+		}
+		return null;
+	}
+
+	/**
+	 * Generate statements that are still missing (hourly cron).
+	 *
+	 * @return int Number generated.
+	 */
+	public static function generate_missing_statements() {
+		global $wpdb;
+		$t   = Db::table( 'payouts' );
+		$ids = $wpdb->get_col( "SELECT id FROM {$t} WHERE statement_file = '' AND statement_deleted_at IS NULL ORDER BY id ASC LIMIT 20" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n   = 0;
+		foreach ( $ids as $id ) {
+			$n += Statement::generate( (int) $id ) ? 1 : 0;
+		}
+		return $n;
 	}
 
 	/**
@@ -281,6 +347,10 @@ final class PayoutService {
 	 */
 	public static function mark_paid( $id ) {
 		global $wpdb;
+		$missing = self::statement_missing( $id );
+		if ( $missing ) {
+			return $missing;
+		}
 		try {
 			$paid = Db::transaction(
 				static function () use ( $wpdb, $id ) {
@@ -352,7 +422,7 @@ final class PayoutService {
 					}
 					// A credit note that was issued is cancelled by its own document with a new number.
 					if ( '' !== (string) $p->statement_file || '' !== (string) $p->statement_hash ) {
-						$storno = Sequence::number( (string) Settings::get( 'storno_prefix' ), 'storno', (int) gmdate( 'Y' ) );
+						$storno = Sequence::number( (string) Settings::get( 'storno_prefix' ), 'storno', (int) wp_date( 'Y' ) );
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 						$wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET storno_number = %s, storno_at = %s WHERE id = %d", $storno, Db::now(), $id ) );
 					}
@@ -413,6 +483,12 @@ final class PayoutService {
 		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
 		if ( ! $ids ) {
 			return new \WP_Error( 'wpac_empty', __( 'No exportable payouts selected.', 'wp-affiliate-captain' ) );
+		}
+		foreach ( $ids as $id ) {
+			$missing = self::statement_missing( $id );
+			if ( $missing ) {
+				return $missing;
+			}
 		}
 		try {
 			$result = Db::transaction(

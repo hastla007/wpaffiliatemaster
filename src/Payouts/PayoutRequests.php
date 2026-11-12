@@ -121,22 +121,58 @@ final class PayoutRequests {
 		if ( ! ProfileRepository::is_complete( ProfileRepository::get( (int) $r->affiliate_id ) ) ) {
 			return new \WP_Error( 'wpac_profile', __( 'Payout profile incomplete.', 'wp-affiliate-captain' ) );
 		}
-		$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, gmdate( 'Y-m-d' ), $r->currency );
+		try {
+			$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, gmdate( 'Y-m-d' ), $r->currency );
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'wpac_payout', __( 'The payout could not be created. Please try again.', 'wp-affiliate-captain' ) . ' (' . ( $e instanceof \WPAffiliateCaptain\Core\IntegrationException ? $e->error_code : 'error' ) . ')' );
+		}
 		if ( ! $payout_id ) {
 			return new \WP_Error( 'wpac_balance', __( 'The approved balance is no longer above the minimum.', 'wp-affiliate-captain' ) );
+		}
+		// create_for_affiliate() settles the open request (fulfil()).
+		return $payout_id;
+	}
+
+	/**
+	 * The partner's latest request if it was rejected (and no newer one exists), within 60 days.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return object|null
+	 */
+	public static function last_rejected( $affiliate_id ) {
+		global $wpdb;
+		$t = Db::table( 'payout_requests' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$r = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d ORDER BY id DESC LIMIT 1", $affiliate_id ) );
+		return $r && 'rejected' === $r->status && '' !== (string) $r->note && strtotime( $r->created_at . ' UTC' ) > time() - 60 * DAY_IN_SECONDS ? $r : null;
+	}
+
+	/**
+	 * Mark the open request of a partner as processed by a payout (also from regular runs).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @param int $payout_id    Payout.
+	 */
+	public static function fulfil( $affiliate_id, $payout_id ) {
+		global $wpdb;
+		$open = self::open_for( (int) $affiliate_id );
+		if ( ! $open ) {
+			return;
 		}
 		$wpdb->update(
 			Db::table( 'payout_requests' ),
 			array(
 				'status'       => 'processed',
-				'payout_id'    => $payout_id,
+				'payout_id'    => (int) $payout_id,
 				'processed_at' => Db::now(),
 				'processed_by' => get_current_user_id(),
 			),
-			array( 'id' => (int) $id )
+			array(
+				'id'     => (int) $open->id,
+				'status' => 'requested',
+			)
 		);
-		Audit::log( 'payout_request.processed', 'payout', $payout_id, array( 'request' => (int) $id ) );
-		return $payout_id;
+		Audit::log( 'payout_request.processed', 'payout', (int) $payout_id, array( 'request' => (int) $open->id ) );
 	}
 
 	/**
@@ -169,7 +205,8 @@ final class PayoutRequests {
 		$aff = AffiliateRepository::find( (int) $r->affiliate_id );
 		if ( $aff ) {
 			/* translators: 1: name, 2: reason */
-			wp_mail( $aff->email, __( 'Your payout request', 'wp-affiliate-captain' ), sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, $reason ) );
+			/* translators: %s: site name */
+			wp_mail( $aff->email, sprintf( __( '[%s] Your payout request', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ), sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, $reason ) );
 		}
 		return true;
 	}
