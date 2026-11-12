@@ -89,6 +89,90 @@ final class LicenseClient {
 	}
 
 	/**
+	 * Fetch verified entitlements, using the signed local cache only during network/server outages.
+	 *
+	 * Cached rights expire at the earlier of the server expiry and fourteen days after receipt.
+	 *
+	 * @return array<string,mixed>|\\WP_Error
+	 */
+	public function get_entitlements() {
+		$online = $this->check_entitlements();
+		if ( ! is_wp_error( $online ) ) {
+			if ( 'active' === ( $online['license_status'] ?? '' ) ) {
+				$this->store_entitlements_cache( $online );
+			} else {
+				delete_option( $this->option_key . '_entitlements_cache' );
+			}
+			return $online;
+		}
+
+		if ( ! $this->is_temporary_server_error( $online ) ) {
+			return $online;
+		}
+
+		$cached = $this->read_entitlements_cache();
+		return is_wp_error( $cached ) ? $online : $cached;
+	}
+
+	/** Store an HMAC-protected snapshot received from the already verified API envelope. */
+	private function store_entitlements_cache( array $data ): void {
+		$credentials = $this->credentials();
+		$expires = strtotime( (string) ( $data['cache_expires_at'] ?? '' ) . ' UTC' );
+		if ( is_wp_error( $credentials ) || ! $expires ) {
+			return;
+		}
+		$now = time();
+		$expires = min( $expires, $now + 14 * DAY_IN_SECONDS );
+		if ( $expires <= $now ) {
+			return;
+		}
+		$json = wp_json_encode( $data, JSON_UNESCAPED_SLASHES );
+		if ( false === $json ) {
+			return;
+		}
+		update_option(
+			$this->option_key . '_entitlements_cache',
+			array(
+				'data' => $data,
+				'cached_at' => $now,
+				'expires_at' => $expires,
+				'signature' => hash_hmac( 'sha256', $json, $credentials['installation_secret'] ),
+			),
+			false
+		);
+	}
+
+	/** Return a cache only if its HMAC, timestamp, and hard 14-day limit validate. */
+	private function read_entitlements_cache() {
+		$cache = get_option( $this->option_key . '_entitlements_cache', array() );
+		$credentials = $this->credentials();
+		if ( ! is_array( $cache ) || ! is_array( $cache['data'] ?? null ) || is_wp_error( $credentials ) ) {
+			return new \\WP_Error( 'wplc_cache_unavailable', __( 'No verified offline entitlement cache is available.', 'voucher-captain' ) );
+		}
+		$cached_at = absint( $cache['cached_at'] ?? 0 );
+		$expires_at = absint( $cache['expires_at'] ?? 0 );
+		if ( ! $cached_at || ! $expires_at || time() >= $expires_at || $expires_at > $cached_at + 14 * DAY_IN_SECONDS ) {
+			return new \\WP_Error( 'wplc_cache_expired', __( 'The offline entitlement cache has expired.', 'voucher-captain' ) );
+		}
+		$json = wp_json_encode( $cache['data'], JSON_UNESCAPED_SLASHES );
+		$expected = hash_hmac( 'sha256', false === $json ? '' : $json, $credentials['installation_secret'] );
+		if ( ! is_string( $cache['signature'] ?? null ) || ! hash_equals( $expected, $cache['signature'] ) ) {
+			return new \\WP_Error( 'wplc_cache_signature_invalid', __( 'The offline entitlement cache could not be verified.', 'voucher-captain' ) );
+		}
+		return $cache['data'];
+	}
+
+	/** Only transport failures and server-side 5xx responses may use cached rights. */
+	private function is_temporary_server_error( \\WP_Error $error ): bool {
+		$code = $error->get_error_code();
+		if ( in_array( $code, array( 'http_request_failed', 'http_request_timeout', 'connect_timeout', 'request_timeout' ), true ) ) {
+			return true;
+		}
+		$data = $error->get_error_data();
+		return 'wplc_http_error' === $code && is_array( $data ) && absint( $data['status'] ?? 0 ) >= 500;
+	}
+
+	/**
 	 * Check a feature flag in a response returned by check_entitlements().
 	 *
 	 * The caller must pass the verified response returned by check_entitlements().
