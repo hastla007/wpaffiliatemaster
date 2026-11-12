@@ -30,6 +30,7 @@ final class Admin {
 		add_action( 'admin_post_wpac', array( __CLASS__, 'dispatch' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'setup_notice' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'cron_notice' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WPAC_FILE ), array( __CLASS__, 'action_links' ) );
 	}
 
@@ -70,6 +71,28 @@ final class Admin {
 	public static function action_links( $links ) {
 		array_unshift( $links, '<a href="' . esc_url( self::url( 'wpac-settings' ) ) . '">' . esc_html__( 'Settings', 'wp-affiliate-captain' ) . '</a>' );
 		return $links;
+	}
+
+	/**
+	 * Warn when the scheduled tasks do not run (commissions are then never released,
+	 * retries and retention stop). Missing events are scheduled again.
+	 */
+	public static function cron_notice() {
+		if ( ! current_user_can( Capabilities::MANAGE_PROGRAM ) ) {
+			return;
+		}
+		\WPAffiliateCaptain\Core\Cron::schedule(); // Cheap; restores events lost e.g. after a migration.
+		$next = wp_next_scheduled( \WPAffiliateCaptain\Core\Cron::HOURLY );
+		if ( ! $next || $next > time() - 2 * HOUR_IN_SECONDS ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain: the scheduled tasks have not run for more than two hours. Commissions are not released and failed jobs are not retried.', 'wp-affiliate-captain' ) . ' ';
+		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
+			echo esc_html__( 'WP-Cron is disabled (DISABLE_WP_CRON): set up a system cron that runs "wp cron event run --due-now" every few minutes.', 'wp-affiliate-captain' );
+		} else {
+			echo esc_html__( 'Your site may receive too few visits or block loopback requests: set up a system cron that runs "wp cron event run --due-now".', 'wp-affiliate-captain' );
+		}
+		echo '</p></div>';
 	}
 
 	/**

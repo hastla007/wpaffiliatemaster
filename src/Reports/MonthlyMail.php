@@ -114,7 +114,15 @@ final class MonthlyMail {
 		}
 		$remaining = 0;
 		if ( Settings::get( 'report_partners' ) ) {
-			$portal    = (int) Settings::get( 'portal_page_id' );
+			$portal = (int) Settings::get( 'portal_page_id' );
+			// Batches are cut from a stable order (by partner, not by commission): a change
+			// between two batches must not shift partners so that some are skipped or mailed twice.
+			usort(
+				$rows,
+				static function ( $a, $b ) {
+					return (int) $a['affiliate_id'] - (int) $b['affiliate_id'];
+				}
+			);
 			$remaining = max( 0, count( $rows ) - $offset - ( $limit ? $limit : count( $rows ) ) );
 			foreach ( $limit ? array_slice( $rows, $offset, $limit ) : $rows as $r ) {
 				$aff = AffiliateRepository::find( $r['affiliate_id'] );

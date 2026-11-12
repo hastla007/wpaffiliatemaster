@@ -59,9 +59,14 @@ final class Statement {
 		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
 			return null;
 		}
+		static $memo = false;
+		if ( false !== $memo ) {
+			return $memo;
+		}
 		$cached = get_transient( 'wpac_statement_probe' );
 		if ( false !== $cached ) {
-			return 'exposed' === $cached;
+			$memo = 'unknown' === $cached ? null : 'exposed' === $cached;
+			return $memo;
 		}
 		$dir   = self::dir();
 		$name  = 'probe-' . wp_generate_password( 12, false ) . '.txt';
@@ -70,10 +75,15 @@ final class Statement {
 		$res    = wp_remote_get( trailingslashit( $upload['baseurl'] ) . 'wpac-statements/' . $name, array( 'timeout' => 5, 'sslverify' => false ) );
 		wp_delete_file( $dir . '/' . $name );
 		if ( is_wp_error( $res ) ) {
+			// Hosts that block loopback requests: remember "unknown" for an hour instead of
+			// probing (with timeouts) on every page view.
+			set_transient( 'wpac_statement_probe', 'unknown', HOUR_IN_SECONDS );
+			$memo = null;
 			return null;
 		}
 		$exposed = 200 === (int) wp_remote_retrieve_response_code( $res ) && 'wpac' === trim( (string) wp_remote_retrieve_body( $res ) );
 		set_transient( 'wpac_statement_probe', $exposed ? 'exposed' : 'protected', DAY_IN_SECONDS );
+		$memo = $exposed;
 		return $exposed;
 	}
 

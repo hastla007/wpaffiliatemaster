@@ -313,7 +313,7 @@ final class Portal {
 			array( '' !== $code, __( 'Partner code received', 'wp-affiliate-captain' ), 'links' ),
 			array( ! $terms['page_id'] || Agreements::has_current( (int) $aff->id ), __( 'Current terms accepted', 'wp-affiliate-captain' ), 'overview' ),
 			array( ProfileRepository::is_complete( $profile ), __( 'Payout details completed', 'wp-affiliate-captain' ), 'profile' ),
-			array( Tracker::count_visits( (int) $aff->id, 3650 ) > 0, __( 'First visitor via your link', 'wp-affiliate-captain' ), 'promotion' ),
+			array( Tracker::has_visits( (int) $aff->id ), __( 'First visitor via your link', 'wp-affiliate-captain' ), 'promotion' ),
 			array( $conversions > 0 || $sum( 'approved' ) + $sum( 'paid' ) > 0, __( 'First sale', 'wp-affiliate-captain' ), 'links' ),
 		);
 		echo '<section class="wpac-hero" aria-labelledby="wpac-hero-title"><h3 id="wpac-hero-title">' . esc_html__( 'Share your partner link', 'wp-affiliate-captain' ) . '</h3>';

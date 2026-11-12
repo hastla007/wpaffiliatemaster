@@ -312,6 +312,19 @@ final class Tracker {
 	}
 
 	/**
+	 * Whether a partner ever had a visit (existence check, no count over all rows).
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return bool
+	 */
+	public static function has_visits( $affiliate_id ) {
+		global $wpdb;
+		$t = Db::table( 'visits' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE affiliate_id = %d LIMIT 1", $affiliate_id ) );
+	}
+
+	/**
 	 * Visits of an affiliate in a period.
 	 *
 	 * @param int $affiliate_id Affiliate (0 = all).
