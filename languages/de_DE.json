@@ -930,5 +930,8 @@
  "The license server returned invalid JSON.": "Der Lizenzserver hat ungültiges JSON zurückgegeben.",
  "The license server response is missing its signature envelope.": "In der Antwort des Lizenzservers fehlt die Signaturhülle.",
  "The license server response signature could not be verified.": "Die Signatur der Lizenzserver-Antwort konnte nicht verifiziert werden.",
- "This product installation has not been activated.": "Diese Plugin-Installation wurde nicht aktiviert."
+ "This product installation has not been activated.": "Diese Plugin-Installation wurde nicht aktiviert.",
+ "No verified offline entitlement cache is available.": "Kein verifizierter Offline-Rechtecache ist verfügbar.",
+ "The offline entitlement cache has expired.": "Der Offline-Rechtecache ist abgelaufen.",
+ "The offline entitlement cache could not be verified.": "Der Offline-Rechtecache konnte nicht verifiziert werden."
 }
