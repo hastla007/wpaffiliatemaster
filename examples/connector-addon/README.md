@@ -2,6 +2,8 @@
 
 This example plugin shows how an add-on can report paid sales and refunds from a custom app to WP Affiliate Captain without accessing its database tables.
 
+This is a generic starter for future integrations. LearnBoating already has its own project-specific connector in the LearnBoating repository; this example does not replace it.
+
 ## Install
 
 1. Copy this folder into `wp-content/plugins/` on a WordPress site that runs WP Affiliate Captain.
