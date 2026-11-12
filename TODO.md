@@ -29,3 +29,27 @@ Diese Datei enthält nur neue Auditpunkte. Plugin-Code wurde nicht geändert.
 
 - Geprüft wurde der veröffentlichte Hauptbranch oben. Die offenen Lizenzclient-PRs #9–#12 und andere nicht gemergte Branches sind nicht Bestandteil dieser Codeprüfung.
 - Kein bestätigter direkter Authentifizierungs-, SQL-Injection- oder XSS-Befund in den geprüften Hauptpfaden festgestellt. Die Verdachtsfälle oben brauchen gezielte Laufzeit-/Concurrency-Tests.
+
+## Ergänzende Befunde aus der zweiten Prüfrunde (2026-11-12)
+
+### Bestätigte Befunde
+
+- [ ] **P2 — Retry wird als eingereiht gemeldet, obwohl der Queue-Schreibvorgang fehlschlagen kann.** Dateien: `src/Sales/ContractApi.php:69–78,109–123`; `src/Core/Jobs.php:27–64`. Contract API gibt `wpac_queued` zurück, ohne den Queue-Schreibvorgang zu prüfen; `Jobs::enqueue()` ignoriert Insert-/Update-Ergebnisse. **Auswirkung:** Bei DB-Ausfall oder fehlender Jobtabelle wird ein Sale/Refund nicht gebucht und auch nicht erneut versucht, obwohl der Aufrufer „queued“ erhält. **Maßnahme:** Queue-Erfolg zurückmelden, Schreibfehler behandeln und nur bei persistiertem Retryjob „queued“ bestätigen.
+
+- [ ] **P2 — Auszahlungsantrag kann trotz fehlgeschlagenem Insert als angelegt erscheinen.** Datei: `src/Payouts/PayoutRequests.php:79–106`. Das Ergebnis von `$wpdb->insert()` wird nicht geprüft; ID, Audit-Eintrag und Admin-Mail folgen trotzdem. **Auswirkung:** Partner oder Admin sehen eine Anfrage, die nicht gespeichert wurde (möglicherweise mit veralteter/ungültiger ID). **Maßnahme:** Insert-Ergebnis/ID validieren; Audit und Mail nur nach bestätigtem Insert ausführen und Fehler sichtbar zurückgeben.
+
+- [ ] **P2 — Ablehnung eines Auszahlungsantrags meldet Erfolg trotz fehlgeschlagenem Statusupdate.** Datei: `src/Payouts/PayoutRequests.php:185–211`. Update-Ergebnis und betroffene Zeilen werden nicht geprüft; danach folgen Audit, Partner-Mail und `true`. **Auswirkung:** Antrag bleibt offen, während Admin und Partner von einer Ablehnung ausgehen. **Maßnahme:** Statusübergang atomar prüfen und Folgeaktionen nur nach bestätigtem Statuswechsel ausführen.
+
+- [ ] **P3 — Monatsberichte gehen bei Mailfehlern still verloren.** Datei: `src/Reports/MonthlyMail.php:29–45,71–83,107–111,127–151,217–219`. Monat wird vor dem Versand als gesendet markiert; `wp_mail()`-Ergebnisse werden ignoriert und Batch-Offsets laufen weiter. **Auswirkung:** Temporäre SMTP-Fehler können Admin- oder Partnerberichte endgültig verlieren, ohne sichtbare Fehlermeldung. **Maßnahme:** Versandstatus pro Empfänger speichern, Fehler protokollieren und fehlgeschlagene Mails idempotent erneut versuchen oder im Admin zur Nachbearbeitung anzeigen.
+
+### Verdachtsfälle — Datenbank-/Konkurrenztests erforderlich
+
+- [ ] **P2 — Saldo-Zusammenfassung kann von Buchungseinträgen abweichen.** Datei: `src/Commissions/Balance.php:69–86`. Ein Ledger-Eintrag wird geprüft, danach wird das Update der Balance-Tabelle nicht geprüft. **Mögliche Auswirkung:** Bei Update-Fehler kann der Eintrag committen, während der zusammengefasste Saldo/Hash-Zustand unverändert bleibt. **Maßnahme:** Update-Ergebnis validieren und bei Fehler Exception/Rollback auslösen; DB-Fehlertest ergänzen.
+
+- [ ] **P3 — Paralleles Absenden kann mehrere offene Auszahlungsanträge erzeugen.** Dateien: `src/Payouts/PayoutRequests.php:49–52,79–95`; Schema: `src/Core/Installer.php:544–557`. Die Prüfung auf offenen Antrag und das Insert sind getrennte Schritte; ein eindeutiger/atomarer Schutz pro Partner fehlt. **Mögliche Auswirkung:** Doppelte Anträge und Benachrichtigungen, möglicherweise mit konkurrierender Auszahlungssumme. **Maßnahme:** Atomare Absicherung gegen mehrere offene Anträge und Konkurrenztest ergänzen.
+
+- [ ] **P3 — TLS-Prüfung beim Schutztest für Belegdateien ist deaktiviert.** Datei: `src/Payouts/Statement.php:71–86`. Der Loopback-Probe-Request setzt `sslverify => false` und cached sein Ergebnis bis zu einem Tag. **Mögliche Auswirkung:** Ein Netzwerk-MITM könnte den Schutztest verfälschen und die Admin-Warnung über öffentlich erreichbare PDF-Belege unterdrücken; kein direkter Download-Bypass wurde nachgewiesen. **Maßnahme:** TLS-Verifikation aktiv lassen oder unverifizierbare Antworten als „unknown“ behandeln und nicht als geschützt cachen.
+
+## UX/UI-Prüfung
+
+- Statische Prüfung von Admin, Partnerportal, Registrierung, CSS und JavaScript: keine zusätzlichen bestätigten UX-/Accessibility-Befunde aufgenommen. Live-/visuelle Playwright-/axe-Prüfung war mangels Staging-Zugang nicht möglich; fehlender CI-Gate steht bereits oben.
