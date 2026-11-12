@@ -85,7 +85,15 @@ final class PremiumUpdater {
 			$package = $refreshed['package'];
 			$checksum = $refreshed['checksum'];
 		}
-		return $this->download_and_verify( (string) $package, $checksum );
+		$result = $this->download_and_verify( (string) $package, $checksum );
+		if ( is_wp_error( $result ) && 'wplc_download_redirect_invalid' === $result->get_error_code() ) {
+			$refreshed = $this->refresh_package();
+			if ( is_wp_error( $refreshed ) ) {
+				return $refreshed;
+			}
+			return $this->download_and_verify( $refreshed['package'], $refreshed['checksum'] );
+		}
+		return $result;
 	}
 
 	private function refresh_package() {
