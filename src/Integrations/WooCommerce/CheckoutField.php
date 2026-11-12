@@ -23,16 +23,6 @@ defined( 'ABSPATH' ) || exit;
 
 final class CheckoutField {
 	/**
-	 * Code from the current referral touch (to prefill the field).
-	 *
-	 * @return string
-	 */
-	private static function prefill() {
-		$touch = Tracker::current_touch();
-		return $touch ? (string) $touch['code'] : '';
-	}
-
-	/**
 	 * Classic checkout field.
 	 *
 	 * @param \WC_Checkout $checkout Checkout.
@@ -47,7 +37,9 @@ final class CheckoutField {
 				'required'    => false,
 				'class'       => array( 'form-row-wide' ),
 			),
-			$checkout->get_value( 'wpac_partner_code' ) ? $checkout->get_value( 'wpac_partner_code' ) : self::prefill()
+			// Not prefilled from the link/cookie: that touch is stored separately, and a
+			// prefilled value would count as an entered code (beating coupons, skipping checks).
+			$checkout->get_value( 'wpac_partner_code' )
 		);
 	}
 

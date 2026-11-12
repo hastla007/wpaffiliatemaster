@@ -36,6 +36,7 @@ final class Jobs {
 				$table,
 				array(
 					'status'          => 'queued',
+					'attempts'        => 1, // A new failure starts a new backoff series.
 					'payload'         => wp_json_encode( $payload ),
 					'next_attempt_at' => Db::now( time() + 300 ),
 					'last_error_code' => substr( (string) $code, 0, 64 ),
@@ -71,6 +72,10 @@ final class Jobs {
 	public static function run_due( $limit = 25 ) {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
+		// Jobs whose lease expired (the run died, e.g. timeout or fatal error) count as a
+		// failed attempt: back to the queue, or failed after the last attempt.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = IF(attempts >= %d, 'failed', 'queued'), last_error_code = 'aborted', last_error = 'The previous run did not finish (timeout or fatal error).', updated_at = %s WHERE status = 'running' AND next_attempt_at <= %s", self::MAX_ATTEMPTS, Db::now(), Db::now() ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'queued' AND next_attempt_at <= %s ORDER BY next_attempt_at ASC LIMIT %d", Db::now(), $limit ) );
 		foreach ( $ids as $id ) {
@@ -89,9 +94,18 @@ final class Jobs {
 		$table = Db::table( 'jobs' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) );
-		if ( ! $job || 'done' === $job->status ) {
+		if ( ! $job || ! in_array( $job->status, array( 'queued', 'failed' ), true ) ) {
 			return false;
 		}
+		// Claim atomically (a parallel runner gets 0 rows) and count the attempt before
+		// running, so a run that dies is not retried forever with the same count.
+		// The lease (next_attempt_at) lets run_due() requeue jobs of a dead run.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'running', attempts = attempts + 1, next_attempt_at = %s, updated_at = %s WHERE id = %d AND status = %s", Db::now( time() + 15 * MINUTE_IN_SECONDS ), Db::now(), (int) $job->id, $job->status ) );
+		if ( 1 !== (int) $claimed ) {
+			return false;
+		}
+		$job->attempts = (int) $job->attempts + 1;
 		$payload = json_decode( (string) $job->payload, true );
 		$payload = is_array( $payload ) ? $payload : array();
 
@@ -117,7 +131,7 @@ final class Jobs {
 			);
 			return true;
 		} catch ( \Throwable $e ) {
-			$attempts = (int) $job->attempts + 1;
+			$attempts = (int) $job->attempts;
 			$delay    = min( DAY_IN_SECONDS, 300 * ( 2 ** min( $attempts, 10 ) ) );
 			$wpdb->update(
 				$table,
@@ -133,6 +147,22 @@ final class Jobs {
 			);
 			return false;
 		}
+	}
+
+	/**
+	 * Whether a sale of this order is still waiting in the queue (or failed and
+	 * awaits a manual retry). Refunds that arrive meanwhile must wait for it.
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @return bool
+	 */
+	public static function sale_pending( $source, $order_id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		$keys  = array( substr( 'sale:' . $source . ':' . $order_id, 0, 191 ), substr( 'woo_order:' . $source . ':' . $order_id, 0, 191 ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key IN (%s, %s) AND status IN ('queued','running','failed') LIMIT 1", $keys[0], $keys[1] ) );
 	}
 
 	/**

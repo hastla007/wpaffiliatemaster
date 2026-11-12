@@ -78,6 +78,7 @@ final class Cron {
 			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
 		}
 		\WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired();
+		\WPAffiliateCaptain\Privacy\Privacy::finish_pending_erasures();
 		$audit_days = (int) Settings::get( 'audit_retention_days' );
 		if ( $audit_days > 0 ) {
 			$audit = Db::table( 'audit' );

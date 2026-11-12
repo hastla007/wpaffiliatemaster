@@ -59,7 +59,8 @@ final class PayoutService {
 		$sql    = "FROM {$t} c LEFT JOIN {$t} p ON p.id = c.parent_id
 			WHERE c.status = 'approved' AND c.payout_id = 0 AND c.currency = %s
 			AND ( c.created_at <= %s OR ( c.parent_id > 0 AND p.created_at <= %s ) )
-			AND NOT EXISTS ( SELECT 1 FROM {$t} ch WHERE ch.parent_id = c.id AND ch.status IN ('pending','review') )";
+			AND NOT EXISTS ( SELECT 1 FROM {$t} ch WHERE ch.parent_id = c.id AND ch.status IN ('pending','review') )
+			AND ( c.parent_id = 0 OR p.status IN ('approved','paid') )";
 		$params = array( $currency, $end, $end );
 		if ( $affiliate_id ) {
 			$sql     .= ' AND c.affiliate_id = %d';
@@ -193,7 +194,7 @@ final class PayoutService {
 				 */
 				$vat       = (array) apply_filters( 'wpac_vat_treatment', $vat, $snapshot, $affiliate_id );
 				$vat_minor = Vat::amount( $total, $vat['rate'] );
-				$year      = (int) gmdate( 'Y' );
+				$year      = (int) wp_date( 'Y' );
 				// Gapless credit note number, allocated inside this transaction.
 				$number = Sequence::number( (string) Settings::get( 'credit_prefix' ), 'credit', $year );
 				$ok     = $wpdb->insert(
@@ -255,6 +256,8 @@ final class PayoutService {
 		);
 		if ( $payout_id ) {
 			Statement::generate( $payout_id );
+			// A regular run also settles an open payout request of the partner.
+			PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id );
 		}
 		return $payout_id;
 	}
@@ -352,7 +355,7 @@ final class PayoutService {
 					}
 					// A credit note that was issued is cancelled by its own document with a new number.
 					if ( '' !== (string) $p->statement_file || '' !== (string) $p->statement_hash ) {
-						$storno = Sequence::number( (string) Settings::get( 'storno_prefix' ), 'storno', (int) gmdate( 'Y' ) );
+						$storno = Sequence::number( (string) Settings::get( 'storno_prefix' ), 'storno', (int) wp_date( 'Y' ) );
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 						$wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET storno_number = %s, storno_at = %s WHERE id = %d", $storno, Db::now(), $id ) );
 					}

@@ -328,5 +328,118 @@ $deleted = WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( "DEL
 check( 'Q old visits deleted in batches of 5', 12, $deleted );
 check( 'Q recent visit kept', 1, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$vt} WHERE created_at >= '2021-01-01'" ) );
 
+echo "R audit fixes (money, refunds, jobs, tiers, privacy)\n";
+global $wpdb;
+$ct = t( 'commissions' );
+$rp = AffiliateRepository::create( array( 'name' => 'Rita Fix', 'email' => 'rita@example.de', 'status' => 'active' ) );
+$rc = WPAffiliateCaptain\Codes\CodeRepository::main_code( $rp );
+
+// R1 a correction is not payable (and cannot be approved) while its original is still open.
+$r  = sale( 5001, $rc, array( 100000 ) );
+$p1 = (int) $r['commission_ids'][0];
+refund( 5001, 'r1', array( array( 'item_id' => '1', 'net_minor' => 50000 ) ) );
+$child = (int) $wpdb->get_var( "SELECT id FROM {$ct} WHERE parent_id = {$p1}" );
+check( 'R1 approving a correction of an open commission refused', 'wpac_parent_open', ( $e = Ledger::approve( $child, 'test' ) ) instanceof WP_Error ? $e->get_error_code() : 'ok' );
+q( "UPDATE {$ct} SET status = 'approved' WHERE id = {$child}" ); // e.g. approved by the hold cron
+$prev = PayoutService::preview( gmdate( 'Y-m-d', time() + DAY_IN_SECONDS ), 'EUR' );
+$found = 0;
+foreach ( $prev as $row ) { if ( $row['affiliate'] && (int) $row['affiliate']->id === $rp ) { $found = $row['total_minor']; } }
+check( 'R1 correction of a pending commission is not paid out', 0, $found );
+q( "UPDATE {$ct} SET status = 'pending' WHERE id = {$child}" );
+
+// R2 transition books the balance from the status the row really has (stale read).
+$r  = sale( 5002, $rc, array( 20000 ) );
+$p2 = (int) $r['commission_ids'][0];
+Ledger::transition( $p2, 'approved' );
+q( "UPDATE {$ct} SET status = 'pending' WHERE id = {$p2}" ); // simulate the stale view: the row says approved below
+q( "UPDATE {$ct} SET status = 'approved' WHERE id = {$p2}" );
+check( 'R2 reject of approved books the reversal', true, Ledger::transition( $p2, 'rejected', 'x' ) );
+check( 'R2 balances consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
+// R3 refund while the sale is still queued is kept and applied after the sale.
+WPAffiliateCaptain\Core\Jobs::enqueue( 'sale', 'test:5003', array( 'contract' => WPAC_CONTRACT_VERSION, 'source' => 'test', 'order_id' => '5003', 'currency' => 'EUR', 'partner_code' => $rc, 'items' => array( array( 'item_id' => '1', 'product_id' => 1, 'name' => 'Kurs', 'net_minor' => 20000 ) ) ), 'db', 'deadlock' );
+$rr = refund( 5003, 'early', array( array( 'item_id' => '1', 'net_minor' => 10000 ) ) );
+check( 'R3 refund before the sale is queued', 'queued', is_array( $rr ) ? $rr['status'] : 'error' );
+q( 'UPDATE ' . t( 'jobs' ) . " SET next_attempt_at = '2000-01-01 00:00:00'" );
+add_filter( 'wpac_run_job', array( 'WPAffiliateCaptain\Sales\ContractApi', 'run_job' ), 10, 3 );
+WPAffiliateCaptain\Core\Jobs::run_due();
+WPAffiliateCaptain\Core\Jobs::run_due(); // refund may run before the sale in the first pass
+q( 'UPDATE ' . t( 'jobs' ) . " SET next_attempt_at = '2000-01-01 00:00:00' WHERE status = 'queued'" );
+WPAffiliateCaptain\Core\Jobs::run_due();
+check( 'R3 only the remaining half is commissioned', 1000, (int) $wpdb->get_var( "SELECT SUM(amount_minor) FROM {$ct} WHERE source_order_id = '5003' AND status <> 'rejected'" ) );
+
+// R4 job claim: a running job is not run twice; an aborted run counts as an attempt.
+WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
+$jid = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'jobs' ) . " WHERE type = 'nohandler'" );
+q( 'UPDATE ' . t( 'jobs' ) . " SET status = 'running', attempts = 3, next_attempt_at = '2000-01-01 00:00:00' WHERE id = {$jid}" );
+check( 'R4 running job is not claimed again', false, WPAffiliateCaptain\Core\Jobs::run( $jid ) );
+WPAffiliateCaptain\Core\Jobs::run_due();
+$job = $wpdb->get_row( 'SELECT status, attempts, last_error_code FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" );
+check( 'R4 expired lease → failed attempt counted', 'aborted', $job->last_error_code === 'aborted' || $job->attempts > 3 ? 'aborted' : $job->last_error_code );
+WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
+check( 'R4 re-enqueue resets the attempts', '1', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
+
+// R5 filtered commission base: a refund of half the line reverses half the commission.
+$GLOBALS['test_hooks']['wpac_commission_base'][10][] = array( static function ( $base ) { return intdiv( $base, 2 ); }, 1 );
+$r  = sale( 5005, $rc, array( 10000 ) ); // base 50 €, 10 % = 5 €
+unset( $GLOBALS['test_hooks']['wpac_commission_base'] );
+refund( 5005, 'half', array( array( 'item_id' => '1', 'net_minor' => 5000 ) ) );
+check( 'R5 half of the line refunded → half of the commission left', 250, (int) $wpdb->get_var( "SELECT SUM(amount_minor) FROM {$ct} WHERE source_order_id = '5005'" ) );
+
+// R6 several refund lines of one item add up.
+sale( 5006, $rc, array( 10000 ) );
+refund( 5006, 'two-lines', array( array( 'item_id' => '1', 'net_minor' => 3000 ), array( 'item_id' => '1', 'net_minor' => 2000 ) ) );
+check( 'R6 both refund lines counted', 500, (int) $wpdb->get_var( "SELECT SUM(amount_minor) FROM {$ct} WHERE source_order_id = '5006'" ) );
+check( 'R6 long keys are hashed, not truncated', true, Ledger::key( str_repeat( 'a', 200 ) . 'x' ) !== Ledger::key( str_repeat( 'a', 200 ) . 'y' ) && strlen( Ledger::key( str_repeat( 'a', 300 ) ) ) <= 191 );
+
+// R7 foreign currency: a fixed rule is converted, never replaced by a broader percent rule.
+$rule7 = WPAffiliateCaptain\Commissions\RuleRepository::save( WPAffiliateCaptain\Commissions\RuleRepository::sanitize( array( 'scope' => 'global', 'target' => 'product', 'target_value' => '77', 'rate_type' => 'fixed', 'rate' => '5', 'priority' => 10, 'active' => 1 ) ), 0, 'test' );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'exchange_rates' => '' ) ) );
+Settings::flush_cache();
+$usd = wpac_record_sale( array( 'source' => 'test', 'order_id' => '5007', 'currency' => 'USD', 'partner_code' => $rc, 'items' => array( array( 'item_id' => '1', 'product_id' => 77, 'name' => 'X', 'net_minor' => 10000 ) ) ) );
+check( 'R7 no rate → the fixed rule still wins (no commission)', 0, (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$ct} WHERE source_order_id = '5007'" ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'exchange_rates' => 'USD=0.5' ) ) );
+Settings::flush_cache();
+wpac_record_sale( array( 'source' => 'test', 'order_id' => '5017', 'currency' => 'USD', 'partner_code' => $rc, 'items' => array( array( 'item_id' => '1', 'product_id' => 77, 'name' => 'X', 'net_minor' => 10000 ) ) ) );
+check( 'R7 with a rate: 5 € fixed = 10 USD', 1000, (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$ct} WHERE source_order_id = '5017'" ) );
+WPAffiliateCaptain\Commissions\RuleRepository::delete( $rule7, 'test' );
+
+// R8 an open payout request is settled by a regular payout run.
+$rq = AffiliateRepository::create( array( 'name' => 'Req Partner', 'email' => 'req@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $rq, array( 'type' => 'private', 'legal_name' => 'Req Partner', 'address' => "Weg 1\n12345 Ort", 'country' => 'DE', 'iban' => 'DE89370400440532013000', 'account_holder' => 'Req Partner' ) );
+$rs = sale( 5008, WPAffiliateCaptain\Codes\CodeRepository::main_code( $rq ), array( 500000 ) );
+Ledger::transition( (int) $rs['commission_ids'][0], 'approved' );
+q( "UPDATE {$ct} SET created_at = '2020-01-01 00:00:00' WHERE id = " . (int) $rs['commission_ids'][0] );
+$wpdb->insert( t( 'payout_requests' ), array( 'affiliate_id' => $rq, 'currency' => 'EUR', 'amount_minor' => 50000, 'status' => 'requested', 'created_at' => Db::now() ) );
+$rpid = PayoutService::create_for_affiliate( $rq, gmdate( 'Y-m-d' ), 'EUR' );
+check( 'R8 payout created', true, $rpid > 0 );
+check( 'R8 request marked processed', 'processed', (string) $wpdb->get_var( 'SELECT status FROM ' . t( 'payout_requests' ) . " WHERE affiliate_id = {$rq}" ) );
+
+// R9 the eraser keeps bank details while a payout is still unpaid, and deletes them later.
+check( 'R9 open payout counts as open', true, WPAffiliateCaptain\Privacy\Privacy::has_open_items( $rq ) );
+update_option( 'wpac_erasure_pending', array( $rq ) );
+WPAffiliateCaptain\Privacy\Privacy::finish_pending_erasures();
+check( 'R9 profile kept while the payout is open', true, (bool) ProfileRepository::get( $rq ) );
+PayoutService::mark_paid( $rpid );
+WPAffiliateCaptain\Privacy\Privacy::finish_pending_erasures();
+check( 'R9 profile deleted once settled', false, (bool) ProfileRepository::get( $rq ) );
+
+// R10 a fully refunded first order removes the lifetime customer link.
+$wpdb->insert( t( 'customer_links' ), array( 'affiliate_id' => $rp, 'customer_hash' => str_repeat( 'b', 64 ), 'source' => 'test', 'source_order_id' => '5010', 'created_at' => Db::now() ) );
+sale( 5010, $rc, array( 10000 ) );
+refund( 5010, 'all' );
+check( 'R10 link removed after full reversal', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'customer_links' ) . " WHERE source_order_id = '5010'" ) );
+
+// R11 tiers: a month that has not ended (plus hold) cannot be closed.
+check( 'R11 current month not due', false, WPAffiliateCaptain\Commissions\TierService::is_due( gmdate( 'Y-m' ) ) );
+check( 'R11 old month due', true, WPAffiliateCaptain\Commissions\TierService::is_due( '2020-01' ) );
+
+// R12 referral cookie: signed values verify, forged ones do not, expired clicks are ignored.
+$sig = WPAffiliateCaptain\Tracking\Tracker::sign( 'ABCD-EFGH||0|' . time() );
+check( 'R12 signed cookie accepted', 'ABCD-EFGH', WPAffiliateCaptain\Tracking\Tracker::parse_cookie( $sig )['code'] ?? null );
+check( 'R12 forged cookie rejected', null, WPAffiliateCaptain\Tracking\Tracker::parse_cookie( 'ABCD-EFGH||0|1|0000000000000000' ) );
+check( 'R12 click older than the window rejected', null, WPAffiliateCaptain\Tracking\Tracker::parse_cookie( WPAffiliateCaptain\Tracking\Tracker::sign( 'ABCD-EFGH||0|1' ) ) );
+check( 'R balances consistent after all fixes', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

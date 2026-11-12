@@ -257,13 +257,7 @@ final class Privacy {
 			);
 		}
 		$messages = array();
-		$totals   = Ledger::totals( array( 'affiliate_id' => (int) $aff->id ) );
-		$open     = 0;
-		foreach ( array( 'pending', 'review', 'approved' ) as $s ) {
-			if ( isset( $totals[ $s ] ) ) {
-				$open += array_sum( $totals[ $s ] );
-			}
-		}
+		$open     = self::has_open_items( (int) $aff->id );
 
 		$wpdb->update(
 			Db::table( 'affiliates' ),
@@ -289,12 +283,18 @@ final class Privacy {
 		$wpdb->delete( Db::table( 'visits' ), array( 'affiliate_id' => (int) $aff->id ) );
 		$wpdb->delete( Db::table( 'customer_links' ), array( 'affiliate_id' => (int) $aff->id ) );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payout_requests' ) . " SET note = '' WHERE affiliate_id = %d", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// Free-text reasons and notes may contain personal data.
+		$c = Db::table( 'commissions' );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'commission_events' ) . " SET reason = '' WHERE commission_id IN (SELECT id FROM {$c} WHERE affiliate_id = %d)", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'attributions' ) . " SET note = '' WHERE affiliate_id = %d", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		// Free-text details in the audit log (reasons may contain personal data); acceptance records stay as proof.
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%'", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache();
 
-		if ( $open > 0 ) {
-			$messages[] = __( 'Payout details were retained because the partner still has an open commission balance.', 'wp-affiliate-captain' );
+		if ( $open ) {
+			// Deleted automatically once everything is settled (daily cron).
+			update_option( 'wpac_erasure_pending', array_values( array_unique( array_merge( (array) get_option( 'wpac_erasure_pending', array() ), array( (int) $aff->id ) ) ) ), false );
+			$messages[] = __( 'Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled.', 'wp-affiliate-captain' );
 		} else {
 			ProfileRepository::delete( (int) $aff->id );
 		}
@@ -345,4 +345,41 @@ final class Privacy {
 		wp_add_privacy_policy_content( 'WP Affiliate Captain', wp_kses_post( $html ) );
 	}
 
+	/**
+	 * Whether the partner still has open commissions (any non-rejected, unpaid row,
+	 * also negative ones) or a payout that is not yet paid: bank details are needed.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return bool
+	 */
+	public static function has_open_items( $affiliate_id ) {
+		global $wpdb;
+		$c = Db::table( 'commissions' );
+		$p = Db::table( 'payouts' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d AND amount_minor <> 0 AND ( status IN ('pending','review') OR ( status = 'approved' AND payout_id = 0 ) )", $affiliate_id ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$payouts = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE affiliate_id = %d AND status IN ('pending','exported')", $affiliate_id ) );
+		return $rows > 0 || $payouts > 0;
+	}
+
+	/**
+	 * Delete retained payout details of erased partners once everything is settled (daily cron).
+	 */
+	public static function finish_pending_erasures() {
+		$pending = array_map( 'intval', (array) get_option( 'wpac_erasure_pending', array() ) );
+		if ( ! $pending ) {
+			return;
+		}
+		$left = array();
+		foreach ( $pending as $id ) {
+			if ( self::has_open_items( $id ) ) {
+				$left[] = $id;
+				continue;
+			}
+			ProfileRepository::delete( $id );
+			Audit::log( 'privacy.profile_deleted', 'affiliate', $id );
+		}
+		update_option( 'wpac_erasure_pending', $left, false );
+	}
 }

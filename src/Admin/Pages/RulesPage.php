@@ -104,7 +104,10 @@ final class RulesPage {
 
 			case 'tier_close_month':
 				$month = sanitize_text_field( Admin::post( 'month' ) );
-				$n     = TierService::close_month( $month );
+				if ( ! TierService::is_due( $month ) ) {
+					Admin::back( __( 'This month cannot be closed yet: it must have ended and its hold period must have passed.', 'wp-affiliate-captain' ), 'error' );
+				}
+				$n = TierService::close_month( $month );
 				/* translators: 1: count, 2: month */
 				Admin::back( sprintf( __( '%1$d monthly bonuses booked for %2$s.', 'wp-affiliate-captain' ), $n, $month ) );
 				break;

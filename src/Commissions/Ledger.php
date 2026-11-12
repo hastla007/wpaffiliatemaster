@@ -19,6 +19,7 @@ use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Codes\CodeRepository;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\Fx;
 use WPAffiliateCaptain\Core\IntegrationException;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Tracking\AttributionResolver;
@@ -139,20 +140,31 @@ final class Ledger {
 
 		$rules   = RuleRepository::active();
 		$default = RuleRepository::default_rate();
-		if ( strtoupper( (string) Settings::get( 'currency' ) ) !== $sale['currency'] ) {
-			// Fixed amounts are stored in the program currency and are never applied to other currencies.
-			$rules = array_values(
-				array_filter(
-					$rules,
-					static function ( $r ) {
-						return 'fixed' !== $r['rate_type'];
+		$program = strtoupper( (string) Settings::get( 'currency' ) );
+		if ( $program !== $sale['currency'] ) {
+			// Fixed amounts are stored in the program currency: convert them with the
+			// configured rates. Without a rate the matching rule still wins (and pays 0)
+			// so a broader percent rule never takes over a more specific fixed rule.
+			$rates = Fx::rates();
+			foreach ( $rules as $i => $r ) {
+				if ( 'fixed' === $r['rate_type'] ) {
+					$converted = Fx::from_program( (int) $r['rate'], $sale['currency'], $program, $rates );
+					if ( null === $converted ) {
+						$rules[ $i ]['rate_type'] = 'exclude';
+						$rules[ $i ]['rate']      = '0';
+					} else {
+						$rules[ $i ]['rate'] = (string) $converted;
 					}
-				)
-			);
+				}
+			}
 			if ( 'fixed' === $default['rate_type'] ) {
-				$default = array(
+				$converted = Fx::from_program( (int) $default['rate'], $sale['currency'], $program, $rates );
+				$default   = null === $converted ? array(
 					'rate_type' => 'percent',
 					'rate'      => '0',
+				) : array(
+					'rate_type' => 'fixed',
+					'rate'      => (string) $converted,
 				);
 			}
 		}
@@ -224,7 +236,8 @@ final class Ledger {
 					 * @param array $item Normalized item.
 					 * @param array $sale Normalized sale.
 					 */
-					$base = (int) apply_filters( 'wpac_commission_base', $calc['base_minor'], $item, $sale );
+					$line_net = (int) $calc['base_minor'];
+					$base     = (int) apply_filters( 'wpac_commission_base', $calc['base_minor'], $item, $sale );
 					if ( $base !== $calc['base_minor'] && ! $calc['excluded'] ) {
 						$item['net_minor'] = max( 0, $base );
 						$calc              = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default );
@@ -240,6 +253,8 @@ final class Ledger {
 						'method'        => $attr['method'],
 						'contract'      => $sale['contract'],
 						'calculated_at' => Db::now(),
+						// Unfiltered line net: refunds arrive as line net and are scaled to the base.
+						'line_net'      => $line_net,
 					);
 					$key      = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item['item_id'];
 					$ok       = $wpdb->insert(
@@ -262,7 +277,7 @@ final class Ledger {
 							'rule_snapshot'   => wp_json_encode( $snapshot ),
 							'status'          => $status,
 							'hold_until'      => Db::now( $hold ),
-							'idempotency_key' => substr( $key, 0, 191 ),
+							'idempotency_key' => self::key( $key ),
 							'created_at'      => Db::now(),
 							'updated_at'      => Db::now(),
 						)
@@ -338,7 +353,8 @@ final class Ledger {
 		} else {
 			foreach ( $refund['items'] as $line ) {
 				if ( isset( $by_item[ $line['item_id'] ] ) ) {
-					$lines[ $line['item_id'] ] = (int) $line['net_minor'];
+					// Several refund lines for the same item add up.
+					$lines[ $line['item_id'] ] = ( isset( $lines[ $line['item_id'] ] ) ? $lines[ $line['item_id'] ] : 0 ) + (int) $line['net_minor'];
 				}
 			}
 		}
@@ -354,9 +370,14 @@ final class Ledger {
 					if ( ! $parent || 'rejected' === $parent->status ) {
 						continue;
 					}
-					$key = substr( 'refund:' . $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'] . ':' . $item_id, 0, 191 );
+					$key = self::key( 'refund:' . $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'] . ':' . $item_id );
 					if ( self::find_by_key( $key ) ) {
 						continue; // Idempotent.
+					}
+					// The base may differ from the line net (wpac_commission_base filter): scale the refund.
+					$snap = $parent->rule_snapshot ? json_decode( (string) $parent->rule_snapshot, true ) : null;
+					if ( ! $refund['full'] && is_array( $snap ) && ! empty( $snap['line_net'] ) && (int) $snap['line_net'] !== (int) $parent->base_minor ) {
+						$refunded_net = (int) round( $refunded_net * (int) $parent->base_minor / (int) $snap['line_net'] );
 					}
 					$adjusted = self::adjusted_sum( (int) $parent->id );
 					$refunded = self::refunded_base( (int) $parent->id );
@@ -413,6 +434,7 @@ final class Ledger {
 			}
 		);
 		if ( $result['adjustment_ids'] ) {
+			self::maybe_forget_links( $refund['source'], $refund['order_id'] );
 			do_action( 'wpac_commission_adjusted', $refund, $result['adjustment_ids'] ); // After COMMIT.
 		}
 		return $result;
@@ -439,7 +461,10 @@ final class Ledger {
 		global $wpdb;
 		$t     = Db::table( 'commissions' );
 		$count = 0;
-		for ( $batch = 0; $batch < 40; $batch++ ) {
+		// Time budget per run: the rest follows in the next (hourly) run, so one
+		// WP-Cron request never runs into max_execution_time.
+		$deadline = microtime( true ) + (float) apply_filters( 'wpac_approve_due_budget', 20 );
+		for ( $batch = 0; $batch < 40 && microtime( true ) < $deadline; $batch++ ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE status = 'pending' AND hold_until <= %s ORDER BY id ASC LIMIT 500", Db::now() ) );
 			if ( ! $ids ) {
@@ -472,6 +497,12 @@ final class Ledger {
 			return new \WP_Error( 'wpac_state', __( 'Only pending commissions or commissions under review can be approved.', 'wp-affiliate-captain' ) );
 		}
 		$to = 'review' === $c->status && strtotime( $c->hold_until . ' UTC' ) > time() ? 'pending' : 'approved';
+		if ( 'approved' === $to && (int) $c->parent_id ) {
+			$parent = self::find( (int) $c->parent_id );
+			if ( $parent && ! in_array( $parent->status, array( 'approved', 'paid' ), true ) ) {
+				return new \WP_Error( 'wpac_parent_open', __( 'This correction belongs to a commission that is not approved yet. Approve or reject the original commission first.', 'wp-affiliate-captain' ) );
+			}
+		}
 		if ( ! self::transition( (int) $id, $to, $reason, get_current_user_id(), 0, $c->status ) ) {
 			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime. Please reload and try again.', 'wp-affiliate-captain' ) );
 		}
@@ -510,7 +541,27 @@ final class Ledger {
 				self::transition( (int) $child->id, 'rejected', $reason, get_current_user_id() );
 			}
 		}
+		if ( 'sale' === $c->kind ) {
+			self::maybe_forget_links( $c->source, $c->source_order_id );
+		}
 		return true;
+	}
+
+	/**
+	 * Remove lifetime customer links of an order once nothing of its commission is left
+	 * (fully refunded, cancelled or rejected).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order.
+	 */
+	private static function maybe_forget_links( $source, $order_id ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE source = %s AND source_order_id = %s AND status <> 'rejected' AND kind <> 'bonus'", $source, $order_id ) );
+		if ( $left <= 0 ) {
+			CustomerLinks::forget_order( $source, $order_id );
+		}
 	}
 
 	/**
@@ -572,14 +623,20 @@ final class Ledger {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$sql = "UPDATE {$t} SET status = %s, updated_at = %s WHERE id = %d{$extra} AND status IN ({$in})";
 		$ok  = Db::transaction(
-			static function () use ( $wpdb, $sql, $args, $id, $to, $c, $reason, $actor ) {
+			static function () use ( $wpdb, $t, $sql, $args, $id, $to, $c, $reason, $actor, $from ) {
+				// Lock the row and read the status it really has now: the balance
+				// booking depends on it (e.g. approved -> rejected reverses the balance),
+				// and the row may have changed since the read outside the transaction.
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$from_status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$t} WHERE id = %d FOR UPDATE", $id ) );
+				if ( ! in_array( $from_status, $from, true ) ) {
+					return false;
+				}
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				$rows = (int) $wpdb->query( $wpdb->prepare( $sql, $args ) );
 				if ( 1 !== $rows ) {
 					return false;
 				}
-				// Re-read the previous status inside the transaction for the balance booking.
-				$from_status = $c->status;
 				self::event( (int) $id, $to, $from_status, $to, (int) $c->amount_minor, $reason, '', $actor );
 				if ( 'approved' === $to ) {
 					Balance::post( (int) $c->affiliate_id, $c->currency, 'approved', (int) $c->amount_minor, (int) $id );
@@ -666,6 +723,18 @@ final class Ledger {
 		$t = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d", $id ) );
+	}
+
+	/**
+	 * Idempotency key that fits the column: long keys are hashed instead of
+	 * truncated, so distinct keys never collide. Short keys stay unchanged.
+	 *
+	 * @param string $key Key.
+	 * @return string
+	 */
+	public static function key( $key ) {
+		$key = (string) $key;
+		return strlen( $key ) <= 191 ? $key : substr( $key, 0, 140 ) . ':h:' . sha1( $key );
 	}
 
 	/**

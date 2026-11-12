@@ -107,7 +107,17 @@ final class ContractApi {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
 		try {
-			return Ledger::record_refund( $refund );
+			$result = Ledger::record_refund( $refund );
+			if ( 'no_commission' === $result['status'] && Jobs::sale_pending( $refund['source'], $refund['order_id'] ) ) {
+				// The sale is still in the retry queue: keep the refund until it is booked,
+				// otherwise the full commission would be paid.
+				Jobs::enqueue( 'refund', $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'], $payload, 'sale_pending', 'Waiting for the queued sale of this order.' );
+				return array(
+					'status'         => 'queued',
+					'adjustment_ids' => array(),
+				);
+			}
+			return $result;
 		} catch ( \Throwable $e ) {
 			Jobs::enqueue( 'refund', $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'], $payload, $e instanceof IntegrationException ? $e->error_code : 'exception', $e->getMessage() );
 			return new \WP_Error( 'wpac_queued', __( 'The refund could not be processed and was queued for retry.', 'wp-affiliate-captain' ) );
@@ -129,7 +139,11 @@ final class ContractApi {
 			return true;
 		}
 		if ( 'refund' === $type ) {
-			Ledger::record_refund( self::normalize_refund( $payload ) );
+			$refund = self::normalize_refund( $payload );
+			$result = Ledger::record_refund( $refund );
+			if ( 'no_commission' === $result['status'] && Jobs::sale_pending( $refund['source'], $refund['order_id'] ) ) {
+				throw new IntegrationException( 'sale_pending', 'Waiting for the queued sale of this order.' );
+			}
 			return true;
 		}
 		return $handled;

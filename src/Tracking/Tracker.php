@@ -37,6 +37,14 @@ final class Tracker {
 		if ( is_admin() || empty( $_GET[ $param ] ) ) {
 			return;
 		}
+		// A page with a referral parameter must never come from (or go into) a full-page
+		// cache: otherwise later visitors get the cached page and no visit/touch is recorded.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$raw = sanitize_text_field( wp_unslash( $_GET[ $param ] ) );
 		// The limit only throttles visit statistics – the referral itself is always kept.
@@ -83,6 +91,8 @@ final class Tracker {
 		if ( Settings::get( 'use_wc_session' ) && function_exists( 'WC' ) && WC()->session && ( WC()->session->has_session() || Consent::cookie_allowed() ) ) {
 			if ( ! WC()->session->has_session() ) {
 				WC()->session->set_customer_session_cookie( true );
+				// The session exists only because of the consent: withdrawing it removes the touch.
+				$touch['via_consent'] = 1;
 			}
 			$existing = WC()->session->get( self::SESSION_KEY );
 			if ( ! $first || empty( $existing ) ) {
@@ -92,7 +102,7 @@ final class Tracker {
 
 		if ( Consent::cookie_allowed() && ! headers_sent() ) {
 			if ( ! $first || empty( $_COOKIE[ self::COOKIE ] ) ) {
-				$value = $touch['code'] . '|' . rawurlencode( $touch['campaign'] ) . '|' . (int) $touch['content_id'] . '|' . (int) $touch['ts'];
+				$value = self::sign( $touch['code'] . '|' . rawurlencode( $touch['campaign'] ) . '|' . (int) $touch['content_id'] . '|' . (int) $touch['ts'] );
 				setcookie(
 					self::COOKIE,
 					$value,
@@ -155,10 +165,62 @@ final class Tracker {
 	 * Remove the affiliate cookie when consent is missing or was withdrawn.
 	 */
 	public static function drop_cookie_without_consent() {
-		if ( ! empty( $_COOKIE[ self::COOKIE ] ) && ! Consent::cookie_allowed() && ! headers_sent() ) {
+		if ( Consent::cookie_allowed() ) {
+			return;
+		}
+		if ( ! empty( $_COOKIE[ self::COOKIE ] ) && ! headers_sent() ) {
 			setcookie( self::COOKIE, '', time() - YEAR_IN_SECONDS, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
 			unset( $_COOKIE[ self::COOKIE ] );
 		}
+	}
+
+	/**
+	 * Sign a cookie value (HMAC), so code, campaign, content and the click time
+	 * cannot be forged (fraud checks and the attribution window rely on them).
+	 *
+	 * @param string $value Value.
+	 * @return string
+	 */
+	public static function sign( $value ) {
+		return $value . '|' . substr( hash_hmac( 'sha256', $value, wp_salt( 'auth' ) . 'wpac_ref' ), 0, 16 );
+	}
+
+	/**
+	 * Parse and verify the referral cookie. Unsigned cookies from before signing
+	 * are accepted for one attribution window after the update.
+	 *
+	 * @param string $raw Raw value.
+	 * @return array|null
+	 */
+	public static function parse_cookie( $raw ) {
+		$parts = explode( '|', (string) $raw );
+		if ( 5 === count( $parts ) ) {
+			$sig = array_pop( $parts );
+			if ( ! hash_equals( substr( hash_hmac( 'sha256', implode( '|', $parts ), wp_salt( 'auth' ) . 'wpac_ref' ), 0, 16 ), (string) $sig ) ) {
+				return null;
+			}
+		} else {
+			$since = (int) get_option( 'wpac_cookie_signed_since' );
+			if ( ! $since ) {
+				$since = time();
+				update_option( 'wpac_cookie_signed_since', $since, false );
+			}
+			if ( time() > $since + DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) ) ) {
+				return null;
+			}
+		}
+		$touch = array(
+			'code'       => $parts[0],
+			'campaign'   => isset( $parts[1] ) ? substr( rawurldecode( $parts[1] ), 0, 100 ) : '',
+			'content_id' => isset( $parts[2] ) ? (int) $parts[2] : 0,
+			'ts'         => isset( $parts[3] ) ? (int) $parts[3] : 0,
+			'method'     => 'cookie',
+		);
+		// Server-side attribution window (the cookie lifetime alone is client-controlled).
+		if ( $touch['ts'] && $touch['ts'] < time() - DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) ) ) {
+			return null;
+		}
+		return '' !== $touch['code'] ? $touch : null;
 	}
 
 	/**
@@ -167,24 +229,24 @@ final class Tracker {
 	 * @return array|null code, campaign, content_id, method
 	 */
 	public static function current_touch() {
+		$session = null;
 		if ( function_exists( 'WC' ) && WC()->session ) {
 			$touch = WC()->session->get( self::SESSION_KEY );
-			if ( is_array( $touch ) && ! empty( $touch['code'] ) ) {
+			if ( is_array( $touch ) && ! empty( $touch['code'] ) && ( empty( $touch['via_consent'] ) || Consent::cookie_allowed() ) ) {
 				$touch['method'] = 'link';
-				return $touch;
+				$session         = $touch;
 			}
 		}
+		$cookie = null;
 		if ( Consent::cookie_allowed() && ! empty( $_COOKIE[ self::COOKIE ] ) ) {
-			$parts = explode( '|', sanitize_text_field( wp_unslash( $_COOKIE[ self::COOKIE ] ) ) );
-			return array(
-				'code'       => $parts[0],
-				'campaign'   => isset( $parts[1] ) ? substr( rawurldecode( $parts[1] ), 0, 100 ) : '',
-				'content_id' => isset( $parts[2] ) ? (int) $parts[2] : 0,
-				'ts'         => isset( $parts[3] ) ? (int) $parts[3] : 0,
-				'method'     => 'cookie',
-			);
+			$cookie = self::parse_cookie( sanitize_text_field( wp_unslash( $_COOKIE[ self::COOKIE ] ) ) );
 		}
-		return null;
+		if ( $session && $cookie && 'first' === Settings::get( 'touch_model' ) ) {
+			// First touch: the older referral wins (a new shop session must not override it).
+			$s_ts = isset( $session['ts'] ) ? (int) $session['ts'] : 0;
+			return $cookie['ts'] && ( ! $s_ts || $cookie['ts'] < $s_ts ) ? $cookie : $session;
+		}
+		return $session ? $session : $cookie;
 	}
 
 	/**
