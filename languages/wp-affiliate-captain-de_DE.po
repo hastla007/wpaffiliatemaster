@@ -1972,6 +1972,72 @@ msgstr "Bestellung erstattet"
 msgid "Order cancelled"
 msgstr "Bestellung storniert"
 
+msgid "License"
+msgstr "Lizenz"
+
+msgid "Current license status"
+msgstr "Aktueller Lizenzstatus"
+
+msgid "Paid through"
+msgstr "Bezahlt bis"
+
+msgid "Sites"
+msgstr "Websites"
+
+msgid "Feature rights"
+msgstr "Funktionsrechte"
+
+msgid "Deactivate this site"
+msgstr "Diese Website deaktivieren"
+
+msgid "License server URL"
+msgstr "URL des Lizenzservers"
+
+msgid "License key"
+msgstr "Lizenzschlüssel"
+
+msgid "The license key is used once for activation and is not stored by this plugin. Activation credentials are stored locally without autoloading."
+msgstr "Der Lizenzschlüssel wird nur zur Aktivierung verwendet und von diesem Plugin nicht gespeichert. Die Aktivierungsdaten werden lokal ohne automatisches Laden gespeichert."
+
+msgid "Activate license"
+msgstr "Lizenz aktivieren"
+
+msgid "Enter a valid HTTPS license server URL and license key."
+msgstr "Geben Sie eine gültige HTTPS-URL des Lizenzservers und einen Lizenzschlüssel ein."
+
+msgid "License activated for this site."
+msgstr "Die Lizenz wurde für diese Website aktiviert."
+
+msgid "This site was deactivated."
+msgstr "Diese Website wurde deaktiviert."
+
+msgid "You are not allowed to manage this license."
+msgstr "Sie dürfen diese Lizenz nicht verwalten."
+
+msgid "License server settings or license key are missing."
+msgstr "Die Lizenzserver-Einstellungen oder der Lizenzschlüssel fehlen."
+
+msgid "Could not encode the license request."
+msgstr "Die Lizenzanfrage konnte nicht kodiert werden."
+
+msgid "The license server returned an error."
+msgstr "Der Lizenzserver hat einen Fehler zurückgegeben."
+
+msgid "The license server returned an invalid response."
+msgstr "Der Lizenzserver hat eine ungültige Antwort zurückgegeben."
+
+msgid "The license server returned invalid JSON."
+msgstr "Der Lizenzserver hat ungültiges JSON zurückgegeben."
+
+msgid "The license server response is missing its signature envelope."
+msgstr "In der Antwort des Lizenzservers fehlt die Signaturhülle."
+
+msgid "The license server response signature could not be verified."
+msgstr "Die Signatur der Lizenzserver-Antwort konnte nicht verifiziert werden."
+
+msgid "This product installation has not been activated."
+msgstr "Diese Plugin-Installation wurde nicht aktiviert."
+
 msgid "Payout requests are not enabled."
 msgstr "Auszahlungsanträge sind nicht aktiviert."
 
