@@ -301,6 +301,7 @@ check( 'vat domestic business', array( 'mode' => 'standard', 'rate' => '19' ), V
 check( 'vat business without country = domestic', 'standard', Vat::treatment( 'business', '', 'DE', '19' )['mode'] );
 check( 'vat foreign business', array( 'mode' => 'reverse_charge', 'rate' => '0' ), Vat::treatment( 'business', 'AT', 'DE', '19' ) );
 check( 'vat small business', array( 'mode' => 'small_business', 'rate' => '0' ), Vat::treatment( 'small_business', 'DE', 'DE', '19' ) );
+check( 'vat foreign small business = reverse charge', 'reverse_charge', Vat::treatment( 'small_business', 'AT', 'DE', '19' )['mode'] );
 check( 'vat private', 'private', Vat::treatment( 'private', 'DE', 'DE', '19' )['mode'] );
 check( 'vat amount 19 % of 100,00', 1900, Vat::amount( 10000, '19' ) );
 check( 'vat amount rounding', 2, Vat::amount( 13, '19' ) );

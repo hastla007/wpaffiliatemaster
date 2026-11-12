@@ -357,7 +357,11 @@ final class Privacy {
 		$c = Db::table( 'commissions' );
 		$p = Db::table( 'payouts' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d AND amount_minor <> 0 AND ( status IN ('pending','review') OR ( status = 'approved' AND payout_id = 0 ) )", $affiliate_id ) );
+		$rows = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d AND amount_minor <> 0 AND status IN ('pending','review')", $affiliate_id ) );
+		// Approved, unassigned rows count by their net sum per currency: a write-off offsets the
+		// negative balance it closes (both rows stay unassigned), so nothing is open afterwards.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM ( SELECT currency FROM {$c} WHERE affiliate_id = %d AND status = 'approved' AND payout_id = 0 GROUP BY currency HAVING SUM(amount_minor) <> 0 ) t", $affiliate_id ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$payouts = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE affiliate_id = %d AND status IN ('pending','exported')", $affiliate_id ) );
 		return $rows > 0 || $payouts > 0;

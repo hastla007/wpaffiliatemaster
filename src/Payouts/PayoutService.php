@@ -100,11 +100,8 @@ final class PayoutService {
 				$reason = __( 'Negative balance – carried forward', 'wp-affiliate-captain' );
 			} elseif ( $total < $min ) {
 				$reason = __( 'Below minimum – carried forward', 'wp-affiliate-captain' );
-			} elseif ( ! ProfileRepository::is_complete( $profile ) ) {
-				$reason = __( 'Payout profile incomplete', 'wp-affiliate-captain' );
-			} elseif ( Settings::get( 'self_billing' ) && Settings::get( 'terms_page_id' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::latest( (int) $r->affiliate_id ) ) {
-				// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the accepted terms.
-				$reason = __( 'No accepted partner terms (self-billing agreement)', 'wp-affiliate-captain' );
+			} else {
+				$reason = self::blocked_reason( (int) $r->affiliate_id, $profile );
 			}
 			$out[] = array(
 				'affiliate'   => $aff,
@@ -115,6 +112,26 @@ final class PayoutService {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Why a partner cannot be paid out right now ('' = can be paid). Checked for every
+	 * payout, also single payouts from requests.
+	 *
+	 * @param int        $affiliate_id Partner.
+	 * @param array|null $profile      Payout profile (loaded when null).
+	 * @return string
+	 */
+	public static function blocked_reason( $affiliate_id, $profile = null ) {
+		$profile = null === $profile ? ProfileRepository::get( (int) $affiliate_id ) : $profile;
+		if ( ! ProfileRepository::is_complete( $profile ) ) {
+			return __( 'Payout profile incomplete', 'wp-affiliate-captain' );
+		}
+		if ( Settings::get( 'self_billing' ) && Settings::get( 'terms_page_id' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::latest( (int) $affiliate_id ) ) {
+			// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the accepted terms.
+			return __( 'No accepted partner terms (self-billing agreement)', 'wp-affiliate-captain' );
+		}
+		return '';
 	}
 
 	/**
@@ -187,6 +204,10 @@ final class PayoutService {
 		$operator = self::operator_missing();
 		if ( $operator ) {
 			throw new IntegrationException( 'operator_data', $operator ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+		}
+		$blocked = self::blocked_reason( (int) $affiliate_id );
+		if ( '' !== $blocked ) {
+			throw new IntegrationException( 'not_eligible', $blocked ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		}
 		$payout_id = Db::transaction(
 			static function () use ( $wpdb, $affiliate_id, $period_end, $currency ) {
@@ -283,7 +304,7 @@ final class PayoutService {
 		if ( $payout_id ) {
 			Statement::generate( $payout_id );
 			// A regular run also settles an open payout request of the partner.
-			PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id );
+			PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id, $currency );
 		}
 		return $payout_id;
 	}
@@ -317,7 +338,7 @@ final class PayoutService {
 	public static function generate_missing_statements() {
 		global $wpdb;
 		$t   = Db::table( 'payouts' );
-		$ids = $wpdb->get_col( "SELECT id FROM {$t} WHERE statement_file = '' AND statement_deleted_at IS NULL ORDER BY id ASC LIMIT 20" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ids = $wpdb->get_col( "SELECT id FROM {$t} WHERE statement_file = '' AND statement_deleted_at IS NULL AND status <> 'cancelled' ORDER BY id ASC LIMIT 20" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$n   = 0;
 		foreach ( $ids as $id ) {
 			$n += Statement::generate( (int) $id ) ? 1 : 0;

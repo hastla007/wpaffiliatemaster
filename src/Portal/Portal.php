@@ -11,6 +11,7 @@
 namespace WPAffiliateCaptain\Portal;
 
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
+use WPAffiliateCaptain\Tracking\RateLimiter;
 use WPAffiliateCaptain\Affiliates\Agreements;
 use WPAffiliateCaptain\Codes\CodeRepository;
 use WPAffiliateCaptain\Commissions\Ledger;
@@ -38,6 +39,20 @@ final class Portal {
 		add_action( 'init', array( __CLASS__, 'handle_post' ) );
 		add_action( 'init', array( __CLASS__, 'statement_download' ) );
 		add_action( 'init', array( __CLASS__, 'confirm_email' ) );
+		add_action( 'init', array( __CLASS__, 'confirm_account_link' ) );
+	}
+
+	/**
+	 * Connect the partner to the existing WordPress account (link from the mail; must be logged in to that account).
+	 */
+	public static function confirm_account_link() {
+		if ( empty( $_GET['wpac_link_account'] ) || empty( $_GET['wpac_aff'] ) || ! is_user_logged_in() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return; // Logged out: the page shows the login form, the link works after logging in.
+		}
+		$ok   = AffiliateRepository::confirm_user_link( absint( $_GET['wpac_aff'] ), sanitize_key( wp_unslash( $_GET['wpac_link_account'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$back = remove_query_arg( array( 'wpac_link_account', 'wpac_aff' ) );
+		wp_safe_redirect( add_query_arg( 'wpac_msg', $ok ? 'account_linked' : 'email_link_invalid', $back ) );
+		exit;
 	}
 
 	/**
@@ -127,6 +142,8 @@ final class Portal {
 					$msg = 'wpac_email';
 				} elseif ( $other && (int) $other->id !== (int) $aff->id ) {
 					$msg = 'wpac_email_taken';
+				} elseif ( ! RateLimiter::allow( 'email_change_' . (int) $aff->id, 3, DAY_IN_SECONDS ) ) {
+					$msg = 'email_change_limit';
 				} else {
 					$token = wp_generate_password( 32, false );
 					set_transient( 'wpac_email_change_' . (int) $aff->id, array( 'email' => $email, 'token' => strtolower( $token ) ), DAY_IN_SECONDS );
@@ -135,8 +152,8 @@ final class Portal {
 						$email,
 						/* translators: %s: site name */
 						sprintf( __( '[%s] Please confirm your new e-mail address', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-						/* translators: 1: name, 2: link */
-						sprintf( __( "Hello %1\$s,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%2\$s\n\nIf you did not request this, ignore this e-mail.", 'wp-affiliate-captain' ), $aff->name, $link )
+						/* translators: %s: link */
+						sprintf( __( "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.", 'wp-affiliate-captain' ), $link )
 					);
 					$msg = 'email_confirm_sent';
 				}
@@ -353,6 +370,8 @@ final class Portal {
 			'email_confirm_sent' => array( 'success', __( 'Saved. We have sent a confirmation link to your new e-mail address; it is used once you confirm it.', 'wp-affiliate-captain' ) ),
 			'email_changed'      => array( 'success', __( 'Your new e-mail address is confirmed.', 'wp-affiliate-captain' ) ),
 			'email_link_invalid' => array( 'error', __( 'The confirmation link is invalid or has expired.', 'wp-affiliate-captain' ) ),
+			'email_change_limit' => array( 'error', __( 'Too many e-mail changes today. Please try again tomorrow.', 'wp-affiliate-captain' ) ),
+			'account_linked'     => array( 'success', __( 'Your customer account is now connected to the partner program.', 'wp-affiliate-captain' ) ),
 		);
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$key = isset( $_GET['wpac_msg'] ) ? sanitize_key( wp_unslash( $_GET['wpac_msg'] ) ) : '';
@@ -642,6 +661,7 @@ final class Portal {
 			'refund'       => __( 'refund', 'wp-affiliate-captain' ),
 			'cancellation' => __( 'cancellation', 'wp-affiliate-captain' ),
 			'chargeback'   => __( 'chargeback', 'wp-affiliate-captain' ),
+			'writeoff'     => __( 'write-off', 'wp-affiliate-captain' ),
 		);
 		return isset( $map[ $kind ] ) ? $map[ $kind ] : $kind;
 	}

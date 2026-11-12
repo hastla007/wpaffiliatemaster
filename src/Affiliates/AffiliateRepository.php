@@ -284,6 +284,7 @@ final class AffiliateRepository {
 		if ( $other && (int) $other->id !== (int) $id ) {
 			return new \WP_Error( 'wpac_email_taken', __( 'This e-mail address is already used by another partner account.', 'wp-affiliate-captain' ) );
 		}
+		$before = self::find( (int) $id );
 		$wpdb->update(
 			Db::table( 'affiliates' ),
 			array(
@@ -294,7 +295,49 @@ final class AffiliateRepository {
 		);
 		self::clear_cache( $id );
 		Audit::log( 'affiliate.email_changed', 'affiliate', (int) $id );
+		if ( $before && is_email( $before->email ) && strtolower( (string) $before->email ) !== strtolower( $email ) ) {
+			// Tell the previous address (a hijacked session must not silently take over the account)
+			// and keep sending security alerts there for 30 days.
+			update_option( 'wpac_prev_email_' . (int) $id, array( 'email' => $before->email, 'until' => time() + 30 * DAY_IN_SECONDS ), false );
+			$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+			wp_mail(
+				$before->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] The e-mail address of your partner account was changed', 'wp-affiliate-captain' ), $site ),
+				/* translators: %s: new address, partly hidden */
+				sprintf( __( "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.", 'wp-affiliate-captain' ), self::mask_email( $email ) )
+			);
+		}
 		return true;
+	}
+
+	/**
+	 * Previous e-mail address that still receives security alerts (30 days after a change), or ''.
+	 *
+	 * @param int $id Affiliate ID.
+	 * @return string
+	 */
+	public static function previous_email( $id ) {
+		$prev = get_option( 'wpac_prev_email_' . (int) $id );
+		if ( ! is_array( $prev ) ) {
+			return '';
+		}
+		if ( (int) $prev['until'] < time() ) {
+			delete_option( 'wpac_prev_email_' . (int) $id );
+			return '';
+		}
+		return (string) $prev['email'];
+	}
+
+	/**
+	 * a***@example.com
+	 *
+	 * @param string $email E-mail.
+	 * @return string
+	 */
+	public static function mask_email( $email ) {
+		$at = strpos( $email, '@' );
+		return false === $at ? '***' : substr( $email, 0, 1 ) . '***' . substr( $email, $at );
 	}
 
 	/**
@@ -380,7 +423,11 @@ final class AffiliateRepository {
 				Audit::log( 'affiliate.user_link_skipped', 'affiliate', $id, array( 'reason' => 'privileged_account' ) );
 				$user_id = 0;
 			} elseif ( $user ) {
-				$user_id = (int) $user->ID;
+				// WordPress/WooCommerce never verify an account e-mail, so someone could have put the
+				// partner's address on their own account. Link only after the partner confirms with
+				// a one-time link sent to the partner e-mail while logged in to that account.
+				self::request_user_link( (int) $id, $aff );
+				$user_id = 0;
 			} else {
 				$login   = sanitize_user( strstr( $aff->email, '@', true ), true );
 				$login   = username_exists( $login ) ? $login . '-' . wp_rand( 100, 999 ) : $login;
@@ -409,6 +456,55 @@ final class AffiliateRepository {
 			// Random by default: name-based codes are easy to guess (commission fraud).
 			CodeRepository::create( $id, CodeRepository::random_code() );
 		}
+	}
+
+	/**
+	 * Send a one-time link that connects the partner to the existing WordPress account with the same e-mail.
+	 *
+	 * @param int    $id  Affiliate ID.
+	 * @param object $aff Affiliate row.
+	 */
+	private static function request_user_link( $id, $aff ) {
+		$token = strtolower( wp_generate_password( 32, false ) );
+		update_option( 'wpac_user_link_' . $id, array( 'hash' => wp_hash( $token ), 'expires' => time() + 7 * DAY_IN_SECONDS ), false );
+		$portal = (int) Settings::get( 'portal_page_id' );
+		$base   = $portal ? get_permalink( $portal ) : home_url( '/' );
+		$link   = add_query_arg( array( 'wpac_link_account' => $token, 'wpac_aff' => $id ), $base );
+		wp_mail(
+			$aff->email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Connect your partner account', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			/* translators: %s: link */
+			sprintf( __( "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.", 'wp-affiliate-captain' ), $link )
+		);
+		Audit::log( 'affiliate.user_link_requested', 'affiliate', $id );
+	}
+
+	/**
+	 * Confirm the account link (logged in to the account with the partner e-mail, token from the mail).
+	 *
+	 * @param int    $id    Affiliate ID.
+	 * @param string $token Token from the mail.
+	 * @return bool
+	 */
+	public static function confirm_user_link( $id, $token ) {
+		global $wpdb;
+		$pending = get_option( 'wpac_user_link_' . (int) $id );
+		$aff     = self::find( (int) $id );
+		$user    = wp_get_current_user();
+		if ( ! is_array( $pending ) || ! $aff || $aff->user_id || ! $user || ! $user->exists()
+			|| (int) $pending['expires'] < time() || ! hash_equals( (string) $pending['hash'], wp_hash( (string) $token ) )
+			|| strtolower( (string) $user->user_email ) !== strtolower( (string) $aff->email )
+			|| user_can( $user, 'edit_posts' ) || self::find_by_user( $user->ID ) ) {
+			return false;
+		}
+		delete_option( 'wpac_user_link_' . (int) $id );
+		$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'affiliates' ) . ' SET user_id = %d WHERE id = %d AND user_id = 0', $user->ID, (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		self::clear_cache( (int) $id );
+		if ( $done ) {
+			Audit::log( 'affiliate.user_linked', 'affiliate', (int) $id, array( 'user' => (int) $user->ID ) );
+		}
+		return (bool) $done;
 	}
 
 	/**

@@ -49,6 +49,7 @@ final class Settings {
 			'lifetime_days'           => 365,
 			'lifetime_rate'           => '',
 			'tier_month_closed'       => '',
+			'tier_month_first'        => '', // First month that was ever closed (earlier months never get bonuses).
 			// Program.
 			'auto_approve'            => 0,
 			'terms_page_id'           => 0,

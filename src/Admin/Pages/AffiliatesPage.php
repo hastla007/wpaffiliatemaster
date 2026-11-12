@@ -150,6 +150,9 @@ final class AffiliatesPage {
 				break;
 
 			case 'profile_update':
+				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+					Admin::back( __( 'You are not allowed to view tax and bank details.', 'wp-affiliate-captain' ), 'error' );
+				}
 				$in = array();
 				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic' ) as $f ) {
 					$in[ $f ] = (string) Admin::post( $f );
@@ -444,7 +447,11 @@ final class AffiliatesPage {
 			self::row_input( 'iban', __( 'IBAN', 'wp-affiliate-captain' ), '', 'autocomplete="off" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'wp-affiliate-captain' ) : '' ) . '"' );
 			self::row_input( 'bic', __( 'BIC', 'wp-affiliate-captain' ), $v( 'bic' ) );
 			echo '</table>';
-			submit_button( __( 'Save payout details', 'wp-affiliate-captain' ), 'secondary' );
+			if ( current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+				submit_button( __( 'Save payout details', 'wp-affiliate-captain' ), 'secondary' );
+			} else {
+				echo '<p class="description">' . esc_html__( 'Only users who manage payouts can change payout details.', 'wp-affiliate-captain' ) . '</p>';
+			}
 			echo '</form>';
 		}
 		echo '</div></div>';

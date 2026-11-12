@@ -131,10 +131,21 @@ final class Jobs {
 				),
 				array( 'id' => (int) $job->id )
 			);
+			if ( in_array( $job->type, array( 'sale', 'woo_order' ), true ) ) {
+				// The sale is booked: refunds that waited for it run now (also those that failed meanwhile).
+				$parts = explode( ':', (string) $job->idempotency_key, 2 );
+				self::wake_refunds( isset( $parts[1] ) ? $parts[1] : '' );
+			}
 			return true;
 		} catch ( \Throwable $e ) {
 			$attempts = (int) $job->attempts;
 			$delay    = min( DAY_IN_SECONDS, 300 * ( 2 ** min( $attempts, 10 ) ) );
+			if ( $e instanceof IntegrationException && 'sale_pending' === $e->error_code ) {
+				// Waiting for the sale is not a failure: it must not use up the attempts
+				// (the sale job wakes this job when it is booked, see wake_refunds()).
+				$attempts = max( 0, $attempts - 1 );
+				$delay    = HOUR_IN_SECONDS;
+			}
 			$wpdb->update(
 				$table,
 				array(
@@ -173,6 +184,38 @@ final class Jobs {
 		$keys  = array( substr( 'sale:' . $source . ':' . $order_id, 0, 191 ), substr( 'woo_order:' . $source . ':' . $order_id, 0, 191 ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key IN (%s, %s) AND status IN ('queued','running','failed') LIMIT 1", $keys[0], $keys[1] ) );
+	}
+
+	/**
+	 * Run the refund jobs of an order at the next opportunity (after its sale was booked).
+	 *
+	 * @param string $order_key "source:order_id".
+	 */
+	public static function wake_refunds( $order_key ) {
+		global $wpdb;
+		if ( '' === $order_key ) {
+			return;
+		}
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE type = 'refund' AND idempotency_key LIKE %s AND status IN ('queued','failed')", Db::now(), Db::now(), $wpdb->esc_like( 'refund:' . $order_key . ':' ) . '%' ) );
+	}
+
+	/**
+	 * Close queued refund jobs whose refunds are already part of a (rebuilt) sale.
+	 *
+	 * @param string   $source     Source.
+	 * @param string   $order_id   Order ID.
+	 * @param string[] $refund_ids Refund IDs already deducted.
+	 */
+	public static function supersede_refunds( $source, $order_id, array $refund_ids ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		foreach ( $refund_ids as $rid ) {
+			$key = substr( 'refund:' . $source . ':' . $order_id . ':' . $rid, 0, 191 );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the retried sale.', updated_at = %s WHERE idempotency_key = %s AND status IN ('queued','failed')", Db::now(), $key ) );
+		}
 	}
 
 	/**

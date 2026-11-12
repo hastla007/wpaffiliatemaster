@@ -139,8 +139,9 @@ final class PayoutRequests {
 		if ( ! $r || 'requested' !== $r->status ) {
 			return new \WP_Error( 'wpac_state', __( 'This request was already handled.', 'wp-affiliate-captain' ) );
 		}
-		if ( ! ProfileRepository::is_complete( ProfileRepository::get( (int) $r->affiliate_id ) ) ) {
-			return new \WP_Error( 'wpac_profile', __( 'Payout profile incomplete.', 'wp-affiliate-captain' ) );
+		$blocked = PayoutService::blocked_reason( (int) $r->affiliate_id );
+		if ( '' !== $blocked ) {
+			return new \WP_Error( 'wpac_profile', $blocked );
 		}
 		try {
 			$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, gmdate( 'Y-m-d' ), $r->currency );
@@ -172,13 +173,17 @@ final class PayoutRequests {
 	 * Mark the open request of a partner as processed by a payout (also from regular runs).
 	 *
 	 * @param int $affiliate_id Partner.
-	 * @param int $payout_id    Payout.
+	 * @param int    $payout_id    Payout.
+	 * @param string $currency     Payout currency (a request is only settled in its own currency).
 	 */
-	public static function fulfil( $affiliate_id, $payout_id ) {
+	public static function fulfil( $affiliate_id, $payout_id, $currency = '' ) {
 		global $wpdb;
 		$open = self::open_for( (int) $affiliate_id );
 		if ( ! $open ) {
 			return;
+		}
+		if ( '' !== $currency && isset( $open->currency ) && strtoupper( (string) $open->currency ) !== strtoupper( (string) $currency ) ) {
+			return; // A payout in another currency does not pay this request.
 		}
 		$wpdb->update(
 			Db::table( 'payout_requests' ),

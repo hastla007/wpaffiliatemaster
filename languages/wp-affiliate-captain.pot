@@ -122,6 +122,10 @@ msgid "The negative balance was written off."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "You are not allowed to view tax and bank details."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Payout details saved."
 msgstr ""
 
@@ -405,10 +409,6 @@ msgstr ""
 msgid "Incomplete."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "You are not allowed to view tax and bank details."
-msgstr ""
-
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
 msgid "Tax status"
 msgstr ""
@@ -451,6 +451,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Save payout details"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Only users who manage payouts can change payout details."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -2192,6 +2196,14 @@ msgid "This e-mail address is already used by another partner account."
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
+msgid "[%s] The e-mail address of your partner account was changed"
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
 msgid "Affiliate not found."
 msgstr ""
 
@@ -2201,6 +2213,14 @@ msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
 msgid "Partnership terminated"
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "[%s] Connect your partner account"
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us."
 msgstr ""
 
 #: src/Affiliates/Groups.php
@@ -2488,6 +2508,10 @@ msgid "This commission is part of a payout. Cancel the payout first."
 msgstr ""
 
 #: src/Commissions/Ledger.php
+msgid "A correction of this commission is part of a payout. Cancel that payout first."
+msgstr ""
+
+#: src/Commissions/Ledger.php
 msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
 msgstr ""
 
@@ -2576,6 +2600,10 @@ msgid "e.g. from your sailing school"
 msgstr ""
 
 #: src/Integrations/WooCommerce/CheckoutField.php
+msgid "Too many attempts. Please wait a minute and try again."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CheckoutField.php
 msgid "The partner code is not valid."
 msgstr ""
 
@@ -2661,10 +2689,6 @@ msgstr ""
 
 #: src/Payouts/PayoutRequests.php
 msgid "This request was already handled."
-msgstr ""
-
-#: src/Payouts/PayoutRequests.php
-msgid "Payout profile incomplete."
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
@@ -2904,7 +2928,7 @@ msgid "[%s] Please confirm your new e-mail address"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Hello %1$s,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%2$s\n\nIf you did not request this, ignore this e-mail."
+msgid "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -2997,6 +3021,14 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "The confirmation link is invalid or has expired."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Too many e-mail changes today. Please try again tomorrow."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your customer account is now connected to the partner program."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -3177,6 +3209,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "chargeback"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "write-off"
 msgstr ""
 
 #: src/Portal/Portal.php

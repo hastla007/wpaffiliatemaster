@@ -141,6 +141,10 @@ final class ContractApi {
 		}
 		try {
 			$result = Ledger::record_refund( $refund );
+			if ( 'no_commission' === $result['status'] && ! Jobs::sale_pending( $refund['source'], $refund['order_id'] ) && Ledger::attribution_for( $refund['source'], $refund['order_id'] ) ) {
+				// The sale was booked between our read and the pending check: apply the refund now.
+				$result = Ledger::record_refund( $refund );
+			}
 			if ( 'no_commission' === $result['status'] && Jobs::sale_pending( $refund['source'], $refund['order_id'] ) ) {
 				// The sale is still in the retry queue: keep the refund until it is booked,
 				// otherwise the full commission would be paid.

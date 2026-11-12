@@ -7,6 +7,7 @@
 
 namespace WPAffiliateCaptain\Affiliates;
 
+use WPAffiliateCaptain\Core\Capabilities;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Tracking\RateLimiter;
@@ -259,8 +260,8 @@ final class Registration {
 	}
 
 	/**
-	 * A non-public group is only accepted from the published page that embeds it
-	 * (a preview of a draft by a contributor cannot be used to join a private group).
+	 * A non-public group is only accepted from a published page of a partner manager
+	 * (a preview of a draft or a post by an author cannot be used to join a private group).
 	 *
 	 * @param int    $group_id Group.
 	 * @param int    $post_id  Page that showed the form.
@@ -275,8 +276,10 @@ final class Registration {
 		if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) {
 			return false;
 		}
-		// Shortcode group="7" / group='7' or block attribute "group":7.
-		return (bool) preg_match( '/group\s*=\s*["\']?' . (int) $group_id . '\b|"group"\s*:\s*' . (int) $group_id . '\b/', (string) $post->post_content );
+		// Only pages whose author manages partners (or the configured application page) may open a
+		// private group: an author could otherwise publish the shortcode with any group. No content
+		// check, so the form also works from widgets, patterns and templates on such pages.
+		return (int) $post->ID === (int) Settings::get( 'registration_page_id' ) || user_can( (int) $post->post_author, Capabilities::MANAGE_AFFILIATES );
 	}
 
 	/**

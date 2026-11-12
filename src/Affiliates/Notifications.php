@@ -123,8 +123,9 @@ final class Notifications {
 			return;
 		}
 		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$to   = array_filter( array_unique( array( $aff->email, AffiliateRepository::previous_email( (int) $id ) ) ) );
 		wp_mail(
-			$aff->email,
+			$to,
 			/* translators: %s: site name */
 			sprintf( __( '[%s] Your bank details were changed', 'wp-affiliate-captain' ), $site ),
 			/* translators: %s: name */

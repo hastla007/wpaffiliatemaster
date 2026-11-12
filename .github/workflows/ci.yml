@@ -75,9 +75,11 @@ jobs:
     needs: [test, integration, qr-decode]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
@@ -101,6 +103,23 @@ jobs:
         with:
           name: wp-affiliate-captain
           path: dist/*.zip
+
+  # Only this job gets write access, and only for tags and main (never for branches or PRs).
+  publish:
+    name: GitHub release
+    needs: [release]
+    if: github.event_name == 'push' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
       # Release on a pushed tag v*, or on a push to main for v<plugin version>
       # when that release does not exist yet (the tag is then created on this commit).
       - name: Determine release tag

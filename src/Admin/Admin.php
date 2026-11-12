@@ -216,7 +216,7 @@ final class Admin {
 			'code_status'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_coupon'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'profile_update'    => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'commission_status' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'commission_export' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),

@@ -23,6 +23,13 @@ defined( 'ABSPATH' ) || exit;
 
 final class OrderSync {
 	/**
+	 * Refund IDs deducted by the last payload() call.
+	 *
+	 * @var string[]
+	 */
+	private static $netted_refunds = array();
+
+	/**
 	 * Build the contract payload for an order.
 	 *
 	 * @param \WC_Order $order Order.
@@ -33,8 +40,10 @@ final class OrderSync {
 		$items    = array();
 		// Refunds that happened before the sale was booked (retries, late manual assignment),
 		// including amount-only refunds, per line.
-		$refunded = array();
+		$refunded             = array();
+		self::$netted_refunds = array();
 		foreach ( $order->get_refunds() as $refund ) {
+			self::$netted_refunds[] = (string) $refund->get_id();
 			foreach ( self::refund_lines( $order, $refund ) as $line ) {
 				$refunded[ $line['item_id'] ] = ( isset( $refunded[ $line['item_id'] ] ) ? $refunded[ $line['item_id'] ] : 0 ) + $line['net_minor'];
 			}
@@ -313,7 +322,12 @@ final class OrderSync {
 				return true; // Nothing (left) to do.
 			}
 			// Rebuilt from the current order (incl. refunds so far); exceptions propagate to the job runner.
-			Ledger::record_sale( ContractApi::normalize_sale( apply_filters( 'wpac_wc_sale_payload', self::payload( $order ), $order ) ) );
+			$payload = self::payload( $order );
+			$netted  = self::$netted_refunds;
+			Ledger::record_sale( ContractApi::normalize_sale( apply_filters( 'wpac_wc_sale_payload', $payload, $order ) ) );
+			// These refunds are already deducted from the rebuilt sale: their queued refund jobs
+			// must not deduct them a second time.
+			Jobs::supersede_refunds( WooCommerce::SOURCE, (string) $order->get_id(), $netted );
 			return true;
 		}
 		return $handled;

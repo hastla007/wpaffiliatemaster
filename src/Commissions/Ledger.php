@@ -151,8 +151,10 @@ final class Ledger {
 				if ( 'fixed' === $r['rate_type'] ) {
 					$converted = Fx::from_program( (int) $r['rate'], $sale['currency'], $program, $rates );
 					if ( null === $converted ) {
-						$rules[ $i ]['rate_type'] = 'exclude';
-						$rules[ $i ]['rate']      = '0';
+						// Stays a (zero) fixed rule: it competes by specificity like any other rule.
+						// As 'exclude' it would beat every more specific rule and the lifetime rate.
+						$rules[ $i ]['rate']    = '0';
+						$rules[ $i ]['no_rate'] = 1;
 					} else {
 						$rules[ $i ]['rate'] = (string) $converted;
 					}
@@ -380,8 +382,8 @@ final class Ledger {
 					if ( ! $refund['full'] && is_array( $snap ) && ! empty( $snap['line_net'] ) && (int) $snap['line_net'] !== (int) $parent->base_minor ) {
 						$refunded_net = (int) round( $refunded_net * (int) $parent->base_minor / (int) $snap['line_net'] );
 					}
-					$adjusted = self::adjusted_sum( (int) $parent->id );
-					$refunded = self::refunded_base( (int) $parent->id );
+					$adjusted = self::adjusted_sum( (int) $parent->id, true );
+					$refunded = self::refunded_base( (int) $parent->id, true );
 					$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor, (int) $parent->base_minor, $adjusted, $refunded_net, $refund['full'], $refunded );
 					if ( 0 === $amount ) {
 						continue;
@@ -532,6 +534,12 @@ final class Ledger {
 		}
 		if ( '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
+		}
+		foreach ( self::children( (int) $id ) as $child ) {
+			if ( (int) $child->payout_id && 'rejected' !== $child->status ) {
+				// The correction would stay in that payout and be deducted for a rejected commission.
+				return new \WP_Error( 'wpac_state', __( 'A correction of this commission is part of a payout. Cancel that payout first.', 'wp-affiliate-captain' ) );
+			}
 		}
 		// Atomic: only if still unassigned to a payout and in the status we saw.
 		if ( ! self::transition( (int) $id, 'rejected', $reason, get_current_user_id(), 0, $c->status ) ) {
@@ -874,24 +882,27 @@ final class Ledger {
 	 * @param int $id Parent.
 	 * @return int
 	 */
-	public static function adjusted_sum( $id ) {
+	public static function adjusted_sum( $id, $lock = false ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
+		// A locking read sees rows committed by parallel refunds (a plain read in a REPEATABLE READ
+		// transaction would use the older snapshot and reverse the same amount twice).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected'", $id ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected'" . ( $lock ? ' FOR UPDATE' : '' ), $id ) );
 	}
 
 	/**
 	 * Net base already refunded (positive), from non-rejected corrections.
 	 *
-	 * @param int $id Parent.
+	 * @param int  $id   Parent.
+	 * @param bool $lock Locking read (inside a transaction).
 	 * @return int
 	 */
-	public static function refunded_base( $id ) {
+	public static function refunded_base( $id, $lock = false ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND base_minor < 0", $id ) ) );
+		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND base_minor < 0" . ( $lock ? ' FOR UPDATE' : '' ), $id ) ) );
 	}
 
 	/**

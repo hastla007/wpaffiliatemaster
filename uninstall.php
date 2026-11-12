@@ -62,7 +62,7 @@ function wpac_uninstall_site() {
 		delete_option( $wpac_option );
 	}
 	// Markers of sales being booked (normally removed right away).
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%' OR option_name LIKE 'wpac\\_user\\_link\\_%' OR option_name LIKE 'wpac\\_prev\\_email\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Monthly report claims (one per month).
 	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_report\\_claim\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Rate-limit and other transients.
