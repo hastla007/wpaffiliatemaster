@@ -94,3 +94,6 @@ Diese Datei enthält nur neue Auditpunkte. Plugin-Code wurde nicht geändert.
 
 - Die geprüften letzten CI-Läufe auf codex/wplc-client, codex/wplc-updater, codex/wplc-entitlement-helper und codex/wplc-offline-cache scheiterten jeweils am deutschen Übersetzungsjob. PHP-Matrix und MariaDB-Integration waren in diesen Läufen erfolgreich; Release-ZIP wurde übersprungen.
 - Die Client-PRs wurden nur statisch geprüft; sie wurden nicht in einer laufenden WordPress-/WooCommerce-Staging-Instanz ausgeführt.
+
+## Zugehörige Launch-Checkliste
+Die übergreifende Lizenzmanager-, Verkaufs- und Launch-Checkliste steht in [WP License Captain – Issue #36](https://github.com/hastla007/wp-license/issues/36). Diese TODO.md enthält die konkreten WP Affiliate Captain-Codeauditbefunde; Issue #36 bündelt die gemeinsamen Integrations- und Release-Aufgaben.
