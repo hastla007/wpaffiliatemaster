@@ -1111,6 +1111,10 @@ msgstr ""
 msgid "No payouts yet."
 msgstr ""
 
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php
+msgid "Select %s"
+msgstr ""
+
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Bulk action for selected payouts"
 msgstr ""
@@ -1993,10 +1997,6 @@ msgstr ""
 
 #: src/Admin/Tables/AffiliatesTable.php
 msgid "No partners found."
-msgstr ""
-
-#: src/Admin/Tables/AffiliatesTable.php
-msgid "Select %s"
 msgstr ""
 
 #: src/Admin/Tables/CommissionsTable.php

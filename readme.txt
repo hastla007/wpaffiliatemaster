@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Stable tag: 0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,6 +46,17 @@ Yes. Partner codes entered at checkout work without any cookie. The optional aff
 No. Other sales sources report sales and refunds through the public contract (`wpac_record_sale()`, REST `wpac/v1/sales`).
 
 == Changelog ==
+
+= 0.7.0 =
+* Faster campaign and content reports with many visits (new indexes, database schema 6)
+* Old visits and audit entries are deleted in small batches
+* Accessibility: labels for all admin form fields, better contrast and link marking (checked with axe)
+* Browser test suite (Playwright + axe) in tests/e2e
+* WordPress multisite: network activation sets up every site, new sites are set up automatically, deleted sites drop their tables, uninstall per site
+* Privacy: with the WP Consent API but no consent banner, the affiliate cookie is no longer set (the API alone is not a consent)
+* The monthly report is sent only once when cron runs overlap
+* Cookie-free referrals keep campaign and content for the reports
+* No database errors in the log when the same order is reported concurrently
 
 = 0.6.0 =
 * Integration contract 1.1.0 (compatible with 1.0.0): new `wpac_current_touch()` for sources with their own checkout

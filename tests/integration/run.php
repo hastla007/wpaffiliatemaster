@@ -268,7 +268,7 @@ WPAffiliateCaptain\Core\Installer::install_schema();
 check( 'J old unique index replaced', '1', (string) $GLOBALS['wpdb']->get_var( "SHOW INDEX FROM {$pi} WHERE Key_name = 'commission_id'" ) ? (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$pi} WHERE Key_name = 'commission_id'" )->Non_unique : 'missing' );
 check( 'J new unique index', '0', (string) $GLOBALS['wpdb']->get_row( "SHOW INDEX FROM {$pi} WHERE Key_name = 'active_commission'" )->Non_unique );
 check( 'J existing item marked active', '77', (string) $GLOBALS['wpdb']->get_var( "SELECT active_commission_id FROM {$pi} WHERE commission_id = 77" ) );
-check( 'J version stored', 5, (int) get_option( 'wpac_db_version' ) );
+check( 'J version stored', WPAC_DB_VERSION, (int) get_option( 'wpac_db_version' ) );
 
 /* L: schema migration v3 → v4 (payouts) ----------------------------------- */
 $po = t( 'payouts' );
@@ -318,6 +318,15 @@ $GLOBALS['test_consent_cookie'] = 'allow';
 check( 'P opt-in with marketing consent → cookie', true, WPAffiliateCaptain\Tracking\Consent::cookie_allowed() );
 $GLOBALS['test_consent_cookie'] = 'deny';
 check( 'P opt-in, marketing denied → no cookie', false, WPAffiliateCaptain\Tracking\Consent::cookie_allowed() );
+
+echo "Q retention in batches\n";
+global $wpdb;
+$vt = WPAffiliateCaptain\Core\Db::table( 'visits' );
+for ( $i = 0; $i < 12; $i++ ) { $wpdb->insert( $vt, array( 'affiliate_id' => 1, 'created_at' => '2020-01-01 00:00:00' ) ); }
+$wpdb->insert( $vt, array( 'affiliate_id' => 1, 'created_at' => WPAffiliateCaptain\Core\Db::now() ) );
+$deleted = WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( "DELETE FROM {$vt} WHERE created_at < %s", '2021-01-01 00:00:00' ), 5 );
+check( 'Q old visits deleted in batches of 5', 12, $deleted );
+check( 'Q recent visit kept', 1, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$vt} WHERE created_at >= '2021-01-01'" ) );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

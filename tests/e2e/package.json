@@ -1,0 +1,7 @@
+{
+  "name": "wp-affiliate-captain-e2e",
+  "private": true,
+  "description": "Browser tests for WP Affiliate Captain against a running WordPress (see README.md).",
+  "scripts": { "test": "node run.js" },
+  "devDependencies": { "axe-core": "4.10.3" }
+}

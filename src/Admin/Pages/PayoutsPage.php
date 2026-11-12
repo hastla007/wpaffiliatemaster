@@ -237,7 +237,7 @@ final class PayoutsPage {
 			$snap = json_decode( (string) $p->profile_snapshot, true );
 			printf(
 				'<tr><th class="check-column">%s</th><td><a href="%s">%s</a></td><td>%s</td><td>%s</td><td><strong>%s</strong></td><td>%s</td><td>%s%s</td></tr>',
-				in_array( $p->status, array( 'pending', 'exported' ), true ) ? '<input type="checkbox" class="wpac-cb" name="ids[]" value="' . (int) $p->id . '">' : '',
+				in_array( $p->status, array( 'pending', 'exported' ), true ) ? '<input type="checkbox" class="wpac-cb" name="ids[]" value="' . (int) $p->id . '" aria-label="' . esc_attr( sprintf( /* translators: %s: document number */ __( 'Select %s', 'wp-affiliate-captain' ), $p->number ) ) . '">' : '',
 				esc_url( Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => $p->id ) ) ),
 				esc_html( $p->number ),
 				esc_html( $aff ? $aff->name : '#' . $p->affiliate_id ),
