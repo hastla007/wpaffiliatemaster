@@ -93,7 +93,7 @@ final class LicenseClient {
 	 *
 	 * Cached rights expire at the earlier of the server expiry and fourteen days after receipt.
 	 *
-	 * @return array<string,mixed>|\\WP_Error
+	 * @return array<string,mixed>|\WP_Error
 	 */
 	public function get_entitlements() {
 		$online = $this->check_entitlements();
@@ -147,23 +147,23 @@ final class LicenseClient {
 		$cache = get_option( $this->option_key . '_entitlements_cache', array() );
 		$credentials = $this->credentials();
 		if ( ! is_array( $cache ) || ! is_array( $cache['data'] ?? null ) || is_wp_error( $credentials ) ) {
-			return new \\WP_Error( 'wplc_cache_unavailable', __( 'No verified offline entitlement cache is available.', 'voucher-captain' ) );
+			return new \WP_Error( 'wplc_cache_unavailable', __( 'No verified offline entitlement cache is available.', 'voucher-captain' ) );
 		}
 		$cached_at = absint( $cache['cached_at'] ?? 0 );
 		$expires_at = absint( $cache['expires_at'] ?? 0 );
 		if ( ! $cached_at || ! $expires_at || time() >= $expires_at || $expires_at > $cached_at + 14 * DAY_IN_SECONDS ) {
-			return new \\WP_Error( 'wplc_cache_expired', __( 'The offline entitlement cache has expired.', 'voucher-captain' ) );
+			return new \WP_Error( 'wplc_cache_expired', __( 'The offline entitlement cache has expired.', 'voucher-captain' ) );
 		}
 		$json = wp_json_encode( $cache['data'], JSON_UNESCAPED_SLASHES );
 		$expected = hash_hmac( 'sha256', false === $json ? '' : $json, $credentials['installation_secret'] );
 		if ( ! is_string( $cache['signature'] ?? null ) || ! hash_equals( $expected, $cache['signature'] ) ) {
-			return new \\WP_Error( 'wplc_cache_signature_invalid', __( 'The offline entitlement cache could not be verified.', 'voucher-captain' ) );
+			return new \WP_Error( 'wplc_cache_signature_invalid', __( 'The offline entitlement cache could not be verified.', 'voucher-captain' ) );
 		}
 		return $cache['data'];
 	}
 
 	/** Only transport failures and server-side 5xx responses may use cached rights. */
-	private function is_temporary_server_error( \\WP_Error $error ): bool {
+	private function is_temporary_server_error( \WP_Error $error ): bool {
 		$code = $error->get_error_code();
 		if ( in_array( $code, array( 'http_request_failed', 'http_request_timeout', 'connect_timeout', 'request_timeout' ), true ) ) {
 			return true;
