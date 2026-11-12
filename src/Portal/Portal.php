@@ -85,7 +85,7 @@ final class Portal {
 		$redirect = remove_query_arg( array( 'wpac_msg' ), wpac_return_url() );
 
 		if ( 'profile' === $action ) {
-			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'account_holder', 'iban', 'bic' );
+			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic' );
 			$in     = array();
 			foreach ( $fields as $f ) {
 				$in[ $f ] = isset( $_POST[ 'wpac_' . $f ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'wpac_' . $f ] ) ) : '';
@@ -101,7 +101,14 @@ final class Portal {
 			exit;
 		}
 		if ( 'accept_terms' === $action && ! empty( $_POST['wpac_terms'] ) ) {
-			Agreements::record( (int) $aff->id, 'accepted' );
+			// Only the version that was displayed can be accepted (it may have changed meanwhile).
+			$terms = Agreements::current( (int) $aff->group_id );
+			$shown = isset( $_POST['wpac_terms_hash'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_terms_hash'] ) ) : '';
+			if ( ! hash_equals( (string) $terms['hash'], $shown ) ) {
+				wp_safe_redirect( add_query_arg( 'wpac_msg', 'terms_changed', $redirect ) );
+				exit;
+			}
+			Agreements::record( (int) $aff->id, 'accepted', $terms );
 			wp_safe_redirect( add_query_arg( 'wpac_msg', 'terms', $redirect ) );
 			exit;
 		}
@@ -242,6 +249,7 @@ final class Portal {
 			'requested' => array( 'success', __( 'Your payout request was sent.', 'wp-affiliate-captain' ) ),
 			'request_failed' => array( 'error', __( 'The payout request could not be created.', 'wp-affiliate-captain' ) ),
 			'terms'     => array( 'success', __( 'Thank you for accepting the terms.', 'wp-affiliate-captain' ) ),
+			'terms_changed' => array( 'error', __( 'The terms were changed in the meantime. Please read the current version and accept it again.', 'wp-affiliate-captain' ) ),
 			'wpac_iban' => array( 'error', __( 'The IBAN is not valid.', 'wp-affiliate-captain' ) ),
 			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID.', 'wp-affiliate-captain' ) ),
 		);
@@ -261,6 +269,7 @@ final class Portal {
 		echo '<form method="post" class="wpac-notice">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="accept_terms">';
+		echo '<input type="hidden" name="wpac_terms_hash" value="' . esc_attr( $terms['hash'] ) . '">';
 		echo '<p>' . esc_html__( 'Our partner program terms have been updated.', 'wp-affiliate-captain' ) . '</p>';
 		echo '<label><input type="checkbox" name="wpac_terms" value="1" required> ';
 		printf(
@@ -594,10 +603,11 @@ final class Portal {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $v( 'tax_status' ), $key, false ), esc_html( $label ) );
 		}
 		echo '</select></p>';
-		self::input( 'legal_name', __( 'Name / company for the statement', 'wp-affiliate-captain' ), $v( 'legal_name' ) );
-		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'wp-affiliate-captain' ) . '</label><textarea id="wpac_address" name="wpac_address" rows="3">' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
+		self::input( 'legal_name', __( 'Name / company for the statement', 'wp-affiliate-captain' ), $v( 'legal_name' ), true );
+		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'wp-affiliate-captain' ) . ' *</label><textarea id="wpac_address" name="wpac_address" rows="3" required>' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
 		self::input( 'country', __( 'Country (ISO code, e.g. DE)', 'wp-affiliate-captain' ), $v( 'country' ), true, 'maxlength="2"' );
 		self::input( 'vat_id', __( 'VAT ID (businesses)', 'wp-affiliate-captain' ), $v( 'vat_id' ) );
+		self::input( 'tax_number', __( 'Tax number (small businesses without VAT ID)', 'wp-affiliate-captain' ), $v( 'tax_number' ) );
 		self::input( 'account_holder', __( 'Account holder', 'wp-affiliate-captain' ), $v( 'account_holder' ), true );
 		$masked = $p ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 		self::input( 'iban', __( 'IBAN', 'wp-affiliate-captain' ) . ( $masked ? ' (' . __( 'stored', 'wp-affiliate-captain' ) . ': ' . $masked . ')' : '' ), '', ! $masked, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'wp-affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );

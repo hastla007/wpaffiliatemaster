@@ -7,6 +7,7 @@
 
 namespace WPAffiliateCaptain\Affiliates;
 
+use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Tracking\RateLimiter;
 
@@ -118,7 +119,7 @@ final class Registration {
 			'application_note' => isset( $_POST['wpac_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_note'] ) ) : '',
 			'application_data' => $application_data,
 			'group_id'         => $group_id,
-			'terms'            => $terms['page_id'] ? $terms : null, // Version + hash accepted now.
+			'terms'            => $terms['page_id'] ? $terms + array( 'accepted_at' => Db::now() ) : null, // Version + hash accepted now.
 			'redirect'         => $redirect,
 		);
 

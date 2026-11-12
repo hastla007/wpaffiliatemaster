@@ -38,6 +38,7 @@ final class Cron {
 	}
 
 	public static function hourly() {
+		\WPAffiliateCaptain\Payouts\PayoutService::generate_missing_statements();
 		Ledger::approve_due();
 		Jobs::run_due();
 	}
@@ -79,11 +80,16 @@ final class Cron {
 		}
 		\WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired();
 		\WPAffiliateCaptain\Privacy\Privacy::finish_pending_erasures();
+		\WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
 		$audit_days = (int) Settings::get( 'audit_retention_days' );
 		if ( $audit_days > 0 ) {
 			$audit = Db::table( 'audit' );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%'", Db::now( time() - $audit_days * DAY_IN_SECONDS ) ) );
+			// Acceptance records stay as proof; the change log of booking-relevant data (payouts,
+			// statements, bank details) is kept as long as the statements (GoBD).
+			$years     = max( 10, (int) Settings::get( 'statement_retention_years' ) );
+			$financial = Db::now( strtotime( gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) ) . ' UTC' ) );
+			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' ) OR created_at < %s )", Db::now( time() - $audit_days * DAY_IN_SECONDS ), $financial ) );
 		}
 		$jobs = Db::table( 'jobs' );
 		// Failed jobs are kept 180 days for analysis, then removed (payloads may contain order data).

@@ -321,6 +321,9 @@ final class PayoutsPage {
 		echo '<div class="wpac-col"><h3>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</h3><p>' . esc_html( ! empty( $snap['legal_name'] ) ? $snap['legal_name'] : ( $aff ? $aff->name : '' ) ) . '<br>' . nl2br( esc_html( isset( $snap['address'] ) ? $snap['address'] : '' ) ) . '<br>' . esc_html( isset( $snap['country'] ) ? $snap['country'] : '' ) . '</p>';
 		echo '<p>' . esc_html__( 'Tax status', 'wp-affiliate-captain' ) . ': ' . esc_html( isset( $snap['tax_status'], $labels[ $snap['tax_status'] ] ) ? $labels[ $snap['tax_status'] ] : '—' ) . '<br>';
 		echo esc_html__( 'VAT ID', 'wp-affiliate-captain' ) . ': ' . esc_html( ! empty( $snap['vat_id'] ) ? $snap['vat_id'] : '—' ) . '<br>';
+		if ( ! empty( $snap['tax_number'] ) ) {
+			echo esc_html__( 'Tax number', 'wp-affiliate-captain' ) . ': ' . esc_html( $snap['tax_number'] ) . '<br>';
+		}
 		echo esc_html__( 'Bank account', 'wp-affiliate-captain' ) . ': ' . esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) . '</p></div></div>';
 		echo '<p>' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . ': ' . esc_html( mysql2date( get_option( 'date_format' ), $p->period_end ) ) . ' · ' . esc_html__( 'Created', 'wp-affiliate-captain' ) . ': ' . esc_html( Admin::date( $p->created_at ) ) . '</p>';
 
@@ -343,8 +346,10 @@ final class PayoutsPage {
 		echo '</tfoot></table>';
 		if ( $p->vat_mode ) {
 			echo '<p class="description">' . esc_html( Statement::vat_note( (string) $p->vat_mode ) ) . '</p>';
+		} else {
+			// Payouts from before VAT handling: no treatment was stored.
+			echo '<p class="description">' . esc_html__( 'VAT treatment depends on the partner\'s tax status and must be confirmed by your tax advisor. This statement does not calculate VAT.', 'wp-affiliate-captain' ) . '</p>';
 		}
-		echo '<p class="description">' . esc_html__( 'VAT treatment depends on the partner\'s tax status and must be confirmed by your tax advisor. This statement does not calculate VAT.', 'wp-affiliate-captain' ) . '</p>';
 		echo '</div>';
 	}
 }

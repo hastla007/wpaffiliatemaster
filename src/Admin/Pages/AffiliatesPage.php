@@ -135,7 +135,7 @@ final class AffiliatesPage {
 
 			case 'profile_update':
 				$in = array();
-				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'account_holder', 'iban', 'bic' ) as $f ) {
+				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic' ) as $f ) {
 					$in[ $f ] = (string) Admin::post( $f );
 				}
 				$result = ProfileRepository::save( $id, $in );
@@ -419,6 +419,7 @@ final class AffiliatesPage {
 			echo '<tr><th>' . esc_html__( 'Address', 'wp-affiliate-captain' ) . '</th><td><textarea name="address" rows="3" class="regular-text">' . esc_textarea( $v( 'address' ) ) . '</textarea></td></tr>';
 			self::row_input( 'country', __( 'Country', 'wp-affiliate-captain' ), $v( 'country' ), 'maxlength="2"' );
 			self::row_input( 'vat_id', __( 'VAT ID', 'wp-affiliate-captain' ), $v( 'vat_id' ) );
+			self::row_input( 'tax_number', __( 'Tax number', 'wp-affiliate-captain' ), $v( 'tax_number' ) );
 			self::row_input( 'account_holder', __( 'Account holder', 'wp-affiliate-captain' ), $v( 'account_holder' ) );
 			$masked = $p ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 			self::row_input( 'iban', __( 'IBAN', 'wp-affiliate-captain' ), '', 'autocomplete="off" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'wp-affiliate-captain' ) : '' ) . '"' );

@@ -382,4 +382,26 @@ final class Privacy {
 		}
 		update_option( 'wpac_erasure_pending', $left, false );
 	}
+
+	/**
+	 * Anonymise rejected applicants without any commission after the retention period
+	 * (daily cron; data minimisation, Art. 5(1)(e) GDPR).
+	 *
+	 * @return int Number anonymised.
+	 */
+	public static function purge_rejected_applications() {
+		global $wpdb;
+		$days = (int) Settings::get( 'application_retention_days' );
+		if ( $days <= 0 ) {
+			return 0;
+		}
+		$a = Db::table( 'affiliates' );
+		$c = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$emails = $wpdb->get_col( $wpdb->prepare( "SELECT a.email FROM {$a} a WHERE a.status = 'rejected' AND a.status_reason <> 'privacy_erasure' AND a.updated_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.affiliate_id = a.id ) LIMIT 50", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
+		foreach ( $emails as $email ) {
+			self::erase( (string) $email );
+		}
+		return count( $emails );
+	}
 }

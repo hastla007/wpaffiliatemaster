@@ -77,6 +77,8 @@ update_option(
 		array(
 			'debtor_name' => 'Segelschule Test GmbH',
 			'debtor_iban' => 'DE89370400440532013000',
+			'operator_address' => "Hafenstraße 1\n24937 Flensburg",
+			'operator_vat_id' => 'DE123456789',
 			'fraud_check_domains' => 0,
 		)
 	)
@@ -88,7 +90,7 @@ $code = WPAffiliateCaptain\Codes\CodeRepository::main_code( $aff );
 check( 'affiliate created', true, is_int( $aff ) );
 check( 'random default code', 1, preg_match( '/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/', $code ) );
 check( 'code without hyphen resolves', $aff, wpac_resolve_partner_code( str_replace( '-', '', strtolower( $code ) ) )['affiliate_id'] );
-ProfileRepository::save( $aff, array( 'tax_status' => 'private', 'country' => 'DE', 'account_holder' => 'Anna Partner', 'iban' => 'DE89370400440532013000' ) );
+ProfileRepository::save( $aff, array( 'tax_status' => 'private', 'legal_name' => 'Anna Partner', 'address' => "Hafen 1\n24937 Flensburg", 'country' => 'DE', 'account_holder' => 'Anna Partner', 'iban' => 'DE89370400440532013000' ) );
 
 /* A: sale + idempotency ---------------------------------------------- */
 $r = sale( 1001, $code, array( 100000, 50000 ) );
@@ -187,7 +189,7 @@ check( 'I not payable', false, $p[0]['eligible'] );
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_address' => "Hafenstr. 1\n24103 Kiel", 'operator_vat_id' => 'DE123456789' ) ) );
 Settings::flush_cache();
 $biz = AffiliateRepository::create( array( 'name' => 'Segelschule Nord GmbH', 'email' => 'nord@example.de', 'status' => 'active' ) );
-ProfileRepository::save( $biz, array( 'tax_status' => 'business', 'country' => 'DE', 'vat_id' => 'DE999999999', 'account_holder' => 'Segelschule Nord GmbH', 'iban' => 'DE89370400440532013000', 'address' => "Kai 2\n24937 Flensburg" ) );
+ProfileRepository::save( $biz, array( 'tax_status' => 'business', 'legal_name' => 'Segelschule Nord GmbH', 'country' => 'DE', 'vat_id' => 'DE999999999', 'account_holder' => 'Segelschule Nord GmbH', 'iban' => 'DE89370400440532013000', 'address' => "Kai 2\n24937 Flensburg" ) );
 $bcode = WPAffiliateCaptain\Codes\CodeRepository::main_code( $biz );
 $r     = sale( 2001, $bcode, array( 1000000 ) ); // 1.000 € commission (10 % of 10.000 €).
 Ledger::transition( (int) $r['commission_ids'][0], 'approved' );
@@ -207,7 +209,7 @@ check( 'K credit note PDF has partner VAT ID', true, false !== strpos( $pdf, 'DE
 
 // Foreign business partner → reverse charge, private → no VAT.
 $at = AffiliateRepository::create( array( 'name' => 'Wien Partner', 'email' => 'wien@example.at', 'status' => 'active' ) );
-ProfileRepository::save( $at, array( 'tax_status' => 'business', 'country' => 'AT', 'vat_id' => 'ATU12345678', 'account_holder' => 'Wien Partner', 'iban' => 'AT611904300234573201' ) );
+ProfileRepository::save( $at, array( 'tax_status' => 'business', 'legal_name' => 'Wien Partner', 'address' => "Ring 1\n1010 Wien", 'country' => 'AT', 'vat_id' => 'ATU12345678', 'account_holder' => 'Wien Partner', 'iban' => 'AT611904300234573201' ) );
 $r = sale( 2002, WPAffiliateCaptain\Codes\CodeRepository::main_code( $at ), array( 1000000 ) );
 Ledger::transition( (int) $r['commission_ids'][0], 'approved' );
 $ap = PayoutService::find( PayoutService::create_for_affiliate( $at, gmdate( 'Y-m-d' ), 'EUR' ) );
@@ -406,7 +408,7 @@ WPAffiliateCaptain\Commissions\RuleRepository::delete( $rule7, 'test' );
 
 // R8 an open payout request is settled by a regular payout run.
 $rq = AffiliateRepository::create( array( 'name' => 'Req Partner', 'email' => 'req@example.de', 'status' => 'active' ) );
-ProfileRepository::save( $rq, array( 'type' => 'private', 'legal_name' => 'Req Partner', 'address' => "Weg 1\n12345 Ort", 'country' => 'DE', 'iban' => 'DE89370400440532013000', 'account_holder' => 'Req Partner' ) );
+ProfileRepository::save( $rq, array( 'tax_status' => 'private', 'legal_name' => 'Req Partner', 'address' => "Weg 1\n12345 Ort", 'country' => 'DE', 'iban' => 'DE89370400440532013000', 'account_holder' => 'Req Partner' ) );
 $rs = sale( 5008, WPAffiliateCaptain\Codes\CodeRepository::main_code( $rq ), array( 500000 ) );
 Ledger::transition( (int) $rs['commission_ids'][0], 'approved' );
 q( "UPDATE {$ct} SET created_at = '2020-01-01 00:00:00' WHERE id = " . (int) $rs['commission_ids'][0] );
@@ -445,6 +447,55 @@ check( 'R13 slug resolves for a link', $rp, wpac_resolve_partner_code( $slug, ar
 check( 'R13 slug is not accepted at checkout', null, wpac_resolve_partner_code( $slug, array( 'context' => 'checkout' ) ) );
 check( 'R13 slug is not accepted via REST', null, wpac_resolve_partner_code( $slug, array( 'context' => 'rest' ) ) );
 check( 'R balances consistent after all fixes', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
+echo "S audit fixes (legal: credit notes, retention, privacy)\n";
+// S1 credit notes need name and address; small businesses a tax number or VAT ID.
+$sp = AffiliateRepository::create( array( 'name' => 'Klein Partner', 'email' => 'klein@example.de', 'status' => 'active' ) );
+check( 'S1 small business without tax number refused', 'wpac_tax_number', ( $e = ProfileRepository::save( $sp, array( 'tax_status' => 'small_business', 'legal_name' => 'Klein', 'address' => "Weg 2\n12345 Ort", 'country' => 'DE', 'account_holder' => 'Klein', 'iban' => 'DE89370400440532013000' ) ) ) instanceof WP_Error ? $e->get_error_code() : 'ok' );
+ProfileRepository::save( $sp, array( 'tax_status' => 'private', 'legal_name' => 'Klein', 'country' => 'DE', 'account_holder' => 'Klein', 'iban' => 'DE89370400440532013000' ) );
+check( 'S1 profile without address is incomplete', 'address', ProfileRepository::missing( ProfileRepository::get( $sp ) ) );
+ProfileRepository::save( $sp, array( 'tax_status' => 'small_business', 'legal_name' => 'Klein', 'address' => "Weg 2\n12345 Ort", 'country' => 'DE', 'tax_number' => '12/345/67890', 'account_holder' => 'Klein', 'iban' => 'DE89370400440532013000' ) );
+check( 'S1 complete with tax number', true, ProfileRepository::missing( ProfileRepository::get( $sp ) ) );
+check( 'S1 tax number in the snapshot', '12/345/67890', ProfileRepository::snapshot( ProfileRepository::get( $sp ) )['tax_number'] );
+
+// S2 without operator address/VAT ID no credit note is created.
+$keep = get_option( 'wpac_settings' );
+update_option( 'wpac_settings', array_merge( $keep, array( 'operator_address' => '' ) ) );
+Settings::flush_cache();
+check( 'S2 operator data missing → reason', true, '' !== PayoutService::operator_missing() );
+$thrown = false;
+try { PayoutService::create_for_affiliate( $sp, gmdate( 'Y-m-d' ), 'EUR' ); } catch ( \Throwable $e ) { $thrown = 'operator_data' === $e->error_code; }
+check( 'S2 payout refused without operator data', true, $thrown );
+update_option( 'wpac_settings', $keep );
+Settings::flush_cache();
+
+// S3 retention: at least 10 years; legal hold stops the purge; cancellations count from their own date.
+check( 'S3 retention below 10 years raised to 10', 10, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3 ) ) )['statement_retention_years'] );
+check( 'S3 0 = forever stays', 0, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 0 ) ) )['statement_retention_years'] );
+$old = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'payouts' ) . ' ORDER BY id ASC LIMIT 1' );
+q( 'UPDATE ' . t( 'payouts' ) . " SET created_at = '2001-03-01 10:00:00', storno_at = '2025-01-10 10:00:00' WHERE id = {$old}" );
+WPAffiliateCaptain\Payouts\Statement::purge_expired();
+check( 'S3 cancelled recently → original kept', null, $wpdb->get_var( 'SELECT statement_deleted_at FROM ' . t( 'payouts' ) . " WHERE id = {$old}" ) );
+q( 'UPDATE ' . t( 'payouts' ) . " SET storno_at = NULL WHERE id = {$old}" );
+update_option( 'wpac_settings', array_merge( $keep, array( 'retention_hold' => 1 ) ) );
+Settings::flush_cache();
+check( 'S3 legal hold: nothing deleted', 0, WPAffiliateCaptain\Payouts\Statement::purge_expired() );
+update_option( 'wpac_settings', $keep );
+Settings::flush_cache();
+check( 'S3 after the period: deleted', 1, WPAffiliateCaptain\Payouts\Statement::purge_expired() );
+
+// S4 audit: the change log of payouts/statements/bank details outlives the general audit retention.
+$wpdb->insert( t( 'audit' ), array( 'action' => 'payout.created', 'object_type' => 'payout', 'object_id' => 1, 'created_at' => '2022-01-01 00:00:00' ) );
+$wpdb->insert( t( 'audit' ), array( 'action' => 'rule.updated', 'object_type' => 'rule', 'object_id' => 1, 'created_at' => '2022-01-01 00:00:00' ) );
+WPAffiliateCaptain\Core\Cron::daily();
+check( 'S4 financial audit entry kept', 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'audit' ) . " WHERE action = 'payout.created' AND created_at = '2022-01-01 00:00:00'" ) );
+check( 'S4 other old audit entry deleted', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'audit' ) . " WHERE action = 'rule.updated' AND created_at = '2022-01-01 00:00:00'" ) );
+
+// S5 rejected applicants without commissions are anonymised after the retention period.
+$rej = AffiliateRepository::create( array( 'name' => 'Abgelehnt', 'email' => 'rejected@example.de', 'status' => 'rejected' ) );
+q( 'UPDATE ' . t( 'affiliates' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE id = {$rej}" );
+WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
+check( 'S5 rejected applicant anonymised', 'deleted-' . $rej . '@invalid.invalid', (string) $wpdb->get_var( 'SELECT email FROM ' . t( 'affiliates' ) . " WHERE id = {$rej}" ) );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

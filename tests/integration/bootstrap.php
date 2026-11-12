@@ -46,7 +46,13 @@ class Test_WPDB {
 			exit( 2 );
 		}
 		$this->db->set_charset( 'utf8mb4' );
+		// Real options table for code that writes to it directly (e.g. the monthly report claim).
+		$this->options = $this->prefix . 'options';
+		$this->db->query( "CREATE TABLE IF NOT EXISTS {$this->options} ( option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT, option_name varchar(191) NOT NULL, option_value longtext NOT NULL, autoload varchar(20) NOT NULL DEFAULT 'yes', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name) )" );
+		$this->db->query( "TRUNCATE TABLE {$this->options}" );
 	}
+	public $options = 'wp_options';
+	public $rows_affected = 0;
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
 	public function esc_like( $t ) { return addcslashes( $t, '_%\\' ); }
 	public function prepare( $query, ...$args ) {
@@ -76,7 +82,8 @@ class Test_WPDB {
 			$r->free();
 			return $n;
 		}
-		$this->insert_id = (int) $this->db->insert_id;
+		$this->insert_id     = (int) $this->db->insert_id;
+		$this->rows_affected = (int) $this->db->affected_rows;
 		return $this->db->affected_rows;
 	}
 	public function get_results( $sql, $output = OBJECT ) {
@@ -198,6 +205,7 @@ function home_url( $p = '' ) { return 'http://example.test' . $p; }
 function admin_url( $p = '' ) { return 'http://example.test/wp-admin/' . $p; }
 function get_bloginfo( $s ) { return 'Test Shop'; }
 function wp_specialchars_decode( $t, $q = 0 ) { return $t; }
+if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 if ( ! function_exists( 'wp_date' ) ) { function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : $ts ); } }
 function mysql2date( $f, $d ) { return gmdate( 'd.m.Y', strtotime( $d ) ); }
 function get_date_from_gmt( $d, $f = 'Y-m-d H:i:s' ) { return $d; }

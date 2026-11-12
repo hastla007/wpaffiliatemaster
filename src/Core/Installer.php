@@ -245,6 +245,7 @@ final class Installer {
 			address text NULL,
 			country char(2) NOT NULL DEFAULT '',
 			vat_id varchar(40) NOT NULL DEFAULT '',
+			tax_number varchar(40) NOT NULL DEFAULT '',
 			account_holder varchar(190) NOT NULL DEFAULT '',
 			iban_encrypted text NULL,
 			iban_country char(2) NOT NULL DEFAULT '',
