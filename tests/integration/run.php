@@ -497,5 +497,26 @@ q( 'UPDATE ' . t( 'affiliates' ) . " SET updated_at = '2020-01-01 00:00:00' WHER
 WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
 check( 'S5 rejected applicant anonymised', 'deleted-' . $rej . '@invalid.invalid', (string) $wpdb->get_var( 'SELECT email FROM ' . t( 'affiliates' ) . " WHERE id = {$rej}" ) );
 
+echo "T 0.9.0 features\n";
+// T1 a negative balance can be written off; the account is consistent afterwards.
+$wo = AffiliateRepository::create( array( 'name' => 'Minus Partner', 'email' => 'minus@example.de', 'status' => 'active' ) );
+$wr = sale( 6001, WPAffiliateCaptain\Codes\CodeRepository::main_code( $wo ), array( 10000 ) );
+Ledger::transition( (int) $wr['commission_ids'][0], 'approved' );
+q( "UPDATE {$ct} SET payout_id = 999999, status = 'paid' WHERE id = " . (int) $wr['commission_ids'][0] ); // already paid out
+WPAffiliateCaptain\Commissions\Balance::post( $wo, 'EUR', 'payout', -1000, 0, 999999, 'test payout' );
+refund( 6001, 'late', array( array( 'item_id' => '1', 'net_minor' => 10000 ) ) ); // clawback -10 €
+$neg = (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$ct} WHERE affiliate_id = {$wo} AND status = 'approved' AND payout_id = 0" );
+check( 'T1 balance is negative', true, $neg < 0 );
+check( 'T1 write-off needs a reason', true, is_wp_error( Ledger::write_off( $wo, 'EUR', '' ) ) );
+check( 'T1 write-off booked', true, is_int( Ledger::write_off( $wo, 'EUR', 'Partner beendet, Forderung erlassen' ) ) );
+check( 'T1 balance settled', 0, (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$ct} WHERE affiliate_id = {$wo} AND status = 'approved' AND payout_id = 0" ) );
+check( 'T1 nothing to write off twice', true, is_wp_error( Ledger::write_off( $wo, 'EUR', 'again' ) ) );
+check( 'T1 accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify( $wo, 'EUR' ) );
+
+// T2 contact e-mail change checks duplicates.
+check( 'T2 e-mail of another partner refused', 'wpac_email_taken', ( $e = AffiliateRepository::set_email( $wo, 'anna@example.de' ) ) instanceof WP_Error ? $e->get_error_code() : 'ok' );
+check( 'T2 new e-mail stored', true, AffiliateRepository::set_email( $wo, 'neu@example.de' ) );
+check( 'T2 found by new e-mail', $wo, (int) AffiliateRepository::find_by_email( 'neu@example.de' )->id );
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

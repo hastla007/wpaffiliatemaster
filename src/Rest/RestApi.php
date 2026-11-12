@@ -46,6 +46,33 @@ final class RestApi {
 		};
 	}
 
+	/**
+	 * Beacon: referral seen by a cached page (see Tracker::enqueue_beacon()).
+	 *
+	 * @param \WP_REST_Request $r Request.
+	 * @return array|\WP_Error
+	 */
+	public static function touch( $r ) {
+		if ( ! Settings::get( 'js_tracking' ) ) {
+			return new \WP_Error( 'wpac_disabled', 'JavaScript tracking is disabled.', array( 'status' => 404 ) );
+		}
+		$path = wp_parse_url( (string) $r['path'], PHP_URL_PATH );
+		\WPAffiliateCaptain\Tracking\Tracker::capture_code(
+			sanitize_text_field( (string) $r['code'] ),
+			sanitize_text_field( (string) $r['campaign'] ),
+			absint( $r['content_id'] ),
+			array(
+				'utm_source' => sanitize_text_field( (string) $r['utm_source'] ),
+				'utm_medium' => sanitize_text_field( (string) $r['utm_medium'] ),
+				'path'       => is_string( $path ) ? $path : '',
+				'referrer'   => esc_url_raw( (string) $r['referrer'] ),
+			)
+		);
+		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).
+		$res->header( 'Cache-Control', 'no-store' );
+		return $res;
+	}
+
 	public static function routes() {
 		register_rest_route(
 			self::NS,
@@ -59,6 +86,28 @@ final class RestApi {
 						'plugin'   => WPAC_VERSION,
 					);
 				},
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/touch',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true', // Public like a page view; only active with the beacon setting.
+				'callback'            => array( __CLASS__, 'touch' ),
+				'args'                => array(
+					'code'       => array(
+						'type'     => 'string',
+						'required' => true,
+						'pattern'  => '^[A-Za-z0-9_\\-]{3,64}$',
+					),
+					'campaign'   => array( 'type' => 'string' ),
+					'utm_source' => array( 'type' => 'string' ),
+					'utm_medium' => array( 'type' => 'string' ),
+					'content_id' => array( 'type' => 'integer' ),
+					'path'       => array( 'type' => 'string' ),
+					'referrer'   => array( 'type' => 'string' ),
+				),
 			)
 		);
 		register_rest_route(

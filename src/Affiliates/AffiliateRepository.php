@@ -268,6 +268,36 @@ final class AffiliateRepository {
 	}
 
 	/**
+	 * Change the contact e-mail (after the partner confirmed the new address).
+	 *
+	 * @param int    $id    Affiliate.
+	 * @param string $email New e-mail.
+	 * @return true|\WP_Error
+	 */
+	public static function set_email( $id, $email ) {
+		global $wpdb;
+		$email = sanitize_email( $email );
+		if ( ! is_email( $email ) ) {
+			return new \WP_Error( 'wpac_email', __( 'Please enter a valid e-mail address.', 'wp-affiliate-captain' ) );
+		}
+		$other = self::find_by_email( $email );
+		if ( $other && (int) $other->id !== (int) $id ) {
+			return new \WP_Error( 'wpac_email_taken', __( 'This e-mail address is already used by another partner account.', 'wp-affiliate-captain' ) );
+		}
+		$wpdb->update(
+			Db::table( 'affiliates' ),
+			array(
+				'email'      => $email,
+				'updated_at' => Db::now(),
+			),
+			array( 'id' => (int) $id )
+		);
+		self::clear_cache( $id );
+		Audit::log( 'affiliate.email_changed', 'affiliate', (int) $id );
+		return true;
+	}
+
+	/**
 	 * Change status with a reason.
 	 *
 	 * @param int    $id     ID.

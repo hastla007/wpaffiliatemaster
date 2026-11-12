@@ -99,6 +99,12 @@ final class OrderSync {
 		if ( 'none' === $order->get_meta( '_wpac_resolved' ) && ! $order->get_meta( WooCommerce::META_MANUAL ) ) {
 			return;
 		}
+		// Subscription renewals (WooCommerce Subscriptions) only earn commission when enabled.
+		if ( ! Settings::get( 'renewal_commission' ) && self::is_renewal( $order ) && ! $order->get_meta( WooCommerce::META_MANUAL ) ) {
+			$order->update_meta_data( '_wpac_resolved', 'none' );
+			$order->save_meta_data();
+			return;
+		}
 		$payload = self::payload( $order );
 		/**
 		 * Filter the WooCommerce sale payload before it is recorded (e.g. connector add-ons
@@ -158,6 +164,19 @@ final class OrderSync {
 				'reason'    => (string) $refund->get_reason(),
 			)
 		);
+	}
+
+	/**
+	 * Whether an order is a subscription renewal (WooCommerce Subscriptions).
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return bool
+	 */
+	public static function is_renewal( $order ) {
+		if ( function_exists( 'wcs_order_contains_renewal' ) ) {
+			return (bool) wcs_order_contains_renewal( $order );
+		}
+		return (bool) $order->get_meta( '_subscription_renewal' );
 	}
 
 	/**

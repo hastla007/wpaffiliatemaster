@@ -64,6 +64,14 @@ final class AffiliatesPage {
 						'landing_message' => (string) Admin::post( 'landing_message' ),
 					)
 				);
+				$email = sanitize_email( (string) Admin::post( 'email' ) );
+				$cur   = AffiliateRepository::find( $id );
+				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) ) {
+					$changed = AffiliateRepository::set_email( $id, $email );
+					if ( is_wp_error( $changed ) ) {
+						Admin::back( $changed->get_error_message(), 'error' );
+					}
+				}
 				Admin::back( __( 'Partner saved.', 'wp-affiliate-captain' ) );
 				break;
 
@@ -131,6 +139,14 @@ final class AffiliatesPage {
 				}
 				Audit::log( 'code.exported', 'affiliate', $id, array( 'count' => count( $out ) ) );
 				Csv::download( 'partner-codes-' . $id . '.csv', array( 'code', 'coupon', 'batch', 'used', 'limit', 'expires_at', 'status' ), $out );
+				break;
+
+			case 'balance_writeoff':
+				$result = \WPAffiliateCaptain\Commissions\Ledger::write_off( $id, sanitize_text_field( Admin::post( 'currency' ) ), sanitize_text_field( Admin::post( 'reason' ) ) );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'The negative balance was written off.', 'wp-affiliate-captain' ) );
 				break;
 
 			case 'profile_update':
@@ -313,7 +329,10 @@ final class AffiliatesPage {
 		Admin::form_open( 'affiliate_update' );
 		echo '<input type="hidden" name="id" value="' . (int) $id . '"><table class="form-table">';
 		self::row_input( 'name', __( 'Name / company', 'wp-affiliate-captain' ), $a->name );
-		echo '<tr><th>' . esc_html__( 'E-mail', 'wp-affiliate-captain' ) . '</th><td>' . esc_html( $a->email ) . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'wp-affiliate-captain' ) . '</a>' : '' ) . '</td></tr>';
+		echo '<tr><th><label for="wpac-email">' . esc_html__( 'E-mail', 'wp-affiliate-captain' ) . '</label></th><td><input type="email" id="wpac-email" name="email" class="regular-text" value="' . esc_attr( $a->email ) . '">' . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'wp-affiliate-captain' ) . '</a>' : '' ) . '</td></tr>';
+		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
+			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html__( 'No WordPress user is linked: the partner cannot log in to the partner area. This happens when the e-mail belongs to an administrator or editor account (never linked automatically). Use a different e-mail or link a user manually.', 'wp-affiliate-captain' ) . '</p></div></td></tr>';
+		}
 		self::row_input( 'slug', __( 'Vanity slug', 'wp-affiliate-captain' ), $a->slug );
 		self::row_input( 'website', __( 'Website', 'wp-affiliate-captain' ), $a->website, 'type="url"' );
 		self::row_input( 'channel', __( 'Channel', 'wp-affiliate-captain' ), $a->channel );
@@ -463,7 +482,17 @@ final class AffiliatesPage {
 		foreach ( $currencies as $cur ) {
 			$problems = \WPAffiliateCaptain\Commissions\Balance::verify( $id, $cur );
 			/* translators: 1: currency, 2: balance */
-			echo '<h3>' . esc_html( sprintf( __( 'Account %1$s – balance %2$s', 'wp-affiliate-captain' ), $cur, Money::format( \WPAffiliateCaptain\Commissions\Balance::get( $id, $cur ), $cur ) ) ) . '</h3>';
+			$bal = \WPAffiliateCaptain\Commissions\Balance::get( $id, $cur );
+			echo '<h3>' . esc_html( sprintf( __( 'Account %1$s – balance %2$s', 'wp-affiliate-captain' ), $cur, Money::format( $bal, $cur ) ) ) . '</h3>';
+			if ( $bal < 0 && current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
+				// Negative balance (clawbacks without new earnings): settle it.
+				Admin::form_open( 'balance_writeoff' );
+				echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '">';
+				echo '<p><label for="wpac-writeoff-' . esc_attr( $cur ) . '">' . esc_html__( 'Reason for the write-off', 'wp-affiliate-captain' ) . '</label><br><input type="text" required class="regular-text" id="wpac-writeoff-' . esc_attr( $cur ) . '" name="reason"> ';
+				/* translators: %s: amount */
+				echo '<button class="button" data-wpac-confirm="' . esc_attr( sprintf( __( 'Write off %s? The amount is no longer offset against future commissions.', 'wp-affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ) ) ) . '">' . esc_html__( 'Write off negative balance', 'wp-affiliate-captain' ) . '</button></p></form>';
+				echo '<p class="description">' . esc_html__( 'Otherwise the negative balance is offset against the next commissions. To claim it back, invoice the partner outside the plugin and write it off here once paid.', 'wp-affiliate-captain' ) . '</p>';
+			}
 			if ( $problems ) {
 				echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'Integrity check failed:', 'wp-affiliate-captain' ) . '</strong></p><ul>';
 				foreach ( $problems as $p ) {

@@ -114,6 +114,10 @@ msgid "Coupon link updated."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "The negative balance was written off."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Payout details saved."
 msgstr ""
 
@@ -125,7 +129,7 @@ msgstr ""
 msgid "Search partners"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "Name / company"
 msgstr ""
 
@@ -133,7 +137,7 @@ msgstr ""
 msgid "E-mail"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Website"
 msgstr ""
 
@@ -231,6 +235,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "WordPress user"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "No WordPress user is linked: the partner cannot log in to the partner area. This happens when the e-mail belongs to an administrator or editor account (never linked automatically). Use a different e-mail or link a user manually."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
@@ -455,6 +463,22 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Account %1$s – balance %2$s"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reason for the write-off"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Write off %s? The amount is no longer offset against future commissions."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Write off negative balance"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Otherwise the negative balance is offset against the next commissions. To claim it back, invoice the partner outside the plugin and write it off here once paid."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -1788,6 +1812,14 @@ msgid "Cookie lifetime (days)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). A tiny script reports the parameter; a visit is never counted twice."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Link attribution"
 msgstr ""
 
@@ -1901,6 +1933,14 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Off: only the first order of a subscription earns commission; renewals are not attributed."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2131,7 +2171,7 @@ msgstr ""
 msgid "Rejected"
 msgstr ""
 
-#: src/Affiliates/AffiliateRepository.php
+#: src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
 msgid "Please enter a valid e-mail address."
 msgstr ""
 
@@ -2141,6 +2181,10 @@ msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
 msgid "The affiliate could not be saved."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
+msgid "This e-mail address is already used by another partner account."
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
@@ -2412,6 +2456,10 @@ msgid "Monthly bonus"
 msgstr ""
 
 #: src/Commissions/Ledger.php
+msgid "Write-off"
+msgstr ""
+
+#: src/Commissions/Ledger.php
 msgid "Hold period ended"
 msgstr ""
 
@@ -2437,6 +2485,10 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The balance is not negative."
 msgstr ""
 
 #: src/Commissions/RuleRepository.php
@@ -2836,6 +2888,14 @@ msgid "The link has expired."
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "[%s] Please confirm your new e-mail address"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Hello %1$s,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%2$s\n\nIf you did not request this, ignore this e-mail."
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Copied to the clipboard."
 msgstr ""
 
@@ -2880,6 +2940,10 @@ msgid "Links & codes"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "My account"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Your partner account is paused. New sales are currently not attributed."
 msgstr ""
 
@@ -2909,6 +2973,18 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "The terms were changed in the meantime. Please read the current version and accept it again."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Saved. We have sent a confirmation link to your new e-mail address; it is used once you confirm it."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your new e-mail address is confirmed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The confirmation link is invalid or has expired."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -3153,6 +3229,22 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your bank details are stored encrypted and are only used for commission payouts."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "E-mail for notifications"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Waiting for confirmation of %s."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Channel (e.g. blog, Instagram, sailing school)"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "To end the partnership or delete your data, write to %s."
 msgstr ""
 
 #: src/Portal/Portal.php
