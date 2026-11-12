@@ -169,7 +169,7 @@ final class LicenseClient {
 			return true;
 		}
 		$data = $error->get_error_data();
-		return 'wplc_http_error' === $code && is_array( $data ) && absint( $data['status'] ?? 0 ) >= 500;
+		return is_array( $data ) && absint( $data['status'] ?? 0 ) >= 500;
 	}
 
 	/**
