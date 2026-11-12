@@ -2684,6 +2684,17 @@ msgid "License server settings or license key are missing."
 msgstr ""
 
 #: src/Licensing/LicenseClient.php
+msgid "No verified offline entitlement cache is available."
+msgstr ""
+
+
+msgid "The offline entitlement cache has expired."
+msgstr ""
+
+
+msgid "The offline entitlement cache could not be verified."
+msgstr ""
+
 msgid "Could not encode the license request."
 msgstr ""
 
@@ -2712,17 +2723,8 @@ msgid "This product installation has not been activated."
 msgstr ""
 
 #: src/Licensing/LicenseClient.php
-msgid "No verified offline entitlement cache is available."
-msgstr ""
-
 #: src/Licensing/LicenseClient.php
-msgid "The offline entitlement cache has expired."
-msgstr ""
-
 #: src/Licensing/LicenseClient.php
-msgid "The offline entitlement cache could not be verified."
-msgstr ""
-
 #: src/Payouts/PayoutRequests.php
 msgid "Payout requests are not enabled."
 msgstr ""
