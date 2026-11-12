@@ -518,5 +518,56 @@ check( 'T2 e-mail of another partner refused', 'wpac_email_taken', ( $e = Affili
 check( 'T2 new e-mail stored', true, AffiliateRepository::set_email( $wo, 'neu@example.de' ) );
 check( 'T2 found by new e-mail', $wo, (int) AffiliateRepository::find_by_email( 'neu@example.de' )->id );
 
+echo "U TODO.md audit fixes\n";
+// U1 atomic rate limit without an object cache.
+$hits = array();
+for ( $i = 0; $i < 5; $i++ ) { $hits[] = WPAffiliateCaptain\Tracking\RateLimiter::allow( 'u1-test', 3, 60 ); }
+check( 'U1 rate limit: 3 allowed, then refused', array( true, true, true, false, false ), $hits );
+// U2 a refund arriving while the sale is being booked is queued, not dropped.
+$inflight = WPAffiliateCaptain\Core\Jobs::inflight_key( 'test', '7001' );
+add_option( $inflight, time(), '', false );
+$rr = refund( 7001, 'parallel', array( array( 'item_id' => '1', 'net_minor' => 1000 ) ) );
+check( 'U2 refund during an in-flight sale is queued', 'queued', is_array( $rr ) ? $rr['status'] : 'error' );
+delete_option( $inflight );
+check( 'U2 marker is removed after a sale was booked', false, get_option( WPAffiliateCaptain\Core\Jobs::inflight_key( 'test', '7002' ) ) || ( sale( 7002, $rc, array( 1000 ) ) && false !== get_option( WPAffiliateCaptain\Core\Jobs::inflight_key( 'test', '7002' ) ) ) );
+// U3 enqueue reports whether the job was stored.
+check( 'U3 enqueue returns true when stored', true, WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'u3', array(), 'e', 'e' ) );
+// U4 payout requests: no second open request; rejecting twice fails the second time.
+$up = AffiliateRepository::create( array( 'name' => 'Antrag Partner', 'email' => 'antrag@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $up, array( 'tax_status' => 'private', 'legal_name' => 'Antrag', 'address' => "Weg 3\n12345 Ort", 'country' => 'DE', 'account_holder' => 'Antrag', 'iban' => 'DE89370400440532013000' ) );
+$ur = sale( 7003, WPAffiliateCaptain\Codes\CodeRepository::main_code( $up ), array( 500000 ) );
+Ledger::transition( (int) $ur['commission_ids'][0], 'approved' );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'payout_requests' => 1 ) ) );
+Settings::flush_cache();
+$req1 = WPAffiliateCaptain\Payouts\PayoutRequests::request( AffiliateRepository::find( $up ) );
+$req2 = WPAffiliateCaptain\Payouts\PayoutRequests::request( AffiliateRepository::find( $up ) );
+check( 'U4 first request stored', true, is_int( $req1 ) && $req1 > 0 );
+check( 'U4 second open request refused', true, is_wp_error( $req2 ) );
+check( 'U4 reject once', true, WPAffiliateCaptain\Payouts\PayoutRequests::reject( $req1, 'Test' ) );
+check( 'U4 reject again refused (already handled)', true, is_wp_error( WPAffiliateCaptain\Payouts\PayoutRequests::reject( $req1, 'Test' ) ) );
+// U5 schema verification finds nothing on a complete schema and reports a missing column.
+check( 'U5 complete schema verifies', array(), WPAffiliateCaptain\Core\Installer::verify_schema() );
+q( 'ALTER TABLE ' . t( 'payout_profiles' ) . ' DROP COLUMN tax_number' );
+check( 'U5 missing column reported', true, in_array( 'missing column ' . t( 'payout_profiles' ) . '.tax_number', WPAffiliateCaptain\Core\Installer::verify_schema(), true ) );
+$before_version = (int) get_option( 'wpac_db_version' );
+update_option( 'wpac_db_version', 6 );
+WPAffiliateCaptain\Core\Installer::install_schema(); // Test dbDelta stub cannot add columns → migration stays incomplete.
+check( 'U5 incomplete migration does not set the schema version', 6, (int) get_option( 'wpac_db_version' ) );
+check( 'U5 problems stored for the admin notice', true, (bool) get_option( 'wpac_schema_problems' ) );
+q( 'ALTER TABLE ' . t( 'payout_profiles' ) . " ADD COLUMN tax_number varchar(40) NOT NULL DEFAULT ''" );
+WPAffiliateCaptain\Core\Installer::install_schema();
+check( 'U5 complete again → version set, problems cleared', array( WPAC_DB_VERSION, false ), array( (int) get_option( 'wpac_db_version' ), get_option( 'wpac_schema_problems' ) ) );
+// U6 a failed monthly mail is remembered and retried.
+delete_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'report_admin' => 1 ) ) );
+Settings::flush_cache();
+$GLOBALS['test_mail_fail'] = true;
+WPAffiliateCaptain\Reports\MonthlyMail::send( gmdate( 'Y-m' ), true );
+check( 'U6 failed operator mail remembered', true, ! empty( get_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED )['admin'] ) );
+$GLOBALS['test_mail_fail'] = false;
+WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
+check( 'U6 retry sends it and clears the failure', false, get_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED ) );
+check( 'U accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

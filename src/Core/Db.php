@@ -69,11 +69,17 @@ final class Db {
 		if ( self::$depth > 0 ) {
 			return $fn();
 		}
+		// A transaction that could not be started or committed must never look like success
+		// (ledger and payout data would be partly written or not at all).
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+			throw new IntegrationException( 'db_transaction', 'Could not start a database transaction: ' . $wpdb->last_error );
+		}
 		self::$depth = 1;
-		$wpdb->query( 'START TRANSACTION' );
 		try {
 			$result = $fn();
-			$wpdb->query( 'COMMIT' );
+			if ( false === $wpdb->query( 'COMMIT' ) ) {
+				throw new IntegrationException( 'db_commit', 'Could not commit the database transaction: ' . $wpdb->last_error );
+			}
 			return $result;
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );

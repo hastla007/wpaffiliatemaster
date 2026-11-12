@@ -23,6 +23,7 @@ final class Jobs {
 	 * @param array  $payload Payload.
 	 * @param string $code    Error code of the first failure.
 	 * @param string $message Error message of the first failure.
+	 * @return bool Whether the job is stored (only then may callers report "queued").
 	 */
 	public static function enqueue( $type, $key, array $payload, $code = '', $message = '' ) {
 		global $wpdb;
@@ -32,7 +33,7 @@ final class Jobs {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE idempotency_key = %s", $key ) );
 		if ( $exists ) {
-			$wpdb->update(
+			$ok = $wpdb->update(
 				$table,
 				array(
 					'status'          => 'queued',
@@ -45,9 +46,9 @@ final class Jobs {
 				),
 				array( 'id' => (int) $exists )
 			);
-			return;
+			return false !== $ok;
 		}
-		$wpdb->insert(
+		$ok = $wpdb->insert(
 			$table,
 			array(
 				'type'            => $type,
@@ -62,6 +63,7 @@ final class Jobs {
 				'updated_at'      => $now,
 			)
 		);
+		return (bool) $ok;
 	}
 
 	/**
@@ -159,10 +161,29 @@ final class Jobs {
 	 */
 	public static function sale_pending( $source, $order_id ) {
 		global $wpdb;
+		// Being booked right now by another request (see ContractApi::record_sale()).
+		$inflight = self::inflight_key( $source, $order_id );
+		wp_cache_delete( $inflight, 'options' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$since = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $inflight ) );
+		if ( null !== $since && time() - (int) $since < 10 * MINUTE_IN_SECONDS ) {
+			return true;
+		}
 		$table = Db::table( 'jobs' );
 		$keys  = array( substr( 'sale:' . $source . ':' . $order_id, 0, 191 ), substr( 'woo_order:' . $source . ':' . $order_id, 0, 191 ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key IN (%s, %s) AND status IN ('queued','running','failed') LIMIT 1", $keys[0], $keys[1] ) );
+	}
+
+	/**
+	 * Option name that marks a sale as being booked.
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @return string
+	 */
+	public static function inflight_key( $source, $order_id ) {
+		return 'wpac_inflight_' . md5( $source . ':' . $order_id );
 	}
 
 	/**

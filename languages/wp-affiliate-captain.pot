@@ -44,6 +44,10 @@ msgid "Settings"
 msgstr ""
 
 #: src/Admin/Admin.php
+msgid "Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load."
+msgstr ""
+
+#: src/Admin/Admin.php
 msgid "Affiliate Captain: the scheduled tasks have not run for more than two hours. Commissions are not released and failed jobs are not retried."
 msgstr ""
 
@@ -2644,6 +2648,10 @@ msgid "Your approved balance is below the minimum payout of %s."
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
+msgid "The payout request could not be saved. Please try again."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
 msgid "Payout request from %s"
 msgstr ""
 
@@ -2665,6 +2673,10 @@ msgstr ""
 
 #: src/Payouts/PayoutRequests.php
 msgid "The approved balance is no longer above the minimum."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
+msgid "This request was already handled or could not be updated. Please reload."
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
@@ -3401,6 +3413,10 @@ msgstr ""
 
 #: src/Sales/ContractApi.php
 msgid "The sale could not be processed and was queued for retry."
+msgstr ""
+
+#: src/Sales/ContractApi.php
+msgid "The sale or refund could not be processed and could not be stored for a retry. Please send it again later."
 msgstr ""
 
 #: src/Sales/ContractApi.php

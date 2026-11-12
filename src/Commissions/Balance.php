@@ -70,7 +70,7 @@ final class Balance {
 					throw new IntegrationException( 'balance_entry', $wpdb->last_error );
 				}
 				$id = (int) $wpdb->insert_id;
-				$wpdb->update(
+				$updated = $wpdb->update(
 					$b,
 					array(
 						'balance_minor' => $row['balance_minor'],
@@ -83,6 +83,10 @@ final class Balance {
 						'currency'     => (string) $currency,
 					)
 				);
+				// Booking and account summary must change together (otherwise the whole booking rolls back).
+				if ( 1 !== (int) $updated ) {
+					throw new IntegrationException( 'balance_update', '' !== $wpdb->last_error ? $wpdb->last_error : 'Account summary was not updated.' );
+				}
 				return $id;
 			}
 		);

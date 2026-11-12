@@ -35,6 +35,9 @@ msgstr "Audit-Log"
 msgid "Settings"
 msgstr "Einstellungen"
 
+msgid "Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load."
+msgstr "Affiliate Captain: Das Datenbank-Update ist unvollständig. Geplante Aufgaben sind pausiert, bis es gelingt; es wird beim nächsten Seitenaufruf erneut versucht."
+
 msgid "Affiliate Captain: the scheduled tasks have not run for more than two hours. Commissions are not released and failed jobs are not retried."
 msgstr "Affiliate Captain: Die geplanten Aufgaben sind seit mehr als zwei Stunden nicht gelaufen. Provisionen werden nicht freigegeben und fehlgeschlagene Jobs nicht wiederholt."
 
@@ -1987,6 +1990,9 @@ msgstr "Bitte vervollständigen Sie zuerst Ihre Auszahlungsdaten."
 msgid "Your approved balance is below the minimum payout of %s."
 msgstr "Ihr freigegebenes Guthaben liegt unter der Mindestauszahlung von %s."
 
+msgid "The payout request could not be saved. Please try again."
+msgstr "Der Auszahlungsantrag konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+
 msgid "Payout request from %s"
 msgstr "Auszahlungsantrag von %s"
 
@@ -2004,6 +2010,9 @@ msgstr "Die Auszahlung konnte nicht erstellt werden. Bitte versuchen Sie es erne
 
 msgid "The approved balance is no longer above the minimum."
 msgstr "Das freigegebene Guthaben liegt nicht mehr über dem Mindestbetrag."
+
+msgid "This request was already handled or could not be updated. Please reload."
+msgstr "Dieser Antrag wurde bereits bearbeitet oder konnte nicht aktualisiert werden. Bitte laden Sie die Seite neu."
 
 msgid "[%s] Your payout request"
 msgstr "[%s] Ihr Auszahlungsantrag"
@@ -2556,6 +2565,9 @@ msgstr "(keine Kampagne)"
 
 msgid "The sale could not be processed and was queued for retry."
 msgstr "Der Verkauf konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
+
+msgid "The sale or refund could not be processed and could not be stored for a retry. Please send it again later."
+msgstr "Der Verkauf bzw. die Erstattung konnte nicht verarbeitet und auch nicht für eine Wiederholung gespeichert werden. Bitte später erneut senden."
 
 msgid "The refund could not be processed and was queued for retry."
 msgstr "Die Rückerstattung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."

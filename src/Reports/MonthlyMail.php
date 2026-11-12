@@ -90,9 +90,10 @@ final class MonthlyMail {
 	 * @param bool   $admin_only  Only the operator summary (partners are sent in batches).
 	 * @param int    $offset      Partner offset.
 	 * @param int    $limit       Partner batch size (0 = all).
+	 * @param int[]  $only        Only these partners (retry of failed mails).
 	 * @return array|int Number of e-mails (admin) or [ sent, remaining ] (partners).
 	 */
-	public static function send( $month, $admin_only = false, $offset = 0, $limit = 0 ) {
+	public static function send( $month, $admin_only = false, $offset = 0, $limit = 0, array $only = array() ) {
 		$from     = $month . '-01';
 		$to       = gmdate( 'Y-m-t', strtotime( $from ) );
 		$currency = (string) Settings::get( 'currency' );
@@ -106,7 +107,10 @@ final class MonthlyMail {
 
 		if ( $admin_only ) {
 			if ( Settings::get( 'report_admin' ) ) {
-				self::send_admin( $month, $rows, $unconv, $fmt, $site, $from, $to );
+				if ( ! self::send_admin( $month, $rows, $unconv, $fmt, $site, $from, $to ) ) {
+					self::record_failure( $month, 0 );
+					return 0;
+				}
 				Audit::log( 'report.monthly_admin_sent', 'report', 0, array( 'month' => $month ) );
 				return 1;
 			}
@@ -123,6 +127,17 @@ final class MonthlyMail {
 					return (int) $a['affiliate_id'] - (int) $b['affiliate_id'];
 				}
 			);
+			if ( $only ) {
+				// Retry of failed mails: only these partners.
+				$rows = array_values(
+					array_filter(
+						$rows,
+						static function ( $r ) use ( $only ) {
+							return in_array( (int) $r['affiliate_id'], $only, true );
+						}
+					)
+				);
+			}
 			$remaining = max( 0, count( $rows ) - $offset - ( $limit ? $limit : count( $rows ) ) );
 			foreach ( $limit ? array_slice( $rows, $offset, $limit ) : $rows as $r ) {
 				$aff = AffiliateRepository::find( $r['affiliate_id'] );
@@ -147,7 +162,10 @@ final class MonthlyMail {
 					$lines[] = '';
 					$lines[] = get_permalink( $portal );
 				}
-				wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) );
+				if ( ! wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) ) ) {
+					self::record_failure( $month, (int) $aff->id ); // Retried later (retry_failed()).
+					continue;
+				}
 				++$sent;
 			}
 		}
@@ -177,6 +195,7 @@ final class MonthlyMail {
 	 * @param string   $site   Site name.
 	 * @param string   $from   From date.
 	 * @param string   $to     To date.
+	 * @return bool Whether the mail was handed over.
 	 */
 	private static function send_admin( $month, array $rows, array $unconv, $fmt, $site, $from, $to ) {
 		$tot = array(
@@ -215,6 +234,74 @@ final class MonthlyMail {
 		$lines[] = '';
 		$lines[] = admin_url( 'admin.php?page=wpac&from=' . $from . '&to=' . $to );
 		$to_mail = (string) Settings::get( 'admin_email' );
-		wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) );
+		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) );
+	}
+
+	const FAILED     = 'wpac_report_failed';
+	const RETRY_HOOK = 'wpac_report_retry';
+
+	/**
+	 * Remember a report mail that could not be sent (partner ID, 0 = operator summary).
+	 *
+	 * @param string $month        Month.
+	 * @param int    $affiliate_id Partner (0 = operator).
+	 */
+	private static function record_failure( $month, $affiliate_id ) {
+		$failed = get_option( self::FAILED );
+		$failed = is_array( $failed ) && isset( $failed['month'] ) && $failed['month'] === $month ? $failed : array(
+			'month' => $month,
+			'ids'   => array(),
+			'admin' => false,
+			'tries' => 0,
+		);
+		if ( $affiliate_id ) {
+			$failed['ids'][] = (int) $affiliate_id;
+			$failed['ids']   = array_values( array_unique( $failed['ids'] ) );
+		} else {
+			$failed['admin'] = true;
+		}
+		update_option( self::FAILED, $failed, false );
+		if ( ! wp_next_scheduled( self::RETRY_HOOK ) ) {
+			wp_schedule_single_event( time() + HOUR_IN_SECONDS, self::RETRY_HOOK );
+		}
+	}
+
+	/**
+	 * Send failed report mails again (hourly, at most 3 attempts); what still fails is logged
+	 * in the audit log (report.mail_failed) instead of being lost silently.
+	 */
+	public static function retry_failed() {
+		$failed = get_option( self::FAILED );
+		if ( ! is_array( $failed ) || empty( $failed['month'] ) ) {
+			return;
+		}
+		delete_option( self::FAILED );
+		$attempt = (int) $failed['tries'] + 1;
+		if ( ! empty( $failed['admin'] ) ) {
+			self::send( $failed['month'], true );
+		}
+		if ( ! empty( $failed['ids'] ) ) {
+			self::send( $failed['month'], false, 0, 0, array_map( 'intval', $failed['ids'] ) );
+		}
+		$again = get_option( self::FAILED );
+		if ( is_array( $again ) && $again['month'] === $failed['month'] ) {
+			if ( $attempt >= 3 ) {
+				delete_option( self::FAILED );
+				wp_clear_scheduled_hook( self::RETRY_HOOK );
+				Audit::log(
+					'report.mail_failed',
+					'report',
+					0,
+					array(
+						'month'    => $failed['month'],
+						'partners' => $again['ids'],
+						'operator' => ! empty( $again['admin'] ),
+					)
+				);
+			} else {
+				$again['tries'] = $attempt;
+				update_option( self::FAILED, $again, false );
+			}
+		}
 	}
 }

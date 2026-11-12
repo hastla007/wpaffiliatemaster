@@ -145,7 +145,12 @@ final class OrderSync {
 	public static function sync_refund( $order_id, $refund_id ) {
 		$order  = wc_get_order( $order_id );
 		$refund = wc_get_order( $refund_id );
-		if ( ! $order || ! $refund || ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) ) {
+		if ( ! $order || ! $refund ) {
+			return;
+		}
+		// No commission yet: only report when the sale is being booked or queued (the refund is
+		// then queued as well); otherwise the order has no partner and there is nothing to do.
+		if ( ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) && ! Jobs::sale_pending( WooCommerce::SOURCE, (string) $order_id ) ) {
 			return;
 		}
 		$items = self::refund_lines( $order, $refund );
@@ -277,7 +282,7 @@ final class OrderSync {
 	 * @param string $reason   Reason.
 	 */
 	private static function full_reversal( $order_id, $type, $reason ) {
-		if ( ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) ) {
+		if ( ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) && ! Jobs::sale_pending( WooCommerce::SOURCE, (string) $order_id ) ) {
 			return;
 		}
 		ContractApi::record_refund(
