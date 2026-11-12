@@ -147,17 +147,17 @@ final class LicenseClient {
 		$cache = get_option( $this->option_key . '_entitlements_cache', array() );
 		$credentials = $this->credentials();
 		if ( ! is_array( $cache ) || ! is_array( $cache['data'] ?? null ) || is_wp_error( $credentials ) ) {
-			return new \WP_Error( 'wplc_cache_unavailable', __( 'No verified offline entitlement cache is available.', 'voucher-captain' ) );
+			return new \WP_Error( 'wplc_cache_unavailable', __( 'No verified offline entitlement cache is available.', 'wp-affiliate-captain' ) );
 		}
 		$cached_at = absint( $cache['cached_at'] ?? 0 );
 		$expires_at = absint( $cache['expires_at'] ?? 0 );
 		if ( ! $cached_at || ! $expires_at || time() >= $expires_at || $expires_at > $cached_at + 14 * DAY_IN_SECONDS ) {
-			return new \WP_Error( 'wplc_cache_expired', __( 'The offline entitlement cache has expired.', 'voucher-captain' ) );
+			return new \WP_Error( 'wplc_cache_expired', __( 'The offline entitlement cache has expired.', 'wp-affiliate-captain' ) );
 		}
 		$json = wp_json_encode( $cache['data'], JSON_UNESCAPED_SLASHES );
 		$expected = hash_hmac( 'sha256', false === $json ? '' : $json, $credentials['installation_secret'] );
 		if ( ! is_string( $cache['signature'] ?? null ) || ! hash_equals( $expected, $cache['signature'] ) ) {
-			return new \WP_Error( 'wplc_cache_signature_invalid', __( 'The offline entitlement cache could not be verified.', 'voucher-captain' ) );
+			return new \WP_Error( 'wplc_cache_signature_invalid', __( 'The offline entitlement cache could not be verified.', 'wp-affiliate-captain' ) );
 		}
 		return $cache['data'];
 	}
@@ -184,7 +184,7 @@ final class LicenseClient {
 	 */
 	public function allows_entitlement( string $key, array $verified_entitlements ): bool {
 		$prefixes = array(
-			'voucher-captain' => 'voucher.',
+			'wp-affiliate-captain' => 'voucher.',
 			'wp-pass-captain' => 'pass.',
 			'affiliate-captain' => 'affiliate.',
 		);
