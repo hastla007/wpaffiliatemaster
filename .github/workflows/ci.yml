@@ -28,6 +28,8 @@ jobs:
         run: find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
       - name: Unit tests
         run: php tests/run.php
+      - name: Connector starter test
+        run: php examples/connector-addon/tests/connector-test.php
 
   integration:
     name: Integration (MariaDB)
