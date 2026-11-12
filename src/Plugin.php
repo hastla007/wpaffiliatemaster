@@ -62,7 +62,7 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			Admin::register_hooks();
-			( new Licensing\\AdminPage() )->register();
+			( new Licensing\AdminPage() )->register();
 		}
 
 		/**
