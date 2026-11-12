@@ -192,7 +192,7 @@ final class PayoutsPage {
 				Admin::form_open( 'payout_run' );
 				echo '<input type="hidden" name="period_end" value="' . esc_attr( $end ) . '"><input type="hidden" name="currency" value="' . esc_attr( $currency ) . '">';
 				/* translators: %d: number of payouts */
-				submit_button( sprintf( _n( 'Create %d payout', 'Create %d payouts', $eligible, 'wp-affiliate-captain' ), $eligible ) );
+				submit_button( sprintf( _n( 'Create %d payout', 'Create %d payouts', $eligible, 'wp-affiliate-captain' ), $eligible ), 'primary', 'submit', true, array( 'data-wpac-confirm' => __( 'Create the payouts now? Each one gets a numbered credit note that cannot be changed afterwards (only cancelled).', 'wp-affiliate-captain' ) ) );
 				echo '</form>';
 			}
 		}
@@ -207,7 +207,7 @@ final class PayoutsPage {
 				Admin::form_open( 'payout_request_process', 'wpac-inline' );
 				echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><button class="button button-primary button-small">' . esc_html__( 'Create payout', 'wp-affiliate-captain' ) . '</button></form> ';
 				Admin::form_open( 'payout_request_reject', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" size="14" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '"> <button class="button button-small">' . esc_html__( 'Reject', 'wp-affiliate-captain' ) . '</button></form></td></tr>';
+				echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" size="14" required aria-label="' . esc_attr__( 'Reason for the partner', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'wp-affiliate-captain' ) . '"> <button class="button button-small" data-wpac-confirm="' . esc_attr__( 'Reject this payout request? The partner is notified with the reason.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Reject', 'wp-affiliate-captain' ) . '</button></form></td></tr>';
 			}
 			echo '</tbody></table>';
 		}

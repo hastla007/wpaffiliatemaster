@@ -26,7 +26,6 @@
 .wpac-muted{color:var(--wpac-muted);font-size:.9em}
 .wpac-pager a{padding:.25em .5em}
 .wpac-pager a.is-active{font-weight:700}
-@media (max-width:600px){.wpac-table{display:block;overflow-x:auto}}
 .wpac-qr svg{width:180px;height:180px}
 .wpac-creative{border:1px solid var(--wpac-border);border-radius:6px;padding:1em;margin:0 0 1em}
 .wpac-creative h4{margin-top:0}
@@ -55,3 +54,11 @@
 .wpac-form [aria-invalid="true"]{border-color:#c62828;outline:1px solid #c62828}
 .wpac-required-note{font-size:.9em;color:var(--wpac-muted)}
 @media (prefers-color-scheme:dark){.wpac-portal,.wpac-form{--wpac-border:rgba(255,255,255,.2);--wpac-muted:rgba(255,255,255,.7)}}
+
+/* Phones: table rows as stacked cards (labels from data-label). */
+@media (max-width: 600px) {
+	.wpac-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+	.wpac-table tr { display: block; border-bottom: 1px solid var(--wpac-border); padding: .5em 0; }
+	.wpac-table td { display: block; border: 0; padding: .15em 0; }
+	.wpac-table td[data-label]::before { content: attr(data-label) ": "; font-weight: 600; }
+}

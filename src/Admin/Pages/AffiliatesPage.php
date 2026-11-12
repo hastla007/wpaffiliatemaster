@@ -288,7 +288,7 @@ final class AffiliatesPage {
 			'rejected'   => array( 'active' => __( 'Approve', 'wp-affiliate-captain' ) ),
 			'terminated' => array( 'active' => __( 'Reactivate', 'wp-affiliate-captain' ) ),
 		);
-		echo '<p><input type="text" name="reason" class="regular-text" placeholder="' . esc_attr__( 'Reason (required for reject/pause/terminate)', 'wp-affiliate-captain' ) . '"></p><p>';
+		echo '<p><label for="wpac-status-reason">' . esc_html__( 'Reason (required for reject/pause/terminate; shown to the partner)', 'wp-affiliate-captain' ) . '</label><br><input type="text" id="wpac-status-reason" name="reason" class="regular-text"></p><p>';
 		foreach ( $transitions[ $a->status ] as $to => $label ) {
 			$confirm = in_array( $to, array( 'terminated', 'rejected', 'paused' ), true )
 				/* translators: %s: action */
@@ -369,10 +369,10 @@ final class AffiliatesPage {
 				++$shown;
 				echo '<tr><td><code>' . esc_html( $c->code ) . '</code><br><small>' . esc_html( add_query_arg( $param, $c->code, home_url( '/' ) ) ) . '</small></td><td>';
 				Admin::form_open( 'code_coupon', 'wpac-inline' );
-				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="text" name="coupon_code" value="' . esc_attr( $c->coupon_code ) . '" size="10"> <button class="button button-small">' . esc_html__( 'Link', 'wp-affiliate-captain' ) . '</button></form>';
-				echo '</td><td>' . (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) . '</td><td>' . esc_html( $c->status ) . ( $c->expires_at ? '<br><small>' . esc_html__( 'until', 'wp-affiliate-captain' ) . ' ' . esc_html( Admin::date( $c->expires_at ) ) . '</small>' : '' ) . '</td><td>';
+				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="text" name="coupon_code" value="' . esc_attr( $c->coupon_code ) . '" size="10" aria-label="' . esc_attr__( 'Coupon code', 'wp-affiliate-captain' ) . '"> <button class="button button-small">' . esc_html__( 'Link', 'wp-affiliate-captain' ) . '</button></form>';
+				echo '</td><td>' . (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) . '</td><td>' . esc_html( 'active' === $c->status ? __( 'Active', 'wp-affiliate-captain' ) : __( 'Blocked', 'wp-affiliate-captain' ) ) . ( $c->expires_at ? '<br><small>' . esc_html__( 'until', 'wp-affiliate-captain' ) . ' ' . esc_html( Admin::date( $c->expires_at ) ) . '</small>' : '' ) . '</td><td>';
 				Admin::form_open( 'code_status', 'wpac-inline' );
-				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="hidden" name="status" value="' . ( 'active' === $c->status ? 'blocked' : 'active' ) . '"><button class="button button-small">' . esc_html( 'active' === $c->status ? __( 'Block', 'wp-affiliate-captain' ) : __( 'Unblock', 'wp-affiliate-captain' ) ) . '</button></form></td></tr>';
+				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="hidden" name="status" value="' . ( 'active' === $c->status ? 'blocked' : 'active' ) . '"><button class="button button-small"' . ( 'active' === $c->status ? ' data-wpac-confirm="' . esc_attr__( 'Block this code? Links and coupons with it no longer credit the partner.', 'wp-affiliate-captain' ) . '"' : '' ) . '>' . esc_html( 'active' === $c->status ? __( 'Block', 'wp-affiliate-captain' ) : __( 'Unblock', 'wp-affiliate-captain' ) ) . '</button></form></td></tr>';
 			}
 			echo '</tbody></table>';
 			foreach ( $batches as $batch => $count ) {

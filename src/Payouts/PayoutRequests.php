@@ -134,6 +134,20 @@ final class PayoutRequests {
 	}
 
 	/**
+	 * The partner's latest request if it was rejected (and no newer one exists), within 60 days.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return object|null
+	 */
+	public static function last_rejected( $affiliate_id ) {
+		global $wpdb;
+		$t = Db::table( 'payout_requests' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$r = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d ORDER BY id DESC LIMIT 1", $affiliate_id ) );
+		return $r && 'rejected' === $r->status && '' !== (string) $r->note && strtotime( $r->created_at . ' UTC' ) > time() - 60 * DAY_IN_SECONDS ? $r : null;
+	}
+
+	/**
 	 * Mark the open request of a partner as processed by a payout (also from regular runs).
 	 *
 	 * @param int $affiliate_id Partner.

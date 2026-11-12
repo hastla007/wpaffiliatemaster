@@ -191,6 +191,9 @@ final class Registration {
 		}
 		if ( ! Settings::get( 'auto_approve' ) ) {
 			Notifications::application_received( $result );
+		} else {
+			// Approved right away: the partner gets the welcome mail with the portal link.
+			Notifications::application_approved( $result );
 		}
 		return $result;
 	}
@@ -295,7 +298,7 @@ final class Registration {
 			$msg = Settings::get( 'auto_approve' )
 				? __( 'Thank you! Your partner account is active. Check your e-mail for login details.', 'wp-affiliate-captain' )
 				: __( 'Thank you for your application! We will review it and get back to you by e-mail.', 'wp-affiliate-captain' );
-			return '<div class="wpac-notice wpac-notice--success">' . esc_html( $msg ) . '</div>';
+			return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html( $msg ) . '</div>';
 		}
 
 		$user = wp_get_current_user();
