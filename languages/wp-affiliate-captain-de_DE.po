@@ -1,9 +1,9 @@
 msgid ""
 msgstr ""
-"Content-Type: text/plain; charset=UTF-8\\n"
-"Language: de_DE\\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\\n"
-"X-Domain: wp-affiliate-captain\\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: de_DE\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: wp-affiliate-captain\n"
 
 msgid "Affiliate Captain"
 msgstr "Affiliate Captain"
