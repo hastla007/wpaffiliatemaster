@@ -27,8 +27,8 @@ Diese Datei enthält nur neue Auditpunkte. Plugin-Code wurde nicht geändert.
 
 ## Prüfgrenzen
 
-- Geprüft wurde der veröffentlichte Hauptbranch oben. Die offenen Lizenzclient-PRs #9–#12 und andere nicht gemergte Branches sind nicht Bestandteil dieser Codeprüfung.
-- Kein bestätigter direkter Authentifizierungs-, SQL-Injection- oder XSS-Befund in den geprüften Hauptpfaden festgestellt. Die Verdachtsfälle oben brauchen gezielte Laufzeit-/Concurrency-Tests.
+- Geprüft wurden WP Affiliate Captain main (Plugin-Code unverändert seit Commit c418aba) sowie die ungemergten Lizenzclient-PRs #9–#12 ausschließlich per Code-/Diff-Review. Die Lizenzclient-Befunde beziehen sich auf ihre PR-Branches, nicht auf das aktuell veröffentlichte Plugin.
+- Kein bestätigter direkter Authentifizierungs-, SQL-Injection- oder XSS-Befund in den geprüften Hauptpfaden oder den ergänzend geprüften Clientdateien festgestellt. Fehlerfälle, Race Conditions und Lizenzabläufe brauchen gezielte Laufzeit-/Staging-Tests.
 
 ## Ergänzende Befunde aus der zweiten Prüfrunde (2026-11-12)
 
@@ -53,3 +53,44 @@ Diese Datei enthält nur neue Auditpunkte. Plugin-Code wurde nicht geändert.
 ## UX/UI-Prüfung
 
 - Statische Prüfung von Admin, Partnerportal, Registrierung, CSS und JavaScript: keine zusätzlichen bestätigten UX-/Accessibility-Befunde aufgenommen. Live-/visuelle Playwright-/axe-Prüfung war mangels Staging-Zugang nicht möglich; fehlender CI-Gate steht bereits oben.
+
+## Ergänzende Prüfung der offenen Lizenzclient-PRs #9–#12 (2026-11-12)
+
+**Geltungsbereich:** Alle Punkte unten betreffen ungemergte Branches. Sie sind keine Aussage, dass diese Funktionen bereits in main enthalten sind.
+
+### Bestätigte Befunde und Anforderungslücken
+
+- [ ] **P2 — Lizenzrechte werden noch nicht an Premium-Funktionen angeschlossen.** Branch codex/wplc-entitlement-helper, Datei: src/Licensing/LicenseClient.php:101–119; Feature-Gates werden in den Client-PRs nicht an den tatsächlichen Produkt-Einstiegspunkten aufgerufen. Die PRs enthalten Aktivierung/Helper, aber laut Beschreibung keine tatsächlichen Gates. **Auswirkung:** Bezahlte Funktionen bleiben ungeschützt, bis Rechteprüfungen an allen relevanten Admin-, Portal-, API- und Hintergrundpfaden verdrahtet sind. **Maßnahme:** Jede bezahlte Funktion mit Entitlement-Prüfung absichern und fehlende/abgelaufene/widerrufene Rechte testen.
+
+- [ ] **P2 — Admin zeigt bei Serverfehler den Aktivierungsdialog trotz gespeicherter Aktivierung.** Branch codex/wplc-client, Datei: src/Licensing/AdminPage.php:42–47,60–75. Bei einem Fehler von check_entitlements() wird der lokale Status auf null gesetzt und danach die Aktivierungsform angezeigt. **Auswirkung:** Betreiber können eine aktive Lizenz für nicht aktiviert halten und eine erneute Aktivierung versuchen. **Maßnahme:** Lokale Aktivierung sichtbar lassen, Verbindungsfehler separat anzeigen und Retry/Deaktivierung anbieten.
+
+- [ ] **P2 — CI blockiert die Lizenzclient-PRs wegen unvollständiger deutscher Übersetzungen.** Dateien: .github/workflows/ci.yml:68–71 und languages/wp-affiliate-captain-de_DE.po (fehlende Einträge); die letzten geprüften Runs für #9–#12 scheiterten am Job „German translation complete and up to date“, während PHP-Matrix und MariaDB-Job erfolgreich waren. **Auswirkung:** Release-ZIP wird übersprungen und die Client-PRs können nicht vollständig durch CI abgenommen werden. **Maßnahme:** Neue Lizenzstrings übersetzen, Übersetzungskataloge synchronisieren und CI der vier PR-Branches erneut ausführen.
+
+- [ ] **P3 — Offline-Cache-Fehlertexte verwenden den falschen Textdomain.** Branch codex/wplc-offline-cache, Datei: src/Licensing/LicenseClient.php:150,155,160. Cachefehler werden mit voucher-captain statt wp-affiliate-captain übersetzt. **Auswirkung:** Diese Meldungen fehlen im Affiliate-Captain-Übersetzungskatalog. **Maßnahme:** Textdomain korrigieren und alle Cachemeldungen in der Übersetzungsvollständigkeitsprüfung abdecken.
+
+- [ ] **P2 — Entitlement-Helper bindet die Rechte nicht an das Produkt der Antwort.** Branch codex/wplc-entitlement-helper, Datei: src/Licensing/LicenseClient.php:101–119. allows_entitlement() prüft den Präfix des abgefragten Schlüssels, aber nicht product_key in der signierten Antwort. **Auswirkung:** Wird versehentlich eine gültig signierte Antwort eines anderen Produkts übergeben und enthält sie einen passenden Affiliate-Schlüssel, kann das Helper den Zugriff erlauben. **Maßnahme:** Produkt-ID exakt vergleichen und Cross-Product-Antworten testen.
+
+- [ ] **P2 — Aktivierung meldet Erfolg, ohne das lokale Speichern zu prüfen.** Branch codex/wplc-client, Dateien: src/Licensing/LicenseClient.php:69–79 und src/Licensing/AdminPage.php:87–92. update_option() wird nicht geprüft; nach signierter Serveraktivierung wird Erfolg zurückgegeben. **Auswirkung:** Bei einem Datenbank-Schreibfehler kann der Server einen Slot reservieren, während das Plugin kein lokales Geheimnis zum Prüfen oder Deaktivieren speichert. **Maßnahme:** Speichern validieren, erst danach Erfolg anzeigen und bei Fehlschlag Remote-Aktivierung kompensieren oder nachvollziehbar abgleichen.
+
+### Verdachtsfälle — Laufzeit-/Fehler-Injektion erforderlich
+
+- [ ] **P2 — Wiederholte Aktivierungsversuche können zusätzliche Lizenzslots erzeugen.** Branch codex/wplc-client, Datei: src/Licensing/LicenseClient.php:51–77. Jeder Versuch erzeugt eine neue Installations-ID und ein neues Geheimnis; bei serverseitig angenommener Aktivierung mit verlorener Antwort werden die Zugangsdaten lokal nicht gespeichert und der nächste Versuch ist eine neue Aktivierung. **Mögliche Auswirkung:** Verwaiste/duplizierte Aktivierungen oder ausgeschöpfte Site-Limits. **Maßnahme:** Idempotenzschlüssel bzw. stabile Pending-ID ergänzen und den Lost-Response-Retry testen.
+
+- [ ] **P2 — Signierte, aber unvollständige Aktivierungsantwort kann als Erfolg gelten.** Branch codex/wplc-client, Datei: src/Licensing/LicenseClient.php:73–79,219. Ein signiertes data-Feld ohne gültige Aktivierungs-ID wird als leeres Array akzeptiert; activation_id wird dann als 0 gespeichert und die Adminseite zeigt Erfolg. **Mögliche Auswirkung:** Nicht nutzbare lokale Aktivierung und eventuell reservierter Server-Slot. **Maßnahme:** Pflichtfelder, Status und positive ID vor Speicherung/Erfolg validieren; fehlerhafte signierte Antworten testen.
+
+- [ ] **P2 — Widerruf könnte bei fehlgeschlagener Cachelöschung durch Offline-Rechte überlebt werden.** Branch codex/wplc-offline-cache, Datei: src/Licensing/LicenseClient.php:98–114. Nach einer Onlineantwort mit inaktivem Status wird delete_option() für den Cache nicht geprüft. **Mögliche Auswirkung:** Bei Datenbankfehler und anschließendem Serverausfall könnte ein alter, gültig signierter aktiver Cache noch Rechte liefern. **Maßnahme:** Cache-Invalidierung fehlersicher machen und Widerruf + DB-Fehler + Serverausfall testen.
+
+- [ ] **P2/P3 — Deaktivierung kann Erfolg melden, obwohl lokale Zugangsdaten nicht gelöscht wurden.** Branch codex/wplc-client, Datei: src/Licensing/LicenseClient.php:119–127. Nach bestätigter Serverdeaktivierung wird delete_option() nicht geprüft. **Mögliche Auswirkung:** Veraltete Credentials bleiben lokal und UI/erneute Aktivierung können einen inkonsistenten Zustand zeigen. **Maßnahme:** Lokale Löschung prüfen und einen wiederherstellbaren Fehlerzustand anzeigen.
+
+- [ ] **P3 — Lizenzseite blockiert beim Rendern bis zum Netzwerktimeout.** Branch codex/wplc-client, Dateien: src/Licensing/AdminPage.php:42–43 und src/Licensing/LicenseClient.php:180. Statusabfrage läuft synchron mit bis zu 20 Sekunden Timeout. **Auswirkung:** Die Einstellungsseite kann bei langsamem/unerreichbarem Lizenzserver lange hängen. **Maßnahme:** Zuletzt verifizierten Status aus Cache anzeigen und Aktualisierung separat bzw. mit kürzerem Timeout durchführen.
+
+- [ ] **P2/P3 — Update-Erkennung ist möglicherweise von einem angemeldeten Admin abhängig.** Branch codex/wplc-updater, Datei: src/Licensing/PremiumUpdater.php:39–42. Der Update-Transient wird nur befüllt, wenn current_user_can('update_plugins') wahr ist. **Mögliche Auswirkung:** WP-Cron-/Background-Updatechecks ohne angemeldeten Nutzer könnten Premium-Updates nicht zuverlässig entdecken. **Maßnahme:** Admin-, Cron- und Auto-Update-Checks in einer echten WP-Instanz testen und Update-Metadaten nicht unnötig an UI-Rechte koppeln.
+
+- [ ] **P3 — Update-ZIP-Download hat kein Größenlimit.** Branch codex/wplc-updater, Datei: src/Licensing/PremiumUpdater.php:130–147. Der erlaubte HTTPS-Download wird in eine temporäre Datei gestreamt, bevor die Prüfsumme kontrolliert wird; es gibt keine maximale Bytezahl. **Mögliche Auswirkung:** Ein fehlerhafter oder kompromittierter erlaubter Paketserver kann den verfügbaren Speicher erschöpfen. **Maßnahme:** Maximale Paketgröße/Content-Length validieren, bei Überschreitung abbrechen und temporäre Datei sicher entfernen.
+
+- [ ] **P3 — Lizenzzugangsdaten und Cache werden bei vollständiger Deinstallation nicht entfernt.** Branch codex/wplc-client / codex/wplc-offline-cache, Dateien: src/Licensing/AdminPage.php:87–88; src/Licensing/LicenseClient.php:77,104; uninstall.php:54–56. Die Lizenzoptionen wpac_wplc_server_url, wpac_wplc_credentials und wpac_wplc_credentials_entitlements_cache fehlen in der Uninstall-Löschliste. **Auswirkung:** Lizenzgeheimnis und Cache bleiben nach vollständiger Pluginentfernung in der WordPress-Datenbank. **Maßnahme:** Optionen in die vollständige Uninstall-Bereinigung aufnehmen und Retain-Data-Einstellung respektieren.
+
+## Teststatus der offenen PRs
+
+- Die geprüften letzten CI-Läufe auf codex/wplc-client, codex/wplc-updater, codex/wplc-entitlement-helper und codex/wplc-offline-cache scheiterten jeweils am deutschen Übersetzungsjob. PHP-Matrix und MariaDB-Integration waren in diesen Läufen erfolgreich; Release-ZIP wurde übersprungen.
+- Die Client-PRs wurden nur statisch geprüft; sie wurden nicht in einer laufenden WordPress-/WooCommerce-Staging-Instanz ausgeführt.
