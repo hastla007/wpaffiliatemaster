@@ -89,6 +89,36 @@ final class LicenseClient {
 	}
 
 	/**
+	 * Check a feature flag in a response returned by check_entitlements().
+	 *
+	 * The caller must pass the verified response returned by check_entitlements().
+	 * Missing, malformed, foreign-product, false, and zero-value entitlements deny access.
+	 *
+	 * @param string $key Stable namespaced entitlement identifier.
+	 * @param array<string,mixed> $verified_entitlements Verified entitlement response data.
+	 * @return bool
+	 */
+	public function allows_entitlement( string $key, array $verified_entitlements ): bool {
+		$prefixes = array(
+			'voucher-captain' => 'voucher.',
+			'wp-pass-captain' => 'pass.',
+			'affiliate-captain' => 'affiliate.',
+		);
+		$prefix = $prefixes[ $this->product_key ] ?? '';
+		if ( '' === $prefix || 0 !== strpos( $key, $prefix ) ) {
+			return false;
+		}
+
+		$features = $verified_entitlements['entitlements'] ?? $verified_entitlements;
+		if ( ! is_array( $features ) || ! array_key_exists( $key, $features ) ) {
+			return false;
+		}
+
+		$value = $features[ $key ];
+		return true === $value || ( ( is_int( $value ) || is_float( $value ) ) && $value > 0 );
+	}
+
+	/**
 	 * Check for a product update and receive a short-lived package URL.
 	 *
 	 * @return array<string,mixed>|\WP_Error
