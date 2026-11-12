@@ -138,11 +138,22 @@ async function portal( browser ) {
 	check( /wpac_tab=/.test( page.url() ), 'Bereich per Tastatur (Enter) wechselbar', page.url() );
 	const current = await page.locator( 'a[aria-current="page"][href*="wpac_tab="]' ).count();
 	check( current === 1, 'aktiver Bereich ist mit aria-current gekennzeichnet' );
-	for ( const tab of [ 'overview', 'commissions', 'payouts', 'links' ] ) {
+	for ( const tab of [ 'overview', 'commissions', 'payouts', 'links', 'profile', 'account' ] ) {
 		await page.goto( BASE + CFG.portal + '?wpac_tab=' + tab );
 		const v = await axe( page, '.wpac-portal' );
 		check( 0 === v.length, 'Barrierefreiheit Partnerbereich „' + tab + '“', v.join( '; ' ) );
 	}
+	// "My account": a changed channel is saved.
+	await page.goto( BASE + CFG.portal + '?wpac_tab=account' );
+	const channel = 'E2E ' + Date.now();
+	await page.fill( '#wpac_acc_channel', channel );
+	await Promise.all( [ page.waitForNavigation(), page.click( '.wpac-form button[type="submit"]' ) ] );
+	check( ( await page.inputValue( '#wpac_acc_channel' ) ) === channel, 'Mein Konto: Kanal gespeichert' );
+	// Phone width: tables stack, no horizontal scrolling of the page.
+	await page.setViewportSize( { width: 375, height: 800 } );
+	await page.goto( BASE + CFG.portal + '?wpac_tab=commissions' );
+	const overflow = await page.evaluate( () => document.documentElement.scrollWidth - document.documentElement.clientWidth );
+	check( overflow <= 1, 'Partnerbereich auf dem Handy ohne waagerechtes Scrollen', 'overflow ' + overflow + 'px' );
 	check( 0 === errors.length, 'keine JavaScript-Fehler', errors.join( '; ' ) );
 	await ctx.close();
 }

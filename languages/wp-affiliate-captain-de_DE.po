@@ -88,6 +88,9 @@ msgstr "Code aktualisiert."
 msgid "Coupon link updated."
 msgstr "Gutschein-Verknüpfung aktualisiert."
 
+msgid "The negative balance was written off."
+msgstr "Der negative Saldo wurde ausgebucht."
+
 msgid "Payout details saved."
 msgstr "Auszahlungsdaten gespeichert."
 
@@ -177,6 +180,9 @@ msgstr "Profil"
 
 msgid "WordPress user"
 msgstr "WordPress-Benutzer"
+
+msgid "No WordPress user is linked: the partner cannot log in to the partner area. This happens when the e-mail belongs to an administrator or editor account (never linked automatically). Use a different e-mail or link a user manually."
+msgstr "Kein WordPress-Benutzer verknüpft: Der Partner kann sich nicht im Partnerbereich anmelden. Das passiert, wenn die E-Mail zu einem Administrator- oder Redakteurskonto gehört (wird nie automatisch verknüpft). Verwenden Sie eine andere E-Mail oder verknüpfen Sie einen Benutzer manuell."
 
 msgid "Vanity slug"
 msgstr "Kurzname (für Links)"
@@ -345,6 +351,18 @@ msgstr "Noch keine Buchungen. Das Konto beginnt mit der ersten freigegebenen Pro
 
 msgid "Account %1$s – balance %2$s"
 msgstr "Konto %1$s – Saldo %2$s"
+
+msgid "Reason for the write-off"
+msgstr "Grund für die Ausbuchung"
+
+msgid "Write off %s? The amount is no longer offset against future commissions."
+msgstr "%s ausbuchen? Der Betrag wird nicht mehr mit künftigen Provisionen verrechnet."
+
+msgid "Write off negative balance"
+msgstr "Negativen Saldo ausbuchen"
+
+msgid "Otherwise the negative balance is offset against the next commissions. To claim it back, invoice the partner outside the plugin and write it off here once paid."
+msgstr "Andernfalls wird der negative Saldo mit den nächsten Provisionen verrechnet. Um ihn zurückzufordern, stellen Sie dem Partner außerhalb des Plugins eine Rechnung und buchen Sie ihn hier nach Zahlungseingang aus."
 
 msgid "Integrity check failed:"
 msgstr "Integritätsprüfung fehlgeschlagen:"
@@ -1345,6 +1363,12 @@ msgstr "Ein Affiliate-Cookie ist nicht unbedingt erforderlich: In der EU darf es
 msgid "Cookie lifetime (days)"
 msgstr "Cookie-Laufzeit (Tage)"
 
+msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
+msgstr "Partnerlinks zusätzlich per JavaScript erfassen (für Seiten-Caches/CDNs)"
+
+msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). A tiny script reports the parameter; a visit is never counted twice."
+msgstr "Nur nötig, wenn Ihr Cache oder CDN Seiten mit ?partner=… aus dem Cache ausliefert (z. B. Cloudflare „Cache Everything“). Ein kleines Skript meldet den Parameter; ein Besuch wird nie doppelt gezählt."
+
 msgid "Link attribution"
 msgstr "Link-Zuordnung"
 
@@ -1431,6 +1455,12 @@ msgstr "Lifetime-Provision: Folgekäufe geworbener Kunden gehen an denselben Par
 
 msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
 msgstr "Gilt nur, wenn kein neuer Partnerlink, Code oder Gutschein verwendet wird. Kunden werden nur als verschlüsselte Hashes gespeichert."
+
+msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
+msgstr "Provision auf Abo-Verlängerungen (WooCommerce Subscriptions)"
+
+msgid "Off: only the first order of a subscription earns commission; renewals are not attributed."
+msgstr "Aus: Nur die erste Bestellung eines Abos bringt Provision; Verlängerungen werden nicht zugeordnet."
 
 msgid "Lifetime link duration (days, 0 = unlimited)"
 msgstr "Dauer der Lifetime-Bindung (Tage, 0 = unbegrenzt)"
@@ -1611,6 +1641,9 @@ msgstr "Mit dieser E-Mail-Adresse existiert bereits ein Partnerkonto."
 
 msgid "The affiliate could not be saved."
 msgstr "Der Partner konnte nicht gespeichert werden."
+
+msgid "This e-mail address is already used by another partner account."
+msgstr "Diese E-Mail-Adresse wird bereits von einem anderen Partnerkonto verwendet."
 
 msgid "Affiliate not found."
 msgstr "Partner nicht gefunden."
@@ -1813,6 +1846,9 @@ msgstr "Rückbuchung"
 msgid "Monthly bonus"
 msgstr "Monatsbonus"
 
+msgid "Write-off"
+msgstr "Ausbuchung"
+
 msgid "Hold period ended"
 msgstr "Haltefrist abgelaufen"
 
@@ -1833,6 +1869,9 @@ msgstr "Diese Provision ist Teil einer Auszahlung. Stornieren Sie zuerst die Aus
 
 msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
 msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung zugeordnet). Bitte laden Sie die Seite neu und versuchen Sie es erneut."
+
+msgid "The balance is not negative."
+msgstr "Der Saldo ist nicht negativ."
 
 msgid "Please enter a valid rate."
 msgstr "Bitte geben Sie einen gültigen Satz ein."
@@ -2131,6 +2170,12 @@ msgstr "Der gespeicherte Beleg hat die Integritätsprüfung nicht bestanden."
 msgid "The link has expired."
 msgstr "Der Link ist abgelaufen."
 
+msgid "[%s] Please confirm your new e-mail address"
+msgstr "[%s] Bitte bestätigen Sie Ihre neue E-Mail-Adresse"
+
+msgid "Hello %1$s,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%2$s\n\nIf you did not request this, ignore this e-mail."
+msgstr "Hallo %1$s,\n\nbitte bestätigen Sie Ihre neue E-Mail-Adresse für das Partnerprogramm (24 Stunden gültig):\n%2$s\n\nWenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail."
+
 msgid "Copied to the clipboard."
 msgstr "In die Zwischenablage kopiert."
 
@@ -2164,6 +2209,9 @@ msgstr "Fragen? Schreiben Sie uns an %s."
 msgid "Links & codes"
 msgstr "Links & Codes"
 
+msgid "My account"
+msgstr "Mein Konto"
+
 msgid "Your partner account is paused. New sales are currently not attributed."
 msgstr "Ihr Partnerkonto ist pausiert. Neue Verkäufe werden derzeit nicht zugeordnet."
 
@@ -2187,6 +2235,15 @@ msgstr "Vielen Dank für die Annahme der Bedingungen."
 
 msgid "The terms were changed in the meantime. Please read the current version and accept it again."
 msgstr "Die Bedingungen wurden inzwischen geändert. Bitte lesen Sie die aktuelle Fassung und stimmen Sie erneut zu."
+
+msgid "Saved. We have sent a confirmation link to your new e-mail address; it is used once you confirm it."
+msgstr "Gespeichert. Wir haben einen Bestätigungslink an Ihre neue E-Mail-Adresse geschickt; sie gilt, sobald Sie bestätigen."
+
+msgid "Your new e-mail address is confirmed."
+msgstr "Ihre neue E-Mail-Adresse ist bestätigt."
+
+msgid "The confirmation link is invalid or has expired."
+msgstr "Der Bestätigungslink ist ungültig oder abgelaufen."
 
 msgid "Our partner program terms have been updated."
 msgstr "Die Bedingungen unseres Partnerprogramms wurden aktualisiert."
@@ -2370,6 +2427,18 @@ msgstr "BIC (optional)"
 
 msgid "Your bank details are stored encrypted and are only used for commission payouts."
 msgstr "Ihre Bankdaten werden verschlüsselt gespeichert und nur für Provisionsauszahlungen verwendet."
+
+msgid "E-mail for notifications"
+msgstr "E-Mail für Benachrichtigungen"
+
+msgid "Waiting for confirmation of %s."
+msgstr "Wartet auf Bestätigung von %s."
+
+msgid "Channel (e.g. blog, Instagram, sailing school)"
+msgstr "Kanal (z. B. Blog, Instagram, Segelschule)"
+
+msgid "To end the partnership or delete your data, write to %s."
+msgstr "Um die Partnerschaft zu beenden oder Ihre Daten zu löschen, schreiben Sie an %s."
 
 msgid "Pages"
 msgstr "Seiten"

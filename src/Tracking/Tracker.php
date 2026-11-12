@@ -25,6 +25,7 @@ final class Tracker {
 		add_action( 'template_redirect', array( __CLASS__, 'capture' ), 5 );
 		add_action( 'woocommerce_add_to_cart', array( __CLASS__, 'capture_on_add_to_cart' ), 5 );
 		add_action( 'init', array( __CLASS__, 'drop_cookie_without_consent' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_beacon' ) );
 		add_filter( 'wp_consent_api_registered_' . plugin_basename( WPAC_FILE ), '__return_true' );
 	}
 
@@ -45,27 +46,52 @@ final class Tracker {
 		if ( ! headers_sent() ) {
 			nocache_headers();
 		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$raw = sanitize_text_field( wp_unslash( $_GET[ $param ] ) );
-		$resolved = wpac_resolve_partner_code( $raw, array( 'context' => 'link' ) );
-		if ( ! $resolved ) {
-			return;
-		}
-		// The limit only throttles visit statistics – the referral itself is always kept.
-		// Checked after the code resolved, so unknown codes cause no counter writes.
-		$count_visit = ! self::is_bot() && RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS );
-
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
-		$touch = array(
-			'code'       => $resolved['code'],
-			'campaign'   => isset( $_GET['utm_campaign'] ) ? substr( sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ), 0, 100 ) : '',
-			'content_id' => is_singular() ? (int) get_queried_object_id() : 0,
-			'ts'         => time(),
+		self::capture_code(
+			sanitize_text_field( wp_unslash( $_GET[ $param ] ) ),
+			isset( $_GET['utm_campaign'] ) ? sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ) : '',
+			is_singular() ? (int) get_queried_object_id() : 0,
+			array(
+				'utm_source' => isset( $_GET['utm_source'] ) ? sanitize_text_field( wp_unslash( $_GET['utm_source'] ) ) : '',
+				'utm_medium' => isset( $_GET['utm_medium'] ) ? sanitize_text_field( wp_unslash( $_GET['utm_medium'] ) ) : '',
+			)
 		);
 		// phpcs:enable
+	}
 
+	/**
+	 * Record a referral (from the page request or, behind full-page caches, from the
+	 * JavaScript beacon). A visit of the same client and code is counted once per minute,
+	 * so page request and beacon never count twice.
+	 *
+	 * @param string $raw        Code or slug.
+	 * @param string $campaign   utm_campaign.
+	 * @param int    $content_id Landing content.
+	 * @param array  $extra      utm_source, utm_medium, path, referrer (beacon).
+	 * @return bool Whether the code resolved.
+	 */
+	public static function capture_code( $raw, $campaign, $content_id, array $extra = array() ) {
+		$resolved = wpac_resolve_partner_code( (string) $raw, array( 'context' => 'link' ) );
+		if ( ! $resolved ) {
+			return false;
+		}
+		// Only needed with the beacon (page request + beacon for the same visit).
+		$dedup = Settings::get( 'js_tracking' ) ? 'wpac_vd_' . substr( hash_hmac( 'sha256', RateLimiter::bucket_ip( RateLimiter::current_ip() ) . '|' . $resolved['code'], wp_salt( 'nonce' ) ), 0, 32 ) : '';
+		// The limit only throttles visit statistics – the referral itself is always kept.
+		// Checked after the code resolved, so unknown codes cause no counter writes.
+		$count_visit = ! self::is_bot() && ( '' === $dedup || false === get_transient( $dedup ) ) && RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS );
+
+		$touch = array(
+			'code'       => $resolved['code'],
+			'campaign'   => substr( (string) $campaign, 0, 100 ),
+			'content_id' => (int) $content_id,
+			'ts'         => time(),
+		);
 		if ( $count_visit ) {
-			$touch['visit_id'] = self::record_visit( $resolved, $touch );
+			if ( '' !== $dedup ) {
+				set_transient( $dedup, 1, MINUTE_IN_SECONDS );
+			}
+			$touch['visit_id'] = self::record_visit( $resolved, $touch, $extra );
 		}
 
 		self::store_touch( $touch );
@@ -77,6 +103,26 @@ final class Tracker {
 		 * @param array $touch    Touch data.
 		 */
 		do_action( 'wpac_referral_captured', $resolved, $touch );
+		return true;
+	}
+
+	/**
+	 * Optional beacon for sites behind a full-page cache/CDN that ignores DONOTCACHEPAGE:
+	 * the cached page reports the referral parameter via REST. Tiny inline script, it only
+	 * sends a request when the parameter is in the URL.
+	 */
+	public static function enqueue_beacon() {
+		if ( ! Settings::get( 'js_tracking' ) ) {
+			return;
+		}
+		$config = array(
+			'url'     => esc_url_raw( rest_url( 'wpac/v1/touch' ) ),
+			'param'   => (string) Settings::get( 'referral_param' ),
+			'content' => is_singular() ? (int) get_queried_object_id() : 0,
+		);
+		wp_register_script( 'wpac-beacon', '', array(), WPAC_VERSION, array( 'in_footer' => true ) );
+		wp_enqueue_script( 'wpac-beacon' );
+		wp_add_inline_script( 'wpac-beacon', 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",content_id:c.content,path:location.pathname,referrer:document.referrer||""})});}catch(e){}})(window.wpacBeacon);' );
 	}
 
 	/**
@@ -266,14 +312,15 @@ final class Tracker {
 	 * @param array $touch    Touch.
 	 * @return int Visit ID.
 	 */
-	private static function record_visit( array $resolved, array $touch ) {
+	private static function record_visit( array $resolved, array $touch, array $extra = array() ) {
 		global $wpdb;
 		$ref_host = '';
-		if ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
-			$host     = wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ), PHP_URL_HOST );
+		$referrer = isset( $extra['referrer'] ) ? (string) $extra['referrer'] : ( ! empty( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '' );
+		if ( '' !== $referrer ) {
+			$host     = wp_parse_url( $referrer, PHP_URL_HOST );
 			$ref_host = $host ? substr( strtolower( $host ), 0, 190 ) : '';
 		}
-		$path = isset( $_SERVER['REQUEST_URI'] ) ? wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '';
+		$path = isset( $extra['path'] ) ? (string) $extra['path'] : ( isset( $_SERVER['REQUEST_URI'] ) ? wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '' );
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		$wpdb->insert(
 			Db::table( 'visits' ),
@@ -281,8 +328,8 @@ final class Tracker {
 				'affiliate_id'  => (int) $resolved['affiliate_id'],
 				'code_id'       => (int) $resolved['code_id'],
 				'campaign'      => $touch['campaign'],
-				'utm_source'    => isset( $_GET['utm_source'] ) ? substr( sanitize_text_field( wp_unslash( $_GET['utm_source'] ) ), 0, 100 ) : '',
-				'utm_medium'    => isset( $_GET['utm_medium'] ) ? substr( sanitize_text_field( wp_unslash( $_GET['utm_medium'] ) ), 0, 100 ) : '',
+				'utm_source'    => substr( isset( $extra['utm_source'] ) ? (string) $extra['utm_source'] : '', 0, 100 ),
+				'utm_medium'    => substr( isset( $extra['utm_medium'] ) ? (string) $extra['utm_medium'] : '', 0, 100 ),
 				'referrer_host' => $ref_host,
 				'landing_path'  => substr( (string) $path, 0, 255 ),
 				'content_id'    => (int) $touch['content_id'],

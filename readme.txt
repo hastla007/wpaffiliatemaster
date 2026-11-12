@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.2
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 0.8.0
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,6 +46,13 @@ Yes. Partner codes entered at checkout work without any cookie. The optional aff
 No. Other sales sources report sales and refunds through the public contract (`wpac_record_sale()`, REST `wpac/v1/sales`).
 
 == Changelog ==
+
+= 0.9.0 =
+* Partner area: new tab "My account" – partners change name, website and channel themselves; a new e-mail address is used after confirmation via link
+* Operators can change a partner's e-mail; warning when no WordPress user is linked (the partner cannot log in)
+* Negative balance (clawbacks without new earnings): can be written off with a reason (audited, account stays consistent)
+* WooCommerce Subscriptions: new setting "Commission on subscription renewals" (default on, as before)
+* Optional JavaScript tracking for full-page caches/CDNs that serve pages with the referral parameter from the cache; a visit is never counted twice (REST wpac/v1/touch, off by default)
 
 = 0.8.0 =
 Review of all modules (security, money, legal, operations, usability):

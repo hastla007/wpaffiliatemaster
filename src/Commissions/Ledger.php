@@ -58,6 +58,7 @@ final class Ledger {
 			'cancellation' => __( 'Cancellation', 'wp-affiliate-captain' ),
 			'chargeback'   => __( 'Chargeback', 'wp-affiliate-captain' ),
 			'bonus'        => __( 'Monthly bonus', 'wp-affiliate-captain' ),
+			'writeoff'     => __( 'Write-off', 'wp-affiliate-captain' ),
 		);
 	}
 
@@ -561,6 +562,82 @@ final class Ledger {
 		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE source = %s AND source_order_id = %s AND status <> 'rejected' AND kind <> 'bonus'", $source, $order_id ) );
 		if ( $left <= 0 ) {
 			CustomerLinks::forget_order( $source, $order_id );
+		}
+	}
+
+	/**
+	 * Write off a negative balance (e.g. clawbacks of a partner who no longer earns):
+	 * books an approved counter entry so the account is settled at 0. Audited.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param string $reason       Reason (required).
+	 * @return int|\WP_Error Commission ID of the write-off.
+	 */
+	public static function write_off( $affiliate_id, $currency, $reason ) {
+		global $wpdb;
+		$reason = trim( (string) $reason );
+		if ( '' === $reason ) {
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
+		}
+		$currency = strtoupper( (string) $currency );
+		$t        = Db::table( 'commissions' );
+		try {
+			return Db::transaction(
+				static function () use ( $wpdb, $t, $affiliate_id, $currency, $reason ) {
+					// The open (approved, unpaid) rows define the balance; lock them.
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
+					if ( $open >= 0 ) {
+						throw new IntegrationException( 'not_negative', __( 'The balance is not negative.', 'wp-affiliate-captain' ) );
+					}
+					$key = self::key( 'writeoff:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
+					$ok  = $wpdb->insert(
+						$t,
+						array(
+							'affiliate_id'    => (int) $affiliate_id,
+							'source'          => 'wpac',
+							'source_order_id' => 'writeoff',
+							'source_item_id'  => '',
+							'kind'            => 'writeoff',
+							'parent_id'       => 0,
+							'product_ref'     => '',
+							'description'     => substr( $reason, 0, 255 ),
+							'currency'        => $currency,
+							'base_minor'      => 0,
+							'amount_minor'    => -$open,
+							'rate_type'       => 'fixed',
+							'rate'            => '0',
+							'rule_id'         => 0,
+							'rule_snapshot'   => null,
+							'status'          => 'approved',
+							'hold_until'      => Db::now(),
+							'idempotency_key' => $key,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
+						)
+					);
+					if ( ! $ok ) {
+						throw new IntegrationException( 'db_writeoff', $wpdb->last_error );
+					}
+					$id = (int) $wpdb->insert_id;
+					Balance::post( (int) $affiliate_id, $currency, 'approved', -$open, $id, 0, 'write-off' );
+					self::event( $id, 'created', '', 'approved', -$open, 'write-off: ' . $reason, $key, get_current_user_id() );
+					Audit::log(
+						'commission.written_off',
+						'affiliate',
+						(int) $affiliate_id,
+						array(
+							'amount'   => -$open,
+							'currency' => $currency,
+							'reason'   => $reason,
+						)
+					);
+					return $id;
+				}
+			);
+		} catch ( IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
 	}
 

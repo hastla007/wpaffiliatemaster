@@ -37,6 +37,31 @@ final class Portal {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_action( 'init', array( __CLASS__, 'handle_post' ) );
 		add_action( 'init', array( __CLASS__, 'statement_download' ) );
+		add_action( 'init', array( __CLASS__, 'confirm_email' ) );
+	}
+
+	/**
+	 * Confirm a new contact e-mail (link from the confirmation mail; the partner must be logged in).
+	 */
+	public static function confirm_email() {
+		if ( empty( $_GET['wpac_email_confirm'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$token = sanitize_key( wp_unslash( $_GET['wpac_email_confirm'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$aff   = self::current();
+		$back  = remove_query_arg( 'wpac_email_confirm' );
+		if ( ! $aff ) {
+			return; // The portal shows the login form; the link works after logging in.
+		}
+		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
+		$msg     = 'email_link_invalid';
+		if ( is_array( $pending ) && hash_equals( (string) $pending['token'], $token ) ) {
+			$result = AffiliateRepository::set_email( (int) $aff->id, (string) $pending['email'] );
+			delete_transient( 'wpac_email_change_' . (int) $aff->id );
+			$msg = is_wp_error( $result ) ? $result->get_error_code() : 'email_changed';
+		}
+		wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $back ) );
+		exit;
 	}
 
 	/**
@@ -83,6 +108,42 @@ final class Portal {
 		}
 		$action   = sanitize_key( wp_unslash( $_POST['wpac_portal_action'] ) );
 		$redirect = remove_query_arg( array( 'wpac_msg' ), wpac_return_url() );
+
+		if ( 'account' === $action ) {
+			// Name, website and channel directly; a new e-mail only after confirmation.
+			AffiliateRepository::update(
+				(int) $aff->id,
+				array(
+					'name'    => isset( $_POST['wpac_acc_name'] ) && '' !== trim( sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) : $aff->name,
+					'website' => isset( $_POST['wpac_acc_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_acc_website'] ) ) : $aff->website,
+					'channel' => isset( $_POST['wpac_acc_channel'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_channel'] ) ) : $aff->channel,
+				)
+			);
+			$msg   = 'saved';
+			$email = isset( $_POST['wpac_acc_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_acc_email'] ) ) : '';
+			if ( '' !== $email && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
+				$other = AffiliateRepository::find_by_email( $email );
+				if ( ! is_email( $email ) ) {
+					$msg = 'wpac_email';
+				} elseif ( $other && (int) $other->id !== (int) $aff->id ) {
+					$msg = 'wpac_email_taken';
+				} else {
+					$token = wp_generate_password( 32, false );
+					set_transient( 'wpac_email_change_' . (int) $aff->id, array( 'email' => $email, 'token' => strtolower( $token ) ), DAY_IN_SECONDS );
+					$link = add_query_arg( 'wpac_email_confirm', strtolower( $token ), add_query_arg( 'wpac_tab', 'account', wpac_return_url() ) );
+					wp_mail(
+						$email,
+						/* translators: %s: site name */
+						sprintf( __( '[%s] Please confirm your new e-mail address', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+						/* translators: 1: name, 2: link */
+						sprintf( __( "Hello %1\$s,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%2\$s\n\nIf you did not request this, ignore this e-mail.", 'wp-affiliate-captain' ), $aff->name, $link )
+					);
+					$msg = 'email_confirm_sent';
+				}
+			}
+			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $redirect ) );
+			exit;
+		}
 
 		if ( 'profile' === $action ) {
 			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic' );
@@ -185,6 +246,7 @@ final class Portal {
 			'commissions' => __( 'Commissions', 'wp-affiliate-captain' ),
 			'payouts'     => __( 'Payouts', 'wp-affiliate-captain' ),
 			'profile'     => __( 'Payout details', 'wp-affiliate-captain' ),
+			'account'     => __( 'My account', 'wp-affiliate-captain' ),
 		);
 		if ( $closed ) {
 			// Terminated partners keep read access to commissions, payouts and their credit
@@ -286,6 +348,11 @@ final class Portal {
 			'wpac_iban' => array( 'error', __( 'The IBAN is not valid.', 'wp-affiliate-captain' ) ),
 			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID.', 'wp-affiliate-captain' ) ),
 			'wpac_tax_number' => array( 'error', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'wp-affiliate-captain' ) ),
+			'wpac_email'         => array( 'error', __( 'Please enter a valid e-mail address.', 'wp-affiliate-captain' ) ),
+			'wpac_email_taken'   => array( 'error', __( 'This e-mail address is already used by another partner account.', 'wp-affiliate-captain' ) ),
+			'email_confirm_sent' => array( 'success', __( 'Saved. We have sent a confirmation link to your new e-mail address; it is used once you confirm it.', 'wp-affiliate-captain' ) ),
+			'email_changed'      => array( 'success', __( 'Your new e-mail address is confirmed.', 'wp-affiliate-captain' ) ),
+			'email_link_invalid' => array( 'error', __( 'The confirmation link is invalid or has expired.', 'wp-affiliate-captain' ) ),
 		);
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$key = isset( $_GET['wpac_msg'] ) ? sanitize_key( wp_unslash( $_GET['wpac_msg'] ) ) : '';
@@ -712,6 +779,31 @@ final class Portal {
 			$required ? 'required' : '',
 			$extra // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		);
+	}
+
+	/**
+	 * Tab "My account": contact data the partner can change.
+	 *
+	 * @param object $aff Affiliate.
+	 */
+	private static function tab_account( $aff ) {
+		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
+		echo '<form method="post" class="wpac-form">';
+		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
+		echo '<input type="hidden" name="wpac_portal_action" value="account">';
+		self::input( 'acc_name', __( 'Name / company', 'wp-affiliate-captain' ), (string) $aff->name, true );
+		printf( '<p><label for="wpac_acc_email">%1$s *</label><input type="email" id="wpac_acc_email" name="wpac_acc_email" value="%2$s" required autocomplete="email"></p>', esc_html__( 'E-mail for notifications', 'wp-affiliate-captain' ), esc_attr( (string) $aff->email ) );
+		if ( is_array( $pending ) ) {
+			/* translators: %s: e-mail */
+			echo '<p class="wpac-muted">' . esc_html( sprintf( __( 'Waiting for confirmation of %s.', 'wp-affiliate-captain' ), $pending['email'] ) ) . '</p>';
+		}
+		printf( '<p><label for="wpac_acc_website">%1$s</label><input type="url" id="wpac_acc_website" name="wpac_acc_website" value="%2$s"></p>', esc_html__( 'Website', 'wp-affiliate-captain' ), esc_attr( (string) $aff->website ) );
+		self::input( 'acc_channel', __( 'Channel (e.g. blog, Instagram, sailing school)', 'wp-affiliate-captain' ), (string) $aff->channel );
+		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'wp-affiliate-captain' ) . '</button></p></form>';
+		$admin = (string) Settings::get( 'admin_email' );
+		$admin = is_email( $admin ) ? $admin : (string) get_option( 'admin_email' );
+		/* translators: %s: e-mail link */
+		echo '<p class="wpac-muted">' . sprintf( esc_html__( 'To end the partnership or delete your data, write to %s.', 'wp-affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' ) . '</p>';
 	}
 
 	/** @var string Field with the last validation error (profile form). */
