@@ -2038,6 +2038,15 @@ msgstr "Die Signatur der Lizenzserver-Antwort konnte nicht verifiziert werden."
 msgid "This product installation has not been activated."
 msgstr "Diese Plugin-Installation wurde nicht aktiviert."
 
+msgid "No verified offline entitlement cache is available."
+msgstr "Kein verifizierter Offline-Rechtecache ist verfügbar."
+
+msgid "The offline entitlement cache has expired."
+msgstr "Der Offline-Rechtecache ist abgelaufen."
+
+msgid "The offline entitlement cache could not be verified."
+msgstr "Der Offline-Rechtecache konnte nicht verifiziert werden."
+
 msgid "Payout requests are not enabled."
 msgstr "Auszahlungsanträge sind nicht aktiviert."
 
