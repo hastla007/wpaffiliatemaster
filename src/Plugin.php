@@ -41,6 +41,7 @@ final class Plugin {
 		);
 
 		Installer::maybe_upgrade();
+		( new Licensing\PremiumUpdater() )->register_hooks();
 		Installer::register_multisite_hooks();
 
 		CodeRepository::register_hooks();
