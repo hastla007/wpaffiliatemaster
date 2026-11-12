@@ -47,12 +47,13 @@ final class Tracker {
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$raw = sanitize_text_field( wp_unslash( $_GET[ $param ] ) );
-		// The limit only throttles visit statistics – the referral itself is always kept.
-		$count_visit = RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS );
 		$resolved = wpac_resolve_partner_code( $raw, array( 'context' => 'link' ) );
 		if ( ! $resolved ) {
 			return;
 		}
+		// The limit only throttles visit statistics – the referral itself is always kept.
+		// Checked after the code resolved, so unknown codes cause no counter writes.
+		$count_visit = ! self::is_bot() && RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS );
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		$touch = array(
@@ -63,7 +64,7 @@ final class Tracker {
 		);
 		// phpcs:enable
 
-		if ( $count_visit && ! self::is_bot() ) {
+		if ( $count_visit ) {
 			$touch['visit_id'] = self::record_visit( $resolved, $touch );
 		}
 

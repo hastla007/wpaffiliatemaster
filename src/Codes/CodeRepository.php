@@ -58,10 +58,11 @@ final class CodeRepository {
 		$t = Db::table( 'partner_codes' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE code = %s", $code ) );
-		if ( ! $row && false === strpos( $code, '-' ) && strlen( $code ) >= 6 ) {
-			// Typed without hyphen (K7Q3MX2P → K7Q3-MX2P).
+		if ( ! $row && false === strpos( $code, '-' ) && 8 === strlen( $code ) ) {
+			// Generated code typed without hyphen (K7Q3MX2P → K7Q3-MX2P): one indexed lookup
+			// instead of a full scan (unknown codes are cheap, also for bots).
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE REPLACE(code, '-', '') = %s LIMIT 1", $code ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE code = %s", substr( $code, 0, 4 ) . '-' . substr( $code, 4 ) ) );
 		}
 		return $row;
 	}
@@ -325,7 +326,12 @@ final class CodeRepository {
 		if ( $found ) {
 			return $found;
 		}
-		// Vanity slug (e.g. ?partner=anna-segelschule) – resolves to the first active code.
+		// Vanity slug (e.g. ?partner=anna-segelschule) – only for links (not as a typed code
+		// at checkout or via REST, so partner names cannot be used to find out codes).
+		$context = isset( $context['context'] ) ? (string) $context['context'] : '';
+		if ( ! in_array( $context, array( 'link', 'cart', 'welcome' ), true ) ) {
+			return null;
+		}
 		$aff = AffiliateRepository::find_by_slug( $code );
 		if ( $aff && 'active' === $aff->status ) {
 			foreach ( self::for_affiliate( (int) $aff->id ) as $row ) {

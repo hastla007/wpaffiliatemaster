@@ -439,6 +439,11 @@ $sig = WPAffiliateCaptain\Tracking\Tracker::sign( 'ABCD-EFGH||0|' . time() );
 check( 'R12 signed cookie accepted', 'ABCD-EFGH', WPAffiliateCaptain\Tracking\Tracker::parse_cookie( $sig )['code'] ?? null );
 check( 'R12 forged cookie rejected', null, WPAffiliateCaptain\Tracking\Tracker::parse_cookie( 'ABCD-EFGH||0|1|0000000000000000' ) );
 check( 'R12 click older than the window rejected', null, WPAffiliateCaptain\Tracking\Tracker::parse_cookie( WPAffiliateCaptain\Tracking\Tracker::sign( 'ABCD-EFGH||0|1' ) ) );
+// R13 vanity slugs resolve only for links, not as typed codes (checkout/REST).
+$slug = AffiliateRepository::find( $rp )->slug;
+check( 'R13 slug resolves for a link', $rp, wpac_resolve_partner_code( $slug, array( 'context' => 'link' ) )['affiliate_id'] ?? null );
+check( 'R13 slug is not accepted at checkout', null, wpac_resolve_partner_code( $slug, array( 'context' => 'checkout' ) ) );
+check( 'R13 slug is not accepted via REST', null, wpac_resolve_partner_code( $slug, array( 'context' => 'rest' ) ) );
 check( 'R balances consistent after all fixes', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
