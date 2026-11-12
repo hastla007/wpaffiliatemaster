@@ -2623,6 +2623,94 @@ msgstr ""
 msgid "Order cancelled"
 msgstr ""
 
+#: src/Licensing/AdminPage.php
+msgid "License"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "Current license status"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "Paid through"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "Sites"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "Feature rights"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "Deactivate this site"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "License server URL"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "License key"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "The license key is used once for activation and is not stored by this plugin. Activation credentials are stored locally without autoloading."
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "Activate license"
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "Enter a valid HTTPS license server URL and license key."
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "License activated for this site."
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "This site was deactivated."
+msgstr ""
+
+#: src/Licensing/AdminPage.php
+msgid "You are not allowed to manage this license."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "License server settings or license key are missing."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "Could not encode the license request."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "The license server returned an error."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "The license server returned an invalid response."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "The license server returned invalid JSON."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "The license server response is missing its signature envelope."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "The license server response signature could not be verified."
+msgstr ""
+
+#: src/Licensing/LicenseClient.php
+msgid "This product installation has not been activated."
+msgstr ""
+
 #: src/Payouts/PayoutRequests.php
 msgid "Payout requests are not enabled."
 msgstr ""
