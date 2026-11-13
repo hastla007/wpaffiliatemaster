@@ -72,15 +72,69 @@ final class Restriction {
 	 * @param string $note         Internal note (why, e.g. "accuracy disputed").
 	 */
 	public static function add( $affiliate_id, $kind, $note = '' ) {
-		$all                         = self::all();
-		$all[ (int) $affiliate_id ] = array(
+		$entry = array(
 			'kind'  => $kind,
 			'since' => Db::now(),
 			'note'  => substr( sanitize_text_field( (string) $note ), 0, 190 ),
 		);
-		update_option( self::OPTION, $all, false );
+		// Read and write under a lock: two parallel changes must not overwrite each other.
+		Db::with_lock(
+			self::LOCK,
+			static function () use ( $affiliate_id, $entry ) {
+				$all                        = self::fresh();
+				$all[ (int) $affiliate_id ] = $entry;
+				update_option( self::OPTION, $all, false );
+			}
+		);
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache( (int) $affiliate_id );
 		Audit::log( 'privacy.restricted', 'affiliate', (int) $affiliate_id, array( 'kind' => $kind ) );
+	}
+
+	/** Lock of the list (read-modify-write). */
+	const LOCK = 'wpac_restricted_lock';
+
+	/**
+	 * The list as stored right now (not from the per-request cache).
+	 *
+	 * @return array
+	 */
+	private static function fresh() {
+		wp_cache_delete( self::OPTION, 'options' );
+		return self::all();
+	}
+
+	/**
+	 * Daily: drop entries of partners that no longer exist (e.g. deleted applications), so the
+	 * list does not outlive the records it protects.
+	 *
+	 * @return int Entries removed.
+	 */
+	public static function purge() {
+		global $wpdb;
+		if ( ! self::all() ) {
+			return 0;
+		}
+		$t = Db::table( 'affiliates' );
+		return (int) Db::with_lock(
+			self::LOCK,
+			static function () use ( $wpdb, $t ) {
+				$all = self::fresh();
+				if ( ! $all ) {
+					return 0;
+				}
+				$ids   = array_map( 'intval', array_keys( $all ) );
+				$exist = array_map( 'intval', (array) $wpdb->get_col( "SELECT id FROM {$t} WHERE id IN (" . implode( ',', $ids ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Integers only.
+				$gone  = array_diff( $ids, $exist );
+				if ( ! $gone ) {
+					return 0;
+				}
+				foreach ( $gone as $id ) {
+					unset( $all[ $id ] );
+				}
+				update_option( self::OPTION, $all, false );
+				return count( $gone );
+			}
+		);
 	}
 
 	/**
@@ -92,13 +146,22 @@ final class Restriction {
 	 * @return bool Whether a restriction was lifted.
 	 */
 	public static function remove( $affiliate_id, $kind = '', $log = true ) {
-		$all = self::all();
-		$id  = (int) $affiliate_id;
-		if ( ! isset( $all[ $id ] ) || ( '' !== $kind && $all[ $id ]['kind'] !== $kind ) ) {
+		$id      = (int) $affiliate_id;
+		$removed = Db::with_lock(
+			self::LOCK,
+			static function () use ( $id, $kind ) {
+				$all = self::fresh();
+				if ( ! isset( $all[ $id ] ) || ( '' !== $kind && $all[ $id ]['kind'] !== $kind ) ) {
+					return false;
+				}
+				unset( $all[ $id ] );
+				update_option( self::OPTION, $all, false );
+				return true;
+			}
+		);
+		if ( ! $removed ) {
 			return false;
 		}
-		unset( $all[ $id ] );
-		update_option( self::OPTION, $all, false );
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache( $id );
 		if ( $log ) {
 			Audit::log( 'privacy.restriction_lifted', 'affiliate', $id );

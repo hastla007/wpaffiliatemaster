@@ -1750,6 +1750,12 @@ msgstr "Ihre Anschrift (für Gutschriften)"
 msgid "Your VAT ID"
 msgstr "Ihre USt-IdNr."
 
+msgid "VIES check: verify partner VAT IDs with the EU Commission"
+msgstr "VIES-Prüfung: USt-IdNr. der Partner bei der EU-Kommission prüfen"
+
+msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
+msgstr "Die USt-IdNr. der Partner (und Ihre eigene USt-IdNr.) werden beim Speichern der Auszahlungsdaten und danach alle 30 Tage an den VIES-Dienst der Europäischen Kommission (ec.europa.eu) übermittelt; die Abfragenummer wird als Nachweis für Gutschriften im Reverse-Charge-Verfahren aufbewahrt. Eine als ungültig gemeldete USt-IdNr. sperrt Auszahlungen im Reverse-Charge-Verfahren. Aus: Es wird nichts übermittelt und frühere Ergebnisse sperren keine Auszahlungen mehr."
+
 msgid "Your tax number (if no VAT ID)"
 msgstr "Ihre Steuernummer (falls keine USt-IdNr.)"
 
@@ -2291,6 +2297,12 @@ msgstr "Datenbankschema ist aktuell"
 
 msgid "Database update incomplete"
 msgstr "Datenbank-Update unvollständig"
+
+msgid "The database belongs to a newer version of the plugin"
+msgstr "Die Datenbank gehört zu einer neueren Version des Plugins"
+
+msgid "The database was updated to schema version %1$d, but the installed plugin only knows version %2$d (the plugin was downgraded). Older code may write incomplete records. Please install the newer version again or restore the database backup that belongs to this version."
+msgstr "Die Datenbank wurde auf Schema-Version %1$d aktualisiert, das installierte Plugin kennt aber nur Version %2$d (das Plugin wurde auf eine ältere Version zurückgesetzt). Älterer Code kann unvollständige Datensätze schreiben. Bitte installieren Sie die neuere Version wieder oder spielen Sie die Datenbanksicherung ein, die zu dieser Version gehört."
 
 msgid "Some tables do not use InnoDB"
 msgstr "Einige Tabellen nutzen nicht InnoDB"

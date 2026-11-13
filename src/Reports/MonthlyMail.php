@@ -75,6 +75,11 @@ final class MonthlyMail {
 		if ( ! is_array( $progress ) || empty( $progress['month'] ) ) {
 			return;
 		}
+		if ( self::paused() ) {
+			// Maintenance or migration: no mails now, the chain continues later.
+			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, HOUR_IN_SECONDS );
+			return;
+		}
 		$sent = self::send( $progress['month'], false, (int) $progress['offset'], self::BATCH_SIZE );
 		if ( $sent['remaining'] > 0 ) {
 			$progress['offset']  += self::BATCH_SIZE;
@@ -305,6 +310,12 @@ final class MonthlyMail {
 	 * process retries at a time (WP-Cron and a system cron could overlap and mail twice).
 	 */
 	public static function retry_failed() {
+		if ( self::paused() ) {
+			if ( self::failures() ) {
+				\WPAffiliateCaptain\Core\Scheduler::once( self::RETRY_HOOK, HOUR_IN_SECONDS );
+			}
+			return;
+		}
 		$owner = \WPAffiliateCaptain\Core\Db::lock( 'wpac_report_retry_lock', 30 * MINUTE_IN_SECONDS );
 		if ( '' === $owner ) {
 			return;
@@ -352,6 +363,15 @@ final class MonthlyMail {
 		} finally {
 			\WPAffiliateCaptain\Core\Db::unlock( 'wpac_report_retry_lock', $owner );
 		}
+	}
+
+	/**
+	 * Whether mails have to wait (maintenance mode, or a migration has not finished).
+	 *
+	 * @return bool
+	 */
+	private static function paused() {
+		return (bool) Settings::get( 'maintenance_mode' ) || ! \WPAffiliateCaptain\Core\Installer::schema_current();
 	}
 
 	/**

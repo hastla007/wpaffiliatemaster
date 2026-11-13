@@ -2326,6 +2326,14 @@ msgid "Your VAT ID"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "VIES check: verify partner VAT IDs with the EU Commission"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Your tax number (if no VAT ID)"
 msgstr ""
 
@@ -3045,6 +3053,14 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "Database update incomplete"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The database belongs to a newer version of the plugin"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The database was updated to schema version %1$d, but the installed plugin only knows version %2$d (the plugin was downgraded). Older code may write incomplete records. Please install the newer version again or restore the database backup that belongs to this version."
 msgstr ""
 
 #: src/Core/Monitor.php

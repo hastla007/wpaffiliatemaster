@@ -25,6 +25,15 @@ final class Monitor {
 		$out['schema'] = Installer::schema_current() && ! $problems
 			? array( 'good', __( 'Database schema is current', 'wp-affiliate-captain' ), '' )
 			: array( 'critical', __( 'Database update incomplete', 'wp-affiliate-captain' ), implode( '; ', (array) $problems ) );
+		$newer = Installer::downgraded_from();
+		if ( $newer ) {
+			$out['schema'] = array(
+				'critical',
+				__( 'The database belongs to a newer version of the plugin', 'wp-affiliate-captain' ),
+				/* translators: 1: stored schema version, 2: schema version of the installed plugin */
+				sprintf( __( 'The database was updated to schema version %1$d, but the installed plugin only knows version %2$d (the plugin was downgraded). Older code may write incomplete records. Please install the newer version again or restore the database backup that belongs to this version.', 'wp-affiliate-captain' ), $newer, WPAC_DB_VERSION ),
+			);
+		}
 
 		$warnings = get_option( 'wpac_schema_warnings' );
 		if ( $warnings ) {

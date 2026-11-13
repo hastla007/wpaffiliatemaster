@@ -804,6 +804,7 @@ check( 'Y24 owner objects', true, true === WPAffiliateCaptain\Payouts\Objections
 check( 'Y24 objection is open for the operator', true, isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) );
 check( 'Y24 resolved objection is closed', array( true, false ), array( WPAffiliateCaptain\Payouts\Objections::resolve( $w2, 'Storniert und neu ausgestellt.' ), isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) ) );
 // Y25 VIES: invalid VAT IDs block reverse charge; VIES outage blocks nothing.
+Settings::update( array( 'vies_check' => 1 ) ); // Off by default (external request), see ZB.
 $GLOBALS['test_http'] = static function ( $url, $args ) { $b = json_decode( $args['body'], true ); return array( 'body' => wp_json_encode( array( 'valid' => 'U22222222' !== $b['vatNumber'] ? true : false, 'requestIdentifier' => 'WAPIAAAA123', 'name' => 'RC GmbH' ) ) ); };
 $vr = WPAffiliateCaptain\Payouts\Vies::check( $wr );
 check( 'Y25 VIES result stored with the consultation number', array( 'invalid', 'WAPIAAAA123' ), array( $vr['status'], $vr['consultation'] ) );
@@ -1167,6 +1168,155 @@ check( 'ZA27 switching back to SEPA needs an IBAN', 'wpac_iban_required', is_wp_
 ProfileRepository::save( $zm, $zbase + array( 'account_holder' => 'ZA', 'payout_method' => 'sepa', 'iban' => 'DE89370400440532013000' ) );
 check( 'ZA28 back to SEPA with IBAN', array( 'sepa', 'DE89370400440532013000', null ), array( ProfileRepository::method( ProfileRepository::get( $zm ) ), ProfileRepository::iban( ProfileRepository::get( $zm ) ), ProfileRepository::payment_details( ProfileRepository::get( $zm ) ) ) );
 check( 'ZA accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+/* ZB: scheduler, cron, migrations, runtime state, VIES switch, option lists (review round 4, agent B) */
+if ( ! function_exists( 'get_role' ) ) {
+	function get_role( $r ) { return null; }
+}
+if ( ! function_exists( 'wp_schedule_event' ) ) {
+	function wp_schedule_event( $ts, $rec, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
+}
+// ZB-W17 runtime state lives in its own options; the cron never writes the settings array back.
+Settings::update( array( 'tier_month_closed' => '2020-01' ) );
+check( 'ZB-W17 runtime state is stored in its own option', array( '2020-01', false ), array( get_option( 'wpac_tier_month_closed' ), array_key_exists( 'tier_month_closed', (array) get_option( 'wpac_settings' ) ) ) );
+check( 'ZB-W17 Settings::get still reads the runtime state', '2020-01', Settings::get( 'tier_month_closed' ) );
+delete_option( 'wpac_tier_month_first' );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'tier_month_first' => '2019-05' ) ) );
+Settings::flush_cache();
+check( 'ZB-W17 value of an older version is still read from the settings', '2019-05', Settings::get( 'tier_month_first' ) );
+update_option( 'wpac_db_version', 8 );
+WPAffiliateCaptain\Core\Installer::install_schema();
+check( 'ZB-W17 v9 migration moves the runtime state out of the settings', array( '2019-05', false, 9 ), array( get_option( 'wpac_tier_month_first' ), array_key_exists( 'tier_month_first', (array) get_option( 'wpac_settings' ) ), (int) get_option( 'wpac_db_version' ) ) );
+update_option( 'wpac_tier_month_closed', gmdate( 'Y-m', strtotime( gmdate( 'Y-m-01' ) . ' -3 month' ) ) );
+$zb_settings = get_option( 'wpac_settings' );
+WPAffiliateCaptain\Commissions\TierService::close_due_months();
+check( 'ZB-W17 closing months leaves the settings array untouched', $zb_settings, get_option( 'wpac_settings' ) );
+// ZB-O13 recalculation of closed months has a time budget; the rest comes first next time.
+WPAffiliateCaptain\Commissions\TierService::recalculate_closed_months( 0.000001 );
+$zb_pending = get_option( WPAffiliateCaptain\Commissions\TierService::RECALC_PENDING );
+check( 'ZB-O13 months beyond the time budget are remembered', true, is_array( $zb_pending ) && count( $zb_pending ) >= 2 );
+WPAffiliateCaptain\Commissions\TierService::recalculate_closed_months( 0 );
+check( 'ZB-O13 remembered months are done in the next run', false, get_option( WPAffiliateCaptain\Commissions\TierService::RECALC_PENDING ) );
+check( 'ZB-O13 index on commissions.updated_at', true, (bool) $wpdb->get_var( 'SHOW INDEX FROM ' . t( 'commissions' ) . " WHERE Key_name = 'updated_at'" ) );
+
+// ZB-K4 VIES check is a setting: off → nothing is sent, nothing is blocked.
+$zb_http = 0;
+$GLOBALS['test_http'] = static function () use ( &$zb_http ) { ++$zb_http; return array( 'body' => wp_json_encode( array( 'valid' => false, 'requestIdentifier' => 'X' ) ) ); };
+Settings::update( array( 'vies_check' => 0 ) );
+$zb_rc = AffiliateRepository::create( array( 'name' => 'ZB VIES', 'email' => 'zb-vies@example.at', 'status' => 'active' ) );
+ProfileRepository::save( $zb_rc, array( 'tax_status' => 'business', 'legal_name' => 'ZB', 'address' => "Ring 3\n1010 Wien", 'country' => 'AT', 'vat_id' => 'ATU33333333', 'account_holder' => 'ZB', 'iban' => 'AT611904300234573201' ) );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Payouts\Vies::schedule( $zb_rc );
+check( 'ZB-K4 VIES off: check sends nothing, schedules nothing', array( null, 0, array(), 0 ), array( WPAffiliateCaptain\Payouts\Vies::check( $zb_rc ), $zb_http, $GLOBALS['test_scheduled'], WPAffiliateCaptain\Payouts\Vies::recheck_stale() ) );
+update_option( 'wpac_vies_' . $zb_rc, array( 'vat_id' => 'ATU33333333', 'status' => 'invalid', 'name' => '', 'consultation' => '', 'checked_at' => Db::now() ) );
+check( 'ZB-K4 VIES off: an old "invalid" result does not block', false, WPAffiliateCaptain\Payouts\Vies::is_invalid( $zb_rc, 'ATU33333333' ) );
+check( 'ZB-K4 VIES check is off for new installs', 0, Settings::defaults()['vies_check'] );
+$zb_s = get_option( 'wpac_settings' );
+unset( $zb_s['vies_check'] );
+update_option( 'wpac_settings', $zb_s );
+$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, 'a:0:{}', 'off')", 'wpac_vies_' . $zb_rc ) );
+update_option( 'wpac_db_version', 8 );
+WPAffiliateCaptain\Core\Installer::install_schema();
+check( 'ZB-K4 upgrade with existing VIES results keeps the check on', 1, (int) Settings::get( 'vies_check' ) );
+// ZB-W14 VIES re-checks run in the background, "unavailable" with growing pauses.
+$zb_un = array( 'vat_id' => 'ATU33333333', 'status' => 'unavailable', 'name' => '', 'consultation' => '', 'checked_at' => Db::now( time() - 2 * DAY_IN_SECONDS ), 'tries' => 3 );
+update_option( 'wpac_vies_' . $zb_rc, $zb_un );
+check( 'ZB-W14 third outage: next try after 4 days, not daily', time() + 2 * DAY_IN_SECONDS, WPAffiliateCaptain\Payouts\Vies::next_check( $zb_un ) );
+$zb_un['tries'] = 1;
+update_option( 'wpac_vies_' . $zb_rc, $zb_un );
+$GLOBALS['test_scheduled'] = array();
+$zb_http                   = 0;
+$zb_n                      = WPAffiliateCaptain\Payouts\Vies::recheck_stale();
+check( 'ZB-W14 due re-checks are scheduled, not run inline', array( true, 0, true ), array( $zb_n >= 1, $zb_http, in_array( WPAffiliateCaptain\Payouts\Vies::HOOK, $GLOBALS['test_scheduled'], true ) ) );
+WPAffiliateCaptain\Payouts\Vies::check( $zb_rc );
+$GLOBALS['test_http'] = static function () { return array( 'body' => wp_json_encode( array( 'errorWrappers' => array( array( 'error' => 'MS_UNAVAILABLE' ) ) ) ) ); };
+WPAffiliateCaptain\Payouts\Vies::check( $zb_rc );
+WPAffiliateCaptain\Payouts\Vies::check( $zb_rc );
+check( 'ZB-W14 consecutive outages are counted', array( 'unavailable', 2 ), array( WPAffiliateCaptain\Payouts\Vies::result( $zb_rc )['status'], WPAffiliateCaptain\Payouts\Vies::result( $zb_rc )['tries'] ) );
+unset( $GLOBALS['test_http'] );
+// ZB-W14 daily run: privacy first, the rest continues separately when the budget is used up.
+add_filter( 'wpac_daily_budget', static function () { return 0.000001; } );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Core\Cron::daily();
+$zb_rest = get_option( WPAffiliateCaptain\Core\Cron::DAILY_REST_OPTION );
+check( 'ZB-W14 daily run starts with the privacy clean-up and hands the rest on', array( 'visits', false, true ), array( array_keys( WPAffiliateCaptain\Core\Cron::daily_steps() )[0], in_array( 'visits', (array) $zb_rest, true ), in_array( WPAffiliateCaptain\Core\Cron::DAILY_REST, $GLOBALS['test_scheduled'], true ) ) );
+remove_all_filters( 'wpac_daily_budget' );
+WPAffiliateCaptain\Core\Cron::daily_rest();
+check( 'ZB-W14 the rest of the daily run is done', false, get_option( WPAffiliateCaptain\Core\Cron::DAILY_REST_OPTION ) );
+
+// ZB-W20 personal options go with the erasure; expired ones are purged daily.
+$zb_er = AffiliateRepository::create( array( 'name' => 'ZB Erase', 'email' => 'zb-erase@example.de', 'status' => 'active' ) );
+foreach ( array( 'wpac_vies_' . $zb_er, 'wpac_public_change_' . $zb_er, 'wpac_dunning_' . $zb_er . '_EUR' ) as $zb_o ) {
+	update_option( $zb_o, array( 'x' => 1 ) );
+	$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, 'x', 'off')", $zb_o ) );
+}
+WPAffiliateCaptain\Privacy\Privacy::erase( 'zb-erase@example.de' );
+check( 'ZB-W20 erasure removes VIES result, public change request and payment requests', array( false, false, false ), array( get_option( 'wpac_vies_' . $zb_er ), get_option( 'wpac_public_change_' . $zb_er ), get_option( 'wpac_dunning_' . $zb_er . '_EUR' ) ) );
+foreach ( array( 'wpac_prev_email_9101' => array( 'email' => 'old@example.de', 'until' => time() - 10 ), 'wpac_prev_email_9102' => array( 'email' => 'new@example.de', 'until' => time() + 999 ), 'wpac_user_link_9103' => array( 'hash' => 'h', 'expires' => time() - 10 ) ) as $zb_o => $zb_v ) {
+	update_option( $zb_o, $zb_v );
+	$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, 'x', 'off')", $zb_o ) );
+}
+check( 'ZB-W20 expired previous addresses and link tokens are purged', array( 2, false, true, false ), array( WPAffiliateCaptain\Privacy\Privacy::purge_expired_options(), get_option( 'wpac_prev_email_9101' ), is_array( get_option( 'wpac_prev_email_9102' ) ), get_option( 'wpac_user_link_9103' ) ) );
+
+// ZB-O17 option lists change under a lock and are cleaned up.
+WPAffiliateCaptain\Privacy\Restriction::add( 987654, WPAffiliateCaptain\Privacy\Restriction::REQUEST, 'x' );
+check( 'ZB-O17 restriction stored, lock released', array( true, null ), array( WPAffiliateCaptain\Privacy\Restriction::is_restricted( 987654 ), $wpdb->get_var( "SELECT option_value FROM {$wpdb->options} WHERE option_name = 'wpac_restricted_lock'" ) ) );
+check( 'ZB-O17 restrictions of partners that no longer exist are dropped', array( true, false ), array( WPAffiliateCaptain\Privacy\Restriction::purge() >= 1, WPAffiliateCaptain\Privacy\Restriction::is_restricted( 987654 ) ) );
+update_option( 'wpac_objections', array_replace( WPAffiliateCaptain\Payouts\Objections::all(), array( 987654 => array( 'affiliate_id' => 1, 'at' => Db::now(), 'reason' => 'x', 'status' => 'open', 'resolution' => '', 'resolved_at' => '' ) ) ) );
+check( 'ZB-O17 objections of deleted payouts are dropped', array( true, false ), array( WPAffiliateCaptain\Payouts\Objections::purge() >= 1, isset( WPAffiliateCaptain\Payouts\Objections::all()[987654] ) ) );
+// A lock held by a request that died is taken over after its time-to-live.
+$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES ('wpac_zb_lock', %s, 'off')", ( time() - 5 ) . ':dead' ) );
+check( 'ZB-O17 a stale lock is taken over (waits up to its TTL)', 'ran', Db::with_lock( 'wpac_zb_lock', static function () { return 'ran'; }, 3 ) );
+
+// ZB-O12 expired customer links are deleted in batches (index on expires_at).
+$wpdb->insert( t( 'customer_links' ), array( 'affiliate_id' => 1, 'customer_hash' => str_repeat( 'z', 64 ), 'source' => 'test', 'source_order_id' => 'zb', 'created_at' => Db::now(), 'expires_at' => Db::now( time() - 60 ) ) );
+check( 'ZB-O12 expired customer link deleted', array( 1, true ), array( WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired(), (bool) $wpdb->get_var( 'SHOW INDEX FROM ' . t( 'customer_links' ) . " WHERE Key_name = 'expires_at'" ) ) );
+
+// ZB-O16 queue drain and report batches wait during maintenance.
+$wpdb->insert( t( 'jobs' ), array( 'type' => 'zb', 'idempotency_key' => 'zb:1', 'payload' => '{}', 'status' => 'queued', 'attempts' => 1, 'next_attempt_at' => Db::now( time() - 60 ), 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+$zb_job = (int) $wpdb->insert_id;
+Settings::update( array( 'maintenance_mode' => 1 ) );
+WPAffiliateCaptain\Core\Jobs::drain();
+update_option( 'wpac_report_progress', array( 'month' => '2026-01', 'offset' => 0, 'touched' => time() ) );
+$zb_mails                  = count( $GLOBALS['test_mails'] );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Reports\MonthlyMail::batch();
+check( 'ZB-O16 maintenance: queue untouched, report batch postponed', array( 'queued', $zb_mails, 0, true ), array( $wpdb->get_var( 'SELECT status FROM ' . t( 'jobs' ) . " WHERE id = {$zb_job}" ), count( $GLOBALS['test_mails'] ), (int) get_option( 'wpac_report_progress' )['offset'], in_array( WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, $GLOBALS['test_scheduled'], true ) ) );
+Settings::update( array( 'maintenance_mode' => 0 ) );
+delete_option( 'wpac_report_progress' );
+$wpdb->delete( t( 'jobs' ), array( 'id' => $zb_job ) );
+
+// ZB-O20 a downgrade is detected and reported.
+update_option( 'wpac_db_version', WPAC_DB_VERSION + 1 );
+check( 'ZB-O20 downgrade detected (critical in Site Health)', array( WPAC_DB_VERSION + 1, 'critical' ), array( WPAffiliateCaptain\Core\Installer::downgraded_from(), WPAffiliateCaptain\Core\Monitor::checks()['schema'][0] ) );
+update_option( 'wpac_db_version', WPAC_DB_VERSION );
+check( 'ZB-O20 no downgrade on the current schema', 0, WPAffiliateCaptain\Core\Installer::downgraded_from() );
+
+// ZB-W7 one migration at a time (also WP-CLI); the lock can be extended in the same second.
+$zb_other = Db::lock( 'wpac_upgrade_lock', 900 );
+check( 'ZB-W7 no migration while another request holds the lock', false, WPAffiliateCaptain\Core\Installer::upgrade() );
+check( 'ZB-W7 lock refresh in the same second keeps ownership', $zb_other, Db::refresh( 'wpac_upgrade_lock', $zb_other ) );
+Db::unlock( 'wpac_upgrade_lock', $zb_other );
+check( 'ZB-W7 migration runs and releases the lock', array( true, null ), array( WPAffiliateCaptain\Core\Installer::upgrade(), $wpdb->get_var( "SELECT option_value FROM {$wpdb->options} WHERE option_name = 'wpac_upgrade_lock'" ) ) );
+
+// ZB-W15 deactivation does not save rewrite rules (rebuilt without the plugin on the next request).
+update_option( 'rewrite_rules', array( '^partner/([^/]+)/?$' => 'index.php?x=$matches[1]' ) );
+WPAffiliateCaptain\Core\Installer::deactivate_site();
+check( 'ZB-W15 deactivation drops the stored rewrite rules', false, get_option( 'rewrite_rules' ) );
+WPAffiliateCaptain\Core\Cron::schedule();
+
+// ZB isolated: Action Scheduler, multisite statement folders and uninstall run in their own process.
+$zb_prefix = getenv( 'WPAC_TEST_DB_PREFIX' );
+putenv( 'WPAC_TEST_DB_PREFIX=zbu_' );
+exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( __DIR__ . '/zb-isolated.php' ) . ' 2>&1', $zb_out, $zb_rc );
+putenv( false === $zb_prefix ? 'WPAC_TEST_DB_PREFIX' : 'WPAC_TEST_DB_PREFIX=' . $zb_prefix );
+$zb_res = json_decode( (string) end( $zb_out ), true );
+if ( ! is_array( $zb_res ) ) {
+	check( 'ZB isolated checks ran', 'json', implode( "\n", $zb_out ) );
+} else {
+	foreach ( $zb_res as $zb_name => $zb_pair ) {
+		check( $zb_name, $zb_pair[0], $zb_pair[1] );
+	}
+}
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

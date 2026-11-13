@@ -15,6 +15,10 @@ namespace {
 	function as_next_scheduled_action( $hook, $args = null, $group = '' ) { return false; }
 	function as_unschedule_all_actions( $hook, $args = array(), $group = '' ) {}
 	function as_has_scheduled_action( $hook, $args = null, $group = '' ) { return false; }
+	function as_get_scheduled_actions( $args = array(), $return_format = OBJECT ) { return array(); }
+	class ActionScheduler_Store {
+		const STATUS_PENDING = 'pending';
+	}
 }
 
 namespace WP_CLI\Utils {

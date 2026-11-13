@@ -58,16 +58,35 @@ final class Installer {
 	 */
 	public static function deactivate( $network_wide = false ) {
 		if ( is_multisite() && $network_wide ) {
-			self::for_each_site( array( __CLASS__, 'deactivate_site' ) );
+			// After this request the plugin code is no longer loaded, so the clean-up cannot continue
+			// in later batches. It is kept cheap per site and limited in time; sites not reached keep
+			// harmless leftovers (events without a handler, rules rebuilt on the next flush) that a
+			// later activation or the uninstall clean up.
+			delete_site_option( 'wpac_network_pending' );
+			$start = microtime( true );
+			$ids   = array_map( 'intval', (array) get_sites( array( 'fields' => 'ids', 'number' => 0, 'network_id' => get_current_network_id() ) ) );
+			foreach ( $ids as $n => $id ) {
+				if ( microtime( true ) - $start > self::DEACTIVATE_BUDGET ) {
+					Log::warning( 'Network deactivation: not every site was cleaned up in time', array( 'sites_left' => count( $ids ) - $n ) );
+					break;
+				}
+				self::run_on_site( $id, array( __CLASS__, 'deactivate_site' ) );
+			}
 			return;
 		}
 		self::deactivate_site();
 	}
 
+	/** Seconds a network-wide deactivation may spend on the per-site clean-up. */
+	const DEACTIVATE_BUDGET = 20;
+
 	public static function deactivate_site() {
 		Cron::unschedule();
 		delete_option( 'wpac_rewrite_flushed' );
-		flush_rewrite_rules( false );
+		// The rules are rebuilt on the next request without this plugin. Flushing here would save
+		// them with the plugin's rule (registered on init of this request) and, inside
+		// switch_to_blog() on a network, with the rules of the site that runs the request.
+		delete_option( 'rewrite_rules' );
 	}
 
 	/**
@@ -155,6 +174,47 @@ final class Installer {
 		return $tables;
 	}
 
+	/**
+	 * Daily (multisite): drop the tables of sites that were deleted while this plugin was not
+	 * loaded in the deleting request (it is only loaded where it is active; the wpmu_drop_tables
+	 * filter above then never ran). A site counts as deleted when its WordPress options table is
+	 * gone too (wpmu_delete_blog() drops it), so tables of other installations that merely share
+	 * the prefix pattern are never touched. Runs at most once a day per network.
+	 *
+	 * @return int Sites cleaned up.
+	 */
+	public static function drop_orphaned_tables() {
+		global $wpdb;
+		if ( ! is_multisite() || get_site_transient( 'wpac_orphan_sweep' ) ) {
+			return 0;
+		}
+		set_site_transient( 'wpac_orphan_sweep', 1, DAY_IN_SECONDS - 300 );
+		$base = $wpdb->base_prefix;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$found = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( '_wpac_affiliates' ) ) );
+		$n     = 0;
+		foreach ( $found as $table ) {
+			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(\d+)_wpac_affiliates$/i', (string) $table, $m ) ) {
+				continue;
+			}
+			$blog_id = (int) $m[1];
+			if ( $blog_id < 2 || get_site( $blog_id ) ) {
+				continue;
+			}
+			$prefix = $base . $blog_id . '_';
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix . 'options' ) ) ) ) {
+				continue; // Not a deleted site (or not one of this network).
+			}
+			foreach ( Db::TABLES as $name ) {
+				$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $prefix . 'wpac_' . $name ) . '`' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			}
+			Log::warning( 'Dropped the partner program tables of a deleted site', array( 'site' => $blog_id ) );
+			++$n;
+		}
+		return $n;
+	}
+
 	public static function flush_site_caches() {
 		Settings::flush_cache();
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache();
@@ -193,30 +253,78 @@ final class Installer {
 		}
 	}
 
+	/** Lock that lets only one request migrate. */
+	const LOCK = 'wpac_upgrade_lock';
+
+	/** @var string Owner value of the migration lock while this request migrates. */
+	private static $lock_owner = '';
+
+	/** @var int When the lock was last extended. */
+	private static $lock_refreshed = 0;
+
 	/**
 	 * Run migrations when the stored schema version is outdated.
+	 *
+	 * Migrations run in cron and WP-CLI requests and in admin page requests of administrators -
+	 * never inline in a checkout, payment webhook, REST or admin-ajax call (admin-ajax.php also
+	 * serves anonymous visitors). Background work waits meanwhile (schema_current()).
 	 */
 	public static function maybe_upgrade() {
 		if ( (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION ) {
-			return;
+			return; // Current, or the schema of a newer version (downgrade, see downgraded_from()).
 		}
 		// A migration that failed is retried at most every 5 minutes (not on every page load).
 		if ( get_option( 'wpac_schema_problems' ) && get_transient( 'wpac_upgrade_retry' ) ) {
 			return;
 		}
-		// Migrations run in admin, cron or WP-CLI requests – never inline in a checkout, payment
-		// webhook or REST call. Background work waits meanwhile (schema_current()).
-		if ( ! is_admin() && ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
-			if ( ! wp_next_scheduled( Cron::HOURLY ) ) {
-				Cron::schedule(); // Make sure a cron request comes to run it.
-			}
+		if ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			self::upgrade();
 			return;
 		}
-		// Only one request migrates (parallel runs would repeat ALTERs and data migrations).
-		$owner = Db::lock( 'wpac_upgrade_lock', 15 * MINUTE_IN_SECONDS );
-		if ( '' === $owner ) {
-			return; // Another request is migrating.
+		if ( is_admin() && ! wp_doing_ajax() ) {
+			// The user is only known later: decide on admin_init.
+			add_action( 'admin_init', array( __CLASS__, 'upgrade_for_admin' ), 0 );
+			return;
 		}
+		self::ensure_cron();
+	}
+
+	/**
+	 * Admin request: migrate only for administrators (a cron request does it otherwise).
+	 */
+	public static function upgrade_for_admin() {
+		if ( (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION ) {
+			return;
+		}
+		if ( current_user_can( 'activate_plugins' ) || current_user_can( 'manage_options' ) ) {
+			self::upgrade();
+			return;
+		}
+		self::ensure_cron();
+	}
+
+	/**
+	 * Make sure a cron request comes to run the migration.
+	 */
+	private static function ensure_cron() {
+		if ( ! wp_next_scheduled( Cron::HOURLY ) ) {
+			Cron::schedule();
+		}
+	}
+
+	/**
+	 * Migrate now under the migration lock (also WP-CLI "wp wpac upgrade"). The lock is extended
+	 * between the steps, so a long migration is never taken over by a second request.
+	 *
+	 * @return bool False when another request is migrating right now.
+	 */
+	public static function upgrade() {
+		$owner = Db::lock( self::LOCK, self::LOCK_TTL );
+		if ( '' === $owner ) {
+			return false; // Another request is migrating.
+		}
+		self::$lock_owner     = $owner;
+		self::$lock_refreshed = time();
 		ignore_user_abort( true );
 		if ( function_exists( 'set_time_limit' ) ) {
 			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
@@ -225,9 +333,50 @@ final class Installer {
 			self::install_schema();
 			Capabilities::install();
 			Cron::schedule();
+		} catch ( \Throwable $e ) {
+			// Recorded like an incomplete schema: admin notice, Site Health, alarm after an hour, retry.
+			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
+				update_option( 'wpac_schema_problems_since', time(), false );
+			}
+			update_option( 'wpac_schema_problems', array( 'migration aborted: ' . substr( $e->getMessage(), 0, 300 ) ), false );
+			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
+			Log::error( 'Database migration aborted', array( 'error' => substr( $e->getMessage(), 0, 500 ) ) );
 		} finally {
-			Db::unlock( 'wpac_upgrade_lock', $owner );
+			Db::unlock( self::LOCK, self::$lock_owner );
+			self::$lock_owner = '';
 		}
+		return true;
+	}
+
+	/** Seconds after which the migration lock counts as abandoned (without being extended). */
+	const LOCK_TTL = 900;
+
+	/**
+	 * Extend the migration lock between steps (at most every 30 seconds). Stops the migration
+	 * when the lock was lost meanwhile (another request must not migrate in parallel).
+	 *
+	 * @throws IntegrationException When the lock was taken over.
+	 */
+	private static function keep_lock() {
+		if ( '' === self::$lock_owner || time() - self::$lock_refreshed < 30 ) {
+			return;
+		}
+		$owner = Db::refresh( self::LOCK, self::$lock_owner );
+		if ( '' === $owner ) {
+			throw new IntegrationException( 'upgrade_lock_lost', 'The migration lock was taken over by another request.' );
+		}
+		self::$lock_owner     = $owner;
+		self::$lock_refreshed = time();
+	}
+
+	/**
+	 * Schema version of a newer plugin version when the plugin was downgraded, otherwise 0.
+	 *
+	 * @return int
+	 */
+	public static function downgraded_from() {
+		$stored = (int) get_option( self::DB_OPTION, 0 );
+		return $stored > WPAC_DB_VERSION ? $stored : 0;
 	}
 
 	/**
@@ -525,7 +674,8 @@ final class Installer {
 			KEY status_hold (status,hold_until),
 			KEY payout_id (payout_id),
 			KEY affiliate_created (affiliate_id,created_at),
-			KEY created_at (created_at)
+			KEY created_at (created_at),
+			KEY updated_at (updated_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('commission_events')} (
@@ -649,7 +799,8 @@ final class Installer {
 			expires_at datetime NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY customer_hash (customer_hash),
-			KEY affiliate_id (affiliate_id)
+			KEY affiliate_id (affiliate_id),
+			KEY expires_at (expires_at)
 		) $c;";
 
 		// Rate-limit counters (own table: millions of short-lived rows must not bloat wp_options).
@@ -735,14 +886,18 @@ final class Installer {
 			KEY affiliate_status (affiliate_id,status)
 		) $c;";
 
+		self::keep_lock();
 		foreach ( $sql as $statement ) {
 			dbDelta( $statement );
+			self::keep_lock();
 		}
 
 		self::migrate_after( $previous );
+		self::keep_lock();
 		if ( $previous > 0 && $previous < 5 ) {
 			// v5: opening balance entries for existing approved, unassigned commissions.
 			\WPAffiliateCaptain\Commissions\Balance::open_from_ledger();
+			self::keep_lock();
 		}
 		// Only a verified schema counts as migrated; otherwise the next request tries again.
 		$problems = self::verify_schema();
@@ -784,11 +939,18 @@ final class Installer {
 				if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
 					continue;
 				}
+				// All missing columns of a table in ONE statement: without INSTANT DDL every ALTER
+				// rebuilds the whole table.
+				$parts = array();
 				foreach ( $columns as $col => $def ) {
 					if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE '{$col}'" ) ) {
-						$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$col} {$def}" );
+						$parts[] = "ADD COLUMN {$col} {$def}";
 					}
 				}
+				if ( $parts ) {
+					$wpdb->query( "ALTER TABLE {$table} " . implode( ', ', $parts ) );
+				}
+				self::keep_lock();
 			}
 			// phpcs:enable
 		}
@@ -849,12 +1011,88 @@ final class Installer {
 	}
 
 	/**
+	 * v9: runtime state written by the scheduled tasks moves out of the settings array into its own
+	 * options (no lost admin changes, see Settings::RUNTIME); the VIES check becomes a setting –
+	 * kept on where VIES results already exist, off otherwise (it sends data to the EU Commission).
+	 */
+	private static function migrate_v9_settings() {
+		global $wpdb;
+		$saved = get_option( Settings::OPTION );
+		if ( ! is_array( $saved ) ) {
+			return;
+		}
+		foreach ( Settings::RUNTIME as $key => $option ) {
+			if ( ! array_key_exists( $key, $saved ) ) {
+				continue;
+			}
+			if ( null === get_option( $option, null ) && '' !== (string) $saved[ $key ] ) {
+				update_option( $option, (string) $saved[ $key ], false );
+			}
+			unset( $saved[ $key ] );
+		}
+		if ( ! array_key_exists( 'vies_check', $saved ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$saved['vies_check'] = $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT 1", $wpdb->esc_like( 'wpac_vies_' ) . '%' ) ) ? 1 : 0;
+		}
+		update_option( Settings::OPTION, $saved, true );
+		Settings::flush_cache();
+	}
+
+	/**
+	 * v9 (multisite with WPAC_STATEMENT_DIR): every site keeps its credit notes in its own subfolder
+	 * (Statement::dir()), so deleting the plugin's data on one site can never touch the documents of
+	 * another. The site's existing documents are moved there from the shared folder.
+	 */
+	private static function migrate_v9_statement_files() {
+		global $wpdb;
+		if ( ! is_multisite() || ! defined( 'WPAC_STATEMENT_DIR' ) || '' === (string) WPAC_STATEMENT_DIR ) {
+			return;
+		}
+		$t = Db::table( 'payouts' );
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $t ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			return;
+		}
+		$root  = untrailingslashit( (string) WPAC_STATEMENT_DIR );
+		$dir   = \WPAffiliateCaptain\Payouts\Statement::dir();
+		$moved = 0;
+		$fail  = 0;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		foreach ( (array) $wpdb->get_results( "SELECT statement_file, storno_file FROM {$t} WHERE statement_file <> '' OR storno_file <> ''" ) as $row ) {
+			foreach ( array( $row->statement_file, $row->storno_file ) as $file ) {
+				$name = basename( (string) $file );
+				if ( '' === $name || ! is_file( $root . '/' . $name ) || file_exists( $dir . '/' . $name ) ) {
+					continue;
+				}
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
+				if ( @rename( $root . '/' . $name, $dir . '/' . $name ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					++$moved;
+				} else {
+					++$fail;
+				}
+			}
+			if ( 0 === ( $moved + $fail ) % 200 ) {
+				self::keep_lock();
+			}
+		}
+		if ( $fail ) {
+			Log::error( 'Credit notes could not be moved to the site folder', array( 'failed' => $fail, 'folder' => $dir ) );
+		}
+		if ( $moved || $fail ) {
+			Audit::log( 'statement.files_moved', 'setup', 0, array( 'moved' => $moved, 'failed' => $fail ) );
+		}
+	}
+
+	/**
 	 * Data migrations after dbDelta.
 	 *
 	 * @param int $previous Previous schema version.
 	 */
 	private static function migrate_after( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 9 ) {
+			self::migrate_v9_settings();
+			self::migrate_v9_statement_files();
+		}
 		if ( $previous > 0 && $previous < 3 ) {
 			$t = Db::table( 'payout_items' );
 			// Existing items are all active (cancelled ones were deleted before v3).

@@ -4,7 +4,11 @@
  * so the consultation number serves as proof for reverse-charge credit notes).
  *
  * Results are stored per partner; a VAT ID that VIES reports as invalid blocks reverse-charge
- * payouts. When VIES is unavailable nothing is blocked (the check is repeated).
+ * payouts. When VIES is unavailable nothing is blocked (the check is repeated with growing pauses).
+ *
+ * The check sends the partner's VAT ID (and the operator's) to the European Commission, so it is
+ * optional (setting "vies_check", off for new installs): while it is off, nothing is sent and
+ * stored results no longer block payouts.
  *
  * @package WPAffiliateCaptain
  */
@@ -42,6 +46,23 @@ final class Vies {
 	}
 
 	/**
+	 * Whether VAT IDs are checked with VIES (setting; external request to the EU Commission).
+	 *
+	 * @return bool
+	 */
+	public static function enabled() {
+		/**
+		 * Check partner VAT IDs with the EU VIES service.
+		 *
+		 * @param bool $enabled Setting "vies_check".
+		 */
+		return (bool) apply_filters( 'wpac_vies_enabled', (bool) Settings::get( 'vies_check' ) );
+	}
+
+	/** Re-checks scheduled per daily run (each one is a request of up to 10 seconds). */
+	const DAILY_CAP = 20;
+
+	/**
 	 * Last stored result of a partner, or null.
 	 *
 	 * @param int $affiliate_id Partner.
@@ -56,9 +77,12 @@ final class Vies {
 	 * Check a partner's VAT ID now and store the result.
 	 *
 	 * @param int $affiliate_id Partner.
-	 * @return array|null Result (null without VAT ID).
+	 * @return array|null Result (null without VAT ID or when the check is switched off).
 	 */
 	public static function check( $affiliate_id ) {
+		if ( ! self::enabled() ) {
+			return null;
+		}
 		$profile = ProfileRepository::get( (int) $affiliate_id );
 		$vat_id  = $profile ? strtoupper( (string) $profile->vat_id ) : '';
 		if ( '' === $vat_id ) {
@@ -103,6 +127,9 @@ final class Vies {
 				$result['consultation'] = isset( $data['requestIdentifier'] ) ? sanitize_text_field( (string) $data['requestIdentifier'] ) : '';
 			}
 		}
+		// Consecutive "unavailable" answers for the same VAT ID: the next try waits longer each time.
+		$before          = self::result( (int) $affiliate_id );
+		$result['tries'] = 'unavailable' === $result['status'] ? ( $before && 'unavailable' === $before['status'] && $before['vat_id'] === $vat_id && isset( $before['tries'] ) ? (int) $before['tries'] : 0 ) + 1 : 0;
 		update_option( 'wpac_vies_' . (int) $affiliate_id, $result, false );
 		Audit::log(
 			'payout_profile.vies_checked',
@@ -122,27 +149,56 @@ final class Vies {
 	 * @param int $affiliate_id Partner.
 	 */
 	public static function schedule( $affiliate_id ) {
+		if ( ! self::enabled() ) {
+			return;
+		}
 		\WPAffiliateCaptain\Core\Scheduler::once( self::HOOK, 10, array( (int) $affiliate_id ) );
 	}
 
 	/**
-	 * Daily: re-check VAT IDs whose last check is older than 30 days or was unavailable (at most 20).
+	 * When the stored result is due for a new check: valid/invalid results after 30 days,
+	 * "unavailable" after 1, 2, 4, 8, 16, then every 30 days (not daily forever).
+	 *
+	 * @param array|null $r Stored result.
+	 * @return int Unix time (0 = now).
+	 */
+	public static function next_check( $r ) {
+		if ( ! is_array( $r ) || empty( $r['checked_at'] ) ) {
+			return 0;
+		}
+		$checked = (int) strtotime( $r['checked_at'] . ' UTC' );
+		if ( 'unavailable' !== $r['status'] ) {
+			return $checked + 30 * DAY_IN_SECONDS;
+		}
+		$tries = max( 1, isset( $r['tries'] ) ? (int) $r['tries'] : 1 );
+		return $checked + min( 30, 2 ** min( $tries - 1, 5 ) ) * DAY_IN_SECONDS;
+	}
+
+	/**
+	 * Daily: schedule re-checks of VAT IDs whose result is due (at most DAILY_CAP, spread out).
+	 * The requests run as separate background tasks, never inside the daily maintenance.
+	 *
+	 * @return int Checks scheduled.
 	 */
 	public static function recheck_stale() {
 		global $wpdb;
+		if ( ! self::enabled() ) {
+			return 0;
+		}
 		$t   = Db::table( 'payout_profiles' );
 		$ids = $wpdb->get_col( "SELECT affiliate_id FROM {$t} WHERE vat_id <> '' ORDER BY affiliate_id ASC" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$n   = 0;
 		foreach ( $ids as $id ) {
 			$r = self::result( (int) $id );
-			if ( $r && 'unavailable' !== $r['status'] && strtotime( $r['checked_at'] . ' UTC' ) > time() - 30 * DAY_IN_SECONDS ) {
+			if ( $r && self::next_check( $r ) > time() ) {
 				continue;
 			}
-			self::check( (int) $id );
-			if ( ++$n >= 20 ) {
+			\WPAffiliateCaptain\Core\Scheduler::once( self::HOOK, 60 + 30 * $n, array( (int) $id ) );
+			if ( ++$n >= self::DAILY_CAP ) {
 				break;
 			}
 		}
+		return $n;
 	}
 
 	/**
@@ -153,6 +209,9 @@ final class Vies {
 	 * @return bool
 	 */
 	public static function is_invalid( $affiliate_id, $vat_id ) {
+		if ( ! self::enabled() ) {
+			return false; // Switched off: an old result can no longer be re-checked, so it does not block.
+		}
 		$r = self::result( (int) $affiliate_id );
 		return $r && 'invalid' === $r['status'] && strtoupper( (string) $vat_id ) === $r['vat_id'];
 	}

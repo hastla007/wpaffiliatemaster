@@ -36,6 +36,11 @@ final class Statement {
 	public static function dir() {
 		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
 			$dir = untrailingslashit( (string) WPAC_STATEMENT_DIR );
+			if ( is_multisite() ) {
+				// All sites of a network share the constant: one subfolder per site, so the documents
+				// (and their deletion on uninstall) stay apart. Older files are moved by the v9 migration.
+				$dir .= '/site-' . (int) get_current_blog_id();
+			}
 		} else {
 			$upload = wp_upload_dir( null, false );
 			$dir    = trailingslashit( $upload['basedir'] ) . 'wpac-statements';

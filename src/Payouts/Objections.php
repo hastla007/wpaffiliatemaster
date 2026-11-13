@@ -30,6 +30,58 @@ final class Objections {
 		return is_array( $all ) ? $all : array();
 	}
 
+	/** Lock of the list (read-modify-write). */
+	const LOCK = 'wpac_objections_lock';
+
+	/**
+	 * The list as stored right now (not from the per-request cache).
+	 *
+	 * @return array
+	 */
+	private static function fresh() {
+		wp_cache_delete( self::OPTION, 'options' );
+		return self::all();
+	}
+
+	/**
+	 * Daily: drop objections whose payout no longer exists and resolved ones that are past the
+	 * retention period of the credit notes (the list must not grow forever).
+	 *
+	 * @return int Entries removed.
+	 */
+	public static function purge() {
+		global $wpdb;
+		if ( ! self::all() ) {
+			return 0;
+		}
+		$cutoff = \WPAffiliateCaptain\Privacy\Retention::cutoff();
+		$t      = Db::table( 'payouts' );
+		return (int) Db::with_lock(
+			self::LOCK,
+			static function () use ( $wpdb, $t, $cutoff ) {
+				$all = self::fresh();
+				if ( ! $all ) {
+					return 0;
+				}
+				$ids   = array_map( 'intval', array_keys( $all ) );
+				$exist = array_map( 'intval', (array) $wpdb->get_col( "SELECT id FROM {$t} WHERE id IN (" . implode( ',', $ids ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Integers only.
+				$n     = 0;
+				foreach ( $all as $id => $o ) {
+					$resolved = isset( $o['status'] ) && 'resolved' === $o['status'];
+					$date     = $resolved && ! empty( $o['resolved_at'] ) ? (string) $o['resolved_at'] : ( isset( $o['at'] ) ? (string) $o['at'] : '' );
+					if ( ! in_array( (int) $id, $exist, true ) || ( $resolved && null !== $cutoff && '' !== $date && $date < $cutoff ) ) {
+						unset( $all[ $id ] );
+						++$n;
+					}
+				}
+				if ( $n ) {
+					update_option( self::OPTION, $all, false );
+				}
+				return $n;
+			}
+		);
+	}
+
 	/**
 	 * Open objections.
 	 *
@@ -72,20 +124,29 @@ final class Objections {
 		if ( '' === $reason ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please describe what is incorrect.', 'wp-affiliate-captain' ) );
 		}
-		$existing = self::for_payout( (int) $payout_id );
-		if ( $existing && 'open' === $existing['status'] ) {
+		// Check and write under a lock: parallel objections or resolutions must not overwrite each other.
+		$filed = Db::with_lock(
+			self::LOCK,
+			static function () use ( $payout_id, $affiliate_id, $reason ) {
+				$all = self::fresh();
+				if ( isset( $all[ (int) $payout_id ] ) && 'open' === $all[ (int) $payout_id ]['status'] ) {
+					return false;
+				}
+				$all[ (int) $payout_id ] = array(
+					'affiliate_id' => (int) $affiliate_id,
+					'at'           => Db::now(),
+					'reason'       => substr( $reason, 0, 1000 ),
+					'status'       => 'open',
+					'resolution'   => '',
+					'resolved_at'  => '',
+				);
+				update_option( self::OPTION, $all, false );
+				return true;
+			}
+		);
+		if ( ! $filed ) {
 			return new \WP_Error( 'wpac_objection_open', __( 'Your objection to this credit note is already being reviewed.', 'wp-affiliate-captain' ) );
 		}
-		$all                      = self::all();
-		$all[ (int) $payout_id ] = array(
-			'affiliate_id' => (int) $affiliate_id,
-			'at'           => Db::now(),
-			'reason'       => substr( $reason, 0, 1000 ),
-			'status'       => 'open',
-			'resolution'   => '',
-			'resolved_at'  => '',
-		);
-		update_option( self::OPTION, $all, false );
 		Audit::log( 'statement.objection', 'payout', (int) $payout_id );
 		$aff   = AffiliateRepository::find( (int) $affiliate_id );
 		$admin = (string) Settings::get( 'admin_email' );
@@ -107,14 +168,24 @@ final class Objections {
 	 * @return bool
 	 */
 	public static function resolve( $payout_id, $resolution ) {
-		$all = self::all();
-		if ( ! isset( $all[ (int) $payout_id ] ) || 'open' !== $all[ (int) $payout_id ]['status'] ) {
+		$resolution = substr( sanitize_textarea_field( (string) $resolution ), 0, 1000 );
+		$all        = Db::with_lock(
+			self::LOCK,
+			static function () use ( $payout_id, $resolution ) {
+				$all = self::fresh();
+				if ( ! isset( $all[ (int) $payout_id ] ) || 'open' !== $all[ (int) $payout_id ]['status'] ) {
+					return null;
+				}
+				$all[ (int) $payout_id ]['status']      = 'resolved';
+				$all[ (int) $payout_id ]['resolution']  = $resolution;
+				$all[ (int) $payout_id ]['resolved_at'] = Db::now();
+				update_option( self::OPTION, $all, false );
+				return $all;
+			}
+		);
+		if ( null === $all ) {
 			return false;
 		}
-		$all[ (int) $payout_id ]['status']      = 'resolved';
-		$all[ (int) $payout_id ]['resolution']  = substr( sanitize_textarea_field( (string) $resolution ), 0, 1000 );
-		$all[ (int) $payout_id ]['resolved_at'] = Db::now();
-		update_option( self::OPTION, $all, false );
 		Audit::log( 'statement.objection_resolved', 'payout', (int) $payout_id );
 		$aff = AffiliateRepository::find( (int) $all[ (int) $payout_id ]['affiliate_id'] );
 		$p   = PayoutService::find( (int) $payout_id );
