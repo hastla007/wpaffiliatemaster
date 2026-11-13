@@ -135,6 +135,9 @@ final class ProfileRepository {
 		} else {
 			$wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
 		}
+		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
+			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
+		}
 		if ( '' !== $iban && $existing && '' !== (string) $existing->iban_encrypted && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) {
 			\WPAffiliateCaptain\Affiliates\Notifications::bank_details_changed( (int) $affiliate_id );
 		}

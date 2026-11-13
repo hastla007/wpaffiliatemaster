@@ -292,3 +292,17 @@ function get_post( $id ) {
 	}
 	return null;
 }
+function _x( $t, $c = '', $d = '' ) { return $t; }
+
+// HTTP: tests set $GLOBALS['test_http'] = function ( $url, $args ) { return array( 'body' => '...' ); }.
+if ( ! function_exists( 'wp_remote_post' ) ) {
+	function wp_remote_post( $url, $args = array() ) {
+		return isset( $GLOBALS['test_http'] ) ? call_user_func( $GLOBALS['test_http'], $url, $args ) : new WP_Error( 'http', 'offline' );
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	function wp_remote_retrieve_body( $r ) { return is_array( $r ) && isset( $r['body'] ) ? $r['body'] : ''; }
+}
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $hook, $args = array() ) { return false; }
+}

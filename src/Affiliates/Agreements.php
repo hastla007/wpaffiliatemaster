@@ -40,12 +40,31 @@ final class Agreements {
 	}
 
 	/**
-	 * Record an acceptance (or decline).
+	 * Keep the text of the terms as shown (once per version hash), so the proof survives later
+	 * edits of the page – also for guests, whose acceptance is recorded only after the e-mail
+	 * confirmation.
+	 *
+	 * @param array $terms Terms as shown (page_id, hash).
+	 * @return bool Whether the text was stored now.
+	 */
+	public static function store_text( array $terms ) {
+		if ( empty( $terms['page_id'] ) || '' === (string) $terms['hash'] || false !== get_option( 'wpac_terms_text_' . $terms['hash'] ) ) {
+			return false;
+		}
+		$post = get_post( (int) $terms['page_id'] );
+		if ( ! $post || hash( 'sha256', $post->post_title . "\n" . $post->post_content ) !== $terms['hash'] ) {
+			return false;
+		}
+		return (bool) add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'stored_at' => Db::now() ), '', false );
+	}
+
+	/**
+	 * Record an acceptance or a decline.
 	 *
 	 * @param int        $affiliate_id Affiliate.
 	 * @param string     $result       accepted|declined.
-	 * @param array|null $terms        Terms (version/hash) shown when accepting; defaults to current.
-	 * @return int
+	 * @param array|null $terms        Terms as shown (version, hash); default: current.
+	 * @return int Record ID.
 	 */
 	public static function record( $affiliate_id, $result = 'accepted', $terms = null ) {
 		global $wpdb;
@@ -58,9 +77,7 @@ final class Agreements {
 			$revs     = wp_get_post_revisions( $post->ID, array( 'numberposts' => 1, 'fields' => 'ids' ) );
 			$revision = $revs ? (int) reset( $revs ) : 0;
 		}
-		if ( $post && '' !== (string) $terms['hash'] && hash( 'sha256', $post->post_title . "\n" . $post->post_content ) === $terms['hash'] && false === get_option( 'wpac_terms_text_' . $terms['hash'] ) ) {
-			add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'stored_at' => Db::now() ), '', false );
-		}
+		self::store_text( $terms );
 		$wpdb->insert(
 			Db::table( 'agreements' ),
 			array(

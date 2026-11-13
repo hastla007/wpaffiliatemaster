@@ -322,7 +322,7 @@ final class Statement {
 		$notes = array_filter(
 			array(
 				self::vat_note( (string) $p->vat_mode, (string) $op['country'] ),
-				$self && ! $storno ? __( 'This document is a credit note (self-billing) agreed with the partner. Please check it and object within 14 days if anything is incorrect; the partner does not issue a separate invoice.', 'wp-affiliate-captain' ) : '',
+				$self && ! $storno ? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'wp-affiliate-captain' ) : '',
 				$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'wp-affiliate-captain' ) : '',
 			)
 		);

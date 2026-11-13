@@ -750,10 +750,17 @@ $wpdb->insert( t( 'payouts' ), array( 'number' => 'GS-Y-1', 'affiliate_id' => $y
 $ypid = (int) $wpdb->insert_id;
 WPAffiliateCaptain\Core\Audit::log( 'payout.cancelled', 'payout', $ypid, array( 'reason' => 'Max Muster' ) );
 $wpdb->insert( $ct, array( 'affiliate_id' => $ye, 'source' => 'wpac', 'source_order_id' => 'y-wo', 'kind' => 'writeoff', 'description' => 'Max Muster zahlt nicht', 'currency' => 'EUR', 'amount_minor' => 0, 'status' => 'approved', 'idempotency_key' => 'y-wo', 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+set_transient( 'wpac_email_change_' . $ye, array( 'email' => 'neu@example.de', 'token' => 'x' ), DAY_IN_SECONDS );
+$yx = WPAffiliateCaptain\Privacy\Privacy::export( 'erase@example.de' );
+$groups = array_unique( wp_list_pluck( $yx['data'], 'group_id' ) );
+check( 'Y20 export includes attributions, visits/details and commission details', true, in_array( 'wpac-attributions', $groups, true ) && in_array( 'wpac-affiliate-details', $groups, true ) );
+check( 'Y20 export shows the pending e-mail change', true, false !== strpos( wp_json_encode( $yx ), 'neu@example.de' ) );
 WPAffiliateCaptain\Privacy\Privacy::erase( 'erase@example.de' );
 check( 'Y1 commission event reasons stay unchanged during retention', 'Kunde Max Muster beschwerte sich', $wpdb->get_var( 'SELECT reason FROM ' . t( 'commission_events' ) . " WHERE commission_id = {$ycid} AND reason <> '' LIMIT 1" ) );
 check( 'Y2 attribution note stays unchanged during retention', 'Hinweis von Max Muster', $wpdb->get_var( 'SELECT note FROM ' . t( 'attributions' ) . " WHERE affiliate_id = {$ye} LIMIT 1" ) );
 check( 'Y3 processing is restricted', true, WPAffiliateCaptain\Privacy\Restriction::is_restricted( $ye ) );
+check( 'Y21 pending e-mail change removed by the erasure', false, get_transient( 'wpac_email_change_' . $ye ) );
+
 check( 'Y3 the restricted partner cannot be reactivated', true, is_wp_error( AffiliateRepository::set_status( $ye, 'active' ) ) );
 // Booking records past the retention period → free texts deleted, agreements removed, restriction lifted.
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 8, 'operator_country' => 'DE', 'retention_hold' => 1 ) ) );
@@ -771,6 +778,39 @@ check( 'Y5 payout change log details deleted', null, $wpdb->get_var( 'SELECT det
 check( 'Y6 write-off reason deleted', '', $wpdb->get_var( "SELECT description FROM {$ct} WHERE idempotency_key = 'y-wo'" ) );
 check( 'Y18 acceptance records deleted with the booking records', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'agreements' ) . " WHERE affiliate_id = {$ye}" ) );
 check( 'Y3 restriction lifted after the clean-up', false, WPAffiliateCaptain\Privacy\Restriction::is_restricted( $ye ) );
+delete_option( 'wpac_terms_text_' . WPAffiliateCaptain\Affiliates\Agreements::current()['hash'] );
+check( 'Y19 terms text kept when shown (guests: before the e-mail confirmation)', true, WPAffiliateCaptain\Affiliates\Agreements::store_text( WPAffiliateCaptain\Affiliates\Agreements::current() ) && false !== get_option( 'wpac_terms_text_' . WPAffiliateCaptain\Affiliates\Agreements::current()['hash'] ) );
+// Y23 public name/website changes of approved partners wait for review.
+$yp = AffiliateRepository::create( array( 'name' => 'Public Partner', 'email' => 'public@example.de', 'status' => 'active', 'website' => 'https://old.example' ) );
+check( 'Y23 change of an approved partner is pending', 'pending', AffiliateRepository::request_public_change( $yp, 'Ruf mich an 0170-123', 'https://scam.example' ) );
+check( 'Y23 the public name stays until approved', 'Public Partner', AffiliateRepository::find( $yp )->name );
+AffiliateRepository::resolve_public_change( $yp, false );
+check( 'Y23 rejected change is dropped', array( 'Public Partner', null ), array( AffiliateRepository::find( $yp )->name, AffiliateRepository::pending_public_change( $yp ) ) );
+AffiliateRepository::request_public_change( $yp, 'Segelschule Nord', 'https://nord.example' );
+AffiliateRepository::resolve_public_change( $yp, true );
+check( 'Y23 approved change is applied', 'Segelschule Nord', AffiliateRepository::find( $yp )->name );
+// Y26 manual restriction (Art. 18): codes stop attributing, no reactivation, lift restores.
+$ypc = WPAffiliateCaptain\Codes\CodeRepository::main_code( $yp );
+WPAffiliateCaptain\Privacy\Restriction::add( $yp, WPAffiliateCaptain\Privacy\Restriction::REQUEST, 'Richtigkeit bestritten' );
+check( 'Y26 restricted partner code attributes nothing', null, wpac_resolve_partner_code( $ypc, array( 'context' => 'link' ) ) );
+WPAffiliateCaptain\Privacy\Restriction::remove( $yp );
+check( 'Y26 lifted restriction: code works again', true, is_array( wpac_resolve_partner_code( $ypc, array( 'context' => 'link' ) ) ) );
+// Y24 objection to a credit note: filed by the owner, refused for others, resolved by the operator.
+check( 'Y24 credit note text no longer names a 14-day deadline', false, false !== strpos( WPAffiliateCaptain\Payouts\Statement::build( PayoutService::find( $w2 ) ), '14 days' ) );
+check( 'Y24 another partner cannot object', true, is_wp_error( WPAffiliateCaptain\Payouts\Objections::file( $w2, $yp, 'falsch' ) ) );
+check( 'Y24 owner objects', true, true === WPAffiliateCaptain\Payouts\Objections::file( $w2, $wa, 'Bestellung 9002 fehlt' ) );
+check( 'Y24 objection is open for the operator', true, isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) );
+check( 'Y24 resolved objection is closed', array( true, false ), array( WPAffiliateCaptain\Payouts\Objections::resolve( $w2, 'Storniert und neu ausgestellt.' ), isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) ) );
+// Y25 VIES: invalid VAT IDs block reverse charge; VIES outage blocks nothing.
+$GLOBALS['test_http'] = static function ( $url, $args ) { $b = json_decode( $args['body'], true ); return array( 'body' => wp_json_encode( array( 'valid' => 'U22222222' !== $b['vatNumber'] ? true : false, 'requestIdentifier' => 'WAPIAAAA123', 'name' => 'RC GmbH' ) ) ); };
+$vr = WPAffiliateCaptain\Payouts\Vies::check( $wr );
+check( 'Y25 VIES result stored with the consultation number', array( 'invalid', 'WAPIAAAA123' ), array( $vr['status'], $vr['consultation'] ) );
+check( 'Y25 invalid VAT ID blocks reverse charge', true, false !== strpos( PayoutService::blocked_reason( $wr ), 'VIES' ) );
+$GLOBALS['test_http'] = static function () { return array( 'body' => wp_json_encode( array( 'errorWrappers' => array( array( 'error' => 'MS_UNAVAILABLE' ) ) ) ) ); };
+WPAffiliateCaptain\Payouts\Vies::check( $wr );
+check( 'Y25 VIES unavailable: not blocked, checked again later', array( 'unavailable', '' ), array( WPAffiliateCaptain\Payouts\Vies::result( $wr )['status'], PayoutService::blocked_reason( $wr ) ) );
+check( 'Y25 Greek VAT IDs use EL, Swiss ones are not checked', array( array( 'EL', '123456789' ), null ), array( WPAffiliateCaptain\Payouts\Vies::split( 'GR123456789' ), WPAffiliateCaptain\Payouts\Vies::split( 'CHE123456789' ) ) );
+unset( $GLOBALS['test_http'] );
 check( 'Y15 retention per country', array( 8, 7, 10, 10 ), array( WPAffiliateCaptain\Privacy\Retention::minimum_years( 'DE' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'AT' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'CH' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'FR' ) ) );
 // Audit log clean-up: commission entries are kept like the other booking records; nothing during a hold.
 q( 'DELETE FROM ' . t( 'audit' ) );

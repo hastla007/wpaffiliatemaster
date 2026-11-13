@@ -21,6 +21,7 @@ final class Cron {
 		add_action( self::DAILY, array( __CLASS__, 'daily' ) );
 		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'batch' ) );
 		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'retry_failed' ) );
+		add_action( \WPAffiliateCaptain\Payouts\Vies::HOOK, array( \WPAffiliateCaptain\Payouts\Vies::class, 'check' ) );
 	}
 
 	public static function schedule() {
@@ -101,6 +102,7 @@ final class Cron {
 		\WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
 		\WPAffiliateCaptain\Privacy\Retention::purge_erased();
 		\WPAffiliateCaptain\Privacy\Retention::purge_agreements();
+		\WPAffiliateCaptain\Payouts\Vies::recheck_stale();
 		$audit_days = (int) Settings::get( 'audit_retention_days' );
 		if ( $audit_days > 0 ) {
 			$audit = Db::table( 'audit' );

@@ -29,6 +29,15 @@ final class PayoutsPage {
 	 */
 	public static function handle( $do ) {
 		switch ( $do ) {
+			case 'objection_resolve':
+				$note = sanitize_textarea_field( Admin::post( 'resolution' ) );
+				if ( '' === trim( $note ) ) {
+					Admin::back( __( 'Please describe what was done (the partner is informed).', 'wp-affiliate-captain' ), 'error' );
+				}
+				\WPAffiliateCaptain\Payouts\Objections::resolve( absint( Admin::post( 'payout_id' ) ), $note );
+				Admin::back( __( 'Objection marked as handled; the partner was informed.', 'wp-affiliate-captain' ) );
+				break;
+
 			case 'payout_run':
 				$end      = sanitize_text_field( Admin::post( 'period_end' ) );
 				$currency = strtoupper( sanitize_key( Admin::post( 'currency' ) ) );
@@ -161,6 +170,14 @@ final class PayoutsPage {
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Payouts', 'wp-affiliate-captain' ) . '</h1>';
 		Admin::notice();
+		foreach ( \WPAffiliateCaptain\Payouts\Objections::open() as $pid => $o ) {
+			$op  = PayoutService::find( (int) $pid );
+			$oaf = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( (int) $o['affiliate_id'] );
+			/* translators: 1: partner, 2: number, 3: date */
+			echo '<div class="notice notice-warning"><p><strong>' . esc_html( sprintf( __( '%1$s objected to credit note %2$s on %3$s:', 'wp-affiliate-captain' ), $oaf ? $oaf->name : '#' . (int) $o['affiliate_id'], $op ? $op->number : '#' . (int) $pid, Admin::date( $o['at'], true ) ) ) . '</strong><br>' . nl2br( esc_html( $o['reason'] ) ) . '</p><p class="description">' . esc_html__( 'The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct.', 'wp-affiliate-captain' ) . '</p>';
+			Admin::form_open( 'objection_resolve' );
+			echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><p><textarea name="resolution" rows="2" class="large-text" placeholder="' . esc_attr__( 'What was done (sent to the partner)', 'wp-affiliate-captain' ) . '"></textarea></p><p><button class="button">' . esc_html__( 'Mark as handled', 'wp-affiliate-captain' ) . '</button></p></form></div>';
+		}
 
 		echo '<h2>' . esc_html__( 'New payout run', 'wp-affiliate-captain' ) . '</h2>';
 		echo '<form method="get"><input type="hidden" name="page" value="wpac-payouts">';

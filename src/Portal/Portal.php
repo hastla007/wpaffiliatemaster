@@ -126,15 +126,19 @@ final class Portal {
 
 		if ( 'account' === $action ) {
 			// Name, website and channel directly; a new e-mail only after confirmation.
+			// The channel is internal; name and website are public and wait for the operator's review.
 			AffiliateRepository::update(
 				(int) $aff->id,
 				array(
-					'name'    => isset( $_POST['wpac_acc_name'] ) && '' !== trim( sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) : $aff->name,
-					'website' => isset( $_POST['wpac_acc_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_acc_website'] ) ) : $aff->website,
 					'channel' => isset( $_POST['wpac_acc_channel'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_channel'] ) ) : $aff->channel,
 				)
 			);
-			$msg   = 'saved';
+			$public = AffiliateRepository::request_public_change(
+				(int) $aff->id,
+				isset( $_POST['wpac_acc_name'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) : $aff->name,
+				isset( $_POST['wpac_acc_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_acc_website'] ) ) : $aff->website
+			);
+			$msg   = 'pending' === $public ? 'change_review' : 'saved';
 			$email = isset( $_POST['wpac_acc_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_acc_email'] ) ) : '';
 			if ( '' !== $email && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
 				$other = AffiliateRepository::find_by_email( $email );
@@ -159,6 +163,12 @@ final class Portal {
 				}
 			}
 			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $redirect ) );
+			exit;
+		}
+
+		if ( 'objection' === $action ) {
+			$result = \WPAffiliateCaptain\Payouts\Objections::file( isset( $_POST['wpac_obj_payout'] ) ? absint( $_POST['wpac_obj_payout'] ) : 0, (int) $aff->id, isset( $_POST['wpac_obj_reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_obj_reason'] ) ) : '' );
+			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => is_wp_error( $result ) ? 'objection_failed' : 'objection_sent', 'wpac_tab' => 'payouts' ), $redirect ) );
 			exit;
 		}
 
@@ -372,6 +382,9 @@ final class Portal {
 			'email_link_invalid' => array( 'error', __( 'The confirmation link is invalid or has expired.', 'wp-affiliate-captain' ) ),
 			'email_change_limit' => array( 'error', __( 'Too many e-mail changes today. Please try again tomorrow.', 'wp-affiliate-captain' ) ),
 			'account_linked'     => array( 'success', __( 'Your customer account is now connected to the partner program.', 'wp-affiliate-captain' ) ),
+			'objection_sent'     => array( 'success', __( 'Thank you. Your objection was sent; we will review the credit note.', 'wp-affiliate-captain' ) ),
+			'objection_failed'   => array( 'error', __( 'The objection could not be filed. Please describe what is incorrect.', 'wp-affiliate-captain' ) ),
+			'change_review'      => array( 'success', __( 'Saved. Your new name or website is shown after our review.', 'wp-affiliate-captain' ) ),
 		);
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$key = isset( $_GET['wpac_msg'] ) ? sanitize_key( wp_unslash( $_GET['wpac_msg'] ) ) : '';
@@ -735,6 +748,29 @@ final class Portal {
 			);
 		}
 		echo '</tbody></table>';
+		// Objection to a credit note (§14 Abs. 2 S. 3 UStG).
+		$objectable = array();
+		foreach ( $rows as $p ) {
+			if ( 'cancelled' !== $p->status && $p->statement_file ) {
+				$objectable[] = $p;
+			}
+		}
+		foreach ( $rows as $p ) {
+			$o = \WPAffiliateCaptain\Payouts\Objections::for_payout( (int) $p->id );
+			if ( $o ) {
+				/* translators: 1: number, 2: status */
+				echo '<p class="wpac-muted">' . esc_html( sprintf( __( 'Objection to %1$s: %2$s', 'wp-affiliate-captain' ), $p->number, 'open' === $o['status'] ? __( 'being reviewed', 'wp-affiliate-captain' ) : $o['resolution'] ) ) . '</p>';
+			}
+		}
+		if ( Settings::get( 'self_billing' ) && $objectable ) {
+			echo '<details class="wpac-objection"><summary>' . esc_html__( 'Something is wrong with a credit note?', 'wp-affiliate-captain' ) . '</summary><form method="post" class="wpac-form">';
+			wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
+			echo '<input type="hidden" name="wpac_portal_action" value="objection"><p><label for="wpac_obj_payout">' . esc_html__( 'Credit note', 'wp-affiliate-captain' ) . '</label><select id="wpac_obj_payout" name="wpac_obj_payout">';
+			foreach ( $objectable as $p ) {
+				echo '<option value="' . (int) $p->id . '">' . esc_html( $p->number ) . '</option>';
+			}
+			echo '</select></p><p><label for="wpac_obj_reason">' . esc_html__( 'What is incorrect?', 'wp-affiliate-captain' ) . '</label><textarea id="wpac_obj_reason" name="wpac_obj_reason" rows="3" required></textarea></p><p><button type="submit" class="wpac-button">' . esc_html__( 'Object to the credit note', 'wp-affiliate-captain' ) . '</button></p></form></details>';
+		}
 	}
 
 	/**

@@ -141,6 +141,46 @@ final class Notifications {
 	}
 
 	/**
+	 * A partner asked to change the public name/website.
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	public static function public_change_requested( $id ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff ) {
+			return;
+		}
+		wp_mail(
+			self::admin_email(),
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Partner wants to change name or website', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			/* translators: 1: partner, 2: URL */
+			sprintf( __( "%1\$s changed the public name or website. The change is shown only after you approve it:\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $id ) )
+		);
+	}
+
+	/**
+	 * Decision on a name/website change.
+	 *
+	 * @param int  $id       Affiliate ID.
+	 * @param bool $approved Approved.
+	 */
+	public static function public_change_resolved( $id, $approved ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff ) {
+			return;
+		}
+		wp_mail(
+			$aff->email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Your profile change', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			$approved
+				? __( "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on.", 'wp-affiliate-captain' )
+				: __( "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us.", 'wp-affiliate-captain' )
+		);
+	}
+
+	/**
 	 * Application approved.
 	 *
 	 * @param int $id Affiliate ID.

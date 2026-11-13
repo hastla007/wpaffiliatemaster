@@ -57,6 +57,10 @@ final class RestApi {
 			return new \WP_Error( 'wpac_disabled', 'JavaScript tracking is disabled.', array( 'status' => 404 ) );
 		}
 		$path = wp_parse_url( (string) $r['path'], PHP_URL_PATH );
+		// Only the host of the previous page is kept (never its path or query, which may contain personal data).
+		$ref  = trim( (string) $r['referrer'] );
+		$host = false !== strpos( $ref, '://' ) ? (string) wp_parse_url( $ref, PHP_URL_HOST ) : $ref;
+		$host = preg_match( '/^[a-z0-9.-]{1,253}$/i', $host ) ? strtolower( $host ) : '';
 		\WPAffiliateCaptain\Tracking\Tracker::capture_code(
 			sanitize_text_field( (string) $r['code'] ),
 			sanitize_text_field( (string) $r['campaign'] ),
@@ -65,7 +69,7 @@ final class RestApi {
 				'utm_source' => sanitize_text_field( (string) $r['utm_source'] ),
 				'utm_medium' => sanitize_text_field( (string) $r['utm_medium'] ),
 				'path'       => is_string( $path ) ? $path : '',
-				'referrer'   => esc_url_raw( (string) $r['referrer'] ),
+				'referrer'   => '' !== $host ? 'https://' . $host . '/' : '',
 			)
 		);
 		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).

@@ -54,7 +54,8 @@ function wpac_uninstall_site() {
 	// Kept records keep their settings (operator data, numbering prefixes) and schema version.
 	$wpac_options = array( 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key', 'wpac_upgrade_lock', 'wpac_erasure_pending', 'wpac_cookie_signed_since', 'wpac_report_failed', 'wpac_schema_problems' );
 	if ( ! $wpac_keep ) {
-		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version' ) );
+		// The restriction list belongs to the kept booking records; without them it is not needed.
+		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections' ) );
 		// Stored terms texts belong to the acceptance records (agreements), which are dropped now.
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_terms\\_text\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
@@ -62,7 +63,7 @@ function wpac_uninstall_site() {
 		delete_option( $wpac_option );
 	}
 	// Markers of sales being booked (normally removed right away).
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%' OR option_name LIKE 'wpac\\_user\\_link\\_%' OR option_name LIKE 'wpac\\_prev\\_email\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%' OR option_name LIKE 'wpac\\_user\\_link\\_%' OR option_name LIKE 'wpac\\_prev\\_email\\_%' OR option_name LIKE 'wpac\\_public\\_change\\_%' OR option_name LIKE 'wpac\\_vies\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Monthly report claims (one per month).
 	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_report\\_claim\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Rate-limit and other transients.
@@ -75,6 +76,9 @@ function wpac_uninstall_site() {
 	wp_clear_scheduled_hook( 'wpac_daily' );
 	wp_clear_scheduled_hook( 'wpac_report_retry' );
 	wp_clear_scheduled_hook( 'wpac_report_batch' );
+	if ( function_exists( 'wp_unschedule_hook' ) ) {
+		wp_unschedule_hook( 'wpac_vies_check' ); // One event per partner (with arguments).
+	}
 
 	foreach ( array( 'wpac_manage_program', 'wpac_manage_affiliates', 'wpac_manage_payouts', 'wpac_view_tax_data' ) as $wpac_cap ) {
 		foreach ( wp_roles()->role_objects as $wpac_role ) {

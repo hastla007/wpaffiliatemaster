@@ -215,6 +215,9 @@ final class PayoutService {
 			// Reverse-charge documents must show the VAT ID of the recipient (the operator).
 			return __( 'Reverse charge needs your VAT ID (Settings → Payouts)', 'wp-affiliate-captain' );
 		}
+		if ( Vat::REVERSE_CHARGE === $vat['mode'] && isset( $profile->vat_id ) && Vies::is_invalid( (int) $affiliate_id, (string) $profile->vat_id ) ) {
+			return __( 'The partner\'s VAT ID is not valid according to VIES (reverse charge not possible)', 'wp-affiliate-captain' );
+		}
 		return '';
 	}
 
