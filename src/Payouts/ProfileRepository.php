@@ -140,7 +140,9 @@ final class ProfileRepository {
 		if ( '' === (string) $profile->iban_encrypted ) {
 			return 'iban';
 		}
-		if ( 'business' === $profile->tax_status && '' === (string) $profile->vat_id ) {
+		if ( 'business' === $profile->tax_status && '' === (string) $profile->vat_id && ( self::needs_vat_id( (string) $profile->country ) || '' === trim( (string) ( isset( $profile->tax_number ) ? $profile->tax_number : '' ) ) ) ) {
+			// A domestic business may be identified by its tax number (§14 Abs. 4 Nr. 2 UStG);
+			// reverse charge needs the VAT ID of the partner.
 			return 'vat_id';
 		}
 		if ( 'small_business' === $profile->tax_status && '' === (string) $profile->vat_id && '' === trim( (string) ( isset( $profile->tax_number ) ? $profile->tax_number : '' ) ) ) {
@@ -150,13 +152,31 @@ final class ProfileRepository {
 	}
 
 	/**
+	 * Whether a business in this country needs a VAT ID (reverse charge: partner abroad).
+	 *
+	 * @param string $country Partner country.
+	 * @return bool
+	 */
+	public static function needs_vat_id( $country ) {
+		$operator = strtoupper( (string) \WPAffiliateCaptain\Core\Settings::get( 'operator_country' ) );
+		$country  = strtoupper( (string) $country );
+		return '' !== $country && '' !== $operator && $country !== $operator;
+	}
+
+	/**
 	 * Save (validate) profile input.
 	 *
-	 * @param int   $affiliate_id Affiliate.
-	 * @param array $in           Raw (unslashed) input. Empty IBAN keeps the stored one.
+	 * Changes of the tax data (tax status, country, VAT ID) are logged with the old values and
+	 * reported to the admin. When the partner makes them ($context "partner") and they would
+	 * change the VAT on credit notes, they wait for an admin's approval (approve_tax_change());
+	 * until then the previous data apply.
+	 *
+	 * @param int    $affiliate_id Affiliate.
+	 * @param array  $in           Raw (unslashed) input. Empty IBAN keeps the stored one.
+	 * @param string $context      admin|partner.
 	 * @return true|\WP_Error
 	 */
-	public static function save( $affiliate_id, array $in ) {
+	public static function save( $affiliate_id, array $in, $context = 'admin' ) {
 		global $wpdb;
 		$labels = self::tax_status_labels();
 		$tax    = isset( $in['tax_status'] ) && isset( $labels[ $in['tax_status'] ] ) ? $in['tax_status'] : '';
@@ -172,8 +192,20 @@ final class ProfileRepository {
 			'bic'            => strtoupper( substr( preg_replace( '/[^A-Za-z0-9]/', '', isset( $in['bic'] ) ? (string) $in['bic'] : '' ), 0, 11 ) ),
 			'updated_at'     => Db::now(),
 		);
-		if ( 'business' === $tax && '' === $data['vat_id'] ) {
-			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID.', 'affiliate-captain' ) );
+		if ( 'business' === $tax && '' === $data['vat_id'] && self::needs_vat_id( $data['country'] ) ) {
+			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID (required for reverse charge across borders).', 'affiliate-captain' ) );
+		}
+		if ( 'business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
+			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID or tax number (required on credit notes).', 'affiliate-captain' ) );
+		}
+		if ( '' !== $data['vat_id'] ) {
+			$problem = Vat::vat_id_problem( $data['vat_id'], $data['country'] );
+			if ( 'prefix' === $problem ) {
+				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not start with the code of your country. Please check the VAT ID and the country.', 'affiliate-captain' ) );
+			}
+			if ( '' !== $problem ) {
+				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not have a valid format. Please check it.', 'affiliate-captain' ) );
+			}
 		}
 		if ( 'small_business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
 			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) );
@@ -217,13 +249,50 @@ final class ProfileRepository {
 			// (IBAN or manual payment details alike).
 			$data['iban_encrypted'] = Crypto::encrypt( (string) Crypto::decrypt( (string) $existing->iban_encrypted ) );
 		}
+		// Tax data: compare with the stored data (old values go to the audit log and the history).
+		$tax_old = TaxHistory::fields( $existing );
+		$tax_new = TaxHistory::fields( $data );
+		$pending = false;
+		if ( $tax_old !== $tax_new ) {
+			if ( 'partner' === $context && TaxHistory::needs_approval( $tax_old, $tax_new ) ) {
+				// Takes effect only after an admin approved it; the stored tax data stay meanwhile.
+				TaxHistory::set_pending( (int) $affiliate_id, $tax_new, $tax_old );
+				foreach ( TaxHistory::FIELDS as $f ) {
+					$data[ $f ] = $tax_old[ $f ];
+				}
+				$pending = true;
+			} else {
+				TaxHistory::record_profile( (int) $affiliate_id, $tax_old );
+				TaxHistory::clear_pending( (int) $affiliate_id );
+			}
+		} elseif ( 'partner' === $context ) {
+			TaxHistory::clear_pending( (int) $affiliate_id ); // Back to the stored data: nothing waits any more.
+		}
 		if ( $existing ) {
-			$wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
+			$ok = $wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
 		} else {
-			$wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
+			$ok = $wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
+		}
+		if ( false === $ok ) {
+			return new \WP_Error( 'wpac_db', __( 'The payout details could not be saved. Please try again.', 'affiliate-captain' ) );
+		}
+		if ( $tax_old !== $tax_new ) {
+			Audit::log(
+				$pending ? 'payout_profile.tax_change_requested' : 'payout_profile.tax_changed',
+				'affiliate',
+				(int) $affiliate_id,
+				array(
+					'old' => $tax_old,
+					'new' => $tax_new,
+				)
+			);
+			\WPAffiliateCaptain\Affiliates\Notifications::tax_data_changed( (int) $affiliate_id, $tax_old, $tax_new, $pending );
 		}
 		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
+		}
+		if ( $pending && '' !== $tax_new['vat_id'] ) {
+			Vies::schedule( (int) $affiliate_id ); // Checks the requested VAT ID: the result helps the admin decide.
 		}
 		$had_details = $existing && '' !== (string) $existing->iban_encrypted;
 		$changed     = $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $method !== $old_method );
@@ -242,6 +311,59 @@ final class ProfileRepository {
 				'details_changed' => $details_new,
 			)
 		);
+		return true;
+	}
+
+	/**
+	 * Approve a pending change of the tax data: it applies from now on (earlier commissions
+	 * keep the previous treatment).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return true|\WP_Error
+	 */
+	public static function approve_tax_change( $affiliate_id ) {
+		global $wpdb;
+		$pending  = TaxHistory::pending( (int) $affiliate_id );
+		$existing = self::get( (int) $affiliate_id );
+		if ( ! $pending || ! $existing ) {
+			return new \WP_Error( 'wpac_none', __( 'There is no pending change of the tax data.', 'affiliate-captain' ) );
+		}
+		$old = TaxHistory::fields( $existing );
+		$new = array_merge( $old, array_intersect_key( (array) $pending['new'], $old ) );
+		TaxHistory::record_profile( (int) $affiliate_id, $old );
+		$ok = $wpdb->update( Db::table( 'payout_profiles' ), $new + array( 'updated_at' => Db::now() ), array( 'affiliate_id' => (int) $affiliate_id ) );
+		if ( false === $ok ) {
+			return new \WP_Error( 'wpac_db', __( 'The payout details could not be saved. Please try again.', 'affiliate-captain' ) );
+		}
+		TaxHistory::clear_pending( (int) $affiliate_id );
+		Audit::log(
+			'payout_profile.tax_change_approved',
+			'affiliate',
+			(int) $affiliate_id,
+			array(
+				'old' => $old,
+				'new' => $new,
+			)
+		);
+		if ( '' !== $new['vat_id'] && $new['vat_id'] !== $old['vat_id'] ) {
+			Vies::schedule( (int) $affiliate_id );
+		}
+		return true;
+	}
+
+	/**
+	 * Reject a pending change of the tax data (the stored data stay).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return true|\WP_Error
+	 */
+	public static function reject_tax_change( $affiliate_id ) {
+		$pending = TaxHistory::pending( (int) $affiliate_id );
+		if ( ! $pending ) {
+			return new \WP_Error( 'wpac_none', __( 'There is no pending change of the tax data.', 'affiliate-captain' ) );
+		}
+		TaxHistory::clear_pending( (int) $affiliate_id );
+		Audit::log( 'payout_profile.tax_change_rejected', 'affiliate', (int) $affiliate_id, array( 'new' => $pending['new'] ) );
 		return true;
 	}
 
@@ -278,5 +400,6 @@ final class ProfileRepository {
 	public static function delete( $affiliate_id ) {
 		global $wpdb;
 		$wpdb->delete( Db::table( 'payout_profiles' ), array( 'affiliate_id' => (int) $affiliate_id ) );
+		TaxHistory::delete( (int) $affiliate_id );
 	}
 }

@@ -249,7 +249,7 @@ msgid "VIES confirms the VAT ID as valid."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "According to VIES, the VAT ID is NOT valid. Reverse-charge payouts to this partner are blocked until the partner corrects it."
+msgid "According to VIES, the VAT ID is NOT valid. Credit notes with VAT or reverse charge to this partner are blocked until the partner corrects it."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -271,6 +271,18 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "The negative balance was written off."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "You are not allowed to change payout details."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The new tax data apply from now on."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The change of the tax data was rejected; the previous data stay."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -626,7 +638,7 @@ msgstr ""
 msgid "Incomplete."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Statement.php src/Portal/Portal.php
 msgid "Tax status"
 msgstr ""
 
@@ -638,12 +650,16 @@ msgstr ""
 msgid "Address"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Notifications.php
 msgid "Country"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Statement.php
 msgid "VAT ID"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Not checked yet for this VAT ID."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -662,9 +678,21 @@ msgstr ""
 msgid "not an EU VAT ID (no VIES check)"
 msgstr ""
 
-#. translators: 1: status, 2: date, 3: consultation number
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "%1$s (checked %2$s%3$s)"
+msgid "The VIES check is switched off, so this old result no longer blocks payouts."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Credit notes with VAT or reverse charge to this partner are blocked until the VAT ID is corrected."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "VIES refused your own VAT ID (Settings → Payouts): no consultation number until it is corrected."
+msgstr ""
+
+#. translators: 1: VAT ID, 2: status, 3: date, 4: consultation number
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%1$s: %2$s (checked %3$s%4$s)"
 msgstr ""
 
 #. translators: %s: number
@@ -672,7 +700,7 @@ msgstr ""
 msgid "consultation number %s"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Statement.php
 msgid "Tax number"
 msgstr ""
 
@@ -723,6 +751,19 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Only users who manage payouts can change payout details."
+msgstr ""
+
+#. translators: 1: date, 2: old data, 3: new data
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The partner changed the tax data on %1$s: %2$s → %3$s."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The change affects the VAT on credit notes. Until you approve it, the previous data apply; once approved it applies to commissions from now on."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Approve tax data"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -806,6 +847,11 @@ msgstr ""
 #. translators: 1: currency, 2: balance
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Account %1$s – balance %2$s"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Including VAT (and VAT corrections of earlier credit notes): %s"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -2133,6 +2179,22 @@ msgstr ""
 msgid "Database error."
 msgstr ""
 
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements stored in their own folder (WPAC_STATEMENT_DIR / wpac_statement_dir) – make sure it is outside the web root"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Could not check whether the statements folder is publicly reachable (the test request from the server to itself was blocked). Check that /wp-content/uploads/wpac-statements/ cannot be opened in a browser, or define WPAC_STATEMENT_DIR outside the web root."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements folder is not publicly reachable"
+msgstr ""
+
 #. translators: %s: version
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Public contract version: %s. Integrations with a different major version are not called."
@@ -2188,18 +2250,6 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Company account for SEPA export configured"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Statements stored outside the web root (WPAC_STATEMENT_DIR)"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Statements folder is not publicly reachable"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -2380,6 +2430,24 @@ msgstr ""
 #. translators: 1: partner, 2: amount, 3: reminders sent
 #: src/Admin/Pages/PayoutsPage.php
 msgid "%1$s (%2$d of 3 reminders sent)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Small business partners above the small business limit (§19 UStG: 25,000 € in the previous year or 100,000 € in the current year):"
+msgstr ""
+
+#. translators: 1: partner, 2: amount previous year, 3: amount current year
+#: src/Admin/Pages/PayoutsPage.php
+msgid "previous year %1$s, this year %2$s"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on."
+msgstr ""
+
+#. translators: %s: cancellation number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The cancellation document %s could not be stored yet. It is retried automatically; check that the statement folder is writable."
 msgstr ""
 
 #. translators: 1: payout number, 2: orders
@@ -2631,6 +2699,20 @@ msgstr ""
 msgid "VAT treatment depends on the partner's tax status and must be confirmed by your tax advisor. This statement does not calculate VAT."
 msgstr ""
 
+#. translators: %d: number of rules
+#: src/Admin/Pages/RulesPage.php
+msgid "%d commission rule of the group was deactivated."
+msgid_plural "%d commission rules of the group were deactivated."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Admin/Pages/RulesPage.php
+msgid "%d partner now falls under the program terms and must accept them before the next credit note."
+msgid_plural "%d partners now fall under the program terms and must accept them before the next credit note."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/RulesPage.php
 msgid "Please enter a reason for the change."
 msgstr ""
@@ -2854,7 +2936,7 @@ msgid "Save group"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
-msgid "Delete this group?"
+msgid "Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -3642,6 +3724,44 @@ msgstr ""
 msgid "Invalid field definition: %s"
 msgstr ""
 
+#. translators: 1: site name, 2: document number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Credit note %2$s"
+msgstr ""
+
+#. translators: 1: name, 2: document number, 3: amount, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have issued credit note %2$s for your commissions (total %3$s). It is attached to this e-mail and can be downloaded in your partner area: %4$s\n\nPlease check it. If something is wrong, you can object to it in the partner area."
+msgstr ""
+
+#. translators: 1: site name, 2: cancelled credit note number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Credit note %2$s cancelled"
+msgstr ""
+
+#. translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
+msgstr ""
+
+#. translators: 1: site name, 2: partner
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Tax data change of %2$s waits for your approval"
+msgstr ""
+
+#. translators: 1: site name, 2: partner
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Tax data of %2$s changed"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "The change applies to commissions earned from now on. Details:"
+msgstr ""
+
 #. translators: 1: site name, 2: payout number
 #: src/Affiliates/Notifications.php
 msgid "[%1$s] Payout %2$s transferred"
@@ -4009,6 +4129,11 @@ msgstr ""
 #. translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days
 #: src/Commissions/Dunning.php
 msgid "Hello %1$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5$d days to:\n\n%3$s\nReference: %4$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail."
+msgstr ""
+
+#. translators: %s: VAT amount
+#: src/Commissions/Dunning.php
+msgid "The amount includes %s VAT that was paid out with earlier credit notes for the refunded commissions (correction of those credit notes). Once the balance is settled you receive a correction document."
 msgstr ""
 
 #: src/Commissions/Dunning.php
@@ -4907,11 +5032,19 @@ msgid "Negative balance – carried forward"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "Balance including VAT corrections is not positive – carried forward"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "Below minimum – carried forward"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Maintenance mode is on (Settings → Reports & data)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "The partner's tax data wait for your approval (partner page → Payout details)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -4960,7 +5093,7 @@ msgid "Reverse charge needs your VAT ID (Settings → Payouts & credit notes)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "The partner's VAT ID is not valid according to VIES (reverse charge not possible)"
+msgid "The partner's VAT ID is not valid according to VIES (no credit note with VAT or reverse charge possible)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -5066,8 +5199,20 @@ msgstr ""
 msgid "Other payment method (e.g. PayPal), paid manually"
 msgstr ""
 
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "Please enter your VAT ID."
+#: src/Payouts/ProfileRepository.php
+msgid "Please enter your VAT ID (required for reverse charge across borders)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Please enter your VAT ID or tax number (required on credit notes)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "The VAT ID does not start with the code of your country. Please check the VAT ID and the country."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "The VAT ID does not have a valid format. Please check it."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
@@ -5086,12 +5231,24 @@ msgstr ""
 msgid "The IBAN is not valid."
 msgstr ""
 
+#: src/Payouts/ProfileRepository.php
+msgid "The payout details could not be saved. Please try again."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "There is no pending change of the tax data."
+msgstr ""
+
 #: src/Payouts/SepaXml.php
 msgid "The SEPA XML export needs the PHP extension \"dom\" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead."
 msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "The commission rates are net amounts; VAT is added at the statutory rate."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -5103,7 +5260,11 @@ msgid "Reverse charge: the recipient of the service is liable for VAT (Bezugsteu
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
+msgid "Reverse charge: the recipient of the service is liable for VAT (Art. 196 VAT Directive)."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "No VAT is shown because the partner is a small business (§19 UStG)."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -5115,11 +5276,19 @@ msgid "No VAT is shown because the partner is not registered for VAT (Art. 10 MW
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "No VAT is shown because the partner is a small business (§19 UStG)."
+msgid "No VAT is shown because the partner applies the small business scheme (VAT exemption for small enterprises)."
 msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "No VAT: the partner is a private individual and not an entrepreneur."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Repayments by the partner and claims written off are no service and not subject to VAT."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service."
 msgstr ""
 
 #. translators: %s: original document number
@@ -5128,7 +5297,23 @@ msgid "Cancellation of credit note %s"
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "Correction of credit notes (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Correction of credit notes"
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "Credit note (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Credit note (self-billing)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "DUPLICATE"
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -5183,9 +5368,30 @@ msgstr ""
 msgid "Net"
 msgstr ""
 
+#: src/Payouts/Statement.php
+msgid "reverse charge"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "small business, no VAT"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "private individual, no VAT"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Repayments and write-offs (not taxable)"
+msgstr ""
+
 #. translators: 1: credit note number, 2: date
 #: src/Payouts/Statement.php
 msgid "Correction of credit note %1$s of %2$s"
+msgstr ""
+
+#. translators: %s: VAT treatment
+#: src/Payouts/Statement.php
+msgid "Correction net (%s)"
 msgstr ""
 
 #. translators: %s: VAT rate
@@ -5203,11 +5409,32 @@ msgid "Total cancelled"
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "Balance (settled, no transfer)"
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Duplicate: built again from the stored data because the original file was not available on this server."
+msgstr ""
+
+#. translators: %s: original texts
+#: src/Payouts/Statement.php
+msgid "Some characters cannot be shown in this document and were transliterated. Original spelling: %s"
 msgstr ""
 
 #. translators: %d: year
@@ -5362,6 +5589,18 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "The terms were changed in the meantime. Please read the current version and accept it again."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please enter your VAT ID or tax number (required on credit notes; reverse charge across borders needs the VAT ID)."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The VAT ID does not have a valid format or does not start with the code of your country. Please check it."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your details have been saved. The change of your tax data is checked by us and applies once we have approved it; until then your previous tax data are used."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -5744,8 +5983,13 @@ msgstr ""
 msgid "VAT ID (businesses)"
 msgstr ""
 
+#. translators: 1: tax status, 2: VAT ID
 #: src/Portal/Portal.php
-msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot pay out commissions with reverse charge."
+msgid "Your change of the tax data (%1$s, VAT ID %2$s) waits for our approval. Until then your previous tax data are used."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot issue credit notes with VAT or reverse charge."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -5757,7 +6001,7 @@ msgid "The EU VIES database could not be reached to check your VAT ID; it is che
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Tax number (small businesses without VAT ID)"
+msgid "Tax number (if you have no VAT ID)"
 msgstr ""
 
 #: src/Portal/Portal.php

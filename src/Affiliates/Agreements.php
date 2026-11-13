@@ -56,7 +56,7 @@ final class Agreements {
 		if ( ! $post || hash( 'sha256', $post->post_title . "\n" . $post->post_content ) !== $terms['hash'] ) {
 			return false;
 		}
-		return (bool) add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'stored_at' => Db::now() ), '', false );
+		return (bool) add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'page_id' => (int) $post->ID, 'stored_at' => Db::now() ), '', false );
 	}
 
 	/**
@@ -121,9 +121,11 @@ final class Agreements {
 	}
 
 	/**
-	 * Whether the affiliate accepted the current version. Only the version decides: editing the
-	 * terms page (typo, layout) does not ask all partners to accept again – increase the version
-	 * for material changes. The page hash of every acceptance is kept as evidence only.
+	 * Whether the affiliate accepted the current version of the current terms page. Editing the
+	 * page (typo, layout) does not ask all partners to accept again – increase the version for
+	 * material changes. But the version alone is not enough: a group with its own terms page and
+	 * no own version shares the program's version number, so the page that was accepted must be
+	 * the current one too (otherwise accepting page A would count for page B).
 	 *
 	 * @param int $affiliate_id Affiliate.
 	 * @return bool
@@ -131,7 +133,31 @@ final class Agreements {
 	public static function has_current( $affiliate_id ) {
 		$latest = self::latest( $affiliate_id );
 		$terms  = self::current( self::group_of( $affiliate_id ) );
-		return $latest && (string) $latest->version === (string) $terms['version'];
+		return $latest && self::matches( (string) $latest->version, (string) $latest->doc_hash, $terms );
+	}
+
+	/**
+	 * Whether an acceptance (version + page hash) covers the given terms.
+	 *
+	 * @param string $version Accepted version.
+	 * @param string $hash    Hash of the accepted page text.
+	 * @param array  $terms   Current terms (page_id, version, hash).
+	 * @return bool
+	 */
+	public static function matches( $version, $hash, array $terms ) {
+		if ( (string) $version !== (string) $terms['version'] ) {
+			return false;
+		}
+		if ( '' === (string) $hash || (string) $hash === (string) $terms['hash'] ) {
+			return true;
+		}
+		// The text was edited since, or it is another page: the stored text of the acceptance
+		// names its page. Acceptances from before the page was stored with it count by version.
+		$text = get_option( 'wpac_terms_text_' . $hash );
+		if ( is_array( $text ) && ! empty( $text['page_id'] ) ) {
+			return (int) $text['page_id'] === (int) $terms['page_id'];
+		}
+		return true;
 	}
 
 	/** Background batches of the "accept the current terms" reminder. */
@@ -153,7 +179,7 @@ final class Agreements {
 		$g     = Db::table( 'agreements' );
 		$limit = (int) $limit > 0 ? ' LIMIT ' . (int) $limit : '';
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- table names and an integer only.
-		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT a.id, a.group_id, ( SELECT g.version FROM {$g} g WHERE g.affiliate_id = a.id AND g.result = 'accepted' ORDER BY g.id DESC LIMIT 1 ) AS version FROM {$a} a WHERE a.status = 'active' AND a.id > %d ORDER BY a.id ASC{$limit}", (int) $after_id ) );
+		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT a.id, a.group_id, ( SELECT g.version FROM {$g} g WHERE g.affiliate_id = a.id AND g.result = 'accepted' ORDER BY g.id DESC LIMIT 1 ) AS version, ( SELECT g.doc_hash FROM {$g} g WHERE g.affiliate_id = a.id AND g.result = 'accepted' ORDER BY g.id DESC LIMIT 1 ) AS doc_hash FROM {$a} a WHERE a.status = 'active' AND a.id > %d ORDER BY a.id ASC{$limit}", (int) $after_id ) );
 		$current = array();
 		$missing = array();
 		$last    = (int) $after_id;
@@ -166,7 +192,7 @@ final class Agreements {
 			if ( ! $current[ $group ]['page_id'] ) {
 				continue; // No terms page: nothing to accept.
 			}
-			if ( null === $r->version || (string) $r->version !== (string) $current[ $group ]['version'] ) {
+			if ( null === $r->version || ! self::matches( (string) $r->version, (string) $r->doc_hash, $current[ $group ] ) ) {
 				$missing[] = (int) $r->id;
 			}
 		}

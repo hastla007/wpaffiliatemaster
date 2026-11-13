@@ -22,6 +22,128 @@ final class Notifications {
 	 */
 	public static function register_hooks() {
 		add_action( 'wpac_payout_paid', array( __CLASS__, 'payout_paid' ) );
+		add_action( 'wpac_statement_generated', array( __CLASS__, 'credit_note_issued' ), 10, 2 );
+		add_action( 'wpac_storno_generated', array( __CLASS__, 'credit_note_cancelled' ), 10, 2 );
+	}
+
+	/**
+	 * A credit note was issued: send it to the partner. Self-billing only takes effect once the
+	 * partner received the credit note (§14 Abs. 2 UStG), and an objection needs it.
+	 *
+	 * @param int    $payout_id Payout.
+	 * @param string $path      Stored PDF.
+	 */
+	public static function credit_note_issued( $payout_id, $path = '' ) {
+		/**
+		 * Whether partners get the credit note by e-mail when it is issued.
+		 *
+		 * @param bool $send      Send.
+		 * @param int  $payout_id Payout.
+		 */
+		if ( ! apply_filters( 'wpac_notify_credit_note', true, (int) $payout_id ) ) {
+			return;
+		}
+		$p   = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $payout_id );
+		$aff = $p ? AffiliateRepository::find( (int) $p->affiliate_id ) : null;
+		if ( ! $p || ! $aff || ! is_email( (string) $aff->email ) || 0 === strpos( (string) $aff->email, 'deleted-' ) ) {
+			return;
+		}
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			$sent = wp_mail(
+				$aff->email,
+				/* translators: 1: site name, 2: document number */
+				sprintf( __( '[%1$s] Credit note %2$s', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
+				/* translators: 1: name, 2: document number, 3: amount, 4: portal URL */
+				sprintf( __( "Hello %1\$s,\n\nwe have issued credit note %2\$s for your commissions (total %3\$s). It is attached to this e-mail and can be downloaded in your partner area: %4\$s\n\nPlease check it. If something is wrong, you can object to it in the partner area.", 'affiliate-captain' ), $aff->name, $p->number, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				'',
+				'' !== (string) $path && is_readable( (string) $path ) ? array( (string) $path ) : array()
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+		\WPAffiliateCaptain\Core\Audit::log( $sent ? 'statement.sent' : 'statement.send_failed', 'payout', (int) $payout_id );
+	}
+
+	/**
+	 * A credit note was cancelled: send the cancellation document to the partner.
+	 *
+	 * @param int    $payout_id Payout.
+	 * @param string $path      Stored PDF.
+	 */
+	public static function credit_note_cancelled( $payout_id, $path = '' ) {
+		/** This filter is documented in Notifications::credit_note_issued(). */
+		if ( ! apply_filters( 'wpac_notify_credit_note', true, (int) $payout_id ) ) {
+			return;
+		}
+		$p   = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $payout_id );
+		$aff = $p ? AffiliateRepository::find( (int) $p->affiliate_id ) : null;
+		if ( ! $p || ! $aff || ! is_email( (string) $aff->email ) || 0 === strpos( (string) $aff->email, 'deleted-' ) ) {
+			return;
+		}
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			$sent = wp_mail(
+				$aff->email,
+				/* translators: 1: site name, 2: cancelled credit note number */
+				sprintf( __( '[%1$s] Credit note %2$s cancelled', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
+				/* translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL */
+				sprintf( __( "Hello %1\$s,\n\nwe have cancelled credit note %2\$s with the attached cancellation document %3\$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4\$s", 'affiliate-captain' ), $aff->name, $p->number, (string) $p->storno_number, add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				'',
+				'' !== (string) $path && is_readable( (string) $path ) ? array( (string) $path ) : array()
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+		\WPAffiliateCaptain\Core\Audit::log( $sent ? 'statement.storno_sent' : 'statement.send_failed', 'payout', (int) $payout_id );
+	}
+
+	/**
+	 * The tax data of a partner changed (or a change waits for approval): tell the admin, with
+	 * the old and new values (a new VAT status changes the amounts on credit notes).
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param array $old          Old tax fields.
+	 * @param array $new          New tax fields.
+	 * @param bool  $pending      Waits for approval.
+	 */
+	public static function tax_data_changed( $affiliate_id, array $old, array $new, $pending ) {
+		$aff = AffiliateRepository::find( (int) $affiliate_id );
+		if ( ! $aff ) {
+			return;
+		}
+		$labels = \WPAffiliateCaptain\Payouts\ProfileRepository::tax_status_labels();
+		$names  = array(
+			'tax_status' => __( 'Tax status', 'affiliate-captain' ),
+			'country'    => __( 'Country', 'affiliate-captain' ),
+			'vat_id'     => __( 'VAT ID', 'affiliate-captain' ),
+			'tax_number' => __( 'Tax number', 'affiliate-captain' ),
+		);
+		$lines = array();
+		foreach ( $names as $key => $label ) {
+			$o = isset( $old[ $key ] ) ? (string) $old[ $key ] : '';
+			$n = isset( $new[ $key ] ) ? (string) $new[ $key ] : '';
+			if ( $o === $n ) {
+				continue;
+			}
+			if ( 'tax_status' === $key ) {
+				$o = isset( $labels[ $o ] ) ? $labels[ $o ] : $o;
+				$n = isset( $labels[ $n ] ) ? $labels[ $n ] : $n;
+			}
+			$lines[] = $label . ': ' . ( '' !== $o ? $o : '—' ) . ' → ' . ( '' !== $n ? $n : '—' );
+		}
+		$url = admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $affiliate_id . '&tab=payout' );
+		wp_mail(
+			self::admin_email(),
+			$pending
+				/* translators: 1: site name, 2: partner */
+				? sprintf( __( '[%1$s] Tax data change of %2$s waits for your approval', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $aff->name )
+				/* translators: 1: site name, 2: partner */
+				: sprintf( __( '[%1$s] Tax data of %2$s changed', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $aff->name ),
+			implode( "\n", $lines ) . "\n\n" . ( $pending
+				? __( 'The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):', 'affiliate-captain' )
+				: __( 'The change applies to commissions earned from now on. Details:', 'affiliate-captain' ) ) . "\n" . $url
+		);
 	}
 
 	/**
@@ -40,8 +162,8 @@ final class Notifications {
 		}
 		$p   = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $payout_id );
 		$aff = $p ? AffiliateRepository::find( (int) $p->affiliate_id ) : null;
-		if ( ! $p || ! $aff || 0 === strpos( (string) $aff->email, 'deleted-' ) ) {
-			return;
+		if ( ! $p || ! $aff || 0 === strpos( (string) $aff->email, 'deleted-' ) || (int) $p->amount_minor <= 0 ) {
+			return; // Nothing transferred (e.g. a correction document settling a balance).
 		}
 		$portal   = (int) Settings::get( 'portal_page_id' );
 		$switched = Locale::switch_for_affiliate( $aff );

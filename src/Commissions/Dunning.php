@@ -4,6 +4,11 @@
  * could offset it): payment request, reminder, final reminder; incoming payments are booked as
  * "repayment"; what cannot be collected is written off.
  *
+ * All amounts include VAT: a refund of a commission that was paid out with VAT also takes back
+ * that VAT (correction of the original credit note, §17 UStG), so the partner owes the gross
+ * amount. Repayments and write-offs are not taxable themselves. When the balance is settled, a
+ * correction document is issued (PayoutService::settle()).
+ *
  * @package WPAffiliateCaptain
  */
 
@@ -23,7 +28,8 @@ final class Dunning {
 	const LEVELS = 3;
 
 	/**
-	 * Terminated partners with a negative open balance: [ affiliate, currency, amount (negative), history ].
+	 * Terminated partners with a negative open balance (VAT included): [ affiliate, currency,
+	 * amount (negative, gross), history, vat (VAT part, negative) ].
 	 *
 	 * @return array
 	 */
@@ -31,22 +37,35 @@ final class Dunning {
 		global $wpdb;
 		$c = Db::table( 'commissions' );
 		$a = Db::table( 'affiliates' );
+		// The net sum alone is not enough: VAT corrections can make a balance negative whose net
+		// sum is not, so every open balance of an ended partnership is looked at.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( "SELECT c.affiliate_id, c.currency, SUM(c.amount_minor) total FROM {$c} c JOIN {$a} a ON a.id = c.affiliate_id WHERE a.status = 'terminated' AND c.status = 'approved' AND c.payout_id = 0 GROUP BY c.affiliate_id, c.currency HAVING SUM(c.amount_minor) < 0 ORDER BY total ASC LIMIT 200" );
+		$rows = $wpdb->get_results( "SELECT c.affiliate_id, c.currency, SUM(c.amount_minor) total FROM {$c} c JOIN {$a} a ON a.id = c.affiliate_id WHERE a.status = 'terminated' AND c.status = 'approved' AND c.payout_id = 0 GROUP BY c.affiliate_id, c.currency ORDER BY total ASC LIMIT 500" );
 		$out  = array();
 		foreach ( (array) $rows as $r ) {
 			$aff = AffiliateRepository::find( (int) $r->affiliate_id );
 			if ( ! $aff || self::is_excluded( $aff ) ) {
 				continue; // Erased or restricted (Art. 18 GDPR): no payment requests.
 			}
+			$sum = \WPAffiliateCaptain\Payouts\PayoutService::open_totals( (int) $r->affiliate_id, (string) $r->currency );
+			if ( $sum[2] >= 0 ) {
+				continue;
+			}
 			$out[] = array(
 				'affiliate' => $aff,
 				'currency'  => $r->currency,
-				'amount'    => (int) $r->total,
+				'amount'    => (int) $sum[2],
 				'history'   => self::history( (int) $r->affiliate_id, $r->currency ),
+				'vat'       => (int) $sum[1],
 			);
 		}
-		return $out;
+		usort(
+			$out,
+			static function ( $x, $y ) {
+				return $x['amount'] <=> $y['amount'];
+			}
+		);
+		return array_slice( $out, 0, 200 );
 	}
 
 	/**
@@ -117,6 +136,7 @@ final class Dunning {
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$amount  = html_entity_decode( Money::format( -$open, $currency ), ENT_QUOTES, 'UTF-8' );
+		$vat     = self::open_vat( (int) $affiliate_id, $currency );
 		$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
 		$subject = array(
 			/* translators: %s: site name */
@@ -132,6 +152,10 @@ final class Dunning {
 			sprintf( $subject[ $level ], $site ),
 			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
 			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
+				. ( $vat < 0
+					/* translators: %s: VAT amount */
+					? "\n\n" . sprintf( __( 'The amount includes %s VAT that was paid out with earlier credit notes for the refunded commissions (correction of those credit notes). Once the balance is settled you receive a correction document.', 'affiliate-captain' ), html_entity_decode( Money::format( -$vat, $currency ), ENT_QUOTES, 'UTF-8' ) )
+					: '' )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		if ( ! $sent ) {
@@ -148,21 +172,34 @@ final class Dunning {
 	}
 
 	/**
-	 * Open (approved, unpaid) balance.
+	 * Open (approved, unpaid) balance including VAT: what the partner owes (negative) or would
+	 * get (positive). Refunds of commissions paid out with VAT take that VAT back.
 	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $currency     Currency.
 	 * @return int
 	 */
 	public static function open( $affiliate_id, $currency ) {
-		global $wpdb;
-		$c = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$c} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0", $affiliate_id, $currency ) );
+		$sum = \WPAffiliateCaptain\Payouts\PayoutService::open_totals( (int) $affiliate_id, strtoupper( (string) $currency ) );
+		return (int) $sum[2];
 	}
 
 	/**
-	 * Book a repayment received from the partner (at most the open negative balance).
+	 * VAT part of the open balance (negative = VAT to be corrected).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @return int
+	 */
+	public static function open_vat( $affiliate_id, $currency ) {
+		$sum = \WPAffiliateCaptain\Payouts\PayoutService::open_totals( (int) $affiliate_id, strtoupper( (string) $currency ) );
+		return (int) $sum[1];
+	}
+
+	/**
+	 * Book a repayment received from the partner (at most the open negative balance including
+	 * VAT). The repayment is not taxable; when it settles the balance, the correction document
+	 * is issued.
 	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $currency     Currency.
@@ -181,8 +218,10 @@ final class Dunning {
 		try {
 			$id = Db::transaction(
 				static function () use ( $wpdb, $t, $affiliate_id, $currency, $amount_minor, $note ) {
+					// Lock the open rows, then compute the balance with VAT.
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
+					$wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) );
+					$open = self::open( (int) $affiliate_id, $currency );
 					if ( $open >= 0 || $amount_minor > -$open ) {
 						throw new IntegrationException( 'amount', __( 'The amount is larger than the negative balance.', 'affiliate-captain' ) );
 					}
@@ -226,6 +265,8 @@ final class Dunning {
 		Audit::log( 'commission.repayment', 'affiliate', (int) $affiliate_id, array( 'amount' => $amount_minor, 'currency' => $currency ) );
 		if ( self::open( (int) $affiliate_id, $currency ) >= 0 ) {
 			delete_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . $currency );
+			// Settled: the correction document reduces the VAT of the original credit notes.
+			\WPAffiliateCaptain\Payouts\PayoutService::settle( (int) $affiliate_id, $currency );
 		}
 		return $id;
 	}

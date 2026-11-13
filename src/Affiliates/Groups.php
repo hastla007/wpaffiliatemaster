@@ -179,15 +179,41 @@ final class Groups {
 	}
 
 	/**
-	 * Delete a group (affiliates fall back to no group).
+	 * Delete a group (affiliates fall back to no group, its rules are deactivated).
 	 *
 	 * @param int $id ID.
+	 * @return array What changed (delete_impact()).
 	 */
 	public static function delete( $id ) {
 		global $wpdb;
+		$impact = self::delete_impact( (int) $id );
 		$wpdb->delete( Db::table( 'partner_groups' ), array( 'id' => (int) $id ) );
 		$wpdb->update( Db::table( 'affiliates' ), array( 'group_id' => 0 ), array( 'group_id' => (int) $id ) );
+		// Commission rules of the group would stay active without anybody they apply to (and
+		// would apply to a new group that gets the same ID): deactivate them.
+		$wpdb->update( Db::table( 'rules' ), array( 'active' => 0, 'updated_at' => Db::now() ), array( 'scope' => 'group', 'scope_id' => (int) $id ) );
 		AffiliateRepository::clear_cache();
-		Audit::log( 'group.deleted', 'group', (int) $id );
+		Audit::log( 'group.deleted', 'group', (int) $id, $impact );
+		return $impact;
+	}
+
+	/**
+	 * What deleting a group changes: its partners fall back to the program's rules and terms
+	 * (they must accept the program terms before the next credit note when the group had its
+	 * own terms page), and its rules are deactivated.
+	 *
+	 * @param int $id Group.
+	 * @return array partners, rules (active group rules), own_terms (bool)
+	 */
+	public static function delete_impact( $id ) {
+		global $wpdb;
+		$a     = Db::table( 'affiliates' );
+		$r     = Db::table( 'rules' );
+		$group = self::find( (int) $id );
+		return array(
+			'partners'  => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$a} WHERE group_id = %d", (int) $id ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'rules'     => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$r} WHERE scope = 'group' AND scope_id = %d AND active = 1", (int) $id ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'own_terms' => $group && (int) $group->terms_page_id > 0,
+		);
 	}
 }

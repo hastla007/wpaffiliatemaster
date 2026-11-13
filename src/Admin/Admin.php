@@ -420,6 +420,8 @@ final class Admin {
 			'affiliate_status'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'public_change'     => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'vies_check'        => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'tax_approve'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'tax_reject'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),

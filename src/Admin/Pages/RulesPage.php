@@ -131,8 +131,17 @@ final class RulesPage {
 				break;
 
 			case 'group_delete':
-				Groups::delete( absint( Admin::post( 'id' ) ) );
-				Admin::back( __( 'Group deleted.', 'affiliate-captain' ) );
+				$impact = Groups::delete( absint( Admin::post( 'id' ) ) );
+				$msg    = __( 'Group deleted.', 'affiliate-captain' );
+				if ( $impact['rules'] ) {
+					/* translators: %d: number of rules */
+					$msg .= ' ' . sprintf( _n( '%d commission rule of the group was deactivated.', '%d commission rules of the group were deactivated.', $impact['rules'], 'affiliate-captain' ), $impact['rules'] );
+				}
+				if ( $impact['own_terms'] && $impact['partners'] ) {
+					/* translators: %d: number of partners */
+					$msg .= ' ' . sprintf( _n( '%d partner now falls under the program terms and must accept them before the next credit note.', '%d partners now fall under the program terms and must accept them before the next credit note.', $impact['partners'], 'affiliate-captain' ), $impact['partners'] );
+				}
+				Admin::back( $msg, $impact['own_terms'] && $impact['partners'] ? 'warning' : 'success' );
 				break;
 		}
 	}
@@ -298,7 +307,7 @@ final class RulesPage {
 			echo '<tr><th>' . esc_html__( 'Additional application fields', 'affiliate-captain' ) . '</th><td><textarea name="fields" rows="4" class="large-text code" placeholder="school_name|Name der Bootsschule|text|required&#10;students|Schüler pro Jahr|number">' . esc_textarea( Groups::fields_text( $g ) ) . '</textarea><p class="description">' . esc_html__( 'One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox.', 'affiliate-captain' ) . '</p></td></tr>';
 			echo '</table><p><button class="button button-primary">' . esc_html__( 'Save group', 'affiliate-captain' ) . '</button></p></form>';
 			Admin::form_open( 'group_delete', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this group?', 'affiliate-captain' ) . '">' . esc_html__( 'Delete group', 'affiliate-captain' ) . '</button></form></details></li>';
+			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated.', 'affiliate-captain' ) . '">' . esc_html__( 'Delete group', 'affiliate-captain' ) . '</button></form></details></li>';
 		}
 		echo '</ul>';
 		Admin::form_open( 'group_create' );

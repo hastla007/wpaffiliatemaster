@@ -141,10 +141,15 @@ Erweiterungen sind **eigene Plugins** (eigener Slug, eigene Textdomain, bei Vert
 | `wpac_portal_tab_{key}` ( `$aff` ) | Action | Ausgabe des Add-on-Tabs (vollständig escapen). |
 | `wpac_commission_amount` ( `$amount`, `$item`, `$affiliate_id`, `$rule` ) | Filter | Provision einer Position nach Anwendung der Regel (Cent, nie negativ; ausgeschlossene Positionen werden nicht gefiltert) – z. B. zusätzliche Provisionsregeln eines Add-ons. |
 | `wpac_payout_created` ( `$payout_id`, `$affiliate_id` ) | Action | Auszahlung angelegt (nach dem Commit, Gutschrift erzeugt) – z. B. Auszahlung über einen anderen Zahlungsdienst und danach `PayoutService::mark_paid()`. |
+| `wpac_statement_generated` ( `$payout_id`, `$path` ) / `wpac_storno_generated` ( `$payout_id`, `$path` ) | Action | Gutschrift bzw. Korrekturbeleg / Stornobeleg erzeugt und gespeichert (auch beim späteren Nachholen) – der Kern schickt den Beleg damit an den Partner (abschaltbar mit `wpac_notify_credit_note`). |
+| `wpac_statement_dir` ( `$dir` ) / `wpac_statement_locale` ( `$locale`, `$site_locale` ) | Filter | Belegordner (z. B. gemeinsamer Speicher mehrerer App-Server) bzw. Belegsprache. |
+| `wpac_small_business_limits` ( `$limits`, `$operator_country` ) / `wpac_vies_timeout` / `wpac_vies_daily_cap` | Filter | Kleinunternehmergrenzen je Währung (Cent: Vorjahr, laufendes Jahr), VIES-Timeout und Tageslimit der Nachprüfungen. |
 | `wpac_transfer_rows` ( `$rows`, `$batch`, `$payout_ids` ) / `wpac_transfer_header` ( `$header` ) | Filter | Zusätzliche Spalten der Überweisungsliste (Werte am Zeilenende, Spaltennamen am Ende des Kopfs). |
 | `wpac_report_partners` ( `$rows`, `$from`, `$to`, `$affiliate_id` ) | Filter | Zusätzliche Kennzahlen im Partnerbericht. |
 | `wpac_program_export_files` ( `$files`, `$include_tax_data` ) | Filter | Zusätzliche Dateien im Programm-Export (`Dateiname => Inhalt`); Dateien des Kerns lassen sich nicht ersetzen. |
 | `wpac_attribution_candidates`, `wpac_commission_base`, `wpac_vat_treatment`, `wpac_fraud_flags`, `wpac_hold_until`, `wpac_statement_note` | Filter | Zuordnung, Provisionsbasis, Steuerbehandlung, Betrugsregeln, Sperrfrist, Text auf Gutschriften (siehe oben). |
+
+`wpac_vat_treatment` wird je Leistungszeitpunkt angewandt: mit den aktuellen Steuerdaten und – für Provisionen vor einer Änderung des Steuerstatus bzw. USt-Satzes – mit den damals gültigen (zweiter Parameter: Steuerdaten zu diesem Zeitpunkt). Rückzahlungen und Abschreibungen (`repayment`, `writeoff`) sind nicht steuerbar (`vat_mode = none`) und werden nicht gefiltert.
 | `wpac_commission_created`, `wpac_commission_adjusted`, `wpac_commission_paid`, `wpac_payout_paid`, `wpac_affiliate_created`, `wpac_affiliate_status_changed` | Action | Ereignisse für Berichte, Exporte und Integrationen. |
 
 Eine abgelaufene oder fehlende Lizenz eines Add-ons darf nur dessen eigene Zusatzfunktionen betreffen – nie Buchungen, Gutschriften, Aufbewahrung oder Datenschutz-Löschungen des Kernplugins.

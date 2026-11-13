@@ -107,11 +107,19 @@ final class PayoutService {
 			} elseif ( $total <= 0 ) {
 				$reason = __( 'Negative balance – carried forward', 'affiliate-captain' );
 				$code   = 'negative';
-			} elseif ( $total < $min ) {
-				$reason = __( 'Below minimum – carried forward', 'affiliate-captain' );
-				$code   = 'below_minimum';
 			} else {
-				$reason = self::blocked_reason( (int) $r->affiliate_id, ProfileRepository::get( (int) $r->affiliate_id ), $code );
+				// The minimum and the sign apply to the amount paid out: VAT included (and VAT
+				// corrections of earlier credit notes).
+				$gross = self::payable_gross( (int) $r->affiliate_id, $currency, $period_end . ' 23:59:59' );
+				if ( $gross <= 0 ) {
+					$reason = __( 'Balance including VAT corrections is not positive – carried forward', 'affiliate-captain' );
+					$code   = 'negative';
+				} elseif ( $gross < $min ) {
+					$reason = __( 'Below minimum – carried forward', 'affiliate-captain' );
+					$code   = 'below_minimum';
+				} else {
+					$reason = self::blocked_reason( (int) $r->affiliate_id, ProfileRepository::get( (int) $r->affiliate_id ), $code );
+				}
 			}
 			$out[] = array(
 				'affiliate'   => $aff,
@@ -126,37 +134,121 @@ final class PayoutService {
 	}
 
 	/**
-	 * VAT treatment per commission row: corrections whose original commission was settled in
-	 * an earlier (not cancelled) credit note take over that credit note's mode and rate.
+	 * VAT treatment per commission row:
+	 * - repayments and write-offs are no service (not taxable, Vat::NONE);
+	 * - corrections whose original commission was settled in an earlier (not cancelled) credit
+	 *   note take over the treatment the original commission had there (§17 UStG);
+	 * - everything else gets the treatment valid at the time of the service ($resolver), or
+	 *   the current treatment ($vat).
 	 *
-	 * @param array $rows Rows with id, parent_id, parent_payout_id.
-	 * @param array $vat  Current treatment (mode, rate).
+	 * @param array         $rows     Rows with id, kind, parent_id, parent_payout_id.
+	 * @param array         $vat      Current treatment (mode, rate).
+	 * @param callable|null $resolver Treatment of one row at the time of its service.
 	 * @return array commission ID => [ mode, rate, ref ]
 	 */
-	public static function item_treatments( array $rows, array $vat ) {
+	public static function item_treatments( array $rows, array $vat, $resolver = null ) {
+		global $wpdb;
 		$out   = array();
 		$cache = array();
 		foreach ( $rows as $r ) {
+			$kind = isset( $r->kind ) ? (string) $r->kind : '';
+			if ( in_array( $kind, Vat::NON_TAXABLE_KINDS, true ) ) {
+				$out[ (int) $r->id ] = Vat::for_kind( $kind, $vat ) + array( 'ref' => 0 );
+				continue;
+			}
 			$ref = (int) ( isset( $r->parent_payout_id ) ? $r->parent_payout_id : 0 );
 			if ( $ref && ! array_key_exists( $ref, $cache ) ) {
 				$cache[ $ref ] = self::find( $ref );
 			}
 			$orig = $ref ? $cache[ $ref ] : null;
 			if ( $orig && 'cancelled' !== $orig->status ) {
+				$mode = (string) $orig->vat_mode;
+				$rate = (string) $orig->vat_rate;
+				if ( ! empty( $r->parent_id ) ) {
+					// The original commission's own line on that credit note (it may differ from the
+					// credit note's main treatment, e.g. a service before a change of the tax status).
+					$it   = Db::table( 'payout_items' );
+					$line = $wpdb->get_row( $wpdb->prepare( "SELECT vat_mode, vat_rate FROM {$it} WHERE payout_id = %d AND commission_id = %d ORDER BY id DESC LIMIT 1", $ref, (int) $r->parent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					if ( $line && '' !== (string) $line->vat_rate && '' !== (string) $line->vat_mode ) {
+						$mode = (string) $line->vat_mode;
+						$rate = (string) $line->vat_rate;
+					}
+				}
 				$out[ (int) $r->id ] = array(
-					'mode' => (string) $orig->vat_mode,
-					'rate' => (string) $orig->vat_rate,
+					'mode' => $mode,
+					'rate' => $rate,
 					'ref'  => $ref,
 				);
 			} else {
+				$t = $resolver ? (array) call_user_func( $resolver, $r ) : $vat;
 				$out[ (int) $r->id ] = array(
-					'mode' => (string) $vat['mode'],
-					'rate' => (string) $vat['rate'],
+					'mode' => (string) $t['mode'],
+					'rate' => (string) $t['rate'],
 					'ref'  => 0,
 				);
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Treatment of a partner's commission at the time of its service (commission date; for a
+	 * correction the date of the original commission): tax data and VAT rate valid then.
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param array $snapshot     Current tax data (profile snapshot).
+	 * @return callable Row => [ mode, rate ].
+	 */
+	public static function treatment_resolver( $affiliate_id, array $snapshot ) {
+		$memo = array();
+		return static function ( $row ) use ( $affiliate_id, $snapshot, &$memo ) {
+			$when = ! empty( $row->parent_created_at ) ? (string) $row->parent_created_at : ( ! empty( $row->created_at ) ? (string) $row->created_at : Db::now() );
+			list( $data, $rate ) = TaxHistory::at( (int) $affiliate_id, $when, $snapshot );
+			$key = md5( wp_json_encode( array( $data, $rate ) ) );
+			if ( ! isset( $memo[ $key ] ) ) {
+				$vat = Vat::treatment(
+					isset( $data['tax_status'] ) ? (string) $data['tax_status'] : '',
+					isset( $data['country'] ) ? (string) $data['country'] : '',
+					(string) Settings::get( 'operator_country' ),
+					$rate
+				);
+				/** This filter is documented in PayoutService::create_for_affiliate(). */
+				$memo[ $key ] = (array) apply_filters( 'wpac_vat_treatment', $vat, $data, (int) $affiliate_id );
+			}
+			return $memo[ $key ];
+		};
+	}
+
+	/**
+	 * Open (approved, not assigned) bookings of a partner in a currency with net, VAT and
+	 * gross – what the partner would get (positive) or owes (negative), VAT included.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @return array [ net, vat, gross ]
+	 */
+	public static function open_totals( $affiliate_id, $currency ) {
+		global $wpdb;
+		$t    = Db::table( 'commissions' );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id FROM {$t} c LEFT JOIN {$t} p ON p.id = c.parent_id WHERE c.affiliate_id = %d AND c.currency = %s AND c.status = 'approved' AND c.payout_id = 0", (int) $affiliate_id, strtoupper( (string) $currency ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return self::row_totals( (int) $affiliate_id, (array) $rows );
+	}
+
+	/**
+	 * Net, VAT and gross of bookings of a partner (treatment as on a credit note).
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param array $rows         Rows (id, amount_minor, kind, parent_id, created_at, parent_created_at, parent_payout_id).
+	 * @return array [ net, vat, gross ]
+	 */
+	public static function row_totals( $affiliate_id, array $rows ) {
+		if ( ! $rows ) {
+			return array( 0, 0, 0 );
+		}
+		$snapshot = ProfileRepository::snapshot( ProfileRepository::get( (int) $affiliate_id ) );
+		$resolver = self::treatment_resolver( (int) $affiliate_id, $snapshot );
+		$current  = $resolver( (object) array( 'created_at' => Db::now() ) );
+		return Vat::totals( $rows, self::item_treatments( $rows, $current, $resolver ) );
 	}
 
 	/**
@@ -189,6 +281,9 @@ final class PayoutService {
 	 */
 	public static function operator_snapshot() {
 		$name = (string) Settings::get( 'debtor_name' );
+		// Language and date format of the document are frozen too: a credit note is always
+		// written in the site language, whoever triggers it (and can be built again identically).
+		$locale = function_exists( 'get_locale' ) ? (string) get_locale() : 'en_US';
 		return array(
 			'name'       => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'address'    => (string) Settings::get( 'operator_address' ),
@@ -196,7 +291,26 @@ final class PayoutService {
 			'vat_id'     => (string) Settings::get( 'operator_vat_id' ),
 			'tax_number' => (string) Settings::get( 'operator_tax_number' ),
 			'self_billing' => (bool) Settings::get( 'self_billing' ),
+			'locale'       => Statement::document_locale( $locale ),
+			'date_format'  => (string) get_option( 'date_format' ),
 		);
+	}
+
+	/**
+	 * Gross amount (VAT included) of what a run would pay a partner.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param string $end          Period end (Y-m-d H:i:s).
+	 * @return int
+	 */
+	public static function payable_gross( $affiliate_id, $currency, $end ) {
+		global $wpdb;
+		list( $from, $params ) = self::payable_sql( $currency, $end, (int) $affiliate_id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from}", $params ) );
+		$sum  = self::row_totals( (int) $affiliate_id, (array) $rows );
+		return (int) $sum[2];
 	}
 
 	/**
@@ -205,7 +319,7 @@ final class PayoutService {
 	 *
 	 * @param int         $affiliate_id Partner.
 	 * @param array|null  $profile      Payout profile (loaded when null).
-	 * @param string|null $code         Out: reason code (maintenance|profile|terms_page|terms|operator_vat_id|vies, '' = none).
+	 * @param string|null $code         Out: reason code (maintenance|tax_pending|profile|terms_page|terms|operator_vat_id|vies, '' = none).
 	 * @return string
 	 */
 	public static function blocked_reason( $affiliate_id, $profile = null, &$code = null ) {
@@ -216,6 +330,10 @@ final class PayoutService {
 		}
 		$profile = null === $profile ? ProfileRepository::get( (int) $affiliate_id ) : $profile;
 		$missing = ProfileRepository::missing( $profile );
+		if ( true !== $missing && 'tax_status' === $missing && TaxHistory::pending( (int) $affiliate_id ) ) {
+			$code = 'tax_pending';
+			return __( 'The partner\'s tax data wait for your approval (partner page → Payout details)', 'affiliate-captain' );
+		}
 		if ( true !== $missing ) {
 			$code   = 'profile';
 			$fields = array(
@@ -236,8 +354,9 @@ final class PayoutService {
 			$code = 'terms_page';
 			return __( 'Self-billing needs partner terms with the credit note agreement (Settings → Program → Terms page)', 'affiliate-captain' );
 		}
-		if ( Settings::get( 'self_billing' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::latest( (int) $affiliate_id ) ) {
-			// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the accepted terms.
+		if ( Settings::get( 'self_billing' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::has_current( (int) $affiliate_id ) ) {
+			// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the current terms (with the
+			// credit note clause) of the partner's own terms page – an older version is not enough.
 			$code = 'terms';
 			return __( 'Has not accepted the partner terms yet (needed for credit notes) – the partner is asked to accept them on the next login to the partner area', 'affiliate-captain' );
 		}
@@ -247,9 +366,11 @@ final class PayoutService {
 			$code = 'operator_vat_id';
 			return __( 'Reverse charge needs your VAT ID (Settings → Payouts & credit notes)', 'affiliate-captain' );
 		}
-		if ( Vat::REVERSE_CHARGE === $vat['mode'] && isset( $profile->vat_id ) && Vies::is_invalid( (int) $affiliate_id, (string) $profile->vat_id ) ) {
+		if ( in_array( $vat['mode'], array( Vat::REVERSE_CHARGE, Vat::STANDARD ), true ) && isset( $profile->vat_id ) && '' !== (string) $profile->vat_id && Vies::is_invalid( (int) $affiliate_id, (string) $profile->vat_id ) ) {
+			// Also a domestic VAT ID: VAT on a credit note to a partner who is no business would be
+			// owed without being deductible (§14c UStG).
 			$code = 'vies';
-			return __( 'The partner\'s VAT ID is not valid according to VIES (reverse charge not possible)', 'affiliate-captain' );
+			return __( 'The partner\'s VAT ID is not valid according to VIES (no credit note with VAT or reverse charge possible)', 'affiliate-captain' );
 		}
 		return '';
 	}
@@ -445,55 +566,68 @@ final class PayoutService {
 	 * @param int    $affiliate_id Affiliate.
 	 * @param string $period_end   Y-m-d.
 	 * @param string $currency     Currency.
+	 * @param bool   $settle       Correction document for a settled balance (gross exactly 0, e.g.
+	 *                             VAT corrections offset by a repayment or write-off): no minimum,
+	 *                             no transfer; see settle().
 	 * @return int Payout ID or 0 when nothing is payable.
 	 */
-	public static function create_for_affiliate( $affiliate_id, $period_end, $currency ) {
+	public static function create_for_affiliate( $affiliate_id, $period_end, $currency, $settle = false ) {
 		global $wpdb;
 		$operator = self::operator_missing();
 		if ( $operator ) {
 			throw new IntegrationException( 'operator_data', $operator ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		}
-		$blocked = self::blocked_reason( (int) $affiliate_id );
+		$blocked = $settle ? '' : self::blocked_reason( (int) $affiliate_id );
 		if ( '' !== $blocked ) {
 			throw new IntegrationException( 'not_eligible', $blocked ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		}
 		$payout_id = Db::transaction(
-			static function () use ( $wpdb, $affiliate_id, $period_end, $currency ) {
+			static function () use ( $wpdb, $affiliate_id, $period_end, $currency, $settle ) {
 				$t                     = Db::table( 'commissions' );
 				list( $from, $params ) = self::payable_sql( $currency, $period_end . ' 23:59:59', $affiliate_id );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.parent_id, p.payout_id AS parent_payout_id {$from} FOR UPDATE", $params ) );
+				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from} FOR UPDATE", $params ) );
 				$total = 0;
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
 				}
 				$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-				if ( ! $rows || $total <= 0 || null === $min || $total < $min ) {
+				if ( ! $rows || ( ! $settle && ( $total <= 0 || null === $min ) ) ) {
 					return 0;
 				}
 				$profile  = ProfileRepository::get( $affiliate_id );
 				$snapshot = ProfileRepository::snapshot( $profile );
-				// Commission rates are net; VAT is added for domestic VAT-registered partners.
-				$vat = Vat::treatment(
-					isset( $snapshot['tax_status'] ) ? $snapshot['tax_status'] : '',
-					isset( $snapshot['country'] ) ? $snapshot['country'] : '',
-					(string) Settings::get( 'operator_country' ),
-					(string) Settings::get( 'vat_rate' )
-				);
+				if ( $settle && ! $snapshot ) {
+					return 0; // No partner data for the document (e.g. erased).
+				}
+				// Commission rates are net; VAT is added for domestic VAT-registered partners. The
+				// treatment follows the time of each service (tax status and rate valid then).
+				$resolver = self::treatment_resolver( (int) $affiliate_id, $snapshot );
 				/**
-				 * Filter the VAT treatment of a credit note (mode, rate).
+				 * Filter the VAT treatment of a credit note (mode, rate). Applied to the current
+				 * tax data and to earlier ones (services before a change of the tax status/rate).
 				 *
 				 * @param array $vat          Treatment.
 				 * @param array $snapshot     Partner tax data snapshot.
 				 * @param int   $affiliate_id Partner.
 				 */
-				$vat = (array) apply_filters( 'wpac_vat_treatment', $vat, $snapshot, $affiliate_id );
+				$vat = $resolver( (object) array( 'created_at' => Db::now() ) );
 				// Corrections of commissions settled in an earlier credit note keep that credit note's
-				// VAT treatment (§17 UStG) and refer to it; everything else uses the current treatment.
-				$treat = self::item_treatments( $rows, $vat );
+				// VAT treatment (§17 UStG) and refer to it; repayments and write-offs are not taxable.
+				$treat = self::item_treatments( $rows, $vat, $resolver );
 				$vat_minor = 0;
 				foreach ( self::vat_groups( $rows, $treat ) as $group ) {
 					$vat_minor += Vat::amount( $group['net'], $group['rate'] );
+				}
+				$gross = $total + $vat_minor;
+				if ( $settle ? 0 !== $gross : ( $gross <= 0 || $gross < $min ) ) {
+					// What is transferred is the gross amount: never a negative or too small transfer
+					// (e.g. VAT corrections of earlier credit notes after a change of the tax status).
+					return 0;
+				}
+				$operator_snapshot = self::operator_snapshot();
+				if ( $settle ) {
+					$operator_snapshot['document'] = 'correction';
 				}
 				$year      = (int) wp_date( 'Y' );
 				// Gapless credit note number, allocated inside this transaction.
@@ -512,7 +646,7 @@ final class PayoutService {
 						'amount_minor'     => $total + $vat_minor, // Amount paid out (gross).
 						'status'           => 'pending',
 						'profile_snapshot' => wp_json_encode( $snapshot ),
-						'operator_snapshot' => wp_json_encode( self::operator_snapshot() ),
+						'operator_snapshot' => wp_json_encode( $operator_snapshot ),
 						'created_by'       => get_current_user_id(),
 						'created_at'       => Db::now(),
 					)
@@ -548,12 +682,13 @@ final class PayoutService {
 				}
 				\WPAffiliateCaptain\Commissions\Balance::post( (int) $affiliate_id, $currency, 'payout', -$total, 0, $payout_id, $number );
 				Audit::log(
-					'payout.created',
+					$settle ? 'payout.correction_created' : 'payout.created',
 					'payout',
 					$payout_id,
 					array(
 						'number' => $number,
 						'amount' => $total,
+						'vat'    => $vat_minor,
 					)
 				);
 				return $payout_id;
@@ -579,6 +714,93 @@ final class PayoutService {
 			);
 		}
 		return $payout_id;
+	}
+
+	/**
+	 * Correction document for a settled balance (§17 UStG): when the open bookings of a partner
+	 * add up to exactly 0 including VAT – VAT corrections of earlier credit notes offset by a
+	 * repayment or a write-off – they are settled with a document of their own (no transfer).
+	 * Partners whose partnership ended would otherwise never get a document that reduces the
+	 * VAT of the original credit note.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @return int Payout ID (0 = nothing to settle).
+	 */
+	public static function settle( $affiliate_id, $currency ) {
+		$currency = strtoupper( (string) $currency );
+		$sum      = self::open_totals( (int) $affiliate_id, $currency );
+		if ( 0 !== $sum[2] || ( 0 === $sum[0] && 0 === $sum[1] && ! self::has_open( (int) $affiliate_id, $currency ) ) ) {
+			return 0;
+		}
+		try {
+			$id = self::create_for_affiliate( (int) $affiliate_id, wp_date( 'Y-m-d' ), $currency, true );
+		} catch ( \Throwable $e ) {
+			Audit::log( 'payout.correction_failed', 'affiliate', (int) $affiliate_id, array( 'error' => $e->getMessage() ) );
+			return 0;
+		}
+		if ( $id ) {
+			$paid = self::mark_paid( (int) $id ); // Nothing to transfer: settled right away.
+			if ( is_wp_error( $paid ) ) {
+				Audit::log( 'payout.correction_failed', 'payout', (int) $id, array( 'error' => $paid->get_error_message() ) );
+			}
+		}
+		return (int) $id;
+	}
+
+	/**
+	 * Whether a partner has open (approved, unassigned) bookings in a currency.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @return bool
+	 */
+	private static function has_open( $affiliate_id, $currency ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 LIMIT 1", (int) $affiliate_id, $currency ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	/**
+	 * Partners with the tax status "small business" whose credit notes exceed the limits of the
+	 * small business scheme (default §19 UStG: 25,000 € in the previous year or 100,000 € in the
+	 * current year; filter wpac_small_business_limits). Only an indication: the limit counts all
+	 * turnover of the partner, not only ours – but if our credit notes alone exceed it, the
+	 * partner is very likely liable for VAT.
+	 *
+	 * @param int|null $year Current year (default: this year).
+	 * @return array List of [ affiliate_id, currency, previous, current, which ].
+	 */
+	public static function small_business_warnings( $year = null ) {
+		global $wpdb;
+		$year = null === $year ? (int) wp_date( 'Y' ) : (int) $year;
+		/**
+		 * Limits of the small business scheme per currency in minor units: [ previous year, current year ].
+		 *
+		 * @param array  $limits   Currency => [ previous, current ].
+		 * @param string $operator Operator country.
+		 */
+		$limits = (array) apply_filters( 'wpac_small_business_limits', 'DE' === strtoupper( (string) Settings::get( 'operator_country' ) ) ? array( 'EUR' => array( 2500000, 10000000 ) ) : array(), strtoupper( (string) Settings::get( 'operator_country' ) ) );
+		if ( ! $limits ) {
+			return array();
+		}
+		$t                    = Db::table( 'payouts' );
+		$pp                   = Db::table( 'payout_profiles' );
+		list( $from )         = Statement::year_bounds( $year - 1 );
+		list( $cur_from, $to ) = Statement::year_bounds( $year );
+		// Credit notes that were not cancelled, of partners who are small businesses now.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN p.net_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN p.net_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", $cur_from, $cur_from, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$out  = array();
+		foreach ( (array) $rows as $r ) {
+			if ( ! isset( $limits[ $r->currency ] ) ) {
+				continue;
+			}
+			$which = Vat::small_business_exceeded( (int) $r->prev_total, (int) $r->cur_total, array_values( (array) $limits[ $r->currency ] ) );
+			if ( '' !== $which ) {
+				$out[] = array( (int) $r->affiliate_id, (string) $r->currency, (int) $r->prev_total, (int) $r->cur_total, $which );
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -618,6 +840,8 @@ final class PayoutService {
 			}
 			$n += Statement::generate( (int) $id ) ? 1 : 0;
 		}
+		// Cancellation documents whose file could not be written (number already allocated).
+		$n += Statement::generate_missing_stornos();
 		return $n;
 	}
 

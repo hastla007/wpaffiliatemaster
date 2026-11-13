@@ -275,6 +275,26 @@ final class PayoutsPage {
 			}
 			echo '</ul></div>';
 		}
+		$small = PayoutService::small_business_warnings();
+		if ( $small ) {
+			// Our credit notes alone exceed the small business limit: the partner is very likely
+			// liable for VAT – ask for the tax status before the next credit note.
+			echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Small business partners above the small business limit (§19 UStG: 25,000 € in the previous year or 100,000 € in the current year):', 'affiliate-captain' ) . '</strong></p><ul>';
+			AffiliateRepository::find_many( wp_list_pluck( $small, 0 ) );
+			foreach ( array_slice( $small, 0, 20 ) as $sb ) {
+				$sba = AffiliateRepository::find( (int) $sb[0] );
+				/* translators: 1: partner, 2: amount previous year, 3: amount current year */
+				echo '<li><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $sb[0], 'tab' => 'payout' ) ) ) . '">' . esc_html( $sba ? $sba->name : '#' . (int) $sb[0] ) . '</a>: ' . esc_html( sprintf( __( 'previous year %1$s, this year %2$s', 'affiliate-captain' ), Money::format( $sb[2], $sb[1] ), Money::format( $sb[3], $sb[1] ) ) ) . '</li>';
+			}
+			echo '</ul><p class="description">' . esc_html__( 'The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on.', 'affiliate-captain' ) . '</p></div>';
+		}
+		foreach ( Statement::storno_failures() as $spid => $sfail ) {
+			$sp = PayoutService::find( (int) $spid );
+			if ( $sp && '' === (string) $sp->storno_file ) {
+				/* translators: %s: cancellation number */
+				echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'The cancellation document %s could not be stored yet. It is retried automatically; check that the statement folder is writable.', 'affiliate-captain' ), (string) $sp->storno_number ) ) . '</p></div>';
+			}
+		}
 		foreach ( PayoutService::clawbacks() as $pid => $orders ) {
 			$cp = PayoutService::find( (int) $pid );
 			/* translators: 1: payout number, 2: orders */
