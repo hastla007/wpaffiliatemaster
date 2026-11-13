@@ -304,3 +304,139 @@ Stand in `main` am 13.11.2026: kein Lizenzcode vorhanden (per Suche nach `Licens
 - [ ] **B9 · Datenschutz.** Dokumentieren, was das Add-on an den Lizenzserver sendet (Lizenzschlüssel, Site-URL, Plugin-, WordPress- und PHP-Version) und was nie gesendet wird (Bestellungen, Kundendaten).
 - [ ] **B10 · Tests.** Gemeinsame Client-Fixtures gegen den Lizenzserver, Tests für abgelaufene, widerrufene und fremde Lizenz, manipulierten Cache, Serverfehler und fehlgeschlagenes Update. CI auf der PHP-Mindestversion 7.4.
 - [ ] **B11 · Release.** ZIP in CI bauen, Version und SHA-256 erzeugen und als Release im Lizenzserver unter „WooCommerce → License releases“ einstellen. Erst danach Kauf, Aktivierung, Rechteprüfung und Update einmal vollständig im Testshop durchspielen.
+
+## Experten-Prüfung (2026-11-13, Runde 5)
+
+Elf parallele Prüfungen auf Stand `89de906`: WordPress-Core/Code, Sicherheit, Architektur/Kompatibilität, Admin-UX, Produkt/Release, Datenbank/Performance, Frontend/Barrierefreiheit, API/Datenfluss, Support/Wartbarkeit, UI/Workflow und ein unabhängiges Tiefen-Audit der Geschäftsabläufe. Doppelte Befunde sind zusammengeführt; zentrale Befunde stichprobenartig am Code bestätigt. Verworfen: „Löschen der alten Kopie räumt die Zeitpläne ab“ – im veröffentlichten 0.10.0 passiert das nur bei „Alle Daten löschen“, und das setzt die neue Kopie beim Löschen auf aus.
+
+### Kritisch
+
+- [ ] **R5-K1 — Teilerstattung doppelt abgezogen.** Bucht `OrderSync::sync_order()` einen zuvor gescheiterten Verkauf, sind bisherige WooCommerce-Erstattungen schon von `net_minor` abgezogen (`payload()`), aber anders als in `run_job()` wird `Jobs::supersede_refunds()` nicht aufgerufen → der wartende Erstattungs-Job zieht die Erstattung ein zweites Mal ab (`OrderSync.php:241–256`, `Jobs.php:174`). Gilt ebenso für Fremdquellen laut `CONTRACT.md:54`.
+- [ ] **R5-K2 — Plugin-Check-Job kann nicht fehlschlagen.** `ci.yml:335–337` pipet in `tee` ohne `pipefail` → echter Fehler `rename_rename` (`Installer.php:1068`, zwei `phpcs:ignore` auf getrennten Zeilen) läuft durch; der Release hängt an diesem Job. Gleiches Muster beim Coverage-Schritt (`ci.yml:137`).
+
+### Wichtig
+
+- [ ] **R5-W1 — Übernahme der Altkopie schaltet Multisite-Netzwerk ab.** `affiliate-captain.php:34–40` entfernt die alte Kopie immer aus `active_sitewide_plugins`, auch wenn die neue nur auf einer Site aktiv ist; Aktivierungs-Hook läuft bei Übernahme nicht; nur der exakte Ordner `wp-affiliate-captain` wird erkannt; kein Admin-Hinweis nach der Übernahme; kein Multisite-Test.
+- [ ] **R5-W2 — Löschschutz der Altkopie greift nur bei geladener neuer Kopie.** `pre_uninstall_plugin`-Filter wirkt nicht, wenn die neue Kopie deaktiviert ist, im Netzwerk-Admin nicht geladen wird oder per `--skip-plugins` gelöscht wird → alte `uninstall.php` löscht bei „Alle Daten löschen“ gemeinsame Tabellen. `delete_on_uninstall` bei der Übernahme dauerhaft auf 0 setzen + Hinweis.
+- [ ] **R5-W3 — Version/Changelog 0.11.0 fehlen.** Header, `WPAC_VERSION`, `Stable tag`, POT stehen auf 0.10.0, Code ist 0.11 (Schema 9, Vertrag 1.2.0, Umbenennung); kein Changelog-Eintrag 0.11.0 (Release-Notes-`awk` nähme die Upgrade Notice); Assets mit `?ver=` bleiben im Cache.
+- [ ] **R5-W4 — Upgrade Notice zu lang.** 0.11.0-Hinweis hat 602 Zeichen (WordPress.org erlaubt 300, Plugin-Check-Warnung) – gekürzt fallen Backup- und Übernahmehinweis weg.
+- [ ] **R5-W5 — 52× ExceptionNotEscaped nur lokal ignoriert.** `tests/ci/plugin-check-ignore.txt` gilt nur in unserer CI; Upload-Prüfung von WordPress.org meldet sie. Exception-Texte mit `esc_html()` versehen.
+- [ ] **R5-W6 — Beträge bei 3-Nachkommastellen-Währungen ×1000.** `Settings::parse_amount()` (`Settings.php:554`) liest „5.000“ (KWD, BHD, OMR, JOD, TND, IQD, LYD) als Tausender → jedes Speichern vertausendfacht Mindestauszahlung, festen Standardsatz, Prüfgrenze; „1,000“ (englisch) wird 1,00.
+- [ ] **R5-W7 — reassign: Nebenwirkungen vor dem COMMIT.** `Ledger::reassign()` (`Ledger.php:562–584`): verschachtelte `record_refund`/`record_sale` lösen Hooks (`wpac_commission_adjusted/created`, `wpac_affiliate_attributed`), Clawback-Option und Kundenverknüpfung innerhalb der äußeren Transaktion aus → bei Rollback falsch gemeldet; Fehlertext immer „database error“.
+- [ ] **R5-W8 — Gutschrift-PDFs im alten Ordner werden nie gelöscht.** `Statement::purge_expired()` (`Statement.php:797–801`) löscht nur in `dir()`, setzt aber `statement_file=''` → Dateien in `legacy_dirs()` bleiben über die Aufbewahrung hinaus (ggf. öffentlich). `self::path()` verwenden.
+- [ ] **R5-W9 — Volle Erstattung wird bei „Erstattet → Abgeschlossen“ wiederhergestellt.** `wc_create_refund()` setzt erst „refunded“ → Storno als `status-refund`; späterer Statuswechsel ruft `Ledger::reinstate()` und gibt die volle Provision zurück, obwohl das Geld erstattet ist (`OrderSync.php:402, 425`, `Ledger.php:625`). `get_total_refunded()` berücksichtigen.
+- [ ] **R5-W10 — Papierkorb/Löschen und Änderungen bezahlter Bestellungen ignoriert.** Keine Hooks auf `woocommerce_trash_order`, `woocommerce_before_delete_order`, `untrash`, `woocommerce_saved_order_items`; Provision einer gelöschten Test-/Betrugsbestellung wird ausgezahlt, Mengenänderungen nach Zahlung bleiben unberücksichtigt.
+- [ ] **R5-W11 — OrderSync verwirft WP_Error des Vertrags.** `sync_order()`, `sync_refund()`, `full_reversal()` werten nur Arrays aus → `wpac_not_queued`, `missing_items`, `invalid_amount` (Filter liefert Float) ohne Notiz, Log, Job oder Hinweis; keine Bestellnotiz bei `wpac_queued`.
+- [ ] **R5-W12 — Doppelte item_id blockiert einen Verkauf.** `ContractApi::normalize_sale()` prüft Eindeutigkeit nicht; UNIQUE-Schlüssel scheitert, Job läuft 8× ins Leere, Verkauf nie gebucht.
+- [ ] **R5-W13 — Negative Gebühren (Rabatte) ignoriert.** `OrderSync::payload()` nimmt nur `line_item`-Summen; Rabatte als negative Gebühr (Zahlungsart-/Staffelrabatt-Plugins) erhöhen die Provisionsbasis.
+- [ ] **R5-W14 — VIES-Fehlercodes nicht ausgewertet.** `Vies::check()` macht aus jedem `errorWrappers` „unavailable“: `INVALID_INPUT` wird endlos wiederholt statt „ungültig“, `INVALID_REQUESTER_INFO` (falsche eigene USt-IdNr.) ohne Hinweis; HTTP-Status, `WP_Error`-Ursachen und Blockaden nicht geloggt; Timeout/Cap nicht filterbar; `recheck_stale` liest täglich alle Profile inkl. gekündigter.
+- [ ] **R5-W15 — REST /sales und /refunds: Serverfehler als 400.** `RestApi::result()` gibt `wpac_not_queued` (DB weg) 400 → Absender wiederholen nicht; richtig 503 + `Retry-After`; uneinheitliche Statuscodes für eingereihte Erstattung (200) vs. Verkauf (202).
+- [ ] **R5-W16 — Belegordner-Prüfung zeigt falsche Entwarnung.** `IntegrationsPage.php:224` wertet `null` (Loopback blockiert) als „nicht öffentlich ✔“; `Statement.php:91–92` speichert 401/403/5xx als „protected“.
+- [ ] **R5-W17 — Manuelles Verknüpfen erlaubt Umleiten von Auszahlungen.** `user_link_manual` verlangt nur `wpac_manage_affiliates`, kein E-Mail-Abgleich, keine Bestätigung/Benachrichtigung → Partnermanager verknüpft eigenes Konto und trägt eigene IBAN ein. Ebenso CSV-Spalte `user_id` nur per E-Mail-Gleichheit.
+- [ ] **R5-W18 — Export-Temp-Dateien mit Klartext-IBAN bleiben liegen.** `ProgramExport::write()`/`ImportExportPage::handle_export()`/`ExportCommand`: `wp_tempnam` (0644), kein `ignore_user_abort`, kein Shutdown-Cleanup, kein Zeitlimit; Fallback auf `WP_CONTENT_DIR`.
+- [ ] **R5-W19 — Export ohne Steuerdaten verrät Gutschrift-Dateinamen.** `payouts.csv` enthält `statement_file`/`storno_file` (einziger Schutz bei öffentlich erreichbarem Ordner).
+- [ ] **R5-W20 — Import: Mails mit Absage/Kündigung „Grund: CSV-Import“.** `PartnerImport::import_row()` → `set_status()` verschickt bei aktivierten Mails Ablehnungs-, Pausen-, Kündigungs- und „Bewerbung angenommen“-Mails an importierte Partner.
+- [ ] **R5-W21 — Import ohne Mails: „Link gesendet“ + 10-Min-Sperre.** Unterdrückte Mails werden trotzdem als versendet protokolliert; Neu-Konten erhalten keinen Zugangshinweis; Tipp „Passwort vergessen“ fehlt auf der Seite.
+- [ ] **R5-W22 — Import synchron ohne Batches, Wiederholung meldet Duplikate.** Bis 2000 Zeilen in einem Request ohne Zeitlimit; Abbruch hinterlässt halbe Partner (pending ohne Codes/Status); zweiter Lauf meldet „existiert bereits“; Teilerfolg „Code fehlgeschlagen“ zählt als übersprungen; Bericht rot bei einem Fehler; ganze Zeile verworfen bei zu kurzem Code / fremder `user_id`.
+- [ ] **R5-W23 — Import-Transient scheitert an Größe.** CSV (bis 5 MB) + Bericht in einem Transient → Memcached-1-MB-Limit, `max_allowed_packet`; Rückgabe von `set_transient` ungeprüft → „Datei abgelaufen“. Datei geschützt ablegen, nur Pfad/Hash speichern.
+- [ ] **R5-W24 — Import-Lauf nicht gesperrt.** Doppeltes Absenden startet den Import zweimal (nicht atomare Prüfung, E-Mail nicht UNIQUE).
+- [ ] **R5-W25 — Exporte laden alles in den Speicher.** Provisions- (`limit 0`) und Auszahlungs-CSV (`limit 100000`) mit `SELECT *` inkl. Snapshots, dann `Csv::build()` als String; Programm-Export mit `OFFSET`-Paginierung ohne Zeitlimit → Speicher-/Zeitabbruch bei großen Shops. Keyset + Streaming.
+- [ ] **R5-W26 — DSGVO-Export ignoriert Seitennummer.** `Privacy.php:163–167, 189`: alle Provisionen in einem Request, `done => true`; Attributionen bei 5000 abgeschnitten.
+- [ ] **R5-W27 — Auszahlungslauf synchron mit PDF-Erzeugung.** `PayoutService::create_run()` erzeugt je Partner Transaktion + Gutschrift-PDF ohne Budget/Batches → Timeout bei vielen Partnern; Nachlauf nur 20/Stunde mit Head-of-line-Blocking durch Backoff-IDs.
+- [ ] **R5-W28 — Täglicher Saldenabgleich liest die ganze Historie.** `Balance::verify()` lädt alle `balance_entries` je Konto und hasht neu, bis 5000 Konten täglich, ohne Cursor/Budget → Speicher-Fatal bei großen Partnern; Konten ab 5001 nie geprüft. Inkrementell prüfen.
+- [ ] **R5-W29 — Monatsmail rechnet den Monatsreport je Batch neu.** `MonthlyMail::batch()` → `Reports::partners()` für alle Partner je 50er-Batch + N+1 (`available()`, `find()`); `retry_failed()` ebenso.
+- [ ] **R5-W30 — N+1 bei jedem Admin-Aufruf bei wartenden Gutschriften.** `Admin::cron_notice()`/`Monitor::checks()` → `Statement::waiting()` → `prune_backoff()` mit `PayoutService::find()` je Eintrag.
+- [ ] **R5-W31 — Rate-Limit-Tabelle wächst ohne Object Cache.** `RateLimiter::purge()` löscht max. 50 000 Zeilen/Tag; `touch` zählt vor der Code-Prüfung (Spam). `delete_in_batches` + stündlich.
+- [ ] **R5-W32 — Staffelbonus scannt komplette Partnerhistorie.** `TierService::orders()` ohne untere `created_at`-Grenze; `close_month()` ohne Budget, Recalc-Budget nur zwischen Monaten.
+- [ ] **R5-W33 — Späte Rückbuchungen korrigieren alte Boni nicht.** `recalculate_closed_months()` erkennt Korrekturen älterer Monate nicht (neue Zeile, `created_at` jetzt); widersprüchlicher Dateikopf in `TierService.php:8–9`.
+- [ ] **R5-W34 — Kündigung lehnt Abschreibung/Rückzahlung ab.** `Ledger::reject_open_for_affiliate()` filtert nicht nach `kind` → erledigte Schulden leben wieder auf.
+- [ ] **R5-W35 — Fehlgeschlagener Storno-Beleg wird nie nachgeholt.** `generate_storno()` nur einmal aufgerufen, kein Backoff/Cron/Admin-Aktion → Stornonummer ohne Dokument; Partner wird bei Storno nicht informiert.
+- [ ] **R5-W36 — Kein Schutz für Staging-/Klon-Kopien.** Kein `wp_get_environment_type()`/URL-Wechsel-Erkennung: Klon versendet Monatsmails, Alarme, VIES-Abfragen, `wpac_payout_created` an echte Empfänger.
+- [ ] **R5-W37 — Salt-Wechsel ohne eigenen Schlüssel unbemerkt.** Ohne `WPAC_ENCRYPTION_KEY` liefert `legacy_status()` (0,0); Auszahlungen werden mit unlesbaren IBANs erstellt, Fehler erst beim Export.
+- [ ] **R5-W38 — Lifetime-Kunden bleiben an gekündigte Partner gebunden.** `CustomerLinks::link()` behält Verknüpfungen zu inaktiven Partnern; Resolver sucht keinen anderen; Links werden bei Kündigung nicht gelöst.
+- [ ] **R5-W39 — Daten gekündigter Partner nie gelöscht.** Ohne Löschanfrage bleiben Name, E-Mail, Profil (Anschrift, USt-IdNr., IBAN) unbegrenzt (Art. 5 Abs. 1 lit. e DSGVO); `Retention` löscht nur AGB-Nachweise.
+- [ ] **R5-W40 — Fehlgeschlagene Verkaufs-Jobs nach 180 Tagen still gelöscht.** `Cron::purge_jobs` löscht `failed`-Verkäufe ohne Audit/Log; Monitor wird danach grün; Fristen nicht filterbar.
+- [ ] **R5-W41 — Grund für „nicht zugeordnet“ fehlt.** Resolver liefert nur `no_candidate`, `mark_unresolved` speichert `none`; Bestell-Box zeigt keinen Grund, Touch, Review-Flags oder laufenden Retry (HANDBOOK verspricht es).
+- [ ] **R5-W42 — wp wpac verify prüft nur 500 Konten.** `Command::verify` meldet „konsistent“ nach 500 Konten; drei unterschiedliche „Cron läuft“-Definitionen (Monitor, Integrationsseite, CLI).
+- [ ] **R5-W43 — Schwerste Fehler nicht im dokumentierten Log.** `ContractApi::not_queued` schreibt per `error_log`; kein Debug-Level; erste Job-Fehler ungeloggt; keine Exception-Klasse/Datei/Zeile; Hook `wpac_contract_not_queued` undokumentiert; alte Log-Quelle `wp-affiliate-captain` nicht erwähnt.
+- [ ] **R5-W44 — Cron-Schrittfehler mehrdeutig und unsichtbar.** `Cron.php:79–80, 194–195` loggt Methodennamen statt Schritt-Schlüssel; Monitor wertet `cron.step_failed` nicht aus (z. B. dauernd scheiternder Saldenabgleich bleibt grün).
+- [ ] **R5-W45 — Gutschrift-PDF verfälscht Namen außerhalb CP1252.** `Pdf::literal()` macht aus Ł, ś, ć, ř, ő „?“ auf steuerrelevanten Belegen, ohne Warnung; Schrift/Encoding fest.
+- [ ] **R5-W46 — Kein Support-Paket, Diagnose zu dünn.** Site-Health-Info ohne Währung, Haltefrist, Cookie-/Zuordnungseinstellungen, Proxy, VIES, Konstanten, WC/HPOS/Subscriptions, Job-/AS-Zahlen, letzter Cron; `wp wpac status` ohne Version; kein `wp wpac jobs list`; kein anonymisierter Support-Export.
+- [ ] **R5-W47 — Code-Limit hinter Proxy trifft alle Kunden.** `code_check` 20/min je IP; ohne `trusted_proxies` teilen sich alle Besucher die Proxy-IP → „Too many attempts“ im Checkout; nicht diagnostizierbar, Limits nicht filterbar, keine Site-Health-Warnung bei X-Forwarded-For.
+- [ ] **R5-W48 — E-Mails ohne Hooks und ohne Fehlerspur.** 28 `wp_mail()` ohne zentrale Funktion/Filter (Betreff, Text, Header, HTML), Rückgabewerte meist ignoriert, kein `wp_mail_failed`-Listener; `payout_paid` schreibt „auf Ihr Bankkonto überwiesen“ auch bei PayPal/manuell.
+- [ ] **R5-W49 — Audit-Log nicht nach Bestellung durchsuchbar.** Bestellereignisse uneinheitlich (`order #0`, `order #id`, `affiliate`); kein Filter nach Aktion/Zeitraum/Bestellung; Warteschlange ohne Bestell-Link/Datum; „Alle wiederholen (%d)“ max. 100.
+- [ ] **R5-W50 — Beacon unterdrückt sich auf CDN-Kopien.** `Tracker.php:158`: gecachte Seite mit `cap=1/gen` → Besucher der ersten 30 s senden keinen Beacon (Newsletter-Spitzen verloren). Serverseitige Deduplizierung reicht.
+- [ ] **R5-W51 — Bewerbungsformular in Builder-Vorlagen weiter gecacht.** `Registration::render()` ruft `Landing::no_cache()` nicht auf; Elementor/Divi-Vorlagen, Template-Parts, synchronisierte Muster, Widgets, Übersetzungen werden nicht erkannt → Nonce-Fehler.
+- [ ] **R5-W52 — Auszahlungsart „andere“ nicht dokumentiert/abschaltbar.** readme sagt „PayPal nicht eingebaut“, HANDBOOK fehlt; Datenschutz-Empfänger/Verzeichnis nennen PayPal & Co. nicht; Art.-15-Export ohne Zahlungsangaben; Betreiber kann die Methode nicht abschalten; Programm-Export mit Bankdaten verliert Methode und Zahlungsangaben.
+- [ ] **R5-W53 — Admin-Auszahlungsdaten verlieren Methode/Angaben bei Fehler.** `AffiliatesPage.php:600–611` zeigt gespeicherte Methode statt Eingabe, Textfeld leer; Angaben zudem im Klartext im Formular-Transient (`:244–247`).
+- [ ] **R5-W54 — Überweisungsliste für deutsches Excel ungeeignet.** Dezimalpunkt bei „;“-Trennung, englische Kopfzeile, Rohcodes `manual`/`sepa`.
+- [ ] **R5-W55 — Widerspruch gegen bezahlte Gutschrift: Sackgasse.** Hinweis empfiehlt Storno, das bei bezahlten Auszahlungen nicht möglich ist; kein Korrekturweg.
+- [ ] **R5-W56 — Migrationshinweise nur auf der Integrationsseite.** Neu verschlüsseln / Gutschriften verschieben ohne Hinweis in Dashboard/Site Health; nicht entschlüsselbare Partner werden nicht genannt.
+- [ ] **R5-W57 — Einstellung „Auszahlungsrhythmus“ ohne Wirkung.** `payout_period` wird nur gespeichert; kein Lauf, keine Erinnerung, Partner sieht keinen Auszahlungstermin.
+- [ ] **R5-W58 — Provisionen „Prüfung nötig“ unsichtbar.** Keine Zählblase, kein Dashboard-/Mail-Hinweis, keine Statusansichten → markierte Verkäufe bleiben unbegrenzt liegen.
+- [ ] **R5-W59 — Partner landet nach erstem Login nicht im Portal.** Passwortlink ohne `redirect_to`, kein `login_redirect`/`woocommerce_login_redirect`, kein Eintrag unter „Mein Konto“.
+- [ ] **R5-W60 — Nach SEPA-/CSV-Download keine Rückmeldung.** `PayoutsPage.php:151, 161–165` beenden mit `exit`; Liste veraltet, kein Hinweis auf ausgelassene manuelle Auszahlungen und „Als bezahlt markieren“; keine Statusfilter.
+- [ ] **R5-W61 — Kein Einstieg nach der Aktivierung.** Kein Redirect/Hinweis nach Aktivierung; Setup-Hinweis prüft nur die Portalseite und verschwindet zu früh.
+- [ ] **R5-W62 — Dunkelmodus macht Portaltext unsichtbar.** `portal.css:56` (`prefers-color-scheme:dark`) setzt helle Textfarben auch auf hellen Themes (Kontrast ~1,4:1); `.wpac-disclosure` ohne Textfarbe.
+- [ ] **R5-W63 — Buttons erben Theme-Linkfarbe.** `.wpac-button` (0,1,0) verliert gegen `.entry-content a` → Linkfarbe auf Akzent (~1:1); ebenso `.wpac-tabs a`.
+- [ ] **R5-W64 — Codetabelle am Handy unbeschriftet.** `Portal.php:718–729` ohne `data-label`/`scope`/`caption`; gestapelte Tabellen verlieren Semantik in Safari/VoiceOver.
+- [ ] **R5-W65 — Kopier-Button bleibt auf „✔“.** `portal.js:21–26` liest das Label beim zweiten Klick als „✔“.
+- [ ] **R5-W66 — Fokusrahmen mit zu wenig Kontrast.** `portal.css:36` `#f9a825` mit Abstand → 1,97:1 (WCAG 1.4.11).
+
+### Optimierung
+
+- [ ] **R5-O1 — Locale-Paare ohne try/finally.** `AffiliateRepository.php:309, 700`, `MonthlyMail.php:166`, `Dunning.php:117`, `PayoutRequests.php:263`, `Objections.php:193`, `Agreements.php:271`; `Locale::reload()` ohne `$reloadable`.
+- [ ] **R5-O2 — Währungswechsel rechnet Minor-Beträge nicht um.** Mindestauszahlung/Prüfgrenze behalten Minor-Werte (EUR→JPY: 50 € → 5000 JPY); Hinweis oder Umrechnung.
+- [ ] **R5-O3 — wpac_commission_amount über Basis und doppelt.** Filter kann Provision > Basis liefern; läuft zweimal, wenn `wpac_commission_base` die Basis ändert.
+- [ ] **R5-O4 — Statement::misplaced() und Integrationsseite teuer.** LIMIT 5000 ohne Cursor; bei jedem Aufruf Entschlüsselung aller IBANs und tausende `file_exists`; Ergebnis cachen.
+- [ ] **R5-O5 — Lebenszyklus: neue Hooks/Optionen/User-Meta.** `wpac_reencrypt`, `wpac_terms_remind` fehlen in `Cron::unschedule()`/Uninstall; Optionen `wpac_terms_remind`, `wpac_reencrypt_cursor`, User-Meta `wpac_hidden_notices` bleiben; Meta auf Multisite global.
+- [ ] **R5-O6 — Täglicher Lauf: Budget nur zwischen Schritten.** `delete_in_batches()` bis 2 Mio. Zeilen je Schritt; `purge_audit` liest aufbewahrte Zeilen wiederholt.
+- [ ] **R5-O7 — Tier-Neuberechnung ohne Fortsetzungs-Event.** `wpac_tier_recalc_pending` wird erst am Folgetag abgearbeitet.
+- [ ] **R5-O8 — Rohcodes im Audit-/Partnerverlauf.** `payout_method`, `details_changed`, `failed`, Einstellungsschlüssel unübersetzt.
+- [ ] **R5-O9 — AGB-Erinnerung meldet mehr als sie tut.** Zählt übersprungene Partner, stoppt still im Wartungsmodus, „1 E-Mails“, Empfängerzahl fehlt im Dialog.
+- [ ] **R5-O10 — Import verwirft Partner wegen Nebensachen.** Zu kurzer Code / fremde `user_id` → ganze Zeile weg; Meldungen ohne Lösungshinweis.
+- [ ] **R5-O11 — VIES-Anzeige im Admin nicht an aktuelle USt-IdNr. gebunden.** Alter Status neben neuer Nummer; „ungültig“ ohne Hinweis, dass abgeschaltete Prüfung nicht sperrt.
+- [ ] **R5-O12 — Standardsatz: Typ wird still zurückgesetzt.** `Settings.php:376–381` setzt bei ungültigem Satz auch den Typ zurück.
+- [ ] **R5-O13 — Länderauswahl nur ISO-Codes ohne WC/intl.** `Settings.php:576–584`.
+- [ ] **R5-O14 — Partner sieht gespeicherte Zahlungsangaben nicht.** Portal zeigt nur „Gespeichert – leer lassen“; Stern ohne `required`.
+- [ ] **R5-O15 — Deutsche Begriffe uneinheitlich/falsch.** „verschlüsselten Hash“ statt „pseudonymisierten Hashwert“; AGB/Partnerbedingungen; Staffeln/Stufenplan; falscher Pfad „Settings → Program → Terms page“.
+- [ ] **R5-O16 — Nutzer-Abfrage über Verknüpfungsfehler.** Unterschiedliche Meldungen verraten Existenz/Rechte/E-Mail von WP-Konten.
+- [ ] **R5-O17 — Portal resend_link für Abfrage und Spam.** Antwort verrät Partner-Existenz; nur 10-Min-Limit je Partner, keins je Nutzer; läuft im Wartungsmodus.
+- [ ] **R5-O18 — Erstattung vor dem Verkauf geht verloren.** Ohne laufenden/eingereihten Verkauf `no_commission`; Erstattungen zu unbekannten Bestellungen parken.
+- [ ] **R5-O19 — Teilerstattung mit unbekannter item_id still „unchanged“.** Kein Fehler, kein Audit (`Ledger.php:404–411`).
+- [ ] **R5-O20 — Fehlender Job-Handler verbraucht Versuche.** `no_handler` (WooCommerce kurz aus) wie normaler Fehler; wie `sale_pending` zurückstellen.
+- [ ] **R5-O21 — „Jetzt wiederholen“ auch bei laufenden Jobs.** `Jobs::retry()` setzt jeden Status auf `queued`.
+- [ ] **R5-O22 — Vertrags-/REST-Payload ohne Grenzen.** Kein `args`-Schema, unbegrenzte Positionen/`meta`, `datetime()` liest „20261111“ als Unix-Zeit, jede 3-Buchstaben-Währung akzeptiert.
+- [ ] **R5-O23 — Abgefangene Fehler verschweigen die Ursache.** `PayoutRequests::request`, `PayoutService::rebuild`, `Statement::generate` (`@file_put_contents`), `Privacy::partner_request` (Mailergebnis ignoriert, falsche Meldung).
+- [ ] **R5-O24 — Feste Partnerlisten-Limits.** Bestell-Box/Coupon-Link 500, Regeln 1000, Anträge 200 → ältere Partner nicht wählbar, Regelbearbeitung scheitert.
+- [ ] **R5-O25 — Codestruktur.** Sehr lange Funktionen (`install_schema` 436 Zeilen u. a.), toter Code (`for_each_site`, `Capabilities::uninstall`, `count_for`, `default_currency`, `page_count`), Literal `'wpac_hourly'`.
+- [ ] **R5-O26 — Undokumentierte Hooks, fehlende Portal-Hooks, feste Werte.** `wpac_contract_not_queued`, `wpac_run_job`, `wpac_daily_budget` u. a. fehlen in der Doku; Kern-Tabs nicht ausblendbar; CSV-Trennzeichen, Cookie-Name, Batchgröße, `MAX_ATTEMPTS` fest; HANDBOOK-Troubleshooting lückenhaft.
+- [ ] **R5-O27 — Alle aktiven Regeln je Buchung geladen.** `RuleRepository::active()` ohne Scope-Filter; nach Import mit Raten tausende Regeln je Bestellung.
+- [ ] **R5-O28 — Teure Aggregate je Seitenaufruf.** Provisions-Totals über die ganze Tabelle, Dashboard-Report doppelt, Index `visits(created_at, affiliate_id)` fehlt.
+- [ ] **R5-O29 — Redundante Indizes im Schreibpfad.** `visits.content_id`, `attributions.affiliate_id` sind Präfixe anderer Indizes.
+- [ ] **R5-O30 — Bestell-Box lädt 500 Partner mit SELECT *.** Nur benötigte Spalten bzw. Suchfeld; Partner ab 501 nicht wählbar.
+- [ ] **R5-O31 — Mahnverlauf nach Abschreibung nicht zurückgesetzt.** Neue Schulden lassen sich nicht anmahnen.
+- [ ] **R5-O32 — Manuelle Zuordnung an eingeschränkten Partner.** Resolver nimmt anderen Partner, Meldung nennt den gewählten.
+- [ ] **R5-O33 — Auszahlungsantrag bei Storno/Neuaufbau verloren.** `cancel()`/`rebuild()` fassen `payout_requests` nicht an.
+- [ ] **R5-O34 — Keine Partner-Mail bei neuer/freigegebener/abgelehnter Provision.** Kein Listener auf die Provisionsereignisse.
+- [ ] **R5-O35 — Monatsgrenzen in UTC, Portaldaten in UTC.** Bonus/Monatsmail/Berichte UTC-Monate, Jahresübersicht lokal; Portal-Datumsangaben in UTC.
+- [ ] **R5-O36 — Zielseiten-Felder ohne Label/CSS.** `Editor.php:238` Inline-`onclick`, kein Label, als eigener Block ohne Portal-CSS.
+- [ ] **R5-O37 — Inline-Skripte statt Assets.** `Portal.php:1065`, `CreativesPage.php:126`, `OrderMetaBox.php:81` (CSP, JS-Verzögerer).
+- [ ] **R5-O38 — Hinweise außerhalb des Wrappers ohne Akzent.** `.wpac-notice` nutzt Variable, die außerhalb `.wpac-portal` fehlt.
+- [ ] **R5-O39 — QR-Code ohne Textalternative.** `Qr.php:83` SVG ohne `role="img"`/`aria-label`.
+- [ ] **R5-O40 — Gleichnamige „Kopieren“-Buttons.** `Portal.php:498` ohne Bezug für Screenreader.
+- [ ] **R5-O41 — Portal-CSS spät geladen, Block-Vorschau ungestylt.** `block.json` ohne `style`; Stylesheet im Footer (Flackern).
+- [ ] **R5-O42 — Pager übernimmt alte Meldungen, unbegrenzt viele Links.** `Portal.php:1140`.
+- [ ] **R5-O43 — Admin: Tabs/breite Tabellen.** Dashboard-Tabs ohne `aria-current`; Auszahlungs-, Import-, Werbemittel-Tabellen ohne Scroll-Container.
+- [ ] **R5-O44 — Checkliste passt nicht zu allen Shops.** Keine Prüfung der Verkaufsquelle; SEPA-Konto und eigener Schlüssel als Pflicht; offene Punkte als rotes ✖; keine AGB-Vorlage.
+- [ ] **R5-O45 — Einstellungen schlecht gruppiert.** 18 Felder ohne Zwischenüberschriften; VIES zwischen eigenen Steuerdaten; Fristen auf 3 Tabs; Wartung unter „Berichte“; Währung als Freitext.
+- [ ] **R5-O46 — Integrationsseite als Sammelbecken, Menüreihenfolge.** Fest eingetragene Pass/Voucher-Zeilen, Status, Migration, Warteschlange auf einer Seite; „Import & Export“ hinter „Einstellungen“.
+- [ ] **R5-O47 — Native WP-Muster fehlen.** Keine Screen Options (`add_screen_option`), keine Hilfe-Tabs, Handtabellen ohne Sortierung/Suche.
+- [ ] **R5-O48 — Admin-Auszahlungsdaten ohne Feldabhängigkeit.** `data-wpac-depends` ungenutzt; Werbemittel-Bild als nackte ID, Felder nur mit `aria-label`.
+- [ ] **R5-O49 — Sammelaktion Auszahlungen überladen, Vorschau ohne Lösungslink.** Stornogrund/Checkboxen immer sichtbar, doppelte Bestätigung; gesperrte Partner ohne Link.
+- [ ] **R5-O50 — Leere Zustände ohne nächsten Schritt.** Partner-, Provisions-, Auszahlungs-, Audit-Listen.
+- [ ] **R5-O51 — Filter verlangen IDs/Rohcodes.** Regeln mit Produkt-IDs statt Produktsuche, Provisionsfilter „Partner-ID“, Audit-Objekttyp als Freitext, Verlauf max. 20 ohne Link.
+- [ ] **R5-O52 — Partnerliste zu dünn.** Keine Spalten für Code, Guthaben, Auszahlungsdaten, AGB, Login; Sammelaktion „Freigeben“ in allen Ansichten; kein Sammel-Ablehnen.
+- [ ] **R5-O53 — Landing-URL/QR im falschen Portal-Tab.** Zwei Linkformen in zwei Tabs ohne Erklärung.
+- [ ] **R5-O54 — Standardwerte ignorieren WooCommerce.** Währung `EUR`, Land `DE` fest statt aus WooCommerce; `default_disclosure` „Werbung“ nicht übersetzbar.
+- [ ] **R5-O55 — HANDBOOK/Doku-Details.** purge-retained-Pfad noch `wp-affiliate-captain`; VIES als Opt-in (standardmäßig aus) nicht beschrieben; `.wordpress-org/` ohne Bilder; Testlücken: CLI-Import/Export, Locale mit WPML/Polylang, Multisite-Übernahme.
