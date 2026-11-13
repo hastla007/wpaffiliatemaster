@@ -448,5 +448,20 @@ foreach ( $g6_files as $g6_file ) {
 }
 check( 'R5-W5 exception messages are literals or escaped', array(), $g6_unescaped );
 
+// R5-W4: every Upgrade Notice entry fits the 300 characters WordPress.org shows.
+$g6_readme = (string) file_get_contents( $g6_root . '/readme.txt' );
+$g6_long   = array();
+if ( preg_match( '/== Upgrade Notice ==\s*(.*?)(?:\n== |\z)/s', $g6_readme, $g6_m ) ) {
+	foreach ( preg_split( '/^= (.+?) =\s*$/m', $g6_m[1], -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY ) as $g6_i => $g6_part ) {
+		if ( 1 === $g6_i % 2 && 300 < mb_strlen( trim( $g6_part ) ) ) {
+			$g6_long[] = mb_strlen( trim( $g6_part ) );
+		}
+	}
+}
+check( 'R5-W4 upgrade notices have at most 300 characters', array(), $g6_long );
+// R5-W3: the release notes are read from the Changelog section only (the Upgrade Notice has the
+// same "= x.y.z =" headings and would otherwise become the release text).
+check( 'R5-W3 release notes awk reads only the Changelog section', true, (bool) preg_match( '/notes="\$\(awk[^\n]*Changelog/', $g6_ci ) );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );
