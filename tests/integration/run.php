@@ -935,5 +935,66 @@ check( 'Y17 commission.* audit entries are kept as booking records', array( 'com
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 10 ) ) );
 Settings::flush_cache();
 
+echo "ZC review round 4 (agent C: abuse limits, tokens, opt-in, beacon)\n";
+// ZC1 limits per subject (partner, address) do not depend on the client IP.
+$zc_ip = $_SERVER['REMOTE_ADDR'] ?? null;
+$_SERVER['REMOTE_ADDR'] = '198.51.100.10';
+$zc_hits = array( WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 42, 2, 60 ), WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 42, 2, 60 ) );
+$_SERVER['REMOTE_ADDR'] = '198.51.100.11';
+$zc_hits[] = WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 42, 2, 60 );
+$zc_hits[] = WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 43, 2, 60 );
+check( 'ZC1 per-subject limit holds across IPs, other subjects unaffected', array( true, true, false, true ), $zc_hits );
+check( 'ZC1 dedup: first hit true, second false', array( true, false ), array( WPAffiliateCaptain\Tracking\RateLimiter::first( 'zc-dedup', 'x', 60 ), WPAffiliateCaptain\Tracking\RateLimiter::first( 'zc-dedup', 'x', 60 ) ) );
+check( 'ZC1 dedup counters live in the rate-limit table, not in wp_options', 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '%wpac\\_vd\\_%'" ) );
+// ZC2 W11/O1: opt-in mails limited per recipient address (case-insensitive), fields capped.
+check( 'ZC2 two opt-in mails per address and day, then none', array( true, true, false, true ), array( WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'zc-target@example.de' ), WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'ZC-Target@example.de' ), WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'zc-target@example.de ' ), WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'zc-other@example.de' ) ) );
+check( 'ZC2 application fields are capped', array( 100, 2000 ), array( mb_strlen( WPAffiliateCaptain\Affiliates\Registration::cap( str_repeat( 'ä', 500 ), WPAffiliateCaptain\Affiliates\Registration::MAX_NAME ) ), mb_strlen( WPAffiliateCaptain\Affiliates\Registration::cap( str_repeat( 'x', 9000 ), WPAffiliateCaptain\Affiliates\Registration::MAX_NOTE ) ) ) );
+check( 'ZC2 opt-in mail takes no applicant text (address + link only)', 2, ( new ReflectionMethod( 'WPAffiliateCaptain\Affiliates\Notifications', 'confirm_application' ) )->getNumberOfParameters() );
+$GLOBALS['test_mails'] = array();
+WPAffiliateCaptain\Affiliates\Notifications::confirm_application( 'zc-target@example.de', 'https://example.de/?wpac_confirm=abc' );
+check( 'ZC2 opt-in mail goes to the address', 'zc-target@example.de', $GLOBALS['test_mails'][0][0] ?? '' );
+// ZC3 W33: confirmation token states (GET shows a button; a second click shows success).
+check( 'ZC3 unknown token is expired', 'expired', WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-unknown' ) );
+set_transient( 'wpac_app_' . hash( 'sha256', 'zc-token' ), array( 'email' => 'zc@example.de', 'user_id' => 0 ), 3600 );
+check( 'ZC3 stored application is pending (viewing does not consume it)', array( 'pending', 'pending' ), array( WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-token' ), WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-token' ) ) );
+delete_transient( 'wpac_app_' . hash( 'sha256', 'zc-token' ) );
+set_transient( 'wpac_appdone_' . hash( 'sha256', 'zc-token' ), 1, 3600 );
+check( 'ZC3 confirmed token shows success again', 'done', WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-token' ) );
+// ZC4 O3: e-mail change token stored only as a hash; tokens stored by older versions still work.
+$zc_hash = WPAffiliateCaptain\Portal\Portal::email_token_hash( 'AbcDef123' );
+check( 'ZC4 hash is not the token', false, false !== strpos( $zc_hash, 'abcdef123' ) );
+check( 'ZC4 hashed token matches (case-insensitive like the link), wrong token not', array( true, true, false, false ), array( WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token_hash' => $zc_hash ), 'abcdef123' ), WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token' => 'abcdef123' ), 'abcdef123' ), WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token_hash' => $zc_hash ), 'abcdef124' ), WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token_hash' => $zc_hash ), '' ) ) );
+// ZC5 O3: monitoring token hashed; plaintext of older versions is hashed on first read.
+$zc_settings = get_option( 'wpac_settings' );
+update_option( 'wpac_settings', array_merge( $zc_settings, array( 'monitor_token' => 'PlainToken12345678901' ) ) );
+Settings::flush_cache();
+check( 'ZC5 legacy plaintext token hashed on read and still accepted', array( true, true, false ), array( 0 === strpos( (string) Settings::get( 'monitor_token' ), Settings::MONITOR_HASH ), Settings::monitor_token_matches( 'PlainToken12345678901' ), Settings::monitor_token_matches( 'PlainToken12345678902' ) ) );
+check( 'ZC5 hash persisted', true, 0 === strpos( (string) get_option( 'wpac_settings' )['monitor_token'], Settings::MONITOR_HASH ) );
+$zc_new = Settings::sanitize( array( 'monitor_token' => 'NewToken1234567890123' ) );
+check( 'ZC5 new token stored as hash', array( true, false ), array( $zc_new['monitor_token'] === Settings::monitor_token_hash( 'NewToken1234567890123' ), false !== strpos( $zc_new['monitor_token'], 'NewToken' ) ) );
+check( 'ZC5 empty field keeps the token, "remove" clears it', array( Settings::get( 'monitor_token' ), '' ), array( Settings::sanitize( array( 'monitor_token' => '' ) )['monitor_token'], Settings::sanitize( array( 'monitor_token' => '', 'monitor_token_clear' => '1' ) )['monitor_token'] ) );
+update_option( 'wpac_settings', $zc_settings );
+Settings::flush_cache();
+// ZC6 O10: unsigned (legacy/forged) cookies are never accepted.
+update_option( 'wpac_cookie_signed_since', time() );
+check( 'ZC6 unsigned cookie rejected even with the old transition option', null, WPAffiliateCaptain\Tracking\Tracker::parse_cookie( 'ABCD-EFGH||0|' . time() ) );
+delete_option( 'wpac_cookie_signed_since' );
+// ZC7 O14: beacon script is the same on every request; per-request values only in the data block.
+$zc_cfg = array( 'url' => 'https://example.de/wp-json/wpac/v1/touch', 'param' => 'partner', 'ref' => 0 );
+check( 'ZC7 static beacon script without "gen"', array( true, false ), array( WPAffiliateCaptain\Tracking\Tracker::beacon_script( $zc_cfg ) === WPAffiliateCaptain\Tracking\Tracker::beacon_script( $zc_cfg ), false !== strpos( WPAffiliateCaptain\Tracking\Tracker::beacon_script( $zc_cfg ), '"gen"' ) ) );
+check( 'ZC7 time only on pages that captured the referral', array( array( 'content' => 5 ), array( 'content' => 5, 'cap' => 1, 'gen' => 1000 ) ), array( WPAffiliateCaptain\Tracking\Tracker::beacon_data( 5, false, 1000 ), WPAffiliateCaptain\Tracking\Tracker::beacon_data( 5, true, 1000 ) ) );
+// ZC8 W10: block checkout code check is rate limited (same limit as the classic checkout).
+$_SERVER['REMOTE_ADDR'] = '198.51.100.20';
+$zc_last = true;
+for ( $zc_i = 0; $zc_i < 22; $zc_i++ ) {
+	$zc_last = WPAffiliateCaptain\Integrations\WooCommerce\CheckoutField::blocks_validate( 'ZCNOPE' . $zc_i );
+}
+check( 'ZC8 block checkout refuses after 20 code checks per minute', 'Too many attempts. Please wait a minute and try again.', $zc_last instanceof WP_Error ? $zc_last->get_error_message() : 'no error' );
+check( 'ZC8 empty block field is valid', true, WPAffiliateCaptain\Integrations\WooCommerce\CheckoutField::blocks_validate( '' ) );
+// ZC9 W13: without WPML/Polylang the page itself is used; with WPML its translation.
+check( 'ZC9 page id unchanged without a multilingual plugin', 12, WPAffiliateCaptain\Core\Locale::page_id( 12, 'de_DE' ) );
+check( 'ZC9 partner locale falls back to the site language', 'en_US', WPAffiliateCaptain\Core\Locale::for_affiliate( (object) array( 'user_id' => 0 ) ) );
+if ( null === $zc_ip ) { unset( $_SERVER['REMOTE_ADDR'] ); } else { $_SERVER['REMOTE_ADDR'] = $zc_ip; }
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

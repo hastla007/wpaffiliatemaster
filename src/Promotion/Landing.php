@@ -27,7 +27,51 @@ final class Landing {
 		add_filter( 'request', array( __CLASS__, 'fallback_to_page' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'redirect' ), 1 );
 		add_shortcode( 'wpac_partner_welcome', array( __CLASS__, 'welcome' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'no_cache_welcome' ), 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush' ), 99 );
+	}
+
+	/**
+	 * The personal welcome box differs per visitor: the page must not go into a page,
+	 * edge or Varnish cache. Shortcodes run after the headers were sent, so this is
+	 * decided before any output (DONOTCACHEPAGE plus no-cache headers).
+	 */
+	public static function no_cache_welcome() {
+		if ( self::current_post_has( 'wpac_partner_welcome', 'wpac/partner-welcome' ) ) {
+			self::no_cache();
+		}
+	}
+
+	/**
+	 * Whether the queried post contains a shortcode or block (in its content).
+	 *
+	 * @param string $shortcode Shortcode tag.
+	 * @param string $block     Block name.
+	 * @return bool
+	 */
+	public static function current_post_has( $shortcode, $block ) {
+		if ( ! is_singular() ) {
+			return false;
+		}
+		$post = get_post( get_queried_object_id() );
+		if ( ! $post ) {
+			return false;
+		}
+		$content = (string) $post->post_content;
+		return has_shortcode( $content, $shortcode ) || ( function_exists( 'has_block' ) && has_block( $block, $content ) );
+	}
+
+	/**
+	 * Mark the current response as not cacheable (page caches honour DONOTCACHEPAGE,
+	 * proxies/CDNs the Cache-Control headers).
+	 */
+	public static function no_cache() {
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
 	}
 
 	/**
@@ -115,7 +159,8 @@ final class Landing {
 		}
 		$code = CodeRepository::main_code( (int) $aff->id );
 		$page = $aff && (int) $aff->landing_page_id ? (int) $aff->landing_page_id : (int) Settings::get( 'landing_page_id' );
-		$url  = $page ? get_permalink( $page ) : home_url( '/' );
+		// The landing page in the visitor's current language (WPML/Polylang).
+		$url = $page ? \WPAffiliateCaptain\Core\Locale::page_url( $page ) : home_url( '/' );
 		if ( $code ) {
 			// The code is passed on: a slug could equal another partner's code (codes win when
 			// resolving), and a slug resolves to any valid code of the partner, not the main one.
@@ -132,6 +177,9 @@ final class Landing {
 		exit;
 	}
 
+	/** @var array<string,bool> Rate-limit decision per URL code in this request. */
+	private static $url_code_allowed = array();
+
 	/**
 	 * [wpac_partner_welcome text="Empfohlen von %s"].
 	 *
@@ -141,10 +189,21 @@ final class Landing {
 	public static function welcome( $atts = array() ) {
 		/* translators: %s: partner name */
 		$atts  = shortcode_atts( array( 'text' => __( 'Recommended by %s', 'wp-affiliate-captain' ) ), (array) $atts, 'wpac_partner_welcome' );
+		// Visitor-specific output must not end up in a page cache (also when the box stays
+		// empty: the cached copy would be served to visitors with a partner link).
+		self::no_cache();
 		$param = (string) Settings::get( 'referral_param' );
 		$code  = '';
 		if ( isset( $_GET[ $param ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$code = sanitize_text_field( wp_unslash( $_GET[ $param ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			// A code from the URL is checked against the code-check limit (once per request),
+			// so the box cannot be used to test codes and reveal partner names.
+			if ( '' !== $code && ! isset( self::$url_code_allowed[ $code ] ) ) {
+				self::$url_code_allowed[ $code ] = \WPAffiliateCaptain\Tracking\RateLimiter::allow( 'code_check', 20, MINUTE_IN_SECONDS );
+			}
+			if ( '' !== $code && ! self::$url_code_allowed[ $code ] ) {
+				return '';
+			}
 		} else {
 			$touch = Tracker::current_touch();
 			$code  = $touch ? (string) $touch['code'] : '';
@@ -158,13 +217,6 @@ final class Landing {
 			return '';
 		}
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
-		// Visitor-specific output must not end up in a page cache.
-		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
-			define( 'DONOTCACHEPAGE', true );
-		}
-		if ( ! headers_sent() ) {
-			nocache_headers();
-		}
 		// No sprintf(): editor text may contain "%" (e.g. "10% Rabatt") – only %s is replaced.
 		$text = (string) $atts['text'];
 		$out  = '<div class="wpac-welcome"><strong>' . ( false !== strpos( $text, '%s' ) ? str_replace( '%s', esc_html( $aff->name ), esc_html( $text ) ) : esc_html( $text . ' ' . $aff->name ) ) . '</strong>';

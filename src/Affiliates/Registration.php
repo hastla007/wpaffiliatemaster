@@ -22,6 +22,54 @@ final class Registration {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_action( 'init', array( __CLASS__, 'handle_submit' ) );
 		add_action( 'init', array( __CLASS__, 'handle_confirm' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'no_cache' ), 2 );
+	}
+
+	/** Maximum lengths of the application fields (characters). */
+	const MAX_NAME    = 100;
+	const MAX_EMAIL   = 100;
+	const MAX_URL     = 500;
+	const MAX_CHANNEL = 100;
+	const MAX_TEXT    = 255;
+	const MAX_NOTE    = 2000;
+
+	/** Opt-in mails per recipient address and day. */
+	const MAILS_PER_ADDRESS = 2;
+
+	/**
+	 * Pages with the form carry a nonce (valid for 24 hours) and the confirmation step
+	 * is personal: they must not be served from a page cache. Decided before output,
+	 * because shortcodes run after the headers were sent.
+	 */
+	public static function no_cache() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$confirm = ! empty( $_GET['wpac_confirm'] ) || ! empty( $_GET['wpac_reg'] ) || ! empty( $_GET['wpac_err'] );
+		$page    = (int) Settings::get( 'registration_page_id' );
+		if ( $confirm || ( $page && is_page( $page ) ) || \WPAffiliateCaptain\Promotion\Landing::current_post_has( self::SHORTCODE, 'wpac/registration' ) ) {
+			\WPAffiliateCaptain\Promotion\Landing::no_cache();
+		}
+	}
+
+	/**
+	 * Shorten a value to a maximum length.
+	 *
+	 * @param string $value Value.
+	 * @param int    $max   Characters.
+	 * @return string
+	 */
+	public static function cap( $value, $max ) {
+		return function_exists( 'mb_substr' ) ? mb_substr( (string) $value, 0, (int) $max ) : substr( (string) $value, 0, (int) $max );
+	}
+
+	/**
+	 * Whether another opt-in/notice mail may go to this address today. Keyed by a salted
+	 * hash of the address (not by IP), so the form cannot be used to flood one inbox.
+	 *
+	 * @param string $email Address.
+	 * @return bool
+	 */
+	public static function mail_allowed( $email ) {
+		return RateLimiter::allow_for( 'register_mail', strtolower( trim( (string) $email ) ), self::MAILS_PER_ADDRESS, DAY_IN_SECONDS );
 	}
 
 	/**
@@ -71,19 +119,19 @@ final class Registration {
 			$value = isset( $_POST[ $name ] ) ? wp_unslash( $_POST[ $name ] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 			switch ( $field['type'] ) {
 				case 'textarea':
-					$value = sanitize_textarea_field( $value );
+					$value = self::cap( sanitize_textarea_field( is_string( $value ) ? $value : '' ), self::MAX_NOTE );
 					break;
 				case 'url':
-					$value = esc_url_raw( $value );
+					$value = esc_url_raw( self::cap( is_string( $value ) ? $value : '', self::MAX_URL ) );
 					break;
 				case 'number':
-					$value = is_numeric( $value ) ? (string) ( 0 + $value ) : '';
+					$value = is_string( $value ) && is_numeric( $value ) && strlen( $value ) <= 30 ? (string) ( 0 + $value ) : '';
 					break;
 				case 'checkbox':
 					$value = $value ? '1' : '';
 					break;
 				default:
-					$value = sanitize_text_field( $value );
+					$value = self::cap( sanitize_text_field( is_string( $value ) ? $value : '' ), self::MAX_TEXT );
 			}
 			if ( $field['required'] && '' === $value ) {
 				self::$field = 'wpac_f_' . $field['key'];
@@ -106,8 +154,8 @@ final class Registration {
 		}
 
 		$user  = wp_get_current_user();
-		$email = $user && $user->exists() ? $user->user_email : ( isset( $_POST['wpac_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_email'] ) ) : '' );
-		if ( ! is_email( $email ) ) {
+		$email = $user && $user->exists() ? $user->user_email : ( isset( $_POST['wpac_email'] ) && is_string( $_POST['wpac_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_email'] ) ) : '' );
+		if ( strlen( $email ) > self::MAX_EMAIL || ! is_email( $email ) ) {
 			self::$field = 'wpac_email';
 			self::back( $redirect, 'invalid' );
 		}
@@ -117,11 +165,12 @@ final class Registration {
 
 		$data = array(
 			'user_id'          => $user && $user->exists() ? $user->ID : 0,
-			'name'             => isset( $_POST['wpac_name'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_name'] ) ) : '',
+			// Bounded lengths: the data waits in a transient (wp_options) until it is confirmed.
+			'name'             => isset( $_POST['wpac_name'] ) && is_string( $_POST['wpac_name'] ) ? self::cap( sanitize_text_field( wp_unslash( $_POST['wpac_name'] ) ), self::MAX_NAME ) : '',
 			'email'            => $email,
-			'website'          => isset( $_POST['wpac_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_website'] ) ) : '',
-			'channel'          => isset( $_POST['wpac_channel'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_channel'] ) ) : '',
-			'application_note' => isset( $_POST['wpac_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_note'] ) ) : '',
+			'website'          => isset( $_POST['wpac_website'] ) && is_string( $_POST['wpac_website'] ) ? esc_url_raw( self::cap( wp_unslash( $_POST['wpac_website'] ), self::MAX_URL ) ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- esc_url_raw().
+			'channel'          => isset( $_POST['wpac_channel'] ) && is_string( $_POST['wpac_channel'] ) ? self::cap( sanitize_text_field( wp_unslash( $_POST['wpac_channel'] ) ), self::MAX_CHANNEL ) : '',
+			'application_note' => isset( $_POST['wpac_note'] ) && is_string( $_POST['wpac_note'] ) ? self::cap( sanitize_textarea_field( wp_unslash( $_POST['wpac_note'] ) ), self::MAX_NOTE ) : '',
 			'application_data' => $application_data,
 			'group_id'         => $group_id,
 			'terms'            => $terms['page_id'] ? $terms + array( 'accepted_at' => Db::now() ) : null, // Version + hash accepted now.
@@ -131,36 +180,156 @@ final class Registration {
 		// Double opt-in for everyone, also logged-in users: WordPress never verifies an account
 		// e-mail, so someone could apply under another person's address (impersonation).
 		// Nothing is created until the e-mail address is confirmed.
-		// The response is identical whether or not the address is already known (no enumeration).
+		// The response is identical whether or not the address is already known (no enumeration),
+		// and also when the per-address mail limit is reached (no mail is sent then).
+		if ( ! self::mail_allowed( $email ) ) {
+			self::back( $redirect, '', 'confirm' );
+		}
 		if ( AffiliateRepository::find_by_email( $email ) ) {
 			Notifications::already_registered( $email );
 		} else {
 			$token = wp_generate_password( 32, false );
 			set_transient( 'wpac_app_' . hash( 'sha256', $token ), $data, 2 * DAY_IN_SECONDS );
-			Notifications::confirm_application( $email, $data['name'], add_query_arg( 'wpac_confirm', rawurlencode( $token ), $redirect ) );
+			Notifications::confirm_application( $email, add_query_arg( 'wpac_confirm', rawurlencode( $token ), $redirect ) );
 		}
 		self::back( $redirect, '', 'confirm' );
 	}
 
 	/**
-	 * Confirmation link from the opt-in e-mail.
+	 * Hash of a confirmation token (transient key part).
+	 *
+	 * @param string $token Token.
+	 * @return string
+	 */
+	private static function token_hash( $token ) {
+		return hash( 'sha256', (string) $token );
+	}
+
+	/**
+	 * State of a confirmation token: 'pending' (can be confirmed), 'done' (already
+	 * confirmed – a second click shows success), 'expired'.
+	 *
+	 * @param string $token Token.
+	 * @return string
+	 */
+	public static function token_state( $token ) {
+		if ( '' === (string) $token ) {
+			return 'expired';
+		}
+		$hash = self::token_hash( $token );
+		if ( is_array( get_transient( 'wpac_app_' . $hash ) ) ) {
+			return 'pending';
+		}
+		return get_transient( 'wpac_appdone_' . $hash ) ? 'done' : 'expired';
+	}
+
+	/**
+	 * Whether the current visitor may confirm an application bound to a WordPress account:
+	 * only while logged in as that account and while its e-mail address is still the one
+	 * the confirmation went to. WordPress (and WooCommerce's account page) let users change
+	 * their address without verifying it, so the link alone would let someone attach a
+	 * partner account with another person's address to their own login.
+	 *
+	 * @param array $data Application data.
+	 * @return bool
+	 */
+	private static function account_matches( array $data ) {
+		$user_id = isset( $data['user_id'] ) ? (int) $data['user_id'] : 0;
+		if ( ! $user_id ) {
+			return true;
+		}
+		$user = get_userdata( $user_id );
+		return $user && get_current_user_id() === $user_id && 0 === strcasecmp( (string) $user->user_email, (string) $data['email'] );
+	}
+
+	/**
+	 * Confirmation from the opt-in e-mail. Opening the link (GET) only shows a
+	 * "Confirm application" button, so mail scanners that open links (Safe Links etc.)
+	 * do not consume it; the button posts the token. The token itself is the secret.
 	 */
 	public static function handle_confirm() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the token itself is the secret.
-		if ( empty( $_GET['wpac_confirm'] ) ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- the token itself is the secret (CSRF-proof).
+		if ( empty( $_POST['wpac_confirm_app'] ) || empty( $_POST['wpac_confirm'] ) || ! is_string( $_POST['wpac_confirm'] ) ) {
 			return;
 		}
-		$token = sanitize_text_field( wp_unslash( $_GET['wpac_confirm'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$key   = 'wpac_app_' . hash( 'sha256', $token );
-		$data  = get_transient( $key );
-		$back  = remove_query_arg( array( 'wpac_confirm', 'wpac_reg', 'wpac_err' ) );
+		$token = sanitize_text_field( wp_unslash( $_POST['wpac_confirm'] ) );
+		// phpcs:enable
+		$hash  = self::token_hash( $token );
+		$key   = 'wpac_app_' . $hash;
+		$back  = wpac_return_url();
+		$state = self::token_state( $token );
+		if ( 'done' === $state ) {
+			self::back( $back, '', 'ok' );
+		}
+		if ( 'pending' !== $state ) {
+			self::back( $back, 'expired' );
+		}
+		// One confirmation at a time (double click, two tabs): the other request shows success.
+		$lock = Db::lock( 'wpac_appconf_' . substr( $hash, 0, 32 ), MINUTE_IN_SECONDS );
+		if ( '' === $lock ) {
+			self::back( $back, '', 'ok' );
+		}
+		$data = get_transient( $key );
 		if ( ! is_array( $data ) ) {
-			self::back( home_url( $back ), 'expired' );
+			Db::unlock( 'wpac_appconf_' . substr( $hash, 0, 32 ), $lock );
+			self::back( $back, get_transient( 'wpac_appdone_' . $hash ) ? '' : 'expired', 'ok' );
+		}
+		if ( ! self::account_matches( $data ) ) {
+			Db::unlock( 'wpac_appconf_' . substr( $hash, 0, 32 ), $lock );
+			// Back to the confirmation step, which asks to log in with the right account.
+			wp_safe_redirect( add_query_arg( 'wpac_confirm', rawurlencode( $token ), remove_query_arg( array( 'wpac_reg', 'wpac_err', 'wpac_confirm', 'wpac_form' ), $back ) ) );
+			exit;
+		}
+		$result = self::finalize( $data );
+		if ( ! is_wp_error( $result ) ) {
+			// Repeated clicks within the link's lifetime show success instead of "expired".
+			set_transient( 'wpac_appdone_' . $hash, 1, 2 * DAY_IN_SECONDS );
 		}
 		delete_transient( $key );
-		$result = self::finalize( $data );
-		$target = ! empty( $data['redirect'] ) ? $data['redirect'] : home_url( $back );
+		Db::unlock( 'wpac_appconf_' . substr( $hash, 0, 32 ), $lock );
+		$target = ! empty( $data['redirect'] ) ? $data['redirect'] : $back;
 		self::back( $target, is_wp_error( $result ) ? 'exists' : '', 'ok' );
+	}
+
+	/**
+	 * Confirmation step shown for ?wpac_confirm=TOKEN (GET).
+	 *
+	 * @param string $token Token.
+	 * @return string HTML.
+	 */
+	private static function render_confirm( $token ) {
+		$state = self::token_state( $token );
+		if ( 'done' === $state ) {
+			return self::success_notice();
+		}
+		if ( 'pending' !== $state ) {
+			return '<div class="wpac-notice wpac-notice--error" role="alert">' . esc_html__( 'The confirmation link is invalid or has expired. Please apply again.', 'wp-affiliate-captain' ) . '</div>';
+		}
+		$data = get_transient( 'wpac_app_' . self::token_hash( $token ) );
+		$data = is_array( $data ) ? $data : array();
+		if ( ! self::account_matches( $data ) ) {
+			$here = add_query_arg( 'wpac_confirm', rawurlencode( $token ), get_permalink() ? get_permalink() : home_url( '/' ) );
+			return '<div class="wpac-notice">' . esc_html__( 'You applied while logged in. Please log in with the same user account to confirm your application.', 'wp-affiliate-captain' ) . ' <a href="' . esc_url( wp_login_url( $here ) ) . '">' . esc_html__( 'Log in', 'wp-affiliate-captain' ) . '</a></div>';
+		}
+		return '<form class="wpac-form" method="post">'
+			. '<p>' . esc_html__( 'Please confirm your partner application with the button below.', 'wp-affiliate-captain' ) . '</p>'
+			. wp_referer_field( false )
+			. '<input type="hidden" name="wpac_confirm_app" value="1">'
+			. '<input type="hidden" name="wpac_confirm" value="' . esc_attr( $token ) . '">'
+			. '<p><button type="submit" class="wpac-button">' . esc_html__( 'Confirm application', 'wp-affiliate-captain' ) . '</button></p>'
+			. '</form>';
+	}
+
+	/**
+	 * Success message after the confirmation.
+	 *
+	 * @return string HTML.
+	 */
+	private static function success_notice() {
+		$msg = Settings::get( 'auto_approve' )
+			? __( 'Thank you! Your partner account is active. Check your e-mail for login details.', 'wp-affiliate-captain' )
+			: __( 'Thank you for your application! We will review it and get back to you by e-mail.', 'wp-affiliate-captain' );
+		return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html( $msg ) . '</div>';
 	}
 
 	/**
@@ -294,14 +463,14 @@ final class Registration {
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		if ( ! empty( $_GET['wpac_confirm'] ) && is_string( $_GET['wpac_confirm'] ) ) {
+			return self::render_confirm( sanitize_text_field( wp_unslash( $_GET['wpac_confirm'] ) ) );
+		}
 		if ( isset( $_GET['wpac_reg'] ) && 'confirm' === $_GET['wpac_reg'] ) {
 			return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html__( 'Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application.', 'wp-affiliate-captain' ) . '</div>';
 		}
 		if ( isset( $_GET['wpac_reg'] ) ) {
-			$msg = Settings::get( 'auto_approve' )
-				? __( 'Thank you! Your partner account is active. Check your e-mail for login details.', 'wp-affiliate-captain' )
-				: __( 'Thank you for your application! We will review it and get back to you by e-mail.', 'wp-affiliate-captain' );
-			return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html( $msg ) . '</div>';
+			return self::success_notice();
 		}
 
 		$user = wp_get_current_user();
@@ -309,7 +478,7 @@ final class Registration {
 			$aff = AffiliateRepository::find_by_user( $user->ID );
 			if ( $aff ) {
 				$portal = (int) Settings::get( 'portal_page_id' );
-				$link   = $portal ? ' <a href="' . esc_url( get_permalink( $portal ) ) . '">' . esc_html__( 'Go to partner area', 'wp-affiliate-captain' ) . '</a>' : '';
+				$link   = $portal ? ' <a href="' . esc_url( Notifications::portal_url() ) . '">' . esc_html__( 'Go to partner area', 'wp-affiliate-captain' ) . '</a>' : '';
 				return '<div class="wpac-notice">' . esc_html__( 'You already have a partner account.', 'wp-affiliate-captain' ) . $link . '</div>';
 			}
 		}
