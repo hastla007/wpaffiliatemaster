@@ -98,4 +98,24 @@ add_action(
 	}
 );
 
+// Deleting the old copy ("wp-affiliate-captain", up to 0.10) runs its uninstall routine, which
+// would remove the shared data when "Delete all data" is on: this copy keeps the data.
+add_action(
+	'pre_uninstall_plugin',
+	static function ( $plugin ) {
+		if ( 'wp-affiliate-captain/wp-affiliate-captain.php' !== $plugin ) {
+			return;
+		}
+		add_filter(
+			'option_wpac_settings',
+			static function ( $settings ) {
+				if ( is_array( $settings ) ) {
+					$settings['delete_on_uninstall'] = 0;
+				}
+				return $settings;
+			}
+		);
+	}
+);
+
 add_action( 'plugins_loaded', array( \WPAffiliateCaptain\Plugin::class, 'boot' ), 5 );

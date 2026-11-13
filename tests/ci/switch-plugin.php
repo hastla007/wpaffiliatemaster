@@ -37,4 +37,18 @@ require $wp_dir . '/wp-load.php';
 $active = (array) get_option( 'active_plugins', array() );
 $ok     = in_array( $new, $active, true ) && ! in_array( $old, $active, true ) && class_exists( 'WPAffiliateCaptain\\Plugin' ) && $new === plugin_basename( WPAC_FILE );
 echo ( $ok ? 'ok  ' : 'FAIL' ), " old copy deactivated, new copy active (", implode( ', ', $active ), ")\n";
-exit( $ok ? 0 : 1 );
+// Deleting the old copy (its uninstall routine) must not remove the shared data, even with
+// "Delete all data" switched on.
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+global $wpdb;
+$settings                        = (array) get_option( 'wpac_settings', array() );
+$settings['delete_on_uninstall'] = 1;
+update_option( 'wpac_settings', $settings );
+if ( is_file( WP_PLUGIN_DIR . '/' . $old ) ) {
+	uninstall_plugin( $old );
+}
+$kept = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->prefix . 'wpac_affiliates' ) ) === $wpdb->prefix . 'wpac_affiliates';
+$settings['delete_on_uninstall'] = 0;
+update_option( 'wpac_settings', $settings );
+echo ( $kept ? 'ok  ' : 'FAIL' ), " deleting the old copy keeps the data\n";
+exit( $ok && $kept ? 0 : 1 );

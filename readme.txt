@@ -200,7 +200,7 @@ Review of all modules (security, money, legal, operations, usability):
 == Upgrade Notice ==
 
 = 0.11.0 =
-The plugin is now called "Affiliate Captain" and lives in the folder "affiliate-captain" (WordPress.org does not allow "WP" in plugin names). Install it next to the old "WP Affiliate Captain" and activate it: the old copy is switched off automatically and all data stays. Then delete the old copy only if "Delete all data" is off (Settings → Reports & data). Requires WordPress 6.3 or newer. Database update to schema 9 runs automatically after the update – make a backup first. New: CSV import of partners and program export; the VIES check of VAT IDs can be switched off.
+The plugin is now called "Affiliate Captain" and lives in the folder "affiliate-captain" (WordPress.org does not allow "WP" in plugin names). Install it next to the old "WP Affiliate Captain" and activate it: the old copy is switched off automatically and all data stays. Afterwards you can delete the old copy; its uninstall routine leaves the data alone while the new copy is active. Requires WordPress 6.3 or newer. Database update to schema 9 runs automatically after the update – make a backup first. New: CSV import of partners and program export; the VIES check of VAT IDs can be switched off.
 
 = 0.10.0 =
 Database update to schema 8 (new columns on payouts and payout items) – make a backup before updating. Payouts are now blocked with a clear reason when your own VAT ID, the terms page or a valid partner VAT ID is missing; check the payout preview after the update.
