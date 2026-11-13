@@ -870,6 +870,59 @@ Settings::flush_cache();
 delete_transient( 'wpac_monitor_alerted' );
 WPAffiliateCaptain\Core\Monitor::daily_alert();
 check( 'B30 daily alarm only once a day when something is critical', true, ! WPAffiliateCaptain\Core\Monitor::problems( true ) || (bool) get_transient( 'wpac_monitor_alerted' ) );
+// ABL-02/03 reinstatement after a won chargeback / reactivated order.
+$ri = sale( 9301, $rc, array( 50000 ) );
+$rid = (int) $ri['commission_ids'][0];
+refund( 9301, 'status-chargeback', array(), 'chargeback' );
+$sumr = static function () use ( $wpdb, $ct ) { return (int) $wpdb->get_var( "SELECT SUM(amount_minor) FROM {$ct} WHERE source_order_id = '9301' AND status <> 'rejected'" ); };
+check( 'A02 chargeback reverses the commission', 0, $sumr() );
+check( 'A02 chargeback won → open reversal rejected, commission back', array( 1, 5000 ), array( Ledger::reinstate( 'test', '9301', 'won' ), $sumr() ) );
+check( 'A02 reinstatement is idempotent', 0, Ledger::reinstate( 'test', '9301', 'won' ) );
+// Reversal already deducted in a payout → positive reinstatement booking.
+$ri2 = sale( 9302, $rc, array( 50000 ) );
+Ledger::transition( (int) $ri2['commission_ids'][0], 'approved' );
+refund( 9302, 'status-cancellation', array(), 'cancellation' );
+q( "UPDATE {$ct} SET status = 'paid', payout_id = 777 WHERE source_order_id = '9302'" );
+check( 'A03 reactivated order: reversal in a paid payout gets a reinstatement', array( 1, 'reinstatement', 5000 ), array( Ledger::reinstate( 'test', '9302', 'paid again' ), $wpdb->get_var( "SELECT kind FROM {$ct} WHERE source_order_id = '9302' ORDER BY id DESC LIMIT 1" ), (int) $wpdb->get_var( "SELECT amount_minor FROM {$ct} WHERE source_order_id = '9302' ORDER BY id DESC LIMIT 1" ) ) );
+check( 'A02 partial refunds are not reinstated', 0, ( function () use ( $rc ) { $p = sale( 9303, $rc, array( 50000 ) ); refund( 9303, 'r-partial', array( array( 'item_id' => '1', 'net_minor' => 10000 ) ) ); return Ledger::reinstate( 'test', '9303', 'x' ); } )() );
+// ABL-04 re-attribution: A reversed, B booked, refunds afterwards only hit B.
+$ra = AffiliateRepository::create( array( 'name' => 'Partner A', 'email' => 'pa@example.de', 'status' => 'active' ) );
+$rb = AffiliateRepository::create( array( 'name' => 'Partner B', 'email' => 'pb@example.de', 'status' => 'active' ) );
+sale( 9401, WPAffiliateCaptain\Codes\CodeRepository::main_code( $ra ), array( 100000 ) );
+$rs = WPAffiliateCaptain\Sales\ContractApi::normalize_sale( array( 'source' => 'test', 'order_id' => '9401', 'currency' => 'EUR', 'items' => array( array( 'item_id' => '1', 'product_id' => 10, 'name' => 'Kurs 1', 'net_minor' => 100000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'kunde@example.de' ) ) );
+$rr = Ledger::reassign( $rs, $rb, 'Partner B hat den Kunden nachweislich vermittelt' );
+$net = static function ( $aff ) use ( $wpdb, $ct ) { return (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$ct} WHERE source_order_id = '9401' AND affiliate_id = {$aff} AND status <> 'rejected'" ); };
+check( 'A04 reassigned: A reversed to 0, B booked 100 €', array( 'created', 0, 10000 ), array( is_array( $rr ) ? $rr['status'] : 'error', $net( $ra ), $net( $rb ) ) );
+check( 'A04 attribution now points to B', (int) $rb, (int) Ledger::attribution_for( 'test', '9401' )->affiliate_id );
+refund( 9401, 'after', array( array( 'item_id' => '1', 'net_minor' => 50000 ) ) );
+check( 'A04 a later refund only reduces B', array( 0, 5000 ), array( $net( $ra ), $net( $rb ) ) );
+check( 'A04 reason required; same partner refused', array( true, true ), array( is_wp_error( Ledger::reassign( $rs, $ra, '' ) ), is_wp_error( Ledger::reassign( $rs, $rb, 'x' ) ) ) );
+// ABL-06 a refund after the payout was created (not exported) is flagged; rebuild deducts it.
+$cb = AffiliateRepository::create( array( 'name' => 'Claw Partner', 'email' => 'claw@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $cb, array( 'tax_status' => 'private', 'legal_name' => 'Claw', 'address' => "Weg 1\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'Claw', 'iban' => 'DE89370400440532013000' ) );
+$cs = sale( 9501, WPAffiliateCaptain\Codes\CodeRepository::main_code( $cb ), array( 1000000 ) );
+Ledger::transition( (int) $cs['commission_ids'][0], 'approved' );
+$cp = PayoutService::create_for_affiliate( $cb, gmdate( 'Y-m-d' ), 'EUR' );
+refund( 9501, 'late', array( array( 'item_id' => '1', 'net_minor' => 400000 ) ) );
+foreach ( $wpdb->get_col( "SELECT id FROM {$ct} WHERE parent_id = " . (int) $cs['commission_ids'][0] ) as $child ) { Ledger::transition( (int) $child, 'approved' ); }
+check( 'A06 refund after the payout run is flagged on the unexported payout', true, isset( PayoutService::clawbacks()[ $cp ] ) );
+$cp2 = PayoutService::rebuild( $cp );
+check( 'A06 rebuilt payout pays 600 € instead of 1.000 €', array( 'cancelled', 60000 ), array( PayoutService::find( $cp )->status, (int) PayoutService::find( $cp2 )->net_minor ) );
+// ABL-07 claim back a negative balance of a terminated partner.
+$dn = AffiliateRepository::create( array( 'name' => 'Ended Partner', 'email' => 'ended@example.de', 'status' => 'active' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $dn, 'source' => 'test', 'source_order_id' => 'd1', 'kind' => 'refund', 'currency' => 'EUR', 'amount_minor' => -2500, 'status' => 'approved', 'idempotency_key' => 'd1', 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+WPAffiliateCaptain\Commissions\Balance::post( $dn, 'EUR', 'approved', -2500, (int) $wpdb->insert_id, 0, 'test' );
+AffiliateRepository::set_status( $dn, 'terminated', 'Ende' );
+check( 'A07 terminated partner with negative balance is listed', true, (bool) array_filter( WPAffiliateCaptain\Commissions\Dunning::candidates(), static function ( $c ) use ( $dn ) { return $c['affiliate'] && (int) $c['affiliate']->id === (int) $dn; } ) );
+check( 'A07 payment request levels 1, 2, 3, then no more', array( 1, 2, 3, true ), array( WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ), WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ), WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ), is_wp_error( WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ) ) ) );
+check( 'A07 repayment larger than the balance refused', true, is_wp_error( WPAffiliateCaptain\Commissions\Dunning::record_repayment( $dn, 'EUR', 3000, 'x' ) ) );
+WPAffiliateCaptain\Commissions\Dunning::record_repayment( $dn, 'EUR', 2500, 'Überweisung' );
+check( 'A07 repayment settles the balance and ends the dunning', array( 0, array() ), array( WPAffiliateCaptain\Commissions\Dunning::open( $dn, 'EUR' ), WPAffiliateCaptain\Commissions\Dunning::history( $dn, 'EUR' ) ) );
+// ABL-09 transfer list for any currency.
+$tl = PayoutService::transfer_csv( array( $cp2 ) );
+check( 'A09 transfer list has the IBAN and marks the payout exported', array( true, 'exported' ), array( is_array( $tl ) && 'DE89370400440532013000' === $tl[1][0][2], PayoutService::find( $cp2 )->status ) );
+check( 'A09 no second export without "export again"', true, is_wp_error( PayoutService::transfer_csv( array( $cp2 ) ) ) );
+check( 'A accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 check( 'Y15 retention per country', array( 8, 7, 10, 10 ), array( WPAffiliateCaptain\Privacy\Retention::minimum_years( 'DE' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'AT' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'CH' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'FR' ) ) );
 // Audit log clean-up: commission entries are kept like the other booking records; nothing during a hold.
 q( 'DELETE FROM ' . t( 'audit' ) );

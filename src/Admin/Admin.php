@@ -270,10 +270,13 @@ final class Admin {
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'dunning_send'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'repayment'         => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'commission_status' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'commission_export' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'payout_run'        => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'objection_resolve' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'payout_rebuild'    => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_bulk'       => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_export'     => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_request_process' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),

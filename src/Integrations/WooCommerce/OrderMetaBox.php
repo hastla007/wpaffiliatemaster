@@ -60,6 +60,23 @@ final class OrderMetaBox {
 			echo esc_html__( 'Method', 'wp-affiliate-captain' ) . ': ' . esc_html( $attr->method ) . '<br>';
 			echo esc_html__( 'Commission', 'wp-affiliate-captain' ) . ': ' . esc_html( Money::format( $sum, $order->get_currency() ) ) . '</p>';
 			echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wpac-commissions&order_id=' . $order->get_id() . '&source=' . WooCommerce::SOURCE ) ) . '">' . esc_html__( 'View commissions', 'wp-affiliate-captain' ) . '</a></p>';
+			if ( $order->is_paid() ) {
+				// Re-attribution: the current partner's commission is reversed, the order is booked for the new one.
+				list( $others ) = AffiliateRepository::query(
+					array(
+						'status' => 'active',
+						'limit'  => 500,
+					)
+				);
+				wp_nonce_field( 'wpac_order_assign', '_wpac_order_nonce' );
+				echo '<details><summary>' . esc_html__( 'Attribute to another partner', 'wp-affiliate-captain' ) . '</summary><p><label for="wpac_reassign">' . esc_html__( 'New partner', 'wp-affiliate-captain' ) . '</label><select name="wpac_reassign" id="wpac_reassign" style="width:100%"><option value="">—</option>';
+				foreach ( $others as $a ) {
+					if ( (int) $a->id !== (int) $attr->affiliate_id ) {
+						echo '<option value="' . (int) $a->id . '">' . esc_html( $a->name . ' (' . $a->slug . ')' ) . '</option>';
+					}
+				}
+				echo '</select></p><p><label for="wpac_reassign_reason">' . esc_html__( 'Reason (required, kept in the history)', 'wp-affiliate-captain' ) . '</label><input type="text" name="wpac_reassign_reason" id="wpac_reassign_reason" style="width:100%"></p><p class="description">' . esc_html__( 'The current partner gets a cancellation correction; the order is booked for the new partner with the current rules.', 'wp-affiliate-captain' ) . '</p></details>';
+			}
 			return;
 		}
 
@@ -90,10 +107,25 @@ final class OrderMetaBox {
 	 * @param int $order_id Order.
 	 */
 	public static function save_meta_box( $order_id ) {
-		if ( empty( $_POST['wpac_assign'] ) || ! isset( $_POST['_wpac_order_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpac_order_nonce'] ) ), 'wpac_order_assign' ) ) {
+		if ( ! isset( $_POST['_wpac_order_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpac_order_nonce'] ) ), 'wpac_order_assign' ) ) {
 			return;
 		}
 		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
+			return;
+		}
+		if ( ! empty( $_POST['wpac_reassign'] ) ) {
+			$order = wc_get_order( $order_id );
+			if ( $order && $order->is_paid() ) {
+				$result = Ledger::reassign(
+					ContractApi::normalize_sale( OrderSync::payload( $order ) ),
+					absint( $_POST['wpac_reassign'] ),
+					isset( $_POST['wpac_reassign_reason'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_reassign_reason'] ) ) : ''
+				);
+				$order->add_order_note( is_wp_error( $result ) ? $result->get_error_message() : __( 'Order attributed to another partner.', 'wp-affiliate-captain' ) );
+			}
+			return;
+		}
+		if ( empty( $_POST['wpac_assign'] ) ) {
 			return;
 		}
 		$aff_id = absint( $_POST['wpac_assign'] );

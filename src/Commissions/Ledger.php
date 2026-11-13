@@ -59,6 +59,8 @@ final class Ledger {
 			'chargeback'   => __( 'Chargeback', 'wp-affiliate-captain' ),
 			'bonus'        => __( 'Monthly bonus', 'wp-affiliate-captain' ),
 			'writeoff'     => __( 'Write-off', 'wp-affiliate-captain' ),
+			'reinstatement' => __( 'Reinstatement', 'wp-affiliate-captain' ),
+			'repayment'    => __( 'Repayment by the partner', 'wp-affiliate-captain' ),
 		);
 	}
 
@@ -88,8 +90,11 @@ final class Ledger {
 	public static function record_sale( array $sale ) {
 		global $wpdb;
 
+		// Re-attribution (reassign()): the order keeps its attribution row, which moves to the new
+		// partner; the new commissions get their own keys (round number).
+		$round    = isset( $sale['reassign_round'] ) ? (int) $sale['reassign_round'] : 0;
 		$existing = self::attribution_for( $sale['source'], $sale['order_id'] );
-		if ( $existing ) {
+		if ( $existing && ! $round ) {
 			return array(
 				'status'         => 'duplicate',
 				'attribution_id' => (int) $existing->id,
@@ -190,29 +195,35 @@ final class Ledger {
 		$status  = $attr['review'] ? 'review' : 'pending';
 
 		$result = Db::transaction(
-			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $hold, $status ) {
+			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $hold, $status, $round, $existing ) {
 				// A concurrent report of the same order loses on the unique key; that is expected under
 				// load and answered as "duplicate" below, so it must not flood the PHP error log. Any other
 				// failure is raised as IntegrationException with the database error (retry queue, audit).
 				$suppress = $wpdb->suppress_errors( true );
-				$ok       = $wpdb->insert(
-					Db::table( 'attributions' ),
-					array(
-						'source'          => $sale['source'],
-						'source_order_id' => $sale['order_id'],
-						'affiliate_id'    => (int) $attr['affiliate_id'],
-						'code_id'         => (int) $attr['code_id'],
-						'method'          => substr( (string) $attr['method'], 0, 20 ),
-						'campaign'        => substr( (string) $attr['campaign'], 0, 100 ),
-						'content_id'      => (int) $attr['content_id'],
-						'consent'         => (int) $attr['consent'],
-						'touch_model'     => (string) $attr['touch_model'],
-						'status'          => $attr['review'] ? 'review' : 'attributed',
-						'note'            => (string) $attr['note'],
-						'created_at'      => Db::now(),
-					)
+				$fields   = array(
+					'source'          => $sale['source'],
+					'source_order_id' => $sale['order_id'],
+					'affiliate_id'    => (int) $attr['affiliate_id'],
+					'code_id'         => (int) $attr['code_id'],
+					'method'          => substr( (string) $attr['method'], 0, 20 ),
+					'campaign'        => substr( (string) $attr['campaign'], 0, 100 ),
+					'content_id'      => (int) $attr['content_id'],
+					'consent'         => (int) $attr['consent'],
+					'touch_model'     => (string) $attr['touch_model'],
+					'status'          => $attr['review'] ? 'review' : 'attributed',
+					'note'            => (string) $attr['note'],
+					'created_at'      => Db::now(),
 				);
+				if ( $round && $existing ) {
+					unset( $fields['created_at'] );
+					$ok = false !== $wpdb->update( Db::table( 'attributions' ), $fields, array( 'id' => (int) $existing->id ) );
+				} else {
+					$ok = $wpdb->insert( Db::table( 'attributions' ), $fields );
+				}
 				$wpdb->suppress_errors( $suppress );
+				if ( ! $ok && $round ) {
+					throw new IntegrationException( 'db_attribution', $wpdb->last_error );
+				}
 				if ( ! $ok ) {
 					// Unique (source, order) – a concurrent request won.
 					if ( self::attribution_for( $sale['source'], $sale['order_id'] ) ) {
@@ -225,7 +236,7 @@ final class Ledger {
 					}
 					throw new IntegrationException( 'db_attribution', $wpdb->last_error );
 				}
-				$attribution_id = (int) $wpdb->insert_id;
+				$attribution_id = $round && $existing ? (int) $existing->id : (int) $wpdb->insert_id;
 				$ids            = array();
 
 				foreach ( $sale['items'] as $item ) {
@@ -259,7 +270,7 @@ final class Ledger {
 						// Unfiltered line net: refunds arrive as line net and are scaled to the base.
 						'line_net'      => $line_net,
 					);
-					$key      = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item['item_id'];
+					$key      = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item['item_id'] . ( $round ? ':r' . $round : '' );
 					$ok       = $wpdb->insert(
 						Db::table( 'commissions' ),
 						array(
@@ -437,10 +448,169 @@ final class Ledger {
 			}
 		);
 		if ( $result['adjustment_ids'] ) {
+			// A correction of a commission that sits in a payout not sent to the bank yet: the
+			// payout would pay too much now and offset it only later (clawback). Flag it so the
+			// operator can rebuild the payout before exporting it.
+			foreach ( $originals as $o ) {
+				if ( (int) $o->payout_id ) {
+					\WPAffiliateCaptain\Payouts\PayoutService::flag_clawback( (int) $o->payout_id, $refund['source'] . ' #' . $refund['order_id'] );
+				}
+			}
 			self::maybe_forget_links( $refund['source'], $refund['order_id'] );
 			do_action( 'wpac_commission_adjusted', $refund, $result['adjustment_ids'] ); // After COMMIT.
 		}
 		return $result;
+	}
+
+	/**
+	 * Move an attributed order to another partner: the current partner's commission is reversed
+	 * (correction "cancellation" with the reason), the order is booked again for the new partner
+	 * with the same rules as a new sale. Both steps are in the audit log.
+	 *
+	 * @param array  $sale         Normalized sale payload of the order (as reported originally).
+	 * @param int    $affiliate_id New partner.
+	 * @param string $reason       Reason (required).
+	 * @return array|\WP_Error Result of the new booking.
+	 */
+	public static function reassign( array $sale, $affiliate_id, $reason ) {
+		$reason = trim( (string) $reason );
+		$attr   = self::attribution_for( $sale['source'], $sale['order_id'] );
+		$to     = AffiliateRepository::find( (int) $affiliate_id );
+		if ( '' === $reason ) {
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
+		}
+		if ( ! $attr ) {
+			return new \WP_Error( 'wpac_state', __( 'This order is not attributed yet; assign it instead.', 'wp-affiliate-captain' ) );
+		}
+		if ( ! $to || 'active' !== $to->status ) {
+			return new \WP_Error( 'wpac_state', __( 'The new partner must be active.', 'wp-affiliate-captain' ) );
+		}
+		if ( (int) $attr->affiliate_id === (int) $to->id ) {
+			return new \WP_Error( 'wpac_state', __( 'The order is already attributed to this partner.', 'wp-affiliate-captain' ) );
+		}
+		$from  = (int) $attr->affiliate_id;
+		$round = 1 + (int) get_option( 'wpac_reassign_' . md5( $sale['source'] . ':' . $sale['order_id'] ), 0 );
+		$label = sprintf( /* translators: %s: reason */ __( 'Reassigned to another partner: %s', 'wp-affiliate-captain' ), $reason );
+		self::record_refund(
+			array(
+				'source'    => $sale['source'],
+				'order_id'  => (string) $sale['order_id'],
+				'refund_id' => 'reassign-' . $round,
+				'type'      => 'cancellation',
+				'full'      => true,
+				'reason'    => $label,
+				'items'     => array(),
+			)
+		);
+		update_option( 'wpac_reassign_' . md5( $sale['source'] . ':' . $sale['order_id'] ), $round, false );
+		CustomerLinks::forget_order( $sale['source'], (string) $sale['order_id'] );
+		$sale['affiliate_id']       = (int) $to->id;
+		$sale['attribution_method'] = 'manual';
+		$sale['partner_code']       = '';
+		$sale['touch']              = null;
+		$sale['coupon_codes']       = array();
+		$sale['reassign_round']     = $round;
+		$result = self::record_sale( $sale );
+		Audit::log(
+			'attribution.reassigned',
+			'order',
+			0,
+			array(
+				'source' => $sale['source'],
+				'order'  => (string) $sale['order_id'],
+				'from'   => $from,
+				'to'     => (int) $to->id,
+				'reason' => $reason,
+			)
+		);
+		return $result;
+	}
+
+	/**
+	 * Reinstate the commission of an order whose full reversal (cancellation, chargeback, status
+	 * refund) turned out to be wrong: chargeback won, cancelled order paid after all. Reversals
+	 * that are not paid out yet are rejected; reversals already deducted in a payout get a
+	 * positive reinstatement booking (next payout). Idempotent per reversal.
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order.
+	 * @param string $reason   Reason (shown in the history).
+	 * @return int Number of reversals reinstated.
+	 */
+	public static function reinstate( $source, $order_id, $reason ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		// Full status reversals of this order (refund id "status-…"), not rejected.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$children = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE source = %s AND source_order_id = %s AND parent_id > 0 AND kind IN ('refund','cancellation','chargeback') AND status <> 'rejected' AND amount_minor < 0", $source, (string) $order_id ) );
+		$n        = 0;
+		foreach ( $children as $child ) {
+			$events = self::events( (int) $child->id );
+			$status_reversal = false;
+			foreach ( $events as $e ) {
+				if ( 0 === strpos( (string) $e->source_event_id, 'status-' ) ) {
+					$status_reversal = true;
+				}
+			}
+			if ( ! $status_reversal ) {
+				continue; // Partial refunds stay (money really went back).
+			}
+			if ( ! (int) $child->payout_id && in_array( $child->status, array( 'pending', 'review', 'approved' ), true ) ) {
+				if ( self::transition( (int) $child->id, 'rejected', $reason, get_current_user_id(), 0, $child->status ) ) {
+					++$n;
+				}
+				continue;
+			}
+			$rkey = self::key( 'reinstate:' . (int) $child->id );
+			if ( self::find_by_key( $rkey ) ) {
+				continue;
+			}
+			$parent = self::find( (int) $child->parent_id );
+			if ( ! $parent || 'rejected' === $parent->status ) {
+				continue;
+			}
+			$amount = -(int) $child->amount_minor;
+			Db::transaction(
+				static function () use ( $wpdb, $t, $child, $parent, $amount, $rkey, $reason ) {
+					$ok = $wpdb->insert(
+						$t,
+						array(
+							'affiliate_id'    => (int) $child->affiliate_id,
+							'source'          => $child->source,
+							'source_order_id' => $child->source_order_id,
+							'source_item_id'  => $child->source_item_id,
+							'kind'            => 'reinstatement',
+							'parent_id'       => (int) $parent->id,
+							'product_ref'     => $child->product_ref,
+							'description'     => substr( (string) $reason, 0, 255 ),
+							'currency'        => $child->currency,
+							'base_minor'      => -(int) $child->base_minor,
+							'amount_minor'    => $amount,
+							'rate_type'       => $child->rate_type,
+							'rate'            => $child->rate,
+							'rule_id'         => (int) $child->rule_id,
+							'status'          => 'approved',
+							'hold_until'      => Db::now(),
+							'idempotency_key' => $rkey,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
+						)
+					);
+					if ( ! $ok ) {
+						throw new IntegrationException( 'db_reinstatement', $wpdb->last_error );
+					}
+					$id = (int) $wpdb->insert_id;
+					Balance::post( (int) $child->affiliate_id, $child->currency, 'approved', $amount, $id, 0, 'reinstatement' );
+					self::event( $id, 'created', '', 'approved', $amount, 'reinstatement: ' . $reason, 'reinstate-' . (int) $child->id );
+					self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount, 'reinstatement', 'reinstate-' . (int) $child->id );
+				}
+			);
+			++$n;
+		}
+		if ( $n ) {
+			Audit::log( 'commission.reinstated', 'order', 0, array( 'source' => $source, 'order' => (string) $order_id, 'count' => $n ) );
+		}
+		return $n;
 	}
 
 	/**
@@ -904,7 +1074,8 @@ final class Ledger {
 		$t = Db::table( 'commissions' );
 		$for = $lock ? ' FOR UPDATE' : ''; // Constant fragment, no input.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND base_minor < 0{$for}", $id ) ) );
+		// Reinstatements give back the base of a reversal that turned out to be wrong.
+		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND ( base_minor < 0 OR kind = 'reinstatement' ){$for}", $id ) ) );
 	}
 
 	/**

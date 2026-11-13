@@ -131,6 +131,12 @@ msgstr "USt-IdNr. über VIES geprüft."
 msgid "No VAT ID stored."
 msgstr "Keine USt-IdNr. hinterlegt."
 
+msgid "Payment request (level %d) sent."
+msgstr "Zahlungsaufforderung (Stufe %d) gesendet."
+
+msgid "Repayment booked."
+msgstr "Rückzahlung gebucht."
+
 msgid "The negative balance was written off."
 msgstr "Der negative Saldo wurde ausgebucht."
 
@@ -461,8 +467,29 @@ msgstr "%s ausbuchen? Der Betrag wird nicht mehr mit künftigen Provisionen verr
 msgid "Write off negative balance"
 msgstr "Negativen Saldo ausbuchen"
 
-msgid "Otherwise the negative balance is offset against the next commissions. To claim it back, invoice the partner outside the plugin and write it off here once paid."
-msgstr "Andernfalls wird der negative Saldo mit den nächsten Provisionen verrechnet. Um ihn zurückzufordern, stellen Sie dem Partner außerhalb des Plugins eine Rechnung und buchen Sie ihn hier nach Zahlungseingang aus."
+msgid "Otherwise the negative balance is offset against the next commissions."
+msgstr "Sonst wird das negative Guthaben mit den nächsten Provisionen verrechnet."
+
+msgid "Claim back"
+msgstr "Zurückfordern"
+
+msgid "Level %1$d sent on %2$s"
+msgstr "Stufe %1$d gesendet am %2$s"
+
+msgid "Send payment request (level %d)"
+msgstr "Zahlungsaufforderung senden (Stufe %d)"
+
+msgid "All reminders were sent. Write the balance off or hand it over for collection."
+msgstr "Alle Mahnungen wurden gesendet. Schreiben Sie den Betrag ab oder geben Sie ihn ans Inkasso."
+
+msgid "Payment received"
+msgstr "Zahlung erhalten"
+
+msgid "Bank reference"
+msgstr "Verwendungszweck"
+
+msgid "Book repayment"
+msgstr "Rückzahlung buchen"
 
 msgid "Integrity check failed:"
 msgstr "Integritätsprüfung fehlgeschlagen:"
@@ -643,6 +670,9 @@ msgstr "Manuelle Zuordnung"
 
 msgid "App"
 msgstr "App"
+
+msgid "Subscription renewal"
+msgstr "Abo-Verlängerung"
 
 msgid "Draft saved. Approve it to make it visible to partners."
 msgstr "Entwurf gespeichert. Geben Sie ihn frei, damit Partner ihn sehen."
@@ -937,6 +967,12 @@ msgid_plural "Create %d payouts"
 msgstr[0] "%d Auszahlung anlegen"
 msgstr[1] "%d Auszahlungen anlegen"
 
+msgid "Payout cancelled and created again with the refund deducted."
+msgstr "Auszahlung storniert und mit abgezogener Erstattung neu erstellt."
+
+msgid "Payout cancelled; nothing is payable any more after the refund."
+msgstr "Auszahlung storniert; nach der Erstattung ist nichts mehr auszuzahlen."
+
 msgid "Please describe what was done (the partner is informed)."
 msgstr "Bitte beschreiben Sie, was getan wurde (der Partner wird informiert)."
 
@@ -978,6 +1014,21 @@ msgstr "Antrag abgelehnt."
 
 msgid "Not allowed."
 msgstr "Nicht erlaubt."
+
+msgid "Negative balances of ended partnerships (to claim back):"
+msgstr "Negative Guthaben beendeter Partnerschaften (zurückzufordern):"
+
+msgid "%1$s (%2$d of 3 reminders sent)"
+msgstr "%1$s (%2$d von 3 Mahnungen gesendet)"
+
+msgid "Payout %1$s (not exported yet) contains commissions that were refunded afterwards (%2$s). It would pay too much now; the difference is only deducted in the next payout."
+msgstr "Auszahlung %1$s (noch nicht exportiert) enthält Provisionen, die danach erstattet wurden (%2$s). Sie würde jetzt zu viel auszahlen; die Differenz würde erst in der nächsten Auszahlung abgezogen."
+
+msgid "Cancel this payout (cancellation document) and create it again with the refund deducted?"
+msgstr "Diese Auszahlung stornieren (Stornobeleg) und mit abgezogener Erstattung neu erstellen?"
+
+msgid "Cancel and create again"
+msgstr "Stornieren und neu erstellen"
 
 msgid "%1$s objected to credit note %2$s on %3$s:"
 msgstr "%1$s hat am %3$s der Gutschrift %2$s widersprochen:"
@@ -1056,6 +1107,9 @@ msgstr "— Aktion wählen —"
 
 msgid "Download SEPA XML"
 msgstr "SEPA-XML herunterladen"
+
+msgid "Download transfer list (CSV, any currency)"
+msgstr "Überweisungsliste herunterladen (CSV, jede Währung)"
 
 msgid "Mark as paid"
 msgstr "Als bezahlt markieren"
@@ -2011,6 +2065,27 @@ msgstr "Auszahlung storniert"
 msgid "Opening balance"
 msgstr "Eröffnungssaldo"
 
+msgid "The balance is not negative."
+msgstr "Der Saldo ist nicht negativ."
+
+msgid "[%s] Repayment of commissions"
+msgstr "[%s] Rückzahlung von Provisionen"
+
+msgid "[%s] Reminder: repayment of commissions"
+msgstr "[%s] Erinnerung: Rückzahlung von Provisionen"
+
+msgid "[%s] Final reminder: repayment of commissions"
+msgstr "[%s] Letzte Mahnung: Rückzahlung von Provisionen"
+
+msgid "Hello %1$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5$d days to:\n\n%3$s\nReference: %4$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail."
+msgstr "Hallo %1$s,\n\nnach Erstattungen und Stornierungen von Bestellungen, die Sie vermittelt haben, weist Ihr Partnerkonto einen Saldo von -%2$s aus. Da die Partnerschaft beendet ist, kann er nicht mehr mit neuen Provisionen verrechnet werden. Bitte überweisen Sie den Betrag innerhalb von %5$d Tagen an:\n\n%3$s\nVerwendungszweck: %4$s\n\nDie Buchungen sehen Sie im Partnerbereich. Wenn Sie das für falsch halten, antworten Sie bitte auf diese E-Mail."
+
+msgid "Please enter the amount received."
+msgstr "Bitte geben Sie den erhaltenen Betrag ein."
+
+msgid "The amount is larger than the negative balance."
+msgstr "Der Betrag ist größer als das negative Guthaben."
+
 msgid "Pending (hold period)"
 msgstr "Ausstehend (Haltefrist)"
 
@@ -2035,6 +2110,24 @@ msgstr "Monatsbonus"
 msgid "Write-off"
 msgstr "Ausbuchung"
 
+msgid "Reinstatement"
+msgstr "Wiederherstellung"
+
+msgid "Repayment by the partner"
+msgstr "Rückzahlung durch den Partner"
+
+msgid "This order is not attributed yet; assign it instead."
+msgstr "Diese Bestellung ist noch nicht zugeordnet; ordnen Sie sie stattdessen zu."
+
+msgid "The new partner must be active."
+msgstr "Der neue Partner muss aktiv sein."
+
+msgid "The order is already attributed to this partner."
+msgstr "Die Bestellung ist bereits diesem Partner zugeordnet."
+
+msgid "Reassigned to another partner: %s"
+msgstr "Einem anderen Partner zugeordnet: %s"
+
 msgid "Hold period ended"
 msgstr "Haltefrist abgelaufen"
 
@@ -2058,9 +2151,6 @@ msgstr "Eine Korrektur dieser Provision ist Teil einer Auszahlung. Stornieren Si
 
 msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
 msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung zugeordnet). Bitte laden Sie die Seite neu und versuchen Sie es erneut."
-
-msgid "The balance is not negative."
-msgstr "Der Saldo ist nicht negativ."
 
 msgid "Please enter a valid rate."
 msgstr "Bitte geben Sie einen gültigen Satz ein."
@@ -2232,6 +2322,18 @@ msgstr "Methode"
 msgid "View commissions"
 msgstr "Provisionen ansehen"
 
+msgid "Attribute to another partner"
+msgstr "Einem anderen Partner zuordnen"
+
+msgid "New partner"
+msgstr "Neuer Partner"
+
+msgid "Reason (required, kept in the history)"
+msgstr "Grund (Pflicht, wird im Verlauf gespeichert)"
+
+msgid "The current partner gets a cancellation correction; the order is booked for the new partner with the current rules."
+msgstr "Der bisherige Partner erhält eine Stornokorrektur; die Bestellung wird für den neuen Partner mit den aktuellen Regeln gebucht."
+
 msgid "Partner code entered: %s"
 msgstr "Eingegebener Partnercode: %s"
 
@@ -2247,6 +2349,9 @@ msgstr "Grund (Pflicht)"
 msgid "Commission is created once the order is paid."
 msgstr "Die Provision wird angelegt, sobald die Bestellung bezahlt ist."
 
+msgid "Order attributed to another partner."
+msgstr "Bestellung einem anderen Partner zugeordnet."
+
 msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
 msgstr "Affiliate Captain: dem Partner „%1$s“ zugeordnet (%2$s)."
 
@@ -2255,6 +2360,12 @@ msgstr "Bestellung erstattet"
 
 msgid "Order cancelled"
 msgstr "Bestellung storniert"
+
+msgid "Order paid again (chargeback won or cancellation reversed)"
+msgstr "Bestellung wieder bezahlt (Rückbuchung gewonnen oder Stornierung aufgehoben)"
+
+msgid "Partner commission reinstated."
+msgstr "Partnerprovision wiederhergestellt."
 
 msgid "This credit note cannot be objected to."
 msgstr "Dieser Gutschrift kann nicht widersprochen werden."
@@ -2355,6 +2466,12 @@ msgstr "Reverse Charge braucht Ihre USt-IdNr. (Einstellungen → Auszahlungen)"
 msgid "The partner's VAT ID is not valid according to VIES (reverse charge not possible)"
 msgstr "Die USt-IdNr. des Partners ist laut VIES nicht gültig (Reverse Charge nicht möglich)"
 
+msgid "Only payouts that were not exported yet can be rebuilt."
+msgstr "Nur noch nicht exportierte Auszahlungen können neu erstellt werden."
+
+msgid "Rebuilt after a refund"
+msgstr "Nach einer Erstattung neu erstellt"
+
 msgid "Your address and VAT ID or tax number are missing (Settings → Payouts) – credit notes need them."
 msgstr "Ihre Anschrift und USt-IdNr. oder Steuernummer fehlen (Einstellungen → Auszahlungen) – Gutschriften brauchen diese Angaben."
 
@@ -2370,23 +2487,23 @@ msgstr "Nur nicht bezahlte Auszahlungen können storniert werden."
 msgid "Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice."
 msgstr "Auszahlung %s wurde bereits per SEPA exportiert. Bestätigen Sie vor dem Stornieren, dass die Bank die Überweisung nicht ausgeführt hat – sonst könnten Provisionen doppelt ausgezahlt werden."
 
-msgid "Please enter the account holder and IBAN of your company account in the settings first."
-msgstr "Bitte hinterlegen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos in den Einstellungen."
-
-msgid "No exportable payouts selected."
-msgstr "Keine exportierbaren Auszahlungen ausgewählt."
-
 msgid "Payout %s was already exported. Tick \"export again\" only if the bank did not process the previous file."
 msgstr "Auszahlung %s wurde bereits exportiert. Wählen Sie „Erneut exportieren“ nur, wenn die Bank die vorherige Datei nicht verarbeitet hat."
-
-msgid "SEPA transfers are only possible in EUR."
-msgstr "SEPA-Überweisungen sind nur in EUR möglich."
 
 msgid "The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again."
 msgstr "Der Partner hat seine Auszahlungsdaten nach dem Anlegen der Auszahlung %s geändert. Bitte prüfen Sie die Änderung, stornieren Sie die Auszahlung und legen Sie sie neu an."
 
 msgid "Bank details for payout %s are missing or cannot be decrypted."
 msgstr "Die Bankdaten für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
+
+msgid "No exportable payouts selected."
+msgstr "Keine exportierbaren Auszahlungen ausgewählt."
+
+msgid "Please enter the account holder and IBAN of your company account in the settings first."
+msgstr "Bitte hinterlegen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos in den Einstellungen."
+
+msgid "SEPA transfers are only possible in EUR."
+msgstr "SEPA-Überweisungen sind nur in EUR möglich."
 
 msgid "Private individual"
 msgstr "Privatperson"

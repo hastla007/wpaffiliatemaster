@@ -65,7 +65,7 @@ final class Reports {
 				"SELECT affiliate_id, currency,
 					SUM(CASE WHEN kind = 'sale' AND status <> 'rejected' THEN base_minor ELSE 0 END) revenue,
 					SUM(CASE WHEN kind = 'sale' AND status <> 'rejected' THEN amount_minor ELSE 0 END) commission,
-					SUM(CASE WHEN kind IN ('refund','cancellation','chargeback') AND status <> 'rejected' THEN amount_minor ELSE 0 END) corrections,
+					SUM(CASE WHEN kind IN ('refund','cancellation','chargeback','reinstatement') AND status <> 'rejected' THEN amount_minor ELSE 0 END) corrections,
 					SUM(CASE WHEN kind = 'bonus' AND status <> 'rejected' THEN amount_minor ELSE 0 END) bonus,
 					SUM(CASE WHEN kind = 'writeoff' AND status <> 'rejected' THEN amount_minor ELSE 0 END) writeoffs
 				FROM {$c} WHERE created_at BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id, currency",

@@ -168,6 +168,25 @@ final class AffiliatesPage {
 				Admin::back( $r ? __( 'VAT ID checked against VIES.', 'wp-affiliate-captain' ) : __( 'No VAT ID stored.', 'wp-affiliate-captain' ), $r && 'invalid' === $r['status'] ? 'error' : 'success' );
 				break;
 
+			case 'dunning_send':
+				$level = \WPAffiliateCaptain\Commissions\Dunning::remind( $id, sanitize_text_field( Admin::post( 'currency' ) ) );
+				if ( is_wp_error( $level ) ) {
+					Admin::back( $level->get_error_message(), 'error' );
+				}
+				/* translators: %d: level */
+				Admin::back( sprintf( __( 'Payment request (level %d) sent.', 'wp-affiliate-captain' ), $level ) );
+				break;
+
+			case 'repayment':
+				$cur    = strtoupper( sanitize_text_field( Admin::post( 'currency' ) ) );
+				$amount = Money::to_minor( (string) Money::normalize_decimal( (string) Admin::post( 'amount' ) ), $cur );
+				$result = \WPAffiliateCaptain\Commissions\Dunning::record_repayment( $id, $cur, $amount, sanitize_text_field( Admin::post( 'note' ) ) );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'Repayment booked.', 'wp-affiliate-captain' ) );
+				break;
+
 			case 'balance_writeoff':
 				$result = \WPAffiliateCaptain\Commissions\Ledger::write_off( $id, sanitize_text_field( Admin::post( 'currency' ) ), sanitize_text_field( Admin::post( 'reason' ) ) );
 				if ( is_wp_error( $result ) ) {
@@ -566,7 +585,27 @@ final class AffiliatesPage {
 				echo '<p><label for="wpac-writeoff-' . esc_attr( $cur ) . '">' . esc_html__( 'Reason for the write-off', 'wp-affiliate-captain' ) . '</label><br><input type="text" required class="regular-text" id="wpac-writeoff-' . esc_attr( $cur ) . '" name="reason"> ';
 				/* translators: %s: amount */
 				echo '<button class="button" data-wpac-confirm="' . esc_attr( sprintf( __( 'Write off %s? The amount is no longer offset against future commissions.', 'wp-affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ) ) ) . '">' . esc_html__( 'Write off negative balance', 'wp-affiliate-captain' ) . '</button></p></form>';
-				echo '<p class="description">' . esc_html__( 'Otherwise the negative balance is offset against the next commissions. To claim it back, invoice the partner outside the plugin and write it off here once paid.', 'wp-affiliate-captain' ) . '</p>';
+				echo '<p class="description">' . esc_html__( 'Otherwise the negative balance is offset against the next commissions.', 'wp-affiliate-captain' ) . '</p>';
+				$partner = AffiliateRepository::find( $id );
+				if ( $partner && 'terminated' === $partner->status ) {
+					// Ended partnership: nothing left to offset – claim it back.
+					$history = \WPAffiliateCaptain\Commissions\Dunning::history( $id, $cur );
+					echo '<h4>' . esc_html__( 'Claim back', 'wp-affiliate-captain' ) . '</h4><ul>';
+					foreach ( $history as $h ) {
+						/* translators: 1: level, 2: date */
+						echo '<li>' . esc_html( sprintf( __( 'Level %1$d sent on %2$s', 'wp-affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) ) ) . '</li>';
+					}
+					echo '</ul>';
+					if ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+						Admin::form_open( 'dunning_send', 'wpac-inline' );
+						/* translators: %d: level */
+						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><button class="button">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'wp-affiliate-captain' ), count( $history ) + 1 ) ) . '</button></form> ';
+					} else {
+						echo '<p class="description">' . esc_html__( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) . '</p>';
+					}
+					Admin::form_open( 'repayment', 'wpac-inline' );
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><label>' . esc_html__( 'Payment received', 'wp-affiliate-captain' ) . ' <input type="text" name="amount" size="8" inputmode="decimal"></label> <input type="text" name="note" placeholder="' . esc_attr__( 'Bank reference', 'wp-affiliate-captain' ) . '"> <button class="button">' . esc_html__( 'Book repayment', 'wp-affiliate-captain' ) . '</button></form>';
+				}
 			}
 			if ( $problems ) {
 				echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'Integrity check failed:', 'wp-affiliate-captain' ) . '</strong></p><ul>';

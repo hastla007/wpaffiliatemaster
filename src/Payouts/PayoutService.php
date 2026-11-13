@@ -19,6 +19,7 @@ use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\IntegrationException;
+use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Sequence;
 use WPAffiliateCaptain\Core\Settings;
 
@@ -222,6 +223,76 @@ final class PayoutService {
 			return __( 'The partner\'s VAT ID is not valid according to VIES (reverse charge not possible)', 'wp-affiliate-captain' );
 		}
 		return '';
+	}
+
+	const CLAWBACK_OPTION = 'wpac_clawback';
+
+	/**
+	 * Remember that an order of an unpaid, not yet exported payout was refunded afterwards.
+	 *
+	 * @param int    $payout_id Payout.
+	 * @param string $order     Order label.
+	 */
+	public static function flag_clawback( $payout_id, $order ) {
+		$p = self::find( (int) $payout_id );
+		if ( ! $p || 'pending' !== $p->status ) {
+			return; // Exported or paid: the correction is offset in the next payout as usual.
+		}
+		$all                        = get_option( self::CLAWBACK_OPTION, array() );
+		$all                        = is_array( $all ) ? $all : array();
+		$all[ (int) $payout_id ][] = $order;
+		$all[ (int) $payout_id ]   = array_values( array_unique( $all[ (int) $payout_id ] ) );
+		update_option( self::CLAWBACK_OPTION, $all, false );
+	}
+
+	/**
+	 * Payouts with later refunds that are still pending: payout ID => orders.
+	 *
+	 * @return array
+	 */
+	public static function clawbacks() {
+		$all  = get_option( self::CLAWBACK_OPTION, array() );
+		$all  = is_array( $all ) ? $all : array();
+		$keep = array();
+		foreach ( $all as $id => $orders ) {
+			$p = self::find( (int) $id );
+			if ( $p && 'pending' === $p->status ) {
+				$keep[ (int) $id ] = $orders;
+			}
+		}
+		if ( count( $keep ) !== count( $all ) ) {
+			update_option( self::CLAWBACK_OPTION, $keep, false );
+		}
+		return $keep;
+	}
+
+	/**
+	 * Cancel a pending payout and create it again (the refund is then deducted right away).
+	 *
+	 * @param int $id Payout.
+	 * @return int|\WP_Error New payout ID (0 if nothing is payable any more).
+	 */
+	public static function rebuild( $id ) {
+		$p = self::find( (int) $id );
+		if ( ! $p || 'pending' !== $p->status ) {
+			return new \WP_Error( 'wpac_state', __( 'Only payouts that were not exported yet can be rebuilt.', 'wp-affiliate-captain' ) );
+		}
+		$cancelled = self::cancel( (int) $id, __( 'Rebuilt after a refund', 'wp-affiliate-captain' ) );
+		if ( is_wp_error( $cancelled ) ) {
+			return $cancelled;
+		}
+		try {
+			$new = self::create_for_affiliate( (int) $p->affiliate_id, (string) $p->period_end, (string) $p->currency );
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'wpac_payout', $e->getMessage() );
+		}
+		$all = get_option( self::CLAWBACK_OPTION, array() );
+		if ( is_array( $all ) ) {
+			unset( $all[ (int) $id ] );
+			update_option( self::CLAWBACK_OPTION, $all, false );
+		}
+		Audit::log( 'payout.rebuilt', 'payout', (int) $id, array( 'new' => (int) $new ) );
+		return (int) $new;
 	}
 
 	/**
@@ -581,6 +652,73 @@ final class PayoutService {
 			)
 		);
 		return true;
+	}
+
+	/**
+	 * Transfer list (CSV) for payouts in any currency, e.g. for foreign banks or payment
+	 * providers; marks them exported like the SEPA file (same checks: no second export without
+	 * "export again", no export after the partner changed the bank details).
+	 *
+	 * @param int[] $ids            Payout IDs.
+	 * @param bool  $allow_reexport Include payouts that were already exported.
+	 * @return array|\WP_Error [ batch, rows ]
+	 */
+	public static function transfer_csv( array $ids, $allow_reexport = false ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		foreach ( $ids as $id ) {
+			$missing = self::statement_missing( $id );
+			if ( $missing ) {
+				return $missing;
+			}
+		}
+		try {
+			$result = Db::transaction(
+				static function () use ( $wpdb, $ids, $allow_reexport ) {
+					$rows   = array();
+					$used   = array();
+					$prefix = (string) Settings::get( 'remittance_prefix' );
+					foreach ( $ids as $id ) {
+						$p = self::lock( $id );
+						if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
+							continue;
+						}
+						if ( 'exported' === $p->status && ! $allow_reexport ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'wp-affiliate-captain' ), $p->number ) );
+						}
+						$profile = ProfileRepository::get( (int) $p->affiliate_id );
+						if ( $profile && strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'wp-affiliate-captain' ), $p->number ) );
+						}
+						$iban = ProfileRepository::iban( $profile );
+						if ( ! $iban ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'wp-affiliate-captain' ), $p->number ) );
+						}
+						$rows[]               = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ) );
+						$used[ (int) $p->id ] = $p->status;
+					}
+					if ( ! $rows ) {
+						throw new IntegrationException( 'empty', __( 'No exportable payouts selected.', 'wp-affiliate-captain' ) );
+					}
+					$batch = 'ACCSV' . gmdate( 'YmdHis' ) . strtoupper( wp_generate_password( 4, false ) );
+					$pt    = Db::table( 'payouts' );
+					foreach ( $used as $id => $status ) {
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'exported', sepa_batch = %s, exported_at = %s WHERE id = %d AND status = %s", $batch, Db::now(), $id, $status ) ) ) {
+							throw new IntegrationException( 'state', 'Payout ' . $id . ' changed during export.' );
+						}
+					}
+					return array( $batch, $rows, array_keys( $used ) );
+				}
+			);
+		} catch ( IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
+		}
+		Audit::log( 'payout.csv_exported', 'payout', 0, array( 'batch' => $result[0], 'payouts' => $result[2] ) );
+		return array( $result[0], $result[1] );
 	}
 
 	/**
