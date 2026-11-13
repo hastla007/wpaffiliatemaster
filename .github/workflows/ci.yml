@@ -56,6 +56,63 @@ jobs:
           WPAC_TEST_DB_HOST: 127.0.0.1
         run: php tests/integration/run.php
 
+  coverage:
+    name: Coverage (unit + integration)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_test
+          MARIADB_USER: wpac
+          MARIADB_PASSWORD: wpac
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring
+          coverage: pcov
+      - name: Tests with line coverage
+        env:
+          WPAC_TEST_DB_HOST: 127.0.0.1
+        run: |
+          php -d pcov.enabled=1 -d pcov.directory=src -d auto_prepend_file=tests/coverage-prepend.php tests/run.php
+          php -d pcov.enabled=1 -d pcov.directory=src -d auto_prepend_file=tests/coverage-prepend.php tests/integration/run.php
+          php tests/coverage-report.php | tee coverage/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+  static:
+    name: Static analysis (PHPCS/WPCS, PHPCompatibility, PHPStan, composer audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer:v2
+          coverage: none
+      - name: Install analysis tools
+        run: composer update --no-interaction --no-progress --prefer-dist
+      - name: Composer validate and dependency audit
+        run: |
+          composer validate --strict --no-check-lock
+          composer audit --no-interaction
+      - name: PHPCS (WordPress security sniffs + PHPCompatibilityWP)
+        run: vendor/bin/phpcs
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
   qr-decode:
     name: QR decode + translations
     runs-on: ubuntu-latest
@@ -137,7 +194,7 @@ jobs:
 
   release:
     name: Release ZIP
-    needs: [test, integration, qr-decode, e2e]
+    needs: [test, integration, qr-decode, e2e, static]
     runs-on: ubuntu-latest
     permissions:
       contents: read
