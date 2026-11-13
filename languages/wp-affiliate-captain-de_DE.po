@@ -1771,12 +1771,6 @@ msgstr "Wartungsmodus"
 msgid "For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off."
 msgstr "Für Migrationen oder den Buchhaltungsabschluss: Verkäufe werden weiter erfasst, aber Freigaben, Auszahlungen, Berichtsmails und Änderungen im Partnerbereich warten, bis Sie ihn ausschalten."
 
-msgid "Monitoring token"
-msgstr "Monitoring-Token"
-
-msgid "At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header \"X-WPAC-Monitor-Token\" and gets ok or the names of failing checks (no details)."
-msgstr "Mindestens 20 Buchstaben/Ziffern. Ein externes Monitoring (z. B. ein Uptime-Dienst) kann dann %s mit dem Header \"X-WPAC-Monitor-Token\" abfragen und erhält ok oder die Namen fehlgeschlagener Prüfungen (ohne Details)."
-
 msgid "Delete all data when the plugin is deleted"
 msgstr "Alle Daten löschen, wenn das Plugin gelöscht wird"
 
@@ -1791,6 +1785,21 @@ msgstr "Vorlage für Ihr Verzeichnis von Verarbeitungstätigkeiten (Art. 30 DSGV
 
 msgid "Download template (Markdown)"
 msgstr "Vorlage herunterladen (Markdown)"
+
+msgid "Monitoring token"
+msgstr "Monitoring-Token"
+
+msgid "A token is set – enter a new one to replace it"
+msgstr "Ein Token ist gesetzt – geben Sie ein neues ein, um es zu ersetzen"
+
+msgid "Remove token"
+msgstr "Token entfernen"
+
+msgid "At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header \"X-WPAC-Monitor-Token\" and gets ok or the names of failing checks (no details)."
+msgstr "Mindestens 20 Buchstaben/Ziffern. Ein externes Monitoring (z. B. ein Uptime-Dienst) kann dann %s mit dem Header \"X-WPAC-Monitor-Token\" abfragen und erhält ok oder die Namen fehlgeschlagener Prüfungen (ohne Details)."
+
+msgid "Only a hash of the token is stored; note it down before saving."
+msgstr "Es wird nur ein Hash des Tokens gespeichert; notieren Sie es vor dem Speichern."
 
 msgid "Enabled"
 msgstr "Aktiviert"
@@ -1885,8 +1894,8 @@ msgstr "Neue Partnerbewerbung von %1$s (%2$s).\n\nPrüfen: %3$s"
 msgid "[%s] Please confirm your partner application"
 msgstr "[%s] Bitte bestätigen Sie Ihre Partnerbewerbung"
 
-msgid "Hello %1$s,\n\nplease confirm your e-mail address to complete your partner application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
-msgstr "Hallo %1$s,\n\nbitte bestätigen Sie Ihre E-Mail-Adresse, um Ihre Partnerbewerbung abzuschließen:\n%2$s\n\nDer Link ist 48 Stunden gültig. Wenn Sie sich nicht beworben haben, können Sie diese E-Mail ignorieren."
+msgid "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
+msgstr "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für das Partnerprogramm von %1$s beworben. Bitte bestätigen Sie Ihre E-Mail-Adresse, um die Bewerbung abzuschließen:\n%2$s\n\nDer Link ist 48 Stunden gültig. Wenn Sie sich nicht beworben haben, können Sie diese E-Mail ignorieren."
 
 msgid "[%s] Your partner account"
 msgstr "[%s] Ihr Partnerkonto"
@@ -1957,14 +1966,29 @@ msgstr "[%s] Ihre Partnerbewerbung"
 msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
 msgstr "Hallo %1$s,\n\nleider können wir Ihre Bewerbung derzeit nicht annehmen.\n\n%2$s"
 
-msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application."
-msgstr "Fast geschafft! Wir haben Ihnen eine E-Mail geschickt. Bitte bestätigen Sie Ihre E-Mail-Adresse über den Link darin, um Ihre Bewerbung abzuschließen."
+msgid "The confirmation link is invalid or has expired. Please apply again."
+msgstr "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte bewerben Sie sich erneut."
+
+msgid "You applied while logged in. Please log in with the same user account to confirm your application."
+msgstr "Sie waren bei der Bewerbung angemeldet. Bitte melden Sie sich mit demselben Benutzerkonto an, um Ihre Bewerbung zu bestätigen."
+
+msgid "Log in"
+msgstr "Anmelden"
+
+msgid "Please confirm your partner application with the button below."
+msgstr "Bitte bestätigen Sie Ihre Partnerbewerbung mit der Schaltfläche unten."
+
+msgid "Confirm application"
+msgstr "Bewerbung bestätigen"
 
 msgid "Thank you! Your partner account is active. Check your e-mail for login details."
 msgstr "Vielen Dank! Ihr Partnerkonto ist aktiv. Die Zugangsdaten erhalten Sie per E-Mail."
 
 msgid "Thank you for your application! We will review it and get back to you by e-mail."
 msgstr "Vielen Dank für Ihre Bewerbung! Wir prüfen sie und melden uns per E-Mail."
+
+msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application."
+msgstr "Fast geschafft! Wir haben Ihnen eine E-Mail geschickt. Bitte bestätigen Sie Ihre E-Mail-Adresse über den Link darin, um Ihre Bewerbung abzuschließen."
 
 msgid "Go to partner area"
 msgstr "Zum Partnerbereich"
@@ -1986,9 +2010,6 @@ msgstr "Bitte akzeptieren Sie die Bedingungen des Partnerprogramms."
 
 msgid "Please fill in all required fields."
 msgstr "Bitte füllen Sie alle Pflichtfelder aus."
-
-msgid "The confirmation link is invalid or has expired. Please apply again."
-msgstr "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte bewerben Sie sich erneut."
 
 msgid "Please check your entries."
 msgstr "Bitte prüfen Sie Ihre Eingaben."
@@ -2723,6 +2744,9 @@ msgstr "Der Bestätigungslink ist ungültig oder abgelaufen."
 
 msgid "Too many e-mail changes today. Please try again tomorrow."
 msgstr "Zu viele E-Mail-Änderungen heute. Bitte versuchen Sie es morgen erneut."
+
+msgid "You have sent several requests today. Please try again tomorrow or contact us by e-mail."
+msgstr "Sie haben heute bereits mehrere Anfragen gesendet. Bitte versuchen Sie es morgen erneut oder schreiben Sie uns eine E-Mail."
 
 msgid "Your customer account is now connected to the partner program."
 msgstr "Ihr Kundenkonto ist jetzt mit dem Partnerprogramm verbunden."

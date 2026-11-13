@@ -2354,14 +2354,6 @@ msgid "For migrations or the accounting close: sales are still recorded, but app
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Monitoring token"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header \"X-WPAC-Monitor-Token\" and gets ok or the names of failing checks (no details)."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Delete all data when the plugin is deleted"
 msgstr ""
 
@@ -2379,6 +2371,26 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Download template (Markdown)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Monitoring token"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "A token is set – enter a new one to replace it"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Remove token"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header \"X-WPAC-Monitor-Token\" and gets ok or the names of failing checks (no details)."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only a hash of the token is stored; note it down before saving."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2506,7 +2518,7 @@ msgid "[%s] Please confirm your partner application"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nplease confirm your e-mail address to complete your partner application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
+msgid "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
 msgstr ""
 
 #: src/Affiliates/Notifications.php
@@ -2602,7 +2614,23 @@ msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this ti
 msgstr ""
 
 #: src/Affiliates/Registration.php
-msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application."
+msgid "The confirmation link is invalid or has expired. Please apply again."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "You applied while logged in. Please log in with the same user account to confirm your application."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Log in"
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Please confirm your partner application with the button below."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Confirm application"
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -2611,6 +2639,10 @@ msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Thank you for your application! We will review it and get back to you by e-mail."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application."
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -2639,10 +2671,6 @@ msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Please fill in all required fields."
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "The confirmation link is invalid or has expired. Please apply again."
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -3621,6 +3649,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Too many e-mail changes today. Please try again tomorrow."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "You have sent several requests today. Please try again tomorrow or contact us by e-mail."
 msgstr ""
 
 #: src/Portal/Portal.php
