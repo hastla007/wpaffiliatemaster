@@ -41,6 +41,10 @@ Legal note: cookie consent, VAT treatment of credit notes and retention periods 
 
 Yes. Partner codes entered at checkout work without any cookie. The optional affiliate cookie is only set with marketing consent (WP Consent API or the `wpac_has_marketing_consent` filter).
 
+= Does it work with page caches? =
+
+Pages with the application form or the partner welcome (shortcode or block in the content) and pages opened with a referral parameter are marked as not cacheable before any output (DONOTCACHEPAGE and no-cache headers). If the form or the welcome box sits in a widget or theme template, or your cache/CDN ignores these headers, exclude those pages there. For "delay/combine JavaScript" features, exclude the script handle `wpac-beacon` (optional JavaScript tracking).
+
 = Is WooCommerce required? =
 
 No. Other sales sources report sales and refunds through the public contract (`wpac_record_sale()`, REST `wpac/v1/sales`).

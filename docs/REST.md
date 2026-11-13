@@ -4,7 +4,7 @@ Authentifizierung über WordPress (Cookie + `X-WP-Nonce` oder Application Passwo
 
 | Methode & Pfad | Berechtigung | Zweck |
 |---|---|---|
-| `GET /wp-json/wpac/v1/contract` | öffentlich | Vertrags- und Plugin-Version |
+| `GET /wp-json/wpac/v1/contract` | öffentlich | Vertragsversion (Plugin-Version nur für angemeldete Nutzer mit `wpac_manage_program`) |
 | `GET /wpac/v1/codes/{code}` | öffentlich, max. 20/min je Client | `{ "valid": true|false }` – keine Partnerdaten (Schutz vor Enumeration) |
 | `POST /wpac/v1/touch` | öffentlich, nur mit Einstellung „Partnerlinks zusätzlich per JavaScript erfassen“ (sonst 404) | Meldet einen Partnerlink von einer gecachten Seite: `{ code, campaign?, utm_source?, utm_medium?, content_id?, path?, referrer? }` → immer `{ "ok": true }` (auch bei unbekanntem Code); Besuch zählt je Client und Code höchstens einmal pro Minute. |
 | `POST /wpac/v1/sales` | `wpac_manage_program` | Verkauf melden (Payload wie `wpac_record_sale`, siehe CONTRACT.md); `202` = zur Wiederholung eingeplant |

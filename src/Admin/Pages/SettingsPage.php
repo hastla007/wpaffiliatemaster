@@ -207,7 +207,7 @@ final class SettingsPage {
 		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ), 'reports' );
 		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Terms acceptance records and booking-relevant entries are kept as long as the credit notes.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'maintenance_mode', __( 'Maintenance mode', 'wp-affiliate-captain' ), $s, __( 'For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off.', 'wp-affiliate-captain' ) );
-		self::text( 'monitor_token', __( 'Monitoring token', 'wp-affiliate-captain' ), $s, sprintf( /* translators: %s: URL */ __( 'At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header "X-WPAC-Monitor-Token" and gets ok or the names of failing checks (no details).', 'wp-affiliate-captain' ), rest_url( 'wpac/v1/health' ) ) );
+		self::monitor_token( $s );
 		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'wp-affiliate-captain' ), $s, __( 'Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.', 'wp-affiliate-captain' ) );
 		self::end();
 
@@ -250,6 +250,22 @@ final class SettingsPage {
 		if ( $desc ) {
 			echo '<p class="description">' . esc_html( $desc ) . '</p>';
 		}
+	}
+
+	/**
+	 * Monitoring token field (write-only).
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function monitor_token( $s ) {
+		$set = '' !== (string) $s['monitor_token'];
+		// Only a hash is stored: the field is always empty, an empty field keeps the token.
+		printf( '<tr><th><label for="wpac-monitor_token">%1$s</label></th><td><input type="password" id="wpac-monitor_token" name="wpac[monitor_token]" value="" class="regular-text" autocomplete="new-password" placeholder="%2$s">', esc_html__( 'Monitoring token', 'wp-affiliate-captain' ), esc_attr( $set ? __( 'A token is set – enter a new one to replace it', 'wp-affiliate-captain' ) : '' ) );
+		if ( $set ) {
+			echo ' <label><input type="checkbox" name="wpac[monitor_token_clear]" value="1"> ' . esc_html__( 'Remove token', 'wp-affiliate-captain' ) . '</label>';
+		}
+		self::desc( sprintf( /* translators: %s: URL */ __( 'At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header "X-WPAC-Monitor-Token" and gets ok or the names of failing checks (no details).', 'wp-affiliate-captain' ), rest_url( 'wpac/v1/health' ) ) . ' ' . __( 'Only a hash of the token is stored; note it down before saving.', 'wp-affiliate-captain' ) );
+		echo '</td></tr>';
 	}
 
 	/**

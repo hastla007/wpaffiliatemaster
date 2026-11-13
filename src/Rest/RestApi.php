@@ -94,10 +94,10 @@ final class RestApi {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function health( $r ) {
-		$token = (string) Settings::get( 'monitor_token' );
 		$sent  = (string) $r->get_header( 'x-wpac-monitor-token' );
 		$admin = current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM );
-		if ( ! $admin && ( '' === $token || '' === $sent || ! hash_equals( $token, $sent ) ) ) {
+		// Only a hash of the token is stored (compared with hash_equals()).
+		if ( ! $admin && ! Settings::monitor_token_matches( $sent ) ) {
 			return new \WP_Error( 'wpac_forbidden', 'Not allowed.', array( 'status' => 403 ) );
 		}
 		$problems = \WPAffiliateCaptain\Core\Monitor::problems( true );
@@ -131,10 +131,13 @@ final class RestApi {
 				'methods'             => 'GET',
 				'permission_callback' => '__return_true',
 				'callback'            => static function () {
-					return array(
-						'contract' => WPAC_CONTRACT_VERSION,
-						'plugin'   => WPAC_VERSION,
-					);
+					// The plugin version only for logged-in users who manage the program: an exact
+					// version tells anonymous scanners which known issues to try.
+					$out = array( 'contract' => WPAC_CONTRACT_VERSION );
+					if ( current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
+						$out['plugin'] = WPAC_VERSION;
+					}
+					return $out;
 				},
 			)
 		);

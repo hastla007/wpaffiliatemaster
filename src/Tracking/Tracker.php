@@ -75,11 +75,13 @@ final class Tracker {
 		if ( ! $resolved ) {
 			return false;
 		}
-		// Only needed with the beacon (page request + beacon for the same visit).
-		$dedup = Settings::get( 'js_tracking' ) ? 'wpac_vd_' . substr( hash_hmac( 'sha256', RateLimiter::bucket_ip( RateLimiter::current_ip() ) . '|' . $resolved['code'], wp_salt( 'nonce' ) ), 0, 32 ) : '';
+		// Dedup only needed with the beacon (page request + beacon for the same visit). Kept in
+		// the object cache or the rate-limit table, never as wp_options rows.
 		// The limit only throttles visit statistics – the referral itself is always kept.
 		// Checked after the code resolved, so unknown codes cause no counter writes.
-		$count_visit = ! self::is_bot() && ( '' === $dedup || false === get_transient( $dedup ) ) && RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS );
+		$count_visit = ! self::is_bot()
+			&& ( ! Settings::get( 'js_tracking' ) || self::first_visit( RateLimiter::bucket_ip( RateLimiter::current_ip() ) . '|' . $resolved['code'] ) )
+			&& RateLimiter::allow( 'visit', (int) Settings::get( 'rate_limit_per_minute' ), MINUTE_IN_SECONDS );
 
 		$touch = array(
 			'code'       => $resolved['code'],
@@ -88,9 +90,6 @@ final class Tracker {
 			'ts'         => time(),
 		);
 		if ( $count_visit ) {
-			if ( '' !== $dedup ) {
-				set_transient( $dedup, 1, MINUTE_IN_SECONDS );
-			}
 			$touch['visit_id'] = self::record_visit( $resolved, $touch, $extra );
 		}
 
@@ -111,28 +110,80 @@ final class Tracker {
 	private static $captured_now = false;
 
 	/**
+	 * Whether this client/code pair was not seen in the last ~30–60 seconds. Two fixed
+	 * one-minute windows shifted by 30 seconds: any two hits less than 30 seconds apart
+	 * share at least one window, so page request and beacon are never counted twice.
+	 *
+	 * @param string $subject Client bucket and code.
+	 * @return bool
+	 */
+	private static function first_visit( $subject ) {
+		$a = RateLimiter::first( 'visit_dedup', $subject, MINUTE_IN_SECONDS );
+		$b = RateLimiter::first( 'visit_dedup_shifted', $subject, MINUTE_IN_SECONDS, 30 );
+		return $a && $b;
+	}
+
+	/**
 	 * Optional beacon for sites behind a full-page cache/CDN that ignores DONOTCACHEPAGE:
-	 * the cached page reports the referral parameter via REST. Tiny inline script, it only
-	 * sends a request when the parameter is in the URL.
+	 * the cached page reports the referral parameter via REST. Tiny inline script (handle
+	 * "wpac-beacon"), it only sends a request when the parameter is in the URL.
+	 *
+	 * The script itself is the same on every page and request (only settings change it),
+	 * so JS combiners do not create a new bundle per request. Per-page values (content,
+	 * and on freshly generated pages that captured the referral the time) are printed as
+	 * a non-executable JSON block that combiners and "delay JS" features leave alone.
 	 */
 	public static function enqueue_beacon() {
 		if ( ! Settings::get( 'js_tracking' ) ) {
 			return;
 		}
 		$config = array(
-			'url'     => esc_url_raw( rest_url( 'wpac/v1/touch' ) ),
-			'param'   => (string) Settings::get( 'referral_param' ),
-			'content' => is_singular() ? (int) get_queried_object_id() : 0,
+			'url'   => esc_url_raw( rest_url( 'wpac/v1/touch' ) ),
+			'param' => (string) Settings::get( 'referral_param' ),
 			// The previous page is read from the browser only with marketing consent (or "always").
-			'ref'     => 'always' === Settings::get( 'cookie_mode' ) ? 1 : 0,
-			// Page generated now (not from a cache) and the referral already captured by this very
-			// request: the beacon is not needed. Cached copies carry an old time and still report.
-			'gen'     => time(),
-			'cap'     => self::$captured_now ? 1 : 0,
+			'ref'   => 'always' === Settings::get( 'cookie_mode' ) ? 1 : 0,
 		);
 		wp_register_script( 'wpac-beacon', '', array(), WPAC_VERSION, array( 'in_footer' => true ) );
 		wp_enqueue_script( 'wpac-beacon' );
-		wp_add_inline_script( 'wpac-beacon', 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}if(c.cap&&Math.abs(Date.now()/1000-c.gen)<30){return;}fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",content_id:c.content,path:location.pathname,referrer:r(c)})});}catch(e){}function r(c){try{if(!document.referrer){return"";}if(!c.ref&&!(typeof window.wp_has_consent==="function"&&window.wp_has_consent("marketing"))){return"";}return new URL(document.referrer).host;}catch(e){return"";}}})(window.wpacBeacon);' );
+		wp_add_inline_script( 'wpac-beacon', self::beacon_script( $config ) );
+		add_action( 'wp_footer', array( __CLASS__, 'print_beacon_data' ), 5 );
+	}
+
+	/**
+	 * Static beacon script for a configuration.
+	 *
+	 * @param array $config url, param, ref.
+	 * @return string
+	 */
+	public static function beacon_script( array $config ) {
+		return 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}var d={},e=document.getElementById("wpac-beacon-data");if(e){try{d=JSON.parse(e.textContent)||{};}catch(x){}}if(d.cap&&Math.abs(Date.now()/1000-d.gen)<30){return;}fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",content_id:d.content||0,path:location.pathname,referrer:r(c)})});}catch(e){}function r(c){try{if(!document.referrer){return"";}if(!c.ref&&!(typeof window.wp_has_consent==="function"&&window.wp_has_consent("marketing"))){return"";}return new URL(document.referrer).host;}catch(e){return"";}}})(window.wpacBeacon);';
+	}
+
+	/**
+	 * Per-page beacon data (before the footer scripts). "gen"/"cap" only when this very
+	 * request captured the referral: the beacon is then not needed on this fresh page,
+	 * while cached copies carry an old time and still report.
+	 */
+	public static function print_beacon_data() {
+		$data = self::beacon_data( is_singular() ? (int) get_queried_object_id() : 0, self::$captured_now, time() );
+		echo '<script type="application/json" id="wpac-beacon-data">' . wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP ) . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON with < and & hex-encoded.
+	}
+
+	/**
+	 * Per-page beacon data.
+	 *
+	 * @param int  $content  Content ID.
+	 * @param bool $captured Whether this request captured the referral.
+	 * @param int  $now      Time.
+	 * @return array
+	 */
+	public static function beacon_data( $content, $captured, $now ) {
+		$data = array( 'content' => (int) $content );
+		if ( $captured ) {
+			$data['cap'] = 1;
+			$data['gen'] = (int) $now;
+		}
+		return $data;
 	}
 
 	/**
@@ -243,29 +294,21 @@ final class Tracker {
 	}
 
 	/**
-	 * Parse and verify the referral cookie. Unsigned cookies from before signing
-	 * are accepted for one attribution window after the update.
+	 * Parse and verify the referral cookie. Only signed cookies are accepted: unsigned
+	 * ones were only set by release 0.7.0 (a few hours before signing was released) and
+	 * cannot be told apart from forged ones.
 	 *
 	 * @param string $raw Raw value.
 	 * @return array|null
 	 */
 	public static function parse_cookie( $raw ) {
 		$parts = explode( '|', (string) $raw );
-		if ( 5 === count( $parts ) ) {
-			$sig = array_pop( $parts );
-			if ( ! hash_equals( substr( hash_hmac( 'sha256', implode( '|', $parts ), wp_salt( 'auth' ) . 'wpac_ref' ), 0, 16 ), (string) $sig ) ) {
-				return null;
-			}
-		} else {
-			// Only sites that ran the transition (the option was set back then) accept old cookies
-			// within the window. Never start the window here: a forged unsigned cookie would open it.
-			$since = (int) get_option( 'wpac_cookie_signed_since' );
-			if ( ! $since || time() > $since + DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) ) ) {
-				return null;
-			}
-			if ( ! isset( $parts[3] ) || (int) $parts[3] <= 0 ) {
-				return null; // Without a click time the attribution window and fraud checks would be skipped.
-			}
+		if ( 5 !== count( $parts ) ) {
+			return null;
+		}
+		$sig = array_pop( $parts );
+		if ( ! hash_equals( substr( hash_hmac( 'sha256', implode( '|', $parts ), wp_salt( 'auth' ) . 'wpac_ref' ), 0, 16 ), (string) $sig ) ) {
+			return null;
 		}
 		$touch = array(
 			'code'       => $parts[0],

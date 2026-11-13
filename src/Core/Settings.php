@@ -108,8 +108,47 @@ final class Settings {
 		if ( null === self::$cache ) {
 			$saved       = get_option( self::OPTION, array() );
 			self::$cache = array_merge( self::defaults(), is_array( $saved ) ? $saved : array() );
+			// Monitoring tokens of older versions were stored in plain text: hash on first read.
+			// (wp_salt() is pluggable: not yet defined while plugins load – then on a later request.)
+			if ( '' !== (string) self::$cache['monitor_token'] && 0 !== strpos( (string) self::$cache['monitor_token'], self::MONITOR_HASH ) && function_exists( 'wp_salt' ) ) {
+				self::$cache['monitor_token'] = self::monitor_token_hash( (string) self::$cache['monitor_token'] );
+				if ( is_array( $saved ) ) {
+					$saved['monitor_token'] = self::$cache['monitor_token'];
+					update_option( self::OPTION, $saved, true );
+				}
+			}
 		}
 		return self::$cache;
+	}
+
+	/** Prefix of a hashed monitoring token. */
+	const MONITOR_HASH = 'h1:';
+
+	/**
+	 * Stored form of a monitoring token: only a keyed hash, never the token itself.
+	 *
+	 * @param string $token Token.
+	 * @return string
+	 */
+	public static function monitor_token_hash( $token ) {
+		return self::MONITOR_HASH . hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) . 'wpac_monitor' );
+	}
+
+	/**
+	 * Whether a token sent by a monitor matches the stored one.
+	 *
+	 * @param string $sent Token from the request.
+	 * @return bool
+	 */
+	public static function monitor_token_matches( $sent ) {
+		$stored = (string) self::get( 'monitor_token' );
+		if ( '' === $stored || '' === (string) $sent ) {
+			return false;
+		}
+		if ( 0 !== strpos( $stored, self::MONITOR_HASH ) ) {
+			return hash_equals( $stored, (string) $sent ); // Not hashed yet (see all()).
+		}
+		return hash_equals( $stored, self::monitor_token_hash( (string) $sent ) );
 	}
 
 	/**
@@ -214,8 +253,9 @@ final class Settings {
 
 		$out['terms_version']     = isset( $in['terms_version'] ) ? sanitize_text_field( (string) $in['terms_version'] ) : $d['terms_version'];
 		$out['admin_email']       = isset( $in['admin_email'] ) ? sanitize_email( (string) $in['admin_email'] ) : '';
+		// Only the hash is stored; the field stays empty, an empty field keeps the token.
 		$token                    = isset( $in['monitor_token'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['monitor_token'] ) : '';
-		$out['monitor_token']     = strlen( $token ) >= 20 ? substr( $token, 0, 64 ) : '';
+		$out['monitor_token']     = ! empty( $in['monitor_token_clear'] ) ? '' : ( strlen( $token ) >= 20 ? self::monitor_token_hash( substr( $token, 0, 64 ) ) : (string) self::get( 'monitor_token' ) );
 		$out['debtor_name']       = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
 		$vat                         = isset( $in['vat_rate'] ) ? Money::normalize_decimal( (string) $in['vat_rate'] ) : null;
 		$out['vat_rate']             = ( null !== $vat && (float) $vat >= 0 && (float) $vat < 100 ) ? $vat : $d['vat_rate'];

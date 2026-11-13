@@ -34,6 +34,9 @@ final class Portal {
 
 	const SHORTCODE = 'wpac_affiliate_portal';
 
+	/** Privacy requests or objections per partner and day (each kind). */
+	const REQUESTS_PER_DAY = 5;
+
 	public static function register_hooks() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_action( 'init', array( __CLASS__, 'handle_post' ) );
@@ -71,13 +74,42 @@ final class Portal {
 		}
 		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
 		$msg     = 'email_link_invalid';
-		if ( is_array( $pending ) && hash_equals( (string) $pending['token'], $token ) ) {
+		if ( is_array( $pending ) && self::email_token_matches( $pending, $token ) ) {
 			$result = AffiliateRepository::set_email( (int) $aff->id, (string) $pending['email'] );
 			delete_transient( 'wpac_email_change_' . (int) $aff->id );
 			$msg = is_wp_error( $result ) ? $result->get_error_code() : 'email_changed';
 		}
 		wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $back ) );
 		exit;
+	}
+
+	/**
+	 * Hash of an e-mail change token: only the hash is stored, so a database dump or
+	 * backup does not contain usable confirmation links.
+	 *
+	 * @param string $token Token.
+	 * @return string
+	 */
+	public static function email_token_hash( $token ) {
+		return hash_hmac( 'sha256', strtolower( (string) $token ), wp_salt( 'auth' ) . 'wpac_email_change' );
+	}
+
+	/**
+	 * Whether a token from the link matches the pending change (hash; plaintext tokens
+	 * stored by older versions are still accepted until they expire after 24 hours).
+	 *
+	 * @param array  $pending Pending change.
+	 * @param string $token   Token from the link.
+	 * @return bool
+	 */
+	public static function email_token_matches( array $pending, $token ) {
+		if ( '' === (string) $token ) {
+			return false;
+		}
+		if ( isset( $pending['token_hash'] ) ) {
+			return hash_equals( (string) $pending['token_hash'], self::email_token_hash( $token ) );
+		}
+		return isset( $pending['token'] ) && '' !== (string) $pending['token'] && hash_equals( (string) $pending['token'], strtolower( (string) $token ) );
 	}
 
 	/**
@@ -175,11 +207,19 @@ final class Portal {
 					$msg = 'wpac_email';
 				} elseif ( $other && (int) $other->id !== (int) $aff->id ) {
 					$msg = 'wpac_email_taken';
-				} elseif ( ! RateLimiter::allow( 'email_change_' . (int) $aff->id, 3, DAY_IN_SECONDS ) ) {
+				} elseif ( ! RateLimiter::allow_for( 'email_change', (int) $aff->id, 3, DAY_IN_SECONDS ) ) {
+					// Per partner (not per IP): changing the IP must not allow more confirmation mails.
 					$msg = 'email_change_limit';
 				} else {
 					$token = wp_generate_password( 32, false );
-					set_transient( 'wpac_email_change_' . (int) $aff->id, array( 'email' => $email, 'token' => strtolower( $token ) ), DAY_IN_SECONDS );
+					set_transient(
+						'wpac_email_change_' . (int) $aff->id,
+						array(
+							'email'      => $email,
+							'token_hash' => self::email_token_hash( $token ),
+						),
+						DAY_IN_SECONDS
+					);
 					$link = add_query_arg( 'wpac_email_confirm', strtolower( $token ), add_query_arg( 'wpac_tab', 'account', wpac_return_url() ) );
 					wp_mail(
 						$email,
@@ -192,6 +232,13 @@ final class Portal {
 				}
 			}
 			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $redirect ) );
+			exit;
+		}
+
+		// Requests that send mails to the operator: limited per partner, so the operator's
+		// inbox cannot be flooded (the partner can still write an e-mail at any time).
+		if ( in_array( $action, array( 'privacy', 'objection' ), true ) && ! RateLimiter::allow_for( 'portal_' . $action, (int) $aff->id, self::REQUESTS_PER_DAY, DAY_IN_SECONDS ) ) {
+			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => 'request_limit', 'wpac_tab' => 'privacy' === $action ? 'privacy' : 'payouts' ), $redirect ) );
 			exit;
 		}
 
@@ -422,6 +469,7 @@ final class Portal {
 			'email_changed'      => array( 'success', __( 'Your new e-mail address is confirmed.', 'wp-affiliate-captain' ) ),
 			'email_link_invalid' => array( 'error', __( 'The confirmation link is invalid or has expired.', 'wp-affiliate-captain' ) ),
 			'email_change_limit' => array( 'error', __( 'Too many e-mail changes today. Please try again tomorrow.', 'wp-affiliate-captain' ) ),
+			'request_limit'      => array( 'error', __( 'You have sent several requests today. Please try again tomorrow or contact us by e-mail.', 'wp-affiliate-captain' ) ),
 			'account_linked'     => array( 'success', __( 'Your customer account is now connected to the partner program.', 'wp-affiliate-captain' ) ),
 			'privacy_confirm'    => array( 'success', __( 'Please confirm your request with the link we have sent you by e-mail.', 'wp-affiliate-captain' ) ),
 			'privacy_sent'       => array( 'success', __( 'Your request was sent. We will get back to you within one month.', 'wp-affiliate-captain' ) ),
