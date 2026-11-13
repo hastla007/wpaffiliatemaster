@@ -172,3 +172,98 @@ Fünf unabhängige Prüfungen (Sicherheit, Geld/Geschäftslogik, Recht/Steuern, 
 - [x] Rückforderung vor Zahlung (Korrektur aus noch nicht exportierter Auszahlung nehmen/warnen); Mahnablauf für negative Salden beendeter Partner. **Erledigt:** Erstattung einer Provision in einer noch nicht exportierten Auszahlung wird markiert; „Stornieren und neu erstellen“ zieht sie sofort ab. Negative Salden beendeter Partner: Zahlungsaufforderung in drei Stufen, Buchung „Rückzahlung“, Übersicht auf der Auszahlungsseite.
 - [x] Geplanter Abgleich `Balance::verify_all()` mit Alarm; Auszahlung in Nicht-EUR-Währungen (CSV / „extern bezahlt“). **Erledigt:** Täglicher Abgleich mit Alarm-Mail, Admin-Hinweis und Site Health; Überweisungsliste (CSV) für Auszahlungen in jeder Währung, danach „Als bezahlt markieren“.
 - [x] Beispiel-Connector: Touch serverseitig (`server_touch`), kein `hold_until` aus Auftragsdaten, feste eigene Vertragsversion.
+
+## Fünf-Experten-Prüfung (2026-11-13, Runde 4)
+
+Fünf unabhängige Prüfungen (WordPress-Core/Code, Sicherheit, Architektur/Kompatibilität, Admin-UX, Produkt/Release) auf Stand `441df36` (Release 0.10.0). Zentrale Befunde stichprobenartig am Code bestätigt; verworfen: „Kurzbeschreibung 151 Zeichen“ (es sind 150).
+
+### Kritisch
+
+- [ ] **K1 — Deinstallation löscht aufbewahrungspflichtige Gutschriften anderer Sites.** `uninstall.php:50–58` leert per `glob()` den ganzen Belegordner; mit `WPAC_STATEMENT_DIR` (empfohlen) teilen sich alle Sites eines Netzwerks den Ordner (`Statement::dir()`), auf Einzelsites werden fremde Dateien im Ordner mitgelöscht. Nur Dateien aus `payouts.statement_file`/`storno_file` löschen; pro Site ein Unterordner.
+- [ ] **K2 — Einstellungen ersetzen ungültige Eingaben stillschweigend** (`Settings::sanitize`, `src/Core/Settings.php:184–234`): „15 %“ → 10 %, USt „20 %“ → 19 %, „25 €“ → 50 €, Prüfgrenze „1.000 €“ → 0, Land ≠ 2 Buchstaben → DE, ungültige Firmen-IBAN behält die alte, Monitoring-Token < 20 Zeichen löscht den alten — trotzdem „Einstellungen gespeichert“. Fehlermeldung je Feld, Eingabe behalten, `%`/`€`/Tausenderpunkte akzeptieren.
+- [ ] **K3 — Nachträglich gesetztes `WPAC_ENCRYPTION_KEY` macht gespeicherte IBANs unlesbar** (`Crypto::key()`, `src/Core/Crypto.php:34–39`; keine Entschlüsselung mit dem alten Schlüssel, keine Neuverschlüsselung, Fehler erst beim SEPA-Export). Ebenso macht ein später gesetztes `WPAC_STATEMENT_DIR` alle bisherigen Gutschriften unauffindbar (`Statement.php:531`). Fallback auf den alten Schlüssel + Neuverschlüsselung bzw. Migration der Belege; Warnung in Checkliste/Integrationsseite.
+- [ ] **K4 — VIES-Abfrage (ec.europa.eu) nicht offengelegt und nicht abschaltbar** (`src/Payouts/Vies.php:22,86`, beim Profil-Speichern und täglich). `readme.txt` braucht `== External services ==` (WP.org-Richtlinie 7), Einstellungsschalter, Datenschutztext muss die EU-Kommission als Empfänger nennen (`Privacy.php:504`; das Verarbeitungsverzeichnis tut es bereits). Loopback-Prüfung (`Statement.php:76`) ebenfalls erwähnen.
+- [ ] **K5 — Produktentscheidung Free/Premium fehlt.** Die offenen Lizenz-PRs bauen Lizenzprüfung, Freischaltung und eigenen Updater in dasselbe Plugin; für ein WordPress.org-Plugin verboten (Richtlinien 5 Trialware, 8 Fremd-Updates). Entscheiden: was bleibt kostenlos; Premium als separates Add-on mit eigenem Slug/`Update URI` über Hooks (Muster `docs/CONTRACT.md`). Bereits ausgelieferte Funktionen nicht nachträglich sperren.
+
+### Wichtig — Code und Logik
+
+- [ ] **W1 — Mit Action Scheduler brechen Fortsetzungsketten ab.** `Scheduler::pending()` (`src/Core/Scheduler.php:58`) nutzt `as_next_scheduled_action()`, das auch die gerade laufende Aktion zählt → `Scheduler::once()` des eigenen Hooks plant nichts. Betrifft `MonthlyMail::batch()` (nach 50 Partnern Schluss, Rest erst über den Watchdog Tage später), `Jobs::drain()`, `Installer::network_setup_batch()` (ab Site 51).
+- [ ] **W2 — `Ledger::reassign()` storniert beim alten Partner, auch wenn die neue Buchung scheitert** (`src/Commissions/Ledger.php:475–528`): Ergebnis `unattributed` wird nicht geprüft, `IntegrationException` bricht das Speichern der Bestellung ab, Bestellnotiz meldet trotzdem Erfolg. Nach der Umbuchung ordnet `record_refund()` (`$by_item`, Z. 359) Erstattungen je nach DB-Reihenfolge einem der beiden Partner zu.
+- [ ] **W3 — Retry einer Abo-Verlängerung verliert den Partner.** `OrderSync::run_job()` (`OrderSync.php:385–395`) baut den Payload ohne `subscription_parent_attribution()` → `unattributed`, Provision dauerhaft verloren.
+- [ ] **W4 — WooCommerce Subscriptions kopiert `_wpac_partner_code`/`_wpac_touch` auf Verlängerungen**, daher wird der Zweig „Abo-Verlängerung“ (`OrderSync.php:117–126`) nie erreicht: Umzuordnungen der Erstbestellung wirken nicht, abgelaufene Codes machen Verlängerungen `unattributed`. Keys über `wcs_renewal_order_meta` ausschließen bzw. bei `is_renewal()` ignorieren.
+- [ ] **W5 — Einschränkung (Art. 18) wirkt nur auf Codes.** `AttributionResolver::resolve()` (`src/Tracking/AttributionResolver.php:36–44`, `85–93`) prüft für `affiliate_id` und Lifetime-Links nur `status = active` → eingeschränkte Partner bekommen weiter Lifetime-, Verlängerungs- und Integrationsprovisionen.
+- [ ] **W6 — Aufbewahrungsfristen laufen auseinander.** `Statement::purge_expired()` (`Statement.php:602`) erzwingt `max(10, …)`, `Retention` erlaubt DE 8/AT 7 → AGB-Nachweise, Buchungstexte und Finanz-Audit werden 2–3 Jahre vor den PDFs gelöscht; Datenschutztext nennt 8 Jahre, PDFs bleiben 10.
+- [ ] **W7 — Migrationssperre lückenhaft.** `Db::refresh()` wird nie aufgerufen, Sperre läuft nach 15 min ab (`Installer.php:216`); `wp wpac upgrade` (`Cli/Command.php:69`) migriert ohne Sperre; `maybe_upgrade()` (`Installer.php:209`) läuft auch in `admin-ajax.php`-Anfragen anonymer Besucher (`is_admin()`).
+- [ ] **W8 — `PayoutService::rebuild()` storniert, bevor es prüft, ob neu erstellt werden kann** (`PayoutService.php:275–293`): verwaiste Stornierung mit verbrauchter Nummer, wenn `blocked_reason()` greift oder der Betrag unter dem Minimum liegt.
+- [ ] **W9 — Backoff-Einträge stornierter Auszahlungen bleiben ewig** (`wpac_statement_retry`, `Statement.php:486–520`) → dauerhafter kritischer Befund in Site Health, tägliche Alarm-Mail, Admin-Hinweis.
+- [ ] **W10 — Block-Checkout prüft Partnercodes ohne Rate-Limit** (`CheckoutField::register_blocks_field()`, `validate_callback`, `CheckoutField.php:102–107`) — Lücke im erledigten Punkt „Code-Prüfung im Checkout ohne Rate-Limit“; Code-Orakel über `POST /wc/store/v1/checkout`.
+- [ ] **W11 — Bewerbungsformular als Phishing-Relais.** `wpac_name` (ohne Längenlimit) landet in der Opt-in-Mail an eine frei wählbare Adresse (`Registration.php:120,138`, `Notifications::confirm_application()`); Limit nur 5/h je IP, keins je Empfänger. Namen nicht in die Mail oder stark kürzen, Limit je Empfänger.
+- [ ] **W12 — Löschen einer Subsite lässt Tabellen liegen**, wenn das Plugin nicht netzwerkweit aktiv ist (`wpmu_drop_tables`-Filter nur bei geladenem Plugin, `Installer.php:76–85`) → 22 Tabellen mit Partnerdaten und verschlüsselten IBANs bleiben.
+- [ ] **W13 — Partner-Mails nicht in der Sprache des Partners/der Site** (kein `switch_to_locale()`, z. B. `Notifications.php`); WPML/Polylang: Landing- und Portal-Links ohne Übersetzungs-ID (`Landing.php:117`).
+- [ ] **W14 — Täglicher Cron ohne Zeitbudget; VIES-Abfragen (bis 20 × 10 s) laufen vor den DSGVO-Löschungen** (`Cron::daily()`, `Vies::recheck_stale()`); bei Timeout entfallen alle Löschschritte täglich. Löschungen zuerst, VIES asynchron und gedeckelt.
+- [ ] **W15 — Deaktivierung: `flush_rewrite_rules()` im `switch_to_blog()`-Kontext** schreibt Regeln der Hauptsite in Subsites; auf Einzelsites bleibt die Regel `^partner/…` gespeichert (`Installer.php:67–71`); netzwerkweite Deaktivierung ohne Batches.
+- [ ] **W16 — Action-Scheduler-Aktionen mit Argumenten werden nie entfernt** (`Scheduler::clear()`, `as_unschedule_all_actions($hook, array(), GROUP)` trifft nur leere Args, z. B. `wpac_vies_check`); `uninstall.php` räumt die AS-Gruppe gar nicht ab.
+- [ ] **W17 — Cron überschreibt Einstellungen (Lost Update).** `TierService::close_month()` schreibt `tier_month_closed`/`tier_month_first` über `Settings::update()` mit dem alten Array zurück → parallel gespeicherte Admin-Einstellungen gehen verloren. Laufzeitzustand in eigene Optionen.
+- [ ] **W18 — Bewerbungsformular mit Nonce in gecachten Seiten** (`Registration::render()`, kein `DONOTCACHEPAGE`/no-cache) → nach 24 h scheitert jede Gast-Bewerbung mit „nonce“.
+- [ ] **W19 — Persönliche Willkommensbox kann in Edge-/Varnish-Caches landen** (`Landing::welcome()`: `nocache_headers()` nur ohne `headers_sent()`).
+- [ ] **W20 — Personenbezogene Optionen bleiben nach Löschung/Ablauf**: `wpac_vies_{id}`, `wpac_public_change_{id}`, `wpac_dunning_{id}_{cur}` bei `Privacy::erase()`; `wpac_prev_email_{id}`/`wpac_user_link_{id}` nur beim Lesen gelöscht, kein Purge.
+
+### Wichtig — Bedienung
+
+- [ ] **W21 — Partner mit bestehendem Kundenkonto kommt nach der Freigabe nicht ins Portal**: nur Verknüpfungslink (7 Tage), Portal zeigt „Jetzt bewerben“, erneute Bewerbung → „Sie haben schon ein Konto“; im Admin weder „Link erneut senden“ noch manuelles Verknüpfen (`AffiliateRepository.php:497`, `Portal.php:293`, Hinweis `AffiliatesPage.php:409`).
+- [ ] **W22 — Vom Admin angelegter Partner bekommt keine Willkommensmail** (nur WP-„Zugangsdaten“, `AffiliatesPage.php:38–51`); Beschreibung „wird per E-Mail verknüpft“ veraltet (`:296`).
+- [ ] **W23 — Gesperrte Auszahlungen führen nicht zur Lösung**: Links ohne `tab=payout` bzw. auf Partner statt Einstellungen (`Admin.php:144`), „Profil unvollständig“ ohne Feldnamen (`PayoutService.php:207`), Liste 1 h gecacht und beim Speichern nicht geleert.
+- [ ] **W24 — Checkliste meldet „erledigt“, obwohl Auszahlungen gesperrt bleiben** (Steuernummer statt USt-IdNr. bei Reverse Charge, SEPA ohne Kontoinhaber; `DashboardPage.php:92`).
+- [ ] **W25 — Jede Bearbeitung der AGB-Seite erzwingt erneute Zustimmung aller Partner** (Seiten-Hash in `Agreements::has_current()`) und sperrt so Auszahlungen; Hilfetext sagt „Version erhöhen“; keine Mail/kein Button „zur Zustimmung auffordern“; vom Admin angelegte Partner standardmäßig gesperrt.
+- [ ] **W26 — Auszahlung aus Antrag: Rohcode „(operator_data)“ und falscher Rat „erneut versuchen“** (`PayoutRequests.php:149`); Antrags-Button sichtbar, obwohl die Auszahlung absehbar blockiert ist.
+- [ ] **W27 — Auszahlungslauf meldet Fehler nicht** („vorgetragen“ enthält Sperren und Abbrüche; `PayoutsPage.php:55`, `payout.failed` nur im Audit).
+- [ ] **W28 — Sammelaktionen**: ohne Bestätigungshäkchen gehen Auswahl und Stornogrund verloren; Teil-Storno verschweigt Erfolge; „einige nicht bezahlt“ ohne welche/warum; CSV-Aktion spricht von „SEPA-Datei“ (`PayoutsPage.php:69–121`).
+- [ ] **W29 — Englische Rohcodes auf der Gutschrift und im Portal**: „Korrektur (refund/chargeback)“ im PDF (`Statement.php:270`) und Admin-Beleg; Portal `kind_label()` ohne `reinstatement`/`repayment` (`Portal.php:717`). `Ledger::kind_labels()` nutzen.
+- [ ] **W30 — Zahlungsaufforderung ohne Firmen-IBAN möglich** („Bitte überweisen an: IBAN “, `Dunning.php:90`); Button ohne Rückfrage.
+- [ ] **W31 — Neuzuordnung in der Bestell-Box ohne Rückfrage und ohne sichtbares Ergebnis**; Fehler nur als Bestellnotiz, manuelle Zuordnung ohne Grund tut still nichts, Methode als Rohcode (`OrderMetaBox.php:60,116–134`).
+- [ ] **W32 — Widerspruch im Portal**: jeder Fehler wird zu „Bitte beschreiben Sie…“, Text geht verloren, im Wartungsmodus gesperrt (`Portal.php:145,208,430`).
+- [ ] **W33 — Mail-Scanner (Safe Links) verbrauchen den Bestätigungslink** → Bewerber sieht „ungültig oder abgelaufen“ (`Registration.php:155–163`). Bestätigung per POST-Button oder idempotent.
+- [ ] **W34 — VIES „ungültig“ wird dem Partner nicht gezeigt**; Admin-Button „Mit VIES prüfen“ meldet immer Erfolg, auch bei „nicht erreichbar“ (`AffiliatesPage.php:171`).
+
+### Wichtig — Produkt und Release
+
+- [ ] **W35 — `readme.txt` für WordPress.org unvollständig**: `== Screenshots ==`, `== Upgrade Notice ==`, `== External services ==` fehlen; FAQ nur 2 Einträge; keine Banner/Icons/Screenshots (`.wordpress-org/`).
+- [ ] **W36 — Mindestversionen ungetestet**: CI nur mit `latest` WP/WC; WP 6.2 vs. Blöcke mit `apiVersion: 3` (ab 6.3), `phpcs.xml.dist` prüft 6.4; WC 8.0/8.9 nie getestet; Header `WC tested up to` fehlt; `SepaXml` nutzt `DOMDocument` ohne `ext-dom`-Prüfung.
+- [ ] **W37 — Auszahlung nur per IBAN/SEPA, Steuerlogik nur DACH**; kein PayPal/Stripe/Wise/manuell (`ProfileRepository::missing()`), Readme bewirbt das Plugin allgemein.
+- [ ] **W38 — Kein Import/keine Migration** aus AffiliateWP, SliceWP, Solid Affiliate, kein CSV-Import, kein vollständiger Programm-Export.
+- [ ] **W39 — Betreiber-Dokumentation fehlt** (englisches Handbuch: Einrichtung, SEPA, Gutschriften, Betrug, Caching/CDN, Multisite, Fehlersuche); `docs/REST.md` ohne `/wpac/v1/health`.
+- [ ] **W40 — Testlücken**: keine Tests der REST-`permission_callback`s, Integrationstests nur gegen nachgebaute WP-Laufzeit, keine Coverage-Schwelle, kein Plugin Check (PCP) in CI.
+- [ ] **W41 — Keine WordPress.org-Release-Strecke** (SVN-Deploy, `.distignore`, Assets); ZIP enthält die deutsche Entwickler-README und `languages/de_DE.json`.
+
+### Optimierung
+
+- [ ] **O1 — Bewerbungsfelder ohne Längenlimit im Transient** (`Registration.php:118–139`; `wp_options` aufblähbar).
+- [ ] **O2 — Bewerbung eingeloggter Nutzer wird an das Konto gebunden, dessen E-Mail unbestätigt geändert werden kann** (`Registration.php:108–119,176`).
+- [ ] **O3 — E-Mail-Wechsel-Token und Monitoring-Token im Klartext gespeichert** (`Portal.php:181`, `Settings.php:217`).
+- [ ] **O4 — Partner können Admin-Mails fluten** (Widersprüche, Datenschutzanfragen ohne Rate-Limit; `Objections.php:66`, `Privacy.php:397`).
+- [ ] **O5 — `[wpac_partner_welcome]` als Code-Orakel ohne Rate-Limit** (`Landing.php:141–170`).
+- [ ] **O6 — `GET /wpac/v1/contract` gibt `WPAC_VERSION` ohne Login aus** (`RestApi.php:127`).
+- [ ] **O7 — Jahresübersicht mit UTC- statt lokalen Jahresgrenzen**; Jahre mit nur Stornos fehlen in der Portal-Liste (`Statement::annual()`).
+- [ ] **O8 — Limit „3 E-Mail-Wechsel/Tag“ gilt je IP statt je Partner** (`Portal.php:178`, `RateLimiter.php:39`).
+- [ ] **O9 — `Ledger::reinstate()` ohne Retry-Pfad** (Exception geht nur in die Bestellnotiz).
+- [ ] **O10 — Toter Code**: `wpac_cookie_signed_since` wird nie geschrieben (Alt-Cookie-Zweig `Tracker.php:262` unerreichbar); `Dunning` mahnt gelöschte/eingeschränkte Partner (`deleted-N@invalid.invalid`).
+- [ ] **O11 — N+1-Abfragen**: `CommissionsTable` lädt `wc_get_order()` je Zeile nur für die URL; `PayoutsPage.php:292` `find()` je Zeile; `PayoutService::preview()` je Partner mehrere Abfragen (auch im Admin-Hinweis).
+- [ ] **O12 — `CustomerLinks::purge_expired()` ohne Index auf `expires_at` und ohne Batches.**
+- [ ] **O13 — `TierService::recalculate_closed_months()` filtert ohne Index (`updated_at`) und ohne Zeitbudget.**
+- [ ] **O14 — Beacon-Inline-Skript ändert sich bei jedem Request (`gen`)** → JS-Kombinierer erzeugen neue Bundles, „Delay JS“ verzögert den Beacon; Dedup-Transients `wpac_vd_*` landen ohne Object Cache in `wp_options`.
+- [ ] **O15 — Reste nach der Deinstallation**: `wpac_network_pending` (Site-Option), `wpac_report_retry_lock`, Sperren `wpac_stmt_*`.
+- [ ] **O16 — Wartungsmodus wird umgangen** von `Jobs::drain()` und `MonthlyMail::batch()`/`retry_failed()`.
+- [ ] **O17 — Listen in einer Option ohne Sperre** (`wpac_restricted`, `wpac_objections`; parallele Änderungen gehen verloren, Liste wächst über die Aufbewahrungsfrist).
+- [ ] **O18 — v8-Migration mit drei einzelnen `ALTER`s auf `payout_items`** (ohne INSTANT-DDL je ein Table-Rebuild).
+- [ ] **O19 — i18n-Feinschliff**: Plurale ohne `_n()` (`AffiliatesPage.php:137`, `PayoutsPage.php:57,77`, `CommissionsPage.php:47,121`, `Editor.php:147`, `Privacy.php:455–497`); REST-Fehler (`RestApi.php:57,101,212,400`) und Site-Health-Labels (`Monitor.php:142–158`) nicht übersetzbar; POT ohne Übersetzerkommentare und Plural-Forms-Header.
+- [ ] **O20 — Downgrade wird nicht erkannt** (`Installer.php:200` prüft nur `>=`).
+- [ ] **O21 — Plugin-Name/Slug mit „WP“-Präfix** vor der WP.org-Einreichung prüfen (Trademark-Regel).
+- [ ] **O22 — Admin-Hinweise nicht wegklickbar und gestapelt**; InnoDB-/Cron-Hinweis ohne Erklärung für Laien; Partner ohne Bankdaten dauerhaft in der Warnliste.
+- [ ] **O23 — Widerspruch im Admin**: Textarea ohne Label, kein Direktlink „Auszahlung stornieren“, Ergebnis von `resolve()` ignoriert (`PayoutsPage.php:45,218`).
+- [ ] **O24 — „Alle fehlgeschlagenen Jobs wiederholen“ meldet immer Erfolg** (auch > 25 oder erneut gescheitert); Tabelle mit Rohcodes (`IntegrationsPage.php:27,109`).
+- [ ] **O25 — Uneinheitliche Pfadangaben** („Einstellungen → Berichte“ vs. Tab „Berichte & Daten“, „Partnerprogramm → Integrationen“ vs. Menü „Affiliate Captain“); Portal-Tab „Mein Konto“ verweist zum Löschen auf E-Mail statt auf den Datenschutz-Tab.
+- [ ] **O26 — Barrierefreiheit**: alle Checkboxen heißen „Aktiviert“ (`SettingsPage.php:292`); unbeschriftete Felder in Auszahlungsdaten und Landingpage (`AffiliatesPage.php:441–452,563–569`).
+- [ ] **O27 — Admin-Formulare verlieren Eingaben bei Fehlern** („Partner anlegen“, „Auszahlungsdaten speichern“).
+- [ ] **O28 — Rohcodes/JSON in Verlauf, Audit-Log und Site-Health-Info; Monat in der Monatsmail als „2026-10“.**
+- [ ] **O29 — „Seiten automatisch anlegen“ meldet immer Erfolg** (`DashboardPage.php:30,75`).
+- [ ] **O30 — Doppelte Mails bei Freigabe** (WP-„Zugangsdaten“ + Freigabemail mit „Passwort setzen“).
