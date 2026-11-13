@@ -226,7 +226,8 @@ function wp_specialchars_decode( $t, $q = 0 ) { return $t; }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 if ( ! function_exists( 'wp_date' ) ) { function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : $ts ); } }
 function mysql2date( $f, $d ) { return gmdate( 'd.m.Y', strtotime( $d ) ); }
-function get_date_from_gmt( $d, $f = 'Y-m-d H:i:s' ) { return $d; }
+function get_date_from_gmt( $d, $f = 'Y-m-d H:i:s' ) { return 'Y' === $f ? substr( (string) $d, 0, 4 ) : $d; }
+if ( ! function_exists( 'get_gmt_from_date' ) ) { function get_gmt_from_date( $d, $f = 'Y-m-d H:i:s' ) { return $d; } }
 function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ',', '.' ); }
 function wp_upload_dir( $t = null, $c = true ) { return array( 'basedir' => sys_get_temp_dir() . '/wpac-uploads' ); }
 function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }

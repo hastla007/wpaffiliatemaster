@@ -59,6 +59,11 @@ final class Retention {
 	/**
 	 * Booking records dated before this (UTC, MySQL) are past their retention; null = keep everything.
 	 *
+	 * The single source of truth for every retention deletion: credit note and cancellation PDFs
+	 * with the partner snapshot (Statement::purge_expired()), booking texts and acceptance records
+	 * (purge_erased(), purge_agreements()) and the financial change log (Cron::purge_audit()). So
+	 * nothing that belongs to a credit note is deleted before the credit note itself.
+	 *
 	 * @return string|null
 	 */
 	public static function cutoff() {

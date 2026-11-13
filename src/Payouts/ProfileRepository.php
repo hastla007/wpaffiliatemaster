@@ -1,6 +1,7 @@
 <?php
 /**
- * Payout profiles: tax status, address, VAT ID and encrypted bank details.
+ * Payout profiles: tax status, address, VAT ID and encrypted bank details (IBAN for SEPA
+ * transfers, or free-text payment details for other methods that are paid manually).
  * Reading full details requires the wpac_view_tax_data capability.
  *
  * @package WPAffiliateCaptain
@@ -30,6 +31,58 @@ final class ProfileRepository {
 		);
 	}
 
+	/** Payout by SEPA transfer (IBAN). */
+	const METHOD_SEPA = 'sepa';
+
+	/** Payout by another method (PayPal, Wise, foreign bank …): free-text payment details, paid manually. */
+	const METHOD_MANUAL = 'manual';
+
+	/** Prefix of the encrypted payment details of the manual method (distinguishes them from an IBAN). */
+	const MANUAL_PREFIX = 'manual:';
+
+	/**
+	 * Payout method labels.
+	 *
+	 * @return array
+	 */
+	public static function method_labels() {
+		return array(
+			self::METHOD_SEPA   => __( 'Bank transfer (SEPA, IBAN)', 'wp-affiliate-captain' ),
+			self::METHOD_MANUAL => __( 'Other payment method (e.g. PayPal), paid manually', 'wp-affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Payout method of a profile. The manual method stores its encrypted payment details in the
+	 * same column as the IBAN, without IBAN country/last digits (an IBAN always has both).
+	 *
+	 * @param object|null $profile Profile.
+	 * @return string sepa|manual
+	 */
+	public static function method( $profile ) {
+		if ( $profile && '' !== (string) $profile->iban_encrypted && '' === (string) $profile->iban_country ) {
+			return self::METHOD_MANUAL;
+		}
+		return self::METHOD_SEPA;
+	}
+
+	/**
+	 * Decrypted payment details of the manual method (null for SEPA or when not decryptable).
+	 *
+	 * @param object|null $profile Profile.
+	 * @return string|null
+	 */
+	public static function payment_details( $profile ) {
+		if ( self::METHOD_MANUAL !== self::method( $profile ) ) {
+			return null;
+		}
+		$plain = Crypto::decrypt( (string) $profile->iban_encrypted );
+		if ( null === $plain || 0 !== strpos( $plain, self::MANUAL_PREFIX ) ) {
+			return null;
+		}
+		return (string) substr( $plain, strlen( self::MANUAL_PREFIX ) );
+	}
+
 	/**
 	 * Profile row (IBAN stays encrypted).
 	 *
@@ -50,7 +103,10 @@ final class ProfileRepository {
 	 * @return string|null
 	 */
 	public static function iban( $profile ) {
-		return $profile ? Crypto::decrypt( (string) $profile->iban_encrypted ) : null;
+		if ( ! $profile || self::METHOD_MANUAL === self::method( $profile ) ) {
+			return null;
+		}
+		return Crypto::decrypt( (string) $profile->iban_encrypted );
 	}
 
 	/**
@@ -74,7 +130,9 @@ final class ProfileRepository {
 		if ( ! $profile ) {
 			return 'tax_status';
 		}
-		foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'account_holder' ) as $f ) {
+		$manual = self::METHOD_MANUAL === self::method( $profile );
+		// The account holder belongs to the bank transfer; other methods carry it in their details.
+		foreach ( $manual ? array( 'tax_status', 'legal_name', 'address', 'country' ) : array( 'tax_status', 'legal_name', 'address', 'country', 'account_holder' ) as $f ) {
 			if ( '' === trim( (string) $profile->$f ) ) {
 				return $f;
 			}
@@ -120,16 +178,40 @@ final class ProfileRepository {
 		if ( 'small_business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
 			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'wp-affiliate-captain' ) );
 		}
-		$iban = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
-		if ( '' !== $iban ) {
-			if ( ! Iban::is_valid( $iban ) ) {
-				return new \WP_Error( 'wpac_iban', __( 'The IBAN is not valid.', 'wp-affiliate-captain' ) );
-			}
-			$data['iban_encrypted'] = Crypto::encrypt( $iban );
-			$data['iban_country']   = substr( $iban, 0, 2 );
-			$data['iban_last4']     = substr( $iban, -4 );
-		}
 		$existing = self::get( $affiliate_id );
+		$methods  = self::method_labels();
+		// Without a choice in the input the stored method stays (older forms, integrations).
+		$method      = isset( $in['payout_method'] ) && isset( $methods[ $in['payout_method'] ] ) ? (string) $in['payout_method'] : self::method( $existing );
+		$old_method  = self::method( $existing );
+		$details_new = false;
+		$iban        = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
+		if ( self::METHOD_MANUAL === $method ) {
+			// Free-text payment details (e.g. "PayPal: name@example.com"), stored encrypted like the IBAN.
+			$details = trim( substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
+			$iban    = '';
+			if ( '' === $details && self::METHOD_MANUAL !== $old_method ) {
+				return new \WP_Error( 'wpac_payment_details', __( 'Please enter your payment details (e.g. your PayPal address).', 'wp-affiliate-captain' ) );
+			}
+			if ( '' !== $details ) {
+				$details_new            = self::payment_details( $existing ) !== $details;
+				$data['iban_encrypted'] = Crypto::encrypt( self::MANUAL_PREFIX . $details );
+				$data['iban_country']   = '';
+				$data['iban_last4']     = '';
+			}
+			$data['bic'] = '';
+		} else {
+			if ( '' === $iban && self::METHOD_MANUAL === $old_method ) {
+				return new \WP_Error( 'wpac_iban_required', __( 'Please enter your IBAN for payouts by bank transfer.', 'wp-affiliate-captain' ) );
+			}
+			if ( '' !== $iban ) {
+				if ( ! Iban::is_valid( $iban ) ) {
+					return new \WP_Error( 'wpac_iban', __( 'The IBAN is not valid.', 'wp-affiliate-captain' ) );
+				}
+				$data['iban_encrypted'] = Crypto::encrypt( $iban );
+				$data['iban_country']   = substr( $iban, 0, 2 );
+				$data['iban_last4']     = substr( $iban, -4 );
+			}
+		}
 		if ( $existing ) {
 			$wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
 		} else {
@@ -138,7 +220,10 @@ final class ProfileRepository {
 		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
 		}
-		if ( '' !== $iban && $existing && '' !== (string) $existing->iban_encrypted && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) {
+		$had_details = $existing && '' !== (string) $existing->iban_encrypted;
+		$changed     = $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $method !== $old_method );
+		if ( $changed ) {
+			// Security notice to the partner: where the money goes was changed.
 			\WPAffiliateCaptain\Affiliates\Notifications::bank_details_changed( (int) $affiliate_id );
 		}
 		Audit::log(
@@ -146,8 +231,10 @@ final class ProfileRepository {
 			'affiliate',
 			(int) $affiliate_id,
 			array(
-				'tax_status'   => $tax,
-				'iban_changed' => '' !== $iban,
+				'tax_status'      => $tax,
+				'payout_method'   => $method,
+				'iban_changed'    => '' !== $iban,
+				'details_changed' => $details_new,
 			)
 		);
 		return true;
@@ -171,8 +258,10 @@ final class ProfileRepository {
 			'vat_id'         => $profile->vat_id,
 			'tax_number'     => isset( $profile->tax_number ) ? $profile->tax_number : '',
 			'account_holder' => $profile->account_holder,
-			'iban_masked'    => Iban::mask( $profile->iban_last4, $profile->iban_country ),
+			'iban_masked'    => self::METHOD_MANUAL === self::method( $profile ) ? '' : Iban::mask( $profile->iban_last4, $profile->iban_country ),
 			'bic'            => $profile->bic,
+			// Never the payment details themselves (they stay encrypted in the profile).
+			'payout_method'  => self::method( $profile ),
 		);
 	}
 
