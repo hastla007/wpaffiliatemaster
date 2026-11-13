@@ -184,7 +184,7 @@ final class Dunning {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
 					if ( $open >= 0 || $amount_minor > -$open ) {
-						throw new IntegrationException( 'amount', __( 'The amount is larger than the negative balance.', 'affiliate-captain' ) );
+						throw new IntegrationException( 'amount', esc_html__( 'The amount is larger than the negative balance.', 'affiliate-captain' ) );
 					}
 					$key = Ledger::key( 'repayment:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
 					$ok  = $wpdb->insert(
@@ -212,7 +212,7 @@ final class Dunning {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_repayment', $wpdb->last_error );
+						throw new IntegrationException( 'db_repayment', esc_html( $wpdb->last_error ) );
 					}
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $affiliate_id, $currency, 'approved', $amount_minor, $id, 0, 'repayment' );

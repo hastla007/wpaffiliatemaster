@@ -1064,8 +1064,11 @@ final class Installer {
 				if ( '' === $name || ! is_file( $root . '/' . $name ) || file_exists( $dir . '/' . $name ) ) {
 					continue;
 				}
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
-				if ( @rename( $root . '/' . $name, $dir . '/' . $name ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				// One ignore comment per line: a second "phpcs:ignore" for the same line replaces the
+				// first one, so both codes are listed here. rename() on purpose: a move within the
+				// server, WP_Filesystem may be FTP-based and cannot reach a folder outside the web root.
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename, WordPress.PHP.NoSilencedErrors.Discouraged
+				if ( @rename( $root . '/' . $name, $dir . '/' . $name ) ) {
 					++$moved;
 				} else {
 					++$fail;

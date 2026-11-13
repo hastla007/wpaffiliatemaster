@@ -29,7 +29,7 @@ final class Sequence {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$ok = $wpdb->query( $wpdb->prepare( "INSERT INTO {$t} (name, year, value) VALUES (%s, %d, 1) ON DUPLICATE KEY UPDATE value = value + 1", $name, $year ) );
 		if ( false === $ok ) {
-			throw new IntegrationException( 'db_sequence', $wpdb->last_error );
+			throw new IntegrationException( 'db_sequence', esc_html( $wpdb->last_error ) );
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT value FROM {$t} WHERE name = %s AND year = %d", $name, $year ) );

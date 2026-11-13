@@ -200,7 +200,7 @@ final class ContractApi {
 	public static function normalize_sale( array $p ) {
 		$contract = isset( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
 		if ( ! self::is_compatible( $contract ) ) {
-			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
+			throw new IntegrationException( 'incompatible_contract', esc_html( 'Unsupported contract version ' . $contract ) );
 		}
 		$source   = isset( $p['source'] ) ? sanitize_key( $p['source'] ) : '';
 		$order_id = isset( $p['order_id'] ) ? substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';
@@ -279,7 +279,7 @@ final class ContractApi {
 	public static function normalize_refund( array $p ) {
 		$contract = isset( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
 		if ( ! self::is_compatible( $contract ) ) {
-			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
+			throw new IntegrationException( 'incompatible_contract', esc_html( 'Unsupported contract version ' . $contract ) );
 		}
 		$source    = isset( $p['source'] ) ? sanitize_key( $p['source'] ) : '';
 		$order_id  = isset( $p['order_id'] ) ? substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';

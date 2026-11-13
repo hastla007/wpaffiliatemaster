@@ -50,7 +50,7 @@ final class Balance {
 				$acc = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$b} WHERE affiliate_id = %d AND currency = %s FOR UPDATE", $affiliate_id, $currency ) );
 				// phpcs:enable
 				if ( ! $acc ) {
-					throw new IntegrationException( 'balance_lock', $wpdb->last_error );
+					throw new IntegrationException( 'balance_lock', esc_html( $wpdb->last_error ) );
 				}
 				$row          = array(
 					'affiliate_id'  => (int) $affiliate_id,
@@ -67,7 +67,7 @@ final class Balance {
 				);
 				$row['hash'] = self::hash( $row );
 				if ( ! $wpdb->insert( $e, $row ) ) {
-					throw new IntegrationException( 'balance_entry', $wpdb->last_error );
+					throw new IntegrationException( 'balance_entry', esc_html( $wpdb->last_error ) );
 				}
 				$id = (int) $wpdb->insert_id;
 				$updated = $wpdb->update(
@@ -85,7 +85,7 @@ final class Balance {
 				);
 				// Booking and account summary must change together (otherwise the whole booking rolls back).
 				if ( 1 !== (int) $updated ) {
-					throw new IntegrationException( 'balance_update', '' !== $wpdb->last_error ? $wpdb->last_error : 'Account summary was not updated.' );
+					throw new IntegrationException( 'balance_update', esc_html( '' !== $wpdb->last_error ? $wpdb->last_error : 'Account summary was not updated.' ) );
 				}
 				return $id;
 			}

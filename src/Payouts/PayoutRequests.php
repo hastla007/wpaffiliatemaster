@@ -122,7 +122,7 @@ final class PayoutRequests {
 						)
 					);
 					if ( ! $ok || ! (int) $wpdb->insert_id ) {
-						throw new \WPAffiliateCaptain\Core\IntegrationException( 'db_payout_request', $wpdb->last_error );
+						throw new \WPAffiliateCaptain\Core\IntegrationException( 'db_payout_request', esc_html( $wpdb->last_error ) );
 					}
 					return (int) $wpdb->insert_id;
 				}
