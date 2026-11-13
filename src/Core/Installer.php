@@ -20,7 +20,19 @@ final class Installer {
 	 */
 	public static function activate( $network_wide = false ) {
 		if ( is_multisite() && $network_wide ) {
-			self::for_each_site( array( __CLASS__, 'activate_site' ) );
+			// Small networks are set up right away; large ones in batches (cron) so the network
+			// activation request never runs into the time limit. Every site also migrates itself
+			// on its next admin or cron request (maybe_upgrade()).
+			$ids = array_map( 'intval', (array) get_sites( array( 'fields' => 'ids', 'number' => 0, 'network_id' => get_current_network_id() ) ) );
+			$now = array_slice( $ids, 0, self::NETWORK_BATCH );
+			foreach ( $now as $id ) {
+				self::run_on_site( $id, array( __CLASS__, 'activate_site' ) );
+			}
+			$rest = array_slice( $ids, self::NETWORK_BATCH );
+			if ( $rest ) {
+				update_site_option( 'wpac_network_pending', $rest );
+				wp_schedule_single_event( time() + 30, self::NETWORK_HOOK );
+			}
 			return;
 		}
 		self::activate_site();
@@ -65,10 +77,49 @@ final class Installer {
 		if ( ! is_multisite() ) {
 			return;
 		}
+		add_action( self::NETWORK_HOOK, array( __CLASS__, 'network_setup_batch' ) );
 		add_action( 'wp_initialize_site', array( __CLASS__, 'on_new_site' ), 200 );
 		// Per-request caches hold data of one site; drop them when code switches to another site.
 		add_action( 'switch_blog', array( __CLASS__, 'flush_site_caches' ) );
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_tables' ), 10, 2 );
+	}
+
+	const NETWORK_BATCH = 25;
+	const NETWORK_HOOK  = 'wpac_network_setup';
+
+	/**
+	 * Set up the next sites of a large network after a network-wide activation (single cron events).
+	 */
+	public static function network_setup_batch() {
+		$pending = array_map( 'intval', (array) get_site_option( 'wpac_network_pending', array() ) );
+		if ( ! $pending ) {
+			return;
+		}
+		foreach ( array_slice( $pending, 0, self::NETWORK_BATCH ) as $id ) {
+			self::run_on_site( $id, array( __CLASS__, 'activate_site' ) );
+		}
+		$rest = array_slice( $pending, self::NETWORK_BATCH );
+		if ( $rest ) {
+			update_site_option( 'wpac_network_pending', $rest );
+			wp_schedule_single_event( time() + 30, self::NETWORK_HOOK );
+		} else {
+			delete_site_option( 'wpac_network_pending' );
+		}
+	}
+
+	/**
+	 * Run a callback on one site.
+	 *
+	 * @param int      $id       Site ID.
+	 * @param callable $callback Callback.
+	 */
+	private static function run_on_site( $id, callable $callback ) {
+		switch_to_blog( (int) $id );
+		try {
+			call_user_func( $callback );
+		} finally {
+			restore_current_blog();
+		}
 	}
 
 	/**

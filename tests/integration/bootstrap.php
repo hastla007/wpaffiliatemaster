@@ -35,11 +35,22 @@ class Test_WPDB {
 
 	public function __construct() {
 		mysqli_report( MYSQLI_REPORT_OFF );
+		// Optional mixed-case prefix (lower_case_table_names tests) and host:port.
+		if ( getenv( 'WPAC_TEST_DB_PREFIX' ) ) {
+			$this->prefix = (string) getenv( 'WPAC_TEST_DB_PREFIX' );
+		}
+		$host = getenv( 'WPAC_TEST_DB_HOST' ) ?: 'localhost';
+		$port = null;
+		if ( false !== strpos( $host, ':' ) ) {
+			list( $host, $port ) = explode( ':', $host, 2 );
+			$port                = (int) $port;
+		}
 		$this->db = new mysqli(
-			getenv( 'WPAC_TEST_DB_HOST' ) ?: 'localhost',
+			$host,
 			getenv( 'WPAC_TEST_DB_USER' ) ?: 'wpac',
 			getenv( 'WPAC_TEST_DB_PASS' ) ?: 'wpac',
-			getenv( 'WPAC_TEST_DB_NAME' ) ?: 'wpac_test'
+			getenv( 'WPAC_TEST_DB_NAME' ) ?: 'wpac_test',
+			$port
 		);
 		if ( $this->db->connect_error ) {
 			fwrite( STDERR, 'DB connection failed: ' . $this->db->connect_error . "\n" );

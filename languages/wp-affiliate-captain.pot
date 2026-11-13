@@ -3,6 +3,18 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "X-Domain: wp-affiliate-captain\n"
 
+#: src/Admin/Admin.php
+msgid "Affiliate Captain: %d credit note could not be written (statement folder not writable?). It is tried again with increasing pauses."
+msgid_plural "Affiliate Captain: %d credit notes could not be written (statement folder not writable?). They are tried again with increasing pauses."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Admin.php
+msgid "Affiliate Captain: %d partner with a payable balance cannot be paid out:"
+msgid_plural "Affiliate Captain: %d partners with a payable balance cannot be paid out:"
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Admin.php src/Admin/Pages/DashboardPage.php src/Content/Editor.php src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Affiliate Captain"
 msgstr ""
@@ -45,6 +57,14 @@ msgstr ""
 
 #: src/Admin/Admin.php
 msgid "Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Affiliate Captain: some tables do not use InnoDB, so bookings cannot run in transactions. Please convert them (ALTER TABLE … ENGINE=InnoDB)."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Affiliate Captain: %1$d partner accounts do not match their bookings (%2$s). Please check them before the next payout."
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -102,6 +122,26 @@ msgid "Status updated."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "A restriction after an erasure request ends automatically with the retention period."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Restriction lifted."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Affiliates/AffiliateRepository.php src/Commissions/Ledger.php src/Payouts/PayoutRequests.php src/Payouts/PayoutService.php
+msgid "Please enter a reason."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Processing is restricted: no new attributions, no report mails, no reactivation."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Decision saved; the partner was informed."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Code created."
 msgstr ""
 
@@ -115,6 +155,14 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Coupon link updated."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "VAT ID checked against VIES."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "No VAT ID stored."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -193,6 +241,38 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Processing restricted (Art. 18 GDPR)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "since %s"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "after an erasure request; kept only for the statutory retention"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Lift restriction"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The partner wants to change the public details:"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
+msgid "Name"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Approve change"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reject change"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Last reason"
 msgstr ""
@@ -235,6 +315,18 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "On termination, open commissions remain payable (see settings)."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Restrict processing on the partner's request (Art. 18 GDPR) – reason"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Restrict processing? Codes stop attributing sales and no report mails are sent until you lift it."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+msgid "Restrict processing"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -429,6 +521,30 @@ msgstr ""
 msgid "VAT ID"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "valid"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "NOT valid"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "VIES not reachable – checked again automatically"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "not an EU VAT ID (no VIES check)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%1$s (checked %2$s%3$s)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "consultation number %s"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
 msgid "Tax number"
 msgstr ""
@@ -455,6 +571,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Only users who manage payouts can change payout details."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Check VAT ID with VIES now"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -525,7 +645,7 @@ msgstr ""
 msgid "Partner sections"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
 msgid "Partner group"
 msgstr ""
 
@@ -621,7 +741,7 @@ msgstr ""
 msgid "item"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Privacy/Privacy.php
 msgid "Type"
 msgstr ""
 
@@ -929,12 +1049,16 @@ msgstr ""
 msgid "Link visits"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php src/Reports/MonthlyMail.php
+#: src/Admin/Pages/DashboardPage.php src/Privacy/Privacy.php src/Reports/MonthlyMail.php
 msgid "Attributed orders"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Reports/MonthlyMail.php
 msgid "Net revenue"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Write-offs"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -953,7 +1077,7 @@ msgstr ""
 msgid "Content"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Privacy/Privacy.php
 msgid "Campaign"
 msgstr ""
 
@@ -984,6 +1108,12 @@ msgstr ""
 #: src/Admin/Pages/DashboardPage.php
 msgid "Refund rate"
 msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d failed job was queued again and processed."
+msgid_plural "%d failed jobs were queued again and processed."
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Job processed successfully."
@@ -1078,6 +1208,10 @@ msgid "No open or failed jobs."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Retry all failed jobs (%d)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "Key"
 msgstr ""
 
@@ -1102,6 +1236,14 @@ msgid "Create %d payout"
 msgid_plural "Create %d payouts"
 msgstr[0] ""
 msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Please describe what was done (the partner is informed)."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Objection marked as handled; the partner was informed."
+msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Please choose a period end and currency."
@@ -1149,6 +1291,22 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
 msgid "Not allowed."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%1$s objected to credit note %2$s on %3$s:"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "What was done (sent to the partner)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Mark as handled"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1311,7 +1469,7 @@ msgstr ""
 msgid "Created"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Description"
 msgstr ""
 
@@ -1319,7 +1477,7 @@ msgstr ""
 msgid "Correction"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Net amount"
 msgstr ""
 
@@ -1327,7 +1485,7 @@ msgstr ""
 msgid "plus VAT %s %%"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "VAT"
 msgstr ""
 
@@ -1345,10 +1503,6 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Rule saved. Existing commissions are not changed."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Affiliates/AffiliateRepository.php src/Commissions/Ledger.php src/Payouts/PayoutRequests.php src/Payouts/PayoutService.php
-msgid "Please enter a reason."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -1455,7 +1609,7 @@ msgstr ""
 msgid "Priority"
 msgstr ""
 
-#: src/Admin/Pages/RulesPage.php
+#: src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
 msgid "Note"
 msgstr ""
 
@@ -1537,10 +1691,6 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "own terms"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
-msgid "Name"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -2024,7 +2174,7 @@ msgid "Keep statements (years, 0 = forever)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "At least 10 years. Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
+msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2116,7 +2266,7 @@ msgid "Keep audit log (days, 0 = forever)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Terms acceptance records are always kept as proof."
+msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2125,6 +2275,18 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Record of processing activities"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Template for your record of processing activities (Art. 30 GDPR), filled with your current settings."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Download template (Markdown)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2212,6 +2374,10 @@ msgid "Invalid status."
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
+msgid "Processing of this partner is restricted (data protection). Lift the restriction first."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
 msgid "Partnership terminated"
 msgstr ""
 
@@ -2273,6 +2439,26 @@ msgstr ""
 
 #: src/Affiliates/Notifications.php
 msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "[%s] Partner wants to change name or website"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "%1$s changed the public name or website. The change is shown only after you approve it:\n\n%2$s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your profile change"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us."
 msgstr ""
 
 #: src/Affiliates/Notifications.php
@@ -2399,6 +2585,14 @@ msgstr ""
 msgid "partner program terms"
 msgstr ""
 
+#: src/Affiliates/Registration.php
+msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Privacy policy"
+msgstr ""
+
 #: src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "Apply now"
 msgstr ""
@@ -2433,6 +2627,14 @@ msgstr ""
 
 #: src/Commissions/Balance.php
 msgid "Balance (%1$d) differs from approved, unpaid commissions (%2$d)."
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "[%s] Partner program: account balances differ from the bookings"
+msgstr ""
+
+#: src/Commissions/Balance.php
+msgid "The daily reconciliation found %1$d partner accounts whose balance does not match the bookings:\n%2$s\n\nPlease do not run payouts for them before checking (Partners → partner → Balance)."
 msgstr ""
 
 #: src/Commissions/Balance.php
@@ -2591,6 +2793,14 @@ msgstr ""
 msgid "Recommended target pages"
 msgstr ""
 
+#: src/Core/Installer.php
+msgid "[%s] Partner program: database update is stuck"
+msgstr ""
+
+#: src/Core/Installer.php
+msgid "The database update of WP Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade"
+msgstr ""
+
 #: src/Integrations/WooCommerce/CheckoutField.php
 msgid "Partner code (optional)"
 msgstr ""
@@ -2615,7 +2825,7 @@ msgstr ""
 msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
 msgstr ""
 
-#: src/Integrations/WooCommerce/OrderMetaBox.php
+#: src/Integrations/WooCommerce/OrderMetaBox.php src/Privacy/Privacy.php
 msgid "Method"
 msgstr ""
 
@@ -2653,6 +2863,34 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Order cancelled"
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "This credit note cannot be objected to."
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "Please describe what is incorrect."
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "Your objection to this credit note is already being reviewed."
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "Objection to credit note %s"
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4$s"
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "Your objection to credit note %s"
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "Hello,\n\nwe have reviewed your objection:\n\n%s"
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
@@ -2749,6 +2987,10 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Reverse charge needs your VAT ID (Settings → Payouts)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "The partner's VAT ID is not valid according to VIES (reverse charge not possible)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -2867,7 +3109,7 @@ msgstr ""
 msgid "Partner (provider of the service)"
 msgstr ""
 
-#: src/Payouts/Statement.php
+#: src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Cancellation number"
 msgstr ""
 
@@ -2924,11 +3166,43 @@ msgid "Total cancelled"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "This document is a credit note (self-billing) agreed with the partner. Please check it and object within 14 days if anything is incorrect; the partner does not issue a separate invoice."
+msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
 msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Annual overview %d"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "partner program"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Document"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Gross"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "cancels %s"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "No credit notes in this year."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Total %s"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -3000,6 +3274,10 @@ msgid "My account"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Privacy"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Your partner account is paused. New sales are currently not attributed."
 msgstr ""
 
@@ -3049,6 +3327,30 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your customer account is now connected to the partner program."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please confirm your request with the link we have sent you by e-mail."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your request was sent. We will get back to you within one month."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The request could not be sent. For restriction and objection, please describe your reason."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Thank you. Your objection was sent; we will review the credit note."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The objection could not be filed. Please describe what is incorrect."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Saved. Your new name or website is shown after our review."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -3268,6 +3570,94 @@ msgid "Credit note"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Annual overview:"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Objection to %1$s: %2$s"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "being reviewed"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Something is wrong with a credit note?"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "What is incorrect?"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Object to the credit note"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "What we store about you"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your account: name or company, e-mail, website, channel and your application."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your partner codes and the accepted terms (version, time and the accepted text)."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Visits through your links (without IP address) and the orders attributed to you (order number and amount, never the customer's name)."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "For payouts: legal name, address, tax status, VAT ID or tax number and bank details (the IBAN is stored encrypted), your commissions, payouts and credit notes."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Commission records and credit notes are kept for %d years after the end of the calendar year (statutory retention), everything else only as long as you are a partner."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Commission records and credit notes are kept for the statutory retention period, everything else only as long as you are a partner."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Full privacy policy"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your rights"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "You can request a copy of your data, its erasure, the restriction of its processing, or object to processing based on our legitimate interest. Copy and erasure are confirmed by e-mail first. Records we must keep by law are restricted instead of deleted until the retention period ends."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Request"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Copy of my data (export)"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Erase my data"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Object to processing"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Details (optional; required for restriction and objection)"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Send request"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Name / company for the statement"
 msgstr ""
 
@@ -3340,6 +3730,50 @@ msgid "Partner account"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Commission base"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Held until"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Link visits (without IP address)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Number of visits"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "First visit"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Last visit"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Linked user account"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Processing restricted since"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Requested new e-mail address (not confirmed)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Previous e-mail address (security notices for 30 days)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Paid on"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Payout requests"
 msgstr ""
 
@@ -3352,7 +3786,19 @@ msgid "Payout details were retained because the partner still has open commissio
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO) and deleted after the configured retention period."
+msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Data protection: %s asks to restrict processing"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Data protection: %s objects to processing"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Details from the partner:\n\n%1$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2$s"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -3380,11 +3826,79 @@ msgid "After a purchase via a partner, later purchases are also credited to this
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "For partners we store application details, accepted terms (version and time), partner codes, commission records and payout details. Bank details are stored encrypted. Credit notes are kept for the statutory retention period."
+msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "link visits (without IP address): %d days"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "link visits (without IP address): until deleted manually"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "affiliate cookie: %d days"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "customer link to the referring partner: %d days"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "customer link to the referring partner: until the partner relationship ends"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "rejected partner applications: %d days"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "rejected partner applications: until deleted manually"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "change log of other settings and partner data: %d days"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "change log: until deleted manually"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Storage periods:"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Partners can ask for a copy of their data, its correction, erasure or restriction of processing, and can object to processing based on legitimate interest. Records we must keep by law are restricted instead of deleted until the retention period ends."
 msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "This text is a suggestion based on your current settings and must be reviewed by your data protection advisor."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Deleted applicant"
 msgstr ""
 
 #: src/Promotion/Creatives.php
@@ -3432,6 +3946,10 @@ msgid "Sales"
 msgstr ""
 
 #: src/Reports/MonthlyMail.php
+msgid "Written-off negative balance"
+msgstr ""
+
+#: src/Reports/MonthlyMail.php
 msgid "Available for payout"
 msgstr ""
 
@@ -3441,6 +3959,10 @@ msgstr ""
 
 #: src/Reports/MonthlyMail.php
 msgid "Partner program summary %s"
+msgstr ""
+
+#: src/Reports/MonthlyMail.php
+msgid "Written-off negative balances"
 msgstr ""
 
 #: src/Reports/MonthlyMail.php

@@ -121,7 +121,8 @@ final class Retention {
 		global $wpdb;
 		$c = Db::table( 'commissions' );
 		$p = Db::table( 'payouts' );
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// Table names only; values are placeholders.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'commission_events' ) . " SET reason = '' WHERE commission_id IN (SELECT id FROM {$c} WHERE affiliate_id = %d)", $affiliate_id ) );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'attributions' ) . " SET note = '' WHERE affiliate_id = %d", $affiliate_id ) );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p} SET note = '' WHERE affiliate_id = %d", $affiliate_id ) );
