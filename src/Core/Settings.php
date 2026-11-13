@@ -58,6 +58,8 @@ final class Settings {
 			'registration_page_id'    => 0,
 			'terminated_open'         => 'pay',      // pay|reject.
 			'admin_email'             => '',
+			'maintenance_mode'        => 0,
+			'monitor_token'           => '',
 			// Promotion.
 			'landing_prefix'          => 'partner',
 			'landing_page_id'         => 0,
@@ -155,7 +157,7 @@ final class Settings {
 		$lifetime_rate        = isset( $in['lifetime_rate'] ) ? Money::normalize_decimal( (string) $in['lifetime_rate'] ) : null;
 		$out['lifetime_rate'] = ( null !== $lifetime_rate && (float) $lifetime_rate >= 0 && (float) $lifetime_rate <= 100 ) ? $lifetime_rate : '';
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
@@ -212,6 +214,8 @@ final class Settings {
 
 		$out['terms_version']     = isset( $in['terms_version'] ) ? sanitize_text_field( (string) $in['terms_version'] ) : $d['terms_version'];
 		$out['admin_email']       = isset( $in['admin_email'] ) ? sanitize_email( (string) $in['admin_email'] ) : '';
+		$token                    = isset( $in['monitor_token'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['monitor_token'] ) : '';
+		$out['monitor_token']     = strlen( $token ) >= 20 ? substr( $token, 0, 64 ) : '';
 		$out['debtor_name']       = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
 		$vat                         = isset( $in['vat_rate'] ) ? Money::normalize_decimal( (string) $in['vat_rate'] ) : null;
 		$out['vat_rate']             = ( null !== $vat && (float) $vat >= 0 && (float) $vat < 100 ) ? $vat : $d['vat_rate'];

@@ -31,7 +31,7 @@ final class Installer {
 			$rest = array_slice( $ids, self::NETWORK_BATCH );
 			if ( $rest ) {
 				update_site_option( 'wpac_network_pending', $rest );
-				wp_schedule_single_event( time() + 30, self::NETWORK_HOOK );
+				Scheduler::once( self::NETWORK_HOOK, 30 );
 			}
 			return;
 		}
@@ -101,7 +101,7 @@ final class Installer {
 		$rest = array_slice( $pending, self::NETWORK_BATCH );
 		if ( $rest ) {
 			update_site_option( 'wpac_network_pending', $rest );
-			wp_schedule_single_event( time() + 30, self::NETWORK_HOOK );
+			Scheduler::once( self::NETWORK_HOOK, 30 );
 		} else {
 			delete_site_option( 'wpac_network_pending' );
 		}
@@ -752,8 +752,7 @@ final class Installer {
 			}
 			update_option( 'wpac_schema_problems', $problems, false );
 			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( 'WP Affiliate Captain: database migration incomplete: ' . implode( '; ', $problems ) );
+			Log::error( 'Database migration incomplete', array( 'problems' => $problems ) );
 			return;
 		}
 		delete_option( 'wpac_schema_problems' );

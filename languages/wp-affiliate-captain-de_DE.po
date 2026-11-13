@@ -48,6 +48,9 @@ msgstr "Einstellungen"
 msgid "Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load."
 msgstr "Affiliate Captain: Das Datenbank-Update ist unvollständig. Geplante Aufgaben sind pausiert, bis es gelingt; es wird beim nächsten Seitenaufruf erneut versucht."
 
+msgid "Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded."
+msgstr "Affiliate Captain ist im Wartungsmodus: Freigaben, Auszahlungen, Berichtsmails und Änderungen im Partnerbereich warten. Verkäufe werden weiter erfasst."
+
 msgid "Affiliate Captain: some tables do not use InnoDB, so bookings cannot run in transactions. Please convert them (ALTER TABLE … ENGINE=InnoDB)."
 msgstr "Affiliate Captain: Einige Tabellen nutzen nicht InnoDB, daher laufen Buchungen nicht in Transaktionen. Bitte umstellen (ALTER TABLE … ENGINE=InnoDB)."
 
@@ -1708,6 +1711,18 @@ msgstr "Audit-Log aufbewahren (Tage, 0 = unbegrenzt)"
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr "AGB-Nachweise und buchungsrelevante Einträge werden so lange aufbewahrt wie die Gutschriften."
 
+msgid "Maintenance mode"
+msgstr "Wartungsmodus"
+
+msgid "For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off."
+msgstr "Für Migrationen oder den Buchhaltungsabschluss: Verkäufe werden weiter erfasst, aber Freigaben, Auszahlungen, Berichtsmails und Änderungen im Partnerbereich warten, bis Sie ihn ausschalten."
+
+msgid "Monitoring token"
+msgstr "Monitoring-Token"
+
+msgid "At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header \"X-WPAC-Monitor-Token\" and gets ok or the names of failing checks (no details)."
+msgstr "Mindestens 20 Buchstaben/Ziffern. Ein externes Monitoring (z. B. ein Uptime-Dienst) kann dann %s mit dem Header \"X-WPAC-Monitor-Token\" abfragen und erhält ok oder die Namen fehlgeschlagener Prüfungen (ohne Details)."
+
 msgid "Delete all data when the plugin is deleted"
 msgstr "Alle Daten löschen, wenn das Plugin gelöscht wird"
 
@@ -2107,6 +2122,92 @@ msgstr "[%s] Partnerprogramm: Datenbank-Update hängt"
 msgid "The database update of WP Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade"
 msgstr "Das Datenbank-Update von WP Affiliate Captain ist seit über einer Stunde nicht abgeschlossen. Freigaben, Auszahlungen und Mails warten, bis es fertig ist; Tracking und Datenschutz-Bereinigung laufen weiter.\n\nProbleme:\n%s\n\nBitte prüfen Sie die Rechte des Datenbankbenutzers (ALTER, CREATE, INDEX) oder führen Sie aus: wp wpac upgrade"
 
+msgid "%d sale or refund could not be booked"
+msgid_plural "%d sales or refunds could not be booked"
+msgstr[0] "%d Verkauf oder Erstattung konnte nicht gebucht werden"
+msgstr[1] "%d Verkäufe oder Erstattungen konnten nicht gebucht werden"
+
+msgid "Database schema is current"
+msgstr "Datenbankschema ist aktuell"
+
+msgid "Database update incomplete"
+msgstr "Datenbank-Update unvollständig"
+
+msgid "Some tables do not use InnoDB"
+msgstr "Einige Tabellen nutzen nicht InnoDB"
+
+msgid "Scheduled tasks are running"
+msgstr "Geplante Aufgaben laufen"
+
+msgid "Scheduled tasks have not run for over two hours"
+msgstr "Geplante Aufgaben sind seit über zwei Stunden nicht gelaufen"
+
+msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\")."
+msgstr "Provisionen werden nicht freigegeben und fehlgeschlagene Verkäufe nicht wiederholt. Richten Sie einen System-Cron ein (\"wp cron event run --due-now\")."
+
+msgid "Partner program → Integrations → Retry queue."
+msgstr "Partnerprogramm → Integrationen → Wiederholungswarteschlange."
+
+msgid "No failed sales or refunds"
+msgstr "Keine fehlgeschlagenen Verkäufe oder Erstattungen"
+
+msgid "%d partner accounts differ from their bookings"
+msgstr "%d Partnerkonten weichen von ihren Buchungen ab"
+
+msgid "Partner accounts match their bookings"
+msgstr "Partnerkonten stimmen mit ihren Buchungen überein"
+
+msgid "%d credit notes could not be written"
+msgstr "%d Gutschriften konnten nicht geschrieben werden"
+
+msgid "Check that the statement folder is writable."
+msgstr "Prüfen Sie, ob der Belegordner beschreibbar ist."
+
+msgid "Credit notes are publicly reachable"
+msgstr "Gutschriften sind öffentlich erreichbar"
+
+msgid "The statement folder can be opened from the web. Define WPAC_STATEMENT_DIR outside the web root or block the folder in the server configuration."
+msgstr "Der Belegordner ist aus dem Web erreichbar. Legen Sie WPAC_STATEMENT_DIR außerhalb des Webverzeichnisses fest oder sperren Sie den Ordner in der Serverkonfiguration."
+
+msgid "Own encryption key for bank details"
+msgstr "Eigener Schlüssel für Bankdaten"
+
+msgid "No own encryption key for bank details"
+msgstr "Kein eigener Schlüssel für Bankdaten"
+
+msgid "Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on the WordPress salts."
+msgstr "Tragen Sie WPAC_ENCRYPTION_KEY in die wp-config.php ein, damit Bankdaten nicht von den WordPress-Salts abhängen."
+
+msgid "Partner program is in maintenance mode"
+msgstr "Partnerprogramm ist im Wartungsmodus"
+
+msgid "Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait."
+msgstr "Verkäufe werden weiter erfasst, aber Freigaben, Auszahlungen, Mails und Änderungen im Partnerbereich warten."
+
+msgid "Partner program (WP Affiliate Captain)"
+msgstr "Partnerprogramm (WP Affiliate Captain)"
+
+msgid "The partner program needs attention"
+msgstr "Das Partnerprogramm braucht Aufmerksamkeit"
+
+msgid "The partner program is working"
+msgstr "Das Partnerprogramm funktioniert"
+
+msgid "Partner program"
+msgstr "Partnerprogramm"
+
+msgid "Schema, scheduled tasks, retry queue, account balances and credit notes are fine."
+msgstr "Schema, geplante Aufgaben, Wiederholungswarteschlange, Kontostände und Gutschriften sind in Ordnung."
+
+msgid "Open the integrations page"
+msgstr "Integrationsseite öffnen"
+
+msgid "[%s] Partner program needs attention"
+msgstr "[%s] Partnerprogramm braucht Aufmerksamkeit"
+
+msgid "The daily check of the partner program found problems:\n\n%1$s\n\nDetails: Tools → Site Health, or %2$s"
+msgstr "Die tägliche Prüfung des Partnerprogramms hat Probleme gefunden:\n\n%1$s\n\nDetails: Werkzeuge → Website-Zustand, oder %2$s"
+
 msgid "Partner code (optional)"
 msgstr "Partnercode (optional)"
 
@@ -2235,6 +2336,9 @@ msgstr "Negativer Saldo – vorgetragen"
 
 msgid "Below minimum – carried forward"
 msgstr "Unter Mindestbetrag – vorgetragen"
+
+msgid "Maintenance mode is on (Settings → Reports)"
+msgstr "Wartungsmodus ist an (Einstellungen → Berichte)"
 
 msgid "Payout profile incomplete"
 msgstr "Auszahlungsprofil unvollständig"
@@ -2464,6 +2568,9 @@ msgstr "Mein Konto"
 msgid "Privacy"
 msgstr "Datenschutz"
 
+msgid "The partner area is being maintained. You can look at everything, but changes are possible again shortly."
+msgstr "Der Partnerbereich wird gerade gewartet. Sie können alles ansehen, Änderungen sind in Kürze wieder möglich."
+
 msgid "Your partner account is paused. New sales are currently not attributed."
 msgstr "Ihr Partnerkonto ist pausiert. Neue Verkäufe werden derzeit nicht zugeordnet."
 
@@ -2517,6 +2624,9 @@ msgstr "Danke. Ihr Widerspruch wurde gesendet; wir prüfen die Gutschrift."
 
 msgid "The objection could not be filed. Please describe what is incorrect."
 msgstr "Der Widerspruch konnte nicht eingereicht werden. Bitte beschreiben Sie, was nicht stimmt."
+
+msgid "The partner area is being maintained; changes are possible again shortly."
+msgstr "Der Partnerbereich wird gerade gewartet; Änderungen sind in Kürze wieder möglich."
 
 msgid "Saved. Your new name or website is shown after our review."
 msgstr "Gespeichert. Ihr neuer Name bzw. Ihre neue Website wird nach unserer Prüfung angezeigt."

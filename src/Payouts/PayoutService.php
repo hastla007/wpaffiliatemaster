@@ -198,6 +198,9 @@ final class PayoutService {
 	 * @return string
 	 */
 	public static function blocked_reason( $affiliate_id, $profile = null ) {
+		if ( Settings::get( 'maintenance_mode' ) ) {
+			return __( 'Maintenance mode is on (Settings → Reports)', 'wp-affiliate-captain' );
+		}
 		$profile = null === $profile ? ProfileRepository::get( (int) $affiliate_id ) : $profile;
 		if ( ! ProfileRepository::is_complete( $profile ) ) {
 			return __( 'Payout profile incomplete', 'wp-affiliate-captain' );

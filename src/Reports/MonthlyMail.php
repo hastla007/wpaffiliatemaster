@@ -43,7 +43,7 @@ final class MonthlyMail {
 				),
 				false
 			);
-			wp_schedule_single_event( time() + 30, self::BATCH_HOOK );
+			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, 30 );
 		}
 	}
 
@@ -80,7 +80,7 @@ final class MonthlyMail {
 			$progress['offset']  += self::BATCH_SIZE;
 			$progress['touched']  = time();
 			update_option( self::PROGRESS, $progress, false );
-			wp_schedule_single_event( time() + 60, self::BATCH_HOOK );
+			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, 60 );
 		} else {
 			delete_option( self::PROGRESS );
 		}
@@ -273,9 +273,7 @@ final class MonthlyMail {
 			$failed[ $month ]['admin'] = true;
 		}
 		update_option( self::FAILED, $failed, false );
-		if ( ! wp_next_scheduled( self::RETRY_HOOK ) ) {
-			wp_schedule_single_event( time() + HOUR_IN_SECONDS, self::RETRY_HOOK );
-		}
+		\WPAffiliateCaptain\Core\Scheduler::once( self::RETRY_HOOK, HOUR_IN_SECONDS );
 	}
 
 	/**
@@ -329,6 +327,7 @@ final class MonthlyMail {
 			foreach ( self::failures() as $month => $f ) {
 				$attempt = ( isset( $failed[ $month ] ) ? (int) $failed[ $month ]['tries'] : 0 ) + 1;
 				if ( $attempt >= 3 ) {
+					\WPAffiliateCaptain\Core\Log::error( 'Report mails failed three times', array( 'month' => (string) $month, 'partners' => count( $f['ids'] ), 'operator' => ! empty( $f['admin'] ) ) );
 					Audit::log(
 						'report.mail_failed',
 						'report',
@@ -348,7 +347,7 @@ final class MonthlyMail {
 				update_option( self::FAILED, $left, false );
 			} else {
 				delete_option( self::FAILED );
-				wp_clear_scheduled_hook( self::RETRY_HOOK );
+				\WPAffiliateCaptain\Core\Scheduler::clear( self::RETRY_HOOK );
 			}
 		} finally {
 			\WPAffiliateCaptain\Core\Db::unlock( 'wpac_report_retry_lock', $owner );
@@ -361,15 +360,15 @@ final class MonthlyMail {
 	 */
 	public static function watchdog() {
 		$progress = get_option( self::PROGRESS );
-		if ( is_array( $progress ) && ! empty( $progress['month'] ) && ! wp_next_scheduled( self::BATCH_HOOK ) ) {
+		if ( is_array( $progress ) && ! empty( $progress['month'] ) && ! \WPAffiliateCaptain\Core\Scheduler::pending( self::BATCH_HOOK ) ) {
 			$touched = isset( $progress['touched'] ) ? (int) $progress['touched'] : 0;
 			if ( $touched < time() - 10 * MINUTE_IN_SECONDS ) {
-				wp_schedule_single_event( time() + 30, self::BATCH_HOOK );
+				\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, 30 );
 				Audit::log( 'report.batch_restarted', 'report', 0, array( 'month' => $progress['month'], 'offset' => (int) $progress['offset'] ) );
 			}
 		}
-		if ( self::failures() && ! wp_next_scheduled( self::RETRY_HOOK ) ) {
-			wp_schedule_single_event( time() + 60, self::RETRY_HOOK );
+		if ( self::failures() ) {
+			\WPAffiliateCaptain\Core\Scheduler::once( self::RETRY_HOOK, 60 );
 		}
 	}
 }

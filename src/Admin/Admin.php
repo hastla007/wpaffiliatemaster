@@ -85,6 +85,9 @@ final class Admin {
 		if ( is_array( $schema ) && $schema ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load.', 'wp-affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $schema, 0, 10 ) ) ) . '</li></ul></div>';
 		}
+		if ( \WPAffiliateCaptain\Core\Settings::get( 'maintenance_mode' ) ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded.', 'wp-affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ) ) . '">' . esc_html__( 'Settings', 'wp-affiliate-captain' ) . '</a></p></div>';
+		}
 		$warnings = get_option( 'wpac_schema_warnings' );
 		if ( is_array( $warnings ) && $warnings ) {
 			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain: some tables do not use InnoDB, so bookings cannot run in transactions. Please convert them (ALTER TABLE … ENGINE=InnoDB).', 'wp-affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $warnings, 0, 10 ) ) ) . '</li></ul></div>';

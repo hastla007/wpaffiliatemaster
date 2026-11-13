@@ -86,9 +86,7 @@ final class Jobs {
 			// Time budget (seconds, 0 = none): a slow job must not push the rest of the cron run
 			// (approvals, payouts, statements) past the PHP time limit. The rest waits 5 minutes.
 			if ( $budget > 0 && microtime( true ) - $start > $budget ) {
-				if ( ! wp_next_scheduled( self::DRAIN_HOOK ) ) {
-					wp_schedule_single_event( time() + 300, self::DRAIN_HOOK );
-				}
+				Scheduler::once( self::DRAIN_HOOK, 300 );
 				break;
 			}
 			self::run( (int) $id );
@@ -182,6 +180,9 @@ final class Jobs {
 				// (the sale job wakes this job when it is booked, see wake_refunds()).
 				$attempts = max( 0, $attempts - 1 );
 				$delay    = HOUR_IN_SECONDS;
+			}
+			if ( $attempts >= self::MAX_ATTEMPTS ) {
+				Log::error( 'Job failed for good', array( 'job' => (int) $job->id, 'type' => $job->type, 'error' => $e instanceof IntegrationException ? $e->error_code : 'exception', 'message' => substr( $e->getMessage(), 0, 300 ) ) );
 			}
 			$wpdb->update(
 				$table,

@@ -60,6 +60,10 @@ msgid "Affiliate Captain: the database update is incomplete. Scheduled tasks are
 msgstr ""
 
 #: src/Admin/Admin.php
+msgid "Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded."
+msgstr ""
+
+#: src/Admin/Admin.php
 msgid "Affiliate Captain: some tables do not use InnoDB, so bookings cannot run in transactions. Please convert them (ALTER TABLE … ENGINE=InnoDB)."
 msgstr ""
 
@@ -2270,6 +2274,22 @@ msgid "Terms acceptance records and booking-relevant entries are kept as long as
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Maintenance mode"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Monitoring token"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header \"X-WPAC-Monitor-Token\" and gets ok or the names of failing checks (no details)."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Delete all data when the plugin is deleted"
 msgstr ""
 
@@ -2801,6 +2821,120 @@ msgstr ""
 msgid "The database update of WP Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade"
 msgstr ""
 
+#: src/Core/Monitor.php
+msgid "%d sale or refund could not be booked"
+msgid_plural "%d sales or refunds could not be booked"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Core/Monitor.php
+msgid "Database schema is current"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Database update incomplete"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Some tables do not use InnoDB"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Scheduled tasks are running"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Scheduled tasks have not run for over two hours"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\")."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Partner program → Integrations → Retry queue."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "No failed sales or refunds"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "%d partner accounts differ from their bookings"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Partner accounts match their bookings"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "%d credit notes could not be written"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Check that the statement folder is writable."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Credit notes are publicly reachable"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The statement folder can be opened from the web. Define WPAC_STATEMENT_DIR outside the web root or block the folder in the server configuration."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Own encryption key for bank details"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "No own encryption key for bank details"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on the WordPress salts."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Partner program is in maintenance mode"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Partner program (WP Affiliate Captain)"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The partner program needs attention"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The partner program is working"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Partner program"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Schema, scheduled tasks, retry queue, account balances and credit notes are fine."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Open the integrations page"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "[%s] Partner program needs attention"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The daily check of the partner program found problems:\n\n%1$s\n\nDetails: Tools → Site Health, or %2$s"
+msgstr ""
+
 #: src/Integrations/WooCommerce/CheckoutField.php
 msgid "Partner code (optional)"
 msgstr ""
@@ -2971,6 +3105,10 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Below minimum – carried forward"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Maintenance mode is on (Settings → Reports)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -3278,6 +3416,10 @@ msgid "Privacy"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "The partner area is being maintained. You can look at everything, but changes are possible again shortly."
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Your partner account is paused. New sales are currently not attributed."
 msgstr ""
 
@@ -3347,6 +3489,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "The objection could not be filed. Please describe what is incorrect."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The partner area is being maintained; changes are possible again shortly."
 msgstr ""
 
 #: src/Portal/Portal.php

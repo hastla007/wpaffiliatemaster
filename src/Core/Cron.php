@@ -37,14 +37,18 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
-		wp_clear_scheduled_hook( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK );
-		wp_clear_scheduled_hook( \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK );
+		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK ) as $hook ) {
+			Scheduler::clear( $hook );
+		}
 	}
 
 	public static function hourly() {
 		if ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
 			return; // A migration is running or failed: no bookings against the old schema.
+		}
+		if ( Settings::get( 'maintenance_mode' ) ) {
+			return; // Maintenance: approvals, documents and retries wait (sales are still recorded).
 		}
 		// Each step on its own (an error in one must not stop the others), the queue first:
 		// sales and refunds waiting for a retry are the most urgent, approvals and documents follow.
@@ -57,6 +61,7 @@ final class Cron {
 				call_user_func( $step );
 			} catch ( \Throwable $e ) {
 				Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $step[1], 'error' => substr( $e->getMessage(), 0, 190 ) ) );
+				Log::error( 'Scheduled step failed: ' . $step[1], array( 'error' => substr( $e->getMessage(), 0, 500 ) ) );
 			}
 		}
 	}
@@ -89,7 +94,7 @@ final class Cron {
 		// Privacy and retention clean-ups always run (deleting personal data must never wait for
 		// a migration); bookings, documents and mails only on the current schema.
 		$steps = array();
-		if ( Installer::schema_current() ) {
+		if ( Installer::schema_current() && ! Settings::get( 'maintenance_mode' ) ) {
 			$steps = array(
 				array( '\WPAffiliateCaptain\Commissions\TierService', 'close_due_months' ),
 				array( '\WPAffiliateCaptain\Commissions\TierService', 'recalculate_closed_months' ),
@@ -98,7 +103,7 @@ final class Cron {
 				array( '\WPAffiliateCaptain\Payouts\Vies', 'recheck_stale' ),
 				array( '\WPAffiliateCaptain\Commissions\Balance', 'scheduled_check' ),
 			);
-		} else {
+		} elseif ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
 		}
 		$steps = array_merge(
@@ -114,6 +119,7 @@ final class Cron {
 				array( __CLASS__, 'purge_jobs' ),
 				array( __CLASS__, 'purge_inflight' ),
 				array( '\WPAffiliateCaptain\Tracking\RateLimiter', 'purge' ),
+				array( Monitor::class, 'daily_alert' ),
 			)
 		);
 		foreach ( $steps as $step ) {
@@ -121,6 +127,7 @@ final class Cron {
 				call_user_func( $step );
 			} catch ( \Throwable $e ) {
 				Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $step[1], 'error' => substr( $e->getMessage(), 0, 190 ) ) );
+				Log::error( 'Scheduled step failed: ' . $step[1], array( 'error' => substr( $e->getMessage(), 0, 500 ) ) );
 			}
 		}
 	}

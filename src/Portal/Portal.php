@@ -142,6 +142,11 @@ final class Portal {
 		}
 		$aff = self::current();
 		$action = sanitize_key( wp_unslash( $_POST['wpac_portal_action'] ) );
+		if ( Settings::get( 'maintenance_mode' ) && 'privacy' !== $action ) {
+			// Maintenance: no changes (privacy requests always work).
+			wp_safe_redirect( add_query_arg( 'wpac_msg', 'maintenance', remove_query_arg( 'wpac_msg', wpac_return_url() ) ) );
+			exit;
+		}
 		// Privacy requests and objections also work after the partnership ended.
 		if ( ! $aff || ( ! in_array( $aff->status, array( 'active', 'paused' ), true ) && ! in_array( $action, array( 'privacy', 'objection' ), true ) ) ) {
 			return;
@@ -320,6 +325,9 @@ final class Portal {
 		ob_start();
 		echo '<div class="wpac-portal">';
 		self::messages();
+		if ( Settings::get( 'maintenance_mode' ) ) {
+			echo '<div class="wpac-notice">' . esc_html__( 'The partner area is being maintained. You can look at everything, but changes are possible again shortly.', 'wp-affiliate-captain' ) . '</div>';
+		}
 		if ( 'paused' === $aff->status ) {
 			echo '<div class="wpac-notice">' . esc_html__( 'Your partner account is paused. New sales are currently not attributed.', 'wp-affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html__( 'Reason:', 'wp-affiliate-captain' ) . ' ' . esc_html( $reason ) : '' ) . '</div>';
 		}
@@ -420,6 +428,7 @@ final class Portal {
 			'privacy_failed'     => array( 'error', __( 'The request could not be sent. For restriction and objection, please describe your reason.', 'wp-affiliate-captain' ) ),
 			'objection_sent'     => array( 'success', __( 'Thank you. Your objection was sent; we will review the credit note.', 'wp-affiliate-captain' ) ),
 			'objection_failed'   => array( 'error', __( 'The objection could not be filed. Please describe what is incorrect.', 'wp-affiliate-captain' ) ),
+			'maintenance'        => array( 'error', __( 'The partner area is being maintained; changes are possible again shortly.', 'wp-affiliate-captain' ) ),
 			'change_review'      => array( 'success', __( 'Saved. Your new name or website is shown after our review.', 'wp-affiliate-captain' ) ),
 		);
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended

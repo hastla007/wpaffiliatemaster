@@ -117,6 +117,45 @@ final class Command {
 	}
 
 	/**
+	 * Switch the maintenance mode (sales are still recorded; approvals, payouts, mails and
+	 * partner area changes wait).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <state>
+	 * : on|off
+	 *
+	 * @param array $args  Positional.
+	 * @param array $assoc Options.
+	 */
+	public function maintenance( $args, $assoc ) {
+		$state = isset( $args[0] ) ? $args[0] : '';
+		if ( ! in_array( $state, array( 'on', 'off' ), true ) ) {
+			\WP_CLI::error( 'Use: wp wpac maintenance on|off' );
+		}
+		\WPAffiliateCaptain\Core\Settings::update( array( 'maintenance_mode' => 'on' === $state ? 1 : 0 ) );
+		\WPAffiliateCaptain\Core\Audit::log( 'settings.maintenance', 'settings', 0, array( 'state' => $state ) );
+		\WP_CLI::success( 'Maintenance mode ' . $state . '.' );
+	}
+
+	/**
+	 * List the health checks (same as Site Health).
+	 *
+	 * @param array $args  Positional.
+	 * @param array $assoc Options.
+	 */
+	public function health( $args, $assoc ) {
+		$rows = array();
+		foreach ( \WPAffiliateCaptain\Core\Monitor::checks() as $key => $c ) {
+			$rows[] = array( 'check' => $key, 'status' => $c[0], 'label' => $c[1], 'details' => $c[2] );
+		}
+		\WP_CLI\Utils\format_items( isset( $assoc['format'] ) ? $assoc['format'] : 'table', $rows, array( 'check', 'status', 'label', 'details' ) );
+		if ( \WPAffiliateCaptain\Core\Monitor::problems( true ) ) {
+			\WP_CLI::halt( 1 ); // Non-zero exit code for scripts and monitoring.
+		}
+	}
+
+	/**
 	 * Check that every partner account matches its bookings (hash chain and sums).
 	 *
 	 * @param array $args  Positional.

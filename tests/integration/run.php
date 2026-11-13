@@ -857,6 +857,19 @@ q( "UPDATE {$ct} SET hold_until = '2000-01-01 00:00:00' WHERE affiliate_id = {$k
 q( "UPDATE {$ct} SET status = 'review' WHERE id = " . (int) $k1['commission_ids'][0] ); // parent not approvable → child stays
 WPAffiliateCaptain\Commissions\Ledger::approve_due();
 check( 'B08 later commissions are approved even if earlier ones cannot be', 'approved', $wpdb->get_var( "SELECT status FROM {$ct} WHERE id = " . (int) $k2['commission_ids'][0] ) );
+// Monitoring, Site Health, maintenance.
+$mc = WPAffiliateCaptain\Core\Monitor::checks();
+check( 'B28 Site Health checks cover schema, cron, queue, balances, key', true, isset( $mc['schema'], $mc['cron'], $mc['jobs'], $mc['balances'], $mc['key'] ) );
+check( 'B28 Site Health result has a status', true, in_array( WPAffiliateCaptain\Core\Monitor::site_health_result()['status'], array( 'good', 'recommended', 'critical' ), true ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'maintenance_mode' => 1 ) ) );
+Settings::flush_cache();
+check( 'B33 maintenance mode blocks payouts with a clear reason', true, false !== strpos( PayoutService::blocked_reason( $wa ), 'Maintenance' ) );
+check( 'B33 maintenance mode is reported', true, isset( WPAffiliateCaptain\Core\Monitor::checks()['maintenance'] ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'maintenance_mode' => 0 ) ) );
+Settings::flush_cache();
+delete_transient( 'wpac_monitor_alerted' );
+WPAffiliateCaptain\Core\Monitor::daily_alert();
+check( 'B30 daily alarm only once a day when something is critical', true, ! WPAffiliateCaptain\Core\Monitor::problems( true ) || (bool) get_transient( 'wpac_monitor_alerted' ) );
 check( 'Y15 retention per country', array( 8, 7, 10, 10 ), array( WPAffiliateCaptain\Privacy\Retention::minimum_years( 'DE' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'AT' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'CH' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'FR' ) ) );
 // Audit log clean-up: commission entries are kept like the other booking records; nothing during a hold.
 q( 'DELETE FROM ' . t( 'audit' ) );

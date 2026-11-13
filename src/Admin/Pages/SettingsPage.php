@@ -63,7 +63,7 @@ final class SettingsPage {
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'renewal_commission' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'retention_hold', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
-			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall' ),
+			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall', 'maintenance_mode', 'monitor_token' ),
 		);
 	}
 
@@ -206,6 +206,8 @@ final class SettingsPage {
 
 		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ), 'reports' );
 		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Terms acceptance records and booking-relevant entries are kept as long as the credit notes.', 'wp-affiliate-captain' ) );
+		self::checkbox( 'maintenance_mode', __( 'Maintenance mode', 'wp-affiliate-captain' ), $s, __( 'For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off.', 'wp-affiliate-captain' ) );
+		self::text( 'monitor_token', __( 'Monitoring token', 'wp-affiliate-captain' ), $s, sprintf( /* translators: %s: URL */ __( 'At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header "X-WPAC-Monitor-Token" and gets ok or the names of failing checks (no details).', 'wp-affiliate-captain' ), rest_url( 'wpac/v1/health' ) ) );
 		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'wp-affiliate-captain' ), $s, __( 'Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.', 'wp-affiliate-captain' ) );
 		self::end();
 

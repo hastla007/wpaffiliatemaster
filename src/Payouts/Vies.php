@@ -122,9 +122,7 @@ final class Vies {
 	 * @param int $affiliate_id Partner.
 	 */
 	public static function schedule( $affiliate_id ) {
-		if ( ! wp_next_scheduled( self::HOOK, array( (int) $affiliate_id ) ) ) {
-			wp_schedule_single_event( time() + 10, self::HOOK, array( (int) $affiliate_id ) );
-		}
+		\WPAffiliateCaptain\Core\Scheduler::once( self::HOOK, 10, array( (int) $affiliate_id ) );
 	}
 
 	/**

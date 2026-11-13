@@ -86,7 +86,44 @@ final class RestApi {
 		return $res;
 	}
 
+	/**
+	 * Health for external monitoring: administrators, or a monitor with the token from the
+	 * settings (header X-WPAC-Monitor-Token). The token only gets the names of failing checks.
+	 *
+	 * @param \WP_REST_Request $r Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function health( $r ) {
+		$token = (string) Settings::get( 'monitor_token' );
+		$sent  = (string) $r->get_header( 'x-wpac-monitor-token' );
+		$admin = current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM );
+		if ( ! $admin && ( '' === $token || '' === $sent || ! hash_equals( $token, $sent ) ) ) {
+			return new \WP_Error( 'wpac_forbidden', 'Not allowed.', array( 'status' => 403 ) );
+		}
+		$problems = \WPAffiliateCaptain\Core\Monitor::problems( true );
+		$body     = array(
+			'ok'     => ! $problems,
+			'failed' => array_keys( $problems ),
+		);
+		if ( $admin ) {
+			$body['checks'] = \WPAffiliateCaptain\Core\Monitor::checks();
+		}
+		$res = rest_ensure_response( $body );
+		$res->set_status( $problems ? 503 : 200 ); // Monitors react to the status code.
+		$res->header( 'Cache-Control', 'no-store' );
+		return $res;
+	}
+
 	public static function routes() {
+		register_rest_route(
+			self::NS,
+			'/health',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => '__return_true', // Checked in the callback (token or capability).
+				'callback'            => array( __CLASS__, 'health' ),
+			)
+		);
 		register_rest_route(
 			self::NS,
 			'/contract',
