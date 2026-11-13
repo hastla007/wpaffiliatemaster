@@ -3,7 +3,5 @@
 #
 # Format: <error code> [<file path prefix>]   # reason (required)
 # Keep this list short. Every entry needs a reason that a WordPress.org reviewer would accept.
-
-# Exception messages are never printed raw: they end up in the audit log, job errors and WP_Error
-# messages that are escaped where they are shown (same exclusion as phpcs.xml.dist).
-WordPress.Security.EscapeOutput.ExceptionNotEscaped
+# (Exception messages are escaped where they are thrown – no ExceptionNotEscaped exclusion: the
+# upload check of WordPress.org does not know this list.)

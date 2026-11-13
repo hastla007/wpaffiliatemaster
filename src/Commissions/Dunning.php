@@ -127,11 +127,14 @@ final class Dunning {
 			3 => __( '[%s] Final reminder: repayment of commissions', 'affiliate-captain' ),
 		);
 		$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
-		$sent = wp_mail(
+		// Reply-To: the program's notification address ("please reply to this e-mail").
+		$sent = \WPAffiliateCaptain\Affiliates\Notifications::send(
+			'dunning',
 			$aff->email,
 			sprintf( $subject[ $level ], $site ),
 			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
-			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
+			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 ),
+			array( 'affiliate_id' => (int) $affiliate_id )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		if ( ! $sent ) {
@@ -184,7 +187,7 @@ final class Dunning {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
 					if ( $open >= 0 || $amount_minor > -$open ) {
-						throw new IntegrationException( 'amount', __( 'The amount is larger than the negative balance.', 'affiliate-captain' ) );
+						throw new IntegrationException( 'amount', esc_html__( 'The amount is larger than the negative balance.', 'affiliate-captain' ) );
 					}
 					$key = Ledger::key( 'repayment:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
 					$ok  = $wpdb->insert(
@@ -212,7 +215,7 @@ final class Dunning {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_repayment', $wpdb->last_error );
+						throw new IntegrationException( 'db_repayment', esc_html( $wpdb->last_error ) );
 					}
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $affiliate_id, $currency, 'approved', $amount_minor, $id, 0, 'repayment' );

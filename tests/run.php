@@ -379,6 +379,106 @@ check(
 		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_USER_AGENT' => 'Mozilla/5.0' ) ),
 	)
 );
+/* G6: CI and release hygiene --------------------------------------------- */
+$g6_root = dirname( __DIR__ );
+// R5-K2: every CI step that pipes into tee runs with pipefail (otherwise the step cannot fail).
+$g6_ci    = (string) file_get_contents( $g6_root . '/.github/workflows/ci.yml' );
+$g6_steps = preg_split( '/\n\s+- (?=name:|uses:|run:)/', $g6_ci );
+$g6_bad   = array();
+foreach ( $g6_steps as $g6_step ) {
+	if ( preg_match( '/\|\s*tee\b/', $g6_step ) && false === strpos( $g6_step, 'set -o pipefail' ) && ! preg_match( '/shell:\s*bash\s*$/m', $g6_step ) ) {
+		$g6_bad[] = strtok( trim( $g6_step ), "\n" );
+	}
+}
+check( 'R5-K2 CI steps piping into tee use pipefail', array(), $g6_bad );
+// R5-K2: two phpcs:ignore comments for the same line (one above, one trailing) – the second one
+// replaces the first, the first code is reported again (rename_rename in Installer.php).
+$g6_double = array();
+$g6_it     = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $g6_root . '/src', FilesystemIterator::SKIP_DOTS ) );
+$g6_files  = array( $g6_root . '/affiliate-captain.php', $g6_root . '/uninstall.php' );
+foreach ( $g6_it as $g6_file ) {
+	if ( '.php' === substr( (string) $g6_file, -4 ) ) {
+		$g6_files[] = (string) $g6_file;
+	}
+}
+foreach ( $g6_files as $g6_file ) {
+	$g6_lines = file( $g6_file );
+	foreach ( $g6_lines as $g6_i => $g6_line ) {
+		if ( $g6_i > 0 && preg_match( '#^\s*// phpcs:ignore#', $g6_lines[ $g6_i - 1 ] ) && preg_match( '#\S.*// phpcs:ignore#', $g6_line ) && ! preg_match( '#^\s*//#', $g6_line ) ) {
+			$g6_double[] = substr( $g6_file, strlen( $g6_root ) + 1 ) . ':' . ( $g6_i + 1 );
+		}
+	}
+}
+check( 'R5-K2 no line with two phpcs:ignore comments', array(), $g6_double );
+// R5-W5: ExceptionNotEscaped is not ignored – the WordPress.org upload check does not know our lists.
+check( 'R5-W5 plugin check ignore list without ExceptionNotEscaped', false, (bool) preg_match( '/^\s*WordPress\.Security\.EscapeOutput\.ExceptionNotEscaped/m', (string) file_get_contents( $g6_root . '/tests/ci/plugin-check-ignore.txt' ) ) );
+check( 'R5-W5 phpcs.xml.dist does not exclude ExceptionNotEscaped', false, false !== strpos( (string) file_get_contents( $g6_root . '/phpcs.xml.dist' ), 'ExceptionNotEscaped"' ) );
+// R5-W5: the message of every exception thrown in src/ is a literal or escaped.
+$g6_unescaped = array();
+foreach ( $g6_files as $g6_file ) {
+	$g6_tokens = token_get_all( (string) file_get_contents( $g6_file ) );
+	$g6_n      = count( $g6_tokens );
+	for ( $g6_i = 0; $g6_i < $g6_n; $g6_i++ ) {
+		if ( ! is_array( $g6_tokens[ $g6_i ] ) || T_THROW !== $g6_tokens[ $g6_i ][0] ) {
+			continue;
+		}
+		// throw new Class( args ): collect the top-level arguments.
+		$g6_args  = array( '' );
+		$g6_depth = 0;
+		$g6_class = '';
+		$g6_line  = $g6_tokens[ $g6_i ][2];
+		for ( $g6_j = $g6_i + 1; $g6_j < $g6_n; $g6_j++ ) {
+			$g6_t = $g6_tokens[ $g6_j ];
+			$g6_s = is_array( $g6_t ) ? $g6_t[1] : $g6_t;
+			if ( 0 === $g6_depth && ';' === $g6_s ) {
+				break;
+			}
+			if ( '(' === $g6_s ) {
+				++$g6_depth;
+				if ( 1 === $g6_depth ) {
+					continue;
+				}
+			} elseif ( ')' === $g6_s ) {
+				--$g6_depth;
+				if ( 0 === $g6_depth ) {
+					break;
+				}
+			}
+			if ( 0 === $g6_depth ) {
+				$g6_class .= $g6_s;
+			} elseif ( 1 === $g6_depth && ',' === $g6_s ) {
+				$g6_args[] = '';
+			} elseif ( ! is_array( $g6_t ) || ! in_array( $g6_t[0], array( T_WHITESPACE, T_COMMENT ), true ) ) {
+				$g6_args[ count( $g6_args ) - 1 ] .= $g6_s;
+			}
+		}
+		if ( false === strpos( $g6_class, 'new' ) ) {
+			continue; // Rethrow of a caught exception.
+		}
+		$g6_msg = false !== strpos( $g6_class, 'IntegrationException' ) ? ( isset( $g6_args[1] ) ? $g6_args[1] : '' ) : $g6_args[0];
+		$g6_msg = preg_replace( '/^\$\w+\?(?=esc_html)/', '', $g6_msg ); // $cond ? esc_html__() : esc_html__().
+		if ( '' === $g6_msg || preg_match( "/^('[^']*'|esc_html(__)?\\(|function_exists\\('esc_html(__)?'\\)\\?esc_html)/", $g6_msg ) ) {
+			continue;
+		}
+		$g6_unescaped[] = substr( $g6_file, strlen( $g6_root ) + 1 ) . ':' . $g6_line;
+	}
+}
+check( 'R5-W5 exception messages are literals or escaped', array(), $g6_unescaped );
+
+// R5-W4: every Upgrade Notice entry fits the 300 characters WordPress.org shows.
+$g6_readme = (string) file_get_contents( $g6_root . '/readme.txt' );
+$g6_long   = array();
+if ( preg_match( '/== Upgrade Notice ==\s*(.*?)(?:\n== |\z)/s', $g6_readme, $g6_m ) ) {
+	foreach ( preg_split( '/^= (.+?) =\s*$/m', $g6_m[1], -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY ) as $g6_i => $g6_part ) {
+		if ( 1 === $g6_i % 2 && 300 < mb_strlen( trim( $g6_part ) ) ) {
+			$g6_long[] = mb_strlen( trim( $g6_part ) );
+		}
+	}
+}
+check( 'R5-W4 upgrade notices have at most 300 characters', array(), $g6_long );
+// R5-W3: the release notes are read from the Changelog section only (the Upgrade Notice has the
+// same "= x.y.z =" headings and would otherwise become the release text).
+check( 'R5-W3 release notes awk reads only the Changelog section', true, (bool) preg_match( '/notes="\$\(awk[^\n]*Changelog/', $g6_ci ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

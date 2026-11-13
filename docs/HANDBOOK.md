@@ -44,7 +44,7 @@ Set both **before** the first partner enters bank details and the first credit n
 
 | Tab | What to set |
 |---|---|
-| Program | application and partner area pages, terms page and version, automatic approval, notification e-mail |
+| Program | application and partner area pages, terms page and version, automatic approval, notification e-mail, e-mail sender and optional partner e-mails |
 | Tracking | link parameter (default `partner`), checkout field, shop session, cookie mode, attribution (first/last touch), JavaScript tracking for caches |
 | Fraud & abuse | fraud rules, rate limit, trusted proxies (Cloudflare/reverse proxy IP ranges), retention of visits and rejected applications |
 | Commissions | program currency, exchange rates for reports, default rate, hold period, lifetime commissions, subscription renewals |
@@ -132,7 +132,7 @@ With **self-billing** (Settings → Payouts & credit notes, on by default) the p
 
 Commission rates are net amounts. Legal references on the documents follow your country (DE, AT, CH; other countries get the German wording). For reverse charge your own VAT ID is required. Outside DACH or if self-billing is not agreed, switch self-billing off – the plugin then creates payout statements and partners send you invoices. The treatment can be adjusted with the filter `wpac_vat_treatment`.
 
-**VIES.** EU VAT IDs of partners are checked with the VIES service of the European Commission (in the background after saving, daily for older results; your VAT ID is sent along for a qualified confirmation with consultation number). An invalid result blocks reverse-charge payouts; "unavailable" blocks nothing and is retried. The check can be switched off in Settings → Payouts.
+**VIES (opt-in).** The check is **off by default** (it is an external request); switch it on in Settings → Payouts & credit notes → "VIES check". When on, EU VAT IDs of partners are checked with the VIES service of the European Commission (in the background after saving, daily for older results; your VAT ID is sent along for a qualified confirmation with consultation number). An invalid result blocks reverse-charge payouts; "unavailable" blocks nothing and is retried. Without the check you are responsible for verifying partner VAT IDs yourself (e.g. on the VIES website) before reverse-charge payouts.
 
 **Retention.** Credit notes, payout data and the accepted terms are kept for the statutory period (at least 10 years for the PDFs; DE 8, AT 7, CH 10 years for booking records, counted from the end of the year) and deleted afterwards. "Tax audit / legal hold" stops all deletion. Objections of partners against a credit note are listed under Payouts.
 
@@ -172,10 +172,12 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 
 | Command | Purpose |
 |---|---|
-| `wp wpac status` | schema version, queue, next cron runs, retention |
+| `wp wpac status` | plugin and schema version, queue, next and last cron runs, retention |
 | `wp wpac health` | the health checks (same as Site Health) |
+| `wp wpac support [--format=table]` | anonymized support report (JSON): versions, environment, relevant settings, queue, checks – no names, e-mail addresses, bank details or keys |
 | `wp wpac upgrade` | run the database migration now |
 | `wp wpac jobs [--retry-failed] [--limit=<n>]` | work through the retry queue |
+| `wp wpac jobs list [--status=failed] [--format=json]` | list the retry queue with attempts and last error |
 | `wp wpac cron hourly\|daily` | run the maintenance now |
 | `wp wpac verify` | check every partner account against its bookings |
 | `wp wpac customer-link <e-mail\|user-id> [--remove] [--reason=<text>]` | show or remove a customer's lifetime partner binding |
@@ -194,7 +196,17 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
   ```
 
   `200` = OK, `503` = a critical check failed (the body names the failing checks, no details).
-- **Logs:** errors go to the WooCommerce logger (WooCommerce → Status → Logs, source `affiliate-captain`) or the PHP error log; every administrative change is in the audit log.
+- **Logs:** errors go to the WooCommerce logger (WooCommerce → Status → Logs, source `affiliate-captain`; entries written before 0.11 are under `wp-affiliate-captain`) or, without WooCommerce, to the PHP error log (lines start with `Affiliate Captain error:` / `warning:`). Logged are: failed jobs (the first failure and the final one, with exception class, file and line), sales/refunds that could neither be booked nor queued (hook `wpac_contract_not_queued`), e-mails that could not be sent (with the reason of the mailer), credit notes that could not be written (with the cause), aborted migrations and failed scheduled steps. With `WP_DEBUG` (or the filter `wpac_log_debug`) also repeated job failures and skipped mails. Every administrative change is in the audit log.
+
+### E-mails (sender, Reply-To, partner e-mails)
+
+All e-mails of the plugin go through one function (developers: filter `wpac_mail`, actions `wpac_mail_sent` / `wpac_mail_failed`, see [CONTRACT.md](CONTRACT.md)). Settings → Program → E-mails:
+
+- **Sender name / address:** empty = WordPress default (or your SMTP plugin). Use an address of your own domain (SPF/DKIM), otherwise mails may land in spam.
+- **Reply-To:** mails to partners and applicants carry the notification e-mail as Reply-To, so "please reply" (payment request, bank details changed …) reaches you and not `wordpress@…`.
+- **Partner e-mails:** payout paid (on by default; the text names the bank account only for SEPA payouts), new/approved/rejected commissions (off by default; at most one mail per partner and run). The monthly summary and the commission mails contain a one-click unsubscribe link (also as `List-Unsubscribe` header).
+- **Applicants** get a confirmation after the double opt-in ("we received your application"); the operator mail about a new application is written in the operator's language (user language of the account with the notification address, otherwise the site language) and has the applicant as Reply-To.
+- A failed mail is logged with the reason (see Logs above).
 
 ## 13. Troubleshooting
 
@@ -213,9 +225,14 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 | "Partner accounts differ from their bookings" | Run `wp wpac verify`; do not edit plugin tables by hand. Contact support with the output before the next payout. |
 | VIES shows "unavailable" | The VIES service of the member state is down; the check is repeated daily. Nothing is blocked. |
 | Import: "code already in use" | Partner codes are unique across the program; choose another code or leave the column empty. |
+| Partners or the operator get no e-mails | Look for "E-mail could not be sent" in the log (reason of the mailer). Set a sender address of your own domain (Settings → Program → E-mails) or use an SMTP plugin; check whether a partner unsubscribed (monthly summary/commission mails only). |
+| A sale is missing although the order is paid, nothing in the retry queue | Search the log for "could not be processed and could not be queued" (database was unavailable): send the order again (change the order status or `wp wpac jobs`). |
+| A job stays "queued" with error `no_handler` | The integration of that job type is not active (e.g. WooCommerce deactivated). The job is retried hourly without using up attempts; reactivate the integration. |
+| A job keeps failing | `wp wpac jobs list --status=failed` shows the last error; the log has the first failure with file and line. Fix the cause, then "Retry" in Integrations → Retry queue or `wp wpac jobs --retry-failed`. |
+| Scheduled tasks look stuck | `wp wpac status` shows the last hourly/daily run; see "Server cron" in section 1. |
 
-Before contacting support, collect: `wp wpac status`, `wp wpac health`, the Site Health info (Tools → Site Health → Info → "Affiliate Captain") and the relevant audit log entries.
+Before contacting support, collect: `wp wpac support` (anonymized), `wp wpac health`, the Site Health info (Tools → Site Health → Info → "Affiliate Captain", contains the same anonymized data) and the relevant log and audit log entries.
 
 ## 14. Uninstalling
 
-Deactivating keeps everything. Deleting the plugin removes settings, partners and visits only if "Delete all data when the plugin is deleted" is on – and even then keeps commission, payout and credit note records that are still within the statutory retention period. To delete them once the period has ended, upload the plugin again (do not activate it) and run `wp eval-file wp-content/plugins/wp-affiliate-captain/tools/purge-retained.php`. Export the program (section 10) before you delete the plugin.
+Deactivating keeps everything. Deleting the plugin removes settings, partners and visits only if "Delete all data when the plugin is deleted" is on – and even then keeps commission, payout and credit note records that are still within the statutory retention period. To delete them once the period has ended, upload the plugin again (do not activate it) and run `wp eval-file wp-content/plugins/affiliate-captain/tools/purge-retained.php` (folder `wp-affiliate-captain` for versions up to 0.10). Export the program (section 10) before you delete the plugin.

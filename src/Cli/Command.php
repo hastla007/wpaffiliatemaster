@@ -52,12 +52,15 @@ final class Command {
 			return isset( $count[ $s ] ) ? (int) $count[ $s ]->n : 0;
 		};
 		$problems = Installer::verify_schema();
+		$last     = get_option( Cron::LAST_RUN_OPTION, array() );
 		$rows     = array(
+			array( 'check' => 'plugin version', 'value' => WPAC_VERSION ),
 			array( 'check' => 'schema version', 'value' => get_option( Installer::DB_OPTION ) . ' / ' . WPAC_DB_VERSION ),
 			array( 'check' => 'schema problems', 'value' => $problems ? implode( '; ', $problems ) : 'none' ),
 			array( 'check' => 'jobs queued / running / failed', 'value' => $n( 'queued' ) . ' / ' . $n( 'running' ) . ' / ' . $n( 'failed' ) ),
 			array( 'check' => 'next hourly run', 'value' => wp_next_scheduled( Cron::HOURLY ) ? gmdate( 'Y-m-d H:i', (int) wp_next_scheduled( Cron::HOURLY ) ) . ' UTC' : 'NOT SCHEDULED' ),
 			array( 'check' => 'next daily run', 'value' => wp_next_scheduled( Cron::DAILY ) ? gmdate( 'Y-m-d H:i', (int) wp_next_scheduled( Cron::DAILY ) ) . ' UTC' : 'NOT SCHEDULED' ),
+			array( 'check' => 'last hourly / daily run', 'value' => ( ! empty( $last['hourly'] ) ? gmdate( 'Y-m-d H:i', (int) $last['hourly'] ) : 'never' ) . ' / ' . ( ! empty( $last['daily'] ) ? gmdate( 'Y-m-d H:i', (int) $last['daily'] ) : 'never' ) . ' UTC' ),
 			array( 'check' => 'retention (years, hold)', 'value' => Retention::years() . ( Retention::on_hold() ? ', on hold' : '' ) ),
 		);
 		\WP_CLI\Utils\format_items( isset( $assoc['format'] ) ? $assoc['format'] : 'table', $rows, array( 'check', 'value' ) );
@@ -144,20 +147,55 @@ final class Command {
 	}
 
 	/**
-	 * Work through the retry queue.
+	 * Work through the retry queue, or list it.
 	 *
 	 * ## OPTIONS
 	 *
+	 * [<action>]
+	 * : "run" (default) or "list".
+	 *
 	 * [--retry-failed]
-	 * : Put all failed jobs back into the queue first.
+	 * : Put all failed jobs back into the queue first (run).
 	 *
 	 * [--limit=<n>]
-	 * : Jobs to run (default 100).
+	 * : Jobs to run or list (default 100).
+	 *
+	 * [--status=<status>]
+	 * : Only jobs with this status: queued, running, failed, done (list).
+	 *
+	 * [--format=<format>]
+	 * : table, csv, json, yaml (list).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp wpac jobs list --status=failed
+	 *     wp wpac jobs --retry-failed
 	 *
 	 * @param array $args  Positional.
 	 * @param array $assoc Options.
 	 */
 	public function jobs( $args, $assoc ) {
+		if ( isset( $args[0] ) && 'list' === $args[0] ) {
+			$status = isset( $assoc['status'] ) ? sanitize_key( $assoc['status'] ) : '';
+			$rows   = array();
+			foreach ( Jobs::query( $status, isset( $assoc['limit'] ) ? max( 1, (int) $assoc['limit'] ) : 100 ) as $job ) {
+				$job    = (object) $job;
+				$rows[] = array(
+					'id'           => (int) $job->id,
+					'type'         => (string) $job->type,
+					'key'          => (string) $job->idempotency_key,
+					'status'       => (string) $job->status,
+					'attempts'     => (int) $job->attempts,
+					'next_attempt' => (string) $job->next_attempt_at,
+					'error'        => trim( (string) $job->last_error_code . ' ' . (string) $job->last_error ),
+				);
+			}
+			\WP_CLI\Utils\format_items( isset( $assoc['format'] ) ? $assoc['format'] : 'table', $rows, array( 'id', 'type', 'key', 'status', 'attempts', 'next_attempt', 'error' ) );
+			return;
+		}
+		if ( isset( $args[0] ) && 'run' !== $args[0] ) {
+			\WP_CLI::error( 'Use: wp wpac jobs [run|list]' );
+		}
 		if ( isset( $assoc['retry-failed'] ) ) {
 			\WP_CLI::log( Jobs::retry_all_failed() . ' failed jobs queued again.' );
 		}
@@ -205,6 +243,42 @@ final class Command {
 		\WPAffiliateCaptain\Core\Settings::update( array( 'maintenance_mode' => 'on' === $state ? 1 : 0 ) );
 		\WPAffiliateCaptain\Core\Audit::log( 'settings.maintenance', 'settings', 0, array( 'state' => $state ) );
 		\WP_CLI::success( 'Maintenance mode ' . $state . '.' );
+	}
+
+	/**
+	 * Anonymized support report: versions, environment, the relevant settings, queue and
+	 * scheduler state and the health checks – no names, e-mail addresses, bank details or keys.
+	 * Attach it to a support request.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : json (default) or table.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp wpac support > affiliate-captain-support.json
+	 *
+	 * @param array $args  Positional.
+	 * @param array $assoc Options.
+	 */
+	public function support( $args, $assoc ) {
+		$data = \WPAffiliateCaptain\Core\Monitor::support_data();
+		if ( isset( $assoc['format'] ) && 'table' === $assoc['format'] ) {
+			$rows = array();
+			foreach ( $data as $section => $values ) {
+				foreach ( $values as $key => $value ) {
+					$rows[] = array(
+						'section' => $section,
+						'key'     => $key,
+						'value'   => (string) $value,
+					);
+				}
+			}
+			\WP_CLI\Utils\format_items( 'table', $rows, array( 'section', 'key', 'value' ) );
+			return;
+		}
+		\WP_CLI::line( (string) wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
 	}
 
 	/**

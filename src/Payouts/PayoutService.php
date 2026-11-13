@@ -322,17 +322,21 @@ final class PayoutService {
 				static function () use ( $p, $id ) {
 					$cancelled = self::cancel( (int) $id, __( 'Rebuilt after a refund', 'affiliate-captain' ) );
 					if ( is_wp_error( $cancelled ) ) {
-						throw new IntegrationException( 'cancel', $cancelled->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+						throw new IntegrationException( 'cancel', esc_html( $cancelled->get_error_message() ) );
 					}
 					$new = self::create_for_affiliate( (int) $p->affiliate_id, (string) $p->period_end, (string) $p->currency );
 					if ( ! $new ) {
-						throw new IntegrationException( 'rebuild_empty', __( 'After the refund the balance is below the minimum payout, so no new payout can be created. The payout was not cancelled; cancel it manually if it should not be paid – the balance is then carried forward.', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+						throw new IntegrationException( 'rebuild_empty', esc_html__( 'After the refund the balance is below the minimum payout, so no new payout can be created. The payout was not cancelled; cancel it manually if it should not be paid – the balance is then carried forward.', 'affiliate-captain' ) );
 					}
 					return (int) $new;
 				}
 			);
 		} catch ( \Throwable $e ) {
 			self::$deferred = null;
+			if ( ! $e instanceof IntegrationException || ! in_array( $e->error_code, array( 'cancel', 'rebuild_empty' ), true ) ) {
+				// Unexpected (database error …): the message alone does not say where it came from.
+				\WPAffiliateCaptain\Core\Log::exception( 'Payout could not be rebuilt', $e, array( 'payout' => (int) $id ) );
+			}
 			return new \WP_Error( 'wpac_payout', $e->getMessage() );
 		}
 		$deferred       = self::$deferred;
@@ -451,11 +455,11 @@ final class PayoutService {
 		global $wpdb;
 		$operator = self::operator_missing();
 		if ( $operator ) {
-			throw new IntegrationException( 'operator_data', $operator ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new IntegrationException( 'operator_data', esc_html( $operator ) );
 		}
 		$blocked = self::blocked_reason( (int) $affiliate_id );
 		if ( '' !== $blocked ) {
-			throw new IntegrationException( 'not_eligible', $blocked ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new IntegrationException( 'not_eligible', esc_html( $blocked ) );
 		}
 		$payout_id = Db::transaction(
 			static function () use ( $wpdb, $affiliate_id, $period_end, $currency ) {
@@ -518,7 +522,7 @@ final class PayoutService {
 					)
 				);
 				if ( ! $ok ) {
-					throw new IntegrationException( 'db_payout', $wpdb->last_error );
+					throw new IntegrationException( 'db_payout', esc_html( $wpdb->last_error ) );
 				}
 				$payout_id = (int) $wpdb->insert_id;
 
@@ -536,13 +540,13 @@ final class PayoutService {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'double_payout', 'Commission ' . $r->id . ' is already part of a payout.' );
+						throw new IntegrationException( 'double_payout', esc_html( 'Commission ' . $r->id . ' is already part of a payout.' ) );
 					}
 					// Compare-and-set: only if still approved and unassigned.
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$moved = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET payout_id = %d, updated_at = %s WHERE id = %d AND payout_id = 0 AND status = 'approved'", $payout_id, Db::now(), (int) $r->id ) );
 					if ( 1 !== $moved ) {
-						throw new IntegrationException( 'commission_changed', 'Commission ' . $r->id . ' changed during the payout run.' );
+						throw new IntegrationException( 'commission_changed', esc_html( 'Commission ' . $r->id . ' changed during the payout run.' ) );
 					}
 					Ledger::event( (int) $r->id, 'payout_assigned', 'approved', 'approved', (int) $r->amount_minor, $number );
 				}
@@ -663,7 +667,7 @@ final class PayoutService {
 					$ids = array();
 					foreach ( self::items( $id, true ) as $item ) {
 						if ( ! Ledger::transition( (int) $item->commission_id, 'paid', $p->number, get_current_user_id(), (int) $id, 'approved', false ) ) {
-							throw new IntegrationException( 'commission_changed', 'Commission ' . $item->commission_id . ' could not be marked as paid.' );
+							throw new IntegrationException( 'commission_changed', esc_html( 'Commission ' . $item->commission_id . ' could not be marked as paid.' ) );
 						}
 						$ids[] = (int) $item->commission_id;
 					}
@@ -704,17 +708,17 @@ final class PayoutService {
 				static function () use ( $wpdb, $id, $reason, $confirm_not_sent ) {
 					$p = self::lock( $id );
 					if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
-						throw new IntegrationException( 'state', __( 'Only unpaid payouts can be cancelled.', 'affiliate-captain' ) );
+						throw new IntegrationException( 'state', esc_html__( 'Only unpaid payouts can be cancelled.', 'affiliate-captain' ) );
 					}
 					if ( 'exported' === $p->status && ! $confirm_not_sent ) {
 						/* translators: %s: payout number */
-						throw new IntegrationException( 'exported', sprintf( __( 'Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice.', 'affiliate-captain' ), $p->number ) );
+						throw new IntegrationException( 'exported', esc_html( sprintf( __( 'Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice.', 'affiliate-captain' ), $p->number ) ) );
 					}
 					$pt = Db::table( 'payouts' );
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'cancelled', note = %s WHERE id = %d AND status = %s", substr( sanitize_text_field( $reason ), 0, 255 ), $id, $p->status ) );
 					if ( 1 !== $rows ) {
-						throw new IntegrationException( 'state', __( 'Only unpaid payouts can be cancelled.', 'affiliate-captain' ) );
+						throw new IntegrationException( 'state', esc_html__( 'Only unpaid payouts can be cancelled.', 'affiliate-captain' ) );
 					}
 					// A credit note that was issued is cancelled by its own document with a new number.
 					if ( '' !== (string) $p->statement_file || '' !== (string) $p->statement_hash ) {
@@ -792,12 +796,12 @@ final class PayoutService {
 						}
 						if ( 'exported' === $p->status && ! $allow_reexport ) {
 							/* translators: %s: payout number */
-							throw new IntegrationException( 'reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) );
+							throw new IntegrationException( 'reexport', esc_html( sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$profile = ProfileRepository::get( (int) $p->affiliate_id );
 						if ( $profile && strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
 							/* translators: %s: payout number */
-							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'affiliate-captain' ), $p->number ) );
+							throw new IntegrationException( 'profile_changed', esc_html( sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
 							// Other payment method (e.g. PayPal): the list carries the payment details;
@@ -805,7 +809,7 @@ final class PayoutService {
 							$details = ProfileRepository::payment_details( $profile );
 							if ( null === $details || '' === $details ) {
 								/* translators: %s: payout number */
-								throw new IntegrationException( 'details', sprintf( __( 'Payment details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) );
+								throw new IntegrationException( 'details', esc_html( sprintf( __( 'Payment details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
 							}
 							$holder = '' !== trim( (string) $profile->account_holder ) ? (string) $profile->account_holder : (string) $profile->legal_name;
 							$rows[] = array( $p->number, $holder, '', '', Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_MANUAL, str_replace( array( "\r\n", "\r", "\n" ), ' / ', $details ) );
@@ -813,21 +817,21 @@ final class PayoutService {
 							$iban = ProfileRepository::iban( $profile );
 							if ( ! $iban ) {
 								/* translators: %s: payout number */
-								throw new IntegrationException( 'iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) );
+								throw new IntegrationException( 'iban', esc_html( sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
 							}
 							$rows[] = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_SEPA, '' );
 						}
 						$used[ (int) $p->id ] = $p->status;
 					}
 					if ( ! $rows ) {
-						throw new IntegrationException( 'empty', __( 'No exportable payouts selected.', 'affiliate-captain' ) );
+						throw new IntegrationException( 'empty', esc_html__( 'No exportable payouts selected.', 'affiliate-captain' ) );
 					}
 					$batch = 'ACCSV' . gmdate( 'YmdHis' ) . strtoupper( wp_generate_password( 4, false ) );
 					$pt    = Db::table( 'payouts' );
 					foreach ( $used as $id => $status ) {
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 						if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'exported', sepa_batch = %s, exported_at = %s WHERE id = %d AND status = %s", $batch, Db::now(), $id, $status ) ) ) {
-							throw new IntegrationException( 'state', 'Payout ' . $id . ' changed during export.' );
+							throw new IntegrationException( 'state', esc_html( 'Payout ' . $id . ' changed during export.' ) );
 						}
 					}
 					return array( $batch, $rows, array_keys( $used ) );
@@ -897,7 +901,7 @@ final class PayoutService {
 						}
 						if ( 'exported' === $p->status && ! $allow_reexport ) {
 							/* translators: %s: payout number */
-							throw new IntegrationException( 'reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) );
+							throw new IntegrationException( 'reexport', esc_html( sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$profile = ProfileRepository::get( (int) $p->affiliate_id );
 						if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
@@ -906,16 +910,16 @@ final class PayoutService {
 							continue;
 						}
 						if ( 'EUR' !== $p->currency ) {
-							throw new IntegrationException( 'currency', __( 'SEPA transfers are only possible in EUR.', 'affiliate-captain' ) );
+							throw new IntegrationException( 'currency', esc_html__( 'SEPA transfers are only possible in EUR.', 'affiliate-captain' ) );
 						}
 						if ( $profile && strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
 							/* translators: %s: payout number */
-							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'affiliate-captain' ), $p->number ) );
+							throw new IntegrationException( 'profile_changed', esc_html( sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$iban = ProfileRepository::iban( $profile );
 						if ( ! $iban || '' === (string) $p->number ) {
 							/* translators: %s: payout number */
-							throw new IntegrationException( 'iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) );
+							throw new IntegrationException( 'iban', esc_html( sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$transfers[]          = array(
 							'end_to_end_id' => $p->number,
@@ -931,8 +935,8 @@ final class PayoutService {
 						throw new IntegrationException(
 							'empty',
 							$manual
-								? __( 'The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.', 'affiliate-captain' )
-								: __( 'No exportable payouts selected.', 'affiliate-captain' )
+								? esc_html__( 'The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.', 'affiliate-captain' )
+								: esc_html__( 'No exportable payouts selected.', 'affiliate-captain' )
 						);
 					}
 					// Unique message ID, even for two exports in the same second.
@@ -940,14 +944,14 @@ final class PayoutService {
 					try {
 						$xml = SepaXml::build( $debtor, $transfers, $batch, SepaXml::next_business_day( time() ) );
 					} catch ( \InvalidArgumentException $e ) {
-						throw new IntegrationException( 'sepa', $e->getMessage() );
+						throw new IntegrationException( 'sepa', esc_html( $e->getMessage() ) );
 					}
 					$pt = Db::table( 'payouts' );
 					foreach ( $used as $id => $status ) {
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 						$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'exported', sepa_batch = %s, exported_at = %s WHERE id = %d AND status = %s", $batch, Db::now(), $id, $status ) );
 						if ( 1 !== $rows ) {
-							throw new IntegrationException( 'state', 'Payout ' . $id . ' changed during export.' );
+							throw new IntegrationException( 'state', esc_html( 'Payout ' . $id . ' changed during export.' ) );
 						}
 					}
 					return array( $batch, $xml, array_keys( $used ) );

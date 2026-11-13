@@ -269,7 +269,7 @@ final class Ledger {
 				}
 				$wpdb->suppress_errors( $suppress );
 				if ( ! $ok && $round ) {
-					throw new IntegrationException( 'db_attribution', $wpdb->last_error );
+					throw new IntegrationException( 'db_attribution', esc_html( $wpdb->last_error ) );
 				}
 				if ( ! $ok ) {
 					// Unique (source, order) – a concurrent request won.
@@ -284,7 +284,7 @@ final class Ledger {
 							'reason'         => 'already_processed',
 						);
 					}
-					throw new IntegrationException( 'db_attribution', $wpdb->last_error );
+					throw new IntegrationException( 'db_attribution', esc_html( $wpdb->last_error ) );
 				}
 				$attribution_id = $round && $existing ? (int) $existing->id : (int) $wpdb->insert_id;
 				$ids            = array();
@@ -347,7 +347,7 @@ final class Ledger {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_commission', $wpdb->last_error );
+						throw new IntegrationException( 'db_commission', esc_html( $wpdb->last_error ) );
 					}
 					$cid   = (int) $wpdb->insert_id;
 					$ids[] = $cid;
@@ -493,7 +493,7 @@ final class Ledger {
 						if ( self::find_by_key( $key ) ) {
 							continue;
 						}
-						throw new IntegrationException( 'db_adjustment', $wpdb->last_error );
+						throw new IntegrationException( 'db_adjustment', esc_html( $wpdb->last_error ) );
 					}
 					$aid   = (int) $wpdb->insert_id;
 					$ids[] = $aid;
@@ -594,7 +594,7 @@ final class Ledger {
 					CustomerLinks::forget_order( $sale['source'], (string) $sale['order_id'] );
 					$booked = self::record_sale( $new_sale );
 					if ( ! is_array( $booked ) || 'created' !== $booked['status'] ) {
-						throw new IntegrationException( 'reassign_failed', 'New booking not created: ' . ( is_array( $booked ) ? $booked['status'] . ' ' . $booked['reason'] : '' ) );
+						throw new IntegrationException( 'reassign_failed', esc_html( 'New booking not created: ' . ( is_array( $booked ) ? $booked['status'] . ' ' . $booked['reason'] : '' ) ) );
 					}
 					update_option( $option, $round, false );
 					return $booked;
@@ -700,7 +700,7 @@ final class Ledger {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_reinstatement', $wpdb->last_error );
+						throw new IntegrationException( 'db_reinstatement', esc_html( $wpdb->last_error ) );
 					}
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $child->affiliate_id, $child->currency, 'approved', $amount, $id, 0, 'reinstatement' );
@@ -874,7 +874,7 @@ final class Ledger {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
 					if ( $open >= 0 ) {
-						throw new IntegrationException( 'not_negative', __( 'The balance is not negative.', 'affiliate-captain' ) );
+						throw new IntegrationException( 'not_negative', esc_html__( 'The balance is not negative.', 'affiliate-captain' ) );
 					}
 					$key = self::key( 'writeoff:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
 					$ok  = $wpdb->insert(
@@ -903,7 +903,7 @@ final class Ledger {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_writeoff', $wpdb->last_error );
+						throw new IntegrationException( 'db_writeoff', esc_html( $wpdb->last_error ) );
 					}
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $affiliate_id, $currency, 'approved', -$open, $id, 0, 'write-off' );

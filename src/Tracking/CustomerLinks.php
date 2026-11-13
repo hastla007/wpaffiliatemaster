@@ -336,17 +336,4 @@ final class CustomerLinks {
 			)
 		);
 	}
-
-	/**
-	 * Number of linked customers of a partner.
-	 *
-	 * @param int $affiliate_id Affiliate.
-	 * @return int
-	 */
-	public static function count_for( $affiliate_id ) {
-		global $wpdb;
-		$t = Db::table( 'customer_links' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT source, source_order_id) FROM {$t} WHERE affiliate_id = %d AND pending = 0 AND (expires_at IS NULL OR expires_at > %s)", $affiliate_id, Db::now() ) );
-	}
 }

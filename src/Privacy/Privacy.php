@@ -406,19 +406,27 @@ final class Privacy {
 		if ( ! in_array( $type, array( 'restrict', 'object' ), true ) || '' === trim( $note ) ) {
 			return 'privacy_failed';
 		}
-		$admin = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
+		$sent     = \WPAffiliateCaptain\Affiliates\Notifications::send(
+			'privacy_request',
+			\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
 			'restrict' === $type
 				/* translators: %s: partner */
 				? sprintf( __( 'Data protection: %s asks to restrict processing', 'affiliate-captain' ), $aff->name )
 				/* translators: %s: partner */
 				: sprintf( __( 'Data protection: %s objects to processing', 'affiliate-captain' ), $aff->name ),
 			/* translators: 1: details, 2: URL */
-			sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) )
+			sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) ),
+			array(
+				'admin'        => true,
+				'reply_to'     => is_email( $aff->email ) ? (string) $aff->email : '',
+				'affiliate_id' => (int) $aff->id,
+			)
 		);
-		Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type ) );
-		return 'privacy_sent';
+		\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type, 'mail' => $sent ? 'sent' : 'failed' ) );
+		// Only claim "sent" when the operator really got the request (the mail is its only record).
+		return $sent ? 'privacy_sent' : 'privacy_failed';
 	}
 
 	/**

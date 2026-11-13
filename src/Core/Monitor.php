@@ -207,6 +207,20 @@ final class Monitor {
 				'debug' => Settings::get( 'maintenance_mode' ) ? 'on' : 'off',
 			),
 		);
+		// Further anonymized details for support (environment, settings, queue, last cron runs).
+		foreach ( self::support_data() as $section => $values ) {
+			if ( 'checks' === $section || 'versions' === $section ) {
+				continue;
+			}
+			foreach ( $values as $key => $value ) {
+				if ( ! isset( $fields[ $key ] ) ) {
+					$fields[ $section . '_' . $key ] = array(
+						'label' => $section . ': ' . $key,
+						'value' => (string) $value,
+					);
+				}
+			}
+		}
 		foreach ( self::checks() as $key => $c ) {
 			$fields[ 'check_' . $key ] = array(
 				'label' => $c[1],
@@ -219,6 +233,121 @@ final class Monitor {
 			'fields' => $fields,
 		);
 		return $info;
+	}
+
+	/**
+	 * Anonymized support data (Site Health info, `wp wpac support`): versions, environment,
+	 * the settings that decide tracking, commissions and payouts, queue and scheduler state and
+	 * the health checks. No personal data: no names, e-mail or IP addresses, bank details,
+	 * tokens or keys (only whether they are set).
+	 *
+	 * @return array Section => [ key => value ].
+	 */
+	public static function support_data() {
+		global $wpdb;
+		$yes = static function ( $on ) {
+			return $on ? 'yes' : 'no';
+		};
+		$s   = Settings::all();
+		$wc  = defined( 'WC_VERSION' ) ? (string) WC_VERSION : '';
+		$hpos = class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' ) && method_exists( '\Automattic\WooCommerce\Utilities\OrderUtil', 'custom_orders_table_usage_is_enabled' ) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+
+		$jobs  = Db::table( 'jobs' );
+		$count = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		foreach ( (array) $wpdb->get_results( "SELECT status, COUNT(*) AS n FROM {$jobs} GROUP BY status" ) as $row ) {
+			$count[ (string) $row->status ] = (int) $row->n;
+		}
+		$oldest = $wpdb->get_var( "SELECT MIN(created_at) FROM {$jobs} WHERE status IN ('queued','failed')" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$as     = array();
+		if ( Scheduler::uses_action_scheduler() && function_exists( 'as_get_scheduled_actions' ) ) {
+			foreach ( array( 'pending', 'failed' ) as $st ) {
+				$as[ $st ] = count(
+					(array) as_get_scheduled_actions(
+						array(
+							'group'    => Scheduler::GROUP,
+							'status'   => $st,
+							'per_page' => 100,
+						),
+						'ids'
+					)
+				);
+			}
+		}
+		$last  = get_option( Cron::LAST_RUN_OPTION, array() );
+		$last  = is_array( $last ) ? $last : array();
+		$when  = static function ( $ts ) {
+			return $ts ? gmdate( 'Y-m-d H:i', (int) $ts ) . ' UTC' : 'never';
+		};
+		$next  = wp_next_scheduled( Cron::HOURLY );
+		$proxy = array_filter( array_map( 'trim', preg_split( '/[\s,]+/', (string) $s['trusted_proxies'] ) ) );
+
+		$checks = array();
+		foreach ( self::checks() as $key => $c ) {
+			$checks[ $key ] = $c[0];
+		}
+		return array(
+			'versions'    => array(
+				'plugin'      => WPAC_VERSION,
+				'db_schema'   => get_option( Installer::DB_OPTION ) . ' / ' . WPAC_DB_VERSION,
+				'contract'    => WPAC_CONTRACT_VERSION,
+				'wordpress'   => (string) get_bloginfo( 'version' ),
+				'woocommerce' => '' !== $wc ? $wc : 'not active',
+				'php'         => PHP_VERSION,
+				'database'    => (string) $wpdb->get_var( 'SELECT VERSION()' ), // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				'multisite'   => $yes( is_multisite() ),
+				'locale'      => (string) get_locale(),
+			),
+			'environment' => array(
+				'hpos'                     => $yes( $hpos ),
+				'subscriptions'            => $yes( class_exists( 'WC_Subscriptions' ) || function_exists( 'wcs_get_subscription' ) ),
+				'object_cache'             => $yes( wp_using_ext_object_cache() ),
+				'scheduler'                => Scheduler::uses_action_scheduler() ? 'action-scheduler' : 'wp-cron',
+				'DISABLE_WP_CRON'          => $yes( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ),
+				'WPAC_ENCRYPTION_KEY'      => $yes( Crypto::has_dedicated_key() ),
+				'WPAC_STATEMENT_DIR'       => $yes( defined( 'WPAC_STATEMENT_DIR' ) ),
+				'statements_public'        => true === \WPAffiliateCaptain\Payouts\Statement::publicly_accessible() ? 'yes' : 'no/unknown',
+				'trusted_proxies'          => (string) count( $proxy ),
+			),
+			'settings'    => array(
+				'currency'           => (string) $s['currency'],
+				'exchange_rates'     => $yes( '' !== trim( (string) $s['exchange_rates'] ) ),
+				'default_rate'       => $s['default_rate_type'] . ' ' . $s['default_rate'],
+				'hold_days'          => (string) $s['hold_days'],
+				'referral_param'     => (string) $s['referral_param'],
+				'cookie_mode'        => (string) $s['cookie_mode'],
+				'cookie_days'        => (string) $s['cookie_days'],
+				'touch_model'        => (string) $s['touch_model'],
+				'use_wc_session'     => $yes( $s['use_wc_session'] ),
+				'js_tracking'        => $yes( $s['js_tracking'] ),
+				'coupon_priority'    => $yes( $s['coupon_priority'] ),
+				'self_referral'      => (string) $s['self_referral'],
+				'lifetime'           => $s['lifetime_enabled'] ? $s['lifetime_days'] . ' days' : 'off',
+				'renewal_commission' => $yes( $s['renewal_commission'] ),
+				'auto_approve'       => $yes( $s['auto_approve'] ),
+				'self_billing'       => $yes( $s['self_billing'] ),
+				'vies_check'         => $yes( $s['vies_check'] ),
+				'payout_period'      => (string) $s['payout_period'],
+				'payout_requests'    => $yes( $s['payout_requests'] ),
+				'retention_years'    => (string) \WPAffiliateCaptain\Privacy\Retention::years() . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (hold)' : '' ),
+				'maintenance_mode'   => $yes( $s['maintenance_mode'] ),
+				'mail_from_set'      => $yes( '' !== (string) $s['mail_from_email'] ),
+				'notify_commissions' => $yes( $s['notify_commissions'] ),
+				'report_partners'    => $yes( $s['report_partners'] ),
+			),
+			'queue'       => array(
+				'jobs_queued'       => (string) ( isset( $count['queued'] ) ? $count['queued'] : 0 ),
+				'jobs_running'      => (string) ( isset( $count['running'] ) ? $count['running'] : 0 ),
+				'jobs_failed'       => (string) ( isset( $count['failed'] ) ? $count['failed'] : 0 ),
+				'oldest_open_job'   => $oldest ? (string) $oldest : '-',
+				'as_pending'        => isset( $as['pending'] ) ? (string) $as['pending'] : '-',
+				'as_failed'         => isset( $as['failed'] ) ? (string) $as['failed'] : '-',
+				'last_hourly_run'   => $when( isset( $last['hourly'] ) ? $last['hourly'] : 0 ),
+				'last_daily_run'    => $when( isset( $last['daily'] ) ? $last['daily'] : 0 ),
+				'next_hourly_run'   => $next ? $when( $next ) : 'NOT SCHEDULED',
+			),
+			'checks'      => $checks,
+		);
 	}
 
 	/**
@@ -235,13 +364,14 @@ final class Monitor {
 		foreach ( $problems as $c ) {
 			$lines[] = '- ' . $c[1] . ( $c[2] ? ': ' . $c[2] : '' );
 		}
-		$admin = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+		\WPAffiliateCaptain\Affiliates\Notifications::send(
+			'health_alert',
+			\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
 			/* translators: %s: site name */
 			sprintf( __( '[%s] Partner program needs attention', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			/* translators: 1: problems, 2: URL */
-			sprintf( __( "The daily check of the partner program found problems:\n\n%1\$s\n\nDetails: Tools → Site Health, or %2\$s", 'affiliate-captain' ), implode( "\n", $lines ), admin_url( 'admin.php?page=wpac-integrations' ) )
+			sprintf( __( "The daily check of the partner program found problems:\n\n%1\$s\n\nDetails: Tools → Site Health, or %2\$s", 'affiliate-captain' ), implode( "\n", $lines ), admin_url( 'admin.php?page=wpac-integrations' ) ),
+			array( 'admin' => true )
 		);
 		Log::warning( 'Daily check found problems', array( 'checks' => array_keys( $problems ) ) );
 	}

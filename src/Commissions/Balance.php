@@ -50,7 +50,7 @@ final class Balance {
 				$acc = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$b} WHERE affiliate_id = %d AND currency = %s FOR UPDATE", $affiliate_id, $currency ) );
 				// phpcs:enable
 				if ( ! $acc ) {
-					throw new IntegrationException( 'balance_lock', $wpdb->last_error );
+					throw new IntegrationException( 'balance_lock', esc_html( $wpdb->last_error ) );
 				}
 				$row          = array(
 					'affiliate_id'  => (int) $affiliate_id,
@@ -67,7 +67,7 @@ final class Balance {
 				);
 				$row['hash'] = self::hash( $row );
 				if ( ! $wpdb->insert( $e, $row ) ) {
-					throw new IntegrationException( 'balance_entry', $wpdb->last_error );
+					throw new IntegrationException( 'balance_entry', esc_html( $wpdb->last_error ) );
 				}
 				$id = (int) $wpdb->insert_id;
 				$updated = $wpdb->update(
@@ -85,7 +85,7 @@ final class Balance {
 				);
 				// Booking and account summary must change together (otherwise the whole booking rolls back).
 				if ( 1 !== (int) $updated ) {
-					throw new IntegrationException( 'balance_update', '' !== $wpdb->last_error ? $wpdb->last_error : 'Account summary was not updated.' );
+					throw new IntegrationException( 'balance_update', esc_html( '' !== $wpdb->last_error ? $wpdb->last_error : 'Account summary was not updated.' ) );
 				}
 				return $id;
 			}
@@ -252,13 +252,14 @@ final class Balance {
 		\WPAffiliateCaptain\Core\Audit::log( 'balance.mismatch', 'balance', 0, array( 'accounts' => array_slice( array_keys( $problems ), 0, 20 ) ) );
 		if ( ! is_array( $known ) || $known['accounts'] !== array_keys( $problems ) || ! get_transient( 'wpac_balance_alerted' ) ) {
 			set_transient( 'wpac_balance_alerted', 1, DAY_IN_SECONDS );
-			$admin = (string) \WPAffiliateCaptain\Core\Settings::get( 'admin_email' );
-			wp_mail(
-				is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+			\WPAffiliateCaptain\Affiliates\Notifications::send(
+				'balance_mismatch',
+				\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
 				/* translators: %s: site name */
 				sprintf( __( '[%s] Partner program: account balances differ from the bookings', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 				/* translators: 1: number, 2: accounts */
-				sprintf( __( "The daily reconciliation found %1\$d partner accounts whose balance does not match the bookings:\n%2\$s\n\nPlease do not run payouts for them before checking (Affiliate Captain → Partners → partner → Account statement).", 'affiliate-captain' ), count( $problems ), implode( ', ', array_slice( array_keys( $problems ), 0, 50 ) ) )
+				sprintf( __( "The daily reconciliation found %1\$d partner accounts whose balance does not match the bookings:\n%2\$s\n\nPlease do not run payouts for them before checking (Affiliate Captain → Partners → partner → Account statement).", 'affiliate-captain' ), count( $problems ), implode( ', ', array_slice( array_keys( $problems ), 0, 50 ) ) ),
+				array( 'admin' => true )
 			);
 		}
 		return $problems;

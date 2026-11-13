@@ -16,6 +16,21 @@ final class Cron {
 	const HOURLY = 'wpac_hourly';
 	const DAILY  = 'wpac_daily';
 
+	/** Option: time of the last hourly/daily run (diagnostics). */
+	const LAST_RUN_OPTION = 'wpac_cron_last_run';
+
+	/**
+	 * Remember when a scheduled run started (support data, `wp wpac status`).
+	 *
+	 * @param string $which hourly|daily.
+	 */
+	private static function mark_run( $which ) {
+		$last           = get_option( self::LAST_RUN_OPTION, array() );
+		$last           = is_array( $last ) ? $last : array();
+		$last[ $which ] = time();
+		update_option( self::LAST_RUN_OPTION, $last, false );
+	}
+
 	public static function register_hooks() {
 		add_action( self::HOURLY, array( __CLASS__, 'hourly' ) );
 		add_action( self::DAILY, array( __CLASS__, 'daily' ) );
@@ -59,6 +74,7 @@ final class Cron {
 	}
 
 	public static function hourly() {
+		self::mark_run( 'hourly' );
 		if ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
 			return; // A migration is running or failed: no bookings against the old schema.
@@ -77,7 +93,7 @@ final class Cron {
 				call_user_func( $step );
 			} catch ( \Throwable $e ) {
 				Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $step[1], 'error' => substr( $e->getMessage(), 0, 190 ) ) );
-				Log::error( 'Scheduled step failed: ' . $step[1], array( 'error' => substr( $e->getMessage(), 0, 500 ) ) );
+				Log::exception( 'Scheduled step failed: ' . $step[1], $e );
 			}
 		}
 	}
@@ -143,6 +159,7 @@ final class Cron {
 	}
 
 	public static function daily() {
+		self::mark_run( 'daily' );
 		delete_option( self::DAILY_REST_OPTION ); // A new day's run replaces the rest of an older one.
 		if ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
@@ -192,7 +209,7 @@ final class Cron {
 				call_user_func( $step );
 			} catch ( \Throwable $e ) {
 				Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $step[1], 'error' => substr( $e->getMessage(), 0, 190 ) ) );
-				Log::error( 'Scheduled step failed: ' . $step[1], array( 'error' => substr( $e->getMessage(), 0, 500 ) ) );
+				Log::exception( 'Scheduled step failed: ' . $step[1], $e );
 			}
 		}
 	}

@@ -70,7 +70,7 @@ Kostenlos und vollständig: Das Plugin enthält keine Lizenzprüfung und keine g
 | Betrugsregeln | Self-Referral, zu viele Bestellungen in 24 h, hoher Bestellwert, Bestellung direkt nach dem Klick, hohe Refund-Quote des Partners, Wegwerf-/gesperrte E-Mail-Domains, Gutschein eines anderen Partners, eigene Regeln per Filter. Treffer → Status „Prüfung nötig“ mit Grund. |
 | REST-API | `wpac/v1`, siehe [docs/REST.md](docs/REST.md). |
 | Import/Export | CSV-Import von Partnern (Prüflauf mit Fehlerliste, Aliasse für AffiliateWP/SliceWP) unter **Import & Export** oder `wp wpac import partners <datei.csv> [--dry-run]`; Programm-Export als ZIP mit CSV je Liste (`wp wpac export`), Bankdaten nur mit `wpac_view_tax_data` und ausdrücklicher Auswahl. |
-| Externe Dienste | Nur VIES (EU-Kommission, USt-IdNr.-Prüfung, abschaltbar) und eine Loopback-Prüfung des Belegordners – offengelegt in `readme.txt` → External services. |
+| Externe Dienste | Nur VIES (EU-Kommission, USt-IdNr.-Prüfung, standardmäßig aus – Opt-in in den Einstellungen) und eine Loopback-Prüfung des Belegordners – offengelegt in `readme.txt` → External services. |
 | Sprache | Deutsch (`de_DE`) vollständig, inkl. Editor-Blocks. Quelltexte englisch. |
 
 ## Entwicklung

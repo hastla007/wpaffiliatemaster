@@ -38,3 +38,25 @@ document.addEventListener( 'change', function ( e ) {
 		} );
 	} );
 } )();
+/* Ask before a form is sent with a value in a select that has data-wpac-confirm-select
+   (e.g. re-attribution of an order in the WooCommerce order screen). */
+document.addEventListener( 'submit', function ( e ) {
+	Array.prototype.forEach.call( e.target.querySelectorAll ? e.target.querySelectorAll( 'select[data-wpac-confirm-select]' ) : [], function ( s ) {
+		if ( ! e.defaultPrevented && s.value && ! window.confirm( s.getAttribute( 'data-wpac-confirm-select' ) ) ) {
+			e.preventDefault();
+			e.stopImmediatePropagation();
+		}
+	} );
+}, true );
+/* Creatives: choose the image from the media library (wp.media is loaded on that page). */
+document.addEventListener( 'click', function ( e ) {
+	var btn = e.target.closest ? e.target.closest( '#wpac-pick' ) : null;
+	if ( ! btn || ! window.wp || ! window.wp.media ) {
+		return;
+	}
+	var frame = window.wp.media( { library: { type: 'image' }, multiple: false } );
+	frame.on( 'select', function () {
+		document.getElementById( 'wpac-attachment' ).value = frame.state().get( 'selection' ).first().id;
+	} );
+	frame.open();
+} );

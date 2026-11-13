@@ -100,8 +100,9 @@ final class SepaXml {
 	 */
 	public static function build( array $debtor, array $transfers, $msg_id, $exec_date, $created = '' ) {
 		if ( ! self::dom_available() ) {
-			$msg = 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.';
-			throw new \InvalidArgumentException( function_exists( '__' ) ? __( 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.', 'affiliate-captain' ) : $msg );
+			// Exception texts are escaped (they may end up in an admin notice); without WordPress
+			// (unit tests) the untranslated text is used.
+			throw new \InvalidArgumentException( function_exists( 'esc_html__' ) ? esc_html__( 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.', 'affiliate-captain' ) : 'The SEPA XML export needs the PHP extension dom (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.' );
 		}
 		if ( ! $transfers ) {
 			throw new \InvalidArgumentException( 'No transfers.' );
@@ -115,7 +116,7 @@ final class SepaXml {
 				throw new \InvalidArgumentException( 'Transfer amounts must be positive.' );
 			}
 			if ( ! Iban::is_valid( $t['iban'] ) ) {
-				throw new \InvalidArgumentException( 'Invalid creditor IBAN for ' . $t['end_to_end_id'] );
+				throw new \InvalidArgumentException( function_exists( 'esc_html' ) ? esc_html( 'Invalid creditor IBAN for ' . $t['end_to_end_id'] ) : 'Invalid creditor IBAN.' );
 			}
 			$total += (int) $t['amount_minor'];
 		}

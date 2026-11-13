@@ -143,7 +143,7 @@ final class Db {
 			usleep( 100000 );
 		} while ( microtime( true ) < $deadline );
 		if ( '' === $owner ) {
-			throw new IntegrationException( 'locked', 'Could not acquire the lock ' . $name . '.' );
+			throw new IntegrationException( 'locked', esc_html( 'Could not acquire the lock ' . $name . '.' ) );
 		}
 		try {
 			return $fn();
@@ -168,7 +168,7 @@ final class Db {
 		// A transaction that could not be started or committed must never look like success
 		// (ledger and payout data would be partly written or not at all).
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
-			throw new IntegrationException( 'db_transaction', 'Could not start a database transaction: ' . $wpdb->last_error );
+			throw new IntegrationException( 'db_transaction', esc_html( 'Could not start a database transaction: ' . $wpdb->last_error ) );
 		}
 		self::$depth = 1;
 		try {

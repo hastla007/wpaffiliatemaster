@@ -79,6 +79,21 @@ final class MonthlyMail {
 	const BATCH_SIZE = 50;
 
 	/**
+	 * Partner mails per batch (one batch per minute).
+	 *
+	 * @return int
+	 */
+	public static function batch_size() {
+		/**
+		 * Partner summaries sent per batch (one batch per minute); lower it for mail services
+		 * with a send limit.
+		 *
+		 * @param int $size Default 50.
+		 */
+		return max( 1, (int) apply_filters( 'wpac_monthly_mail_batch_size', self::BATCH_SIZE ) );
+	}
+
+	/**
 	 * Send the next batch of partner summaries (single cron events until done).
 	 */
 	public static function batch() {
@@ -91,9 +106,9 @@ final class MonthlyMail {
 			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, HOUR_IN_SECONDS );
 			return;
 		}
-		$sent = self::send( $progress['month'], false, (int) $progress['offset'], self::BATCH_SIZE );
+		$sent = self::send( $progress['month'], false, (int) $progress['offset'], self::batch_size() );
 		if ( $sent['remaining'] > 0 ) {
-			$progress['offset']  += self::BATCH_SIZE;
+			$progress['offset']  += self::batch_size();
 			$progress['touched']  = time();
 			update_option( self::PROGRESS, $progress, false );
 			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, 60 );
@@ -160,7 +175,7 @@ final class MonthlyMail {
 			$remaining = max( 0, count( $rows ) - $offset - ( $limit ? $limit : count( $rows ) ) );
 			foreach ( $limit ? array_slice( $rows, $offset, $limit ) : $rows as $r ) {
 				$aff = AffiliateRepository::find( $r['affiliate_id'] );
-				if ( ! $aff || 'active' !== $aff->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) || ( ! $r['orders'] && ! $r['visits'] && ! $r['commission'] ) ) {
+				if ( ! $aff || 'active' !== $aff->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) || ( ! $r['orders'] && ! $r['visits'] && ! $r['commission'] ) || \WPAffiliateCaptain\Affiliates\Notifications::opted_out( (int) $aff->id, 'monthly_partner' ) ) {
 					continue;
 				}
 				$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
@@ -185,7 +200,8 @@ final class MonthlyMail {
 					$lines[] = '';
 					$lines[] = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
 				}
-				$wpac_ok = wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
+				// With an unsubscribe link (one click, no login) and List-Unsubscribe header.
+				$wpac_ok = \WPAffiliateCaptain\Affiliates\Notifications::send_optional( 'monthly_partner', $aff, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
 				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 				if ( ! $wpac_ok ) {
 					self::record_failure( $month, (int) $aff->id ); // Retried later (retry_failed()).
@@ -262,8 +278,7 @@ final class MonthlyMail {
 		}
 		$lines[] = '';
 		$lines[] = admin_url( 'admin.php?page=wpac&from=' . $from . '&to=' . $to );
-		$to_mail = (string) Settings::get( 'admin_email' );
-		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
+		return \WPAffiliateCaptain\Affiliates\Notifications::send( 'monthly_admin', \WPAffiliateCaptain\Affiliates\Notifications::admin_email(), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ), array( 'admin' => true ) );
 	}
 
 	const FAILED     = 'wpac_report_failed';

@@ -49,6 +49,24 @@ final class Csv {
 	}
 
 	/**
+	 * Separator of CSV downloads: ";" (German Excel) unless changed with the filter
+	 * wpac_csv_separator ("," for English Excel and most tools, tab or "|").
+	 *
+	 * @param string $filename File name of the download.
+	 * @return string
+	 */
+	public static function separator( $filename = '' ) {
+		/**
+		 * Separator of the CSV downloads of the admin (reports, payouts, commissions, codes).
+		 *
+		 * @param string $sep      ";" (default), ",", "|" or "\t".
+		 * @param string $filename File name of the download.
+		 */
+		$sep = (string) apply_filters( 'wpac_csv_separator', ';', (string) $filename );
+		return in_array( $sep, array( ';', ',', '|', "\t" ), true ) ? $sep : ';';
+	}
+
+	/**
 	 * Send CSV as download and exit.
 	 *
 	 * @param string $filename File name.
@@ -59,7 +77,7 @@ final class Csv {
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $filename ) . '"' );
-		echo self::build( $header, $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo self::build( $header, $rows, self::separator( $filename ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		exit;
 	}
 }

@@ -122,12 +122,13 @@ final class PayoutRequests {
 						)
 					);
 					if ( ! $ok || ! (int) $wpdb->insert_id ) {
-						throw new \WPAffiliateCaptain\Core\IntegrationException( 'db_payout_request', $wpdb->last_error );
+						throw new \WPAffiliateCaptain\Core\IntegrationException( 'db_payout_request', esc_html( $wpdb->last_error ) );
 					}
 					return (int) $wpdb->insert_id;
 				}
 			);
 		} catch ( \Throwable $e ) {
+			\WPAffiliateCaptain\Core\Log::exception( 'Payout request could not be saved', $e, array( 'affiliate' => (int) $aff->id ) );
 			return new \WP_Error( 'wpac_request', __( 'The payout request could not be saved. Please try again.', 'affiliate-captain' ) );
 		}
 		if ( ! $id ) {
@@ -135,14 +136,20 @@ final class PayoutRequests {
 		}
 		$amount = (int) self::find( $id )->amount_minor;
 		Audit::log( 'payout_request.created', 'affiliate', (int) $aff->id, array( 'amount' => $amount ) );
-		$to = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $to ) ? $to : (string) get_option( 'admin_email' ),
+		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
+		\WPAffiliateCaptain\Affiliates\Notifications::send(
+			'payout_request',
+			\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
 			/* translators: %s: partner */
 			sprintf( __( 'Payout request from %s', 'affiliate-captain' ), $aff->name ),
 			/* translators: 1: partner, 2: amount, 3: URL */
-			sprintf( __( "%1\$s requested a payout of %2\$s.\n\n%3\$s", 'affiliate-captain' ), $aff->name, Money::format( $amount, Settings::get( 'currency' ) ), admin_url( 'admin.php?page=wpac-payouts' ) )
+			sprintf( __( "%1\$s requested a payout of %2\$s.\n\n%3\$s", 'affiliate-captain' ), $aff->name, Money::format( $amount, Settings::get( 'currency' ) ), admin_url( 'admin.php?page=wpac-payouts' ) ),
+			array(
+				'admin'        => true,
+				'affiliate_id' => (int) $aff->id,
+			)
 		);
+		\WPAffiliateCaptain\Core\Locale::restore( $switched );
 		return $id;
 	}
 
@@ -263,7 +270,7 @@ final class PayoutRequests {
 			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 			/* translators: 1: name, 2: reason */
 			/* translators: %s: site name */
-			wp_mail( $aff->email, sprintf( __( '[%s] Your payout request', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ), sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'affiliate-captain' ), $aff->name, $reason ) );
+			\WPAffiliateCaptain\Affiliates\Notifications::send( 'payout_request_rejected', $aff->email, sprintf( __( '[%s] Your payout request', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ), sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'affiliate-captain' ), $aff->name, $reason ), array( 'affiliate_id' => (int) $aff->id ) );
 			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		}
 		return true;

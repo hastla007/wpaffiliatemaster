@@ -49,7 +49,7 @@ Used to confirm the EU VAT ID of a partner before reverse-charge credit notes ar
 * What is sent: the partner's VAT ID (country code and number) and – for a qualified confirmation with a consultation number – your own VAT ID from Settings → Payouts & credit notes. No names, addresses or bank details.
 * When: in the background after a partner or an administrator saves payout details with an EU VAT ID, when an administrator clicks "Check with VIES" on the partner page, and once a day for results that are older than 30 days or were unavailable (at most 20 per day).
 * Endpoint: `https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number`
-* It can be switched off in Settings → Payouts (tab "Payouts & credit notes"); then no VAT ID is sent to VIES.
+* Off by default (opt-in): it only runs after you switch on "VIES check" in Settings → Payouts (tab "Payouts & credit notes"); while it is off, no VAT ID is sent to VIES.
 * Service provided by the European Commission: [VIES](https://ec.europa.eu/taxation_customs/vies/), [legal notice and terms of use](https://commission.europa.eu/legal-notice_en), [privacy policy](https://commission.europa.eu/privacy-policy-websites-managed-european-commission_en). The suggested privacy policy text of the plugin names the European Commission as recipient.
 
 **Loopback request to your own site**
@@ -200,7 +200,7 @@ Review of all modules (security, money, legal, operations, usability):
 == Upgrade Notice ==
 
 = 0.11.0 =
-The plugin is now called "Affiliate Captain" and lives in the folder "affiliate-captain" (WordPress.org does not allow "WP" in plugin names). Install it next to the old "WP Affiliate Captain" and activate it: the old copy is switched off automatically and all data stays. Afterwards you can delete the old copy; its uninstall routine leaves the data alone while the new copy is active. Requires WordPress 6.3 or newer. Database update to schema 9 runs automatically after the update – make a backup first. New: CSV import of partners and program export; the VIES check of VAT IDs can be switched off.
+Renamed to "Affiliate Captain" (folder "affiliate-captain"). Make a backup first. Install it next to "WP Affiliate Captain" and activate it: the old copy is switched off, all data stays. Then delete the old copy without "delete all data". Needs WordPress 6.3+; schema 9 update runs automatically.
 
 = 0.10.0 =
 Database update to schema 8 (new columns on payouts and payout items) – make a backup before updating. Payouts are now blocked with a clear reason when your own VAT ID, the terms page or a valid partner VAT ID is missing; check the payout preview after the update.

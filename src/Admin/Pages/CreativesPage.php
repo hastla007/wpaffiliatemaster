@@ -122,15 +122,7 @@ final class CreativesPage {
 		echo '<tr><th>' . esc_html__( 'Change note', 'affiliate-captain' ) . '</th><td><input type="text" name="change_note" aria-label="' . esc_attr__( 'Change note', 'affiliate-captain' ) . '" class="regular-text"></td></tr></table>';
 		submit_button( __( 'Save draft', 'affiliate-captain' ) );
 		echo '</form>';
-		?>
-		<script>
-		document.getElementById('wpac-pick').addEventListener('click', function () {
-			var frame = wp.media({ library: { type: 'image' }, multiple: false });
-			frame.on('select', function () { document.getElementById('wpac-attachment').value = frame.state().get('selection').first().id; });
-			frame.open();
-		});
-		</script>
-		<?php
+		// The media picker is in assets/js/admin.js (no inline script: CSP, script delay plugins).
 		echo '</div>';
 	}
 }
