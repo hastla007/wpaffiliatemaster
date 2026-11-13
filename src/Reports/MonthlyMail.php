@@ -48,6 +48,17 @@ final class MonthlyMail {
 	}
 
 	/**
+	 * Month for people: "October 2026" in the site language instead of "2026-10".
+	 *
+	 * @param string $month Month (Y-m).
+	 * @return string
+	 */
+	public static function month_label( $month ) {
+		$ts = strtotime( $month . '-15 12:00:00 UTC' );
+		return false === $ts ? (string) $month : (string) wp_date( 'F Y', $ts, new \DateTimeZone( 'UTC' ) );
+	}
+
+	/**
 	 * Atomically claim the report run of a month. WP-Cron and a system cron can run at the same time;
 	 * both would read "not sent" before either marks the month, so the claim is an INSERT that only
 	 * one process can win.
@@ -155,7 +166,7 @@ final class MonthlyMail {
 				$lines   = array();
 				$lines[] = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'wp-affiliate-captain' ), $aff->name );
 				$lines[] = '';
-				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'wp-affiliate-captain' ), $month );
+				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'wp-affiliate-captain' ), self::month_label( $month ) );
 				$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $r['visits'];
 				$lines[] = __( 'Sales', 'wp-affiliate-captain' ) . ': ' . $r['orders'];
 				$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['commission'] );
@@ -173,7 +184,7 @@ final class MonthlyMail {
 					$lines[] = '';
 					$lines[] = get_permalink( $portal );
 				}
-				if ( ! wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) ) ) {
+				if ( ! wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) ) ) {
 					self::record_failure( $month, (int) $aff->id ); // Retried later (retry_failed()).
 					continue;
 				}
@@ -224,7 +235,7 @@ final class MonthlyMail {
 			}
 		}
 		$lines   = array();
-		$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'wp-affiliate-captain' ), $month );
+		$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) );
 		$lines[] = '';
 		$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $tot['visits'];
 		$lines[] = __( 'Attributed orders', 'wp-affiliate-captain' ) . ': ' . $tot['orders'];
@@ -249,7 +260,7 @@ final class MonthlyMail {
 		$lines[] = '';
 		$lines[] = admin_url( 'admin.php?page=wpac&from=' . $from . '&to=' . $to );
 		$to_mail = (string) Settings::get( 'admin_email' );
-		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) );
+		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
 	}
 
 	const FAILED     = 'wpac_report_failed';

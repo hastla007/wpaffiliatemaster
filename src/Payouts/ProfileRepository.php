@@ -212,6 +212,11 @@ final class ProfileRepository {
 				$data['iban_last4']     = substr( $iban, -4 );
 			}
 		}
+		if ( ! isset( $data['iban_encrypted'] ) && $existing && Crypto::needs_reencrypt( (string) $existing->iban_encrypted ) ) {
+			// Stored with the key derived from the salts before WPAC_ENCRYPTION_KEY was set: re-encrypt
+			// (IBAN or manual payment details alike).
+			$data['iban_encrypted'] = Crypto::encrypt( (string) Crypto::decrypt( (string) $existing->iban_encrypted ) );
+		}
 		if ( $existing ) {
 			$wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
 		} else {

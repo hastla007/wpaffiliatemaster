@@ -608,7 +608,7 @@ final class Statement {
 	 * @param object $p Payout.
 	 */
 	public static function send( $p ) {
-		$path = self::dir() . '/' . basename( (string) $p->statement_file );
+		$path = self::path( (string) $p->statement_file );
 		if ( '' === (string) $p->statement_file || ! is_readable( $path ) ) {
 			wp_die( esc_html__( 'The statement is not available (anymore).', 'wp-affiliate-captain' ), 404 );
 		}
@@ -623,6 +623,114 @@ final class Statement {
 		header( 'Content-Length: ' . strlen( $bytes ) );
 		echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		exit;
+	}
+
+	/**
+	 * Earlier storage folders: the uploads folder (before WPAC_STATEMENT_DIR was defined) and the
+	 * flat WPAC_STATEMENT_DIR itself; only those that differ from the current folder.
+	 *
+	 * @return string[]
+	 */
+	public static function legacy_dirs() {
+		$upload = wp_upload_dir( null, false );
+		$dirs   = array( trailingslashit( $upload['basedir'] ) . 'wpac-statements' );
+		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
+			$dirs[] = untrailingslashit( (string) WPAC_STATEMENT_DIR );
+		}
+		$current = untrailingslashit( self::dir() );
+		$out     = array();
+		foreach ( array_unique( $dirs ) as $dir ) {
+			if ( untrailingslashit( $dir ) !== $current && is_dir( $dir ) ) {
+				$out[] = untrailingslashit( $dir );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Full path of a stored statement: the current folder, or an earlier one when the folder
+	 * was changed later (e.g. WPAC_STATEMENT_DIR defined after the first credit notes).
+	 *
+	 * @param string $file Stored file name.
+	 * @return string
+	 */
+	public static function path( $file ) {
+		$name = basename( (string) $file );
+		$path = self::dir() . '/' . $name;
+		if ( '' === $name || is_readable( $path ) ) {
+			return $path;
+		}
+		foreach ( self::legacy_dirs() as $dir ) {
+			if ( is_readable( $dir . '/' . $name ) ) {
+				return $dir . '/' . $name;
+			}
+		}
+		return $path;
+	}
+
+	/**
+	 * Statements (and cancellations) that are still in an earlier folder.
+	 *
+	 * @param int $limit Max. payouts to look at.
+	 * @return array List of [ payout ID, file name, old path ].
+	 */
+	public static function misplaced( $limit = 5000 ) {
+		global $wpdb;
+		$legacy = self::legacy_dirs();
+		if ( ! $legacy ) {
+			return array();
+		}
+		$t   = Db::table( 'payouts' );
+		$out = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE statement_file <> '' OR storno_file <> '' ORDER BY id ASC LIMIT %d", (int) $limit ) ) as $r ) {
+			foreach ( array( $r->statement_file, $r->storno_file ) as $file ) {
+				$name = basename( (string) $file );
+				if ( '' === $name || file_exists( self::dir() . '/' . $name ) ) {
+					continue;
+				}
+				foreach ( $legacy as $dir ) {
+					if ( is_readable( $dir . '/' . $name ) ) {
+						$out[] = array( (int) $r->id, $name, $dir . '/' . $name );
+						break;
+					}
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Move statements from earlier folders into the current one (copy, verify, then delete the
+	 * old file).
+	 *
+	 * @return array [ moved, failed ]
+	 */
+	public static function move_misplaced() {
+		$moved  = 0;
+		$failed = 0;
+		foreach ( self::misplaced() as $m ) {
+			$target = self::dir() . '/' . $m[1];
+			$bytes  = file_get_contents( $m[2] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			if ( false !== $bytes && false !== file_put_contents( $target, $bytes ) && hash_file( 'sha256', $target ) === hash( 'sha256', $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+				wp_delete_file( $m[2] );
+				++$moved;
+			} else {
+				++$failed;
+			}
+		}
+		if ( $moved || $failed ) {
+			Audit::log(
+				'statement.moved',
+				'settings',
+				0,
+				array(
+					'moved'  => $moved,
+					'failed' => $failed,
+				)
+			);
+		}
+		return array( $moved, $failed );
 	}
 
 	/**

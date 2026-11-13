@@ -258,7 +258,7 @@ final class Balance {
 				/* translators: %s: site name */
 				sprintf( __( '[%s] Partner program: account balances differ from the bookings', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 				/* translators: 1: number, 2: accounts */
-				sprintf( __( "The daily reconciliation found %1\$d partner accounts whose balance does not match the bookings:\n%2\$s\n\nPlease do not run payouts for them before checking (Partners → partner → Balance).", 'wp-affiliate-captain' ), count( $problems ), implode( ', ', array_slice( array_keys( $problems ), 0, 50 ) ) )
+				sprintf( __( "The daily reconciliation found %1\$d partner accounts whose balance does not match the bookings:\n%2\$s\n\nPlease do not run payouts for them before checking (Affiliate Captain → Partners → partner → Account statement).", 'wp-affiliate-captain' ), count( $problems ), implode( ', ', array_slice( array_keys( $problems ), 0, 50 ) ) )
 			);
 		}
 		return $problems;

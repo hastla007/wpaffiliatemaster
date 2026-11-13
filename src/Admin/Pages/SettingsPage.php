@@ -37,8 +37,11 @@ final class SettingsPage {
 		$tab  = sanitize_key( Admin::post( 'tab' ) );
 		$tab  = isset( $tabs[ $tab ] ) ? $tab : 'program';
 		// Only the fields of the submitted tab are changed (unchecked checkboxes are absent from POST).
-		$new = array_intersect_key( Settings::sanitize( $raw ), array_flip( $tabs[ $tab ] ) );
-		$old = Settings::all();
+		// Rejected fields keep their stored value (sanitize() returns it) and are reported.
+		$errors  = array();
+		$notices = array();
+		$new     = array_intersect_key( Settings::sanitize( $raw, $errors, $notices ), array_flip( $tabs[ $tab ] ) );
+		$old     = Settings::all();
 		Settings::update( $new );
 		$changed = array();
 		foreach ( $new as $k => $v ) {
@@ -46,8 +49,120 @@ final class SettingsPage {
 				$changed[] = $k;
 			}
 		}
-		Audit::log( 'settings.updated', 'settings', 0, array( 'changed' => $changed ) );
-		Admin::back( __( 'Settings saved.', 'wp-affiliate-captain' ), 'success', Admin::url( 'wpac-settings', array( 'tab' => $tab ) ) );
+		if ( $changed ) {
+			Audit::log( 'settings.updated', 'settings', 0, array( 'changed' => $changed ) );
+		}
+		$url    = Admin::url( 'wpac-settings', array( 'tab' => $tab ) );
+		$labels = self::field_labels();
+		if ( $errors ) {
+			// Show the rejected input again, with the message next to the field.
+			$values = array();
+			foreach ( array_keys( $errors ) as $field ) {
+				$values[ $field ] = isset( $raw[ $field ] ) && is_scalar( $raw[ $field ] ) ? wp_check_invalid_utf8( (string) $raw[ $field ] ) : '';
+			}
+			Admin::keep_form(
+				'settings',
+				array(
+					'values' => $values,
+					'errors' => $errors,
+				)
+			);
+			$lines = array();
+			foreach ( $errors as $field => $message ) {
+				$lines[] = ( isset( $labels[ $field ] ) ? $labels[ $field ] : $field ) . ': ' . $message;
+			}
+			Admin::back(
+				sprintf(
+					/* translators: %d: number of fields */
+					_n( '%d field was not saved because its value is not valid – it keeps its previous value. All other changes were saved.', '%d fields were not saved because their values are not valid – they keep their previous values. All other changes were saved.', count( $errors ), 'wp-affiliate-captain' ),
+					count( $errors )
+				),
+				'error',
+				$url,
+				$lines
+			);
+		}
+		if ( $notices ) {
+			$lines = array();
+			foreach ( $notices as $field => $message ) {
+				$lines[] = ( isset( $labels[ $field ] ) ? $labels[ $field ] : $field ) . ': ' . $message;
+			}
+			Admin::back( __( 'Settings saved with an adjustment:', 'wp-affiliate-captain' ), 'warning', $url, $lines );
+		}
+		Admin::back( __( 'Settings saved.', 'wp-affiliate-captain' ), 'success', $url );
+	}
+
+	/**
+	 * Labels of the validated fields (form field name => label) for error messages.
+	 *
+	 * @return array
+	 */
+	private static function field_labels() {
+		return array(
+			'referral_param'             => __( 'Link parameter', 'wp-affiliate-captain' ),
+			'lifetime_rate'              => __( 'Lifetime rate in % (empty = normal rules)', 'wp-affiliate-captain' ),
+			'audit_retention_days'       => __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ),
+			'application_retention_days' => __( 'Keep rejected applications (days, 0 = forever)', 'wp-affiliate-captain' ),
+			'fraud_max_orders_day'       => __( 'Max. orders per partner in 24 hours', 'wp-affiliate-captain' ),
+			'fraud_min_click_seconds'    => __( 'Min. seconds between click and order', 'wp-affiliate-captain' ),
+			'fraud_max_refund_rate'      => __( 'Max. refund rate of a partner in % (90 days, min. 5 orders)', 'wp-affiliate-captain' ),
+			'statement_retention_years'  => __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ),
+			'lifetime_days'              => __( 'Lifetime link duration (days, 0 = unlimited)', 'wp-affiliate-captain' ),
+			'cookie_days'                => __( 'Cookie lifetime (days)', 'wp-affiliate-captain' ),
+			'rate_limit_per_minute'      => __( 'Max. counted link visits per client and minute', 'wp-affiliate-captain' ),
+			'visit_retention_days'       => __( 'Keep visit data (days)', 'wp-affiliate-captain' ),
+			'hold_days'                  => __( 'Hold period (days after payment)', 'wp-affiliate-captain' ),
+			'operator_country'           => __( 'Your country', 'wp-affiliate-captain' ),
+			'currency'                   => __( 'Program currency', 'wp-affiliate-captain' ),
+			'exchange_rates'             => __( 'Reference exchange rates', 'wp-affiliate-captain' ),
+			'default_rate'               => __( 'Default rate', 'wp-affiliate-captain' ),
+			'trusted_proxies'            => __( 'Trusted proxies / CDN', 'wp-affiliate-captain' ),
+			'fraud_max_order'            => __( 'Review orders above (net)', 'wp-affiliate-captain' ),
+			'min_payout'                 => __( 'Minimum payout', 'wp-affiliate-captain' ),
+			'landing_prefix'             => __( 'Landing page path', 'wp-affiliate-captain' ),
+			'default_disclosure'         => __( 'Default disclosure note', 'wp-affiliate-captain' ),
+			'terms_version'              => __( 'Terms version', 'wp-affiliate-captain' ),
+			'admin_email'                => __( 'Notification e-mail', 'wp-affiliate-captain' ),
+			'monitor_token'              => __( 'Monitoring token', 'wp-affiliate-captain' ),
+			'vat_rate'                   => __( 'VAT rate in %', 'wp-affiliate-captain' ),
+			'credit_prefix'              => __( 'Prefix credit note numbers', 'wp-affiliate-captain' ),
+			'storno_prefix'              => __( 'Prefix cancellation numbers', 'wp-affiliate-captain' ),
+			'debtor_bic'                 => __( 'Company BIC (optional)', 'wp-affiliate-captain' ),
+			'debtor_iban'                => __( 'Company IBAN (SEPA)', 'wp-affiliate-captain' ),
+		);
+	}
+
+	/** @var array Rejected input of the last save: values and errors per form field. */
+	private static $kept = array(
+		'values' => array(),
+		'errors' => array(),
+	);
+
+	/**
+	 * Value to show in a field: the rejected input after a failed save, else the stored value.
+	 *
+	 * @param string $field Form field name.
+	 * @param mixed  $value Stored value.
+	 * @return string
+	 */
+	private static function shown( $field, $value ) {
+		return isset( self::$kept['errors'][ $field ], self::$kept['values'][ $field ] ) ? (string) self::$kept['values'][ $field ] : (string) $value;
+	}
+
+	/**
+	 * Attributes and message for a field with an error.
+	 *
+	 * @param string $field Form field name.
+	 * @return array [ attributes, message HTML ]
+	 */
+	private static function error_parts( $field ) {
+		if ( ! isset( self::$kept['errors'][ $field ] ) ) {
+			return array( '', '' );
+		}
+		return array(
+			' aria-invalid="true" aria-describedby="wpac-err-' . esc_attr( $field ) . '"',
+			'<p class="wpac-field-error" id="wpac-err-' . esc_attr( $field ) . '" role="alert">' . esc_html( self::$kept['errors'][ $field ] ) . '</p>',
+		);
 	}
 
 	/**
@@ -93,6 +208,10 @@ final class SettingsPage {
 		self::$tab = isset( $labels[ $tab ] ) ? $tab : 'program';
 		$s        = Settings::all();
 		$currency = $s['currency'];
+		$kept     = Admin::kept_form( 'settings' );
+		if ( isset( $kept['values'], $kept['errors'] ) ) {
+			self::$kept = $kept;
+		}
 		echo '<div class="wrap"><h1>' . esc_html__( 'Affiliate Captain settings', 'wp-affiliate-captain' ) . '</h1>';
 		Admin::notice();
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Settings sections', 'wp-affiliate-captain' ) . '">';
@@ -106,8 +225,8 @@ final class SettingsPage {
 		self::section( __( 'Program & pages', 'wp-affiliate-captain' ), 'program' );
 		self::page_select( 'registration_page_id', __( 'Application page', 'wp-affiliate-captain' ), $s, '[wpac_affiliate_registration]' );
 		self::page_select( 'portal_page_id', __( 'Partner area page', 'wp-affiliate-captain' ), $s, '[wpac_affiliate_portal]' );
-		self::page_select( 'terms_page_id', __( 'Partner program terms', 'wp-affiliate-captain' ), $s, __( 'Version and SHA-256 hash of this page are stored with every acceptance.', 'wp-affiliate-captain' ) );
-		self::text( 'terms_version', __( 'Terms version', 'wp-affiliate-captain' ), $s, __( 'Increase when the terms change – partners must accept again.', 'wp-affiliate-captain' ) );
+		self::page_select( 'terms_page_id', __( 'Partner program terms', 'wp-affiliate-captain' ), $s, __( 'Version, text and SHA-256 hash of this page are stored with every acceptance as evidence.', 'wp-affiliate-captain' ) );
+		self::text( 'terms_version', __( 'Terms version', 'wp-affiliate-captain' ), $s, __( 'Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'auto_approve', __( 'Approve applications automatically', 'wp-affiliate-captain' ), $s );
 		self::select( 'terminated_open', __( 'Open commissions on termination', 'wp-affiliate-captain' ), $s, array( 'pay' => __( 'Remain payable', 'wp-affiliate-captain' ), 'reject' => __( 'Are rejected', 'wp-affiliate-captain' ) ) );
 		self::text( 'admin_email', __( 'Notification e-mail', 'wp-affiliate-captain' ), $s, __( 'Defaults to the site admin e-mail.', 'wp-affiliate-captain' ) );
@@ -141,7 +260,8 @@ final class SettingsPage {
 		self::section( __( 'Fraud rules', 'wp-affiliate-captain' ), 'security' );
 		echo '<tr><td colspan="2" class="description">' . esc_html__( 'Matches do not block a sale: its commissions get the status "needs review" with the reason. 0 = rule off.', 'wp-affiliate-captain' ) . '</td></tr>';
 		self::number( 'fraud_max_orders_day', __( 'Max. orders per partner in 24 hours', 'wp-affiliate-captain' ), $s );
-		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html__( 'Review orders above (net)', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
+		$err = self::error_parts( 'fraud_max_order' );
+		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html__( 'Review orders above (net)', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( self::shown( 'fraud_max_order', Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::number( 'fraud_min_click_seconds', __( 'Min. seconds between click and order', 'wp-affiliate-captain' ), $s );
 		self::number( 'fraud_max_refund_rate', __( 'Max. refund rate of a partner in % (90 days, min. 5 orders)', 'wp-affiliate-captain' ), $s );
 		self::checkbox( 'fraud_check_domains', __( 'Review orders with disposable or blocked e-mail domains', 'wp-affiliate-captain' ), $s );
@@ -150,20 +270,22 @@ final class SettingsPage {
 
 		self::section( __( 'Abuse protection', 'wp-affiliate-captain' ), 'security' );
 		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'wp-affiliate-captain' ), $s );
-		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1">' . esc_textarea( (string) $s['trusted_proxies'] ) . '</textarea><p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy.', 'wp-affiliate-captain' ) . '</p></td></tr>';
+		$err = self::error_parts( 'trusted_proxies' );
+		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'wp-affiliate-captain' ), $s );
 		self::number( 'application_retention_days', __( 'Keep rejected applications (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised.', 'wp-affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'Commissions', 'wp-affiliate-captain' ), 'commissions' );
 		self::text( 'currency', __( 'Program currency', 'wp-affiliate-captain' ), $s );
-		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html__( 'Reference exchange rates', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05">' . esc_textarea( (string) $s['exchange_rates'] ) . '</textarea><p class="description">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'wp-affiliate-captain' ), $currency ) ) . '</p></td></tr>';
+		$err = self::error_parts( 'exchange_rates' );
+		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html__( 'Reference exchange rates', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05"' . $err[0] . '>' . esc_textarea( self::shown( 'exchange_rates', $s['exchange_rates'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'wp-affiliate-captain' ), $currency ) ) . '</p></td></tr>';
 		self::select( 'default_rate_type', __( 'Default commission type', 'wp-affiliate-captain' ), $s, array( 'percent' => __( 'Percent of net', 'wp-affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'wp-affiliate-captain' ) ) );
 		$display = $s;
 		if ( 'fixed' === $s['default_rate_type'] ) {
 			$display['default_rate'] = Money::to_decimal( (int) $s['default_rate'], $currency );
 		}
-		self::text( 'default_rate', __( 'Default rate', 'wp-affiliate-captain' ), $display, __( 'Percent, or amount in program currency for fixed commissions. Use rules for partners, groups, products and course codes.', 'wp-affiliate-captain' ) );
+		self::text( 'default_rate', __( 'Default rate', 'wp-affiliate-captain' ), $display, __( 'Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'lifetime_enabled', __( 'Lifetime commissions: repeat purchases of referred customers go to the same partner', 'wp-affiliate-captain' ), $s, __( 'Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'renewal_commission', __( 'Commission on subscription renewals (WooCommerce Subscriptions)', 'wp-affiliate-captain' ), $s, __( 'Off: only the first order of a subscription earns commission; renewals are not attributed.', 'wp-affiliate-captain' ) );
 		self::number( 'lifetime_days', __( 'Lifetime link duration (days, 0 = unlimited)', 'wp-affiliate-captain' ), $s );
@@ -180,14 +302,19 @@ final class SettingsPage {
 		self::end();
 
 		self::section( __( 'Payouts', 'wp-affiliate-captain' ), 'payouts' );
-		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
+		$err = self::error_parts( 'min_payout' );
+		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( self::shown( 'min_payout', Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::select( 'payout_period', __( 'Payout period', 'wp-affiliate-captain' ), $s, array( 'monthly' => __( 'Monthly', 'wp-affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'wp-affiliate-captain' ), 'manual' => __( 'Manual', 'wp-affiliate-captain' ) ) );
 		self::checkbox( 'payout_requests', __( 'Partners can request payouts in the partner area', 'wp-affiliate-captain' ), $s );
 		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'retention_hold', __( 'Tax audit or legal hold: do not delete any statements', 'wp-affiliate-captain' ), $s, __( 'The retention period is suspended while a tax audit is running (§147 Abs. 3 AO).', 'wp-affiliate-captain' ) );
 		self::checkbox( 'self_billing', __( 'Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)', 'wp-affiliate-captain' ), $s, __( 'Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor.', 'wp-affiliate-captain' ) );
-		self::text( 'vat_rate', __( 'VAT rate in %', 'wp-affiliate-captain' ), $s );
-		self::text( 'operator_country', __( 'Your country (ISO code)', 'wp-affiliate-captain' ), $s );
+		self::text( 'vat_rate', __( 'VAT rate in %', 'wp-affiliate-captain' ), $s, __( 'E.g. 19 or 7,7 – "%" may be typed.', 'wp-affiliate-captain' ) );
+		$countries = Settings::countries();
+		if ( '' !== (string) $s['operator_country'] && ! isset( $countries[ $s['operator_country'] ] ) ) {
+			$countries[ $s['operator_country'] ] = (string) $s['operator_country']; // Value from an older version.
+		}
+		self::select( 'operator_country', __( 'Your country', 'wp-affiliate-captain' ), $s, $countries );
 		echo '<tr><th><label for="wpac-operator_address">' . esc_html__( 'Your address (for credit notes)', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-operator_address" name="wpac[operator_address]" rows="3" class="regular-text">' . esc_textarea( (string) $s['operator_address'] ) . '</textarea></td></tr>';
 		self::text( 'operator_vat_id', __( 'Your VAT ID', 'wp-affiliate-captain' ), $s );
 		self::checkbox( 'vies_check', __( 'VIES check: verify partner VAT IDs with the EU Commission', 'wp-affiliate-captain' ), $s, __( 'Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts.', 'wp-affiliate-captain' ) );
@@ -278,7 +405,8 @@ final class SettingsPage {
 	 * @param string $desc  Description.
 	 */
 	private static function text( $key, $label, $s, $desc = '' ) {
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="text" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="regular-text">', esc_attr( $key ), esc_html( $label ), esc_attr( (string) $s[ $key ] ) );
+		$err = self::error_parts( $key );
+		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="text" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="regular-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::desc( $desc );
 		echo '</td></tr>';
 	}
@@ -292,7 +420,8 @@ final class SettingsPage {
 	 * @param string $desc  Description.
 	 */
 	private static function number( $key, $label, $s, $desc = '' ) {
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="number" min="0" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text">', esc_attr( $key ), esc_html( $label ), esc_attr( (string) $s[ $key ] ) );
+		$err = self::error_parts( $key );
+		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="number" min="0" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::desc( $desc );
 		echo '</td></tr>';
 	}
@@ -306,8 +435,9 @@ final class SettingsPage {
 	 * @param string $desc  Description.
 	 */
 	private static function checkbox( $key, $label, $s, $desc = '' ) {
-		printf( '<tr><th scope="row">%2$s</th><td><label><input type="checkbox" name="wpac[%1$s]" value="1" %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html__( 'Enabled', 'wp-affiliate-captain' ) );
-		self::desc( '' !== $desc ? $label . ' – ' . $desc : $label );
+		// The checkbox is named by its full label (screen readers announce what is switched on).
+		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1" %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ) );
+		self::desc( $desc );
 		echo '</td></tr>';
 	}
 
@@ -334,11 +464,12 @@ final class SettingsPage {
 	 * @param array  $options Options.
 	 */
 	private static function select( $key, $label, $s, array $options ) {
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]">', esc_attr( $key ), esc_html( $label ) );
+		$err = self::error_parts( $key );
+		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]"%3$s>', esc_attr( $key ), esc_html( $label ), $err[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		foreach ( $options as $v => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $v ), selected( (string) $s[ $key ], (string) $v, false ), esc_html( $l ) );
 		}
-		echo '</select></td></tr>';
+		echo '</select>' . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 	}
 
 	/**

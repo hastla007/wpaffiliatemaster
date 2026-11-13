@@ -23,7 +23,7 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/DashboardPage.php
+#: src/Admin/Admin.php src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/DashboardPage.php
 msgid "Partners"
 msgstr ""
 
@@ -64,7 +64,11 @@ msgid "Affiliate Captain is in maintenance mode: approvals, payouts, report mail
 msgstr ""
 
 #: src/Admin/Admin.php
-msgid "Affiliate Captain: some tables do not use InnoDB, so bookings cannot run in transactions. Please convert them (ALTER TABLE … ENGINE=InnoDB)."
+msgid "Affiliate Captain: some database tables use an outdated storage engine."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Without the InnoDB engine, a booking that stops halfway (e.g. a timeout) cannot be undone, so commissions and partner balances can get out of step. Your host can convert the tables in a few minutes – send them this message and the list below (technically: ALTER TABLE … ENGINE=InnoDB)."
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -72,15 +76,47 @@ msgid "Affiliate Captain: %1$d partner accounts do not match their bookings (%2$
 msgstr ""
 
 #: src/Admin/Admin.php
-msgid "Affiliate Captain: the scheduled tasks have not run for more than two hours. Commissions are not released and failed jobs are not retried."
+msgid "Affiliate Captain: the scheduled tasks have not run for more than two hours."
 msgstr ""
 
 #: src/Admin/Admin.php
-msgid "WP-Cron is disabled (DISABLE_WP_CRON): set up a system cron that runs \"wp cron event run --due-now\" every few minutes."
+msgid "Until they run again, commissions are not released after the hold period, failed sales are not retried and report mails are not sent."
 msgstr ""
 
 #: src/Admin/Admin.php
-msgid "Your site may receive too few visits or block loopback requests: set up a system cron that runs \"wp cron event run --due-now\"."
+msgid "WordPress' own scheduler (WP-Cron) is switched off on this site (DISABLE_WP_CRON), so your server must start it: ask your host to set up a \"cron job\" that runs \"wp cron event run --due-now\" every 5 minutes."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "WordPress starts scheduled tasks only when someone visits the site; with few visits or when the server blocks requests to itself, they stall. Ask your host to set up a \"cron job\" that runs \"wp cron event run --due-now\" every 5 minutes."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Switch off maintenance mode"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Complete your details in the payout settings"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Choose the terms page"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Add an exchange rate"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Open the payout details"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "The partner accepts the terms in the partner area – send a reminder from the partner list"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Open the partner"
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -92,11 +128,11 @@ msgid "Open the setup checklist"
 msgstr ""
 
 #: src/Admin/Admin.php
-msgid "The link has expired. Please go back and try again."
+msgid "Hide until something changes"
 msgstr ""
 
 #: src/Admin/Admin.php
-msgid "Unknown action."
+msgid "The link has expired. Please go back and try again."
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -104,8 +140,24 @@ msgid "You are not allowed to do this."
 msgstr ""
 
 #: src/Admin/Admin.php
+msgid "Unknown action."
+msgstr ""
+
+#: src/Admin/Admin.php
 msgid "Done."
 msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%d partner without the current acceptance is asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week)."
+msgid_plural "%d partners without the current acceptance are asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%1$d code created (batch %2$s)."
+msgid_plural "%1$d codes created (batch %2$s)."
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "%d application approved."
@@ -114,7 +166,21 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "Partner created and activated."
+msgid "%d active partner has not accepted the current partner terms yet; credit notes cannot be issued to them."
+msgid_plural "%d active partners have not accepted the current partner terms yet; credit notes cannot be issued to them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Partner created and activated. The partner received a welcome e-mail with the link to the partner area."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The link to connect the existing customer account was sent to the partner again (valid for 7 days)."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The WordPress user is now linked: the partner can log in to the partner area with it."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -150,10 +216,6 @@ msgid "Code created."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "%1$d codes created (batch %2$s)."
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
 msgid "Code updated."
 msgstr ""
 
@@ -162,11 +224,27 @@ msgid "Coupon link updated."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "VAT ID checked against VIES."
+msgid "The VAT ID could not be checked (the VIES check may be switched off in the settings)."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "No VAT ID stored."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "VIES confirms the VAT ID as valid."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "According to VIES, the VAT ID is NOT valid. Reverse-charge payouts to this partner are blocked until the partner corrects it."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "VIES could not be reached (the service of the EU or of the member state is down). Nothing was changed; the check is repeated automatically."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Not an EU VAT ID – VIES cannot check it."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -214,7 +292,7 @@ msgid "Channel"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "The partner is activated immediately. A WordPress account is linked by e-mail or created, and a partner code is generated."
+msgid "The partner is activated immediately, gets a partner code and a welcome e-mail with the link to the partner area. Without a WordPress account, one is created (the e-mail contains the link to set a password). If a customer account with this e-mail already exists, the partner gets a link to connect it – or you link a user on the partner page."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -249,7 +327,7 @@ msgstr ""
 msgid "Commissions of this partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Status"
 msgstr ""
 
@@ -350,7 +428,7 @@ msgid "WordPress user"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "No WordPress user is linked: the partner cannot log in to the partner area. This happens when the e-mail belongs to an administrator or editor account (never linked automatically). Use a different e-mail or link a user manually."
+msgid "No WordPress user is linked: the partner cannot log in to the partner area yet. See \"Partner area access\" on the overview tab."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
@@ -382,14 +460,30 @@ msgid "Terms acceptance"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "The current terms (version %s) are accepted."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The current terms (version %s) are not accepted yet. The partner is asked to accept them on the next login to the partner area; until then, payouts by credit note wait."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "No acceptance recorded."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Accepted"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Declined"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Date"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
 msgid "Version"
 msgstr ""
 
@@ -513,7 +607,7 @@ msgstr ""
 msgid "Incomplete."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
 msgid "Tax status"
 msgstr ""
 
@@ -573,7 +667,7 @@ msgstr ""
 msgid "Account holder"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Payouts/PayoutService.php src/Portal/Portal.php
 msgid "IBAN"
 msgstr ""
 
@@ -619,6 +713,66 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
 msgid "System"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Partner area access"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The partner's e-mail address belongs to an account with backend rights (e.g. an administrator or editor). Such accounts are never linked to a partner. Use a different e-mail address for the partner or link a customer account below."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "A customer account with the partner's e-mail address exists. The partner received a link to connect it (valid for 7 days) and has not used it yet."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "A customer account with the partner's e-mail address exists, but the link to connect it has expired or was never sent."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Resend account link"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "There is no WordPress account with the partner's e-mail address."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Link WordPress user manually (user ID or e-mail address)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Link this WordPress user to the partner? Whoever can log in to the account then sees the partner area including payouts."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Link user"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Only accounts without backend rights (customers, subscribers) that are not linked to another partner. Make sure the account belongs to the partner."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "They are asked to accept them when they log in to the partner area."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reminders are being sent: %1$d of %2$d."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Last reminder on %1$s: %2$d e-mails sent."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Send an e-mail to every active partner without the current acceptance?"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Ask partners to accept the current terms"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -693,7 +847,7 @@ msgstr ""
 msgid "Reference"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Amount"
 msgstr ""
 
@@ -718,15 +872,415 @@ msgid "Partner group"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Partner created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Partner details changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Status changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "E-mail address changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Change of public details requested"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Change of public details approved"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Change of public details rejected"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "WordPress user linked"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Link to connect the customer account sent"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Account not linked (account with backend rights)"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "WordPress user could not be created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Terms accepted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Terms declined"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Terms reminders started"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Terms reminders sent"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Sale flagged for review"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Sale assigned manually"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Sale reassigned"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Self-referral blocked"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Account does not match the bookings"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Code created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Code batch created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Coupon linked"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Codes exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payment request sent"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Commissions exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Commission reinstated"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Repayment booked"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Negative balance written off"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Creative approved"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Creative archived"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Creative saved as draft"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Scheduled task step failed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Group created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Group changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Group deleted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Job retried"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "All failed jobs retried"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout run"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout failed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout marked as paid"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Commissions/Balance.php
+msgid "Payout cancelled"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout created again"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "SEPA file exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Transfer list exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout details changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "VAT ID checked with VIES"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Bank details re-encrypted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout requested"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout request processed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout request rejected"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Privacy request"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Personal data erased"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Applicant data erased"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout details deleted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Processing restricted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Restriction lifted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Retention period ended"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Report mails restarted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Report mail failed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Monthly report sent to the operator"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Monthly reports sent to partners"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Rule created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Rule changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Rule deleted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Database update stuck"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Settings changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Maintenance mode switched"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Pages created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Credit note created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Cancellation document created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Credit note downloaded"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Cancellation document downloaded"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Credit note failed the integrity check"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Credit note could not be written"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Cancellation document could not be written"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Credit note deleted after the retention period"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Objection to a credit note"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Objection handled"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Credit notes moved to the new folder"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Bonus tier created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Bonus tier deactivated"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Bonus month closed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Bonus month recalculated"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php
+msgid "from"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php
+msgid "to"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Affiliates/Notifications.php
+msgid "Reason"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Number"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/IntegrationsPage.php
+msgid "Error"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "User"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "manually"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "IBAN changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Sent"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Privacy/Privacy.php
+msgid "Created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Skipped"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
+msgid "Period end"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
+msgid "Currency"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "yes"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "no"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Object type"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
 msgid "Filter"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php
-msgid "User"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
@@ -746,11 +1300,13 @@ msgid "Older entries"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
-msgid "Approved manually"
-msgstr ""
+msgid "%1$d commission could not be changed: %2$s"
+msgid_plural "%1$d commissions could not be changed: %2$s"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Admin/Pages/CommissionsPage.php
-msgid "%1$d commission(s) could not be changed: %2$s"
+msgid "Approved manually"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -775,14 +1331,6 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Order"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php
-msgid "from"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php
-msgid "to"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Reports/MonthlyMail.php
@@ -861,10 +1409,6 @@ msgstr ""
 msgid "Decision"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Affiliates/Notifications.php
-msgid "Reason"
-msgstr ""
-
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Reason (shown to the partner when rejecting)"
 msgstr ""
@@ -891,6 +1435,22 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Rule snapshot"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Corrected (refund or reinstatement)"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Added to a payout"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Released from a cancelled payout"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Status: %s"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
@@ -1038,6 +1598,14 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/Admin/Pages/DashboardPage.php
+msgid "Some pages could not be created. Please create them yourself with the blocks \"Partner application\" and \"Partner area\" and select them in the settings."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "All pages already exist – nothing was created."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
 msgid "Pages created and selected in the settings."
 msgstr ""
 
@@ -1058,6 +1626,10 @@ msgid "Welcome! Here you can introduce your offer to visitors referred by a part
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
+msgid "unknown error"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
 msgid "Application page and partner area page"
 msgstr ""
 
@@ -1066,11 +1638,15 @@ msgid "Partner program terms (page and version)"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Your address and VAT ID for credit notes"
+msgid "Your address and VAT ID or tax number for credit notes"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Company bank account for SEPA payouts"
+msgid "Your VAT ID – needed for credit notes to business partners abroad (reverse charge); a tax number is not enough"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Company bank account for SEPA payouts (account holder and IBAN)"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -1182,10 +1758,62 @@ msgid "Refund rate"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "%d failed job was queued again and processed."
-msgid_plural "%d failed jobs were queued again and processed."
+msgid "%d job processed successfully."
+msgid_plural "%d jobs processed successfully."
 msgstr[0] ""
 msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d job failed again – see the error in the table."
+msgid_plural "%d jobs failed again – see the errors in the table."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d more job is processed in the background within the next minutes."
+msgid_plural "%d more jobs are processed in the background within the next minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Bank details of %d partner were encrypted with the new key."
+msgid_plural "Bank details of %d partners were encrypted with the new key."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d credit note file was moved to the new statement folder."
+msgid_plural "%d credit note files were moved to the new statement folder."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d file could not be moved (is the new folder writable?)."
+msgid_plural "%d files could not be moved (is the new folder writable?)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The bank details of %d partner are still encrypted with the old key (derived from the WordPress salts)."
+msgid_plural "The bank details of %d partners are still encrypted with the old key (derived from the WordPress salts)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The bank details of %d partner cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
+msgid_plural "The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d credit note file is still in the previous statement folder."
+msgid_plural "%d credit note files are still in the previous statement folder."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "There are no failed jobs."
+msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Job processed successfully."
@@ -1193,6 +1821,102 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Job failed again – see error."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Define WPAC_ENCRYPTION_KEY in wp-config.php first."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The rest is processed in the background."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Re-encrypt bank details with the new key"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The statement folder was changed (e.g. WPAC_STATEMENT_DIR defined later). The files are still found and downloadable, but they stay in the old, possibly public folder until you move them."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Move credit notes to the new folder"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php src/Commissions/Ledger.php
+msgid "Sale"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php src/Commissions/Ledger.php
+msgid "Refund"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WooCommerce order"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WooCommerce refund"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Waiting for the next attempt"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Running"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Failed"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Done"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The previous attempt did not finish (timeout or fatal error)."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Waiting for the sale of this order to be booked first."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Already included in the retried sale."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Unexpected error."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Database error (transaction could not be started)."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Database error (transaction could not be saved)."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Database error (number sequence)."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The shop or integration reported an error."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "A commission was changed at the same time."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Database error."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -1240,7 +1964,11 @@ msgid "WP Consent API detected (marketing consent for the affiliate cookie)"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "Dedicated encryption key WPAC_ENCRYPTION_KEY defined (otherwise derived from WordPress salts)"
+msgid "Dedicated encryption key WPAC_ENCRYPTION_KEY defined"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "No dedicated encryption key: add define( 'WPAC_ENCRYPTION_KEY', '…64 hex characters…' ); to wp-config.php (generate it e.g. with \"openssl rand -hex 32\"). Existing bank details stay readable and can then be re-encrypted here."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -1292,16 +2020,70 @@ msgid "Attempts"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "Error"
+msgid "Next attempt"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "Next attempt"
+msgid "Error while booking."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Retry now"
 msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d payout created."
+msgid_plural "%d payouts created."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d partner carried forward (below the minimum or negative balance)."
+msgid_plural "%d partners carried forward (below the minimum or negative balance)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d partner could not be paid out (blocked):"
+msgid_plural "%d partners could not be paid out (blocked):"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d payout failed:"
+msgid_plural "%d payouts failed:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Please tick the confirmation box: this affects %1$d payout totalling %2$s. Your selection was kept."
+msgid_plural "Please tick the confirmation box: this affects %1$d payouts totalling %2$s. Your selection was kept."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d payout marked as paid."
+msgid_plural "%d payouts marked as paid."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d payout could not be marked as paid:"
+msgid_plural "%d payouts could not be marked as paid:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d payout cancelled; its commissions are available for the next run."
+msgid_plural "%d payouts cancelled; their commissions are available for the next run."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d payout could not be cancelled:"
+msgid_plural "%d payouts could not be cancelled:"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Create %d payout"
@@ -1322,15 +2104,15 @@ msgid "Please describe what was done (the partner is informed)."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "This objection was already handled (or no longer exists); nothing was sent."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Objection marked as handled; the partner was informed."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Please choose a period end and currency."
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "%1$d payouts created, %2$d partners carried forward."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1342,23 +2124,15 @@ msgid "Please choose an action."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
-msgid "Please tick the confirmation box: this affects %1$d payout(s) totalling %2$s."
+msgid "Please enter a cancellation reason (it is printed on the cancellation document)."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The transfer list contains bank details. You need the permission to view tax and bank data."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "The SEPA file contains bank details. You need the permission to view tax and bank data."
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Some payouts could not be marked as paid."
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Payouts marked as paid."
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Payouts cancelled. The commissions are available for the next run."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1402,6 +2176,26 @@ msgid "The credit note no longer counts as an invoice. Cancel the payout (cancel
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Cancellation reason"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Objection of the partner"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The bank did NOT execute the exported transfer"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Cancel payout %s? A cancellation document is issued and the commissions are paid with the next run."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Cancel this payout"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "What was done (sent to the partner)"
 msgstr ""
 
@@ -1411,14 +2205,6 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "New payout run"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Period end"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Currency"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1579,10 +2365,6 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
 msgid "Period until"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Privacy/Privacy.php
-msgid "Created"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
@@ -1950,7 +2732,137 @@ msgid "program default"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "%d field was not saved because its value is not valid – it keeps its previous value. All other changes were saved."
+msgid_plural "%d fields were not saved because their values are not valid – they keep their previous values. All other changes were saved."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Settings saved with an adjustment:"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Settings saved."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Link parameter"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Lifetime rate in % (empty = normal rules)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Keep audit log (days, 0 = forever)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Keep rejected applications (days, 0 = forever)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Max. orders per partner in 24 hours"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Min. seconds between click and order"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Max. refund rate of a partner in % (90 days, min. 5 orders)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Keep statements (years, 0 = forever)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Lifetime link duration (days, 0 = unlimited)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Cookie lifetime (days)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Max. counted link visits per client and minute"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Keep visit data (days)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Hold period (days after payment)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your country"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Program currency"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reference exchange rates"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Default rate"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Trusted proxies / CDN"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Review orders above (net)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Minimum payout"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Landing page path"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Default disclosure note"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Terms version"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Notification e-mail"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Monitoring token"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "VAT rate in %"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Prefix credit note numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Prefix cancellation numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Company BIC (optional)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Company IBAN (SEPA)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2002,15 +2914,11 @@ msgid "Partner program terms"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Version and SHA-256 hash of this page are stored with every acceptance."
+msgid "Version, text and SHA-256 hash of this page are stored with every acceptance as evidence."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Terms version"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Increase when the terms change – partners must accept again."
+msgid "Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2030,19 +2938,11 @@ msgid "Are rejected"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Notification e-mail"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Defaults to the site admin e-mail."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Tracking & attribution"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Link parameter"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2061,11 +2961,11 @@ msgstr ""
 msgid "Without marketing consent only if a shop session already exists (e.g. a cart) – a click alone never sets a cookie."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
 msgid "Affiliate cookie"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
 msgid "Never set"
 msgstr ""
 
@@ -2079,10 +2979,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use \"Only with marketing consent\" unless your shop is outside the EU and you checked the local law."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Cookie lifetime (days)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2126,22 +3022,6 @@ msgid "Matches do not block a sale: its commissions get the status \"needs revie
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Max. orders per partner in 24 hours"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Review orders above (net)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Min. seconds between click and order"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Max. refund rate of a partner in % (90 days, min. 5 orders)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Review orders with disposable or blocked e-mail domains"
 msgstr ""
 
@@ -2154,35 +3034,11 @@ msgid "Abuse protection"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Max. counted link visits per client and minute"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Trusted proxies / CDN"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Keep visit data (days)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep rejected applications (days, 0 = forever)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Program currency"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Reference exchange rates"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2194,11 +3050,7 @@ msgid "Default commission type"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Default rate"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Percent, or amount in program currency for fixed commissions. Use rules for partners, groups, products and course codes."
+msgid "Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2218,23 +3070,7 @@ msgid "Off: only the first order of a subscription earns commission; renewals ar
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Lifetime link duration (days, 0 = unlimited)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Lifetime rate in % (empty = normal rules)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Hold period (days after payment)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Landing page path"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2250,19 +3086,11 @@ msgid "Add [wpac_partner_welcome] to show \"Recommended by …\"."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Default disclosure note"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Promotion guidelines for partners"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Minimum payout"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2286,10 +3114,6 @@ msgid "Partners can request payouts in the partner area"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Keep statements (years, 0 = forever)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
 msgstr ""
 
@@ -2310,11 +3134,7 @@ msgid "Commission rates are net; for domestic VAT-registered partners VAT is add
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "VAT rate in %"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Your country (ISO code)"
+msgid "E.g. 19 or 7,7 – \"%\" may be typed."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2338,27 +3158,11 @@ msgid "Your tax number (if no VAT ID)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Prefix credit note numbers"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Numbers are gapless per year, e.g. GS-2026-000001."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Prefix cancellation numbers"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Company account holder (SEPA)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Company IBAN (SEPA)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Company BIC (optional)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -2386,14 +3190,10 @@ msgid "Housekeeping"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Keep audit log (days, 0 = forever)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
 msgid "Maintenance mode"
 msgstr ""
 
@@ -2422,10 +3222,6 @@ msgid "Download template (Markdown)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Monitoring token"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "A token is set – enter a new one to replace it"
 msgstr ""
 
@@ -2439,10 +3235,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Only a hash of the token is stored; note it down before saving."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Enabled"
 msgstr ""
 
 #: src/Admin/Tables/AffiliatesTable.php
@@ -2534,11 +3326,59 @@ msgid "Partnership terminated"
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
+msgid "This partner is already linked to a WordPress user."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "Accounts that can edit posts (administrators, editors, authors …) are never linked to a partner – the partner area would give partner access to an account with backend rights. Use a customer or subscriber account."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "This WordPress user is already linked to the partner \"%s\"."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "Only active or paused partners can be linked to an account."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "There is no WordPress account with the partner's e-mail address. Link a user manually or change the e-mail address."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "The link was sent a few minutes ago. Please wait 10 minutes before sending it again."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "No WordPress user with this ID or e-mail address was found."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
 msgid "[%s] Connect your partner account"
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
 msgid "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us."
+msgstr ""
+
+#: src/Affiliates/Agreements.php
+msgid "The reminders are already being sent."
+msgstr ""
+
+#: src/Affiliates/Agreements.php
+msgid "Reminders were already sent in the last 24 hours. Please wait a day before asking again."
+msgstr ""
+
+#: src/Affiliates/Agreements.php
+msgid "All active partners have accepted the current terms."
+msgstr ""
+
+#: src/Affiliates/Agreements.php
+msgid "[%s] Please accept the current partner terms"
+msgstr ""
+
+#: src/Affiliates/Agreements.php
+msgid "Hello %1$s,\n\nplease read and accept the current partner program terms (version %2$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3$s\nAccept them in your partner area: %4$s\n\nThank you!"
 msgstr ""
 
 #: src/Affiliates/Groups.php
@@ -2618,7 +3458,35 @@ msgid "[%s] Your affiliate application was approved"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nwelcome to our partner program! Your partner area with links, codes and statistics: %2$s\n\nNo password yet? Set one here: %3$s"
+msgid "Hello %1$s,\n\nwelcome to our partner program!\n\n%2$s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "[%s] Welcome to our partner program"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\n%2$s has set up a partner account for you.\n\n%3$s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Your partner area with links, codes and statistics: %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "We have created an account for you. Choose your password here: %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "You already have a customer account with this e-mail address: we have sent you a separate e-mail with a link to connect it to the partner program."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "No password yet? Set one here: %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "On your first visit, please read and accept the partner program terms – we need them to pay out your commissions."
 msgstr ""
 
 #: src/Affiliates/Notifications.php
@@ -2802,7 +3670,7 @@ msgid "[%s] Partner program: account balances differ from the bookings"
 msgstr ""
 
 #: src/Commissions/Balance.php
-msgid "The daily reconciliation found %1$d partner accounts whose balance does not match the bookings:\n%2$s\n\nPlease do not run payouts for them before checking (Partners → partner → Balance)."
+msgid "The daily reconciliation found %1$d partner accounts whose balance does not match the bookings:\n%2$s\n\nPlease do not run payouts for them before checking (Affiliate Captain → Partners → partner → Account statement)."
 msgstr ""
 
 #: src/Commissions/Balance.php
@@ -2811,10 +3679,6 @@ msgstr ""
 
 #: src/Commissions/Balance.php
 msgid "Commission rejected"
-msgstr ""
-
-#: src/Commissions/Balance.php
-msgid "Payout cancelled"
 msgstr ""
 
 #: src/Commissions/Balance.php
@@ -2867,14 +3731,6 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "Needs review"
-msgstr ""
-
-#: src/Commissions/Ledger.php
-msgid "Sale"
-msgstr ""
-
-#: src/Commissions/Ledger.php
-msgid "Refund"
 msgstr ""
 
 #: src/Commissions/Ledger.php src/Portal/Portal.php
@@ -3048,6 +3904,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/Core/Monitor.php
+msgid "%d year"
+msgid_plural "%d years"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Core/Monitor.php
 msgid "Database schema is current"
 msgstr ""
 
@@ -3080,7 +3942,7 @@ msgid "Commissions are not released and failed sales are not retried. Set up a s
 msgstr ""
 
 #: src/Core/Monitor.php
-msgid "Partner program → Integrations → Retry queue."
+msgid "Affiliate Captain → Integrations → Retry queue."
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -3156,11 +4018,171 @@ msgid "Open the integrations page"
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "Yes"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "No"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Only with marketing consent"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Always, without consent"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "OK"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Recommendation"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Problem"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Plugin version"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Database schema (installed / expected)"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Integration contract version"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Background tasks run with"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Persistent object cache"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Credit notes (self-billing)"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Statement retention"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "forever"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "deletion paused: legal hold"
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "[%s] Partner program needs attention"
 msgstr ""
 
 #: src/Core/Monitor.php
 msgid "The daily check of the partner program found problems:\n\n%1$s\n\nDetails: Tools → Site Health, or %2$s"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a parameter name."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Only lowercase letters, digits, \"-\" and \"_\" are allowed."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a whole number (0 or more)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a percentage between 0 and 100."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please choose your country from the list."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Raised to the legal minimum of %d years for your country."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a three-letter currency code (ISO 4217, e.g. EUR)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Not understood: %s. Use one line per currency, e.g. USD=0.92."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter an amount (e.g. 25 or 25,50)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Not an IP address or range: %s"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter an amount (e.g. 50 or 50,00; 0 = no minimum)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a path (letters, digits and \"-\")."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a disclosure note (e.g. \"Advertisement\"); partners need it for their posts."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a version (e.g. 1.0)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a valid e-mail address or leave the field empty."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "The token needs 20 to 64 letters and digits (no spaces or special characters). The previous token stays valid."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter a percentage between 0 and 99 (e.g. 19 or 7,7)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter 1 to 8 letters or digits (e.g. GS)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "This IBAN is not valid (check digits). The previous IBAN is still used."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "This IBAN is not valid (check digits)."
 msgstr ""
 
 #: src/Integrations/WooCommerce/CheckoutField.php
@@ -3348,6 +4370,22 @@ msgid "Please complete your payout details first."
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
+msgid "Payout requests are paused for maintenance. Please try again later."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
+msgid "Please accept the current partner terms first (see the notice above)."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
+msgid "Your VAT ID could not be confirmed in the EU VIES database. Please check it under \"Payout details\"."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
+msgid "Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
 msgid "Your approved balance is below the minimum payout of %s."
 msgstr ""
 
@@ -3368,7 +4406,7 @@ msgid "This request was already handled."
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
-msgid "The payout could not be created. Please try again."
+msgid "The payout could not be saved because of a technical error (details in the audit log). Nothing was booked; the request stays open."
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
@@ -3412,11 +4450,39 @@ msgid "Below minimum – carried forward"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "Maintenance mode is on (Settings → Reports)"
+msgid "Maintenance mode is on (Settings → Reports & data)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "Payout profile incomplete"
+msgid "tax status"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "legal name"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "address"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "country"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "account holder"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "VAT ID (business)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "tax number or VAT ID (small business)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Payout details incomplete: %s missing"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -3424,11 +4490,11 @@ msgid "Self-billing needs partner terms with the credit note agreement (Settings
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "No accepted partner terms (self-billing agreement)"
+msgid "Has not accepted the partner terms yet (needed for credit notes) – the partner is asked to accept them on the next login to the partner area"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "Reverse charge needs your VAT ID (Settings → Payouts)"
+msgid "Reverse charge needs your VAT ID (Settings → Payouts & credit notes)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -3452,7 +4518,15 @@ msgid "After the refund the balance is below the minimum payout, so no new payou
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "Your address and VAT ID or tax number are missing (Settings → Payouts) – credit notes need them."
+msgid "Your address and VAT ID or tax number are missing (Settings → Payouts & credit notes) – credit notes need them."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Nothing payable any more (changed meanwhile) – carried forward"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Technical error while saving (details in the audit log) – please run the payout again"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -3732,6 +4806,14 @@ msgid "Not a partner yet? Apply now."
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Your partner account is ready. Check your e-mail to link your partner account to this customer account: we have sent you a link (valid for 7 days). Open it while you are logged in."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Send the link again"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "You do not have a partner account yet."
 msgstr ""
 
@@ -3832,7 +4914,11 @@ msgid "Your request was sent. We will get back to you within one month."
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "The request could not be sent. For restriction and objection, please describe your reason."
+msgid "The request could not be sent. Please try again later or write to us by e-mail."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "For a restriction or an objection, please describe your reason in the details field."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -3840,7 +4926,19 @@ msgid "Thank you. Your objection was sent; we will review the credit note."
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "The objection could not be filed. Please describe what is incorrect."
+msgid "The objection could not be filed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "We have sent you a new link to connect your account. Please check your e-mail (also the spam folder)."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The link was sent a few minutes ago. Please check your e-mail or try again in 10 minutes."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The link could not be sent. Please contact us."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -3853,6 +4951,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Our partner program terms have been updated."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Welcome! Please read and accept our partner program terms. We need your acceptance to issue credit notes and pay out your commissions."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -4152,6 +5254,18 @@ msgid "VAT ID (businesses)"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot pay out commissions with reverse charge."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "VAT ID confirmed by the EU VIES database."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The EU VIES database could not be reached to check your VAT ID; it is checked again automatically."
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Tax number (small businesses without VAT ID)"
 msgstr ""
 
@@ -4192,7 +5306,7 @@ msgid "Channel (e.g. blog, Instagram, sailing school)"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "To end the partnership or delete your data, write to %s."
+msgid "To delete your data or get a copy, use the %1$s tab. To end the partnership, write to %2$s."
 msgstr ""
 
 #: src/Portal/Portal.php

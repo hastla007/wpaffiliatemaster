@@ -26,8 +26,14 @@ final class DashboardPage {
 	 */
 	public static function handle( $do ) {
 		if ( 'setup_pages' === $do ) {
-			self::create_pages();
-			Admin::back( __( 'Pages created and selected in the settings.', 'wp-affiliate-captain' ) );
+			list( $created, $failed ) = self::create_pages();
+			if ( $failed ) {
+				Admin::back( __( 'Some pages could not be created. Please create them yourself with the blocks "Partner application" and "Partner area" and select them in the settings.', 'wp-affiliate-captain' ), 'error', Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ), $failed );
+			}
+			if ( ! $created ) {
+				Admin::back( __( 'All pages already exist – nothing was created.', 'wp-affiliate-captain' ), 'info' );
+			}
+			Admin::back( __( 'Pages created and selected in the settings.', 'wp-affiliate-captain' ), 'success', '', $created );
 		}
 		if ( 'report_export' !== $do ) {
 			return;
@@ -51,6 +57,8 @@ final class DashboardPage {
 
 	/**
 	 * Create application, partner area and landing pages (with blocks) if missing.
+	 *
+	 * @return array [ titles of created pages, error lines ]
 	 */
 	private static function create_pages() {
 		$pages = array(
@@ -58,7 +66,9 @@ final class DashboardPage {
 			'portal_page_id'       => array( __( 'Partner area', 'wp-affiliate-captain' ), '<!-- wp:wpac/portal /-->' ),
 			'landing_page_id'      => array( __( 'Recommended by our partner', 'wp-affiliate-captain' ), "<!-- wp:wpac/partner-welcome /-->\n<!-- wp:paragraph --><p>" . esc_html__( 'Welcome! Here you can introduce your offer to visitors referred by a partner.', 'wp-affiliate-captain' ) . '</p><!-- /wp:paragraph -->' ),
 		);
-		$update = array();
+		$update  = array();
+		$created = array();
+		$failed  = array();
 		foreach ( $pages as $key => $page ) {
 			$current = (int) Settings::get( $key );
 			if ( $current && get_post( $current ) && 'trash' !== get_post_status( $current ) ) {
@@ -70,16 +80,33 @@ final class DashboardPage {
 					'post_status'  => 'publish',
 					'post_title'   => $page[0],
 					'post_content' => $page[1],
-				)
+				),
+				true
 			);
 			if ( $id && ! is_wp_error( $id ) ) {
 				$update[ $key ] = (int) $id;
+				$created[]      = $page[0];
+			} else {
+				$failed[] = $page[0] . ': ' . ( is_wp_error( $id ) ? $id->get_error_message() : __( 'unknown error', 'wp-affiliate-captain' ) );
 			}
 		}
 		if ( $update ) {
 			Settings::update( $update );
 			\WPAffiliateCaptain\Core\Audit::log( 'setup.pages_created', 'settings', 0, $update );
 		}
+		return array( $created, $failed );
+	}
+
+	/**
+	 * Whether partners exist whose credit notes need reverse charge (foreign businesses).
+	 *
+	 * @return bool
+	 */
+	private static function has_reverse_charge_partners() {
+		global $wpdb;
+		$t = \WPAffiliateCaptain\Core\Db::table( 'payout_profiles' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT affiliate_id FROM {$t} WHERE tax_status IN ('business','small_business') AND country <> '' AND country <> %s LIMIT 1", strtoupper( (string) Settings::get( 'operator_country' ) ) ) );
 	}
 
 	/**
@@ -89,8 +116,9 @@ final class DashboardPage {
 		$items = array(
 			array( (bool) Settings::get( 'registration_page_id' ) && (bool) Settings::get( 'portal_page_id' ), __( 'Application page and partner area page', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
 			array( (bool) Settings::get( 'terms_page_id' ), __( 'Partner program terms (page and version)', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
-			array( '' !== (string) Settings::get( 'operator_address' ) && ( '' !== (string) Settings::get( 'operator_vat_id' ) || '' !== (string) Settings::get( 'operator_tax_number' ) ), __( 'Your address and VAT ID for credit notes', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
-			array( '' !== (string) Settings::get( 'debtor_iban' ), __( 'Company bank account for SEPA payouts', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( '' === \WPAffiliateCaptain\Payouts\PayoutService::operator_missing(), __( 'Your address and VAT ID or tax number for credit notes', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( '' !== trim( (string) Settings::get( 'operator_vat_id' ) ) || ! self::has_reverse_charge_partners(), __( 'Your VAT ID – needed for credit notes to business partners abroad (reverse charge); a tax number is not enough', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( '' !== (string) Settings::get( 'debtor_iban' ) && '' !== trim( (string) Settings::get( 'debtor_name' ) ), __( 'Company bank account for SEPA payouts (account holder and IBAN)', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
 			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php', 'wp-affiliate-captain' ), Admin::url( 'wpac-integrations' ) ),
 			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'wp-affiliate-captain' ), Admin::url( 'wpac-affiliates' ) ),
 			array( 'always' !== Settings::get( 'cookie_mode' ), __( 'Affiliate cookie only with consent (not "always")', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ),
