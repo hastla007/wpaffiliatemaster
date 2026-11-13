@@ -114,6 +114,7 @@ final class Dunning {
 		if ( $level > self::LEVELS ) {
 			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) );
 		}
+		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$amount  = html_entity_decode( Money::format( -$open, $currency ), ENT_QUOTES, 'UTF-8' );
 		$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
@@ -132,6 +133,7 @@ final class Dunning {
 			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
 			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'wp-affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
 		);
+		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		if ( ! $sent ) {
 			return new \WP_Error( 'wpac_mail_failed', __( 'The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again.', 'wp-affiliate-captain' ) );
 		}

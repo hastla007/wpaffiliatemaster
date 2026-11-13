@@ -260,9 +260,11 @@ final class PayoutRequests {
 		Audit::log( 'payout_request.rejected', 'affiliate', (int) $r->affiliate_id, array( 'reason' => $reason ) );
 		$aff = AffiliateRepository::find( (int) $r->affiliate_id );
 		if ( $aff ) {
+			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 			/* translators: 1: name, 2: reason */
 			/* translators: %s: site name */
 			wp_mail( $aff->email, sprintf( __( '[%s] Your payout request', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ), sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, $reason ) );
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		}
 		return true;
 	}

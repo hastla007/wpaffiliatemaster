@@ -163,8 +163,9 @@ final class MonthlyMail {
 				if ( ! $aff || 'active' !== $aff->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) || ( ! $r['orders'] && ! $r['visits'] && ! $r['commission'] ) ) {
 					continue;
 				}
-				$lines   = array();
-				$lines[] = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'wp-affiliate-captain' ), $aff->name );
+				$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
+				$lines       = array();
+				$lines[]     = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'wp-affiliate-captain' ), $aff->name );
 				$lines[] = '';
 				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'wp-affiliate-captain' ), self::month_label( $month ) );
 				$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $r['visits'];
@@ -182,9 +183,11 @@ final class MonthlyMail {
 				$lines[] = __( 'Available for payout', 'wp-affiliate-captain' ) . ': ' . $fmt( PayoutRequests::available( (int) $aff->id ) );
 				if ( $portal ) {
 					$lines[] = '';
-					$lines[] = get_permalink( $portal );
+					$lines[] = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
 				}
-				if ( ! wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) ) ) {
+				$wpac_ok = wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
+				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+				if ( ! $wpac_ok ) {
 					self::record_failure( $month, (int) $aff->id ); // Retried later (retry_failed()).
 					continue;
 				}

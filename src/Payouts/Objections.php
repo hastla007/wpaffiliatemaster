@@ -190,6 +190,7 @@ final class Objections {
 		$aff = AffiliateRepository::find( (int) $all[ (int) $payout_id ]['affiliate_id'] );
 		$p   = PayoutService::find( (int) $payout_id );
 		if ( $aff && $p ) {
+			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 			wp_mail(
 				$aff->email,
 				/* translators: %s: credit note number */
@@ -197,6 +198,7 @@ final class Objections {
 				/* translators: %s: resolution */
 				sprintf( __( "Hello,\n\nwe have reviewed your objection:\n\n%s", 'wp-affiliate-captain' ), $all[ (int) $payout_id ]['resolution'] )
 			);
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		}
 		return true;
 	}
