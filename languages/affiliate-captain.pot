@@ -1889,7 +1889,7 @@ msgstr ""
 msgid "UTF-8, separator \";\" or \",\", up to %d partners and 5 MB per file. Larger files: wp wpac import partners <file>"
 msgstr ""
 
-#: src/Admin/Pages/ImportExportPage.php
+#: src/Admin/Pages/ImportExportPage.php src/Admin/Pages/SettingsPage.php
 msgid "E-mails"
 msgstr ""
 
@@ -3088,6 +3088,10 @@ msgid "Notification e-mail"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Sender address"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Monitoring token"
 msgstr ""
 
@@ -3185,6 +3189,30 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Defaults to the site admin e-mail."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Sender name"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Empty: WordPress default (or the setting of your SMTP plugin)."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "E-mail to the partner when a payout was paid"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "E-mail to partners about new, approved and rejected commissions"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3642,14 +3670,66 @@ msgstr ""
 msgid "Invalid field definition: %s"
 msgstr ""
 
-#. translators: 1: site name, 2: payout number
 #: src/Affiliates/Notifications.php
-msgid "[%1$s] Payout %2$s transferred"
+msgid "This link is not valid."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "E-mail settings"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "You will receive these e-mails again."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "You have been unsubscribed. You will no longer receive these e-mails from the partner program."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Undo"
+msgstr ""
+
+#. translators: %s: URL
+#: src/Affiliates/Notifications.php
+msgid "Do not want these e-mails any more? Unsubscribe: %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "New commissions (pending until the end of the hold period)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Approved commissions (count towards your next payout)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Rejected commissions (e.g. cancelled or returned orders)"
+msgstr ""
+
+#. translators: 1: name, 2: list of events, 3: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nthere is news about your commissions:\n\n%2$s\n\nDetails are in your partner area: %3$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] News about your commissions"
+msgstr ""
+
+#. translators: 1: name, 2: amount, 3: number, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have paid out %2$s to you with the payment method agreed with you (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
 msgstr ""
 
 #. translators: 1: name, 2: amount, 3: number, 4: portal URL
 #: src/Affiliates/Notifications.php
 msgid "Hello %1$s,\n\nwe have transferred %2$s to your bank account (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgstr ""
+
+#. translators: 1: site name, 2: payout number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Payout %2$s transferred"
 msgstr ""
 
 #. translators: %s: site name
@@ -3660,6 +3740,16 @@ msgstr ""
 #. translators: 1: name, 2: website, 3: admin URL
 #: src/Affiliates/Notifications.php
 msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] We have received your partner application"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided."
 msgstr ""
 
 #. translators: %s: site name
@@ -4558,15 +4648,15 @@ msgid "New partner"
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Attribute this order to the selected partner? The current partner's commission will be reversed. This cannot be undone."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Reason (required, kept in the history)"
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "The current partner gets a cancellation correction; the order is booked for the new partner with the current rules."
-msgstr ""
-
-#: src/Integrations/WooCommerce/OrderMetaBox.php
-msgid "Attribute this order to the selected partner? The current partner's commission will be reversed. This cannot be undone."
 msgstr ""
 
 #. translators: %s: code

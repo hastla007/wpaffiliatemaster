@@ -127,11 +127,14 @@ final class Dunning {
 			3 => __( '[%s] Final reminder: repayment of commissions', 'affiliate-captain' ),
 		);
 		$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
-		$sent = wp_mail(
+		// Reply-To: the program's notification address ("please reply to this e-mail").
+		$sent = \WPAffiliateCaptain\Affiliates\Notifications::send(
+			'dunning',
 			$aff->email,
 			sprintf( $subject[ $level ], $site ),
 			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
-			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
+			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 ),
+			array( 'affiliate_id' => (int) $affiliate_id )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		if ( ! $sent ) {

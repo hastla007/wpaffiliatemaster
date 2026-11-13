@@ -230,29 +230,6 @@ final class Installer {
 		return is_plugin_active_for_network( plugin_basename( WPAC_FILE ) );
 	}
 
-	/**
-	 * Run a callback on every site of the current network.
-	 *
-	 * @param callable $callback Callback.
-	 */
-	public static function for_each_site( callable $callback ) {
-		$ids = get_sites(
-			array(
-				'fields'     => 'ids',
-				'number'     => 0,
-				'network_id' => get_current_network_id(),
-			)
-		);
-		foreach ( $ids as $id ) {
-			switch_to_blog( (int) $id );
-			try {
-				call_user_func( $callback );
-			} finally {
-				restore_current_blog();
-			}
-		}
-	}
-
 	/** Lock that lets only one request migrate. */
 	const LOCK = 'wpac_upgrade_lock';
 
@@ -340,7 +317,7 @@ final class Installer {
 			}
 			update_option( 'wpac_schema_problems', array( 'migration aborted: ' . substr( $e->getMessage(), 0, 300 ) ), false );
 			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
-			Log::error( 'Database migration aborted', array( 'error' => substr( $e->getMessage(), 0, 500 ) ) );
+			Log::exception( 'Database migration aborted', $e );
 		} finally {
 			Db::unlock( self::LOCK, self::$lock_owner );
 			self::$lock_owner = '';
@@ -470,13 +447,14 @@ final class Installer {
 			return;
 		}
 		set_transient( 'wpac_schema_alerted', 1, DAY_IN_SECONDS );
-		$admin = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+		\WPAffiliateCaptain\Affiliates\Notifications::send(
+			'schema_stuck',
+			\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
 			/* translators: %s: site name */
 			sprintf( __( '[%s] Partner program: database update is stuck', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			/* translators: %s: problems */
-			sprintf( __( "The database update of Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade", 'affiliate-captain' ), implode( "\n", (array) $problems ) )
+			sprintf( __( "The database update of Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade", 'affiliate-captain' ), implode( "\n", (array) $problems ) ),
+			array( 'admin' => true )
 		);
 		Audit::log( 'schema.stuck', 'setup', 0, array( 'problems' => count( (array) $problems ) ) );
 	}

@@ -21,6 +21,7 @@ use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\IntegrationException;
 use WPAffiliateCaptain\Core\Jobs;
+use WPAffiliateCaptain\Core\Log;
 use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -91,7 +92,8 @@ final class ContractApi {
 
 	/**
 	 * Neither processed nor stored for retry (e.g. the database is down): say so – the
-	 * caller must not assume a retry – and leave a trace in the PHP error log.
+	 * caller must not assume a retry – and leave a trace in the plugin log (WooCommerce →
+	 * Status → Logs, source "affiliate-captain"; PHP error log without WooCommerce).
 	 *
 	 * @param string          $what Sale or refund.
 	 * @param array           $data Normalized sale/refund.
@@ -100,8 +102,17 @@ final class ContractApi {
 	 * @return \WP_Error
 	 */
 	private static function not_queued( $what, array $data, $code, $e ) {
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( 'Affiliate Captain: %s %s:%s could not be processed (%s) and could not be queued for retry.', $what, $data['source'], $data['order_id'], $e ? $e->getMessage() : $code ) );
+		$context = array(
+			'what'   => $what,
+			'source' => (string) $data['source'],
+			'order'  => (string) $data['order_id'],
+			'error'  => (string) $code,
+		);
+		if ( $e instanceof \Throwable ) {
+			Log::exception( 'Sale or refund could not be processed and could not be queued for retry', $e, $context );
+		} else {
+			Log::error( 'Sale or refund could not be processed and could not be queued for retry', $context );
+		}
 		/**
 		 * Fires when a sale or refund could neither be processed nor queued (report it to the integration's own retry).
 		 *

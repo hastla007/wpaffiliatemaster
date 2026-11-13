@@ -308,12 +308,14 @@ final class AffiliateRepository {
 			update_option( 'wpac_prev_email_' . (int) $id, array( 'email' => $before->email, 'until' => time() + 30 * DAY_IN_SECONDS ), false );
 			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $before );
 			$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-			wp_mail(
+			Notifications::send(
+				'email_changed',
 				$before->email,
 				/* translators: %s: site name */
 				sprintf( __( '[%s] The e-mail address of your partner account was changed', 'affiliate-captain' ), $site ),
 				/* translators: %s: new address, partly hidden */
-				sprintf( __( "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), self::mask_email( $email ) )
+				sprintf( __( "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), self::mask_email( $email ) ),
+				array( 'affiliate_id' => (int) $id )
 			);
 			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		}
@@ -700,12 +702,14 @@ final class AffiliateRepository {
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		$base        = \WPAffiliateCaptain\Core\Locale::page_url( (int) Settings::get( 'portal_page_id' ), \WPAffiliateCaptain\Core\Locale::for_affiliate( $aff ) );
 		$link        = add_query_arg( array( 'wpac_link_account' => $token, 'wpac_aff' => $id ), $base );
-		wp_mail(
+		Notifications::send(
+			'link_account',
 			$aff->email,
 			/* translators: %s: site name */
 			sprintf( __( '[%s] Connect your partner account', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			/* translators: %s: link */
-			sprintf( __( "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.", 'affiliate-captain' ), $link )
+			sprintf( __( "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.", 'affiliate-captain' ), $link ),
+			array( 'affiliate_id' => (int) $id )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		Audit::log( 'affiliate.user_link_requested', 'affiliate', $id );

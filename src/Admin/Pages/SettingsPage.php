@@ -123,6 +123,7 @@ final class SettingsPage {
 			'default_disclosure'         => __( 'Default disclosure note', 'affiliate-captain' ),
 			'terms_version'              => __( 'Terms version', 'affiliate-captain' ),
 			'admin_email'                => __( 'Notification e-mail', 'affiliate-captain' ),
+			'mail_from_email'            => __( 'Sender address', 'affiliate-captain' ),
 			'monitor_token'              => __( 'Monitoring token', 'affiliate-captain' ),
 			'vat_rate'                   => __( 'VAT rate in %', 'affiliate-captain' ),
 			'credit_prefix'              => __( 'Prefix credit note numbers', 'affiliate-captain' ),
@@ -172,7 +173,7 @@ final class SettingsPage {
 	 */
 	public static function tab_keys() {
 		return array(
-			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'admin_email' ),
+			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'visit_retention_days', 'application_retention_days' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'renewal_commission' ),
@@ -230,6 +231,13 @@ final class SettingsPage {
 		self::checkbox( 'auto_approve', __( 'Approve applications automatically', 'affiliate-captain' ), $s );
 		self::select( 'terminated_open', __( 'Open commissions on termination', 'affiliate-captain' ), $s, array( 'pay' => __( 'Remain payable', 'affiliate-captain' ), 'reject' => __( 'Are rejected', 'affiliate-captain' ) ) );
 		self::text( 'admin_email', __( 'Notification e-mail', 'affiliate-captain' ), $s, __( 'Defaults to the site admin e-mail.', 'affiliate-captain' ) );
+		self::end();
+
+		self::section( __( 'E-mails', 'affiliate-captain' ), 'program' );
+		self::text( 'mail_from_name', __( 'Sender name', 'affiliate-captain' ), $s, __( 'Empty: WordPress default (or the setting of your SMTP plugin).', 'affiliate-captain' ) );
+		self::text( 'mail_from_email', __( 'Sender address', 'affiliate-captain' ), $s, __( 'Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To).', 'affiliate-captain' ) );
+		self::checkbox( 'notify_payout_paid', __( 'E-mail to the partner when a payout was paid', 'affiliate-captain' ), $s );
+		self::checkbox( 'notify_commissions', __( 'E-mail to partners about new, approved and rejected commissions', 'affiliate-captain' ), $s, __( 'At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary.', 'affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'Tracking & attribution', 'affiliate-captain' ), 'tracking' );

@@ -40,3 +40,33 @@
 		}
 	} );
 } )();
+/* Payout details: show the fields of the chosen payout method (all fields work without JavaScript). */
+( function () {
+	function update() {
+		var s = document.getElementById( 'wpac_payout_method' );
+		if ( ! s ) {
+			return;
+		}
+		var manual = 'manual' === s.value;
+		Array.prototype.forEach.call( document.querySelectorAll( '.wpac-method-sepa' ), function ( el ) { el.hidden = manual; } );
+		Array.prototype.forEach.call( document.querySelectorAll( '.wpac-method-manual' ), function ( el ) { el.hidden = ! manual; } );
+		var holder = document.getElementById( 'wpac_account_holder' );
+		if ( holder ) {
+			holder.required = ! manual;
+		}
+		var iban = document.getElementById( 'wpac_iban' );
+		if ( iban ) {
+			iban.required = ! manual && '1' === s.getAttribute( 'data-wpac-iban-required' );
+		}
+	}
+	document.addEventListener( 'change', function ( e ) {
+		if ( e.target && 'wpac_payout_method' === e.target.id ) {
+			update();
+		}
+	} );
+	if ( 'loading' === document.readyState ) {
+		document.addEventListener( 'DOMContentLoaded', update );
+	} else {
+		update();
+	}
+} )();

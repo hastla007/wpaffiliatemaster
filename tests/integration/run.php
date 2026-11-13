@@ -374,16 +374,18 @@ WPAffiliateCaptain\Core\Jobs::run_due();
 check( 'R3 only the remaining half is commissioned', 1000, (int) $wpdb->get_var( "SELECT SUM(amount_minor) FROM {$ct} WHERE source_order_id = '5003' AND status <> 'rejected'" ) );
 
 // R4 job claim: a running job is not run twice; an aborted run counts as an attempt.
-WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
-$jid = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'jobs' ) . " WHERE type = 'nohandler'" );
+// (A handler that throws: a missing handler no longer uses up attempts, see R5-O20.)
+$GLOBALS['test_hooks']['wpac_run_job'][10][] = array( static function ( $handled, $type ) { if ( 'failing' === $type ) { throw new \RuntimeException( 'boom' ); } return $handled; }, 2 );
+WPAffiliateCaptain\Core\Jobs::enqueue( 'failing', 'x1', array(), 'e', 'e' );
+$jid = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'jobs' ) . " WHERE type = 'failing'" );
 q( 'UPDATE ' . t( 'jobs' ) . " SET status = 'running', attempts = 3, next_attempt_at = '2000-01-01 00:00:00' WHERE id = {$jid}" );
 check( 'R4 running job is not claimed again', false, WPAffiliateCaptain\Core\Jobs::run( $jid ) );
 WPAffiliateCaptain\Core\Jobs::run_due();
 $job = $wpdb->get_row( 'SELECT status, attempts, last_error_code FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" );
 // The dead run counts as an attempt (3 → requeued as aborted) and the job then runs again in the
-// same pass and fails without a handler (attempt 4).
-check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 4, 'no_handler' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
-WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
+// same pass and fails again (attempt 4).
+check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 4, 'exception' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
+WPAffiliateCaptain\Core\Jobs::enqueue( 'failing', 'x1', array(), 'e', 'e' );
 check( 'R4 re-enqueue keeps the attempts (a job that keeps failing must still end as failed)', '4', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
 
 // R5 filtered commission base: a refund of half the line reverses half the commission.
@@ -1512,6 +1514,7 @@ refund( 'zf-2', 'zf-r1', array( array( 'item_id' => '1', 'net_minor' => 5000 ) )
 WPAffiliateCaptain\Core\Cron::daily();
 $zf_hosts = array_values( array_unique( array_map( static function ( $u ) { return (string) parse_url( (string) $u, PHP_URL_HOST ); }, $GLOBALS['test_http_calls'] ) ) );
 check( 'ZF6 core flows make no outgoing requests (no license server, VIES off)', array(), $zf_hosts );
+require __DIR__ . '/r8-g6.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

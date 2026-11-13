@@ -228,12 +228,14 @@ final class Portal {
 						DAY_IN_SECONDS
 					);
 					$link = add_query_arg( 'wpac_email_confirm', strtolower( $token ), add_query_arg( 'wpac_tab', 'account', wpac_return_url() ) );
-					wp_mail(
+					\WPAffiliateCaptain\Affiliates\Notifications::send(
+						'email_confirm',
 						$email,
 						/* translators: %s: site name */
 						sprintf( __( '[%s] Please confirm your new e-mail address', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 						/* translators: %s: link */
-						sprintf( __( "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.", 'affiliate-captain' ), $link )
+						sprintf( __( "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.", 'affiliate-captain' ), $link ),
+						array( 'affiliate_id' => (int) $aff->id )
 					);
 					$msg = 'email_confirm_sent';
 				}
@@ -415,12 +417,21 @@ final class Portal {
 		$core = $tabs;
 		/**
 		 * Tabs of the partner area. Add-ons add tabs (key => label) and render them on the action
-		 * "wpac_portal_tab_{key}" (argument: the partner). Core tabs cannot be replaced.
+		 * "wpac_portal_tab_{key}" (argument: the partner). Core tabs cannot be replaced; the tabs
+		 * overview, links, promotion, commissions and payouts can be hidden by removing them
+		 * (payout details, account and privacy always stay).
 		 *
 		 * @param array  $tabs Tabs.
 		 * @param object $aff  Partner.
 		 */
 		$extra = apply_filters( 'wpac_portal_tabs', $tabs, $aff );
+		if ( is_array( $extra ) ) {
+			foreach ( array( 'overview', 'links', 'promotion', 'commissions', 'payouts' ) as $key ) {
+				if ( isset( $tabs[ $key ] ) && ! array_key_exists( $key, $extra ) ) {
+					unset( $tabs[ $key ] );
+				}
+			}
+		}
 		foreach ( is_array( $extra ) ? $extra : array() as $key => $label ) {
 			$key = sanitize_key( (string) $key );
 			if ( '' !== $key && ! isset( $core[ $key ] ) && has_action( 'wpac_portal_tab_' . $key ) ) {
@@ -1048,21 +1059,22 @@ final class Portal {
 		$stored_method = ProfileRepository::method( $p );
 		$method        = is_array( $kept ) && isset( $kept['values']['payout_method'] ) && '' !== $kept['values']['payout_method'] ? (string) $kept['values']['payout_method'] : $stored_method;
 		$manual        = ProfileRepository::METHOD_MANUAL === $method;
-		echo '<p><label for="wpac_payout_method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . ' *</label><select id="wpac_payout_method" name="wpac_payout_method">';
+		// Switching the fields is in assets/js/portal.js (data-wpac-iban-required: an IBAN is needed
+		// unless one is stored).
+		$masked = $p && ProfileRepository::METHOD_SEPA === $stored_method ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
+		echo '<p><label for="wpac_payout_method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . ' *</label><select id="wpac_payout_method" name="wpac_payout_method" data-wpac-iban-required="' . ( $masked ? '0' : '1' ) . '">';
 		foreach ( ProfileRepository::method_labels() as $key => $label ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $method, $key, false ), esc_html( $label ) );
 		}
 		echo '</select></p>';
 		echo '<div class="wpac-method-sepa"' . ( $manual ? ' hidden' : '' ) . '>';
 		self::input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), ! $manual );
-		$masked = $p && ProfileRepository::METHOD_SEPA === $stored_method ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 		self::input( 'iban', __( 'IBAN', 'affiliate-captain' ) . ( $masked ? ' (' . __( 'stored', 'affiliate-captain' ) . ': ' . $masked . ')' : '' ), '', ! $masked && ! $manual, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
 		self::input( 'bic', __( 'BIC (optional)', 'affiliate-captain' ), $v( 'bic' ) );
 		echo '</div>';
 		$has_details = ProfileRepository::METHOD_MANUAL === $stored_method;
 		echo '<div class="wpac-method-manual"' . ( $manual ? '' : ' hidden' ) . '><p><label for="wpac_payment_details">' . esc_html__( 'Payment details', 'affiliate-captain' ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off" placeholder="' . esc_attr( $has_details ? __( 'Stored – leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
 		echo '<p class="wpac-muted">' . esc_html__( 'Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually.', 'affiliate-captain' ) . '</p></div>';
-		echo '<script>(function(){var s=document.getElementById("wpac_payout_method");if(!s){return;}var f=function(){var m="manual"===s.value;document.querySelectorAll(".wpac-method-sepa").forEach(function(e){e.hidden=m;});document.querySelectorAll(".wpac-method-manual").forEach(function(e){e.hidden=!m;});var h=document.getElementById("wpac_account_holder");if(h){h.required=!m;}var i=document.getElementById("wpac_iban");if(i){i.required=!m&&' . ( $masked ? 'false' : 'true' ) . ';}};s.addEventListener("change",f);f();})();</script>';
 		echo '<p class="wpac-muted">' . esc_html__( 'Your bank and payment details are stored encrypted and are only used for commission payouts.', 'affiliate-captain' ) . '</p>';
 		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'affiliate-captain' ) . '</button></p></form>';
 	}

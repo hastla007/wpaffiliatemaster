@@ -223,6 +223,7 @@ function wp_rand( $a = 0, $b = 0 ) { return random_int( $a, $b ); }
 function wp_salt( $s = 'auth' ) { return 'test-salt-' . $s; }
 function wp_hash( $d ) { return hash_hmac( 'md5', $d, 'test' ); }
 function home_url( $p = '' ) { return 'http://example.test' . $p; }
+if ( ! function_exists( 'add_query_arg' ) ) { function add_query_arg( $k, $v = null, $url = '' ) { if ( is_array( $k ) ) { $url = (string) $v; } else { $k = array( $k => $v ); } return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $k ); } }
 function admin_url( $p = '' ) { return 'http://example.test/wp-admin/' . $p; }
 function get_bloginfo( $s ) { return 'Test Shop'; }
 function wp_specialchars_decode( $t, $q = 0 ) { return $t; }

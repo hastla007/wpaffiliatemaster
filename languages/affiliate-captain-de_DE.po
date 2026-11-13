@@ -2275,6 +2275,9 @@ msgstr "Version der Bedingungen"
 msgid "Notification e-mail"
 msgstr "Benachrichtigungs-E-Mail"
 
+msgid "Sender address"
+msgstr "Absenderadresse"
+
 msgid "Monitoring token"
 msgstr "Monitoring-Token"
 
@@ -2349,6 +2352,24 @@ msgstr "Werden abgelehnt"
 
 msgid "Defaults to the site admin e-mail."
 msgstr "Standard ist die Admin-E-Mail der Website."
+
+msgid "Sender name"
+msgstr "Absendername"
+
+msgid "Empty: WordPress default (or the setting of your SMTP plugin)."
+msgstr "Leer: Standard von WordPress (oder die Einstellung Ihres SMTP-Plugins)."
+
+msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
+msgstr "Leer: Standard von WordPress. Verwenden Sie eine Adresse Ihrer eigenen Domain, sonst landen E-Mails eventuell im Spam. Antworten von Partnern gehen immer an die Benachrichtigungs-E-Mail (Reply-To)."
+
+msgid "E-mail to the partner when a payout was paid"
+msgstr "E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde"
+
+msgid "E-mail to partners about new, approved and rejected commissions"
+msgstr "E-Mail an Partner über neue, freigegebene und abgelehnte Provisionen"
+
+msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
+msgstr "Höchstens eine E-Mail je Partner und Lauf (z. B. alle Freigaben des stündlichen Laufs zusammen). Partner können sich über einen Link in der E-Mail abmelden, wie von der Monatsübersicht."
 
 msgid "Tracking & attribution"
 msgstr "Tracking & Zuordnung"
@@ -2683,17 +2704,59 @@ msgstr "Hallo %1$s,\n\nbitte lesen und akzeptieren Sie die aktuellen Bedingungen
 msgid "Invalid field definition: %s"
 msgstr "Ungültige Felddefinition: %s"
 
-msgid "[%1$s] Payout %2$s transferred"
-msgstr "[%1$s] Auszahlung %2$s überwiesen"
+msgid "This link is not valid."
+msgstr "Dieser Link ist ungültig."
+
+msgid "E-mail settings"
+msgstr "E-Mail-Einstellungen"
+
+msgid "You will receive these e-mails again."
+msgstr "Sie erhalten diese E-Mails wieder."
+
+msgid "You have been unsubscribed. You will no longer receive these e-mails from the partner program."
+msgstr "Sie wurden abgemeldet. Sie erhalten diese E-Mails des Partnerprogramms nicht mehr."
+
+msgid "Undo"
+msgstr "Rückgängig"
+
+msgid "Do not want these e-mails any more? Unsubscribe: %s"
+msgstr "Diese E-Mails nicht mehr erhalten? Abmelden: %s"
+
+msgid "New commissions (pending until the end of the hold period)"
+msgstr "Neue Provisionen (vorgemerkt bis zum Ende der Haltefrist)"
+
+msgid "Approved commissions (count towards your next payout)"
+msgstr "Freigegebene Provisionen (zählen zur nächsten Auszahlung)"
+
+msgid "Rejected commissions (e.g. cancelled or returned orders)"
+msgstr "Abgelehnte Provisionen (z. B. stornierte oder zurückgeschickte Bestellungen)"
+
+msgid "Hello %1$s,\n\nthere is news about your commissions:\n\n%2$s\n\nDetails are in your partner area: %3$s"
+msgstr "Hallo %1$s,\n\nes gibt Neuigkeiten zu Ihren Provisionen:\n\n%2$s\n\nEinzelheiten finden Sie in Ihrem Partnerbereich: %3$s"
+
+msgid "[%s] News about your commissions"
+msgstr "[%s] Neuigkeiten zu Ihren Provisionen"
+
+msgid "Hello %1$s,\n\nwe have paid out %2$s to you with the payment method agreed with you (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgstr "Hallo %1$s,\n\nwir haben Ihnen %2$s über die mit Ihnen vereinbarte Zahlungsart ausgezahlt (Gutschrift %3$s).\n\nDie Gutschrift können Sie in Ihrem Partnerbereich herunterladen: %4$s"
 
 msgid "Hello %1$s,\n\nwe have transferred %2$s to your bank account (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
 msgstr "Hallo %1$s,\n\nwir haben %2$s auf Ihr Konto überwiesen (Gutschrift %3$s).\n\nDie Gutschrift können Sie in Ihrem Partnerbereich herunterladen: %4$s"
+
+msgid "[%1$s] Payout %2$s transferred"
+msgstr "[%1$s] Auszahlung %2$s überwiesen"
 
 msgid "[%s] New affiliate application"
 msgstr "[%s] Neue Partnerbewerbung"
 
 msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
 msgstr "Neue Partnerbewerbung von %1$s (%2$s).\n\nPrüfen: %3$s"
+
+msgid "[%s] We have received your partner application"
+msgstr "[%s] Wir haben Ihre Partnerbewerbung erhalten"
+
+msgid "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided."
+msgstr "Hallo,\n\nvielen Dank für Ihre Bewerbung für das Partnerprogramm von %s. Wir prüfen sie und informieren Sie per E-Mail, sobald wir entschieden haben."
 
 msgid "[%s] Please confirm your partner application"
 msgstr "[%s] Bitte bestätigen Sie Ihre Partnerbewerbung"
@@ -3326,14 +3389,14 @@ msgstr "Einem anderen Partner zuordnen"
 msgid "New partner"
 msgstr "Neuer Partner"
 
+msgid "Attribute this order to the selected partner? The current partner's commission will be reversed. This cannot be undone."
+msgstr "Diese Bestellung dem ausgewählten Partner zuordnen? Die Provision des bisherigen Partners wird storniert. Das kann nicht rückgängig gemacht werden."
+
 msgid "Reason (required, kept in the history)"
 msgstr "Grund (Pflicht, wird im Verlauf gespeichert)"
 
 msgid "The current partner gets a cancellation correction; the order is booked for the new partner with the current rules."
 msgstr "Der bisherige Partner erhält eine Stornokorrektur; die Bestellung wird für den neuen Partner mit den aktuellen Regeln gebucht."
-
-msgid "Attribute this order to the selected partner? The current partner's commission will be reversed. This cannot be undone."
-msgstr "Diese Bestellung dem ausgewählten Partner zuordnen? Die Provision des bisherigen Partners wird storniert. Das kann nicht rückgängig gemacht werden."
 
 msgid "Partner code entered: %s"
 msgstr "Eingegebener Partnercode: %s"

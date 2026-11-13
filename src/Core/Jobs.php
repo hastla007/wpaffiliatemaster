@@ -13,7 +13,22 @@ defined( 'ABSPATH' ) || exit;
 
 final class Jobs {
 
+	/** Default number of attempts before a job fails for good (filter wpac_job_max_attempts). */
 	const MAX_ATTEMPTS = 8;
+
+	/**
+	 * Attempts before a job fails for good.
+	 *
+	 * @return int
+	 */
+	public static function max_attempts() {
+		/**
+		 * Attempts before a sale or refund job fails for good and needs a manual retry.
+		 *
+		 * @param int $attempts Default 8 (backoff 10 min … 24 h, about 2 days in total).
+		 */
+		return max( 4, (int) apply_filters( 'wpac_job_max_attempts', self::MAX_ATTEMPTS ) );
+	}
 
 	/**
 	 * Queue (or re-queue) a job. The idempotency key prevents duplicates.
@@ -79,7 +94,7 @@ final class Jobs {
 		// Jobs whose lease expired (the run died, e.g. timeout or fatal error) count as a
 		// failed attempt: back to the queue, or failed after the last attempt.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = IF(attempts >= %d, 'failed', 'queued'), last_error_code = 'aborted', last_error = 'The previous run did not finish (timeout or fatal error).', updated_at = %s WHERE status = 'running' AND next_attempt_at <= %s", self::MAX_ATTEMPTS, Db::now(), Db::now() ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = IF(attempts >= %d, 'failed', 'queued'), last_error_code = 'aborted', last_error = 'The previous run did not finish (timeout or fatal error).', updated_at = %s WHERE status = 'running' AND next_attempt_at <= %s", self::max_attempts(), Db::now(), Db::now() ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'queued' AND next_attempt_at <= %s ORDER BY next_attempt_at ASC LIMIT %d", Db::now(), $limit ) );
 		foreach ( $ids as $id ) {
@@ -118,7 +133,7 @@ final class Jobs {
 		$table = Db::table( 'jobs' );
 		// A manual retry starts a short new series (3 more attempts) instead of failing at once.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', attempts = LEAST(attempts, %d), next_attempt_at = %s, updated_at = %s WHERE status = 'failed'", self::MAX_ATTEMPTS - 3, Db::now(), Db::now() ) );
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', attempts = LEAST(attempts, %d), next_attempt_at = %s, updated_at = %s WHERE status = 'failed'", self::max_attempts() - 3, Db::now(), Db::now() ) );
 		if ( $n ) {
 			Audit::log( 'job.retry_all', 'job', 0, array( 'count' => $n ) );
 		}
@@ -179,24 +194,37 @@ final class Jobs {
 			return true;
 		} catch ( \Throwable $e ) {
 			$attempts = (int) $job->attempts;
+			$max      = self::max_attempts();
 			$delay    = min( DAY_IN_SECONDS, 300 * ( 2 ** min( $attempts, 10 ) ) );
-			if ( $e instanceof IntegrationException && 'sale_pending' === $e->error_code ) {
-				// Waiting for the sale is not a failure: it must not use up the attempts
-				// (the sale job wakes this job when it is booked, see wake_refunds()).
+			$code     = $e instanceof IntegrationException ? $e->error_code : 'exception';
+			$context  = array(
+				'job'      => (int) $job->id,
+				'type'     => (string) $job->type,
+				'attempts' => $attempts,
+			);
+			if ( 'sale_pending' === $code || 'no_handler' === $code ) {
+				// Waiting for the sale, or no handler right now (e.g. WooCommerce briefly
+				// deactivated during an update), is not a failure of the job: it must not use up
+				// the attempts. The sale job wakes a waiting refund when it is booked (wake_refunds()).
 				$attempts = max( 0, $attempts - 1 );
 				$delay    = HOUR_IN_SECONDS;
-			}
-			if ( $attempts >= self::MAX_ATTEMPTS ) {
-				Log::error( 'Job failed for good', array( 'job' => (int) $job->id, 'type' => $job->type, 'error' => $e instanceof IntegrationException ? $e->error_code : 'exception', 'message' => substr( $e->getMessage(), 0, 300 ) ) );
+				Log::debug( 'Job postponed: ' . $code, $context );
+			} elseif ( $attempts >= $max ) {
+				Log::exception( 'Job failed for good', $e, $context );
+			} elseif ( 1 === $attempts ) {
+				// The first failure is logged as well: the cause is often only visible there.
+				Log::exception( 'Job failed, will be retried', $e, $context, 'warning' );
+			} else {
+				Log::exception( 'Job failed again, will be retried', $e, $context, 'debug' );
 			}
 			$wpdb->update(
 				$table,
 				array(
-					'status'          => $attempts >= self::MAX_ATTEMPTS ? 'failed' : 'queued',
+					'status'          => $attempts >= $max ? 'failed' : 'queued',
 					'attempts'        => $attempts,
 					'next_attempt_at' => Db::now( time() + $delay ),
-					'last_error_code' => substr( $e instanceof IntegrationException ? $e->error_code : 'exception', 0, 64 ),
-					'last_error'      => substr( $e->getMessage(), 0, 255 ),
+					'last_error_code' => substr( $code, 0, 64 ),
+					'last_error'      => substr( Log::plain( $e->getMessage() ), 0, 255 ),
 					'updated_at'      => Db::now(),
 				),
 				array( 'id' => (int) $job->id )
@@ -273,21 +301,20 @@ final class Jobs {
 	}
 
 	/**
-	 * Reset a failed job so it runs at the next opportunity.
+	 * Reset a waiting or failed job so it runs at the next opportunity. A job that is running
+	 * right now or already done is left alone (it would otherwise run twice).
 	 *
 	 * @param int $id Job ID.
+	 * @return bool Whether the job ran successfully.
 	 */
 	public static function retry( $id ) {
 		global $wpdb;
-		$wpdb->update(
-			Db::table( 'jobs' ),
-			array(
-				'status'          => 'queued',
-				'next_attempt_at' => Db::now(),
-				'updated_at'      => Db::now(),
-			),
-			array( 'id' => (int) $id )
-		);
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE id = %d AND status IN ('queued','failed')", Db::now(), Db::now(), (int) $id ) );
+		if ( 1 !== $rows ) {
+			return false;
+		}
 		Audit::log( 'job.retry', 'job', (int) $id );
 		return self::run( (int) $id );
 	}

@@ -69,7 +69,7 @@ final class OrderMetaBox {
 					)
 				);
 				wp_nonce_field( 'wpac_order_assign', '_wpac_order_nonce' );
-				echo '<details><summary>' . esc_html__( 'Attribute to another partner', 'affiliate-captain' ) . '</summary><p><label for="wpac_reassign">' . esc_html__( 'New partner', 'affiliate-captain' ) . '</label><select name="wpac_reassign" id="wpac_reassign" style="width:100%"><option value="">—</option>';
+				echo '<details><summary>' . esc_html__( 'Attribute to another partner', 'affiliate-captain' ) . '</summary><p><label for="wpac_reassign">' . esc_html__( 'New partner', 'affiliate-captain' ) . '</label><select name="wpac_reassign" id="wpac_reassign" style="width:100%" data-wpac-confirm-select="' . esc_attr__( 'Attribute this order to the selected partner? The current partner\'s commission will be reversed. This cannot be undone.', 'affiliate-captain' ) . '"><option value="">—</option>';
 				foreach ( $others as $a ) {
 					if ( (int) $a->id !== (int) $attr->affiliate_id ) {
 						echo '<option value="' . (int) $a->id . '">' . esc_html( $a->name . ' (' . $a->slug . ')' ) . '</option>';
@@ -77,8 +77,8 @@ final class OrderMetaBox {
 				}
 				echo '</select></p><p><label for="wpac_reassign_reason">' . esc_html__( 'Reason (required, kept in the history)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_reassign_reason" id="wpac_reassign_reason" style="width:100%"></p><p class="description">' . esc_html__( 'The current partner gets a cancellation correction; the order is booked for the new partner with the current rules.', 'affiliate-captain' ) . '</p></details>';
 				// Ask before the order form is saved with a new partner selected (the reversal cannot be undone).
-				$confirm = __( 'Attribute this order to the selected partner? The current partner\'s commission will be reversed. This cannot be undone.', 'affiliate-captain' );
-				echo '<script>(function(){var s=document.getElementById("wpac_reassign");if(!s||!s.form){return;}s.form.addEventListener("submit",function(e){if(s.value&&!window.confirm(' . wp_json_encode( $confirm ) . ')){e.preventDefault();e.stopImmediatePropagation();}});})();</script>';
+				// (assets/js/admin.js: data-wpac-confirm-select on the select; no inline script.)
+				wp_enqueue_script( 'wpac-admin', WPAC_URL . 'assets/js/admin.js', array(), WPAC_VERSION, true );
 			}
 			return;
 		}

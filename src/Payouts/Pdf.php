@@ -35,15 +35,6 @@ final class Pdf {
 	}
 
 	/**
-	 * Number of pages.
-	 *
-	 * @return int
-	 */
-	public function page_count() {
-		return count( $this->pages );
-	}
-
-	/**
 	 * Convert UTF-8 to a PDF literal string in WinAnsi (CP1252).
 	 *
 	 * @param string $text Text.

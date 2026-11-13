@@ -40,22 +40,4 @@ final class Capabilities {
 			}
 		}
 	}
-
-	/**
-	 * Remove caps from all roles.
-	 */
-	public static function uninstall() {
-		global $wp_roles;
-		if ( ! isset( $wp_roles ) ) {
-			$wp_roles = new \WP_Roles(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		}
-		foreach ( array_keys( $wp_roles->roles ) as $name ) {
-			$role = get_role( $name );
-			if ( $role ) {
-				foreach ( self::all() as $cap ) {
-					$role->remove_cap( $cap );
-				}
-			}
-		}
-	}
 }

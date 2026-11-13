@@ -333,6 +333,10 @@ final class PayoutService {
 			);
 		} catch ( \Throwable $e ) {
 			self::$deferred = null;
+			if ( ! $e instanceof IntegrationException || ! in_array( $e->error_code, array( 'cancel', 'rebuild_empty' ), true ) ) {
+				// Unexpected (database error …): the message alone does not say where it came from.
+				\WPAffiliateCaptain\Core\Log::exception( 'Payout could not be rebuilt', $e, array( 'payout' => (int) $id ) );
+			}
 			return new \WP_Error( 'wpac_payout', $e->getMessage() );
 		}
 		$deferred       = self::$deferred;

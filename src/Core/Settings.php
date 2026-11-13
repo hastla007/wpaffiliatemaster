@@ -56,6 +56,11 @@ final class Settings {
 			'registration_page_id'    => 0,
 			'terminated_open'         => 'pay',      // pay|reject.
 			'admin_email'             => '',
+			// E-mails: sender ('' = WordPress default) and optional partner notices.
+			'mail_from_name'          => '',
+			'mail_from_email'         => '',
+			'notify_payout_paid'      => 1,
+			'notify_commissions'      => 0,
 			'maintenance_mode'        => 0,
 			'monitor_token'           => '',
 			// Promotion.
@@ -277,7 +282,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
@@ -467,6 +472,17 @@ final class Settings {
 				$out['admin_email']    = (string) $old( 'admin_email' );
 			} else {
 				$out['admin_email'] = $email;
+			}
+		}
+		$out['mail_from_name']  = isset( $in['mail_from_name'] ) ? substr( trim( str_replace( array( '<', '>', '"' ), '', sanitize_text_field( (string) $in['mail_from_name'] ) ) ), 0, 100 ) : '';
+		$out['mail_from_email'] = '';
+		if ( isset( $in['mail_from_email'] ) && '' !== trim( (string) $in['mail_from_email'] ) ) {
+			$email = sanitize_email( (string) $in['mail_from_email'] );
+			if ( ! is_email( $email ) ) {
+				$errors['mail_from_email'] = __( 'Please enter a valid e-mail address or leave the field empty.', 'affiliate-captain' );
+				$out['mail_from_email']    = (string) $old( 'mail_from_email' );
+			} else {
+				$out['mail_from_email'] = $email;
 			}
 		}
 		// Only a hash of the monitor token is stored; the form field stays empty and an empty field

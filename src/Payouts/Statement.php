@@ -503,7 +503,15 @@ final class Statement {
 			$path  = self::dir() . '/' . $name;
 			if ( false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
 				Audit::log( 'statement.write_failed', 'payout', (int) $payout_id );
-				\WPAffiliateCaptain\Core\Log::error( 'Credit note could not be written', array( 'payout' => (int) $payout_id, 'dir_writable' => is_writable( self::dir() ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+				$last = error_get_last(); // The cause (disk full, permissions, open_basedir …), hidden by @.
+				\WPAffiliateCaptain\Core\Log::error(
+					'Credit note could not be written',
+					array(
+						'payout'       => (int) $payout_id,
+						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+						'cause'        => is_array( $last ) ? substr( (string) $last['message'], 0, 300 ) : '',
+					)
+				);
 				self::backoff( (int) $payout_id );
 				return false;
 			}
@@ -749,6 +757,15 @@ final class Statement {
 		$name  = sanitize_file_name( $p->storno_number . '-' . wp_generate_password( 16, false ) . '.pdf' );
 		if ( false === file_put_contents( self::dir() . '/' . $name, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 			Audit::log( 'statement.storno_write_failed', 'payout', (int) $payout_id );
+			$last = error_get_last();
+			\WPAffiliateCaptain\Core\Log::error(
+				'Cancellation document could not be written',
+				array(
+					'payout'       => (int) $payout_id,
+					'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+					'cause'        => is_array( $last ) ? substr( (string) $last['message'], 0, 300 ) : '',
+				)
+			);
 			return false;
 		}
 		$wpdb->update(
