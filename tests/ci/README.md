@@ -16,3 +16,18 @@ WPAC_DB_USER=root WPAC_DB_PASSWORD=root tests/ci/install-wp.sh /tmp/wp --sibling
 ```bash
 cd /tmp/wp && php -S 127.0.0.1:8088 -t . /pfad/zu/wp-affiliate-captain/tests/ci/router.php
 ```
+
+## Smoke-Test und Mindestversionen
+
+`smoke.php` prüft eine laufende Testseite ohne Browser: Aktivierung/Schema/Cron, eine WooCommerce-Bestellung mit Partnercode und ihre Vollerstattung, Bewerbungs- und Partnerseite, öffentliche REST-Routen (und Ablehnung ohne Login), alle Admin-Seiten des Plugins per HTTP-Login sowie neue PHP-Fehler/-Warnungen des Plugins in `debug.log`.
+
+```bash
+WP_VERSION=6.3 WC_VERSION=8.0.0 tests/ci/install-wp.sh /tmp/wp-min
+php tests/ci/smoke.php /tmp/wp-min http://127.0.0.1:8088
+```
+
+Der CI-Job „Minimum versions“ führt das mit WordPress 6.3, WooCommerce 8.0.0 und PHP 7.4 aus (die im Plugin-Header erklärten Mindestversionen); der Browser-Job zusätzlich mit den neuesten Versionen.
+
+## Plugin Check
+
+Der CI-Job „Plugin Check“ installiert das gebaute ZIP und das offizielle Plugin `plugin-check` und wertet `wp plugin check wp-affiliate-captain --format=json` mit `plugin-check.php` aus: Fehler (`ERROR`) brechen ab, außer sie stehen mit Begründung in `plugin-check-ignore.txt`; Warnungen werden nur gezählt.

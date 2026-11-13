@@ -23,7 +23,32 @@ def unescape_dq(s):
     return s.encode("utf-8").decode("unicode_escape").encode("latin-1").decode("utf-8").replace("\\$", "$")
 
 
-def php_strings():
+TRANSLATOR_COMMENT = re.compile(r"/\*\s*(translators:.*?)\*/|//\s*(translators:[^\n]*)", re.S | re.I)
+
+
+def plugin_version():
+    m = re.search(r"^ \* Version:\s*(\S+)", open(os.path.join(ROOT, DOMAIN + ".php"), encoding="utf-8").read(), re.M)
+    return m.group(1) if m else "0"
+
+
+def attach_comments(text, calls, comments):
+    """Translator comments (/* translators: ... */) belong to the first gettext call after them,
+    if it follows within two lines and in the same statement (as in wp i18n make-pot)."""
+    starts = sorted(calls, key=lambda c: c[0])
+    for m in TRANSLATOR_COMMENT.finditer(text):
+        body = " ".join(l.strip(" \t*") for l in (m.group(1) or m.group(2)).strip().splitlines()).strip()
+        for pos, key in starts:
+            if pos < m.end():
+                continue
+            between = text[m.end():pos]
+            if ";" not in between and between.count("\n") <= 2:
+                comments.setdefault(key, [])
+                if body not in comments[key]:
+                    comments[key].append(body)
+            break
+
+
+def php_strings(comments=None):
     found = {}
     pat = re.compile(FUNCS + r"\(\s*(" + SQ + "|" + DQ + r")(?:\s*,\s*(" + SQ + "|" + DQ + r"))?\s*,\s*'" + DOMAIN + "'")
     pat_n = re.compile(r"_n\(\s*" + SQ + r"\s*,\s*" + SQ + r"\s*,")
@@ -38,9 +63,11 @@ def php_strings():
                 path = os.path.join(dirpath, f)
                 rel = os.path.relpath(path, ROOT)
                 text = open(path, encoding="utf-8").read()
+                calls = []
                 for m in pat_n.finditer(text):
                     key = (unescape_sq(m.group(1)), unescape_sq(m.group(2)))
                     found.setdefault(key, set()).add(rel)
+                    calls.append((m.start(), key))
                 for m in pat.finditer(text):
                     if text[m.start():m.start() + 3] == "_n(":
                         continue
@@ -50,6 +77,9 @@ def php_strings():
                         s = "\\n".join(x for x in [m.group(3)]).replace("\\n", "\n")
                         s = s.replace('\\"', '"').replace("\\$", "$")
                     found.setdefault((s, None), set()).add(rel)
+                    calls.append((m.start(), (s, None)))
+                if comments is not None:
+                    attach_comments(text, calls, comments)
     return found
 
 
@@ -103,9 +133,23 @@ def po_escape(s):
 
 
 def write_pot():
-    strings = php_strings()
-    lines = ['msgid ""', 'msgstr ""', '"Content-Type: text/plain; charset=UTF-8\\n"', '"X-Domain: %s\\n"' % DOMAIN, ""]
+    comments = {}
+    strings = php_strings(comments)
+    # No creation date: the .pot must stay byte-identical when nothing changed (CI compares it).
+    header = [
+        "Project-Id-Version: WP Affiliate Captain %s" % plugin_version(),
+        "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues",
+        "MIME-Version: 1.0",
+        "Content-Type: text/plain; charset=UTF-8",
+        "Content-Transfer-Encoding: 8bit",
+        "Language: ",
+        "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;",
+        "X-Domain: %s" % DOMAIN,
+    ]
+    lines = ['msgid ""', 'msgstr ""'] + ['"%s\\n"' % h for h in header] + [""]
     for (s, plural), refs in sorted(strings.items(), key=lambda kv: sorted(kv[1])[0]):
+        for c in comments.get((s, plural), []):
+            lines.append("#. " + c)
         lines.append("#: " + " ".join(sorted(refs)))
         lines.append('msgid "%s"' % po_escape(s))
         if plural:
@@ -147,7 +191,7 @@ def write_mo(path, entries):
 
 def build(locale):
     tr = json.load(open(os.path.join(ROOT, "languages", locale + ".json"), encoding="utf-8"))
-    header = "Content-Type: text/plain; charset=UTF-8\nLanguage: %s\nPlural-Forms: nplurals=2; plural=(n != 1);\nX-Domain: %s\n" % (locale, DOMAIN)
+    header = "Project-Id-Version: WP Affiliate Captain %s\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nLanguage: %s\nPlural-Forms: nplurals=2; plural=(n != 1);\nX-Domain: %s\n" % (plugin_version(), locale, DOMAIN)
     entries = {"": header}
     po = ['msgid ""', 'msgstr ""'] + ['"%s\\n"' % l for l in header.strip().split("\n")] + [""]
     missing = []

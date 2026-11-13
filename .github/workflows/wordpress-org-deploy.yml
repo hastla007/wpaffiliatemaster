@@ -1,0 +1,88 @@
+name: Deploy to WordPress.org
+
+# Manual only: publishes an existing release tag to the WordPress.org plugin SVN (trunk + tags/<version>,
+# assets from .wordpress-org/). Needs the repository secrets SVN_USERNAME and SVN_PASSWORD; without
+# them the job does nothing. See docs/RELEASE.md.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to deploy (e.g. v0.11.0); the CI release for this tag must be green"
+        required: true
+        type: string
+      slug:
+        description: "WordPress.org plugin slug (as assigned by the plugin review team)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run: prepare the SVN commit but do not send it"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordpress-org-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SVN deploy
+    runs-on: ubuntu-latest
+    environment: wordpress-org
+    env:
+      HAS_SVN_SECRETS: ${{ secrets.SVN_USERNAME != '' && secrets.SVN_PASSWORD != '' }}
+    steps:
+      - name: Secrets present?
+        if: env.HAS_SVN_SECRETS != 'true'
+        run: echo "::warning::SVN_USERNAME / SVN_PASSWORD are not set – nothing was deployed (see docs/RELEASE.md)."
+      # Inputs are passed as environment variables and validated (never interpolated into scripts).
+      - name: Validate inputs
+        if: env.HAS_SVN_SECRETS == 'true'
+        env:
+          TAG: ${{ inputs.tag }}
+          SLUG: ${{ inputs.slug }}
+        run: |
+          printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$' || { echo "Not a release tag: $TAG"; exit 1; }
+          printf '%s' "$SLUG" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' || { echo "Not a plugin slug: $SLUG"; exit 1; }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: env.HAS_SVN_SECRETS == 'true'
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        if: env.HAS_SVN_SECRETS == 'true'
+        with:
+          php-version: "8.3"
+          extensions: sodium, dom, mbstring
+          coverage: none
+      # Same checks as the release ZIP: versions in header, constant, readme and tag match; unit tests;
+      # the .distignore selection contains the runtime files and no development files.
+      - name: Verify the tag
+        if: env.HAS_SVN_SECRETS == 'true'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: bin/build-zip.sh "$TAG"
+      - name: Prepare
+        id: prep
+        if: env.HAS_SVN_SECRETS == 'true'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          # .wordpress-org/ is copied to the SVN assets folder, which only takes images.
+          rm -f .wordpress-org/README.md
+      - name: Deploy
+        if: env.HAS_SVN_SECRETS == 'true'
+        # 10up/action-wordpress-plugin-deploy 2.3.0, pinned to its commit.
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
+        with:
+          dry-run: ${{ inputs.dry_run }}
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: ${{ inputs.slug }}
+          VERSION: ${{ steps.prep.outputs.version }}
+          ASSETS_DIR: .wordpress-org

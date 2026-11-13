@@ -14,7 +14,9 @@ URL="${WP_URL:-http://127.0.0.1:8088}"
 
 mkdir -p "$WP_DIR"
 if [ ! -f "$WP_DIR/wp-load.php" ]; then
-  curl -fsSL "https://wordpress.org/${WP_VERSION:-latest}.tar.gz" | tar xz -C "$WP_DIR" --strip-components=1
+  # WP_VERSION: "latest" (default) or a release such as 6.3 (minimum-version job).
+  if [ -z "${WP_VERSION:-}" ] || [ "${WP_VERSION}" = "latest" ]; then WP_TGZ="latest.tar.gz"; else WP_TGZ="wordpress-${WP_VERSION}.tar.gz"; fi
+  curl -fsSL "https://wordpress.org/${WP_TGZ}" | tar xz -C "$WP_DIR" --strip-components=1
 fi
 if [ ! -d "$WP_DIR/wp-content/plugins/woocommerce" ]; then
   curl -fsSL -o /tmp/woocommerce.zip "https://downloads.wordpress.org/plugin/woocommerce.${WC_VERSION:-latest-stable}.zip"

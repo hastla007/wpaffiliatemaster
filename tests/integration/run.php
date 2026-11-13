@@ -935,5 +935,8 @@ check( 'Y17 commission.* audit entries are kept as booking records', array( 'com
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 10 ) ) );
 Settings::flush_cache();
 
+// ZE: CSV import, program export, REST permission callbacks.
+require __DIR__ . '/ze-import-rest.php';
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

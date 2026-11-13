@@ -36,15 +36,15 @@ final class Csv {
 	 * @return string
 	 */
 	public static function build( array $header, array $rows, $sep = ';' ) {
-		$fh = fopen( 'php://temp', 'r+' );
-		fwrite( $fh, "\xEF\xBB\xBF" ); // UTF-8 BOM for Excel.
+		$fh = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Memory stream, not a file.
+		fwrite( $fh, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- UTF-8 BOM for Excel (memory stream).
 		fputcsv( $fh, array_map( array( __CLASS__, 'safe_cell' ), $header ), $sep, '"', '\\' );
 		foreach ( $rows as $row ) {
 			fputcsv( $fh, array_map( array( __CLASS__, 'safe_cell' ), array_values( (array) $row ) ), $sep, '"', '\\' );
 		}
 		rewind( $fh );
 		$csv = stream_get_contents( $fh );
-		fclose( $fh );
+		fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Memory stream.
 		return $csv;
 	}
 

@@ -27,9 +27,20 @@ php tests/run.php
 BUILD=$(mktemp -d)
 trap 'rm -rf "$BUILD"' EXIT
 mkdir -p "$BUILD/$SLUG" dist
-cp -R wp-affiliate-captain.php uninstall.php readme.txt README.md src assets blocks languages docs tools "$BUILD/$SLUG/"
+# Same file selection as the WordPress.org deploy: everything except .distignore.
+rsync -a --exclude-from=.distignore ./ "$BUILD/$SLUG/"
 find "$BUILD/$SLUG" -name '.DS_Store' -delete
 for f in $(find "$BUILD/$SLUG" -name '*.php'); do php -l "$f" >/dev/null; done
+
+# The ZIP must contain the runtime files and nothing from development.
+for need in wp-affiliate-captain.php uninstall.php readme.txt src assets blocks languages \
+	docs/VERARBEITUNGSVERZEICHNIS.md tools/purge-retained.php languages/wp-affiliate-captain-de_DE.mo; do
+	[ -e "$BUILD/$SLUG/$need" ] || { echo "Missing in the ZIP: $need" >&2; exit 1; }
+done
+for dev in README.md TODO.md tests bin examples composer.json phpcs.xml.dist phpstan.neon.dist \
+	languages/de_DE.json docs/FREE-PREMIUM.md .github .distignore; do
+	[ ! -e "$BUILD/$SLUG/$dev" ] || { echo "Development file in the ZIP: $dev" >&2; exit 1; }
+done
 
 OUT="dist/$SLUG-$HEADER_VERSION.zip"
 rm -f "$OUT"

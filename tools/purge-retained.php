@@ -14,6 +14,7 @@
  * @package WPAffiliateCaptain
  */
 
+defined( 'ABSPATH' ) || exit; // Runs inside WordPress (wp eval-file), never directly.
 if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 	exit; // Command line only.
 }

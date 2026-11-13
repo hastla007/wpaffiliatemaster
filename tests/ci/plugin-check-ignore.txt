@@ -1,0 +1,9 @@
+# Known false positives of the official Plugin Check (wp plugin check), used by the CI job
+# "Plugin Check" via tests/ci/plugin-check.php. Only ERRORs fail the job; warnings are listed.
+#
+# Format: <error code> [<file path prefix>]   # reason (required)
+# Keep this list short. Every entry needs a reason that a WordPress.org reviewer would accept.
+
+# Exception messages are never printed raw: they end up in the audit log, job errors and WP_Error
+# messages that are escaped where they are shown (same exclusion as phpcs.xml.dist).
+WordPress.Security.EscapeOutput.ExceptionNotEscaped
