@@ -362,5 +362,13 @@ foreach ( $wpac_guard_files as $wpac_f ) {
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
 
+// R8 package G4b (pure logic).
+check( 'R5-W6 "5.000" KWD is 5 dinars (as shown), not 5000', 5000, Money::to_minor( Money::parse_amount( Money::to_decimal( 5000, 'KWD' ), 'KWD' ), 'KWD' ) );
+check( 'R5-W6 saving a shown 3-decimal amount again keeps it (no x1000)', '12.345', Money::parse_amount( '12.345', 'BHD' ) );
+check( 'R5-W6 "1.000.000" KWD is still thousands grouping', '1000000', Money::parse_amount( '1.000.000', 'KWD' ) );
+check( 'R5-W6 English "1,000" EUR is one thousand, not 1,00', '1000', Money::parse_amount( '1,000', 'EUR' ) );
+check( 'R5-W6 German "1.000,00 €" and "50,00" unchanged', array( '1000.00', '50.00', '0.500' ), array( Money::parse_amount( '1.000,00 €', 'EUR' ), Money::parse_amount( '50,00', 'EUR' ), Money::parse_amount( '0,500', 'EUR' ) ) );
+check( 'R6-QA12 SEPA names are transliterated, not cut', array( 'Lukasz Zolc', 'Oyvind Aero', 'Ivan Petrov', 'Mueller GmbH', 'Jose Nunez' ), array( SepaXml::clean( 'Łukasz Żółć', 70 ), SepaXml::clean( 'Øyvind Ærø', 70 ), SepaXml::clean( 'Иван Петров', 70 ), SepaXml::clean( 'Müller GmbH', 70 ), SepaXml::clean( 'José Núñez', 70 ) ) );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );
