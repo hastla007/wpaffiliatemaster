@@ -1,13 +1,13 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: WP Affiliate Captain 0.10.0\n"
+"Project-Id-Version: Affiliate Captain 0.10.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Language: \n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
-"X-Domain: wp-affiliate-captain\n"
+"X-Domain: affiliate-captain\n"
 
 #. translators: %d: number
 #: src/Admin/Admin.php
@@ -4220,7 +4220,7 @@ msgstr ""
 
 #. translators: %s: problems
 #: src/Core/Installer.php
-msgid "The database update of WP Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade"
+msgid "The database update of Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade"
 msgstr ""
 
 #. translators: %d: number
@@ -4325,7 +4325,7 @@ msgid "Sales are still recorded, but approvals, payouts, mails and changes in th
 msgstr ""
 
 #: src/Core/Monitor.php
-msgid "Partner program (WP Affiliate Captain)"
+msgid "Partner program (Affiliate Captain)"
 msgstr ""
 
 #: src/Core/Monitor.php

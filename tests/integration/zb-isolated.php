@@ -143,7 +143,7 @@ update_option( 'wpac_settings', array_merge( (array) get_option( 'wpac_settings'
 update_option( 'wpac_report_retry_lock', time() . ':x' );
 $wpdb->query( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES ('wpac_stmt_77', '1:x', 'off')" );
 as_schedule_single_action( time(), 'wpac_report_retry', array(), Scheduler::GROUP );
-define( 'WP_UNINSTALL_PLUGIN', 'wp-affiliate-captain/wp-affiliate-captain.php' );
+define( 'WP_UNINSTALL_PLUGIN', 'affiliate-captain/affiliate-captain.php' );
 include WPAC_DIR . 'uninstall.php';
 zb(
 	'ZB-K1 uninstall deletes only the files of this site\'s payouts',

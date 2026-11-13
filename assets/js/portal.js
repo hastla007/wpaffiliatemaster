@@ -1,4 +1,4 @@
-/* WP Affiliate Captain partner area: copy buttons (fields stay selectable without JavaScript). */
+/* Affiliate Captain partner area: copy buttons (fields stay selectable without JavaScript). */
 ( function () {
 	var i18n = window.wpacPortal || { copied: 'Copied.', failed: 'Please copy manually.' };
 	function announce( text ) {

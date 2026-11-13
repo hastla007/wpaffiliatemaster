@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<ruleset name="WP Affiliate Captain">
+<ruleset name="Affiliate Captain">
 	<description>Security-relevant WordPress Coding Standards and PHP compatibility (7.4+).</description>
-	<file>wp-affiliate-captain.php</file>
+	<file>affiliate-captain.php</file>
 	<file>uninstall.php</file>
 	<file>src</file>
 	<file>blocks</file>
@@ -11,7 +11,7 @@
 	<!-- Same as "Requires at least" (blocks use block.json apiVersion 3, which needs WordPress 6.3). -->
 	<config name="minimum_wp_version" value="6.3"/>
 	<config name="testVersion" value="7.4-"/>
-	<config name="text_domain" value="wp-affiliate-captain"/>
+	<config name="text_domain" value="affiliate-captain"/>
 
 	<!-- Security: escaping, nonces, sanitizing input, prepared SQL. -->
 	<rule ref="WordPress.Security">

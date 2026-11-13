@@ -183,14 +183,14 @@ final class Agreements {
 	public static function start_reminders() {
 		$state = get_option( self::REMIND_OPTION );
 		if ( is_array( $state ) && empty( $state['done'] ) && (int) $state['started'] > time() - HOUR_IN_SECONDS ) {
-			return new \WP_Error( 'wpac_running', __( 'The reminders are already being sent.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_running', __( 'The reminders are already being sent.', 'affiliate-captain' ) );
 		}
 		if ( is_array( $state ) && (int) $state['started'] > time() - DAY_IN_SECONDS ) {
-			return new \WP_Error( 'wpac_rate_limited', __( 'Reminders were already sent in the last 24 hours. Please wait a day before asking again.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_rate_limited', __( 'Reminders were already sent in the last 24 hours. Please wait a day before asking again.', 'affiliate-captain' ) );
 		}
 		list( $missing ) = self::missing_current();
 		if ( ! $missing ) {
-			return new \WP_Error( 'wpac_none', __( 'All active partners have accepted the current terms.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_none', __( 'All active partners have accepted the current terms.', 'affiliate-captain' ) );
 		}
 		update_option(
 			self::REMIND_OPTION,
@@ -273,9 +273,9 @@ final class Agreements {
 		$sent        = (bool) wp_mail(
 			$aff->email,
 			/* translators: %s: site name */
-			sprintf( __( '[%s] Please accept the current partner terms', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			sprintf( __( '[%s] Please accept the current partner terms', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			/* translators: 1: name, 2: version, 3: terms URL, 4: partner area URL */
-			sprintf( __( "Hello %1\$s,\n\nplease read and accept the current partner program terms (version %2\$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3\$s\nAccept them in your partner area: %4\$s\n\nThank you!", 'wp-affiliate-captain' ), $aff->name, $terms['version'], $terms['url'] ? $terms['url'] : $url, $url )
+			sprintf( __( "Hello %1\$s,\n\nplease read and accept the current partner program terms (version %2\$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3\$s\nAccept them in your partner area: %4\$s\n\nThank you!", 'affiliate-captain' ), $aff->name, $terms['version'], $terms['url'] ? $terms['url'] : $url, $url )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		return $sent;

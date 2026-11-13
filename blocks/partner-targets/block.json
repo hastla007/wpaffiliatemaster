@@ -6,7 +6,7 @@
 	"category": "widgets",
 	"icon": "admin-links",
 	"description": "Pages recommended as partner targets, with personal partner links.",
-	"textdomain": "wp-affiliate-captain",
+	"textdomain": "affiliate-captain",
 	"attributes": {},
 	"supports": {
 		"html": false

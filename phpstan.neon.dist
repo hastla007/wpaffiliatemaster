@@ -4,7 +4,7 @@ parameters:
 	level: 1
 	phpVersion: 70400
 	paths:
-		- wp-affiliate-captain.php
+		- affiliate-captain.php
 		- uninstall.php
 		- src
 	scanFiles:

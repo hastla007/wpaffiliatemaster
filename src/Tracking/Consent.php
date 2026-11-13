@@ -43,7 +43,7 @@ final class Consent {
 		// ("no consent management, allow everything"). Under TTDSG/GDPR that is not a consent, so the
 		// API is only asked once a banner has set a consent type (optin/optout).
 		if ( function_exists( 'wp_has_consent' ) && function_exists( 'wp_get_consent_type' ) && '' !== (string) wp_get_consent_type() ) {
-			$consent = (bool) wp_has_consent( 'marketing', defined( 'WPAC_FILE' ) ? plugin_basename( WPAC_FILE ) : 'wp-affiliate-captain' );
+			$consent = (bool) wp_has_consent( 'marketing', defined( 'WPAC_FILE' ) ? plugin_basename( WPAC_FILE ) : 'affiliate-captain' );
 		}
 
 		/**

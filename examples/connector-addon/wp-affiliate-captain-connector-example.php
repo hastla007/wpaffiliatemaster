@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name:       WP Affiliate Captain Connector Example
+ * Plugin Name:       Affiliate Captain Connector Example
  * Description:       Starter adapter for reporting sales and refunds from a custom app.
  * Version:           0.1.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
  *
- * Install alongside WP Affiliate Captain, then replace the example app hooks
+ * Install alongside Affiliate Captain, then replace the example app hooks
  * with the order and refund hooks exposed by your application.
  */
 
@@ -90,5 +90,5 @@ final class WPAC_Connector_Example {
 	}
 }
 
-// Run before WP Affiliate Captain's plugins_loaded priority 5 boot hook.
+// Run before Affiliate Captain's plugins_loaded priority 5 boot hook.
 add_action( 'plugins_loaded', array( 'WPAC_Connector_Example', 'boot' ), 4 );

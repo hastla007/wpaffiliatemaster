@@ -188,7 +188,7 @@ final class Landing {
 	 */
 	public static function welcome( $atts = array() ) {
 		/* translators: %s: partner name */
-		$atts  = shortcode_atts( array( 'text' => __( 'Recommended by %s', 'wp-affiliate-captain' ) ), (array) $atts, 'wpac_partner_welcome' );
+		$atts  = shortcode_atts( array( 'text' => __( 'Recommended by %s', 'affiliate-captain' ) ), (array) $atts, 'wpac_partner_welcome' );
 		// Visitor-specific output must not end up in a page cache (also when the box stays
 		// empty: the cached copy would be served to visitors with a partner link).
 		self::no_cache();

@@ -38,11 +38,11 @@ final class Ledger {
 	 */
 	public static function status_labels() {
 		return array(
-			'pending'  => __( 'Pending (hold period)', 'wp-affiliate-captain' ),
-			'review'   => __( 'Needs review', 'wp-affiliate-captain' ),
-			'approved' => __( 'Approved', 'wp-affiliate-captain' ),
-			'paid'     => __( 'Paid', 'wp-affiliate-captain' ),
-			'rejected' => __( 'Rejected', 'wp-affiliate-captain' ),
+			'pending'  => __( 'Pending (hold period)', 'affiliate-captain' ),
+			'review'   => __( 'Needs review', 'affiliate-captain' ),
+			'approved' => __( 'Approved', 'affiliate-captain' ),
+			'paid'     => __( 'Paid', 'affiliate-captain' ),
+			'rejected' => __( 'Rejected', 'affiliate-captain' ),
 		);
 	}
 
@@ -53,14 +53,14 @@ final class Ledger {
 	 */
 	public static function kind_labels() {
 		return array(
-			'sale'         => __( 'Sale', 'wp-affiliate-captain' ),
-			'refund'       => __( 'Refund', 'wp-affiliate-captain' ),
-			'cancellation' => __( 'Cancellation', 'wp-affiliate-captain' ),
-			'chargeback'   => __( 'Chargeback', 'wp-affiliate-captain' ),
-			'bonus'        => __( 'Monthly bonus', 'wp-affiliate-captain' ),
-			'writeoff'     => __( 'Write-off', 'wp-affiliate-captain' ),
-			'reinstatement' => __( 'Reinstatement', 'wp-affiliate-captain' ),
-			'repayment'    => __( 'Repayment by the partner', 'wp-affiliate-captain' ),
+			'sale'         => __( 'Sale', 'affiliate-captain' ),
+			'refund'       => __( 'Refund', 'affiliate-captain' ),
+			'cancellation' => __( 'Cancellation', 'affiliate-captain' ),
+			'chargeback'   => __( 'Chargeback', 'affiliate-captain' ),
+			'bonus'        => __( 'Monthly bonus', 'affiliate-captain' ),
+			'writeoff'     => __( 'Write-off', 'affiliate-captain' ),
+			'reinstatement' => __( 'Reinstatement', 'affiliate-captain' ),
+			'repayment'    => __( 'Repayment by the partner', 'affiliate-captain' ),
 		);
 	}
 
@@ -72,14 +72,14 @@ final class Ledger {
 	 */
 	public static function method_label( $method ) {
 		$labels = array(
-			'link'     => __( 'Partner link', 'wp-affiliate-captain' ),
-			'cookie'   => __( 'Cookie', 'wp-affiliate-captain' ),
-			'code'     => __( 'Partner code', 'wp-affiliate-captain' ),
-			'coupon'   => __( 'Coupon', 'wp-affiliate-captain' ),
-			'lifetime' => __( 'Lifetime customer', 'wp-affiliate-captain' ),
-			'manual'   => __( 'Manual assignment', 'wp-affiliate-captain' ),
-			'app'      => __( 'App', 'wp-affiliate-captain' ),
-			'renewal'  => __( 'Subscription renewal', 'wp-affiliate-captain' ),
+			'link'     => __( 'Partner link', 'affiliate-captain' ),
+			'cookie'   => __( 'Cookie', 'affiliate-captain' ),
+			'code'     => __( 'Partner code', 'affiliate-captain' ),
+			'coupon'   => __( 'Coupon', 'affiliate-captain' ),
+			'lifetime' => __( 'Lifetime customer', 'affiliate-captain' ),
+			'manual'   => __( 'Manual assignment', 'affiliate-captain' ),
+			'app'      => __( 'App', 'affiliate-captain' ),
+			'renewal'  => __( 'Subscription renewal', 'affiliate-captain' ),
 		);
 		return isset( $labels[ $method ] ) ? $labels[ $method ] : ucwords( str_replace( array( '-', '_' ), ' ', (string) $method ) );
 	}
@@ -522,21 +522,21 @@ final class Ledger {
 		$attr   = self::attribution_for( $sale['source'], $sale['order_id'] );
 		$to     = AffiliateRepository::find( (int) $affiliate_id );
 		if ( '' === $reason ) {
-			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
 		}
 		if ( ! $attr ) {
-			return new \WP_Error( 'wpac_state', __( 'This order is not attributed yet; assign it instead.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'This order is not attributed yet; assign it instead.', 'affiliate-captain' ) );
 		}
 		if ( ! $to || 'active' !== $to->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $to->id ) ) {
-			return new \WP_Error( 'wpac_state', __( 'The new partner must be active.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'The new partner must be active.', 'affiliate-captain' ) );
 		}
 		if ( (int) $attr->affiliate_id === (int) $to->id ) {
-			return new \WP_Error( 'wpac_state', __( 'The order is already attributed to this partner.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'The order is already attributed to this partner.', 'affiliate-captain' ) );
 		}
 		$from       = (int) $attr->affiliate_id;
 		$option     = 'wpac_reassign_' . md5( $sale['source'] . ':' . $sale['order_id'] );
 		$round      = 1 + (int) get_option( $option, 0 );
-		$label      = sprintf( /* translators: %s: reason */ __( 'Reassigned to another partner: %s', 'wp-affiliate-captain' ), $reason );
+		$label      = sprintf( /* translators: %s: reason */ __( 'Reassigned to another partner: %s', 'affiliate-captain' ), $reason );
 		$new_sale   = $sale;
 		$new_sale['affiliate_id']       = (int) $to->id;
 		$new_sale['attribution_method'] = 'manual';
@@ -552,8 +552,8 @@ final class Ledger {
 			return new \WP_Error(
 				'wpac_reassign_failed',
 				'self_referral' === $check['reason']
-					? __( 'The order cannot be attributed to this partner: the partner is the buyer (self-referral).', 'wp-affiliate-captain' )
-					: __( 'The order cannot be attributed to this partner. Nothing was changed.', 'wp-affiliate-captain' )
+					? __( 'The order cannot be attributed to this partner: the partner is the buyer (self-referral).', 'affiliate-captain' )
+					: __( 'The order cannot be attributed to this partner. Nothing was changed.', 'affiliate-captain' )
 			);
 		}
 
@@ -594,7 +594,7 @@ final class Ledger {
 					'message' => substr( $e->getMessage(), 0, 300 ),
 				)
 			);
-			return new \WP_Error( 'wpac_reassign_failed', __( 'The order could not be attributed to the new partner (database error). Nothing was changed; please try again.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_reassign_failed', __( 'The order could not be attributed to the new partner (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
 		}
 		Audit::log(
 			'attribution.reassigned',
@@ -734,7 +734,7 @@ final class Ledger {
 			}
 			foreach ( $ids as $id ) {
 				$last = (int) $id;
-				if ( self::transition( (int) $id, 'approved', __( 'Hold period ended', 'wp-affiliate-captain' ), 0 ) ) {
+				if ( self::transition( (int) $id, 'approved', __( 'Hold period ended', 'affiliate-captain' ), 0 ) ) {
 					++$count;
 				}
 			}
@@ -752,17 +752,17 @@ final class Ledger {
 	public static function approve( $id, $reason ) {
 		$c = self::find( $id );
 		if ( ! $c || ! in_array( $c->status, array( 'pending', 'review' ), true ) ) {
-			return new \WP_Error( 'wpac_state', __( 'Only pending commissions or commissions under review can be approved.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'Only pending commissions or commissions under review can be approved.', 'affiliate-captain' ) );
 		}
 		$to = 'review' === $c->status && strtotime( $c->hold_until . ' UTC' ) > time() ? 'pending' : 'approved';
 		if ( 'approved' === $to && (int) $c->parent_id ) {
 			$parent = self::find( (int) $c->parent_id );
 			if ( $parent && ! in_array( $parent->status, array( 'approved', 'paid' ), true ) ) {
-				return new \WP_Error( 'wpac_parent_open', __( 'This correction belongs to a commission that is not approved yet. Approve or reject the original commission first.', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_parent_open', __( 'This correction belongs to a commission that is not approved yet. Approve or reject the original commission first.', 'affiliate-captain' ) );
 			}
 		}
 		if ( ! self::transition( (int) $id, $to, $reason, get_current_user_id(), 0, $c->status ) ) {
-			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime. Please reload and try again.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime. Please reload and try again.', 'affiliate-captain' ) );
 		}
 		foreach ( self::children( (int) $id ) as $child ) {
 			if ( $child->status === $c->status ) {
@@ -782,23 +782,23 @@ final class Ledger {
 	public static function reject( $id, $reason ) {
 		$c = self::find( $id );
 		if ( ! $c || ! in_array( $c->status, array( 'pending', 'review', 'approved' ), true ) ) {
-			return new \WP_Error( 'wpac_state', __( 'Paid or rejected commissions cannot be rejected.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'Paid or rejected commissions cannot be rejected.', 'affiliate-captain' ) );
 		}
 		if ( (int) $c->payout_id ) {
-			return new \WP_Error( 'wpac_state', __( 'This commission is part of a payout. Cancel the payout first.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'This commission is part of a payout. Cancel the payout first.', 'affiliate-captain' ) );
 		}
 		if ( '' === trim( (string) $reason ) ) {
-			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
 		}
 		foreach ( self::children( (int) $id ) as $child ) {
 			if ( (int) $child->payout_id && 'rejected' !== $child->status ) {
 				// The correction would stay in that payout and be deducted for a rejected commission.
-				return new \WP_Error( 'wpac_state', __( 'A correction of this commission is part of a payout. Cancel that payout first.', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_state', __( 'A correction of this commission is part of a payout. Cancel that payout first.', 'affiliate-captain' ) );
 			}
 		}
 		// Atomic: only if still unassigned to a payout and in the status we saw.
 		if ( ! self::transition( (int) $id, 'rejected', $reason, get_current_user_id(), 0, $c->status ) ) {
-			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime (e.g. added to a payout). Please reload and try again.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime (e.g. added to a payout). Please reload and try again.', 'affiliate-captain' ) );
 		}
 		foreach ( self::children( (int) $id ) as $child ) {
 			if ( in_array( $child->status, array( 'pending', 'review', 'approved' ), true ) ) {
@@ -841,7 +841,7 @@ final class Ledger {
 		global $wpdb;
 		$reason = trim( (string) $reason );
 		if ( '' === $reason ) {
-			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
 		}
 		$currency = strtoupper( (string) $currency );
 		$t        = Db::table( 'commissions' );
@@ -852,7 +852,7 @@ final class Ledger {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
 					if ( $open >= 0 ) {
-						throw new IntegrationException( 'not_negative', __( 'The balance is not negative.', 'wp-affiliate-captain' ) );
+						throw new IntegrationException( 'not_negative', __( 'The balance is not negative.', 'affiliate-captain' ) );
 					}
 					$key = self::key( 'writeoff:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
 					$ok  = $wpdb->insert(

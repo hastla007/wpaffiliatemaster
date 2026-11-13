@@ -105,25 +105,25 @@ final class Statement {
 		$country = strtoupper( '' !== (string) $country ? (string) $country : (string) Settings::get( 'operator_country' ) );
 		switch ( $mode ) {
 			case Vat::STANDARD:
-				return __( 'The commission rates are net amounts; VAT is added at the statutory rate.', 'wp-affiliate-captain' );
+				return __( 'The commission rates are net amounts; VAT is added at the statutory rate.', 'affiliate-captain' );
 			case Vat::REVERSE_CHARGE:
 				if ( 'AT' === $country ) {
-					return __( 'Reverse charge: the recipient of the service is liable for VAT (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 VAT Directive).', 'wp-affiliate-captain' );
+					return __( 'Reverse charge: the recipient of the service is liable for VAT (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 VAT Directive).', 'affiliate-captain' );
 				}
 				if ( 'CH' === $country ) {
-					return __( 'Reverse charge: the recipient of the service is liable for VAT (Bezugsteuer, Art. 45 MWSTG).', 'wp-affiliate-captain' );
+					return __( 'Reverse charge: the recipient of the service is liable for VAT (Bezugsteuer, Art. 45 MWSTG).', 'affiliate-captain' );
 				}
-				return __( 'Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive).', 'wp-affiliate-captain' );
+				return __( 'Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive).', 'affiliate-captain' );
 			case Vat::SMALL_BUSINESS:
 				if ( 'AT' === $country ) {
-					return __( 'No VAT is shown because the partner is a small business (§6 Abs. 1 Z 27 UStG (AT)).', 'wp-affiliate-captain' );
+					return __( 'No VAT is shown because the partner is a small business (§6 Abs. 1 Z 27 UStG (AT)).', 'affiliate-captain' );
 				}
 				if ( 'CH' === $country ) {
-					return __( 'No VAT is shown because the partner is not registered for VAT (Art. 10 MWSTG).', 'wp-affiliate-captain' );
+					return __( 'No VAT is shown because the partner is not registered for VAT (Art. 10 MWSTG).', 'affiliate-captain' );
 				}
-				return __( 'No VAT is shown because the partner is a small business (§19 UStG).', 'wp-affiliate-captain' );
+				return __( 'No VAT is shown because the partner is a small business (§19 UStG).', 'affiliate-captain' );
 			case Vat::PRIVATE_PERSON:
-				return __( 'No VAT: the partner is a private individual and not an entrepreneur.', 'wp-affiliate-captain' );
+				return __( 'No VAT: the partner is a private individual and not an entrepreneur.', 'affiliate-captain' );
 		}
 		return '';
 	}
@@ -157,10 +157,10 @@ final class Statement {
 
 		if ( $storno ) {
 			/* translators: %s: original document number */
-			$title = sprintf( __( 'Cancellation of credit note %s', 'wp-affiliate-captain' ), $p->number );
+			$title = sprintf( __( 'Cancellation of credit note %s', 'affiliate-captain' ), $p->number );
 			$doc   = (string) $p->storno_number;
 		} else {
-			$title = $self ? __( 'Credit note (Gutschrift)', 'wp-affiliate-captain' ) : __( 'Commission statement', 'wp-affiliate-captain' );
+			$title = $self ? __( 'Credit note (Gutschrift)', 'affiliate-captain' ) : __( 'Commission statement', 'affiliate-captain' );
 			$doc   = (string) $p->number;
 		}
 
@@ -174,16 +174,16 @@ final class Statement {
 		$y = 60;
 		$pdf->text( 50, $y, $title, 15, true );
 		$y += 30;
-		$pdf->text( 50, $y, $self ? __( 'Issued by (recipient of the service)', 'wp-affiliate-captain' ) : __( 'Issued by', 'wp-affiliate-captain' ), 9, true );
-		$pdf->text( 310, $y, $self ? __( 'Partner (provider of the service)', 'wp-affiliate-captain' ) : __( 'Partner', 'wp-affiliate-captain' ), 9, true );
+		$pdf->text( 50, $y, $self ? __( 'Issued by (recipient of the service)', 'affiliate-captain' ) : __( 'Issued by', 'affiliate-captain' ), 9, true );
+		$pdf->text( 310, $y, $self ? __( 'Partner (provider of the service)', 'affiliate-captain' ) : __( 'Partner', 'affiliate-captain' ), 9, true );
 		$y   += 14;
 		$left = array_merge(
 			array( $issuer ),
 			preg_split( '/\r\n|\r|\n/', (string) $op['address'] ),
 			array_filter(
 				array(
-					$op['vat_id'] ? __( 'VAT ID', 'wp-affiliate-captain' ) . ': ' . $op['vat_id'] : '',
-					$op['tax_number'] ? __( 'Tax number', 'wp-affiliate-captain' ) . ': ' . $op['tax_number'] : '',
+					$op['vat_id'] ? __( 'VAT ID', 'affiliate-captain' ) . ': ' . $op['vat_id'] : '',
+					$op['tax_number'] ? __( 'Tax number', 'affiliate-captain' ) . ': ' . $op['tax_number'] : '',
 				)
 			)
 		);
@@ -206,25 +206,25 @@ final class Statement {
 		}
 		$y    += 10;
 		$facts = array(
-			( $storno ? __( 'Cancellation number', 'wp-affiliate-captain' ) : ( $self ? __( 'Credit note number', 'wp-affiliate-captain' ) : __( 'Statement number', 'wp-affiliate-captain' ) ) ) => $doc,
-			__( 'Date', 'wp-affiliate-captain' ) => $date( get_date_from_gmt( $storno && $p->storno_at ? $p->storno_at : $p->created_at ) ),
+			( $storno ? __( 'Cancellation number', 'affiliate-captain' ) : ( $self ? __( 'Credit note number', 'affiliate-captain' ) : __( 'Statement number', 'affiliate-captain' ) ) ) => $doc,
+			__( 'Date', 'affiliate-captain' ) => $date( get_date_from_gmt( $storno && $p->storno_at ? $p->storno_at : $p->created_at ) ),
 		);
 		if ( $storno ) {
-			$facts[ __( 'Cancels', 'wp-affiliate-captain' ) ] = $p->number . ' (' . $date( get_date_from_gmt( $p->created_at ) ) . ')';
+			$facts[ __( 'Cancels', 'affiliate-captain' ) ] = $p->number . ' (' . $date( get_date_from_gmt( $p->created_at ) ) . ')';
 		}
 		$facts += array(
-			__( 'Service', 'wp-affiliate-captain' )         => __( 'Referral of customers (affiliate commission)', 'wp-affiliate-captain' ),
-			__( 'Service period until', 'wp-affiliate-captain' ) => $date( $p->period_end ),
-			__( 'Tax status', 'wp-affiliate-captain' )      => isset( $snap['tax_status'], $labels[ $snap['tax_status'] ] ) ? $labels[ $snap['tax_status'] ] : '—',
-			__( 'VAT ID of the partner', 'wp-affiliate-captain' ) => ! empty( $snap['vat_id'] ) ? $snap['vat_id'] : '—',
+			__( 'Service', 'affiliate-captain' )         => __( 'Referral of customers (affiliate commission)', 'affiliate-captain' ),
+			__( 'Service period until', 'affiliate-captain' ) => $date( $p->period_end ),
+			__( 'Tax status', 'affiliate-captain' )      => isset( $snap['tax_status'], $labels[ $snap['tax_status'] ] ) ? $labels[ $snap['tax_status'] ] : '—',
+			__( 'VAT ID of the partner', 'affiliate-captain' ) => ! empty( $snap['vat_id'] ) ? $snap['vat_id'] : '—',
 		);
 		if ( ! empty( $snap['tax_number'] ) ) {
-			$facts[ __( 'Tax number of the partner', 'wp-affiliate-captain' ) ] = $snap['tax_number'];
+			$facts[ __( 'Tax number of the partner', 'affiliate-captain' ) ] = $snap['tax_number'];
 		}
 		if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ) {
-			$facts[ __( 'Payment method', 'wp-affiliate-captain' ) ] = __( 'Other payment method as agreed with the partner', 'wp-affiliate-captain' );
+			$facts[ __( 'Payment method', 'affiliate-captain' ) ] = __( 'Other payment method as agreed with the partner', 'affiliate-captain' );
 		} else {
-			$facts[ __( 'Bank account', 'wp-affiliate-captain' ) ] = ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—';
+			$facts[ __( 'Bank account', 'affiliate-captain' ) ] = ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—';
 		}
 		foreach ( $facts as $k => $v ) {
 			$pdf->text( 50, $y, $k . ':', 9, true );
@@ -234,10 +234,10 @@ final class Statement {
 
 		$y   += 14;
 		$head = static function ( $pdf, $y ) {
-			$pdf->text( 50, $y, __( 'Date', 'wp-affiliate-captain' ), 9, true );
-			$pdf->text( 120, $y, __( 'Order', 'wp-affiliate-captain' ), 9, true );
-			$pdf->text( 230, $y, __( 'Description', 'wp-affiliate-captain' ), 9, true );
-			$pdf->text( 545, $y, __( 'Net', 'wp-affiliate-captain' ), 9, true, 'right' );
+			$pdf->text( 50, $y, __( 'Date', 'affiliate-captain' ), 9, true );
+			$pdf->text( 120, $y, __( 'Order', 'affiliate-captain' ), 9, true );
+			$pdf->text( 230, $y, __( 'Description', 'affiliate-captain' ), 9, true );
+			$pdf->text( 545, $y, __( 'Net', 'affiliate-captain' ), 9, true, 'right' );
 			$pdf->line( 50, $y + 4, 545, $y + 4 );
 			return $y + 16;
 		};
@@ -265,7 +265,7 @@ final class Statement {
 					$y = 60;
 				}
 				/* translators: 1: credit note number, 2: date */
-				$pdf->text( 50, $y, sprintf( __( 'Correction of credit note %1$s of %2$s', 'wp-affiliate-captain' ), $orig ? $orig->number : '#' . $ref, $orig ? $date( get_date_from_gmt( $orig->created_at ) ) : '—' ), 10, true );
+				$pdf->text( 50, $y, sprintf( __( 'Correction of credit note %1$s of %2$s', 'affiliate-captain' ), $orig ? $orig->number : '#' . $ref, $orig ? $date( get_date_from_gmt( $orig->created_at ) ) : '—' ), 10, true );
 				$y += 16;
 			}
 			$y   = $head( $pdf, $y );
@@ -275,7 +275,7 @@ final class Statement {
 					$pdf->add_page();
 					$y = $head( $pdf, 60 );
 				}
-				$desc = in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? (string) $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ')';
+				$desc = in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? (string) $item->description : __( 'Correction', 'affiliate-captain' ) . ' (' . \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ')';
 				$desc = Pdf::wrap( $desc, 230, 9 );
 				$pdf->text( 50, $y, $date( get_date_from_gmt( (string) $item->commission_date ) ), 9 );
 				$pdf->text( 120, $y, ( 'wpac' === $item->source ? '' : '#' . $item->source_order_id ), 9 );
@@ -290,7 +290,7 @@ final class Statement {
 				$orig_rate = $orig ? (string) $orig->vat_rate : '0';
 				$pdf->line( 50, $y - 6, 545, $y - 6 );
 				/* translators: %s: VAT rate */
-				$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (VAT %s %%)', 'wp-affiliate-captain' ), $orig_rate ), 9 );
+				$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (VAT %s %%)', 'affiliate-captain' ), $orig_rate ), 9 );
 				$pdf->text( 545, $y + 4, Money::format( $sign * $sum, $p->currency ), 9, false, 'right' );
 				$y += 18;
 			}
@@ -298,7 +298,7 @@ final class Statement {
 		$pdf->line( 50, $y - 6, 545, $y - 6 );
 		$y     += 6;
 		$totals = array(
-			array( __( 'Net amount', 'wp-affiliate-captain' ), $sign * $net, false ),
+			array( __( 'Net amount', 'affiliate-captain' ), $sign * $net, false ),
 		);
 		$legacy = true;
 		foreach ( $items as $item ) {
@@ -309,18 +309,18 @@ final class Statement {
 		if ( $legacy || count( $groups ) <= 1 ) {
 			if ( (int) $p->vat_minor ) {
 				/* translators: %s: rate */
-				$totals[] = array( sprintf( __( 'plus VAT %s %%', 'wp-affiliate-captain' ), $legacy || ! $groups ? $p->vat_rate : (string) key( $groups ) ), $sign * (int) $p->vat_minor, false );
+				$totals[] = array( sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), $legacy || ! $groups ? $p->vat_rate : (string) key( $groups ) ), $sign * (int) $p->vat_minor, false );
 			} else {
-				$totals[] = array( __( 'VAT', 'wp-affiliate-captain' ), 0, false );
+				$totals[] = array( __( 'VAT', 'affiliate-captain' ), 0, false );
 			}
 		} else {
 			ksort( $groups );
 			foreach ( $groups as $rate => $group_net ) {
 				/* translators: 1: rate, 2: net amount */
-				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'wp-affiliate-captain' ), $rate, Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
+				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), $rate, Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
 			}
 		}
-		$totals[] = array( $storno ? __( 'Total cancelled', 'wp-affiliate-captain' ) : __( 'Total payout', 'wp-affiliate-captain' ), $sign * (int) $p->amount_minor, true );
+		$totals[] = array( $storno ? __( 'Total cancelled', 'affiliate-captain' ) : __( 'Total payout', 'affiliate-captain' ), $sign * (int) $p->amount_minor, true );
 		foreach ( $totals as $t ) {
 			$pdf->text( 330, $y, $t[0], 10, $t[2] );
 			$pdf->text( 545, $y, Money::format( $t[1], $p->currency ), 10, $t[2], 'right' );
@@ -330,8 +330,8 @@ final class Statement {
 		$notes = array_filter(
 			array(
 				self::vat_note( (string) $p->vat_mode, (string) $op['country'] ),
-				$self && ! $storno ? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'wp-affiliate-captain' ) : '',
-				$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'wp-affiliate-captain' ) : '',
+				$self && ! $storno ? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' ) : '',
+				$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'affiliate-captain' ) : '',
 			)
 		);
 		/** This filter is documented in docs/CONTRACT.md. */
@@ -369,7 +369,7 @@ final class Statement {
 		$pdf  = new Pdf(
 			array(
 				/* translators: %d: year */
-				'title'  => sprintf( __( 'Annual overview %d', 'wp-affiliate-captain' ), (int) $year ),
+				'title'  => sprintf( __( 'Annual overview %d', 'affiliate-captain' ), (int) $year ),
 				'author' => $op['name'],
 			)
 		);
@@ -378,13 +378,13 @@ final class Statement {
 		};
 		$y = 60;
 		/* translators: %d: year */
-		$pdf->text( 50, $y, sprintf( __( 'Annual overview %d', 'wp-affiliate-captain' ), (int) $year ), 15, true );
+		$pdf->text( 50, $y, sprintf( __( 'Annual overview %d', 'affiliate-captain' ), (int) $year ), 15, true );
 		$y += 24;
-		$pdf->text( 50, $y, $op['name'] . ' – ' . __( 'partner program', 'wp-affiliate-captain' ), 10 );
+		$pdf->text( 50, $y, $op['name'] . ' – ' . __( 'partner program', 'affiliate-captain' ), 10 );
 		$y += 14;
-		$pdf->text( 50, $y, __( 'Partner', 'wp-affiliate-captain' ) . ': ' . ( $aff ? $aff->name : '#' . (int) $affiliate_id ), 10 );
+		$pdf->text( 50, $y, __( 'Partner', 'affiliate-captain' ) . ': ' . ( $aff ? $aff->name : '#' . (int) $affiliate_id ), 10 );
 		$y += 24;
-		$cols = array( 50 => __( 'Document', 'wp-affiliate-captain' ), 190 => __( 'Date', 'wp-affiliate-captain' ), 395 => __( 'Net', 'wp-affiliate-captain' ), 470 => __( 'VAT', 'wp-affiliate-captain' ), 545 => __( 'Gross', 'wp-affiliate-captain' ) );
+		$cols = array( 50 => __( 'Document', 'affiliate-captain' ), 190 => __( 'Date', 'affiliate-captain' ), 395 => __( 'Net', 'affiliate-captain' ), 470 => __( 'VAT', 'affiliate-captain' ), 545 => __( 'Gross', 'affiliate-captain' ) );
 		foreach ( $cols as $x => $label ) {
 			$pdf->text( $x, $y, $label, 9, true, $x > 300 ? 'right' : 'left' );
 		}
@@ -416,25 +416,25 @@ final class Statement {
 			}
 			if ( $p->storno_at && $p->storno_at >= $from && $p->storno_at <= $to && (string) $p->storno_number ) {
 				/* translators: %s: credit note number */
-				$line( (string) $p->storno_number . ' (' . sprintf( __( 'cancels %s', 'wp-affiliate-captain' ), $p->number ) . ')', $date( $p->storno_at ), -$net, -(int) $p->vat_minor, -(int) $p->amount_minor, $p->currency );
+				$line( (string) $p->storno_number . ' (' . sprintf( __( 'cancels %s', 'affiliate-captain' ), $p->number ) . ')', $date( $p->storno_at ), -$net, -(int) $p->vat_minor, -(int) $p->amount_minor, $p->currency );
 			}
 		}
 		if ( ! $rows ) {
-			$pdf->text( 50, $y, __( 'No credit notes in this year.', 'wp-affiliate-captain' ), 9 );
+			$pdf->text( 50, $y, __( 'No credit notes in this year.', 'affiliate-captain' ), 9 );
 			$y += 13;
 		}
 		$pdf->line( 50, $y - 6, 545, $y - 6 );
 		$y += 6;
 		foreach ( $sums as $cur => $s ) {
 			/* translators: %s: currency */
-			$pdf->text( 50, $y, sprintf( __( 'Total %s', 'wp-affiliate-captain' ), $cur ), 10, true );
+			$pdf->text( 50, $y, sprintf( __( 'Total %s', 'affiliate-captain' ), $cur ), 10, true );
 			$pdf->text( 395, $y, Money::format( $s[0], $cur ), 10, true, 'right' );
 			$pdf->text( 470, $y, Money::format( $s[1], $cur ), 10, true, 'right' );
 			$pdf->text( 545, $y, Money::format( $s[2], $cur ), 10, true, 'right' );
 			$y += 15;
 		}
 		$y += 15;
-		foreach ( Pdf::wrap( __( 'This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records.', 'wp-affiliate-captain' ), 495, 8 ) as $l ) {
+		foreach ( Pdf::wrap( __( 'This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records.', 'affiliate-captain' ), 495, 8 ) as $l ) {
 			$pdf->text( 50, $y, $l, 8 );
 			$y += 11;
 		}
@@ -610,12 +610,12 @@ final class Statement {
 	public static function send( $p ) {
 		$path = self::path( (string) $p->statement_file );
 		if ( '' === (string) $p->statement_file || ! is_readable( $path ) ) {
-			wp_die( esc_html__( 'The statement is not available (anymore).', 'wp-affiliate-captain' ), 404 );
+			wp_die( esc_html__( 'The statement is not available (anymore).', 'affiliate-captain' ), 404 );
 		}
 		$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		if ( ! hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ) {
 			Audit::log( 'statement.hash_mismatch', 'payout', (int) $p->id );
-			wp_die( esc_html__( 'The stored statement failed the integrity check.', 'wp-affiliate-captain' ), 500 );
+			wp_die( esc_html__( 'The stored statement failed the integrity check.', 'affiliate-captain' ), 500 );
 		}
 		nocache_headers();
 		header( 'Content-Type: application/pdf' );

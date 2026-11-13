@@ -143,7 +143,7 @@ final class Pdf {
 		$objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
 		$objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
 		$created    = isset( $this->meta['created'] ) ? (int) $this->meta['created'] : time();
-		$objects[5] = '<< /Title ' . self::literal( isset( $this->meta['title'] ) ? $this->meta['title'] : '' ) . ' /Author ' . self::literal( isset( $this->meta['author'] ) ? $this->meta['author'] : '' ) . ' /Producer (WP Affiliate Captain) /CreationDate (D:' . gmdate( 'YmdHis', $created ) . "Z) >>";
+		$objects[5] = '<< /Title ' . self::literal( isset( $this->meta['title'] ) ? $this->meta['title'] : '' ) . ' /Author ' . self::literal( isset( $this->meta['author'] ) ? $this->meta['author'] : '' ) . ' /Producer (Affiliate Captain) /CreationDate (D:' . gmdate( 'YmdHis', $created ) . "Z) >>";
 		foreach ( $this->pages as $i => $content ) {
 			$page_id             = 6 + 2 * $i;
 			$objects[ $page_id ] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' . self::WIDTH . ' ' . self::HEIGHT . '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' . ( $page_id + 1 ) . ' 0 R >>';

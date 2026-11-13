@@ -71,10 +71,10 @@ final class Dunning {
 	 */
 	public static function blocked_reason( $aff ) {
 		if ( self::is_excluded( $aff ) ) {
-			return __( 'No payment request possible: the partner\'s data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin.', 'wp-affiliate-captain' );
+			return __( 'No payment request possible: the partner\'s data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin.', 'affiliate-captain' );
 		}
 		if ( '' === trim( (string) Settings::get( 'debtor_iban' ) ) || '' === trim( (string) Settings::get( 'debtor_name' ) ) ) {
-			return __( 'No payment request possible yet: enter your company\'s account holder and IBAN under Settings → Payouts first, so the partner knows where to transfer the amount.', 'wp-affiliate-captain' );
+			return __( 'No payment request possible yet: enter your company\'s account holder and IBAN under Settings → Payouts first, so the partner knows where to transfer the amount.', 'affiliate-captain' );
 		}
 		return '';
 	}
@@ -103,7 +103,7 @@ final class Dunning {
 		$currency = strtoupper( (string) $currency );
 		$open     = self::open( (int) $affiliate_id, $currency );
 		if ( ! $aff || $open >= 0 ) {
-			return new \WP_Error( 'wpac_not_negative', __( 'The balance is not negative.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_not_negative', __( 'The balance is not negative.', 'affiliate-captain' ) );
 		}
 		$blocked = self::blocked_reason( $aff );
 		if ( '' !== $blocked ) {
@@ -112,7 +112,7 @@ final class Dunning {
 		$history = self::history( (int) $affiliate_id, $currency );
 		$level   = count( $history ) + 1;
 		if ( $level > self::LEVELS ) {
-			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'affiliate-captain' ) );
 		}
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
@@ -120,22 +120,22 @@ final class Dunning {
 		$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
 		$subject = array(
 			/* translators: %s: site name */
-			1 => __( '[%s] Repayment of commissions', 'wp-affiliate-captain' ),
+			1 => __( '[%s] Repayment of commissions', 'affiliate-captain' ),
 			/* translators: %s: site name */
-			2 => __( '[%s] Reminder: repayment of commissions', 'wp-affiliate-captain' ),
+			2 => __( '[%s] Reminder: repayment of commissions', 'affiliate-captain' ),
 			/* translators: %s: site name */
-			3 => __( '[%s] Final reminder: repayment of commissions', 'wp-affiliate-captain' ),
+			3 => __( '[%s] Final reminder: repayment of commissions', 'affiliate-captain' ),
 		);
 		$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
 		$sent = wp_mail(
 			$aff->email,
 			sprintf( $subject[ $level ], $site ),
 			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
-			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'wp-affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
+			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		if ( ! $sent ) {
-			return new \WP_Error( 'wpac_mail_failed', __( 'The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_mail_failed', __( 'The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again.', 'affiliate-captain' ) );
 		}
 		$history[] = array(
 			'level'  => $level,
@@ -175,7 +175,7 @@ final class Dunning {
 		$currency     = strtoupper( (string) $currency );
 		$amount_minor = (int) $amount_minor;
 		if ( $amount_minor <= 0 ) {
-			return new \WP_Error( 'wpac_amount', __( 'Please enter the amount received.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_amount', __( 'Please enter the amount received.', 'affiliate-captain' ) );
 		}
 		$t = Db::table( 'commissions' );
 		try {
@@ -184,7 +184,7 @@ final class Dunning {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
 					if ( $open >= 0 || $amount_minor > -$open ) {
-						throw new IntegrationException( 'amount', __( 'The amount is larger than the negative balance.', 'wp-affiliate-captain' ) );
+						throw new IntegrationException( 'amount', __( 'The amount is larger than the negative balance.', 'affiliate-captain' ) );
 					}
 					$key = Ledger::key( 'repayment:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
 					$ok  = $wpdb->insert(

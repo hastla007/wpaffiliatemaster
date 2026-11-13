@@ -1,6 +1,6 @@
 <?php
 /**
- * Gesamttest über WP Affiliate Captain, WP Voucher Captain, WP Pass Captain und WooCommerce.
+ * Gesamttest über Affiliate Captain, WP Voucher Captain, WP Pass Captain und WooCommerce.
  * Läuft gegen eine echte TEST-Installation (legt Partner, Produkte, Events und Bestellungen an).
  *
  *   php tests/cross-plugin/run.php /pfad/zu/wordpress [http-host]
@@ -20,7 +20,7 @@ $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 require rtrim( $argv[1], '/' ) . '/wp-load.php';
 wp_set_current_user( 1 );
 $missing = array();
-foreach ( array( 'WPAffiliateCaptain\\Plugin' => 'WP Affiliate Captain', 'PassCaptain\\Orders' => 'WP Pass Captain', 'WooCommerce' => 'WooCommerce' ) as $class => $name ) {
+foreach ( array( 'WPAffiliateCaptain\\Plugin' => 'Affiliate Captain', 'PassCaptain\\Orders' => 'WP Pass Captain', 'WooCommerce' => 'WooCommerce' ) as $class => $name ) {
 	if ( ! class_exists( $class ) ) { $missing[] = $name; }
 }
 if ( ! function_exists( 'vcap' ) ) { $missing[] = 'WP Voucher Captain'; }

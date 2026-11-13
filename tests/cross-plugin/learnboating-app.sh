@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gesamttest, Teil LearnBoating: App-Link (Mobile-API) → Shop → Kauf ohne Cookie → Zuordnung "app".
-# Nur gegen eine TEST-Installation mit WP Affiliate Captain, LearnBoating und dem LearnBoating-Connector.
+# Nur gegen eine TEST-Installation mit Affiliate Captain, LearnBoating und dem LearnBoating-Connector.
 #
 #   WP_ROOT=/pfad/zu/wordpress WP_URL=http://127.0.0.1:8088 LB_USER=kunde LB_PASS=geheim \
 #     bash tests/cross-plugin/learnboating-app.sh PARTNERCODE

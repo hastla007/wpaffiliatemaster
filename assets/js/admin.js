@@ -1,4 +1,4 @@
-/* WP Affiliate Captain admin: confirmation for destructive actions (progressive enhancement). */
+/* Affiliate Captain admin: confirmation for destructive actions (progressive enhancement). */
 document.addEventListener( 'click', function ( e ) {
 	var el = e.target.closest ? e.target.closest( '[data-wpac-confirm]' ) : null;
 	if ( el && ! window.confirm( el.getAttribute( 'data-wpac-confirm' ) ) ) {

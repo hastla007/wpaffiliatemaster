@@ -213,7 +213,7 @@ final class TierService {
 							'parent_id'       => 0,
 							'product_ref'     => '',
 							/* translators: 1: month, 2: rate */
-							'description'     => sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'wp-affiliate-captain' ), $month, $result['reached']['rate'] ),
+							'description'     => sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'affiliate-captain' ), $month, $result['reached']['rate'] ),
 							'currency'        => $currency,
 							'base_minor'      => $result['revenue'],
 							'amount_minor'    => $result['amount'],
@@ -407,7 +407,7 @@ final class TierService {
 							'parent_id'       => $rows ? (int) $rows[0]->id : 0,
 							'product_ref'     => '',
 							/* translators: %s: month */
-							'description'     => $rows ? sprintf( __( 'Monthly bonus correction %s', 'wp-affiliate-captain' ), $month ) : sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'wp-affiliate-captain' ), $month, $result['reached'] ? $result['reached']['rate'] : '0' ),
+							'description'     => $rows ? sprintf( __( 'Monthly bonus correction %s', 'affiliate-captain' ), $month ) : sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'affiliate-captain' ), $month, $result['reached'] ? $result['reached']['rate'] : '0' ),
 							'currency'        => $currency,
 							'base_minor'      => $result['revenue'],
 							'amount_minor'    => $delta,

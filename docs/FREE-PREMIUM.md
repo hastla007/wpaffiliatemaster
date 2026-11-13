@@ -6,7 +6,7 @@
 
 ## 1. Ausgangslage
 
-- WP Affiliate Captain 0.10.0 ist vollständig funktionsfähig und GPL-2.0-or-later lizenziert; alle Funktionen sind ohne Lizenz nutzbar.
+- Affiliate Captain 0.10.0 ist vollständig funktionsfähig und GPL-2.0-or-later lizenziert; alle Funktionen sind ohne Lizenz nutzbar.
 - Offene PRs bauen eine Lizenzierung direkt **in dieses Plugin** ein:
   - #9 „Add WP License Captain activation for Affiliate Captain“ (Aktivierung/Lizenzschlüssel),
   - #10 „Phase 17: Licensed premium updates with checksum verification“ (eigener Updater),
@@ -75,7 +75,7 @@ Nächste Schritte nach der Entscheidung für A/C:
 
 ## 6. Name und Slug („WP“-Präfix, Befund O21)
 
-- Die Marken-Richtlinie von WordPress.org (Richtlinie 17 und die Liste geschützter Begriffe) erlaubt „WordPress“ gar nicht und **„WP“ nicht im Plugin-Namen bzw. am Anfang des Slugs**; das offizielle Plugin Check meldet für „WP Affiliate Captain“ / `wp-affiliate-captain` die Warnung `trademarked_term` (siehe CI-Job „Plugin Check“). Das Review-Team weist solche Einreichungen zurück oder vergibt einen anderen Slug.
+- Die Marken-Richtlinie von WordPress.org (Richtlinie 17 und die Liste geschützter Begriffe) erlaubt „WordPress“ gar nicht und **„WP“ nicht im Plugin-Namen bzw. am Anfang des Slugs**; das offizielle Plugin Check meldet für „Affiliate Captain“ / `wp-affiliate-captain` die Warnung `trademarked_term` (siehe CI-Job „Plugin Check“). Das Review-Team weist solche Einreichungen zurück oder vergibt einen anderen Slug.
 - Vorschlag: Anzeigename **„Affiliate Captain – Partner Program & Commissions“**, Slug **`affiliate-captain`** (vor der Einreichung auf Verfügbarkeit prüfen; der Slug ist nach der Freigabe nicht mehr änderbar).
 - Ein neuer Slug betrifft: Plugin-Ordner und Hauptdatei, Textdomain (`wp-affiliate-captain` → neuer Slug; alle `__()`-Aufrufe, `bin/i18n.py`, Dateinamen in `languages/`), `phpcs.xml.dist` (`text_domain`), Plugin-Pfad in `uninstall.php`/`tools/purge-retained.php`/Tests, Pass/Voucher-Captain-Abhängigkeiten, die den Pfad `wp-affiliate-captain/wp-affiliate-captain.php` prüfen. **Interne Präfixe (`wpac_`, Tabellen, Optionen, Hooks, REST-Namespace `wpac/v1`) bleiben unverändert** – keine Datenmigration nötig.
 - Bestehende Installationen (GitHub-ZIP) wechseln nicht automatisch auf den neuen Ordner: Hinweis im Changelog „Plugin löschen (Daten bleiben, wenn ‚Alle Daten löschen‘ aus ist) und aus dem Verzeichnis neu installieren“.

@@ -186,24 +186,24 @@ final class Balance {
 			$running += (int) $row['amount_minor'];
 			if ( $row['prev_hash'] !== $prev ) {
 				/* translators: %d: booking ID */
-				$problems[] = sprintf( __( 'Booking #%d: chain broken (a booking was removed or reordered).', 'wp-affiliate-captain' ), $row['id'] );
+				$problems[] = sprintf( __( 'Booking #%d: chain broken (a booking was removed or reordered).', 'affiliate-captain' ), $row['id'] );
 			}
 			if ( self::hash( $row ) !== $row['hash'] ) {
 				/* translators: %d: booking ID */
-				$problems[] = sprintf( __( 'Booking #%d: content was modified.', 'wp-affiliate-captain' ), $row['id'] );
+				$problems[] = sprintf( __( 'Booking #%d: content was modified.', 'affiliate-captain' ), $row['id'] );
 			}
 			if ( (int) $row['balance_minor'] !== $running ) {
 				/* translators: %d: booking ID */
-				$problems[] = sprintf( __( 'Booking #%d: running balance does not match.', 'wp-affiliate-captain' ), $row['id'] );
+				$problems[] = sprintf( __( 'Booking #%d: running balance does not match.', 'affiliate-captain' ), $row['id'] );
 			}
 			$prev = $row['hash'];
 		}
 		if ( $acc && ( (int) $acc->balance_minor !== $running || $acc->last_hash !== $prev ) ) {
-			$problems[] = __( 'Stored account balance does not match the bookings.', 'wp-affiliate-captain' );
+			$problems[] = __( 'Stored account balance does not match the bookings.', 'affiliate-captain' );
 		}
 		if ( $running !== $open ) {
 			/* translators: 1: balance, 2: open commissions */
-			$problems[] = sprintf( __( 'Balance (%1$d) differs from approved, unpaid commissions (%2$d).', 'wp-affiliate-captain' ), $running, $open );
+			$problems[] = sprintf( __( 'Balance (%1$d) differs from approved, unpaid commissions (%2$d).', 'affiliate-captain' ), $running, $open );
 		}
 		return $problems;
 	}
@@ -256,9 +256,9 @@ final class Balance {
 			wp_mail(
 				is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
 				/* translators: %s: site name */
-				sprintf( __( '[%s] Partner program: account balances differ from the bookings', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				sprintf( __( '[%s] Partner program: account balances differ from the bookings', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 				/* translators: 1: number, 2: accounts */
-				sprintf( __( "The daily reconciliation found %1\$d partner accounts whose balance does not match the bookings:\n%2\$s\n\nPlease do not run payouts for them before checking (Affiliate Captain → Partners → partner → Account statement).", 'wp-affiliate-captain' ), count( $problems ), implode( ', ', array_slice( array_keys( $problems ), 0, 50 ) ) )
+				sprintf( __( "The daily reconciliation found %1\$d partner accounts whose balance does not match the bookings:\n%2\$s\n\nPlease do not run payouts for them before checking (Affiliate Captain → Partners → partner → Account statement).", 'affiliate-captain' ), count( $problems ), implode( ', ', array_slice( array_keys( $problems ), 0, 50 ) ) )
 			);
 		}
 		return $problems;
@@ -286,11 +286,11 @@ final class Balance {
 	 */
 	public static function type_labels() {
 		return array(
-			'approved'         => __( 'Commission approved', 'wp-affiliate-captain' ),
-			'rejected'         => __( 'Commission rejected', 'wp-affiliate-captain' ),
-			'payout'           => __( 'Payout', 'wp-affiliate-captain' ),
-			'payout_cancelled' => __( 'Payout cancelled', 'wp-affiliate-captain' ),
-			'opening'          => __( 'Opening balance', 'wp-affiliate-captain' ),
+			'approved'         => __( 'Commission approved', 'affiliate-captain' ),
+			'rejected'         => __( 'Commission rejected', 'affiliate-captain' ),
+			'payout'           => __( 'Payout', 'affiliate-captain' ),
+			'payout_cancelled' => __( 'Payout cancelled', 'affiliate-captain' ),
+			'opening'          => __( 'Opening balance', 'affiliate-captain' ),
 		);
 	}
 }

@@ -1,6 +1,6 @@
 # Integrationsvertrag v1 (`WPAC_CONTRACT_VERSION = 1.1.0`)
 
-Öffentliche Schnittstelle von WP Affiliate Captain für Verkaufsquellen (Pass Captain, Voucher Captain, WooCommerce-Adapter, Connector-Add-ons wie LearnBoating). Kompatibel ist jede Version mit gleicher Major-Version; andere Versionen werden abgelehnt (`incompatible_contract`) und im Integrationsstatus angezeigt.
+Öffentliche Schnittstelle von Affiliate Captain für Verkaufsquellen (Pass Captain, Voucher Captain, WooCommerce-Adapter, Connector-Add-ons wie LearnBoating). Kompatibel ist jede Version mit gleicher Major-Version; andere Versionen werden abgelehnt (`incompatible_contract`) und im Integrationsstatus angezeigt.
 
 Änderungen: **1.1.0** – neue Funktion `wpac_current_touch()` (abwärtskompatibel; Payloads mit `contract => '1.0.0'` bleiben gültig).
 

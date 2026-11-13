@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Scheduler {
 
-	const GROUP = 'wp-affiliate-captain';
+	const GROUP = 'wp-affiliate-captain'; // Internal name, kept from 0.x (existing scheduled actions).
 
 	/**
 	 * Whether the Action Scheduler can be used (it is ready after WooCommerce initialised it).

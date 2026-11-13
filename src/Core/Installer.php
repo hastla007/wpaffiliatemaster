@@ -474,9 +474,9 @@ final class Installer {
 		wp_mail(
 			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
 			/* translators: %s: site name */
-			sprintf( __( '[%s] Partner program: database update is stuck', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			sprintf( __( '[%s] Partner program: database update is stuck', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			/* translators: %s: problems */
-			sprintf( __( "The database update of WP Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade", 'wp-affiliate-captain' ), implode( "\n", (array) $problems ) )
+			sprintf( __( "The database update of Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade", 'affiliate-captain' ), implode( "\n", (array) $problems ) )
 		);
 		Audit::log( 'schema.stuck', 'setup', 0, array( 'problems' => count( (array) $problems ) ) );
 	}

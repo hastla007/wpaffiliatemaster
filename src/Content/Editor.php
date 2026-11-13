@@ -51,7 +51,7 @@ final class Editor {
 			true
 		);
 		if ( function_exists( 'wp_set_script_translations' ) ) {
-			wp_set_script_translations( 'wpac-blocks', 'wp-affiliate-captain', WPAC_DIR . 'languages' );
+			wp_set_script_translations( 'wpac-blocks', 'affiliate-captain', WPAC_DIR . 'languages' );
 		}
 		$dir = WPAC_DIR . 'blocks/';
 		register_block_type(
@@ -78,7 +78,7 @@ final class Editor {
 					// Placeholder only for the editor preview (block renderer, context=edit) – not for headless clients.
 					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 					if ( defined( 'REST_REQUEST' ) && REST_REQUEST && isset( $_GET['context'] ) && 'edit' === $_GET['context'] ) {
-						return '<div class="wpac-welcome"><strong>' . esc_html__( 'Recommended by [partner name]', 'wp-affiliate-captain' ) . '</strong><p>' . esc_html__( 'Visible only for visitors coming via a partner link.', 'wp-affiliate-captain' ) . '</p></div>';
+						return '<div class="wpac-welcome"><strong>' . esc_html__( 'Recommended by [partner name]', 'affiliate-captain' ) . '</strong><p>' . esc_html__( 'Visible only for visitors coming via a partner link.', 'affiliate-captain' ) . '</p></div>';
 					}
 					return Landing::welcome( $text );
 				},
@@ -101,7 +101,7 @@ final class Editor {
 		$groups = array(
 			array(
 				'value' => 0,
-				'label' => __( '— Applicant chooses —', 'wp-affiliate-captain' ),
+				'label' => __( '— Applicant chooses —', 'affiliate-captain' ),
 			),
 		);
 		foreach ( \WPAffiliateCaptain\Affiliates\Groups::options() as $id => $name ) {
@@ -126,7 +126,7 @@ final class Editor {
 		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) && ! current_user_can( 'edit_posts' ) ) {
 			return;
 		}
-		add_meta_box( 'wpac-content', __( 'Affiliate Captain', 'wp-affiliate-captain' ), array( __CLASS__, 'render_meta_box' ), self::post_types(), 'side', 'low' );
+		add_meta_box( 'wpac-content', __( 'Affiliate Captain', 'affiliate-captain' ), array( __CLASS__, 'render_meta_box' ), self::post_types(), 'side', 'low' );
 	}
 
 	/**
@@ -138,33 +138,33 @@ final class Editor {
 		$currency = (string) Settings::get( 'currency' );
 		if ( 'publish' === $post->post_status ) {
 			$link = add_query_arg( (string) Settings::get( 'referral_param' ), 'CODE', get_permalink( $post ) );
-			echo '<p><strong>' . esc_html__( 'Partner deep link', 'wp-affiliate-captain' ) . '</strong><br><code style="word-break:break-all">' . esc_html( $link ) . '</code></p>';
+			echo '<p><strong>' . esc_html__( 'Partner deep link', 'affiliate-captain' ) . '</strong><br><code style="word-break:break-all">' . esc_html( $link ) . '</code></p>';
 		}
 		if ( current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
 			$stats = Reports::for_content( (int) $post->ID, 90 );
-			echo '<p><strong>' . esc_html__( 'Partner traffic (90 days)', 'wp-affiliate-captain' ) . '</strong><br>';
+			echo '<p><strong>' . esc_html__( 'Partner traffic (90 days)', 'affiliate-captain' ) . '</strong><br>';
 			$visits   = (int) $stats['visits'];
 			$partners = (int) $stats['partners'];
 			$orders   = (int) $stats['orders'];
 			echo esc_html(
 				sprintf(
 					/* translators: 1: "3 visits", 2: "2 partners", 3: "1 order" */
-					__( '%1$s from %2$s, %3$s', 'wp-affiliate-captain' ),
+					__( '%1$s from %2$s, %3$s', 'affiliate-captain' ),
 					/* translators: %d: number of visits */
-					sprintf( _n( '%d visit', '%d visits', $visits, 'wp-affiliate-captain' ), $visits ),
+					sprintf( _n( '%d visit', '%d visits', $visits, 'affiliate-captain' ), $visits ),
 					/* translators: %d: number of partners */
-					sprintf( _n( '%d partner', '%d partners', $partners, 'wp-affiliate-captain' ), $partners ),
+					sprintf( _n( '%d partner', '%d partners', $partners, 'affiliate-captain' ), $partners ),
 					/* translators: %d: number of orders */
-					sprintf( _n( '%d order', '%d orders', $orders, 'wp-affiliate-captain' ), $orders )
+					sprintf( _n( '%d order', '%d orders', $orders, 'affiliate-captain' ), $orders )
 				)
 			) . '<br>';
 			/* translators: 1: revenue, 2: commission */
-			echo esc_html( sprintf( __( 'Net revenue %1$s, commission %2$s', 'wp-affiliate-captain' ), Money::format( $stats['revenue'], $currency ), Money::format( $stats['commission'], $currency ) ) ) . '</p>';
+			echo esc_html( sprintf( __( 'Net revenue %1$s, commission %2$s', 'affiliate-captain' ), Money::format( $stats['revenue'], $currency ), Money::format( $stats['commission'], $currency ) ) ) . '</p>';
 		}
 		wp_nonce_field( 'wpac_content_' . $post->ID, '_wpac_content_nonce' );
-		echo '<p><label><input type="checkbox" name="wpac_promote" value="1" ' . checked( (bool) get_post_meta( $post->ID, self::META_PROMOTE, true ), true, false ) . '> ' . esc_html__( 'Recommend as partner target', 'wp-affiliate-captain' ) . '</label></p>';
-		echo '<p><label for="wpac_promote_note">' . esc_html__( 'Note for partners', 'wp-affiliate-captain' ) . '</label><textarea id="wpac_promote_note" name="wpac_promote_note" rows="3" style="width:100%">' . esc_textarea( (string) get_post_meta( $post->ID, self::META_NOTE, true ) ) . '</textarea></p>';
-		echo '<p class="description">' . esc_html__( 'Recommended targets appear in the partner area with a ready-made partner link.', 'wp-affiliate-captain' ) . '</p>';
+		echo '<p><label><input type="checkbox" name="wpac_promote" value="1" ' . checked( (bool) get_post_meta( $post->ID, self::META_PROMOTE, true ), true, false ) . '> ' . esc_html__( 'Recommend as partner target', 'affiliate-captain' ) . '</label></p>';
+		echo '<p><label for="wpac_promote_note">' . esc_html__( 'Note for partners', 'affiliate-captain' ) . '</label><textarea id="wpac_promote_note" name="wpac_promote_note" rows="3" style="width:100%">' . esc_textarea( (string) get_post_meta( $post->ID, self::META_NOTE, true ) ) . '</textarea></p>';
+		echo '<p class="description">' . esc_html__( 'Recommended targets appear in the partner area with a ready-made partner link.', 'affiliate-captain' ) . '</p>';
 	}
 
 	/**
@@ -225,7 +225,7 @@ final class Editor {
 		}
 		$aff  = is_user_logged_in() ? \WPAffiliateCaptain\Affiliates\AffiliateRepository::find_by_user( get_current_user_id() ) : null;
 		$code = $aff && 'active' === $aff->status ? CodeRepository::main_code( (int) $aff->id ) : '';
-		$out  = '<div class="wpac-targets"><h3>' . esc_html__( 'Recommended target pages', 'wp-affiliate-captain' ) . '</h3><ul>';
+		$out  = '<div class="wpac-targets"><h3>' . esc_html__( 'Recommended target pages', 'affiliate-captain' ) . '</h3><ul>';
 		foreach ( $targets as $p ) {
 			$url  = get_permalink( $p );
 			$link = $code ? add_query_arg( (string) Settings::get( 'referral_param' ), $code, $url ) : $url;

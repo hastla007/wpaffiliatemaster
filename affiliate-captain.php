@@ -1,15 +1,15 @@
 <?php
 /**
- * Plugin Name:       WP Affiliate Captain
+ * Plugin Name:       Affiliate Captain
  * Plugin URI:        https://github.com/hastla007/wpaffiliatemaster
  * Description:       Your own partner program in WordPress: affiliate applications, partner codes and referral links, attribution, commission ledger with refund corrections, payouts with SEPA export and an affiliate portal.
  * Version:           0.10.0
  * Requires at least: 6.3
  * Requires PHP:      7.4
- * Author:            WP Affiliate Captain
+ * Author:            Affiliate Captain
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       wp-affiliate-captain
+ * Text Domain:       affiliate-captain
  * Domain Path:       /languages
  * WC requires at least: 8.0
  * WC tested up to: 11.3
@@ -18,6 +18,33 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+
+/*
+ * Until 0.10 the plugin lived in the folder "wp-affiliate-captain" (WordPress.org does not allow
+ * "WP" in plugin names). If that copy is still active, it is deactivated here – without its
+ * deactivation or uninstall routine, so data, settings and schedules stay as they are. Both copies
+ * share the same database tables, options and hooks.
+ */
+if ( 'wp-affiliate-captain/wp-affiliate-captain.php' !== plugin_basename( __FILE__ ) ) {
+	$wpac_legacy = 'wp-affiliate-captain/wp-affiliate-captain.php';
+	$wpac_active = (array) get_option( 'active_plugins', array() );
+	if ( in_array( $wpac_legacy, $wpac_active, true ) ) {
+		update_option( 'active_plugins', array_values( array_diff( $wpac_active, array( $wpac_legacy ) ) ) );
+	}
+	if ( is_multisite() ) {
+		$wpac_network = (array) get_site_option( 'active_sitewide_plugins', array() );
+		if ( isset( $wpac_network[ $wpac_legacy ] ) ) {
+			unset( $wpac_network[ $wpac_legacy ] );
+			update_site_option( 'active_sitewide_plugins', $wpac_network );
+		}
+	}
+	unset( $wpac_legacy, $wpac_active, $wpac_network );
+}
+// The old copy was already loaded in this request: it serves this request, this copy takes over
+// from the next one.
+if ( defined( 'WPAC_VERSION' ) ) {
+	return;
+}
 
 define( 'WPAC_VERSION', '0.10.0' );
 define( 'WPAC_DB_VERSION', 9 );
@@ -31,7 +58,7 @@ if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
 	add_action(
 		'admin_notices',
 		static function () {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'WP Affiliate Captain requires PHP 7.4 or newer.', 'wp-affiliate-captain' ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain requires PHP 7.4 or newer.', 'affiliate-captain' ) . '</p></div>';
 		}
 	);
 	return;

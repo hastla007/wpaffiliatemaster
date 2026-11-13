@@ -17,7 +17,7 @@ use WPAffiliateCaptain\Privacy\Retention;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Operate WP Affiliate Captain from the command line.
+ * Operate Affiliate Captain from the command line.
  */
 final class Command {
 

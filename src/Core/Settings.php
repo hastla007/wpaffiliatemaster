@@ -249,10 +249,10 @@ final class Settings {
 		if ( isset( $in['referral_param'] ) ) {
 			$param = strtolower( trim( (string) $in['referral_param'] ) );
 			if ( '' === $param ) {
-				$errors['referral_param'] = __( 'Please enter a parameter name.', 'wp-affiliate-captain' );
+				$errors['referral_param'] = __( 'Please enter a parameter name.', 'affiliate-captain' );
 				$out['referral_param']    = $old( 'referral_param' );
 			} elseif ( ! preg_match( '/^[a-z0-9_\-]+$/', $param ) ) {
-				$errors['referral_param'] = __( 'Only lowercase letters, digits, "-" and "_" are allowed.', 'wp-affiliate-captain' );
+				$errors['referral_param'] = __( 'Only lowercase letters, digits, "-" and "_" are allowed.', 'affiliate-captain' );
 				$out['referral_param']    = $old( 'referral_param' );
 			} else {
 				$out['referral_param'] = $param;
@@ -270,7 +270,7 @@ final class Settings {
 		if ( isset( $in['lifetime_rate'] ) && '' !== trim( (string) $in['lifetime_rate'] ) ) {
 			$lifetime_rate = self::parse_percent( $in['lifetime_rate'] );
 			if ( null === $lifetime_rate || (float) $lifetime_rate < 0 || (float) $lifetime_rate > 100 ) {
-				$errors['lifetime_rate'] = __( 'Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty.', 'wp-affiliate-captain' );
+				$errors['lifetime_rate'] = __( 'Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty.', 'affiliate-captain' );
 				$out['lifetime_rate']    = (string) $old( 'lifetime_rate' );
 			} else {
 				$out['lifetime_rate'] = $lifetime_rate;
@@ -292,12 +292,12 @@ final class Settings {
 			} elseif ( preg_match( '/^\d+$/', $raw ) ) {
 				$out[ $int ] = (int) $raw;
 			} else {
-				$errors[ $int ] = __( 'Please enter a whole number (0 or more).', 'wp-affiliate-captain' );
+				$errors[ $int ] = __( 'Please enter a whole number (0 or more).', 'affiliate-captain' );
 				$out[ $int ]    = (int) $old( $int );
 			}
 		}
 		if ( 100 < $out['fraud_max_refund_rate'] && ! isset( $errors['fraud_max_refund_rate'] ) ) {
-			$errors['fraud_max_refund_rate'] = __( 'Please enter a percentage between 0 and 100.', 'wp-affiliate-captain' );
+			$errors['fraud_max_refund_rate'] = __( 'Please enter a percentage between 0 and 100.', 'affiliate-captain' );
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
 		}
 
@@ -307,7 +307,7 @@ final class Settings {
 			if ( isset( self::countries()[ $country ] ) ) {
 				$out['operator_country'] = $country;
 			} else {
-				$errors['operator_country'] = __( 'Please choose your country from the list.', 'wp-affiliate-captain' );
+				$errors['operator_country'] = __( 'Please choose your country from the list.', 'affiliate-captain' );
 				$out['operator_country']    = (string) $old( 'operator_country' );
 			}
 		}
@@ -317,7 +317,7 @@ final class Settings {
 			if ( $out['statement_retention_years'] < $minimum ) {
 				if ( isset( $in['statement_retention_years'] ) ) {
 					/* translators: %d: years */
-					$notices['statement_retention_years'] = sprintf( __( 'Raised to the legal minimum of %d years for your country.', 'wp-affiliate-captain' ), $minimum );
+					$notices['statement_retention_years'] = sprintf( __( 'Raised to the legal minimum of %d years for your country.', 'affiliate-captain' ), $minimum );
 				}
 				$out['statement_retention_years'] = $minimum;
 			}
@@ -330,7 +330,7 @@ final class Settings {
 			if ( preg_match( '/^[A-Z]{3}$/', $currency ) ) {
 				$out['currency'] = $currency;
 			} else {
-				$errors['currency'] = __( 'Please enter a three-letter currency code (ISO 4217, e.g. EUR).', 'wp-affiliate-captain' );
+				$errors['currency'] = __( 'Please enter a three-letter currency code (ISO 4217, e.g. EUR).', 'affiliate-captain' );
 			}
 		}
 
@@ -344,7 +344,7 @@ final class Settings {
 			}
 			if ( $invalid ) {
 				/* translators: %s: lines */
-				$errors['exchange_rates'] = sprintf( __( 'Not understood: %s. Use one line per currency, e.g. USD=0.92.', 'wp-affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
+				$errors['exchange_rates'] = sprintf( __( 'Not understood: %s. Use one line per currency, e.g. USD=0.92.', 'affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
 				$out['exchange_rates']    = (string) $old( 'exchange_rates' );
 			} else {
 				$lines = array();
@@ -364,7 +364,7 @@ final class Settings {
 				if ( $ok ) {
 					$out['default_rate'] = (string) Money::to_minor( $rate, $out['currency'] );
 				} else {
-					$errors['default_rate'] = __( 'Please enter an amount (e.g. 25 or 25,50).', 'wp-affiliate-captain' );
+					$errors['default_rate'] = __( 'Please enter an amount (e.g. 25 or 25,50).', 'affiliate-captain' );
 				}
 			} else {
 				$rate = self::parse_percent( $in['default_rate'] );
@@ -372,7 +372,7 @@ final class Settings {
 				if ( $ok ) {
 					$out['default_rate'] = $rate;
 				} else {
-					$errors['default_rate'] = __( 'Please enter a percentage between 0 and 100 (e.g. 10 or 12,5).', 'wp-affiliate-captain' );
+					$errors['default_rate'] = __( 'Please enter a percentage between 0 and 100 (e.g. 10 or 12,5).', 'affiliate-captain' );
 				}
 			}
 			if ( ! $ok ) {
@@ -397,7 +397,7 @@ final class Settings {
 			}
 			if ( $invalid ) {
 				/* translators: %s: entries */
-				$errors['trusted_proxies'] = sprintf( __( 'Not an IP address or range: %s', 'wp-affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
+				$errors['trusted_proxies'] = sprintf( __( 'Not an IP address or range: %s', 'affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
 				$out['trusted_proxies']    = (string) $old( 'trusted_proxies' );
 			} else {
 				$out['trusted_proxies'] = implode( "\n", $proxies );
@@ -408,7 +408,7 @@ final class Settings {
 		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
 			$max_order = self::parse_amount( $in['fraud_max_order'] );
 			if ( null === $max_order || (float) $max_order < 0 ) {
-				$errors['fraud_max_order']    = __( 'Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off).', 'wp-affiliate-captain' );
+				$errors['fraud_max_order']    = __( 'Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off).', 'affiliate-captain' );
 				$out['fraud_max_order_minor'] = (int) $old( 'fraud_max_order_minor' );
 			} else {
 				$out['fraud_max_order_minor'] = Money::to_minor( $max_order, $out['currency'] );
@@ -420,7 +420,7 @@ final class Settings {
 		if ( isset( $in['min_payout'] ) ) {
 			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'] );
 			if ( null === $min || (float) $min < 0 ) {
-				$errors['min_payout']    = __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'wp-affiliate-captain' );
+				$errors['min_payout']    = __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'affiliate-captain' );
 				$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
 			} else {
 				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
@@ -431,7 +431,7 @@ final class Settings {
 		if ( isset( $in['landing_prefix'] ) ) {
 			$landing = sanitize_title( (string) $in['landing_prefix'] );
 			if ( '' === $landing ) {
-				$errors['landing_prefix'] = __( 'Please enter a path (letters, digits and "-").', 'wp-affiliate-captain' );
+				$errors['landing_prefix'] = __( 'Please enter a path (letters, digits and "-").', 'affiliate-captain' );
 				$out['landing_prefix']    = (string) $old( 'landing_prefix' );
 			} else {
 				$out['landing_prefix'] = $landing;
@@ -441,7 +441,7 @@ final class Settings {
 		$out['default_disclosure'] = $d['default_disclosure'];
 		if ( isset( $in['default_disclosure'] ) ) {
 			if ( '' === trim( (string) $in['default_disclosure'] ) ) {
-				$errors['default_disclosure'] = __( 'Please enter a disclosure note (e.g. "Advertisement"); partners need it for their posts.', 'wp-affiliate-captain' );
+				$errors['default_disclosure'] = __( 'Please enter a disclosure note (e.g. "Advertisement"); partners need it for their posts.', 'affiliate-captain' );
 				$out['default_disclosure']    = (string) $old( 'default_disclosure' );
 			} else {
 				$out['default_disclosure'] = sanitize_text_field( (string) $in['default_disclosure'] );
@@ -453,7 +453,7 @@ final class Settings {
 		if ( isset( $in['terms_version'] ) ) {
 			$version = trim( sanitize_text_field( (string) $in['terms_version'] ) );
 			if ( '' === $version ) {
-				$errors['terms_version'] = __( 'Please enter a version (e.g. 1.0).', 'wp-affiliate-captain' );
+				$errors['terms_version'] = __( 'Please enter a version (e.g. 1.0).', 'affiliate-captain' );
 				$out['terms_version']    = (string) $old( 'terms_version' );
 			} else {
 				$out['terms_version'] = substr( $version, 0, 20 );
@@ -463,7 +463,7 @@ final class Settings {
 		if ( isset( $in['admin_email'] ) && '' !== trim( (string) $in['admin_email'] ) ) {
 			$email = sanitize_email( (string) $in['admin_email'] );
 			if ( ! is_email( $email ) ) {
-				$errors['admin_email'] = __( 'Please enter a valid e-mail address or leave the field empty.', 'wp-affiliate-captain' );
+				$errors['admin_email'] = __( 'Please enter a valid e-mail address or leave the field empty.', 'affiliate-captain' );
 				$out['admin_email']    = (string) $old( 'admin_email' );
 			} else {
 				$out['admin_email'] = $email;
@@ -477,7 +477,7 @@ final class Settings {
 		} elseif ( isset( $in['monitor_token'] ) && '' !== trim( (string) $in['monitor_token'] ) ) {
 			$token = trim( (string) $in['monitor_token'] );
 			if ( ! preg_match( '/^[A-Za-z0-9]{20,64}$/', $token ) ) {
-				$errors['monitor_token'] = __( 'The token needs 20 to 64 letters and digits (no spaces or special characters). The previous token stays valid.', 'wp-affiliate-captain' );
+				$errors['monitor_token'] = __( 'The token needs 20 to 64 letters and digits (no spaces or special characters). The previous token stays valid.', 'affiliate-captain' );
 			} else {
 				$out['monitor_token'] = self::monitor_token_hash( $token );
 			}
@@ -487,7 +487,7 @@ final class Settings {
 		if ( isset( $in['vat_rate'] ) ) {
 			$vat = self::parse_percent( $in['vat_rate'] );
 			if ( null === $vat || (float) $vat < 0 || (float) $vat >= 100 ) {
-				$errors['vat_rate'] = __( 'Please enter a percentage between 0 and 99 (e.g. 19 or 7,7).', 'wp-affiliate-captain' );
+				$errors['vat_rate'] = __( 'Please enter a percentage between 0 and 99 (e.g. 19 or 7,7).', 'affiliate-captain' );
 				$out['vat_rate']    = (string) $old( 'vat_rate' );
 			} else {
 				$out['vat_rate'] = $vat;
@@ -503,7 +503,7 @@ final class Settings {
 			}
 			$prefix = strtoupper( trim( (string) $in[ $k ] ) );
 			if ( ! preg_match( '/^[A-Z0-9]{1,8}$/', $prefix ) ) {
-				$errors[ $k ] = __( 'Please enter 1 to 8 letters or digits (e.g. GS).', 'wp-affiliate-captain' );
+				$errors[ $k ] = __( 'Please enter 1 to 8 letters or digits (e.g. GS).', 'affiliate-captain' );
 				$out[ $k ]    = (string) $old( $k );
 			} else {
 				$out[ $k ] = $prefix;
@@ -514,7 +514,7 @@ final class Settings {
 		if ( isset( $in['debtor_bic'] ) && '' !== trim( (string) $in['debtor_bic'] ) ) {
 			$bic = strtoupper( preg_replace( '/\s+/', '', (string) $in['debtor_bic'] ) );
 			if ( ! preg_match( '/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $bic ) ) {
-				$errors['debtor_bic'] = __( 'This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it.', 'wp-affiliate-captain' );
+				$errors['debtor_bic'] = __( 'This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it.', 'affiliate-captain' );
 				$out['debtor_bic']    = (string) $old( 'debtor_bic' );
 			} else {
 				$out['debtor_bic'] = $bic;
@@ -524,8 +524,8 @@ final class Settings {
 		$out['debtor_iban'] = $iban;
 		if ( '' !== $iban && ! Iban::is_valid( $iban ) ) {
 			$errors['debtor_iban'] = '' !== (string) self::get( 'debtor_iban' )
-				? __( 'This IBAN is not valid (check digits). The previous IBAN is still used.', 'wp-affiliate-captain' )
-				: __( 'This IBAN is not valid (check digits).', 'wp-affiliate-captain' );
+				? __( 'This IBAN is not valid (check digits). The previous IBAN is still used.', 'affiliate-captain' )
+				: __( 'This IBAN is not valid (check digits).', 'affiliate-captain' );
 			$out['debtor_iban']    = (string) self::get( 'debtor_iban' );
 		}
 

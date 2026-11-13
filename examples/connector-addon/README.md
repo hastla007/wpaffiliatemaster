@@ -1,13 +1,13 @@
 # Custom app connector starter
 
-This example plugin shows how an add-on can report paid sales and refunds from a custom app to WP Affiliate Captain without accessing its database tables.
+This example plugin shows how an add-on can report paid sales and refunds from a custom app to Affiliate Captain without accessing its database tables.
 
 This is a generic starter for future integrations. LearnBoating already has its own project-specific connector in the LearnBoating repository; this example does not replace it.
 
 ## Install
 
-1. Copy this folder into `wp-content/plugins/` on a WordPress site that runs WP Affiliate Captain.
-2. Activate **WP Affiliate Captain Connector Example**.
+1. Copy this folder into `wp-content/plugins/` on a WordPress site that runs Affiliate Captain.
+2. Activate **Affiliate Captain Connector Example**.
 3. Replace the example hooks `my_app_order_paid` and `my_app_order_refunded` in the PHP file with the hooks exposed by your app or its WordPress connector.
 4. Map the app's order/refund data to the payloads below.
 
@@ -45,7 +45,7 @@ array(
 );
 ```
 
-Call the paid-order hook only after payment has succeeded. Keep the same source order ID on retries: WP Affiliate Captain uses it for idempotency.
+Call the paid-order hook only after payment has succeeded. Keep the same source order ID on retries: Affiliate Captain uses it for idempotency.
 
 ## Refund payload
 

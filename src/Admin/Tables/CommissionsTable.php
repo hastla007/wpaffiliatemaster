@@ -56,14 +56,14 @@ final class CommissionsTable extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'           => '<input type="checkbox">',
-			'created_at'   => __( 'Date', 'wp-affiliate-captain' ),
-			'affiliate_id' => __( 'Partner', 'wp-affiliate-captain' ),
-			'order'        => __( 'Order', 'wp-affiliate-captain' ),
-			'item'         => __( 'Item', 'wp-affiliate-captain' ),
-			'base'         => __( 'Base', 'wp-affiliate-captain' ),
-			'rate'         => __( 'Rate', 'wp-affiliate-captain' ),
-			'amount_minor' => __( 'Commission', 'wp-affiliate-captain' ),
-			'status'       => __( 'Status', 'wp-affiliate-captain' ),
+			'created_at'   => __( 'Date', 'affiliate-captain' ),
+			'affiliate_id' => __( 'Partner', 'affiliate-captain' ),
+			'order'        => __( 'Order', 'affiliate-captain' ),
+			'item'         => __( 'Item', 'affiliate-captain' ),
+			'base'         => __( 'Base', 'affiliate-captain' ),
+			'rate'         => __( 'Rate', 'affiliate-captain' ),
+			'amount_minor' => __( 'Commission', 'affiliate-captain' ),
+			'status'       => __( 'Status', 'affiliate-captain' ),
 		);
 	}
 
@@ -87,8 +87,8 @@ final class CommissionsTable extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'approve' => __( 'Approve', 'wp-affiliate-captain' ),
-			'reject'  => __( 'Reject (reason required, shown to the partner)', 'wp-affiliate-captain' ),
+			'approve' => __( 'Approve', 'affiliate-captain' ),
+			'reject'  => __( 'Reject (reason required, shown to the partner)', 'affiliate-captain' ),
 		);
 	}
 
@@ -99,7 +99,7 @@ final class CommissionsTable extends \WP_List_Table {
 	 */
 	protected function extra_tablenav( $which ) {
 		if ( 'top' === $which ) {
-			echo '<div class="alignleft actions"><label class="screen-reader-text" for="wpac-bulk-reason">' . esc_html__( 'Reason', 'wp-affiliate-captain' ) . '</label><input type="text" name="reason" id="wpac-bulk-reason" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'wp-affiliate-captain' ) . '"></div>';
+			echo '<div class="alignleft actions"><label class="screen-reader-text" for="wpac-bulk-reason">' . esc_html__( 'Reason', 'affiliate-captain' ) . '</label><input type="text" name="reason" id="wpac-bulk-reason" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'affiliate-captain' ) . '"></div>';
 		}
 	}
 
@@ -147,7 +147,7 @@ final class CommissionsTable extends \WP_List_Table {
 	 * Empty state.
 	 */
 	public function no_items() {
-		esc_html_e( 'No commissions found.', 'wp-affiliate-captain' );
+		esc_html_e( 'No commissions found.', 'affiliate-captain' );
 	}
 
 	/**
@@ -158,7 +158,7 @@ final class CommissionsTable extends \WP_List_Table {
 	 */
 	protected function column_cb( $item ) {
 		/* translators: %d: commission ID */
-		return sprintf( '<label class="screen-reader-text" for="wpac-cb-%1$d">%2$s</label><input type="checkbox" id="wpac-cb-%1$d" name="ids[]" value="%1$d">', (int) $item->id, esc_html( sprintf( __( 'Select commission #%d', 'wp-affiliate-captain' ), $item->id ) ) );
+		return sprintf( '<label class="screen-reader-text" for="wpac-cb-%1$d">%2$s</label><input type="checkbox" id="wpac-cb-%1$d" name="ids[]" value="%1$d">', (int) $item->id, esc_html( sprintf( __( 'Select commission #%d', 'affiliate-captain' ), $item->id ) ) );
 	}
 
 	/**
@@ -172,7 +172,7 @@ final class CommissionsTable extends \WP_List_Table {
 		switch ( $column ) {
 			case 'created_at':
 				$view = Admin::url( 'wpac-commissions', array( 'action' => 'view', 'id' => $r->id ) );
-				return '<a href="' . esc_url( $view ) . '">' . esc_html( Admin::date( $r->created_at ) ) . '</a>' . $this->row_actions( array( 'view' => '<a href="' . esc_url( $view ) . '">' . esc_html__( 'Details', 'wp-affiliate-captain' ) . '</a>' ) );
+				return '<a href="' . esc_url( $view ) . '">' . esc_html( Admin::date( $r->created_at ) ) . '</a>' . $this->row_actions( array( 'view' => '<a href="' . esc_url( $view ) . '">' . esc_html__( 'Details', 'affiliate-captain' ) . '</a>' ) );
 			case 'affiliate_id':
 				$a = AffiliateRepository::find( (int) $r->affiliate_id );
 				return '<a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $r->affiliate_id ) ) ) . '">' . esc_html( $a ? $a->name : '#' . $r->affiliate_id ) . '</a>';
@@ -189,7 +189,7 @@ final class CommissionsTable extends \WP_List_Table {
 			case 'amount_minor':
 				return '<strong class="' . ( (int) $r->amount_minor < 0 ? 'wpac-negative' : '' ) . '">' . esc_html( Money::format( (int) $r->amount_minor, $r->currency ) ) . '</strong>';
 			case 'status':
-				return Admin::badge( $r->status, isset( $this->labels[ $r->status ] ) ? $this->labels[ $r->status ] : $r->status ) . ( in_array( $r->status, array( 'pending', 'review' ), true ) ? '<br><small>' . esc_html__( 'until', 'wp-affiliate-captain' ) . ' ' . esc_html( Admin::date( $r->hold_until ) ) . '</small>' : '' );
+				return Admin::badge( $r->status, isset( $this->labels[ $r->status ] ) ? $this->labels[ $r->status ] : $r->status ) . ( in_array( $r->status, array( 'pending', 'review' ), true ) ? '<br><small>' . esc_html__( 'until', 'affiliate-captain' ) . ' ' . esc_html( Admin::date( $r->hold_until ) ) . '</small>' : '' );
 		}
 		return '';
 	}

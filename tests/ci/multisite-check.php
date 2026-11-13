@@ -15,7 +15,7 @@ function chk( $name, $cond ) {
 }
 wp_set_current_user( 1 );
 grant_super_admin( 1 );
-$plugin = 'wp-affiliate-captain/wp-affiliate-captain.php';
+$plugin = 'affiliate-captain/affiliate-captain.php';
 deactivate_plugins( $plugin );
 $r = activate_plugin( $plugin, '', true );
 chk( 'network activation', ! is_wp_error( $r ) && is_plugin_active_for_network( $plugin ) );

@@ -1,5 +1,5 @@
 /*
- * Browser tests for WP Affiliate Captain (Playwright + axe-core) against a running WordPress with
+ * Browser tests for Affiliate Captain (Playwright + axe-core) against a running WordPress with
  * WooCommerce (blocks checkout) and this plugin. Not part of CI: it needs a prepared site.
  *
  *   cd tests/e2e && npm install
@@ -43,7 +43,7 @@ function watchErrors( page ) {
 	const errors = [];
 	page.on( 'pageerror', ( e ) => errors.push( 'pageerror: ' + e.message ) );
 	page.on( 'console', ( m ) => {
-		if ( 'error' === m.type() && /wp-affiliate-captain|wpac/i.test( m.text() + ( m.location().url || '' ) ) ) {
+		if ( 'error' === m.type() && /affiliate-captain|wpac/i.test( m.text() + ( m.location().url || '' ) ) ) {
 			errors.push( 'console: ' + m.text() );
 		}
 	} );

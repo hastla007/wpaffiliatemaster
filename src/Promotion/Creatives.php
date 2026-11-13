@@ -27,9 +27,9 @@ final class Creatives {
 	 */
 	public static function status_labels() {
 		return array(
-			'draft'    => __( 'Draft (not visible)', 'wp-affiliate-captain' ),
-			'approved' => __( 'Approved', 'wp-affiliate-captain' ),
-			'archived' => __( 'Archived', 'wp-affiliate-captain' ),
+			'draft'    => __( 'Draft (not visible)', 'affiliate-captain' ),
+			'approved' => __( 'Approved', 'affiliate-captain' ),
+			'archived' => __( 'Archived', 'affiliate-captain' ),
 		);
 	}
 
@@ -80,7 +80,7 @@ final class Creatives {
 	public static function sanitize( array $in ) {
 		$title = sanitize_text_field( isset( $in['title'] ) ? $in['title'] : '' );
 		if ( '' === $title ) {
-			return new \WP_Error( 'wpac_title', __( 'Please enter a title.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_title', __( 'Please enter a title.', 'affiliate-captain' ) );
 		}
 		$type = isset( $in['type'] ) && 'image' === $in['type'] ? 'image' : 'text';
 		$data = array(
@@ -93,13 +93,13 @@ final class Creatives {
 			'group_id'      => absint( isset( $in['group_id'] ) ? $in['group_id'] : 0 ),
 		);
 		if ( 'image' === $type && ( ! $data['attachment_id'] || ! wp_attachment_is_image( $data['attachment_id'] ) ) ) {
-			return new \WP_Error( 'wpac_image', __( 'Please choose an image from the media library.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_image', __( 'Please choose an image from the media library.', 'affiliate-captain' ) );
 		}
 		if ( 'text' === $type && '' === $data['content'] ) {
-			return new \WP_Error( 'wpac_content', __( 'Please enter the text.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_content', __( 'Please enter the text.', 'affiliate-captain' ) );
 		}
 		if ( $data['landing_url'] && wp_parse_url( $data['landing_url'], PHP_URL_HOST ) !== wp_parse_url( home_url(), PHP_URL_HOST ) ) {
-			return new \WP_Error( 'wpac_url', __( 'The target page must be on this website.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_url', __( 'The target page must be on this website.', 'affiliate-captain' ) );
 		}
 		return $data;
 	}
@@ -159,7 +159,7 @@ final class Creatives {
 		global $wpdb;
 		$c = self::find( $id );
 		if ( ! $c || 'draft' !== $c->status ) {
-			return new \WP_Error( 'wpac_state', __( 'Only drafts can be approved.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'Only drafts can be approved.', 'affiliate-captain' ) );
 		}
 		$t = Db::table( 'creatives' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

@@ -263,7 +263,7 @@ final class OrderSync {
 			if ( $attr ) {
 				$aff = AffiliateRepository::find( (int) $attr->affiliate_id );
 				/* translators: 1: affiliate name, 2: method */
-				$order->add_order_note( sprintf( __( 'Affiliate Captain: attributed to partner "%1$s" (%2$s).', 'wp-affiliate-captain' ), $aff ? $aff->name : '#' . $attr->affiliate_id, Ledger::method_label( $attr->method ) ) );
+				$order->add_order_note( sprintf( __( 'Affiliate Captain: attributed to partner "%1$s" (%2$s).', 'affiliate-captain' ), $aff ? $aff->name : '#' . $attr->affiliate_id, Ledger::method_label( $attr->method ) ) );
 			}
 		}
 	}
@@ -400,7 +400,7 @@ final class OrderSync {
 	 * @param int $order_id Order.
 	 */
 	public static function full_reversal_refunded( $order_id ) {
-		self::full_reversal( $order_id, 'refund', __( 'Order refunded', 'wp-affiliate-captain' ) );
+		self::full_reversal( $order_id, 'refund', __( 'Order refunded', 'affiliate-captain' ) );
 	}
 
 	/**
@@ -409,7 +409,7 @@ final class OrderSync {
 	 * @param int $order_id Order.
 	 */
 	public static function full_reversal_cancelled( $order_id ) {
-		self::full_reversal( $order_id, 'cancellation', __( 'Order cancelled', 'wp-affiliate-captain' ) );
+		self::full_reversal( $order_id, 'cancellation', __( 'Order cancelled', 'affiliate-captain' ) );
 	}
 
 	/**
@@ -440,7 +440,7 @@ final class OrderSync {
 	 * @param int $order_id Order.
 	 */
 	public static function full_reversal_chargeback( $order_id ) {
-		self::full_reversal( $order_id, 'chargeback', __( 'Chargeback', 'wp-affiliate-captain' ) );
+		self::full_reversal( $order_id, 'chargeback', __( 'Chargeback', 'affiliate-captain' ) );
 	}
 
 	/**
@@ -458,8 +458,8 @@ final class OrderSync {
 			if ( $order ) {
 				$order->add_order_note(
 					$queued
-						? __( 'Affiliate Captain: the partner commission could not be reinstated yet and will be retried automatically (Affiliate Captain → Integrations).', 'wp-affiliate-captain' )
-						: __( 'Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later.', 'wp-affiliate-captain' )
+						? __( 'Affiliate Captain: the partner commission could not be reinstated yet and will be retried automatically (Affiliate Captain → Integrations).', 'affiliate-captain' )
+						: __( 'Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later.', 'affiliate-captain' )
 				);
 			}
 		}
@@ -476,11 +476,11 @@ final class OrderSync {
 		if ( ! $order ) {
 			return;
 		}
-		$n = Ledger::reinstate( WooCommerce::SOURCE, (string) $order_id, __( 'Order paid again (chargeback won or cancellation reversed)', 'wp-affiliate-captain' ) );
+		$n = Ledger::reinstate( WooCommerce::SOURCE, (string) $order_id, __( 'Order paid again (chargeback won or cancellation reversed)', 'affiliate-captain' ) );
 		if ( $n ) {
 			$order->update_meta_data( '_wpac_reinstated', (int) $order->get_meta( '_wpac_reinstated' ) + 1 );
 			$order->save_meta_data();
-			$order->add_order_note( __( 'Partner commission reinstated.', 'wp-affiliate-captain' ) );
+			$order->add_order_note( __( 'Partner commission reinstated.', 'affiliate-captain' ) );
 		}
 	}
 

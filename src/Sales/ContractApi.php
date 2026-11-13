@@ -83,7 +83,7 @@ final class ContractApi {
 			if ( ! $queued ) {
 				return self::not_queued( 'sale', $sale, $code, $e );
 			}
-			return new \WP_Error( 'wpac_queued', __( 'The sale could not be processed and was queued for retry.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_queued', __( 'The sale could not be processed and was queued for retry.', 'affiliate-captain' ) );
 		} finally {
 			Db::unlock( $inflight, $owner );
 		}
@@ -101,7 +101,7 @@ final class ContractApi {
 	 */
 	private static function not_queued( $what, array $data, $code, $e ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( 'WP Affiliate Captain: %s %s:%s could not be processed (%s) and could not be queued for retry.', $what, $data['source'], $data['order_id'], $e ? $e->getMessage() : $code ) );
+		error_log( sprintf( 'Affiliate Captain: %s %s:%s could not be processed (%s) and could not be queued for retry.', $what, $data['source'], $data['order_id'], $e ? $e->getMessage() : $code ) );
 		/**
 		 * Fires when a sale or refund could neither be processed nor queued (report it to the integration's own retry).
 		 *
@@ -109,7 +109,7 @@ final class ContractApi {
 		 * @param array  $data Normalized payload.
 		 */
 		do_action( 'wpac_contract_not_queued', $what, $data );
-		return new \WP_Error( 'wpac_not_queued', __( 'The sale or refund could not be processed and could not be stored for a retry. Please send it again later.', 'wp-affiliate-captain' ) );
+		return new \WP_Error( 'wpac_not_queued', __( 'The sale or refund could not be processed and could not be stored for a retry. Please send it again later.', 'affiliate-captain' ) );
 	}
 
 	/**
@@ -161,7 +161,7 @@ final class ContractApi {
 			if ( ! Jobs::enqueue( 'refund', $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'], $payload, $e instanceof IntegrationException ? $e->error_code : 'exception', $e->getMessage() ) ) {
 				return self::not_queued( 'refund', $refund, $e instanceof IntegrationException ? $e->error_code : 'exception', $e );
 			}
-			return new \WP_Error( 'wpac_queued', __( 'The refund could not be processed and was queued for retry.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_queued', __( 'The refund could not be processed and was queued for retry.', 'affiliate-captain' ) );
 		}
 	}
 

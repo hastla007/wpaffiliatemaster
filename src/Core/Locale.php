@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Locale {
 
-	const DOMAIN = 'wp-affiliate-captain';
+	const DOMAIN = 'affiliate-captain';
 
 	/**
 	 * Locale for messages to a partner.

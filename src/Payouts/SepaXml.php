@@ -101,7 +101,7 @@ final class SepaXml {
 	public static function build( array $debtor, array $transfers, $msg_id, $exec_date, $created = '' ) {
 		if ( ! self::dom_available() ) {
 			$msg = 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.';
-			throw new \InvalidArgumentException( function_exists( '__' ) ? __( 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.', 'wp-affiliate-captain' ) : $msg );
+			throw new \InvalidArgumentException( function_exists( '__' ) ? __( 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.', 'affiliate-captain' ) : $msg );
 		}
 		if ( ! $transfers ) {
 			throw new \InvalidArgumentException( 'No transfers.' );

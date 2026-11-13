@@ -4,7 +4,7 @@ Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 
 ## 1. Version vorbereiten
 
-1. Version an drei Stellen gleich setzen: Header `Version:` und `WPAC_VERSION` in `wp-affiliate-captain.php`, `Stable tag:` in `readme.txt`.
+1. Version an drei Stellen gleich setzen: Header `Version:` und `WPAC_VERSION` in `affiliate-captain.php`, `Stable tag:` in `readme.txt`.
 2. `readme.txt`: Abschnitt `== Changelog ==` (neueste Version oben) und `== Upgrade Notice ==` (bei Schemaänderung „Backup vorher“) ergänzen; `Tested up to` und im Plugin-Header `WC tested up to` auf die in CI geprüften Versionen setzen.
 3. Übersetzungen: `python3 bin/i18n.py missing de_DE` muss leer sein, dann `python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE`.
 4. Mindestversionen ändern sich nur zusammen: `Requires at least` (Header + readme), `minimum_wp_version` in `phpcs.xml.dist`, `WP_VERSION`/`WC_VERSION`/PHP im CI-Job „Minimum versions“. Aktuell WordPress 6.3 (Blöcke mit `apiVersion: 3`), WooCommerce 8.0, PHP 7.4.

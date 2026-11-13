@@ -165,27 +165,27 @@ final class MonthlyMail {
 				}
 				$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 				$lines       = array();
-				$lines[]     = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'wp-affiliate-captain' ), $aff->name );
+				$lines[]     = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'affiliate-captain' ), $aff->name );
 				$lines[] = '';
-				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'wp-affiliate-captain' ), self::month_label( $month ) );
-				$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $r['visits'];
-				$lines[] = __( 'Sales', 'wp-affiliate-captain' ) . ': ' . $r['orders'];
-				$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['commission'] );
+				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'affiliate-captain' ), self::month_label( $month ) );
+				$lines[] = __( 'Link visits', 'affiliate-captain' ) . ': ' . $r['visits'];
+				$lines[] = __( 'Sales', 'affiliate-captain' ) . ': ' . $r['orders'];
+				$lines[] = __( 'Commission', 'affiliate-captain' ) . ': ' . $fmt( $r['commission'] );
 				if ( $r['corrections'] ) {
-					$lines[] = __( 'Corrections', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['corrections'] );
+					$lines[] = __( 'Corrections', 'affiliate-captain' ) . ': ' . $fmt( $r['corrections'] );
 				}
 				if ( $r['writeoffs'] ) {
-					$lines[] = __( 'Written-off negative balance', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['writeoffs'] );
+					$lines[] = __( 'Written-off negative balance', 'affiliate-captain' ) . ': ' . $fmt( $r['writeoffs'] );
 				}
 				if ( $r['bonus'] ) {
-					$lines[] = __( 'Monthly bonus', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['bonus'] );
+					$lines[] = __( 'Monthly bonus', 'affiliate-captain' ) . ': ' . $fmt( $r['bonus'] );
 				}
-				$lines[] = __( 'Available for payout', 'wp-affiliate-captain' ) . ': ' . $fmt( PayoutRequests::available( (int) $aff->id ) );
+				$lines[] = __( 'Available for payout', 'affiliate-captain' ) . ': ' . $fmt( PayoutRequests::available( (int) $aff->id ) );
 				if ( $portal ) {
 					$lines[] = '';
 					$lines[] = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
 				}
-				$wpac_ok = wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
+				$wpac_ok = wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
 				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 				if ( ! $wpac_ok ) {
 					self::record_failure( $month, (int) $aff->id ); // Retried later (retry_failed()).
@@ -238,32 +238,32 @@ final class MonthlyMail {
 			}
 		}
 		$lines   = array();
-		$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) );
+		$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'affiliate-captain' ), self::month_label( $month ) );
 		$lines[] = '';
-		$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $tot['visits'];
-		$lines[] = __( 'Attributed orders', 'wp-affiliate-captain' ) . ': ' . $tot['orders'];
-		$lines[] = __( 'Net revenue', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['revenue'] );
-		$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['commission'] );
-		$lines[] = __( 'Corrections', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['corrections'] );
-		$lines[] = __( 'Monthly bonuses', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['bonus'] );
+		$lines[] = __( 'Link visits', 'affiliate-captain' ) . ': ' . $tot['visits'];
+		$lines[] = __( 'Attributed orders', 'affiliate-captain' ) . ': ' . $tot['orders'];
+		$lines[] = __( 'Net revenue', 'affiliate-captain' ) . ': ' . $fmt( $tot['revenue'] );
+		$lines[] = __( 'Commission', 'affiliate-captain' ) . ': ' . $fmt( $tot['commission'] );
+		$lines[] = __( 'Corrections', 'affiliate-captain' ) . ': ' . $fmt( $tot['corrections'] );
+		$lines[] = __( 'Monthly bonuses', 'affiliate-captain' ) . ': ' . $fmt( $tot['bonus'] );
 		if ( $tot['writeoffs'] ) {
-			$lines[] = __( 'Written-off negative balances', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['writeoffs'] );
+			$lines[] = __( 'Written-off negative balances', 'affiliate-captain' ) . ': ' . $fmt( $tot['writeoffs'] );
 		}
 		$counts  = AffiliateRepository::count_by_status();
-		$lines[] = __( 'Applications waiting', 'wp-affiliate-captain' ) . ': ' . (int) $counts['pending'];
-		$lines[] = __( 'Open payout requests', 'wp-affiliate-captain' ) . ': ' . count( PayoutRequests::query( 'requested' ) );
+		$lines[] = __( 'Applications waiting', 'affiliate-captain' ) . ': ' . (int) $counts['pending'];
+		$lines[] = __( 'Open payout requests', 'affiliate-captain' ) . ': ' . count( PayoutRequests::query( 'requested' ) );
 		if ( $unconv ) {
-			$lines[] = __( 'Not converted (no reference rate)', 'wp-affiliate-captain' ) . ': ' . implode( ', ', $unconv );
+			$lines[] = __( 'Not converted (no reference rate)', 'affiliate-captain' ) . ': ' . implode( ', ', $unconv );
 		}
 		$lines[] = '';
-		$lines[] = __( 'Top partners', 'wp-affiliate-captain' ) . ':';
+		$lines[] = __( 'Top partners', 'affiliate-captain' ) . ':';
 		foreach ( array_slice( $rows, 0, 10 ) as $r ) {
 			$lines[] = sprintf( '- %s: %d / %s', $r['name'], $r['orders'], $fmt( $r['commission'] ) );
 		}
 		$lines[] = '';
 		$lines[] = admin_url( 'admin.php?page=wpac&from=' . $from . '&to=' . $to );
 		$to_mail = (string) Settings::get( 'admin_email' );
-		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
+		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
 	}
 
 	const FAILED     = 'wpac_report_failed';

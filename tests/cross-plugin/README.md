@@ -1,12 +1,12 @@
 # Gesamttest über alle Plugins
 
-Prüft das Zusammenspiel von **WP Affiliate Captain**, **WP Voucher Captain**, **WP Pass Captain**, WooCommerce und (optional) **LearnBoating** in einer echten WordPress-Installation – genau an den Übergängen, die die Einzeltests der Plugins nicht abdecken.
+Prüft das Zusammenspiel von **Affiliate Captain**, **WP Voucher Captain**, **WP Pass Captain**, WooCommerce und (optional) **LearnBoating** in einer echten WordPress-Installation – genau an den Übergängen, die die Einzeltests der Plugins nicht abdecken.
 
 > Nur gegen eine **Test-Installation** laufen lassen: Die Skripte legen Partner, Produkte, Events und Bestellungen an, bezahlen, erstatten und sagen einen Termin ab.
 
 ## Teil 1: Gutschein, Ticket, Scanner, Absage (`run.php`)
 
-Voraussetzung: WooCommerce, WP Affiliate Captain, WP Voucher Captain und WP Pass Captain aktiv; Zahlart „Überweisung“ (bacs) aktiv.
+Voraussetzung: WooCommerce, Affiliate Captain, WP Voucher Captain und WP Pass Captain aktiv; Zahlart „Überweisung“ (bacs) aktiv.
 
 ```bash
 php tests/cross-plugin/run.php /pfad/zu/wordpress example.test

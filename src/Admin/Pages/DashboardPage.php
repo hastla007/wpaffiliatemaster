@@ -28,12 +28,12 @@ final class DashboardPage {
 		if ( 'setup_pages' === $do ) {
 			list( $created, $failed ) = self::create_pages();
 			if ( $failed ) {
-				Admin::back( __( 'Some pages could not be created. Please create them yourself with the blocks "Partner application" and "Partner area" and select them in the settings.', 'wp-affiliate-captain' ), 'error', Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ), $failed );
+				Admin::back( __( 'Some pages could not be created. Please create them yourself with the blocks "Partner application" and "Partner area" and select them in the settings.', 'affiliate-captain' ), 'error', Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ), $failed );
 			}
 			if ( ! $created ) {
-				Admin::back( __( 'All pages already exist – nothing was created.', 'wp-affiliate-captain' ), 'info' );
+				Admin::back( __( 'All pages already exist – nothing was created.', 'affiliate-captain' ), 'info' );
 			}
-			Admin::back( __( 'Pages created and selected in the settings.', 'wp-affiliate-captain' ), 'success', '', $created );
+			Admin::back( __( 'Pages created and selected in the settings.', 'affiliate-captain' ), 'success', '', $created );
 		}
 		if ( 'report_export' !== $do ) {
 			return;
@@ -62,9 +62,9 @@ final class DashboardPage {
 	 */
 	private static function create_pages() {
 		$pages = array(
-			'registration_page_id' => array( __( 'Become a partner', 'wp-affiliate-captain' ), '<!-- wp:wpac/registration /-->' ),
-			'portal_page_id'       => array( __( 'Partner area', 'wp-affiliate-captain' ), '<!-- wp:wpac/portal /-->' ),
-			'landing_page_id'      => array( __( 'Recommended by our partner', 'wp-affiliate-captain' ), "<!-- wp:wpac/partner-welcome /-->\n<!-- wp:paragraph --><p>" . esc_html__( 'Welcome! Here you can introduce your offer to visitors referred by a partner.', 'wp-affiliate-captain' ) . '</p><!-- /wp:paragraph -->' ),
+			'registration_page_id' => array( __( 'Become a partner', 'affiliate-captain' ), '<!-- wp:wpac/registration /-->' ),
+			'portal_page_id'       => array( __( 'Partner area', 'affiliate-captain' ), '<!-- wp:wpac/portal /-->' ),
+			'landing_page_id'      => array( __( 'Recommended by our partner', 'affiliate-captain' ), "<!-- wp:wpac/partner-welcome /-->\n<!-- wp:paragraph --><p>" . esc_html__( 'Welcome! Here you can introduce your offer to visitors referred by a partner.', 'affiliate-captain' ) . '</p><!-- /wp:paragraph -->' ),
 		);
 		$update  = array();
 		$created = array();
@@ -87,7 +87,7 @@ final class DashboardPage {
 				$update[ $key ] = (int) $id;
 				$created[]      = $page[0];
 			} else {
-				$failed[] = $page[0] . ': ' . ( is_wp_error( $id ) ? $id->get_error_message() : __( 'unknown error', 'wp-affiliate-captain' ) );
+				$failed[] = $page[0] . ': ' . ( is_wp_error( $id ) ? $id->get_error_message() : __( 'unknown error', 'affiliate-captain' ) );
 			}
 		}
 		if ( $update ) {
@@ -114,14 +114,14 @@ final class DashboardPage {
 	 */
 	private static function checklist() {
 		$items = array(
-			array( (bool) Settings::get( 'registration_page_id' ) && (bool) Settings::get( 'portal_page_id' ), __( 'Application page and partner area page', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
-			array( (bool) Settings::get( 'terms_page_id' ), __( 'Partner program terms (page and version)', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
-			array( '' === \WPAffiliateCaptain\Payouts\PayoutService::operator_missing(), __( 'Your address and VAT ID or tax number for credit notes', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
-			array( '' !== trim( (string) Settings::get( 'operator_vat_id' ) ) || ! self::has_reverse_charge_partners(), __( 'Your VAT ID – needed for credit notes to business partners abroad (reverse charge); a tax number is not enough', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
-			array( '' !== (string) Settings::get( 'debtor_iban' ) && '' !== trim( (string) Settings::get( 'debtor_name' ) ), __( 'Company bank account for SEPA payouts (account holder and IBAN)', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
-			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php', 'wp-affiliate-captain' ), Admin::url( 'wpac-integrations' ) ),
-			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'wp-affiliate-captain' ), Admin::url( 'wpac-affiliates' ) ),
-			array( 'always' !== Settings::get( 'cookie_mode' ), __( 'Affiliate cookie only with consent (not "always")', 'wp-affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ),
+			array( (bool) Settings::get( 'registration_page_id' ) && (bool) Settings::get( 'portal_page_id' ), __( 'Application page and partner area page', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
+			array( (bool) Settings::get( 'terms_page_id' ), __( 'Partner program terms (page and version)', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
+			array( '' === \WPAffiliateCaptain\Payouts\PayoutService::operator_missing(), __( 'Your address and VAT ID or tax number for credit notes', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( '' !== trim( (string) Settings::get( 'operator_vat_id' ) ) || ! self::has_reverse_charge_partners(), __( 'Your VAT ID – needed for credit notes to business partners abroad (reverse charge); a tax number is not enough', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( '' !== (string) Settings::get( 'debtor_iban' ) && '' !== trim( (string) Settings::get( 'debtor_name' ) ), __( 'Company bank account for SEPA payouts (account holder and IBAN)', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
+			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php', 'affiliate-captain' ), Admin::url( 'wpac-integrations' ) ),
+			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'affiliate-captain' ), Admin::url( 'wpac-affiliates' ) ),
+			array( 'always' !== Settings::get( 'cookie_mode' ), __( 'Affiliate cookie only with consent (not "always")', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ),
 		);
 		$open = array_filter(
 			$items,
@@ -132,14 +132,14 @@ final class DashboardPage {
 		if ( ! $open ) {
 			return;
 		}
-		echo '<div class="wpac-checklist"><h2>' . esc_html__( 'Setup checklist', 'wp-affiliate-captain' ) . '</h2><ul>';
+		echo '<div class="wpac-checklist"><h2>' . esc_html__( 'Setup checklist', 'affiliate-captain' ) . '</h2><ul>';
 		foreach ( $items as $i ) {
-			echo '<li class="' . ( $i[0] ? 'done' : 'todo' ) . '">' . ( $i[0] ? esc_html( $i[1] ) : '<a href="' . esc_url( $i[2] ) . '">' . esc_html( $i[1] ) . '</a>' ) . '<span class="screen-reader-text"> – ' . esc_html( $i[0] ? __( 'done', 'wp-affiliate-captain' ) : __( 'open', 'wp-affiliate-captain' ) ) . '</span></li>';
+			echo '<li class="' . ( $i[0] ? 'done' : 'todo' ) . '">' . ( $i[0] ? esc_html( $i[1] ) : '<a href="' . esc_url( $i[2] ) . '">' . esc_html( $i[1] ) . '</a>' ) . '<span class="screen-reader-text"> – ' . esc_html( $i[0] ? __( 'done', 'affiliate-captain' ) : __( 'open', 'affiliate-captain' ) ) . '</span></li>';
 		}
 		echo '</ul>';
 		if ( ! Settings::get( 'registration_page_id' ) || ! Settings::get( 'portal_page_id' ) ) {
 			Admin::form_open( 'setup_pages' );
-			echo '<p><button class="button button-primary">' . esc_html__( 'Create pages automatically', 'wp-affiliate-captain' ) . '</button> <span class="description">' . esc_html__( 'Creates "Become a partner", "Partner area" and a landing page with the matching blocks.', 'wp-affiliate-captain' ) . '</span></p></form>';
+			echo '<p><button class="button button-primary">' . esc_html__( 'Create pages automatically', 'affiliate-captain' ) . '</button> <span class="description">' . esc_html__( 'Creates "Become a partner", "Partner area" and a landing page with the matching blocks.', 'affiliate-captain' ) . '</span></p></form>';
 		}
 		echo '</div>';
 	}
@@ -184,36 +184,36 @@ final class DashboardPage {
 			}
 		}
 
-		echo '<div class="wrap wpac-wrap"><h1>' . esc_html__( 'Affiliate Captain', 'wp-affiliate-captain' ) . '</h1>';
+		echo '<div class="wrap wpac-wrap"><h1>' . esc_html__( 'Affiliate Captain', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
 		if ( current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
 			self::checklist();
 		}
 		if ( $counts['pending'] ) {
 			/* translators: %d: count */
-			echo '<div class="notice notice-warning inline"><p><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'status' => 'pending' ) ) ) . '">' . esc_html( sprintf( _n( '%d application waiting for review', '%d applications waiting for review', $counts['pending'], 'wp-affiliate-captain' ), $counts['pending'] ) ) . '</a></p></div>';
+			echo '<div class="notice notice-warning inline"><p><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'status' => 'pending' ) ) ) . '">' . esc_html( sprintf( _n( '%d application waiting for review', '%d applications waiting for review', $counts['pending'], 'affiliate-captain' ), $counts['pending'] ) ) . '</a></p></div>';
 		}
 		if ( $failed ) {
 			/* translators: %d: count */
-			echo '<div class="notice notice-error inline"><p><a href="' . esc_url( Admin::url( 'wpac-integrations' ) ) . '">' . esc_html( sprintf( _n( '%d integration job failed', '%d integration jobs failed', $failed, 'wp-affiliate-captain' ), $failed ) ) . '</a></p></div>';
+			echo '<div class="notice notice-error inline"><p><a href="' . esc_url( Admin::url( 'wpac-integrations' ) ) . '">' . esc_html( sprintf( _n( '%d integration job failed', '%d integration jobs failed', $failed, 'affiliate-captain' ), $failed ) ) . '</a></p></div>';
 		}
 
 		if ( $unconverted ) {
 			/* translators: %s: currencies */
-			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Amounts in %s are not included in the money columns (no reference exchange rate in the settings).', 'wp-affiliate-captain' ), implode( ', ', $unconverted ) ) ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Amounts in %s are not included in the money columns (no reference exchange rate in the settings).', 'affiliate-captain' ), implode( ', ', $unconverted ) ) ) . '</p></div>';
 		}
-		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><label>' . esc_html__( 'from', 'wp-affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>' . esc_html__( 'to', 'wp-affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> <button class="button">' . esc_html__( 'Apply', 'wp-affiliate-captain' ) . '</button></form>';
+		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><label>' . esc_html__( 'from', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>' . esc_html__( 'to', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> <button class="button">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form>';
 
 		echo '<div class="wpac-kpis">';
 		foreach (
 			array(
-				__( 'Active partners', 'wp-affiliate-captain' )  => number_format_i18n( $counts['active'] ),
-				__( 'Link visits', 'wp-affiliate-captain' )      => number_format_i18n( $sum['visits'] ),
-				__( 'Attributed orders', 'wp-affiliate-captain' ) => number_format_i18n( $sum['orders'] ),
-				__( 'Net revenue', 'wp-affiliate-captain' )      => Money::format( $sum['revenue'], $currency ),
-				__( 'Commission', 'wp-affiliate-captain' )       => Money::format( $sum['commission'], $currency ),
-				__( 'Corrections', 'wp-affiliate-captain' )      => Money::format( $sum['corrections'], $currency ),
-				__( 'Write-offs', 'wp-affiliate-captain' )       => Money::format( $sum['writeoffs'], $currency ),
+				__( 'Active partners', 'affiliate-captain' )  => number_format_i18n( $counts['active'] ),
+				__( 'Link visits', 'affiliate-captain' )      => number_format_i18n( $sum['visits'] ),
+				__( 'Attributed orders', 'affiliate-captain' ) => number_format_i18n( $sum['orders'] ),
+				__( 'Net revenue', 'affiliate-captain' )      => Money::format( $sum['revenue'], $currency ),
+				__( 'Commission', 'affiliate-captain' )       => Money::format( $sum['commission'], $currency ),
+				__( 'Corrections', 'affiliate-captain' )      => Money::format( $sum['corrections'], $currency ),
+				__( 'Write-offs', 'affiliate-captain' )       => Money::format( $sum['writeoffs'], $currency ),
 			) as $label => $value
 		) {
 			echo '<div class="wpac-kpi"><span>' . esc_html( $label ) . '</span><strong>' . esc_html( $value ) . '</strong></div>';
@@ -221,9 +221,9 @@ final class DashboardPage {
 		echo '</div>';
 
 		$tabs = array(
-			'partners' => __( 'By partner', 'wp-affiliate-captain' ),
-			'content'  => __( 'By content', 'wp-affiliate-captain' ),
-			'campaign' => __( 'By campaign', 'wp-affiliate-captain' ),
+			'partners' => __( 'By partner', 'affiliate-captain' ),
+			'content'  => __( 'By content', 'affiliate-captain' ),
+			'campaign' => __( 'By campaign', 'affiliate-captain' ),
 		);
 		echo '<nav class="nav-tab-wrapper">';
 		foreach ( $tabs as $k => $l ) {
@@ -231,13 +231,13 @@ final class DashboardPage {
 		}
 		echo '</nav><p>';
 		Admin::form_open( 'report_export', 'wpac-inline' );
-		echo '<input type="hidden" name="from" value="' . esc_attr( $from ) . '"><input type="hidden" name="to" value="' . esc_attr( $to ) . '"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><button class="button">' . esc_html__( 'Export CSV', 'wp-affiliate-captain' ) . '</button></form></p>';
+		echo '<input type="hidden" name="from" value="' . esc_attr( $from ) . '"><input type="hidden" name="to" value="' . esc_attr( $to ) . '"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form></p>';
 
 		if ( 'partners' !== $view ) {
 			$dim = Reports::by_dimension( 'content' === $view ? 'content_id' : 'campaign', $from, $to );
-			echo '<table class="widefat striped"><thead><tr><th>' . esc_html( 'content' === $view ? __( 'Content', 'wp-affiliate-captain' ) : __( 'Campaign', 'wp-affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partners', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 			if ( ! $dim ) {
-				echo '<tr><td colspan="7">' . esc_html__( 'No activity in this period.', 'wp-affiliate-captain' ) . '</td></tr>';
+				echo '<tr><td colspan="7">' . esc_html__( 'No activity in this period.', 'affiliate-captain' ) . '</td></tr>';
 			}
 			foreach ( $dim as $r ) {
 				$label = esc_html( $r['label'] );
@@ -256,13 +256,13 @@ final class DashboardPage {
 				);
 			}
 			echo '</tbody></table>';
-			echo '<p class="description">' . esc_html__( 'Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution.', 'wp-affiliate-captain' ) . '</p></div>';
+			echo '<p class="description">' . esc_html__( 'Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution.', 'affiliate-captain' ) . '</p></div>';
 			return;
 		}
 
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Visits', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Corrections', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Monthly bonuses', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Write-offs', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Refund rate', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Corrections', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Monthly bonuses', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Write-offs', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Refund rate', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 		if ( ! $rows ) {
-			echo '<tr><td colspan="9">' . esc_html__( 'No activity in this period.', 'wp-affiliate-captain' ) . '</td></tr>';
+			echo '<tr><td colspan="9">' . esc_html__( 'No activity in this period.', 'affiliate-captain' ) . '</td></tr>';
 		}
 		foreach ( $rows as $r ) {
 			printf(

@@ -12,7 +12,7 @@ use WPAffiliateCaptain\Migration\PartnerImport;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Import data into WP Affiliate Captain.
+ * Import data into Affiliate Captain.
  */
 final class ImportCommand {
 

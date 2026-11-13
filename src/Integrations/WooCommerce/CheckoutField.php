@@ -32,8 +32,8 @@ final class CheckoutField {
 			'wpac_partner_code',
 			array(
 				'type'        => 'text',
-				'label'       => __( 'Partner code (optional)', 'wp-affiliate-captain' ),
-				'placeholder' => __( 'e.g. from your sailing school', 'wp-affiliate-captain' ),
+				'label'       => __( 'Partner code (optional)', 'affiliate-captain' ),
+				'placeholder' => __( 'e.g. from your sailing school', 'affiliate-captain' ),
 				'required'    => false,
 				'class'       => array( 'form-row-wide' ),
 			),
@@ -57,11 +57,11 @@ final class CheckoutField {
 		}
 		// Same limit as the REST code check, so the checkout cannot be used to guess codes.
 		if ( ! \WPAffiliateCaptain\Tracking\RateLimiter::allow( 'code_check', 20, MINUTE_IN_SECONDS ) ) {
-			$errors->add( 'wpac_partner_code', __( 'Too many attempts. Please wait a minute and try again.', 'wp-affiliate-captain' ) );
+			$errors->add( 'wpac_partner_code', __( 'Too many attempts. Please wait a minute and try again.', 'affiliate-captain' ) );
 			return;
 		}
 		if ( ! wpac_resolve_partner_code( $code, array( 'context' => 'checkout' ) ) ) {
-			$errors->add( 'wpac_partner_code', __( 'The partner code is not valid.', 'wp-affiliate-captain' ) );
+			$errors->add( 'wpac_partner_code', __( 'The partner code is not valid.', 'affiliate-captain' ) );
 		}
 	}
 
@@ -90,8 +90,8 @@ final class CheckoutField {
 		woocommerce_register_additional_checkout_field(
 			array(
 				'id'                => WooCommerce::BLOCKS_FIELD,
-				'label'             => __( 'Partner code (optional)', 'wp-affiliate-captain' ),
-				'optionalLabel'     => __( 'Partner code (optional)', 'wp-affiliate-captain' ),
+				'label'             => __( 'Partner code (optional)', 'affiliate-captain' ),
+				'optionalLabel'     => __( 'Partner code (optional)', 'affiliate-captain' ),
 				// "order" replaced "additional" in newer WooCommerce versions (same meta key _wc_other/...).
 				'location'          => ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '9.2', '<' ) ) ? 'additional' : 'order',
 				'type'              => 'text',
@@ -123,9 +123,9 @@ final class CheckoutField {
 			return self::$block_checked[ $value ];
 		}
 		if ( ! \WPAffiliateCaptain\Tracking\RateLimiter::allow( 'code_check', 20, MINUTE_IN_SECONDS ) ) {
-			$result = new \WP_Error( 'wpac_partner_code', __( 'Too many attempts. Please wait a minute and try again.', 'wp-affiliate-captain' ) );
+			$result = new \WP_Error( 'wpac_partner_code', __( 'Too many attempts. Please wait a minute and try again.', 'affiliate-captain' ) );
 		} elseif ( ! wpac_resolve_partner_code( $value, array( 'context' => 'checkout' ) ) ) {
-			$result = new \WP_Error( 'wpac_partner_code', __( 'The partner code is not valid.', 'wp-affiliate-captain' ) );
+			$result = new \WP_Error( 'wpac_partner_code', __( 'The partner code is not valid.', 'affiliate-captain' ) );
 		} else {
 			$result = true;
 		}

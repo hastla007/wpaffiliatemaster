@@ -36,7 +36,7 @@ final class CommissionsPage {
 			$errors = 0;
 			$last   = '';
 			foreach ( $ids as $id ) {
-				$result = 'approved' === $to ? Ledger::approve( $id, $reason ? $reason : __( 'Approved manually', 'wp-affiliate-captain' ) ) : Ledger::reject( $id, $reason );
+				$result = 'approved' === $to ? Ledger::approve( $id, $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
 				if ( is_wp_error( $result ) ) {
 					++$errors;
 					$last = $result->get_error_message();
@@ -44,9 +44,9 @@ final class CommissionsPage {
 			}
 			if ( $errors ) {
 				/* translators: 1: number of errors, 2: message */
-				Admin::back( sprintf( _n( '%1$d commission could not be changed: %2$s', '%1$d commissions could not be changed: %2$s', $errors, 'wp-affiliate-captain' ), $errors, $last ), 'error' );
+				Admin::back( sprintf( _n( '%1$d commission could not be changed: %2$s', '%1$d commissions could not be changed: %2$s', $errors, 'affiliate-captain' ), $errors, $last ), 'error' );
 			}
-			Admin::back( __( 'Commissions updated.', 'wp-affiliate-captain' ) );
+			Admin::back( __( 'Commissions updated.', 'affiliate-captain' ) );
 		}
 
 		if ( 'commission_export' === $do ) {
@@ -106,12 +106,12 @@ final class CommissionsPage {
 		// phpcs:enable
 		$back = remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer', 'reason' ) );
 		if ( 'reject' === $action && '' === $reason ) {
-			Admin::back( __( 'Please enter a reason for the rejection.', 'wp-affiliate-captain' ), 'error', $back );
+			Admin::back( __( 'Please enter a reason for the rejection.', 'affiliate-captain' ), 'error', $back );
 		}
 		$errors = 0;
 		$last   = '';
 		foreach ( $ids as $id ) {
-			$result = 'approve' === $action ? Ledger::approve( $id, '' !== $reason ? $reason : __( 'Approved manually', 'wp-affiliate-captain' ) ) : Ledger::reject( $id, $reason );
+			$result = 'approve' === $action ? Ledger::approve( $id, '' !== $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
 			if ( is_wp_error( $result ) ) {
 				++$errors;
 				$last = $result->get_error_message();
@@ -119,9 +119,9 @@ final class CommissionsPage {
 		}
 		if ( $errors ) {
 			/* translators: 1: number of errors, 2: message */
-			Admin::back( sprintf( _n( '%1$d commission could not be changed: %2$s', '%1$d commissions could not be changed: %2$s', $errors, 'wp-affiliate-captain' ), $errors, $last ), 'error', $back );
+			Admin::back( sprintf( _n( '%1$d commission could not be changed: %2$s', '%1$d commissions could not be changed: %2$s', $errors, 'affiliate-captain' ), $errors, $last ), 'error', $back );
 		}
-		Admin::back( __( 'Commissions updated.', 'wp-affiliate-captain' ), 'success', $back );
+		Admin::back( __( 'Commissions updated.', 'affiliate-captain' ), 'success', $back );
 	}
 
 	/**
@@ -156,28 +156,28 @@ final class CommissionsPage {
 		$labels  = Ledger::status_labels();
 		$totals  = Ledger::totals( $filters );
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Commissions', 'wp-affiliate-captain' ) . '</h1>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Commissions', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
 
 		// Filters.
 		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac-commissions">';
-		echo '<select name="status" aria-label="' . esc_attr__( 'Status', 'wp-affiliate-captain' ) . '"><option value="">' . esc_html__( 'All statuses', 'wp-affiliate-captain' ) . '</option>';
+		echo '<select name="status" aria-label="' . esc_attr__( 'Status', 'affiliate-captain' ) . '"><option value="">' . esc_html__( 'All statuses', 'affiliate-captain' ) . '</option>';
 		foreach ( $labels as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $filters['status'], $k, false ), esc_html( $l ) );
 		}
 		echo '</select> ';
-		echo '<input type="number" name="affiliate_id" placeholder="' . esc_attr__( 'Partner ID', 'wp-affiliate-captain' ) . '" value="' . esc_attr( $filters['affiliate_id'] ? $filters['affiliate_id'] : '' ) . '" class="small-text"> ';
-		echo '<input type="text" name="source" placeholder="' . esc_attr__( 'Source', 'wp-affiliate-captain' ) . '" value="' . esc_attr( $filters['source'] ) . '" size="12"> ';
-		echo '<input type="text" name="order_id" placeholder="' . esc_attr__( 'Order', 'wp-affiliate-captain' ) . '" value="' . esc_attr( $filters['order_id'] ) . '" size="8"> ';
-		echo '<label>' . esc_html__( 'from', 'wp-affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $filters['from'] ) . '"></label> ';
-		echo '<label>' . esc_html__( 'to', 'wp-affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $filters['to'] ) . '"></label> ';
-		echo '<button class="button">' . esc_html__( 'Filter', 'wp-affiliate-captain' ) . '</button></form>';
+		echo '<input type="number" name="affiliate_id" placeholder="' . esc_attr__( 'Partner ID', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['affiliate_id'] ? $filters['affiliate_id'] : '' ) . '" class="small-text"> ';
+		echo '<input type="text" name="source" placeholder="' . esc_attr__( 'Source', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['source'] ) . '" size="12"> ';
+		echo '<input type="text" name="order_id" placeholder="' . esc_attr__( 'Order', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['order_id'] ) . '" size="8"> ';
+		echo '<label>' . esc_html__( 'from', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $filters['from'] ) . '"></label> ';
+		echo '<label>' . esc_html__( 'to', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $filters['to'] ) . '"></label> ';
+		echo '<button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button></form>';
 
 		Admin::form_open( 'commission_export', 'wpac-inline' );
 		foreach ( $filters as $k => $v ) {
 			echo '<input type="hidden" name="' . esc_attr( $k ) . '" value="' . esc_attr( $v ) . '">';
 		}
-		echo '<button class="button">' . esc_html__( 'Export CSV', 'wp-affiliate-captain' ) . '</button></form>';
+		echo '<button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form>';
 
 		// Totals.
 		echo '<p class="wpac-totals">';
@@ -207,11 +207,11 @@ final class CommissionsPage {
 	 */
 	private static function render_view( $id ) {
 		$c = Ledger::find( $id );
-		echo '<div class="wrap"><h1>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . ' #' . (int) $id . '</h1>';
-		echo '<p><a href="' . esc_url( Admin::url( 'wpac-commissions' ) ) . '">&larr; ' . esc_html__( 'All commissions', 'wp-affiliate-captain' ) . '</a></p>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Commission', 'affiliate-captain' ) . ' #' . (int) $id . '</h1>';
+		echo '<p><a href="' . esc_url( Admin::url( 'wpac-commissions' ) ) . '">&larr; ' . esc_html__( 'All commissions', 'affiliate-captain' ) . '</a></p>';
 		Admin::notice();
 		if ( ! $c ) {
-			echo '<p>' . esc_html__( 'Not found.', 'wp-affiliate-captain' ) . '</p></div>';
+			echo '<p>' . esc_html__( 'Not found.', 'affiliate-captain' ) . '</p></div>';
 			return;
 		}
 		$labels = Ledger::status_labels();
@@ -219,17 +219,17 @@ final class CommissionsPage {
 		$attr   = Ledger::attribution_for( $c->source, $c->source_order_id );
 		echo '<table class="widefat striped wpac-dl"><tbody>';
 		$rows = array(
-			__( 'Partner', 'wp-affiliate-captain' )      => $aff ? $aff->name : '#' . $c->affiliate_id,
-			__( 'Source / order', 'wp-affiliate-captain' ) => Ledger::source_label( $c->source ) . ' #' . $c->source_order_id . ( $c->source_item_id ? ' / ' . __( 'item', 'wp-affiliate-captain' ) . ' ' . $c->source_item_id : '' ),
-			__( 'Type', 'wp-affiliate-captain' )         => ( isset( Ledger::kind_labels()[ $c->kind ] ) ? Ledger::kind_labels()[ $c->kind ] : $c->kind ) . ( $c->parent_id ? ' → #' . $c->parent_id : '' ),
-			__( 'Item', 'wp-affiliate-captain' )         => $c->description . ( $c->product_ref ? ' (' . $c->product_ref . ')' : '' ),
-			__( 'Base', 'wp-affiliate-captain' )         => Money::format( (int) $c->base_minor, $c->currency ),
-			__( 'Rate', 'wp-affiliate-captain' )         => RuleRepository::format_rate( $c->rate_type, $c->rate, $c->currency ) . ( $c->rule_id ? ' (' . __( 'rule', 'wp-affiliate-captain' ) . ' #' . $c->rule_id . ')' : ' (' . __( 'default', 'wp-affiliate-captain' ) . ')' ),
-			__( 'Commission', 'wp-affiliate-captain' )   => Money::format( (int) $c->amount_minor, $c->currency ),
-			__( 'Status', 'wp-affiliate-captain' )       => isset( $labels[ $c->status ] ) ? $labels[ $c->status ] : $c->status,
-			__( 'Hold until', 'wp-affiliate-captain' )   => Admin::date( $c->hold_until, true ),
-			__( 'Attribution', 'wp-affiliate-captain' )  => $attr ? self::method_label( $attr->method ) . ( $attr->campaign ? ' · ' . $attr->campaign : '' ) . ( $attr->content_id ? ' · ' . __( 'content', 'wp-affiliate-captain' ) . ' #' . $attr->content_id : '' ) : '—',
-			__( 'Review reasons', 'wp-affiliate-captain' ) => $attr && $attr->note ? implode(
+			__( 'Partner', 'affiliate-captain' )      => $aff ? $aff->name : '#' . $c->affiliate_id,
+			__( 'Source / order', 'affiliate-captain' ) => Ledger::source_label( $c->source ) . ' #' . $c->source_order_id . ( $c->source_item_id ? ' / ' . __( 'item', 'affiliate-captain' ) . ' ' . $c->source_item_id : '' ),
+			__( 'Type', 'affiliate-captain' )         => ( isset( Ledger::kind_labels()[ $c->kind ] ) ? Ledger::kind_labels()[ $c->kind ] : $c->kind ) . ( $c->parent_id ? ' → #' . $c->parent_id : '' ),
+			__( 'Item', 'affiliate-captain' )         => $c->description . ( $c->product_ref ? ' (' . $c->product_ref . ')' : '' ),
+			__( 'Base', 'affiliate-captain' )         => Money::format( (int) $c->base_minor, $c->currency ),
+			__( 'Rate', 'affiliate-captain' )         => RuleRepository::format_rate( $c->rate_type, $c->rate, $c->currency ) . ( $c->rule_id ? ' (' . __( 'rule', 'affiliate-captain' ) . ' #' . $c->rule_id . ')' : ' (' . __( 'default', 'affiliate-captain' ) . ')' ),
+			__( 'Commission', 'affiliate-captain' )   => Money::format( (int) $c->amount_minor, $c->currency ),
+			__( 'Status', 'affiliate-captain' )       => isset( $labels[ $c->status ] ) ? $labels[ $c->status ] : $c->status,
+			__( 'Hold until', 'affiliate-captain' )   => Admin::date( $c->hold_until, true ),
+			__( 'Attribution', 'affiliate-captain' )  => $attr ? self::method_label( $attr->method ) . ( $attr->campaign ? ' · ' . $attr->campaign : '' ) . ( $attr->content_id ? ' · ' . __( 'content', 'affiliate-captain' ) . ' #' . $attr->content_id : '' ) : '—',
+			__( 'Review reasons', 'affiliate-captain' ) => $attr && $attr->note ? implode(
 				', ',
 				array_map(
 					static function ( $flag ) {
@@ -239,8 +239,8 @@ final class CommissionsPage {
 					explode( ',', $attr->note )
 				)
 			) : '—',
-			__( 'Payout', 'wp-affiliate-captain' )       => $c->payout_id ? '#' . $c->payout_id : '—',
-			__( 'Idempotency key', 'wp-affiliate-captain' ) => $c->idempotency_key,
+			__( 'Payout', 'affiliate-captain' )       => $c->payout_id ? '#' . $c->payout_id : '—',
+			__( 'Idempotency key', 'affiliate-captain' ) => $c->idempotency_key,
 		);
 		foreach ( $rows as $k => $v ) {
 			echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>';
@@ -248,17 +248,17 @@ final class CommissionsPage {
 		echo '</tbody></table>';
 
 		if ( in_array( $c->status, array( 'pending', 'review', 'approved' ), true ) && ! (int) $c->payout_id ) {
-			echo '<h2>' . esc_html__( 'Decision', 'wp-affiliate-captain' ) . '</h2>';
+			echo '<h2>' . esc_html__( 'Decision', 'affiliate-captain' ) . '</h2>';
 			Admin::form_open( 'commission_status' );
-			echo '<input type="hidden" name="id" value="' . (int) $c->id . '"><label class="screen-reader-text" for="wpac-decision-reason">' . esc_html__( 'Reason', 'wp-affiliate-captain' ) . '</label><input type="text" id="wpac-decision-reason" name="reason" class="regular-text" placeholder="' . esc_attr__( 'Reason (shown to the partner when rejecting)', 'wp-affiliate-captain' ) . '"> ';
+			echo '<input type="hidden" name="id" value="' . (int) $c->id . '"><label class="screen-reader-text" for="wpac-decision-reason">' . esc_html__( 'Reason', 'affiliate-captain' ) . '</label><input type="text" id="wpac-decision-reason" name="reason" class="regular-text" placeholder="' . esc_attr__( 'Reason (shown to the partner when rejecting)', 'affiliate-captain' ) . '"> ';
 			if ( 'approved' !== $c->status ) {
-				echo '<button class="button button-primary" name="to" value="approved">' . esc_html__( 'Approve', 'wp-affiliate-captain' ) . '</button> ';
+				echo '<button class="button button-primary" name="to" value="approved">' . esc_html__( 'Approve', 'affiliate-captain' ) . '</button> ';
 			}
 			/* translators: %s: amount */
-			echo '<button class="button" name="to" value="rejected" data-wpac-confirm="' . esc_attr( sprintf( __( 'Reject this commission (%s)? The partner sees the reason.', 'wp-affiliate-captain' ), html_entity_decode( Money::format( (int) $c->amount_minor, $c->currency ), ENT_QUOTES, 'UTF-8' ) ) ) . '">' . esc_html__( 'Reject', 'wp-affiliate-captain' ) . '</button></form>';
+			echo '<button class="button" name="to" value="rejected" data-wpac-confirm="' . esc_attr( sprintf( __( 'Reject this commission (%s)? The partner sees the reason.', 'affiliate-captain' ), html_entity_decode( Money::format( (int) $c->amount_minor, $c->currency ), ENT_QUOTES, 'UTF-8' ) ) ) . '">' . esc_html__( 'Reject', 'affiliate-captain' ) . '</button></form>';
 		}
 
-		echo '<h2>' . esc_html__( 'Events', 'wp-affiliate-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Event', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Reason', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'By', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<h2>' . esc_html__( 'Events', 'affiliate-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Event', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Reason', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'By', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( Ledger::events( $id ) as $e ) {
 			$user = $e->actor_id ? get_userdata( (int) $e->actor_id ) : null;
 			printf(
@@ -269,7 +269,7 @@ final class CommissionsPage {
 				esc_html( isset( $labels[ $e->to_status ] ) ? $labels[ $e->to_status ] : $e->to_status ),
 				esc_html( Money::format( (int) $e->amount_minor, $c->currency ) ),
 				esc_html( $e->reason ),
-				esc_html( $user ? $user->display_name : __( 'System', 'wp-affiliate-captain' ) )
+				esc_html( $user ? $user->display_name : __( 'System', 'affiliate-captain' ) )
 			);
 		}
 		echo '</tbody></table>';
@@ -277,14 +277,14 @@ final class CommissionsPage {
 		$children = Ledger::children( $id );
 		if ( $children ) {
 			$kinds = Ledger::kind_labels();
-			echo '<h2>' . esc_html__( 'Corrections', 'wp-affiliate-captain' ) . '</h2><ul>';
+			echo '<h2>' . esc_html__( 'Corrections', 'affiliate-captain' ) . '</h2><ul>';
 			foreach ( $children as $ch ) {
 				echo '<li><a href="' . esc_url( Admin::url( 'wpac-commissions', array( 'action' => 'view', 'id' => $ch->id ) ) ) . '">#' . (int) $ch->id . '</a> ' . esc_html( ( isset( $kinds[ $ch->kind ] ) ? $kinds[ $ch->kind ] : $ch->kind ) . ' · ' . Money::format( (int) $ch->amount_minor, $ch->currency ) . ' · ' . ( isset( $labels[ $ch->status ] ) ? $labels[ $ch->status ] : $ch->status ) ) . '</li>';
 			}
 			echo '</ul>';
 		}
 		if ( $c->rule_snapshot ) {
-			echo '<h2>' . esc_html__( 'Rule snapshot', 'wp-affiliate-captain' ) . '</h2><pre class="wpac-pre">' . esc_html( wp_json_encode( json_decode( $c->rule_snapshot ), JSON_PRETTY_PRINT ) ) . '</pre>';
+			echo '<h2>' . esc_html__( 'Rule snapshot', 'affiliate-captain' ) . '</h2><pre class="wpac-pre">' . esc_html( wp_json_encode( json_decode( $c->rule_snapshot ), JSON_PRETTY_PRINT ) ) . '</pre>';
 		}
 		echo '</div>';
 	}
@@ -298,16 +298,16 @@ final class CommissionsPage {
 	 */
 	private static function event_label( $event, array $status ) {
 		$labels = array(
-			'created'         => __( 'Created', 'wp-affiliate-captain' ),
-			'adjusted'        => __( 'Corrected (refund or reinstatement)', 'wp-affiliate-captain' ),
-			'payout_assigned' => __( 'Added to a payout', 'wp-affiliate-captain' ),
-			'payout_released' => __( 'Released from a cancelled payout', 'wp-affiliate-captain' ),
+			'created'         => __( 'Created', 'affiliate-captain' ),
+			'adjusted'        => __( 'Corrected (refund or reinstatement)', 'affiliate-captain' ),
+			'payout_assigned' => __( 'Added to a payout', 'affiliate-captain' ),
+			'payout_released' => __( 'Released from a cancelled payout', 'affiliate-captain' ),
 		);
 		if ( isset( $labels[ $event ] ) ) {
 			return $labels[ $event ];
 		}
 		/* translators: %s: status */
-		return isset( $status[ $event ] ) ? sprintf( __( 'Status: %s', 'wp-affiliate-captain' ), $status[ $event ] ) : $event;
+		return isset( $status[ $event ] ) ? sprintf( __( 'Status: %s', 'affiliate-captain' ), $status[ $event ] ) : $event;
 	}
 
 	/**
@@ -318,14 +318,14 @@ final class CommissionsPage {
 	 */
 	private static function method_label( $method ) {
 		$labels = array(
-			'link'     => __( 'Partner link', 'wp-affiliate-captain' ),
-			'cookie'   => __( 'Cookie', 'wp-affiliate-captain' ),
-			'code'     => __( 'Partner code', 'wp-affiliate-captain' ),
-			'coupon'   => __( 'Coupon', 'wp-affiliate-captain' ),
-			'lifetime' => __( 'Lifetime customer', 'wp-affiliate-captain' ),
-			'manual'   => __( 'Manual assignment', 'wp-affiliate-captain' ),
-			'app'      => __( 'App', 'wp-affiliate-captain' ),
-			'renewal'  => __( 'Subscription renewal', 'wp-affiliate-captain' ),
+			'link'     => __( 'Partner link', 'affiliate-captain' ),
+			'cookie'   => __( 'Cookie', 'affiliate-captain' ),
+			'code'     => __( 'Partner code', 'affiliate-captain' ),
+			'coupon'   => __( 'Coupon', 'affiliate-captain' ),
+			'lifetime' => __( 'Lifetime customer', 'affiliate-captain' ),
+			'manual'   => __( 'Manual assignment', 'affiliate-captain' ),
+			'app'      => __( 'App', 'affiliate-captain' ),
+			'renewal'  => __( 'Subscription renewal', 'affiliate-captain' ),
 		);
 		return isset( $labels[ $method ] ) ? $labels[ $method ] : (string) $method;
 	}

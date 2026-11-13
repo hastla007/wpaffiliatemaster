@@ -68,20 +68,20 @@ final class RuleRepository {
 		if ( 'exclude' !== $rate_type ) {
 			$dec = Money::normalize_decimal( isset( $in['rate'] ) ? (string) $in['rate'] : '' );
 			if ( null === $dec || (float) $dec < 0 ) {
-				return new \WP_Error( 'wpac_rate', __( 'Please enter a valid rate.', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_rate', __( 'Please enter a valid rate.', 'affiliate-captain' ) );
 			}
 			if ( 'percent' === $rate_type && (float) $dec > 100 ) {
-				return new \WP_Error( 'wpac_rate', __( 'A percentage cannot exceed 100.', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_rate', __( 'A percentage cannot exceed 100.', 'affiliate-captain' ) );
 			}
 			$rate = 'fixed' === $rate_type ? (string) Money::to_minor( $dec, Settings::get( 'currency' ) ) : $dec;
 		}
 		$scope_id = 'global' === $scope ? 0 : ( isset( $in['scope_id'] ) ? absint( $in['scope_id'] ) : 0 );
 		if ( 'global' !== $scope && ! $scope_id ) {
-			return new \WP_Error( 'wpac_scope', __( 'Please choose a partner or group for this rule.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_scope', __( 'Please choose a partner or group for this rule.', 'affiliate-captain' ) );
 		}
 		$value = 'all' === $target ? '' : sanitize_text_field( isset( $in['target_value'] ) ? (string) $in['target_value'] : '' );
 		if ( 'all' !== $target && '' === $value ) {
-			return new \WP_Error( 'wpac_target', __( 'Please enter product IDs, category/tag IDs or SKUs/course codes.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_target', __( 'Please enter product IDs, category/tag IDs or SKUs/course codes.', 'affiliate-captain' ) );
 		}
 		return array(
 			'scope'        => $scope,
@@ -163,7 +163,7 @@ final class RuleRepository {
 	 */
 	public static function format_rate( $rate_type, $rate, $currency = '' ) {
 		if ( 'exclude' === $rate_type ) {
-			return __( 'excluded', 'wp-affiliate-captain' );
+			return __( 'excluded', 'affiliate-captain' );
 		}
 		if ( 'fixed' === $rate_type ) {
 			return Money::format( (int) $rate, $currency ? $currency : Settings::get( 'currency' ) );

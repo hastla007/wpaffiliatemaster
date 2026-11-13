@@ -1,4 +1,4 @@
-# WP Affiliate Captain
+# Affiliate Captain
 
 Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinnung, Partnercodes und Referral-Links, Attribution, Provisionsledger mit Refund-Korrekturen, Auszahlungsläufe mit SEPA-Export und ein Partnerportal.
 
@@ -16,7 +16,7 @@ Betreiber-Handbuch (englisch): [docs/HANDBOOK.md](docs/HANDBOOK.md). Import/Expo
 
 ## Installation
 
-1. Ordner nach `wp-content/plugins/wp-affiliate-captain/` kopieren und aktivieren.
+1. Ordner nach `wp-content/plugins/affiliate-captain/` kopieren und aktivieren.
 2. Seiten anlegen: `[wpac_affiliate_registration]` (Bewerbung), `[wpac_affiliate_portal]` (Partnerbereich), optional eine Landingpage mit `[wpac_partner_welcome]`.
 3. Im **Dashboard** führt eine Einrichtungs-Checkliste durch die Schritte; „Seiten automatisch anlegen“ erstellt Bewerbung, Partnerbereich und Landingpage mit den passenden Blöcken. Unter **Affiliate Captain → Einstellungen** Seiten, Teilnahmebedingungen (Seite + Version), Standardprovision, Haltefrist, Mindestbetrag und das Firmenkonto für SEPA setzen.
 4. Für Gutschriften unter **Einstellungen → Auszahlungen** Anschrift, USt-IdNr./Steuernummer und USt-Satz hinterlegen. Das Gutschriftverfahren in den Partnerbedingungen vereinbaren.

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """i18n tooling without gettext binaries.
 
-  python3 bin/i18n.py pot              -> languages/wp-affiliate-captain.pot
+  python3 bin/i18n.py pot              -> languages/affiliate-captain.pot
   python3 bin/i18n.py build de_DE      -> .po/.mo from languages/de_DE.json + JS JSON
   python3 bin/i18n.py missing de_DE    -> list untranslated msgids
 """
 import hashlib, json, os, re, struct, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOMAIN = "wp-affiliate-captain"
+DOMAIN = "affiliate-captain"
 FUNCS = r"(?:__|_e|esc_html__|esc_attr__|esc_html_e|esc_attr_e|_n)"
 XFUNCS = r"(?:_x|esc_html_x|esc_attr_x)"
 SQ = r"'((?:[^'\\]|\\.)*)'"
@@ -137,7 +137,7 @@ def write_pot():
     strings = php_strings(comments)
     # No creation date: the .pot must stay byte-identical when nothing changed (CI compares it).
     header = [
-        "Project-Id-Version: WP Affiliate Captain %s" % plugin_version(),
+        "Project-Id-Version: Affiliate Captain %s" % plugin_version(),
         "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues",
         "MIME-Version: 1.0",
         "Content-Type: text/plain; charset=UTF-8",
@@ -191,7 +191,7 @@ def write_mo(path, entries):
 
 def build(locale):
     tr = json.load(open(os.path.join(ROOT, "languages", locale + ".json"), encoding="utf-8"))
-    header = "Project-Id-Version: WP Affiliate Captain %s\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nLanguage: %s\nPlural-Forms: nplurals=2; plural=(n != 1);\nX-Domain: %s\n" % (plugin_version(), locale, DOMAIN)
+    header = "Project-Id-Version: Affiliate Captain %s\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nLanguage: %s\nPlural-Forms: nplurals=2; plural=(n != 1);\nX-Domain: %s\n" % (plugin_version(), locale, DOMAIN)
     entries = {"": header}
     po = ['msgid ""', 'msgstr ""'] + ['"%s\\n"' % l for l in header.strip().split("\n")] + [""]
     missing = []

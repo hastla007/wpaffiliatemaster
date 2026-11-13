@@ -53,10 +53,10 @@ final class CouponLink {
 		woocommerce_wp_select(
 			array(
 				'id'          => 'wpac_coupon_affiliate',
-				'label'       => __( 'Affiliate partner', 'wp-affiliate-captain' ),
+				'label'       => __( 'Affiliate partner', 'affiliate-captain' ),
 				'options'     => $options,
 				'value'       => $current ? (string) $current : '',
-				'description' => __( 'Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon.', 'wp-affiliate-captain' ),
+				'description' => __( 'Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon.', 'affiliate-captain' ),
 				'desc_tip'    => true,
 			)
 		);
