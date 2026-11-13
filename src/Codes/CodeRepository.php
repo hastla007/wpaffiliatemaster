@@ -150,13 +150,13 @@ final class CodeRepository {
 		global $wpdb;
 		$code = self::normalize( $code );
 		if ( strlen( $code ) < 3 ) {
-			return new \WP_Error( 'wpac_code_short', __( 'Codes need at least 3 characters.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_code_short', __( 'Codes need at least 3 characters.', 'affiliate-captain' ) );
 		}
 		$base = substr( $code, 0, 58 );
 		$i    = 2;
 		while ( self::find_by_code( $code ) ) {
 			if ( ! empty( $opts['strict'] ) ) {
-				return new \WP_Error( 'wpac_code_taken', __( 'This code is already in use.', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_code_taken', __( 'This code is already in use.', 'affiliate-captain' ) );
 			}
 			$code = $base . $i++;
 		}
@@ -175,7 +175,7 @@ final class CodeRepository {
 			)
 		);
 		if ( ! $ok ) {
-			return new \WP_Error( 'wpac_db', __( 'The code could not be saved.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_db', __( 'The code could not be saved.', 'affiliate-captain' ) );
 		}
 		$id = (int) $wpdb->insert_id;
 		Audit::log(

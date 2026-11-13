@@ -31,7 +31,7 @@ function page( $slug, $title, $content ) {
 }
 
 if ( ! class_exists( 'WooCommerce' ) || ! class_exists( 'WPAffiliateCaptain\\Plugin' ) ) {
-	fail( 'WooCommerce or WP Affiliate Captain not active' );
+	fail( 'WooCommerce or Affiliate Captain not active' );
 }
 
 // WooCommerce: pages (Blocks checkout), Germany/EUR, bank transfer, no onboarding.

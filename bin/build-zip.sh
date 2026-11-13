@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Builds dist/wp-affiliate-captain-<version>.zip (installable plugin ZIP).
+# Builds dist/affiliate-captain-<version>.zip (installable plugin ZIP).
 # Usage: bin/build-zip.sh [expected-version]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SLUG=wp-affiliate-captain
-HEADER_VERSION=$(sed -n 's/^ \* Version: *\([0-9A-Za-z.\-]*\).*/\1/p' wp-affiliate-captain.php)
-CONST_VERSION=$(sed -n "s/^define( 'WPAC_VERSION', '\([^']*\)' );/\1/p" wp-affiliate-captain.php)
+SLUG=affiliate-captain
+HEADER_VERSION=$(sed -n 's/^ \* Version: *\([0-9A-Za-z.\-]*\).*/\1/p' affiliate-captain.php)
+CONST_VERSION=$(sed -n "s/^define( 'WPAC_VERSION', '\([^']*\)' );/\1/p" affiliate-captain.php)
 
 if [ "$HEADER_VERSION" != "$CONST_VERSION" ]; then
 	echo "Version mismatch: header $HEADER_VERSION vs WPAC_VERSION $CONST_VERSION" >&2
@@ -33,8 +33,8 @@ find "$BUILD/$SLUG" -name '.DS_Store' -delete
 for f in $(find "$BUILD/$SLUG" -name '*.php'); do php -l "$f" >/dev/null; done
 
 # The ZIP must contain the runtime files and nothing from development.
-for need in wp-affiliate-captain.php uninstall.php readme.txt src assets blocks languages \
-	docs/VERARBEITUNGSVERZEICHNIS.md tools/purge-retained.php languages/wp-affiliate-captain-de_DE.mo; do
+for need in affiliate-captain.php uninstall.php readme.txt src assets blocks languages \
+	docs/VERARBEITUNGSVERZEICHNIS.md tools/purge-retained.php languages/affiliate-captain-de_DE.mo; do
 	[ -e "$BUILD/$SLUG/$need" ] || { echo "Missing in the ZIP: $need" >&2; exit 1; }
 done
 for dev in README.md TODO.md tests bin examples composer.json phpcs.xml.dist phpstan.neon.dist \

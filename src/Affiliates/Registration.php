@@ -303,20 +303,20 @@ final class Registration {
 			return self::success_notice();
 		}
 		if ( 'pending' !== $state ) {
-			return '<div class="wpac-notice wpac-notice--error" role="alert">' . esc_html__( 'The confirmation link is invalid or has expired. Please apply again.', 'wp-affiliate-captain' ) . '</div>';
+			return '<div class="wpac-notice wpac-notice--error" role="alert">' . esc_html__( 'The confirmation link is invalid or has expired. Please apply again.', 'affiliate-captain' ) . '</div>';
 		}
 		$data = get_transient( 'wpac_app_' . self::token_hash( $token ) );
 		$data = is_array( $data ) ? $data : array();
 		if ( ! self::account_matches( $data ) ) {
 			$here = add_query_arg( 'wpac_confirm', rawurlencode( $token ), get_permalink() ? get_permalink() : home_url( '/' ) );
-			return '<div class="wpac-notice">' . esc_html__( 'You applied while logged in. Please log in with the same user account to confirm your application.', 'wp-affiliate-captain' ) . ' <a href="' . esc_url( wp_login_url( $here ) ) . '">' . esc_html__( 'Log in', 'wp-affiliate-captain' ) . '</a></div>';
+			return '<div class="wpac-notice">' . esc_html__( 'You applied while logged in. Please log in with the same user account to confirm your application.', 'affiliate-captain' ) . ' <a href="' . esc_url( wp_login_url( $here ) ) . '">' . esc_html__( 'Log in', 'affiliate-captain' ) . '</a></div>';
 		}
 		return '<form class="wpac-form" method="post">'
-			. '<p>' . esc_html__( 'Please confirm your partner application with the button below.', 'wp-affiliate-captain' ) . '</p>'
+			. '<p>' . esc_html__( 'Please confirm your partner application with the button below.', 'affiliate-captain' ) . '</p>'
 			. wp_referer_field( false )
 			. '<input type="hidden" name="wpac_confirm_app" value="1">'
 			. '<input type="hidden" name="wpac_confirm" value="' . esc_attr( $token ) . '">'
-			. '<p><button type="submit" class="wpac-button">' . esc_html__( 'Confirm application', 'wp-affiliate-captain' ) . '</button></p>'
+			. '<p><button type="submit" class="wpac-button">' . esc_html__( 'Confirm application', 'affiliate-captain' ) . '</button></p>'
 			. '</form>';
 	}
 
@@ -327,8 +327,8 @@ final class Registration {
 	 */
 	private static function success_notice() {
 		$msg = Settings::get( 'auto_approve' )
-			? __( 'Thank you! Your partner account is active. Check your e-mail for login details.', 'wp-affiliate-captain' )
-			: __( 'Thank you for your application! We will review it and get back to you by e-mail.', 'wp-affiliate-captain' );
+			? __( 'Thank you! Your partner account is active. Check your e-mail for login details.', 'affiliate-captain' )
+			: __( 'Thank you for your application! We will review it and get back to you by e-mail.', 'affiliate-captain' );
 		return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html( $msg ) . '</div>';
 	}
 
@@ -467,7 +467,7 @@ final class Registration {
 			return self::render_confirm( sanitize_text_field( wp_unslash( $_GET['wpac_confirm'] ) ) );
 		}
 		if ( isset( $_GET['wpac_reg'] ) && 'confirm' === $_GET['wpac_reg'] ) {
-			return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html__( 'Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application.', 'wp-affiliate-captain' ) . '</div>';
+			return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html__( 'Almost done! We have sent you an e-mail. Please confirm your e-mail address with the link in it to complete your application.', 'affiliate-captain' ) . '</div>';
 		}
 		if ( isset( $_GET['wpac_reg'] ) ) {
 			return self::success_notice();
@@ -478,20 +478,20 @@ final class Registration {
 			$aff = AffiliateRepository::find_by_user( $user->ID );
 			if ( $aff ) {
 				$portal = (int) Settings::get( 'portal_page_id' );
-				$link   = $portal ? ' <a href="' . esc_url( Notifications::portal_url() ) . '">' . esc_html__( 'Go to partner area', 'wp-affiliate-captain' ) . '</a>' : '';
-				return '<div class="wpac-notice">' . esc_html__( 'You already have a partner account.', 'wp-affiliate-captain' ) . $link . '</div>';
+				$link   = $portal ? ' <a href="' . esc_url( Notifications::portal_url() ) . '">' . esc_html__( 'Go to partner area', 'affiliate-captain' ) . '</a>' : '';
+				return '<div class="wpac-notice">' . esc_html__( 'You already have a partner account.', 'affiliate-captain' ) . $link . '</div>';
 			}
 		}
 
 		$errors = array(
-			'nonce'   => __( 'The form expired. Please try again.', 'wp-affiliate-captain' ),
-			'spam'    => __( 'Your submission could not be processed.', 'wp-affiliate-captain' ),
-			'rate'    => __( 'Too many attempts. Please try again later.', 'wp-affiliate-captain' ),
-			'terms'   => __( 'Please accept the partner program terms.', 'wp-affiliate-captain' ),
-			'exists'  => __( 'An affiliate account with this e-mail address already exists.', 'wp-affiliate-captain' ),
-			'required' => __( 'Please fill in all required fields.', 'wp-affiliate-captain' ),
-			'expired'  => __( 'The confirmation link is invalid or has expired. Please apply again.', 'wp-affiliate-captain' ),
-			'invalid' => __( 'Please check your entries.', 'wp-affiliate-captain' ),
+			'nonce'   => __( 'The form expired. Please try again.', 'affiliate-captain' ),
+			'spam'    => __( 'Your submission could not be processed.', 'affiliate-captain' ),
+			'rate'    => __( 'Too many attempts. Please try again later.', 'affiliate-captain' ),
+			'terms'   => __( 'Please accept the partner program terms.', 'affiliate-captain' ),
+			'exists'  => __( 'An affiliate account with this e-mail address already exists.', 'affiliate-captain' ),
+			'required' => __( 'Please fill in all required fields.', 'affiliate-captain' ),
+			'expired'  => __( 'The confirmation link is invalid or has expired. Please apply again.', 'affiliate-captain' ),
+			'invalid' => __( 'Please check your entries.', 'affiliate-captain' ),
 		);
 		$err    = isset( $_GET['wpac_err'] ) ? sanitize_key( wp_unslash( $_GET['wpac_err'] ) ) : '';
 		$form   = isset( $_GET['wpac_form'] ) ? get_transient( 'wpac_form_' . sanitize_text_field( wp_unslash( $_GET['wpac_form'] ) ) ) : array();
@@ -514,7 +514,7 @@ final class Registration {
 		$public = Groups::public_groups();
 		if ( ! $group && $public ) {
 			// Step 1: choose the partner type.
-			$out = '<div class="wpac-form"><p>' . esc_html__( 'Which kind of partner are you?', 'wp-affiliate-captain' ) . '</p><ul class="wpac-group-choice">';
+			$out = '<div class="wpac-form"><p>' . esc_html__( 'Which kind of partner are you?', 'affiliate-captain' ) . '</p><ul class="wpac-group-choice">';
 			foreach ( $public as $g ) {
 				$out .= '<li><a class="wpac-button" href="' . esc_url( add_query_arg( 'wpac_group', (int) $g->id ) ) . '">' . esc_html( $g->name ) . '</a>' . ( $g->description ? '<br><span class="wpac-muted">' . esc_html( $g->description ) . '</span>' : '' ) . '</li>';
 			}
@@ -530,7 +530,7 @@ final class Registration {
 			<?php endif; ?>
 			<?php wp_nonce_field( 'wpac_register', '_wpac_nonce' ); ?>
 			<input type="hidden" name="wpac_register" value="1">
-			<p class="wpac-required-note"><?php esc_html_e( 'Fields marked with * are required.', 'wp-affiliate-captain' ); ?></p>
+			<p class="wpac-required-note"><?php esc_html_e( 'Fields marked with * are required.', 'affiliate-captain' ); ?></p>
 			<input type="hidden" name="wpac_group" value="<?php echo (int) $group_id; ?>">
 			<?php if ( $fixed ) : ?>
 				<?php $wpac_post = (int) get_the_ID(); ?>
@@ -538,29 +538,29 @@ final class Registration {
 				<input type="hidden" name="wpac_group_sig" value="<?php echo esc_attr( self::group_sig( $group_id, $wpac_post ) ); ?>">
 			<?php endif; ?>
 			<?php if ( $group ) : ?>
-				<p class="wpac-muted"><?php echo esc_html( sprintf( /* translators: %s: group */ __( 'Application as: %s', 'wp-affiliate-captain' ), $group->name ) ); ?></p>
+				<p class="wpac-muted"><?php echo esc_html( sprintf( /* translators: %s: group */ __( 'Application as: %s', 'affiliate-captain' ), $group->name ) ); ?></p>
 			<?php endif; ?>
 			<p class="wpac-hp" aria-hidden="true"><label>URL <input type="text" name="wpac_url_confirm" tabindex="-1" autocomplete="off"></label></p>
 			<p>
-				<label for="wpac_name"><?php esc_html_e( 'Name / company', 'wp-affiliate-captain' ); ?> *</label>
+				<label for="wpac_name"><?php esc_html_e( 'Name / company', 'affiliate-captain' ); ?> *</label>
 				<input type="text" id="wpac_name" name="wpac_name" required autocomplete="name" value="<?php echo esc_attr( '' !== $kept( 'wpac_name' ) ? $kept( 'wpac_name' ) : ( $user->exists() ? $user->display_name : '' ) ); ?>"<?php echo self::attrs( $form, 'wpac_name', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<?php if ( ! $user->exists() ) : ?>
 			<p>
-				<label for="wpac_email"><?php esc_html_e( 'E-mail', 'wp-affiliate-captain' ); ?> *</label>
+				<label for="wpac_email"><?php esc_html_e( 'E-mail', 'affiliate-captain' ); ?> *</label>
 				<input type="email" id="wpac_email" name="wpac_email" required autocomplete="email"<?php echo self::attrs( $form, 'wpac_email' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<?php endif; ?>
 			<p>
-				<label for="wpac_website"><?php esc_html_e( 'Website', 'wp-affiliate-captain' ); ?></label>
+				<label for="wpac_website"><?php esc_html_e( 'Website', 'affiliate-captain' ); ?></label>
 				<input type="url" id="wpac_website" name="wpac_website" placeholder="https://" autocomplete="url"<?php echo self::attrs( $form, 'wpac_website' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<p>
-				<label for="wpac_channel"><?php esc_html_e( 'Channel (e.g. Instagram, YouTube, newsletter, school)', 'wp-affiliate-captain' ); ?></label>
+				<label for="wpac_channel"><?php esc_html_e( 'Channel (e.g. Instagram, YouTube, newsletter, school)', 'affiliate-captain' ); ?></label>
 				<input type="text" id="wpac_channel" name="wpac_channel"<?php echo self::attrs( $form, 'wpac_channel' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<p>
-				<label for="wpac_note"><?php esc_html_e( 'How do you want to promote us?', 'wp-affiliate-captain' ); ?></label>
+				<label for="wpac_note"><?php esc_html_e( 'How do you want to promote us?', 'affiliate-captain' ); ?></label>
 				<textarea id="wpac_note" name="wpac_note" rows="4"><?php echo esc_textarea( $kept( 'wpac_note' ) ); ?></textarea>
 			</p>
 			<?php foreach ( Groups::fields( $group ) as $field ) : ?>
@@ -585,8 +585,8 @@ final class Registration {
 					<?php
 					printf(
 						/* translators: 1: link to terms, 2: version */
-						esc_html__( 'I accept the %1$s (version %2$s).', 'wp-affiliate-captain' ),
-						'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'wp-affiliate-captain' ) . '</a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						esc_html__( 'I accept the %1$s (version %2$s).', 'affiliate-captain' ),
+						'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '</a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 						esc_html( $terms['version'] )
 					);
 					?>
@@ -597,13 +597,13 @@ final class Registration {
 				<?php
 				// Information at collection (Art. 13 GDPR): purpose, legal basis, storage, link to the policy.
 				$wpac_privacy = function_exists( 'get_privacy_policy_url' ) ? get_privacy_policy_url() : '';
-				echo esc_html__( 'We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy.', 'wp-affiliate-captain' );
+				echo esc_html__( 'We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy.', 'affiliate-captain' );
 				if ( $wpac_privacy ) {
-					echo ' <a href="' . esc_url( $wpac_privacy ) . '" target="_blank" rel="noopener">' . esc_html__( 'Privacy policy', 'wp-affiliate-captain' ) . '</a>';
+					echo ' <a href="' . esc_url( $wpac_privacy ) . '" target="_blank" rel="noopener">' . esc_html__( 'Privacy policy', 'affiliate-captain' ) . '</a>';
 				}
 				?>
 			</p>
-			<p><button type="submit" class="wpac-button"><?php esc_html_e( 'Apply now', 'wp-affiliate-captain' ); ?></button></p>
+			<p><button type="submit" class="wpac-button"><?php esc_html_e( 'Apply now', 'affiliate-captain' ); ?></button></p>
 		</form>
 		<?php
 		return (string) ob_get_clean();

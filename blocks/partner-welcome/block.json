@@ -6,7 +6,7 @@
 	"category": "widgets",
 	"icon": "megaphone",
 	"description": "Shows \"Recommended by \u2026\" for visitors coming via a partner link.",
-	"textdomain": "wp-affiliate-captain",
+	"textdomain": "affiliate-captain",
 	"attributes": {
 		"text": {
 			"type": "string",

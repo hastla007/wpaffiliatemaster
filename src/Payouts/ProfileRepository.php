@@ -25,9 +25,9 @@ final class ProfileRepository {
 	 */
 	public static function tax_status_labels() {
 		return array(
-			'private'        => __( 'Private individual', 'wp-affiliate-captain' ),
-			'small_business' => __( 'Small business (no VAT, e.g. §19 UStG)', 'wp-affiliate-captain' ),
-			'business'       => __( 'Business (VAT registered)', 'wp-affiliate-captain' ),
+			'private'        => __( 'Private individual', 'affiliate-captain' ),
+			'small_business' => __( 'Small business (no VAT, e.g. §19 UStG)', 'affiliate-captain' ),
+			'business'       => __( 'Business (VAT registered)', 'affiliate-captain' ),
 		);
 	}
 
@@ -47,8 +47,8 @@ final class ProfileRepository {
 	 */
 	public static function method_labels() {
 		return array(
-			self::METHOD_SEPA   => __( 'Bank transfer (SEPA, IBAN)', 'wp-affiliate-captain' ),
-			self::METHOD_MANUAL => __( 'Other payment method (e.g. PayPal), paid manually', 'wp-affiliate-captain' ),
+			self::METHOD_SEPA   => __( 'Bank transfer (SEPA, IBAN)', 'affiliate-captain' ),
+			self::METHOD_MANUAL => __( 'Other payment method (e.g. PayPal), paid manually', 'affiliate-captain' ),
 		);
 	}
 
@@ -173,10 +173,10 @@ final class ProfileRepository {
 			'updated_at'     => Db::now(),
 		);
 		if ( 'business' === $tax && '' === $data['vat_id'] ) {
-			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID.', 'affiliate-captain' ) );
 		}
 		if ( 'small_business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
-			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) );
 		}
 		$existing = self::get( $affiliate_id );
 		$methods  = self::method_labels();
@@ -190,7 +190,7 @@ final class ProfileRepository {
 			$details = trim( substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
 			$iban    = '';
 			if ( '' === $details && self::METHOD_MANUAL !== $old_method ) {
-				return new \WP_Error( 'wpac_payment_details', __( 'Please enter your payment details (e.g. your PayPal address).', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_payment_details', __( 'Please enter your payment details (e.g. your PayPal address).', 'affiliate-captain' ) );
 			}
 			if ( '' !== $details ) {
 				$details_new            = self::payment_details( $existing ) !== $details;
@@ -201,11 +201,11 @@ final class ProfileRepository {
 			$data['bic'] = '';
 		} else {
 			if ( '' === $iban && self::METHOD_MANUAL === $old_method ) {
-				return new \WP_Error( 'wpac_iban_required', __( 'Please enter your IBAN for payouts by bank transfer.', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_iban_required', __( 'Please enter your IBAN for payouts by bank transfer.', 'affiliate-captain' ) );
 			}
 			if ( '' !== $iban ) {
 				if ( ! Iban::is_valid( $iban ) ) {
-					return new \WP_Error( 'wpac_iban', __( 'The IBAN is not valid.', 'wp-affiliate-captain' ) );
+					return new \WP_Error( 'wpac_iban', __( 'The IBAN is not valid.', 'affiliate-captain' ) );
 				}
 				$data['iban_encrypted'] = Crypto::encrypt( $iban );
 				$data['iban_country']   = substr( $iban, 0, 2 );

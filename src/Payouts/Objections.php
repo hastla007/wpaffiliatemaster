@@ -119,10 +119,10 @@ final class Objections {
 		$p      = PayoutService::find( (int) $payout_id );
 		$reason = trim( sanitize_textarea_field( (string) $reason ) );
 		if ( ! $p || (int) $p->affiliate_id !== (int) $affiliate_id || 'cancelled' === $p->status || '' === (string) $p->statement_file ) {
-			return new \WP_Error( 'wpac_objection', __( 'This credit note cannot be objected to.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_objection', __( 'This credit note cannot be objected to.', 'affiliate-captain' ) );
 		}
 		if ( '' === $reason ) {
-			return new \WP_Error( 'wpac_reason_required', __( 'Please describe what is incorrect.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_reason_required', __( 'Please describe what is incorrect.', 'affiliate-captain' ) );
 		}
 		// Check and write under a lock: parallel objections or resolutions must not overwrite each other.
 		$filed = Db::with_lock(
@@ -145,7 +145,7 @@ final class Objections {
 			}
 		);
 		if ( ! $filed ) {
-			return new \WP_Error( 'wpac_objection_open', __( 'Your objection to this credit note is already being reviewed.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_objection_open', __( 'Your objection to this credit note is already being reviewed.', 'affiliate-captain' ) );
 		}
 		Audit::log( 'statement.objection', 'payout', (int) $payout_id );
 		$aff   = AffiliateRepository::find( (int) $affiliate_id );
@@ -153,9 +153,9 @@ final class Objections {
 		wp_mail(
 			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
 			/* translators: %s: credit note number */
-			sprintf( __( 'Objection to credit note %s', 'wp-affiliate-captain' ), $p->number ),
+			sprintf( __( 'Objection to credit note %s', 'affiliate-captain' ), $p->number ),
 			/* translators: 1: partner, 2: number, 3: reason, 4: URL */
-			sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4\$s", 'wp-affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) )
+			sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4\$s", 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) )
 		);
 		return true;
 	}
@@ -194,9 +194,9 @@ final class Objections {
 			wp_mail(
 				$aff->email,
 				/* translators: %s: credit note number */
-				sprintf( __( 'Your objection to credit note %s', 'wp-affiliate-captain' ), $p->number ),
+				sprintf( __( 'Your objection to credit note %s', 'affiliate-captain' ), $p->number ),
 				/* translators: %s: resolution */
-				sprintf( __( "Hello,\n\nwe have reviewed your objection:\n\n%s", 'wp-affiliate-captain' ), $all[ (int) $payout_id ]['resolution'] )
+				sprintf( __( "Hello,\n\nwe have reviewed your objection:\n\n%s", 'affiliate-captain' ), $all[ (int) $payout_id ]['resolution'] )
 			);
 			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		}

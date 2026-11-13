@@ -20,9 +20,9 @@ define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
 define( 'WPAC_DB_VERSION', 9 );
 define( 'WPAC_CONTRACT_VERSION', '1.1.0' );
-define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/wp-affiliate-captain.php' );
+define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
-define( 'WPAC_URL', 'http://example.test/wp-content/plugins/wp-affiliate-captain/' );
+define( 'WPAC_URL', 'http://example.test/wp-content/plugins/affiliate-captain/' );
 
 class Test_WPDB {
 	public $prefix = 'wp_';

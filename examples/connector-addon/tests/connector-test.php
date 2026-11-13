@@ -76,7 +76,7 @@ function wpac_connector_test_check( $label, $condition ) {
 	echo "PASS: {$label}\n";
 }
 
-// Model WP Affiliate Captain's plugins_loaded priority 5 boot sequence.
+// Model Affiliate Captain's plugins_loaded priority 5 boot sequence.
 add_action(
 	'plugins_loaded',
 	static function () {

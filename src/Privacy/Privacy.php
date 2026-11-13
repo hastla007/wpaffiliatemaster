@@ -53,8 +53,8 @@ final class Privacy {
 	 * @return array
 	 */
 	public static function exporters( $exporters ) {
-		$exporters['wp-affiliate-captain'] = array(
-			'exporter_friendly_name' => __( 'Affiliate Captain partner data', 'wp-affiliate-captain' ),
+		$exporters['affiliate-captain'] = array(
+			'exporter_friendly_name' => __( 'Affiliate Captain partner data', 'affiliate-captain' ),
 			'callback'               => array( __CLASS__, 'export' ),
 		);
 		return $exporters;
@@ -67,8 +67,8 @@ final class Privacy {
 	 * @return array
 	 */
 	public static function erasers( $erasers ) {
-		$erasers['wp-affiliate-captain'] = array(
-			'eraser_friendly_name' => __( 'Affiliate Captain partner data', 'wp-affiliate-captain' ),
+		$erasers['affiliate-captain'] = array(
+			'eraser_friendly_name' => __( 'Affiliate Captain partner data', 'affiliate-captain' ),
 			'callback'             => array( __CLASS__, 'erase' ),
 		);
 		return $erasers;
@@ -89,12 +89,12 @@ final class Privacy {
 		if ( $link ) {
 			$items[] = array(
 				'group_id'    => 'wpac-customer-link',
-				'group_label' => __( 'Partner referral (lifetime link)', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Partner referral (lifetime link)', 'affiliate-captain' ),
 				'item_id'     => 'wpac-customer-link-' . $link->id,
 				'data'        => array(
-					array( 'name' => __( 'Partner ID', 'wp-affiliate-captain' ), 'value' => (string) $link->affiliate_id ),
-					array( 'name' => __( 'Since', 'wp-affiliate-captain' ), 'value' => $link->created_at ),
-					array( 'name' => __( 'Valid until', 'wp-affiliate-captain' ), 'value' => $link->expires_at ? $link->expires_at : '—' ),
+					array( 'name' => __( 'Partner ID', 'affiliate-captain' ), 'value' => (string) $link->affiliate_id ),
+					array( 'name' => __( 'Since', 'affiliate-captain' ), 'value' => $link->created_at ),
+					array( 'name' => __( 'Valid until', 'affiliate-captain' ), 'value' => $link->expires_at ? $link->expires_at : '—' ),
 				),
 			);
 		}
@@ -107,39 +107,39 @@ final class Privacy {
 		}
 		$items[] = array(
 			'group_id'    => 'wpac-affiliate',
-			'group_label' => __( 'Partner account', 'wp-affiliate-captain' ),
+			'group_label' => __( 'Partner account', 'affiliate-captain' ),
 			'item_id'     => 'wpac-affiliate-' . $aff->id,
 			'data'        => array(
-				array( 'name' => __( 'Name', 'wp-affiliate-captain' ), 'value' => $aff->name ),
-				array( 'name' => __( 'E-mail', 'wp-affiliate-captain' ), 'value' => $aff->email ),
-				array( 'name' => __( 'Website', 'wp-affiliate-captain' ), 'value' => $aff->website ),
-				array( 'name' => __( 'Channel', 'wp-affiliate-captain' ), 'value' => $aff->channel ),
-				array( 'name' => __( 'Application', 'wp-affiliate-captain' ), 'value' => (string) $aff->application_note ),
-				array( 'name' => __( 'Status', 'wp-affiliate-captain' ), 'value' => $aff->status ),
-				array( 'name' => __( 'Created', 'wp-affiliate-captain' ), 'value' => $aff->created_at ),
+				array( 'name' => __( 'Name', 'affiliate-captain' ), 'value' => $aff->name ),
+				array( 'name' => __( 'E-mail', 'affiliate-captain' ), 'value' => $aff->email ),
+				array( 'name' => __( 'Website', 'affiliate-captain' ), 'value' => $aff->website ),
+				array( 'name' => __( 'Channel', 'affiliate-captain' ), 'value' => $aff->channel ),
+				array( 'name' => __( 'Application', 'affiliate-captain' ), 'value' => (string) $aff->application_note ),
+				array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $aff->status ),
+				array( 'name' => __( 'Created', 'affiliate-captain' ), 'value' => $aff->created_at ),
 			),
 		);
 		foreach ( CodeRepository::for_affiliate( (int) $aff->id ) as $c ) {
 			$items[] = array(
 				'group_id'    => 'wpac-codes',
-				'group_label' => __( 'Partner codes', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Partner codes', 'affiliate-captain' ),
 				'item_id'     => 'wpac-code-' . $c->id,
 				'data'        => array(
-					array( 'name' => __( 'Code', 'wp-affiliate-captain' ), 'value' => $c->code ),
-					array( 'name' => __( 'Used', 'wp-affiliate-captain' ), 'value' => (string) $c->usage_count ),
+					array( 'name' => __( 'Code', 'affiliate-captain' ), 'value' => $c->code ),
+					array( 'name' => __( 'Used', 'affiliate-captain' ), 'value' => (string) $c->usage_count ),
 				),
 			);
 		}
 		foreach ( Agreements::for_affiliate( (int) $aff->id ) as $a ) {
 			$items[] = array(
 				'group_id'    => 'wpac-agreements',
-				'group_label' => __( 'Terms acceptance', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Terms acceptance', 'affiliate-captain' ),
 				'item_id'     => 'wpac-agreement-' . $a->id,
 				'data'        => array(
-					array( 'name' => __( 'Version', 'wp-affiliate-captain' ), 'value' => $a->version ),
-					array( 'name' => __( 'Document hash', 'wp-affiliate-captain' ), 'value' => $a->doc_hash ),
-					array( 'name' => __( 'Result', 'wp-affiliate-captain' ), 'value' => $a->result ),
-					array( 'name' => __( 'Date', 'wp-affiliate-captain' ), 'value' => $a->created_at ),
+					array( 'name' => __( 'Version', 'affiliate-captain' ), 'value' => $a->version ),
+					array( 'name' => __( 'Document hash', 'affiliate-captain' ), 'value' => $a->doc_hash ),
+					array( 'name' => __( 'Result', 'affiliate-captain' ), 'value' => $a->result ),
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $a->created_at ),
 				),
 			);
 		}
@@ -155,7 +155,7 @@ final class Privacy {
 			}
 			$items[] = array(
 				'group_id'    => 'wpac-payout-profile',
-				'group_label' => __( 'Payout details', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Payout details', 'affiliate-captain' ),
 				'item_id'     => 'wpac-profile-' . $aff->id,
 				'data'        => $data,
 			);
@@ -169,17 +169,17 @@ final class Privacy {
 		foreach ( $rows as $r ) {
 			$items[] = array(
 				'group_id'    => 'wpac-commissions',
-				'group_label' => __( 'Commissions', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Commissions', 'affiliate-captain' ),
 				'item_id'     => 'wpac-commission-' . $r->id,
 				'data'        => array(
-					array( 'name' => __( 'Date', 'wp-affiliate-captain' ), 'value' => $r->created_at ),
-					array( 'name' => __( 'Order', 'wp-affiliate-captain' ), 'value' => $r->source . ' #' . $r->source_order_id ),
-					array( 'name' => __( 'Type', 'wp-affiliate-captain' ), 'value' => (string) $r->kind ),
-					array( 'name' => __( 'Description', 'wp-affiliate-captain' ), 'value' => (string) $r->description ),
-					array( 'name' => __( 'Commission base', 'wp-affiliate-captain' ), 'value' => Money::format( (int) $r->base_minor, $r->currency ) ),
-					array( 'name' => __( 'Amount', 'wp-affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
-					array( 'name' => __( 'Status', 'wp-affiliate-captain' ), 'value' => $r->status ),
-					array( 'name' => __( 'Held until', 'wp-affiliate-captain' ), 'value' => (string) $r->hold_until ),
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
+					array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => $r->source . ' #' . $r->source_order_id ),
+					array( 'name' => __( 'Type', 'affiliate-captain' ), 'value' => (string) $r->kind ),
+					array( 'name' => __( 'Description', 'affiliate-captain' ), 'value' => (string) $r->description ),
+					array( 'name' => __( 'Commission base', 'affiliate-captain' ), 'value' => Money::format( (int) $r->base_minor, $r->currency ) ),
+					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
+					array( 'name' => __( 'Held until', 'affiliate-captain' ), 'value' => (string) $r->hold_until ),
 				),
 			);
 		}
@@ -189,14 +189,14 @@ final class Privacy {
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$at} WHERE affiliate_id = %d ORDER BY id DESC LIMIT 5000", $aff->id ) ) as $a ) {
 			$items[] = array(
 				'group_id'    => 'wpac-attributions',
-				'group_label' => __( 'Attributed orders', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Attributed orders', 'affiliate-captain' ),
 				'item_id'     => 'wpac-attribution-' . $a->id,
 				'data'        => array(
-					array( 'name' => __( 'Date', 'wp-affiliate-captain' ), 'value' => $a->created_at ),
-					array( 'name' => __( 'Order', 'wp-affiliate-captain' ), 'value' => $a->source . ' #' . $a->source_order_id ),
-					array( 'name' => __( 'Method', 'wp-affiliate-captain' ), 'value' => (string) $a->method ),
-					array( 'name' => __( 'Campaign', 'wp-affiliate-captain' ), 'value' => (string) $a->campaign ),
-					array( 'name' => __( 'Note', 'wp-affiliate-captain' ), 'value' => isset( $a->note ) ? (string) $a->note : '' ),
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $a->created_at ),
+					array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => $a->source . ' #' . $a->source_order_id ),
+					array( 'name' => __( 'Method', 'affiliate-captain' ), 'value' => (string) $a->method ),
+					array( 'name' => __( 'Campaign', 'affiliate-captain' ), 'value' => (string) $a->campaign ),
+					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => isset( $a->note ) ? (string) $a->note : '' ),
 				),
 			);
 		}
@@ -206,34 +206,34 @@ final class Privacy {
 		if ( $visits && (int) $visits->n ) {
 			$items[] = array(
 				'group_id'    => 'wpac-visits',
-				'group_label' => __( 'Link visits (without IP address)', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Link visits (without IP address)', 'affiliate-captain' ),
 				'item_id'     => 'wpac-visits-' . $aff->id,
 				'data'        => array(
-					array( 'name' => __( 'Number of visits', 'wp-affiliate-captain' ), 'value' => (string) (int) $visits->n ),
-					array( 'name' => __( 'First visit', 'wp-affiliate-captain' ), 'value' => (string) $visits->first_at ),
-					array( 'name' => __( 'Last visit', 'wp-affiliate-captain' ), 'value' => (string) $visits->last_at ),
+					array( 'name' => __( 'Number of visits', 'affiliate-captain' ), 'value' => (string) (int) $visits->n ),
+					array( 'name' => __( 'First visit', 'affiliate-captain' ), 'value' => (string) $visits->first_at ),
+					array( 'name' => __( 'Last visit', 'affiliate-captain' ), 'value' => (string) $visits->last_at ),
 				),
 			);
 		}
 		$app = json_decode( (string) $aff->application_data, true );
 		$extra = array(
-			array( 'name' => __( 'Vanity slug', 'wp-affiliate-captain' ), 'value' => $aff->slug ),
-			array( 'name' => __( 'Last reason', 'wp-affiliate-captain' ), 'value' => (string) $aff->status_reason ),
-			array( 'name' => __( 'Welcome message on landing page', 'wp-affiliate-captain' ), 'value' => (string) $aff->landing_message ),
-			array( 'name' => __( 'Partner group', 'wp-affiliate-captain' ), 'value' => (int) $aff->group_id ? (string) ( \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id )->name : $aff->group_id ) : '—' ),
-			array( 'name' => __( 'Linked user account', 'wp-affiliate-captain' ), 'value' => (int) $aff->user_id ? '#' . (int) $aff->user_id : '—' ),
+			array( 'name' => __( 'Vanity slug', 'affiliate-captain' ), 'value' => $aff->slug ),
+			array( 'name' => __( 'Last reason', 'affiliate-captain' ), 'value' => (string) $aff->status_reason ),
+			array( 'name' => __( 'Welcome message on landing page', 'affiliate-captain' ), 'value' => (string) $aff->landing_message ),
+			array( 'name' => __( 'Partner group', 'affiliate-captain' ), 'value' => (int) $aff->group_id ? (string) ( \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id )->name : $aff->group_id ) : '—' ),
+			array( 'name' => __( 'Linked user account', 'affiliate-captain' ), 'value' => (int) $aff->user_id ? '#' . (int) $aff->user_id : '—' ),
 		);
 		$restriction = Restriction::get( (int) $aff->id );
 		if ( $restriction ) {
-			$extra[] = array( 'name' => __( 'Processing restricted since', 'wp-affiliate-captain' ), 'value' => (string) $restriction['since'] );
+			$extra[] = array( 'name' => __( 'Processing restricted since', 'affiliate-captain' ), 'value' => (string) $restriction['since'] );
 		}
 		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
 		if ( is_array( $pending ) ) {
-			$extra[] = array( 'name' => __( 'Requested new e-mail address (not confirmed)', 'wp-affiliate-captain' ), 'value' => (string) $pending['email'] );
+			$extra[] = array( 'name' => __( 'Requested new e-mail address (not confirmed)', 'affiliate-captain' ), 'value' => (string) $pending['email'] );
 		}
 		$prev = AffiliateRepository::previous_email( (int) $aff->id );
 		if ( '' !== $prev ) {
-			$extra[] = array( 'name' => __( 'Previous e-mail address (security notices for 30 days)', 'wp-affiliate-captain' ), 'value' => $prev );
+			$extra[] = array( 'name' => __( 'Previous e-mail address (security notices for 30 days)', 'affiliate-captain' ), 'value' => $prev );
 		}
 		foreach ( is_array( $app ) ? $app : array() as $field ) {
 			$extra[] = array(
@@ -243,7 +243,7 @@ final class Privacy {
 		}
 		$items[] = array(
 			'group_id'    => 'wpac-affiliate-details',
-			'group_label' => __( 'Application', 'wp-affiliate-captain' ),
+			'group_label' => __( 'Application', 'affiliate-captain' ),
 			'item_id'     => 'wpac-affiliate-details-' . $aff->id,
 			'data'        => $extra,
 		);
@@ -256,31 +256,31 @@ final class Privacy {
 		foreach ( $payouts as $p ) {
 			$items[] = array(
 				'group_id'    => 'wpac-payouts',
-				'group_label' => __( 'Payouts', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Payouts', 'affiliate-captain' ),
 				'item_id'     => 'wpac-payout-' . $p->id,
 				'data'        => array(
-					array( 'name' => _x( 'Number', 'document number', 'wp-affiliate-captain' ), 'value' => $p->number ),
-					array( 'name' => __( 'Date', 'wp-affiliate-captain' ), 'value' => $p->created_at ),
-					array( 'name' => __( 'Net amount', 'wp-affiliate-captain' ), 'value' => Money::format( (int) $p->net_minor, $p->currency ) ),
-					array( 'name' => __( 'VAT', 'wp-affiliate-captain' ), 'value' => Money::format( (int) $p->vat_minor, $p->currency ) ),
-					array( 'name' => __( 'Amount', 'wp-affiliate-captain' ), 'value' => Money::format( (int) $p->amount_minor, $p->currency ) ),
-					array( 'name' => __( 'Status', 'wp-affiliate-captain' ), 'value' => $p->status ),
-					array( 'name' => __( 'Paid on', 'wp-affiliate-captain' ), 'value' => (string) $p->paid_at ),
-					array( 'name' => __( 'Cancellation number', 'wp-affiliate-captain' ), 'value' => (string) $p->storno_number ),
-					array( 'name' => __( 'Note', 'wp-affiliate-captain' ), 'value' => (string) $p->note ),
+					array( 'name' => _x( 'Number', 'document number', 'affiliate-captain' ), 'value' => $p->number ),
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $p->created_at ),
+					array( 'name' => __( 'Net amount', 'affiliate-captain' ), 'value' => Money::format( (int) $p->net_minor, $p->currency ) ),
+					array( 'name' => __( 'VAT', 'affiliate-captain' ), 'value' => Money::format( (int) $p->vat_minor, $p->currency ) ),
+					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $p->amount_minor, $p->currency ) ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $p->status ),
+					array( 'name' => __( 'Paid on', 'affiliate-captain' ), 'value' => (string) $p->paid_at ),
+					array( 'name' => __( 'Cancellation number', 'affiliate-captain' ), 'value' => (string) $p->storno_number ),
+					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $p->note ),
 				),
 			);
 		}
 		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', (int) $aff->id ) as $r ) {
 			$items[] = array(
 				'group_id'    => 'wpac-payout-requests',
-				'group_label' => __( 'Payout requests', 'wp-affiliate-captain' ),
+				'group_label' => __( 'Payout requests', 'affiliate-captain' ),
 				'item_id'     => 'wpac-request-' . $r->id,
 				'data'        => array(
-					array( 'name' => __( 'Date', 'wp-affiliate-captain' ), 'value' => $r->created_at ),
-					array( 'name' => __( 'Amount', 'wp-affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
-					array( 'name' => __( 'Status', 'wp-affiliate-captain' ), 'value' => $r->status ),
-					array( 'name' => __( 'Note', 'wp-affiliate-captain' ), 'value' => (string) $r->note ),
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
+					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
+					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $r->note ),
 				),
 			);
 		}
@@ -318,7 +318,7 @@ final class Privacy {
 		$wpdb->update(
 			Db::table( 'affiliates' ),
 			array(
-				'name'             => __( 'Deleted partner', 'wp-affiliate-captain' ),
+				'name'             => __( 'Deleted partner', 'affiliate-captain' ),
 				'email'            => 'deleted-' . (int) $aff->id . '@invalid.invalid',
 				'website'          => '',
 				'channel'          => '',
@@ -362,11 +362,11 @@ final class Privacy {
 		if ( $open ) {
 			// Deleted automatically once everything is settled (daily cron).
 			update_option( 'wpac_erasure_pending', array_values( array_unique( array_merge( (array) get_option( 'wpac_erasure_pending', array() ), array( (int) $aff->id ) ) ) ), false );
-			$messages[] = __( 'Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled.', 'wp-affiliate-captain' );
+			$messages[] = __( 'Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled.', 'affiliate-captain' );
 		} else {
 			ProfileRepository::delete( (int) $aff->id );
 		}
-		$messages[] = __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'wp-affiliate-captain' );
+		$messages[] = __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'affiliate-captain' );
 		Audit::log( 'privacy.erased', 'affiliate', (int) $aff->id );
 
 		return array(
@@ -409,11 +409,11 @@ final class Privacy {
 			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
 			'restrict' === $type
 				/* translators: %s: partner */
-				? sprintf( __( 'Data protection: %s asks to restrict processing', 'wp-affiliate-captain' ), $aff->name )
+				? sprintf( __( 'Data protection: %s asks to restrict processing', 'affiliate-captain' ), $aff->name )
 				/* translators: %s: partner */
-				: sprintf( __( 'Data protection: %s objects to processing', 'wp-affiliate-captain' ), $aff->name ),
+				: sprintf( __( 'Data protection: %s objects to processing', 'affiliate-captain' ), $aff->name ),
 			/* translators: 1: details, 2: URL */
-			sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'wp-affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) )
+			sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) )
 		);
 		Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type ) );
 		return 'privacy_sent';
@@ -455,30 +455,30 @@ final class Privacy {
 			return;
 		}
 		$p   = array();
-		$p[] = __( 'When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details.', 'wp-affiliate-captain' );
+		$p[] = __( 'When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details.', 'affiliate-captain' );
 		$mode = Settings::get( 'cookie_mode' );
 		$cookie_days = (int) Settings::get( 'cookie_days' );
 		if ( 'consent' === $mode ) {
 			/* translators: %d: days */
-			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it.', 'An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.', $cookie_days, 'wp-affiliate-captain' ), $cookie_days );
+			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it.', 'An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		} elseif ( 'always' === $mode ) {
 			/* translators: %d: days */
-			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', $cookie_days, 'wp-affiliate-captain' ), $cookie_days );
+			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'use_wc_session' ) ) {
-			$p[] = __( 'If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.', 'wp-affiliate-captain' );
+			$p[] = __( 'If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days = (int) Settings::get( 'lifetime_days' );
 			$p[]  = $days > 0
 				/* translators: %d: days */
-				? sprintf( _n( 'After a purchase via a partner, later purchases within %d day are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', $days, 'wp-affiliate-captain' ), $days )
-				: __( 'After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'wp-affiliate-captain' );
+				? sprintf( _n( 'After a purchase via a partner, later purchases within %d day are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', $days, 'affiliate-captain' ), $days )
+				: __( 'After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'js_tracking' ) ) {
-			$p[] = __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.', 'wp-affiliate-captain' );
+			$p[] = __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.', 'affiliate-captain' );
 		}
-		$p[] = __( 'For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted.', 'wp-affiliate-captain' );
+		$p[] = __( 'For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted.', 'affiliate-captain' );
 
 		// Storage periods.
 		$years    = Retention::years();
@@ -487,41 +487,41 @@ final class Privacy {
 		$apps     = (int) Settings::get( 'application_retention_days' );
 		$audit    = (int) Settings::get( 'audit_retention_days' );
 		/* translators: %d: days */
-		$periods[] = $visits > 0 ? sprintf( _n( 'link visits (without IP address): %d day', 'link visits (without IP address): %d days', $visits, 'wp-affiliate-captain' ), $visits ) : __( 'link visits (without IP address): until deleted manually', 'wp-affiliate-captain' );
+		$periods[] = $visits > 0 ? sprintf( _n( 'link visits (without IP address): %d day', 'link visits (without IP address): %d days', $visits, 'affiliate-captain' ), $visits ) : __( 'link visits (without IP address): until deleted manually', 'affiliate-captain' );
 		if ( Settings::get( 'cookie_mode' ) !== 'off' ) {
 			/* translators: %d: days */
-			$periods[] = sprintf( _n( 'affiliate cookie: %d day', 'affiliate cookie: %d days', $cookie_days, 'wp-affiliate-captain' ), $cookie_days );
+			$periods[] = sprintf( _n( 'affiliate cookie: %d day', 'affiliate cookie: %d days', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days      = (int) Settings::get( 'lifetime_days' );
 			/* translators: %d: days */
-			$periods[] = $days > 0 ? sprintf( _n( 'customer link to the referring partner: %d day', 'customer link to the referring partner: %d days', $days, 'wp-affiliate-captain' ), $days ) : __( 'customer link to the referring partner: until the partner relationship ends', 'wp-affiliate-captain' );
+			$periods[] = $days > 0 ? sprintf( _n( 'customer link to the referring partner: %d day', 'customer link to the referring partner: %d days', $days, 'affiliate-captain' ), $days ) : __( 'customer link to the referring partner: until the partner relationship ends', 'affiliate-captain' );
 		}
 		/* translators: %d: days */
-		$periods[] = $apps > 0 ? sprintf( _n( 'rejected partner applications: %d day', 'rejected partner applications: %d days', $apps, 'wp-affiliate-captain' ), $apps ) : __( 'rejected partner applications: until deleted manually', 'wp-affiliate-captain' );
+		$periods[] = $apps > 0 ? sprintf( _n( 'rejected partner applications: %d day', 'rejected partner applications: %d days', $apps, 'affiliate-captain' ), $apps ) : __( 'rejected partner applications: until deleted manually', 'affiliate-captain' );
 		/* translators: %d: years */
-		$periods[] = $years > 0 ? sprintf( _n( 'commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)', 'commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)', $years, 'wp-affiliate-captain' ), $years ) : __( 'commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically', 'wp-affiliate-captain' );
+		$periods[] = $years > 0 ? sprintf( _n( 'commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)', 'commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)', $years, 'affiliate-captain' ), $years ) : __( 'commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically', 'affiliate-captain' );
 		/* translators: %d: days */
-		$periods[] = $audit > 0 ? sprintf( _n( 'change log of other settings and partner data: %d day', 'change log of other settings and partner data: %d days', $audit, 'wp-affiliate-captain' ), $audit ) : __( 'change log: until deleted manually', 'wp-affiliate-captain' );
-		$p[] = __( 'Storage periods:', 'wp-affiliate-captain' ) . ' ' . implode( '; ', $periods ) . '.';
+		$periods[] = $audit > 0 ? sprintf( _n( 'change log of other settings and partner data: %d day', 'change log of other settings and partner data: %d days', $audit, 'affiliate-captain' ), $audit ) : __( 'change log: until deleted manually', 'affiliate-captain' );
+		$p[] = __( 'Storage periods:', 'affiliate-captain' ) . ' ' . implode( '; ', $periods ) . '.';
 
 		// Legal bases.
-		$p[] = __( 'Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR).', 'wp-affiliate-captain' );
+		$p[] = __( 'Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR).', 'affiliate-captain' );
 
 		// Recipients.
-		$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'wp-affiliate-captain' );
+		$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'affiliate-captain' );
 		// VIES (Vies::check()): on unless switched off under Settings → Payouts ("vies_check").
 		$vies = Settings::get( 'vies_check' );
 		if ( null === $vies || $vies ) {
-			$p[] = __( 'VAT ID check: if a partner enters an EU VAT ID, it is checked with the VIES service of the European Commission (ec.europa.eu) when the payout details are saved and again periodically. The VAT ID of the partner and our own VAT ID are sent; the European Commission receives these as an independent controller (legal basis: our obligation and legitimate interest to verify the VAT ID before issuing reverse-charge credit notes, Art. 6(1)(c) and (f) GDPR). The result and the consultation number are stored with the payout details.', 'wp-affiliate-captain' );
+			$p[] = __( 'VAT ID check: if a partner enters an EU VAT ID, it is checked with the VIES service of the European Commission (ec.europa.eu) when the payout details are saved and again periodically. The VAT ID of the partner and our own VAT ID are sent; the European Commission receives these as an independent controller (legal basis: our obligation and legitimate interest to verify the VAT ID before issuing reverse-charge credit notes, Art. 6(1)(c) and (f) GDPR). The result and the consultation number are stored with the payout details.', 'affiliate-captain' );
 		}
-		$p[] = __( 'Partners can ask for a copy of their data, its correction, erasure or restriction of processing, and can object to processing based on legitimate interest. Records we must keep by law are restricted instead of deleted until the retention period ends.', 'wp-affiliate-captain' );
+		$p[] = __( 'Partners can ask for a copy of their data, its correction, erasure or restriction of processing, and can object to processing based on legitimate interest. Records we must keep by law are restricted instead of deleted until the retention period ends.', 'affiliate-captain' );
 		$html = '';
 		foreach ( $p as $para ) {
 			$html .= '<p>' . esc_html( $para ) . '</p>';
 		}
-		$html .= '<p><em>' . esc_html__( 'This text is a suggestion based on your current settings and must be reviewed by your data protection advisor.', 'wp-affiliate-captain' ) . '</em></p>';
-		wp_add_privacy_policy_content( 'WP Affiliate Captain', wp_kses_post( $html ) );
+		$html .= '<p><em>' . esc_html__( 'This text is a suggestion based on your current settings and must be reviewed by your data protection advisor.', 'affiliate-captain' ) . '</em></p>';
+		wp_add_privacy_policy_content( 'Affiliate Captain', wp_kses_post( $html ) );
 	}
 
 	/**
@@ -641,7 +641,7 @@ final class Privacy {
 		$wpdb->update(
 			Db::table( 'affiliates' ),
 			array(
-				'name'             => __( 'Deleted applicant', 'wp-affiliate-captain' ),
+				'name'             => __( 'Deleted applicant', 'affiliate-captain' ),
 				'email'            => 'deleted-' . (int) $aff->id . '@invalid.invalid',
 				'website'          => '',
 				'channel'          => '',

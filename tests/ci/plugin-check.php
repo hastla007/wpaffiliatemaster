@@ -4,7 +4,7 @@
  * prints a summary, lists warnings, and fails on every ERROR that is not in
  * tests/ci/plugin-check-ignore.txt.
  *
- *   wp plugin check wp-affiliate-captain --format=json > pcp.json
+ *   wp plugin check affiliate-captain --format=json > pcp.json
  *   php tests/ci/plugin-check.php pcp.json
  *
  * @package WPAffiliateCaptain

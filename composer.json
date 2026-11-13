@@ -1,6 +1,6 @@
 {
     "name": "hastla007/wp-affiliate-captain",
-    "description": "WP Affiliate Captain – partner program, attribution, commissions and payouts for WordPress.",
+    "description": "Affiliate Captain – partner program, attribution, commissions and payouts for WordPress.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require": {

@@ -45,11 +45,11 @@ final class AffiliatesTable extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'         => '<input type="checkbox">',
-			'name'       => __( 'Partner', 'wp-affiliate-captain' ),
-			'website'    => __( 'Website / channel', 'wp-affiliate-captain' ),
-			'group'      => __( 'Group', 'wp-affiliate-captain' ),
-			'status'     => __( 'Status', 'wp-affiliate-captain' ),
-			'created_at' => __( 'Since', 'wp-affiliate-captain' ),
+			'name'       => __( 'Partner', 'affiliate-captain' ),
+			'website'    => __( 'Website / channel', 'affiliate-captain' ),
+			'group'      => __( 'Group', 'affiliate-captain' ),
+			'status'     => __( 'Status', 'affiliate-captain' ),
+			'created_at' => __( 'Since', 'affiliate-captain' ),
 		);
 	}
 
@@ -72,7 +72,7 @@ final class AffiliatesTable extends \WP_List_Table {
 	 * @return array
 	 */
 	protected function get_bulk_actions() {
-		return array( 'approve' => __( 'Approve applications', 'wp-affiliate-captain' ) );
+		return array( 'approve' => __( 'Approve applications', 'affiliate-captain' ) );
 	}
 
 	/**
@@ -84,7 +84,7 @@ final class AffiliatesTable extends \WP_List_Table {
 		$counts  = AffiliateRepository::count_by_status();
 		$current = Admin::get( 'status' );
 		$views   = array(
-			'all' => sprintf( '<a href="%s"%s>%s <span class="count">(%d)</span></a>', esc_url( Admin::url( 'wpac-affiliates' ) ), '' === $current ? ' class="current" aria-current="page"' : '', esc_html__( 'All', 'wp-affiliate-captain' ), (int) array_sum( $counts ) ),
+			'all' => sprintf( '<a href="%s"%s>%s <span class="count">(%d)</span></a>', esc_url( Admin::url( 'wpac-affiliates' ) ), '' === $current ? ' class="current" aria-current="page"' : '', esc_html__( 'All', 'affiliate-captain' ), (int) array_sum( $counts ) ),
 		);
 		foreach ( $this->labels as $key => $label ) {
 			$views[ $key ] = sprintf( '<a href="%s"%s>%s <span class="count">(%d)</span></a>', esc_url( Admin::url( 'wpac-affiliates', array( 'status' => $key ) ) ), $current === $key ? ' class="current" aria-current="page"' : '', esc_html( $label ), (int) $counts[ $key ] );
@@ -121,7 +121,7 @@ final class AffiliatesTable extends \WP_List_Table {
 	 * Empty state.
 	 */
 	public function no_items() {
-		esc_html_e( 'No partners found.', 'wp-affiliate-captain' );
+		esc_html_e( 'No partners found.', 'affiliate-captain' );
 	}
 
 	/**
@@ -132,7 +132,7 @@ final class AffiliatesTable extends \WP_List_Table {
 	 */
 	protected function column_cb( $item ) {
 		/* translators: %s: partner name */
-		return sprintf( '<label class="screen-reader-text" for="wpac-cb-%1$d">%2$s</label><input type="checkbox" id="wpac-cb-%1$d" name="ids[]" value="%1$d">', (int) $item->id, esc_html( sprintf( __( 'Select %s', 'wp-affiliate-captain' ), $item->name ) ) );
+		return sprintf( '<label class="screen-reader-text" for="wpac-cb-%1$d">%2$s</label><input type="checkbox" id="wpac-cb-%1$d" name="ids[]" value="%1$d">', (int) $item->id, esc_html( sprintf( __( 'Select %s', 'affiliate-captain' ), $item->name ) ) );
 	}
 
 	/**
@@ -144,8 +144,8 @@ final class AffiliatesTable extends \WP_List_Table {
 	protected function column_name( $item ) {
 		$edit    = Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $item->id ) );
 		$actions = array(
-			'edit'        => '<a href="' . esc_url( $edit ) . '">' . esc_html__( 'Edit', 'wp-affiliate-captain' ) . '</a>',
-			'commissions' => '<a href="' . esc_url( Admin::url( 'wpac-commissions', array( 'affiliate_id' => $item->id ) ) ) . '">' . esc_html__( 'Commissions', 'wp-affiliate-captain' ) . '</a>',
+			'edit'        => '<a href="' . esc_url( $edit ) . '">' . esc_html__( 'Edit', 'affiliate-captain' ) . '</a>',
+			'commissions' => '<a href="' . esc_url( Admin::url( 'wpac-commissions', array( 'affiliate_id' => $item->id ) ) ) . '">' . esc_html__( 'Commissions', 'affiliate-captain' ) . '</a>',
 		);
 		return '<strong><a class="row-title" href="' . esc_url( $edit ) . '">' . esc_html( $item->name ? $item->name : '#' . $item->id ) . '</a></strong><br><span class="description">' . esc_html( $item->email ) . '</span>' . $this->row_actions( $actions );
 	}

@@ -6,7 +6,7 @@
  * The plugin folder is removed on uninstall, so: upload the plugin again (do NOT activate it),
  * then run
  *
- *     wp eval-file wp-content/plugins/wp-affiliate-captain/tools/purge-retained.php
+ *     wp eval-file wp-content/plugins/affiliate-captain/tools/purge-retained.php
  *
  * and delete the plugin again. It runs the normal uninstall, which deletes everything that is
  * past the retention period and keeps the rest (the run can be repeated later).
@@ -21,9 +21,9 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 if ( ! function_exists( 'is_plugin_active' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/plugin.php';
 }
-$wpac_plugin = 'wp-affiliate-captain/wp-affiliate-captain.php';
+$wpac_plugin = 'affiliate-captain/affiliate-captain.php';
 if ( is_plugin_active( $wpac_plugin ) || ( is_multisite() && is_plugin_active_for_network( $wpac_plugin ) ) ) {
-	WP_CLI::error( 'WP Affiliate Captain is active: its data is in use. Nothing was deleted.' );
+	WP_CLI::error( 'Affiliate Captain is active: its data is in use. Nothing was deleted.' );
 }
 $wpac_before = get_option( 'wpac_retained_after_uninstall' );
 if ( ! $wpac_before ) {

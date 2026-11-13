@@ -53,10 +53,10 @@ function broken( $body ) {
 }
 
 global $wp_version, $wpdb;
-echo 'WordPress ' . $wp_version . ', WooCommerce ' . ( defined( 'WC_VERSION' ) ? WC_VERSION : '-' ) . ', PHP ' . PHP_VERSION . ', WP Affiliate Captain ' . ( defined( 'WPAC_VERSION' ) ? WPAC_VERSION : '-' ) . "\n";
+echo 'WordPress ' . $wp_version . ', WooCommerce ' . ( defined( 'WC_VERSION' ) ? WC_VERSION : '-' ) . ', PHP ' . PHP_VERSION . ', Affiliate Captain ' . ( defined( 'WPAC_VERSION' ) ? WPAC_VERSION : '-' ) . "\n";
 
 echo "1. Activation\n";
-chk( 'plugin active', class_exists( 'WPAffiliateCaptain\\Plugin' ) && is_plugin_active_for_smoke( 'wp-affiliate-captain/wp-affiliate-captain.php' ) );
+chk( 'plugin active', class_exists( 'WPAffiliateCaptain\\Plugin' ) && is_plugin_active_for_smoke( 'affiliate-captain/affiliate-captain.php' ) );
 chk( 'database schema current and complete', (int) get_option( WPAffiliateCaptain\Core\Installer::DB_OPTION ) === WPAC_DB_VERSION && array() === WPAffiliateCaptain\Core\Installer::verify_schema(), json_encode( WPAffiliateCaptain\Core\Installer::verify_schema() ) );
 chk( 'capabilities granted to administrators', current_user_can( WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) );
 chk( 'scheduled tasks registered', (bool) wp_next_scheduled( WPAffiliateCaptain\Core\Cron::HOURLY ) && (bool) wp_next_scheduled( WPAffiliateCaptain\Core\Cron::DAILY ) );
@@ -148,7 +148,7 @@ if ( is_readable( $log ) ) {
 	clearstatcache();
 	$new = (string) file_get_contents( $log, false, null, $log_start );
 	foreach ( explode( "\n", $new ) as $line ) {
-		if ( preg_match( '/PHP (Fatal error|Warning|Parse error)/', $line ) && ( false !== strpos( $line, $own ) || false !== strpos( $line, 'plugins/wp-affiliate-captain/' ) ) ) {
+		if ( preg_match( '/PHP (Fatal error|Warning|Parse error)/', $line ) && ( false !== strpos( $line, $own ) || false !== strpos( $line, 'plugins/affiliate-captain/' ) ) ) {
 			$problems[] = trim( $line );
 		}
 	}

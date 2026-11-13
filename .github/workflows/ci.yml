@@ -328,12 +328,12 @@ jobs:
           wp core download --path="$RUNNER_TEMP/wp"
           wp config create --path="$RUNNER_TEMP/wp" --dbname=wpac_pcp --dbuser=root --dbpass=root --dbhost=127.0.0.1 --skip-check
           wp core install --path="$RUNNER_TEMP/wp" --url=http://127.0.0.1:8090 --title=PCP --admin_user=admin --admin_password=admin-pass-123 --admin_email=admin@example.test --skip-email
-          unzip -q dist/wp-affiliate-captain-*.zip -d "$RUNNER_TEMP/wp/wp-content/plugins"
+          unzip -q dist/affiliate-captain-*.zip -d "$RUNNER_TEMP/wp/wp-content/plugins"
           wp plugin install plugin-check --activate --path="$RUNNER_TEMP/wp"
-          wp plugin activate wp-affiliate-captain --path="$RUNNER_TEMP/wp"
+          wp plugin activate affiliate-captain --path="$RUNNER_TEMP/wp"
       - name: Plugin Check
         run: |
-          wp plugin check wp-affiliate-captain --format=json --path="$RUNNER_TEMP/wp" > "$RUNNER_TEMP/plugin-check.json"
+          wp plugin check affiliate-captain --format=json --path="$RUNNER_TEMP/wp" > "$RUNNER_TEMP/plugin-check.json"
           php tests/ci/plugin-check.php "$RUNNER_TEMP/plugin-check.json" | tee -a "$GITHUB_STEP_SUMMARY"
 
   multisite:
@@ -393,7 +393,10 @@ jobs:
           php tests/ci/upgrade-check.php "$RUNNER_TEMP/wp" 127.0.0.1:8088 "$RUNNER_TEMP/before.json"
       - name: Switch to this version and migrate
         run: |
-          ln -sfn "$GITHUB_WORKSPACE" "$RUNNER_TEMP/wp/wp-content/plugins/wp-affiliate-captain"
+          # Up to 0.10 the plugin folder was "wp-affiliate-captain"; the new copy is installed
+          # next to it and takes over (the old copy is deactivated, data stays).
+          ln -sfn "$GITHUB_WORKSPACE" "$RUNNER_TEMP/wp/wp-content/plugins/affiliate-captain"
+          php tests/ci/switch-plugin.php "$RUNNER_TEMP/wp" 127.0.0.1:8088
           php tests/ci/upgrade-check.php "$RUNNER_TEMP/wp" 127.0.0.1:8088 "$RUNNER_TEMP/before.json"
 
   release:
@@ -427,7 +430,7 @@ jobs:
           bin/build-zip.sh "$expected"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: wp-affiliate-captain
+          name: affiliate-captain
           path: dist/*.zip
 
   # Only this job gets write access, and only for tags and main (never for branches or PRs).
@@ -454,7 +457,7 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             tag="$GITHUB_REF_NAME"
           elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
-            v="$(sed -n 's/^ \* Version: *\([0-9A-Za-z.\-]*\).*/\1/p' wp-affiliate-captain.php)"
+            v="$(sed -n 's/^ \* Version: *\([0-9A-Za-z.\-]*\).*/\1/p' affiliate-captain.php)"
             if gh release view "v$v" >/dev/null 2>&1; then echo "Release v$v exists"; else tag="v$v"; fi
           fi
           if [ -n "$tag" ]; then
@@ -465,7 +468,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         if: steps.rel.outputs.tag != ''
         with:
-          name: wp-affiliate-captain
+          name: affiliate-captain
           path: dist
       - name: GitHub release
         if: steps.rel.outputs.tag != ''
@@ -473,8 +476,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.rel.outputs.tag }}
         run: |
-          zip="dist/wp-affiliate-captain-${TAG#v}.zip"
+          zip="dist/affiliate-captain-${TAG#v}.zip"
           [ -f "$zip" ] || { echo "Tested ZIP $zip not found (version mismatch)"; ls dist; exit 1; }
           sha256sum "$zip"
           notes="$(awk -v v="${TAG#v}" '$0 ~ "^= " v " " {on=1; next} on && /^= / {exit} on' readme.txt)"
-          gh release create "$TAG" "$zip" --target "$GITHUB_SHA" --title "WP Affiliate Captain ${TAG#v}" --notes "${notes:-Siehe readme.txt}"
+          gh release create "$TAG" "$zip" --target "$GITHUB_SHA" --title "Affiliate Captain ${TAG#v}" --notes "${notes:-Siehe readme.txt}"

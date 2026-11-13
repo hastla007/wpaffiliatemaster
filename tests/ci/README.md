@@ -14,7 +14,7 @@ WPAC_DB_USER=root WPAC_DB_PASSWORD=root tests/ci/install-wp.sh /tmp/wp --sibling
 ```
 
 ```bash
-cd /tmp/wp && php -S 127.0.0.1:8088 -t . /pfad/zu/wp-affiliate-captain/tests/ci/router.php
+cd /tmp/wp && php -S 127.0.0.1:8088 -t . /pfad/zu/affiliate-captain/tests/ci/router.php
 ```
 
 ## Smoke-Test und Mindestversionen
@@ -30,4 +30,4 @@ Der CI-Job „Minimum versions“ führt das mit WordPress 6.3, WooCommerce 8.0.
 
 ## Plugin Check
 
-Der CI-Job „Plugin Check“ installiert das gebaute ZIP und das offizielle Plugin `plugin-check` und wertet `wp plugin check wp-affiliate-captain --format=json` mit `plugin-check.php` aus: Fehler (`ERROR`) brechen ab, außer sie stehen mit Begründung in `plugin-check-ignore.txt`; Warnungen werden nur gezählt.
+Der CI-Job „Plugin Check“ installiert das gebaute ZIP und das offizielle Plugin `plugin-check` und wertet `wp plugin check affiliate-captain --format=json` mit `plugin-check.php` aus: Fehler (`ERROR`) brechen ab, außer sie stehen mit Begründung in `plugin-check-ignore.txt`; Warnungen werden nur gezählt.

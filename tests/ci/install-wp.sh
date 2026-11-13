@@ -22,7 +22,10 @@ if [ ! -d "$WP_DIR/wp-content/plugins/woocommerce" ]; then
   curl -fsSL -o /tmp/woocommerce.zip "https://downloads.wordpress.org/plugin/woocommerce.${WC_VERSION:-latest-stable}.zip"
   unzip -q /tmp/woocommerce.zip -d "$WP_DIR/wp-content/plugins"
 fi
-ln -sfn "$PLUGIN_SRC" "$WP_DIR/wp-content/plugins/wp-affiliate-captain"
+# Folder = slug: "affiliate-captain" since 0.11, "wp-affiliate-captain" for older releases (upgrade test).
+SLUG="affiliate-captain"
+if [ ! -f "$PLUGIN_SRC/affiliate-captain.php" ] && [ -f "$PLUGIN_SRC/wp-affiliate-captain.php" ]; then SLUG="wp-affiliate-captain"; fi
+ln -sfn "$PLUGIN_SRC" "$WP_DIR/wp-content/plugins/$SLUG"
 if [ -n "$SIBLINGS" ]; then
   ln -sfn "$SIBLINGS/wp-couponmaster" "$WP_DIR/wp-content/plugins/voucher-captain"
   ln -sfn "$SIBLINGS/wp-passmaster" "$WP_DIR/wp-content/plugins/wp-pass-captain"

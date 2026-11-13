@@ -57,14 +57,14 @@ final class ProgramExport {
 	 */
 	public static function write( $zip_path, $include_tax_data = false ) {
 		if ( ! self::available() ) {
-			return new \WP_Error( 'wpac_export_zip', __( 'The program export needs the PHP extension "zip". Ask your hosting provider to enable it, or use the CSV exports of the individual lists.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_export_zip', __( 'The program export needs the PHP extension "zip". Ask your hosting provider to enable it, or use the CSV exports of the individual lists.', 'affiliate-captain' ) );
 		}
 		if ( ! function_exists( 'wp_tempnam' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 		}
 		$zip = new \ZipArchive();
 		if ( true !== $zip->open( $zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE ) ) {
-			return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'affiliate-captain' ) );
 		}
 		$counts = array();
 		$temps  = array();
@@ -76,7 +76,7 @@ final class ProgramExport {
 			$tmp = wp_tempnam( 'wpac-export-' . $table );
 			if ( ! $tmp ) {
 				$zip->close();
-				return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'wp-affiliate-captain' ) );
+				return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'affiliate-captain' ) );
 			}
 			$temps[]         = $tmp;
 			$counts[ $file ] = self::write_table( $table, $tmp, $include_tax_data );
@@ -88,7 +88,7 @@ final class ProgramExport {
 			wp_delete_file( $tmp );
 		}
 		if ( ! $ok ) {
-			return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'affiliate-captain' ) );
 		}
 		Audit::log(
 			'program.exported',
@@ -177,7 +177,7 @@ final class ProgramExport {
 	 */
 	private static function readme( $include_tax_data ) {
 		$lines   = array();
-		$lines[] = 'WP Affiliate Captain ' . WPAC_VERSION . ' – program export ' . gmdate( 'Y-m-d H:i' ) . ' UTC (' . home_url( '/' ) . ')';
+		$lines[] = 'Affiliate Captain ' . WPAC_VERSION . ' – program export ' . gmdate( 'Y-m-d H:i' ) . ' UTC (' . home_url( '/' ) . ')';
 		$lines[] = '';
 		$lines[] = 'CSV files: UTF-8 with BOM, separator ";". Amounts are in minor units (cents) in the columns *_minor; dates are UTC.';
 		$lines[] = 'Cells that start with = + - @ are prefixed with an apostrophe (protection against spreadsheet formulas).';

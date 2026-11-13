@@ -6,7 +6,7 @@
 	"category": "widgets",
 	"icon": "groups",
 	"description": "Application form for your partner program.",
-	"textdomain": "wp-affiliate-captain",
+	"textdomain": "affiliate-captain",
 	"attributes": {
 		"group": {
 			"type": "number",

@@ -1,12 +1,14 @@
 # Free/Premium und WordPress.org – Entscheidungsvorlage
 
-> **Entscheidung des Inhabers erforderlich.** Dieses Dokument beschreibt Rahmenbedingungen, Optionen und eine Empfehlung. Im Code ist bewusst **keine** Lizenzprüfung umgesetzt (Befund K5, Runde 4). Bis zur Entscheidung bleiben die Lizenz-PRs #9–#12 ungemergt.
+> **Entschieden (2026-11-13): Option A** – das Kernplugin bleibt vollständig kostenlos und kommt auf WordPress.org; Premium wird ein eigenes Add-on-Plugin außerhalb von WordPress.org. Name und Slug: **„Affiliate Captain“ / `affiliate-captain`** (umgesetzt in 0.11.0, siehe 6.). Die Erweiterungspunkte für Add-ons stehen in `docs/CONTRACT.md` („Add-ons“).
+>
+> Umgesetzt im Kernplugin: keine Lizenzprüfung, keine gesperrten Funktionen, Hooks `wpac_admin_menu`, `wpac_portal_tabs`, `wpac_portal_tab_{key}`. **Noch offen (Inhaber/Lizenz-Team):** Repository für das Add-on anlegen, PRs #9–#12 dorthin übertragen und in diesem Repository schließen.
 >
 > Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 
 ## 1. Ausgangslage
 
-- WP Affiliate Captain 0.10.0 ist vollständig funktionsfähig und GPL-2.0-or-later lizenziert; alle Funktionen sind ohne Lizenz nutzbar.
+- Affiliate Captain 0.10.0 ist vollständig funktionsfähig und GPL-2.0-or-later lizenziert; alle Funktionen sind ohne Lizenz nutzbar.
 - Offene PRs bauen eine Lizenzierung direkt **in dieses Plugin** ein:
   - #9 „Add WP License Captain activation for Affiliate Captain“ (Aktivierung/Lizenzschlüssel),
   - #10 „Phase 17: Licensed premium updates with checksum verification“ (eigener Updater),
@@ -75,8 +77,8 @@ Nächste Schritte nach der Entscheidung für A/C:
 
 ## 6. Name und Slug („WP“-Präfix, Befund O21)
 
-- Die Marken-Richtlinie von WordPress.org (Richtlinie 17 und die Liste geschützter Begriffe) erlaubt „WordPress“ gar nicht und **„WP“ nicht im Plugin-Namen bzw. am Anfang des Slugs**; das offizielle Plugin Check meldet für „WP Affiliate Captain“ / `wp-affiliate-captain` die Warnung `trademarked_term` (siehe CI-Job „Plugin Check“). Das Review-Team weist solche Einreichungen zurück oder vergibt einen anderen Slug.
+- Die Marken-Richtlinie von WordPress.org (Richtlinie 17 und die Liste geschützter Begriffe) erlaubt „WordPress“ gar nicht und **„WP“ nicht im Plugin-Namen bzw. am Anfang des Slugs**; das offizielle Plugin Check meldet für „Affiliate Captain“ / `wp-affiliate-captain` die Warnung `trademarked_term` (siehe CI-Job „Plugin Check“). Das Review-Team weist solche Einreichungen zurück oder vergibt einen anderen Slug.
 - Vorschlag: Anzeigename **„Affiliate Captain – Partner Program & Commissions“**, Slug **`affiliate-captain`** (vor der Einreichung auf Verfügbarkeit prüfen; der Slug ist nach der Freigabe nicht mehr änderbar).
 - Ein neuer Slug betrifft: Plugin-Ordner und Hauptdatei, Textdomain (`wp-affiliate-captain` → neuer Slug; alle `__()`-Aufrufe, `bin/i18n.py`, Dateinamen in `languages/`), `phpcs.xml.dist` (`text_domain`), Plugin-Pfad in `uninstall.php`/`tools/purge-retained.php`/Tests, Pass/Voucher-Captain-Abhängigkeiten, die den Pfad `wp-affiliate-captain/wp-affiliate-captain.php` prüfen. **Interne Präfixe (`wpac_`, Tabellen, Optionen, Hooks, REST-Namespace `wpac/v1`) bleiben unverändert** – keine Datenmigration nötig.
 - Bestehende Installationen (GitHub-ZIP) wechseln nicht automatisch auf den neuen Ordner: Hinweis im Changelog „Plugin löschen (Daten bleiben, wenn ‚Alle Daten löschen‘ aus ist) und aus dem Verzeichnis neu installieren“.
-- Entscheidung des Inhabers: Name/Slug festlegen, **bevor** die Textdomain umgestellt wird (ein Commit, nach den laufenden Übersetzungsänderungen).
+- **Umgesetzt (0.11.0):** Name „Affiliate Captain“, Ordner/Hauptdatei `affiliate-captain/affiliate-captain.php`, Textdomain `affiliate-captain`. Eine noch aktive alte Kopie (`wp-affiliate-captain`) wird beim ersten Aufruf der neuen deaktiviert; ihr Löschen entfernt keine Daten (die neue Kopie schützt die gemeinsamen Daten). Interne Kennungen (Präfix `wpac_`, Tabellen, Optionen, Hooks, Blocknamen, REST `wpac/v1`, Action-Scheduler-Gruppe) bleiben gleich. Verfügbarkeit des Slugs bei WordPress.org vor der Einreichung prüfen.

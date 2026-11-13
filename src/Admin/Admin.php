@@ -36,19 +36,25 @@ final class Admin {
 	}
 
 	public static function menu() {
-		add_menu_page( __( 'Affiliate Captain', 'wp-affiliate-captain' ), __( 'Affiliate Captain', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ), 'dashicons-groups', 56 );
-		add_submenu_page( 'wpac', __( 'Dashboard', 'wp-affiliate-captain' ), __( 'Dashboard', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ) );
-		$partners = add_submenu_page( 'wpac', __( 'Partners', 'wp-affiliate-captain' ), __( 'Partners', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-affiliates', array( AffiliatesPage::class, 'render' ) );
-		$ledger   = add_submenu_page( 'wpac', __( 'Commissions', 'wp-affiliate-captain' ), __( 'Commissions', 'wp-affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
+		add_menu_page( __( 'Affiliate Captain', 'affiliate-captain' ), __( 'Affiliate Captain', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ), 'dashicons-groups', 56 );
+		add_submenu_page( 'wpac', __( 'Dashboard', 'affiliate-captain' ), __( 'Dashboard', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ) );
+		$partners = add_submenu_page( 'wpac', __( 'Partners', 'affiliate-captain' ), __( 'Partners', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-affiliates', array( AffiliatesPage::class, 'render' ) );
+		$ledger   = add_submenu_page( 'wpac', __( 'Commissions', 'affiliate-captain' ), __( 'Commissions', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
 		// List table bulk actions are processed before any output (then redirected).
 		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
 		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
-		add_submenu_page( 'wpac', __( 'Payouts', 'wp-affiliate-captain' ), __( 'Payouts', 'wp-affiliate-captain' ), Capabilities::MANAGE_PAYOUTS, 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Creatives', 'wp-affiliate-captain' ), __( 'Creatives', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Rules & groups', 'wp-affiliate-captain' ), __( 'Rules & groups', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Integrations', 'wp-affiliate-captain' ), __( 'Integrations', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Audit log', 'wp-affiliate-captain' ), __( 'Audit log', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Settings', 'wp-affiliate-captain' ), __( 'Settings', 'wp-affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
+		add_submenu_page( 'wpac', __( 'Payouts', 'affiliate-captain' ), __( 'Payouts', 'affiliate-captain' ), Capabilities::MANAGE_PAYOUTS, 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
+		add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
+		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
+		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
+		add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
+		add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
+		/**
+		 * Add-ons add their own pages below the plugin menu (parent slug "wpac").
+		 *
+		 * @param string $parent Parent menu slug.
+		 */
+		do_action( 'wpac_admin_menu', 'wpac' );
 	}
 
 	/**
@@ -70,7 +76,7 @@ final class Admin {
 	 * @return array
 	 */
 	public static function action_links( $links ) {
-		array_unshift( $links, '<a href="' . esc_url( self::url( 'wpac-settings' ) ) . '">' . esc_html__( 'Settings', 'wp-affiliate-captain' ) . '</a>' );
+		array_unshift( $links, '<a href="' . esc_url( self::url( 'wpac-settings' ) ) . '">' . esc_html__( 'Settings', 'affiliate-captain' ) . '</a>' );
 		return $links;
 	}
 
@@ -84,27 +90,27 @@ final class Admin {
 		}
 		$schema = get_option( 'wpac_schema_problems' );
 		if ( is_array( $schema ) && $schema ) {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load.', 'wp-affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $schema, 0, 10 ) ) ) . '</li></ul></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load.', 'affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $schema, 0, 10 ) ) ) . '</li></ul></div>';
 		}
 		if ( \WPAffiliateCaptain\Core\Settings::get( 'maintenance_mode' ) ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded.', 'wp-affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ) ) . '">' . esc_html__( 'Settings', 'wp-affiliate-captain' ) . '</a></p></div>';
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded.', 'affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ) ) . '">' . esc_html__( 'Settings', 'affiliate-captain' ) . '</a></p></div>';
 		}
 		$warnings = get_option( 'wpac_schema_warnings' );
 		if ( is_array( $warnings ) && $warnings ) {
 			$state = md5( wp_json_encode( $warnings ) );
 			if ( ! self::notice_hidden( 'engine', $state ) ) {
-				echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Affiliate Captain: some database tables use an outdated storage engine.', 'wp-affiliate-captain' ) . '</strong> ' . esc_html__( 'Without the InnoDB engine, a booking that stops halfway (e.g. a timeout) cannot be undone, so commissions and partner balances can get out of step. Your host can convert the tables in a few minutes – send them this message and the list below (technically: ALTER TABLE … ENGINE=InnoDB).', 'wp-affiliate-captain' ) . self::hide_link( 'engine', $state ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $warnings, 0, 10 ) ) ) . '</li></ul></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hide_link() is escaped.
+				echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Affiliate Captain: some database tables use an outdated storage engine.', 'affiliate-captain' ) . '</strong> ' . esc_html__( 'Without the InnoDB engine, a booking that stops halfway (e.g. a timeout) cannot be undone, so commissions and partner balances can get out of step. Your host can convert the tables in a few minutes – send them this message and the list below (technically: ALTER TABLE … ENGINE=InnoDB).', 'affiliate-captain' ) . self::hide_link( 'engine', $state ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $warnings, 0, 10 ) ) ) . '</li></ul></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hide_link() is escaped.
 			}
 		}
 		$balance = get_option( 'wpac_balance_problems' );
 		if ( is_array( $balance ) && ! empty( $balance['accounts'] ) ) {
 			/* translators: 1: number, 2: accounts */
-			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'Affiliate Captain: %1$d partner accounts do not match their bookings (%2$s). Please check them before the next payout.', 'wp-affiliate-captain' ), count( $balance['accounts'] ), implode( ', ', array_slice( $balance['accounts'], 0, 10 ) ) ) ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'Affiliate Captain: %1$d partner accounts do not match their bookings (%2$s). Please check them before the next payout.', 'affiliate-captain' ), count( $balance['accounts'] ), implode( ', ', array_slice( $balance['accounts'], 0, 10 ) ) ) ) . '</p></div>';
 		}
 		$stmt = \WPAffiliateCaptain\Payouts\Statement::waiting();
 		if ( $stmt ) {
 			/* translators: %d: number */
-			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( _n( 'Affiliate Captain: %d credit note could not be written (statement folder not writable?). It is tried again with increasing pauses.', 'Affiliate Captain: %d credit notes could not be written (statement folder not writable?). They are tried again with increasing pauses.', count( $stmt ), 'wp-affiliate-captain' ), count( $stmt ) ) ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( _n( 'Affiliate Captain: %d credit note could not be written (statement folder not writable?). It is tried again with increasing pauses.', 'Affiliate Captain: %d credit notes could not be written (statement folder not writable?). They are tried again with increasing pauses.', count( $stmt ), 'affiliate-captain' ), count( $stmt ) ) ) . '</p></div>';
 		}
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 		if ( $screen && false !== strpos( (string) $screen->id, 'wpac' ) && current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
@@ -119,11 +125,11 @@ final class Admin {
 		if ( self::notice_hidden( 'cron', $state ) ) {
 			return;
 		}
-		echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Affiliate Captain: the scheduled tasks have not run for more than two hours.', 'wp-affiliate-captain' ) . '</strong> ' . esc_html__( 'Until they run again, commissions are not released after the hold period, failed sales are not retried and report mails are not sent.', 'wp-affiliate-captain' ) . ' ';
+		echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Affiliate Captain: the scheduled tasks have not run for more than two hours.', 'affiliate-captain' ) . '</strong> ' . esc_html__( 'Until they run again, commissions are not released after the hold period, failed sales are not retried and report mails are not sent.', 'affiliate-captain' ) . ' ';
 		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
-			echo esc_html__( 'WordPress\' own scheduler (WP-Cron) is switched off on this site (DISABLE_WP_CRON), so your server must start it: ask your host to set up a "cron job" that runs "wp cron event run --due-now" every 5 minutes.', 'wp-affiliate-captain' );
+			echo esc_html__( 'WordPress\' own scheduler (WP-Cron) is switched off on this site (DISABLE_WP_CRON), so your server must start it: ask your host to set up a "cron job" that runs "wp cron event run --due-now" every 5 minutes.', 'affiliate-captain' );
 		} else {
-			echo esc_html__( 'WordPress starts scheduled tasks only when someone visits the site; with few visits or when the server blocks requests to itself, they stall. Ask your host to set up a "cron job" that runs "wp cron event run --due-now" every 5 minutes.', 'wp-affiliate-captain' );
+			echo esc_html__( 'WordPress starts scheduled tasks only when someone visits the site; with few visits or when the server blocks requests to itself, they stall. Ask your host to set up a "cron job" that runs "wp cron event run --due-now" every 5 minutes.', 'affiliate-captain' );
 		}
 		echo self::hide_link( 'cron', $state ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in hide_link().
 	}
@@ -153,21 +159,21 @@ final class Admin {
 	public static function blocked_fix( $affiliate_id, $code ) {
 		switch ( $code ) {
 			case 'maintenance':
-				return array( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ), __( 'Switch off maintenance mode', 'wp-affiliate-captain' ) );
+				return array( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ), __( 'Switch off maintenance mode', 'affiliate-captain' ) );
 			case 'operator':
 			case 'operator_vat_id':
-				return array( self::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), __( 'Complete your details in the payout settings', 'wp-affiliate-captain' ) );
+				return array( self::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), __( 'Complete your details in the payout settings', 'affiliate-captain' ) );
 			case 'terms_page':
-				return array( self::url( 'wpac-settings', array( 'tab' => 'program' ) ), __( 'Choose the terms page', 'wp-affiliate-captain' ) );
+				return array( self::url( 'wpac-settings', array( 'tab' => 'program' ) ), __( 'Choose the terms page', 'affiliate-captain' ) );
 			case 'no_rate':
-				return array( self::url( 'wpac-settings', array( 'tab' => 'commissions' ) ), __( 'Add an exchange rate', 'wp-affiliate-captain' ) );
+				return array( self::url( 'wpac-settings', array( 'tab' => 'commissions' ) ), __( 'Add an exchange rate', 'affiliate-captain' ) );
 			case 'profile':
 			case 'vies':
-				return array( self::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $affiliate_id, 'tab' => 'payout' ) ), __( 'Open the payout details', 'wp-affiliate-captain' ) );
+				return array( self::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $affiliate_id, 'tab' => 'payout' ) ), __( 'Open the payout details', 'affiliate-captain' ) );
 			case 'terms':
-				return array( self::url( 'wpac-affiliates' ), __( 'The partner accepts the terms in the partner area – send a reminder from the partner list', 'wp-affiliate-captain' ) );
+				return array( self::url( 'wpac-affiliates' ), __( 'The partner accepts the terms in the partner area – send a reminder from the partner list', 'affiliate-captain' ) );
 		}
-		return array( self::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $affiliate_id ) ), __( 'Open the partner', 'wp-affiliate-captain' ) );
+		return array( self::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $affiliate_id ) ), __( 'Open the partner', 'affiliate-captain' ) );
 	}
 
 	/**
@@ -202,7 +208,7 @@ final class Admin {
 			return;
 		}
 		/* translators: %d: number of partners */
-		echo '<div class="notice notice-warning"><p>' . esc_html( sprintf( _n( 'Affiliate Captain: %d partner with a payable balance cannot be paid out:', 'Affiliate Captain: %d partners with a payable balance cannot be paid out:', count( $blocked ), 'wp-affiliate-captain' ), count( $blocked ) ) ) . self::hide_link( 'blocked', $hide ) . '</p><ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in hide_link().
+		echo '<div class="notice notice-warning"><p>' . esc_html( sprintf( _n( 'Affiliate Captain: %d partner with a payable balance cannot be paid out:', 'Affiliate Captain: %d partners with a payable balance cannot be paid out:', count( $blocked ), 'affiliate-captain' ), count( $blocked ) ) ) . self::hide_link( 'blocked', $hide ) . '</p><ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in hide_link().
 		foreach ( array_slice( $blocked, 0, 10 ) as $b ) {
 			$fix = self::blocked_fix( $b[0], isset( $b[3] ) ? $b[3] : '' );
 			echo '<li><a href="' . esc_url( self::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $b[0] ) ) ) . '">' . esc_html( $b[1] ) . '</a>: ' . esc_html( $b[2] ) . ' – <a href="' . esc_url( $fix[0] ) . '">' . esc_html( $fix[1] ) . '</a></li>';
@@ -221,7 +227,7 @@ final class Admin {
 		if ( ! $screen || false === strpos( (string) $screen->id, 'wpac' ) || 'toplevel_page_wpac' === $screen->id ) {
 			return;
 		}
-		echo '<div class="notice notice-info"><p>' . esc_html__( 'Affiliate Captain is not fully set up yet.', 'wp-affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac' ) ) . '">' . esc_html__( 'Open the setup checklist', 'wp-affiliate-captain' ) . '</a></p></div>';
+		echo '<div class="notice notice-info"><p>' . esc_html__( 'Affiliate Captain is not fully set up yet.', 'affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac' ) ) . '">' . esc_html__( 'Open the setup checklist', 'affiliate-captain' ) . '</a></p></div>';
 	}
 
 	/**
@@ -359,7 +365,7 @@ final class Admin {
 			),
 			admin_url( 'admin-post.php' )
 		);
-		return ' <a href="' . esc_url( $url ) . '" class="wpac-hide-notice">' . esc_html__( 'Hide until something changes', 'wp-affiliate-captain' ) . '</a>';
+		return ' <a href="' . esc_url( $url ) . '" class="wpac-hide-notice">' . esc_html__( 'Hide until something changes', 'affiliate-captain' ) . '</a>';
 	}
 
 	/**
@@ -399,11 +405,11 @@ final class Admin {
 		$do = isset( $_POST['do'] ) ? sanitize_key( wp_unslash( $_POST['do'] ) ) : ( isset( $_GET['do'] ) ? sanitize_key( wp_unslash( $_GET['do'] ) ) : '' );
 		$nonce = isset( $_REQUEST['_wpac_nonce'] ) ? sanitize_key( wp_unslash( $_REQUEST['_wpac_nonce'] ) ) : '';
 		if ( '' === $do || ! wp_verify_nonce( $nonce, 'wpac_' . $do ) ) {
-			wp_die( esc_html__( 'The link has expired. Please go back and try again.', 'wp-affiliate-captain' ), 403 );
+			wp_die( esc_html__( 'The link has expired. Please go back and try again.', 'affiliate-captain' ), 403 );
 		}
 		if ( 'notice_hide' === $do ) {
 			if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) && ! current_user_can( Capabilities::MANAGE_PAYOUTS ) && ! current_user_can( Capabilities::MANAGE_PROGRAM ) ) {
-				wp_die( esc_html__( 'You are not allowed to do this.', 'wp-affiliate-captain' ), 403 );
+				wp_die( esc_html__( 'You are not allowed to do this.', 'affiliate-captain' ), 403 );
 			}
 			self::hide_notice();
 		}
@@ -458,14 +464,14 @@ final class Admin {
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),
 		);
 		if ( ! isset( $routes[ $do ] ) ) {
-			wp_die( esc_html__( 'Unknown action.', 'wp-affiliate-captain' ), 400 );
+			wp_die( esc_html__( 'Unknown action.', 'affiliate-captain' ), 400 );
 		}
 		list( $class, $cap ) = $routes[ $do ];
 		if ( ! current_user_can( $cap ) ) {
-			wp_die( esc_html__( 'You are not allowed to do this.', 'wp-affiliate-captain' ), 403 );
+			wp_die( esc_html__( 'You are not allowed to do this.', 'affiliate-captain' ), 403 );
 		}
 		call_user_func( array( $class, 'handle' ), $do );
-		self::back( __( 'Done.', 'wp-affiliate-captain' ) );
+		self::back( __( 'Done.', 'affiliate-captain' ) );
 	}
 
 	/**

@@ -1,7 +1,7 @@
 <?php
 /**
  * Technical error log: WooCommerce's logger when available (WooCommerce → Status → Logs,
- * source "wp-affiliate-captain"), the PHP error log otherwise. The audit log stays the record of
+ * source "affiliate-captain"), the PHP error log otherwise. The audit log stays the record of
  * business events; this is for operators debugging failures.
  *
  * @package WPAffiliateCaptain
@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class Log {
 
-	const SOURCE = 'wp-affiliate-captain';
+	const SOURCE = 'affiliate-captain';
 
 	/**
 	 * Log an error.
@@ -49,6 +49,6 @@ final class Log {
 			return;
 		}
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( 'WP Affiliate Captain ' . $level . ': ' . $line );
+		error_log( 'Affiliate Captain ' . $level . ': ' . $line );
 	}
 }

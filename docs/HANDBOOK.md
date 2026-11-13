@@ -1,6 +1,6 @@
-# WP Affiliate Captain – Operator handbook
+# Affiliate Captain – Operator handbook
 
-This handbook is for the people who run a partner program with WP Affiliate Captain: shop owners, administrators and the person who does the payouts. Developers integrating other sales sources find the public contract in [CONTRACT.md](CONTRACT.md) and the REST API in [REST.md](REST.md).
+This handbook is for the people who run a partner program with Affiliate Captain: shop owners, administrators and the person who does the payouts. Developers integrating other sales sources find the public contract in [CONTRACT.md](CONTRACT.md) and the REST API in [REST.md](REST.md).
 
 > Legal note: cookie consent, VAT treatment of credit notes and retention periods depend on your country and business. The plugin gives you the tools; have the setup reviewed by your data protection and tax advisors.
 
@@ -187,7 +187,7 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
   ```
 
   `200` = OK, `503` = a critical check failed (the body names the failing checks, no details).
-- **Logs:** errors go to the WooCommerce logger (WooCommerce → Status → Logs, source `wp-affiliate-captain`) or the PHP error log; every administrative change is in the audit log.
+- **Logs:** errors go to the WooCommerce logger (WooCommerce → Status → Logs, source `affiliate-captain`) or the PHP error log; every administrative change is in the audit log.
 
 ## 13. Troubleshooting
 
@@ -207,7 +207,7 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 | VIES shows "unavailable" | The VIES service of the member state is down; the check is repeated daily. Nothing is blocked. |
 | Import: "code already in use" | Partner codes are unique across the program; choose another code or leave the column empty. |
 
-Before contacting support, collect: `wp wpac status`, `wp wpac health`, the Site Health info (Tools → Site Health → Info → "WP Affiliate Captain") and the relevant audit log entries.
+Before contacting support, collect: `wp wpac status`, `wp wpac health`, the Site Health info (Tools → Site Health → Info → "Affiliate Captain") and the relevant audit log entries.
 
 ## 14. Uninstalling
 

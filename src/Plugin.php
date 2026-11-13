@@ -35,7 +35,7 @@ final class Plugin {
 		add_action(
 			'init',
 			static function () {
-				load_plugin_textdomain( 'wp-affiliate-captain', false, dirname( plugin_basename( WPAC_FILE ) ) . '/languages' );
+				load_plugin_textdomain( 'affiliate-captain', false, dirname( plugin_basename( WPAC_FILE ) ) . '/languages' );
 			},
 			1
 		);
@@ -68,7 +68,7 @@ final class Plugin {
 		}
 
 		/**
-		 * Fires once WP Affiliate Captain is loaded. Integrations should wait for
+		 * Fires once Affiliate Captain is loaded. Integrations should wait for
 		 * this action before calling the public API.
 		 *
 		 * @param string $contract_version Public contract version.

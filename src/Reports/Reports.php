@@ -186,9 +186,9 @@ final class Reports {
 		foreach ( $rows as &$r ) {
 			$r['conversion'] = $r['visits'] > 0 ? round( $r['orders'] * 100 / $r['visits'], 1 ) : 0;
 			if ( 'content_id' === $dim ) {
-				$r['label'] = (int) $r['key'] ? ( get_the_title( (int) $r['key'] ) ? get_the_title( (int) $r['key'] ) : '#' . $r['key'] ) : __( '(no content / direct)', 'wp-affiliate-captain' );
+				$r['label'] = (int) $r['key'] ? ( get_the_title( (int) $r['key'] ) ? get_the_title( (int) $r['key'] ) : '#' . $r['key'] ) : __( '(no content / direct)', 'affiliate-captain' );
 			} else {
-				$r['label'] = '' !== $r['key'] ? $r['key'] : __( '(no campaign)', 'wp-affiliate-captain' );
+				$r['label'] = '' !== $r['key'] ? $r['key'] : __( '(no campaign)', 'affiliate-captain' );
 			}
 		}
 		unset( $r );

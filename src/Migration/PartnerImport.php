@@ -211,12 +211,12 @@ final class PartnerImport {
 			$notes  = array();
 			$email  = AffiliateRepository::normalize_email( isset( $row['email'] ) ? sanitize_email( $row['email'] ) : '' );
 			if ( ! is_email( $email ) ) {
-				$errors[] = __( 'invalid or missing e-mail address', 'wp-affiliate-captain' );
+				$errors[] = __( 'invalid or missing e-mail address', 'affiliate-captain' );
 			} elseif ( isset( $seen_emails[ strtolower( $email ) ] ) ) {
 				/* translators: %d: line number */
-				$errors[] = sprintf( __( 'e-mail address already used in line %d', 'wp-affiliate-captain' ), $seen_emails[ strtolower( $email ) ] );
+				$errors[] = sprintf( __( 'e-mail address already used in line %d', 'affiliate-captain' ), $seen_emails[ strtolower( $email ) ] );
 			} elseif ( AffiliateRepository::find_by_email( $email ) ) {
-				$errors[] = __( 'a partner with this e-mail address already exists', 'wp-affiliate-captain' );
+				$errors[] = __( 'a partner with this e-mail address already exists', 'affiliate-captain' );
 			}
 			if ( is_email( $email ) ) {
 				$seen_emails[ strtolower( $email ) ] = $line;
@@ -229,34 +229,34 @@ final class PartnerImport {
 			$status     = '' === $raw_status ? 'active' : ( isset( self::STATUS_MAP[ $raw_status ] ) ? self::STATUS_MAP[ $raw_status ] : '' );
 			if ( '' === $status ) {
 				/* translators: %s: status value from the file */
-				$errors[] = sprintf( __( 'unknown status "%s" (allowed: active, pending, paused, terminated, rejected)', 'wp-affiliate-captain' ), $raw_status );
+				$errors[] = sprintf( __( 'unknown status "%s" (allowed: active, pending, paused, terminated, rejected)', 'affiliate-captain' ), $raw_status );
 			}
 			$codes = array();
 			foreach ( self::split_codes( isset( $row['codes'] ) ? $row['codes'] : '' ) as $code ) {
 				$norm = CodeRepository::normalize( $code );
 				if ( strlen( $norm ) < 3 ) {
 					/* translators: %s: code */
-					$errors[] = sprintf( __( 'code "%s" is too short (at least 3 characters)', 'wp-affiliate-captain' ), $code );
+					$errors[] = sprintf( __( 'code "%s" is too short (at least 3 characters)', 'affiliate-captain' ), $code );
 				} elseif ( isset( $seen_codes[ $norm ] ) ) {
 					/* translators: 1: code, 2: line number */
-					$errors[] = sprintf( __( 'code "%1$s" already used in line %2$d', 'wp-affiliate-captain' ), $norm, $seen_codes[ $norm ] );
+					$errors[] = sprintf( __( 'code "%1$s" already used in line %2$d', 'affiliate-captain' ), $norm, $seen_codes[ $norm ] );
 				} elseif ( CodeRepository::find_by_code( $norm ) ) {
 					/* translators: %s: code */
-					$errors[] = sprintf( __( 'code "%s" is already in use', 'wp-affiliate-captain' ), $norm );
+					$errors[] = sprintf( __( 'code "%s" is already in use', 'affiliate-captain' ), $norm );
 				} else {
 					$seen_codes[ $norm ] = $line;
 					$codes[]             = $norm;
 				}
 			}
 			if ( ! $codes && 'active' === $status ) {
-				$notes[] = __( 'a random partner code is created', 'wp-affiliate-captain' );
+				$notes[] = __( 'a random partner code is created', 'affiliate-captain' );
 			}
 			$rate = self::parse_rate( isset( $row['rate'] ) ? $row['rate'] : '', isset( $row['rate_type'] ) ? $row['rate_type'] : '' );
 			if ( null === $rate ) {
-				$errors[] = __( 'invalid commission rate (percent 0–100, or an amount with rate_type "fixed")', 'wp-affiliate-captain' );
+				$errors[] = __( 'invalid commission rate (percent 0–100, or an amount with rate_type "fixed")', 'affiliate-captain' );
 				$rate     = array();
 			} elseif ( $rate && ! $allow_program ) {
-				$errors[] = __( 'you are not allowed to create commission rules (leave the rate empty)', 'wp-affiliate-captain' );
+				$errors[] = __( 'you are not allowed to create commission rules (leave the rate empty)', 'affiliate-captain' );
 				$rate     = array();
 			}
 			$group_id   = 0;
@@ -267,16 +267,16 @@ final class PartnerImport {
 						$group_id = (int) $group_name;
 					} else {
 						/* translators: %s: group ID */
-						$errors[] = sprintf( __( 'partner group #%s does not exist', 'wp-affiliate-captain' ), $group_name );
+						$errors[] = sprintf( __( 'partner group #%s does not exist', 'affiliate-captain' ), $group_name );
 					}
 				} elseif ( isset( $groups[ 'name:' . strtolower( $group_name ) ] ) ) {
 					$group_id = $groups[ 'name:' . strtolower( $group_name ) ];
 				} elseif ( ! $allow_program ) {
 					/* translators: %s: group name */
-					$errors[] = sprintf( __( 'partner group "%s" does not exist', 'wp-affiliate-captain' ), $group_name );
+					$errors[] = sprintf( __( 'partner group "%s" does not exist', 'affiliate-captain' ), $group_name );
 				} else {
 					/* translators: %s: group name */
-					$notes[] = sprintf( __( 'new partner group "%s" is created', 'wp-affiliate-captain' ), $group_name );
+					$notes[] = sprintf( __( 'new partner group "%s" is created', 'affiliate-captain' ), $group_name );
 				}
 			}
 			$user_id = absint( isset( $row['user_id'] ) ? $row['user_id'] : 0 );
@@ -284,16 +284,16 @@ final class PartnerImport {
 				$user = get_userdata( $user_id );
 				if ( ! $user ) {
 					/* translators: %d: user ID */
-					$errors[] = sprintf( __( 'WordPress user #%d does not exist', 'wp-affiliate-captain' ), $user_id );
+					$errors[] = sprintf( __( 'WordPress user #%d does not exist', 'affiliate-captain' ), $user_id );
 				} elseif ( strtolower( (string) $user->user_email ) !== strtolower( $email ) ) {
 					/* translators: %d: user ID */
-					$errors[] = sprintf( __( 'WordPress user #%d has a different e-mail address', 'wp-affiliate-captain' ), $user_id );
+					$errors[] = sprintf( __( 'WordPress user #%d has a different e-mail address', 'affiliate-captain' ), $user_id );
 				} elseif ( user_can( $user, 'edit_posts' ) ) {
 					/* translators: %d: user ID */
-					$errors[] = sprintf( __( 'WordPress user #%d can edit content and is not linked automatically', 'wp-affiliate-captain' ), $user_id );
+					$errors[] = sprintf( __( 'WordPress user #%d can edit content and is not linked automatically', 'affiliate-captain' ), $user_id );
 				} elseif ( AffiliateRepository::find_by_user( $user_id ) ) {
 					/* translators: %d: user ID */
-					$errors[] = sprintf( __( 'WordPress user #%d already belongs to a partner', 'wp-affiliate-captain' ), $user_id );
+					$errors[] = sprintf( __( 'WordPress user #%d already belongs to a partner', 'affiliate-captain' ), $user_id );
 				}
 			}
 			$website = trim( isset( $row['website'] ) ? (string) $row['website'] : '' );
@@ -340,17 +340,17 @@ final class PartnerImport {
 		);
 		$parsed  = self::parse( $csv );
 		if ( 'empty' === $parsed['error'] ) {
-			return new \WP_Error( 'wpac_import_empty', __( 'The file is empty.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_import_empty', __( 'The file is empty.', 'affiliate-captain' ) );
 		}
 		if ( 'no_email_column' === $parsed['error'] ) {
-			return new \WP_Error( 'wpac_import_header', __( 'The first line must contain the column names, including "email".', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_import_header', __( 'The first line must contain the column names, including "email".', 'affiliate-captain' ) );
 		}
 		if ( ! $parsed['rows'] ) {
-			return new \WP_Error( 'wpac_import_empty', __( 'The file contains no partners.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_import_empty', __( 'The file contains no partners.', 'affiliate-captain' ) );
 		}
 		if ( $options['max_rows'] && count( $parsed['rows'] ) > (int) $options['max_rows'] ) {
 			/* translators: %d: maximum number of rows */
-			return new \WP_Error( 'wpac_import_size', sprintf( __( 'The file has more than %d partners. Split it or use WP-CLI: wp wpac import partners <file>', 'wp-affiliate-captain' ), (int) $options['max_rows'] ) );
+			return new \WP_Error( 'wpac_import_size', sprintf( __( 'The file has more than %d partners. Split it or use WP-CLI: wp wpac import partners <file>', 'affiliate-captain' ), (int) $options['max_rows'] ) );
 		}
 		$rows    = self::validate( $parsed['rows'], ! empty( $options['allow_program'] ) );
 		$created = 0;
@@ -441,7 +441,7 @@ final class PartnerImport {
 				$c = CodeRepository::create( $id, $code, array( 'strict' => true ) );
 				if ( is_wp_error( $c ) ) {
 					/* translators: 1: partner ID, 2: error */
-					return new \WP_Error( 'wpac_import_code', sprintf( __( 'Partner #%1$d was created, but a code failed: %2$s', 'wp-affiliate-captain' ), $id, $c->get_error_message() ) );
+					return new \WP_Error( 'wpac_import_code', sprintf( __( 'Partner #%1$d was created, but a code failed: %2$s', 'affiliate-captain' ), $id, $c->get_error_message() ) );
 				}
 			}
 			if ( $d['rate'] ) {
@@ -454,18 +454,18 @@ final class PartnerImport {
 						'rate'      => $d['rate'][1],
 						'priority'  => 0,
 						'active'    => 1,
-						'note'      => __( 'CSV import', 'wp-affiliate-captain' ),
+						'note'      => __( 'CSV import', 'affiliate-captain' ),
 					)
 				);
 				if ( ! is_wp_error( $rule ) ) {
-					RuleRepository::save( $rule, 0, __( 'CSV import', 'wp-affiliate-captain' ) );
+					RuleRepository::save( $rule, 0, __( 'CSV import', 'affiliate-captain' ) );
 				}
 			}
 			if ( 'pending' !== $d['status'] ) {
-				$set = AffiliateRepository::set_status( $id, $d['status'], __( 'CSV import', 'wp-affiliate-captain' ) );
+				$set = AffiliateRepository::set_status( $id, $d['status'], __( 'CSV import', 'affiliate-captain' ) );
 				if ( is_wp_error( $set ) ) {
 					/* translators: 1: partner ID, 2: error */
-					return new \WP_Error( 'wpac_import_status', sprintf( __( 'Partner #%1$d was created, but the status could not be set: %2$s', 'wp-affiliate-captain' ), $id, $set->get_error_message() ) );
+					return new \WP_Error( 'wpac_import_status', sprintf( __( 'Partner #%1$d was created, but the status could not be set: %2$s', 'affiliate-captain' ), $id, $set->get_error_message() ) );
 				}
 			}
 			return (int) $id;

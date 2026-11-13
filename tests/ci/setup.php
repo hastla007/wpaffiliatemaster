@@ -1,7 +1,7 @@
 <?php
 /**
  * Installs and prepares the CI test site (see install-wp.sh): WordPress, WooCommerce with a
- * Blocks checkout and bank transfer, WP Affiliate Captain with application and partner pages,
+ * Blocks checkout and bank transfer, Affiliate Captain with application and partner pages,
  * a partner account with a code, a rule and a commission. Optionally Voucher + Pass Captain.
  *
  *   php tests/ci/setup.php <wp-dir> <url> [--siblings]
@@ -41,7 +41,9 @@ if ( ! is_blog_installed() ) {
 update_option( 'permalink_structure', '/%postname%/' );
 update_option( 'blog_public', 0 );
 
-$plugins = array( 'woocommerce/woocommerce.php', 'wp-affiliate-captain/wp-affiliate-captain.php' );
+// Since 0.11 the folder is "affiliate-captain"; older releases (upgrade test) use "wp-affiliate-captain".
+$own     = is_file( WP_PLUGIN_DIR . '/affiliate-captain/affiliate-captain.php' ) ? 'affiliate-captain/affiliate-captain.php' : 'wp-affiliate-captain/wp-affiliate-captain.php';
+$plugins = array( 'woocommerce/woocommerce.php', $own );
 if ( $siblings ) {
 	$plugins[] = 'voucher-captain/voucher-captain.php';
 	$plugins[] = 'wp-pass-captain/wp-pass-captain.php';

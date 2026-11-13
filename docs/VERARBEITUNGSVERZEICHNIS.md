@@ -1,6 +1,6 @@
 # Verzeichnis von Verarbeitungstätigkeiten – Vorlage (Art. 30 DSGVO)
 
-Vorlage für die Einträge, die WP Affiliate Captain betreffen. Die Werte in `{geschweiften Klammern}` füllt der Download in **Partnerprogramm → Einstellungen → Datenschutz** mit Ihren aktuellen Einstellungen aus. Prüfen und ergänzen Sie die Vorlage mit Ihrer Datenschutzberatung; sie ersetzt keine Rechtsberatung.
+Vorlage für die Einträge, die Affiliate Captain betreffen. Die Werte in `{geschweiften Klammern}` füllt der Download in **Partnerprogramm → Einstellungen → Datenschutz** mit Ihren aktuellen Einstellungen aus. Prüfen und ergänzen Sie die Vorlage mit Ihrer Datenschutzberatung; sie ersetzt keine Rechtsberatung.
 
 **Verantwortlicher:** {operator_name}, {operator_address}
 **Stand:** {date}

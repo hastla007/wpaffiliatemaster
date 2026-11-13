@@ -26,11 +26,11 @@ final class AffiliateRepository {
 	 */
 	public static function status_labels() {
 		return array(
-			'pending'    => __( 'Application pending', 'wp-affiliate-captain' ),
-			'active'     => __( 'Active', 'wp-affiliate-captain' ),
-			'paused'     => __( 'Paused', 'wp-affiliate-captain' ),
-			'terminated' => __( 'Terminated', 'wp-affiliate-captain' ),
-			'rejected'   => __( 'Rejected', 'wp-affiliate-captain' ),
+			'pending'    => __( 'Application pending', 'affiliate-captain' ),
+			'active'     => __( 'Active', 'affiliate-captain' ),
+			'paused'     => __( 'Paused', 'affiliate-captain' ),
+			'terminated' => __( 'Terminated', 'affiliate-captain' ),
+			'rejected'   => __( 'Rejected', 'affiliate-captain' ),
 		);
 	}
 
@@ -184,10 +184,10 @@ final class AffiliateRepository {
 		global $wpdb;
 		$email = sanitize_email( isset( $data['email'] ) ? $data['email'] : '' );
 		if ( ! is_email( $email ) ) {
-			return new \WP_Error( 'wpac_invalid_email', __( 'Please enter a valid e-mail address.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_invalid_email', __( 'Please enter a valid e-mail address.', 'affiliate-captain' ) );
 		}
 		if ( self::find_by_email( $email ) ) {
-			return new \WP_Error( 'wpac_exists', __( 'An affiliate account with this e-mail address already exists.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_exists', __( 'An affiliate account with this e-mail address already exists.', 'affiliate-captain' ) );
 		}
 		$name   = sanitize_text_field( isset( $data['name'] ) ? $data['name'] : '' );
 		$status = isset( $data['status'] ) && in_array( $data['status'], self::STATUSES, true ) ? $data['status'] : 'pending';
@@ -212,7 +212,7 @@ final class AffiliateRepository {
 			)
 		);
 		if ( ! $ok ) {
-			return new \WP_Error( 'wpac_db', __( 'The affiliate could not be saved.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_db', __( 'The affiliate could not be saved.', 'affiliate-captain' ) );
 		}
 		$id = (int) $wpdb->insert_id;
 		self::clear_cache( $id );
@@ -285,11 +285,11 @@ final class AffiliateRepository {
 		global $wpdb;
 		$email = sanitize_email( $email );
 		if ( ! is_email( $email ) ) {
-			return new \WP_Error( 'wpac_email', __( 'Please enter a valid e-mail address.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_email', __( 'Please enter a valid e-mail address.', 'affiliate-captain' ) );
 		}
 		$other = self::find_by_email( $email );
 		if ( $other && (int) $other->id !== (int) $id ) {
-			return new \WP_Error( 'wpac_email_taken', __( 'This e-mail address is already used by another partner account.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_email_taken', __( 'This e-mail address is already used by another partner account.', 'affiliate-captain' ) );
 		}
 		$before = self::find( (int) $id );
 		$wpdb->update(
@@ -311,9 +311,9 @@ final class AffiliateRepository {
 			wp_mail(
 				$before->email,
 				/* translators: %s: site name */
-				sprintf( __( '[%s] The e-mail address of your partner account was changed', 'wp-affiliate-captain' ), $site ),
+				sprintf( __( '[%s] The e-mail address of your partner account was changed', 'affiliate-captain' ), $site ),
 				/* translators: %s: new address, partly hidden */
-				sprintf( __( "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.", 'wp-affiliate-captain' ), self::mask_email( $email ) )
+				sprintf( __( "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), self::mask_email( $email ) )
 			);
 			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		}
@@ -423,20 +423,20 @@ final class AffiliateRepository {
 		global $wpdb;
 		$aff = self::find( $id );
 		if ( ! $aff ) {
-			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'affiliate-captain' ) );
 		}
 		if ( ! in_array( $status, self::STATUSES, true ) ) {
-			return new \WP_Error( 'wpac_invalid_status', __( 'Invalid status.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_invalid_status', __( 'Invalid status.', 'affiliate-captain' ) );
 		}
 		if ( $aff->status === $status ) {
 			return true;
 		}
 		if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $id ) && in_array( $status, array( 'active', 'pending' ), true ) ) {
 			// Restricted processing (erasure or Art. 18 request): the account cannot be reactivated.
-			return new \WP_Error( 'wpac_restricted', __( 'Processing of this partner is restricted (data protection). Lift the restriction first.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_restricted', __( 'Processing of this partner is restricted (data protection). Lift the restriction first.', 'affiliate-captain' ) );
 		}
 		if ( in_array( $status, array( 'paused', 'terminated', 'rejected' ), true ) && '' === trim( (string) $reason ) ) {
-			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
 		}
 
 		$fields = array(
@@ -470,7 +470,7 @@ final class AffiliateRepository {
 			Notifications::application_rejected( (int) $id, $reason );
 		}
 		if ( 'terminated' === $status && 'reject' === Settings::get( 'terminated_open' ) ) {
-			Ledger::reject_open_for_affiliate( (int) $id, __( 'Partnership terminated', 'wp-affiliate-captain' ) . ': ' . $reason );
+			Ledger::reject_open_for_affiliate( (int) $id, __( 'Partnership terminated', 'affiliate-captain' ) . ': ' . $reason );
 		}
 		if ( in_array( $status, array( 'paused', 'terminated' ), true ) || ( 'active' === $status && in_array( $aff->status, array( 'paused', 'terminated' ), true ) ) ) {
 			Notifications::status_changed( (int) $id, $status, $aff->status, $reason );
@@ -599,15 +599,15 @@ final class AffiliateRepository {
 	 */
 	private static function link_problem( $aff, $user ) {
 		if ( (int) $aff->user_id ) {
-			return __( 'This partner is already linked to a WordPress user.', 'wp-affiliate-captain' );
+			return __( 'This partner is already linked to a WordPress user.', 'affiliate-captain' );
 		}
 		if ( user_can( $user, 'edit_posts' ) ) {
-			return __( 'Accounts that can edit posts (administrators, editors, authors …) are never linked to a partner – the partner area would give partner access to an account with backend rights. Use a customer or subscriber account.', 'wp-affiliate-captain' );
+			return __( 'Accounts that can edit posts (administrators, editors, authors …) are never linked to a partner – the partner area would give partner access to an account with backend rights. Use a customer or subscriber account.', 'affiliate-captain' );
 		}
 		$other = self::find_by_user( (int) $user->ID );
 		if ( $other && (int) $other->id !== (int) $aff->id ) {
 			/* translators: %s: partner name */
-			return sprintf( __( 'This WordPress user is already linked to the partner "%s".', 'wp-affiliate-captain' ), $other->name );
+			return sprintf( __( 'This WordPress user is already linked to the partner "%s".', 'affiliate-captain' ), $other->name );
 		}
 		return '';
 	}
@@ -622,11 +622,11 @@ final class AffiliateRepository {
 	public static function resend_user_link( $id ) {
 		$aff = self::find( (int) $id );
 		if ( ! $aff || ! in_array( $aff->status, array( 'active', 'paused' ), true ) ) {
-			return new \WP_Error( 'wpac_state', __( 'Only active or paused partners can be linked to an account.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_state', __( 'Only active or paused partners can be linked to an account.', 'affiliate-captain' ) );
 		}
 		$user = get_user_by( 'email', $aff->email );
 		if ( ! $user ) {
-			return new \WP_Error( 'wpac_no_user', __( 'There is no WordPress account with the partner\'s e-mail address. Link a user manually or change the e-mail address.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_no_user', __( 'There is no WordPress account with the partner\'s e-mail address. Link a user manually or change the e-mail address.', 'affiliate-captain' ) );
 		}
 		$problem = self::link_problem( $aff, $user );
 		if ( '' !== $problem ) {
@@ -634,7 +634,7 @@ final class AffiliateRepository {
 		}
 		$pending = get_option( 'wpac_user_link_' . (int) $id );
 		if ( is_array( $pending ) && ! empty( $pending['sent'] ) && (int) $pending['sent'] > time() - 10 * MINUTE_IN_SECONDS ) {
-			return new \WP_Error( 'wpac_rate_limited', __( 'The link was sent a few minutes ago. Please wait 10 minutes before sending it again.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_rate_limited', __( 'The link was sent a few minutes ago. Please wait 10 minutes before sending it again.', 'affiliate-captain' ) );
 		}
 		self::request_user_link( (int) $id, $aff );
 		return true;
@@ -651,12 +651,12 @@ final class AffiliateRepository {
 		global $wpdb;
 		$aff = self::find( (int) $id );
 		if ( ! $aff ) {
-			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'affiliate-captain' ) );
 		}
 		$user = trim( (string) $user );
 		$wp   = ctype_digit( $user ) ? get_userdata( (int) $user ) : get_user_by( 'email', $user );
 		if ( ! $wp ) {
-			return new \WP_Error( 'wpac_no_user', __( 'No WordPress user with this ID or e-mail address was found.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_no_user', __( 'No WordPress user with this ID or e-mail address was found.', 'affiliate-captain' ) );
 		}
 		$problem = self::link_problem( $aff, $wp );
 		if ( '' !== $problem ) {
@@ -665,7 +665,7 @@ final class AffiliateRepository {
 		$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'affiliates' ) . ' SET user_id = %d WHERE id = %d AND user_id = 0', (int) $wp->ID, (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		self::clear_cache( (int) $id );
 		if ( ! $done ) {
-			return new \WP_Error( 'wpac_link', __( 'This partner is already linked to a WordPress user.', 'wp-affiliate-captain' ) );
+			return new \WP_Error( 'wpac_link', __( 'This partner is already linked to a WordPress user.', 'affiliate-captain' ) );
 		}
 		delete_option( 'wpac_user_link_' . (int) $id );
 		Audit::log(
@@ -703,9 +703,9 @@ final class AffiliateRepository {
 		wp_mail(
 			$aff->email,
 			/* translators: %s: site name */
-			sprintf( __( '[%s] Connect your partner account', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			sprintf( __( '[%s] Connect your partner account', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			/* translators: %s: link */
-			sprintf( __( "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.", 'wp-affiliate-captain' ), $link )
+			sprintf( __( "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.", 'affiliate-captain' ), $link )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		Audit::log( 'affiliate.user_link_requested', 'affiliate', $id );

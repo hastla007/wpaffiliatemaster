@@ -140,7 +140,7 @@ final class Groups {
 			$key   = sanitize_key( $parts[0] );
 			if ( '' === $key || empty( $parts[1] ) ) {
 				/* translators: %s: line */
-				return new \WP_Error( 'wpac_fields', sprintf( __( 'Invalid field definition: %s', 'wp-affiliate-captain' ), $line ) );
+				return new \WP_Error( 'wpac_fields', sprintf( __( 'Invalid field definition: %s', 'affiliate-captain' ), $line ) );
 			}
 			$type  = isset( $parts[2] ) && in_array( $parts[2], array( 'text', 'textarea', 'url', 'number', 'checkbox' ), true ) ? $parts[2] : 'text';
 			$out[] = array(

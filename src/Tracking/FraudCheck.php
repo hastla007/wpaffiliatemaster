@@ -36,13 +36,13 @@ final class FraudCheck {
 	 */
 	public static function labels() {
 		return array(
-			'self_referral'   => __( 'Self-referral', 'wp-affiliate-captain' ),
-			'velocity'        => __( 'Unusually many orders in 24 hours', 'wp-affiliate-captain' ),
-			'high_value'      => __( 'Unusually high order value', 'wp-affiliate-captain' ),
-			'fast_conversion' => __( 'Order immediately after the click', 'wp-affiliate-captain' ),
-			'refund_rate'     => __( 'High refund rate of the partner', 'wp-affiliate-captain' ),
-			'email_domain'    => __( 'Blocked or disposable e-mail domain', 'wp-affiliate-captain' ),
-			'coupon_mismatch' => __( 'Coupon of another partner used', 'wp-affiliate-captain' ),
+			'self_referral'   => __( 'Self-referral', 'affiliate-captain' ),
+			'velocity'        => __( 'Unusually many orders in 24 hours', 'affiliate-captain' ),
+			'high_value'      => __( 'Unusually high order value', 'affiliate-captain' ),
+			'fast_conversion' => __( 'Order immediately after the click', 'affiliate-captain' ),
+			'refund_rate'     => __( 'High refund rate of the partner', 'affiliate-captain' ),
+			'email_domain'    => __( 'Blocked or disposable e-mail domain', 'affiliate-captain' ),
+			'coupon_mismatch' => __( 'Coupon of another partner used', 'affiliate-captain' ),
 		);
 	}
 
