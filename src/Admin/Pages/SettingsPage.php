@@ -109,6 +109,8 @@ final class SettingsPage {
 			'statement_retention_years'  => __( 'Keep statements (years, 0 = forever)', 'affiliate-captain' ),
 			'lifetime_days'              => __( 'Lifetime link duration (days, 0 = unlimited)', 'affiliate-captain' ),
 			'cookie_days'                => __( 'Cookie lifetime (days)', 'affiliate-captain' ),
+			'cookie_domain'              => __( 'Cookie domain', 'affiliate-captain' ),
+			'visit_log_percent'          => __( 'Record link visits (%)', 'affiliate-captain' ),
 			'rate_limit_per_minute'      => __( 'Max. counted link visits per client and minute', 'affiliate-captain' ),
 			'visit_retention_days'       => __( 'Keep visit data (days)', 'affiliate-captain' ),
 			'hold_days'                  => __( 'Hold period (days after payment)', 'affiliate-captain' ),
@@ -173,7 +175,7 @@ final class SettingsPage {
 	public static function tab_keys() {
 		return array(
 			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'admin_email' ),
-			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking' ),
+			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'visit_retention_days', 'application_retention_days' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'renewal_commission' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
@@ -236,7 +238,7 @@ final class SettingsPage {
 		/* translators: %s: example URL */
 		self::text( 'referral_param', __( 'Link parameter', 'affiliate-captain' ), $s, sprintf( __( 'Example: %s', 'affiliate-captain' ), home_url( '/?' . $s['referral_param'] . '=CODE' ) ) );
 		self::checkbox( 'checkout_field', __( 'Show partner code field at checkout (classic + blocks)', 'affiliate-captain' ), $s );
-		self::checkbox( 'use_wc_session', __( 'Keep the code from a partner link in the WooCommerce shop session', 'affiliate-captain' ), $s, __( 'Without marketing consent only if a shop session already exists (e.g. a cart) – a click alone never sets a cookie.', 'affiliate-captain' ) );
+		self::checkbox( 'use_wc_session', __( 'Keep the code from a partner link in the WooCommerce shop session', 'affiliate-captain' ), $s, __( 'Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie.', 'affiliate-captain' ) );
 		self::select(
 			'cookie_mode',
 			__( 'Affiliate cookie', 'affiliate-captain' ),
@@ -251,7 +253,9 @@ final class SettingsPage {
 			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html__( 'An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use "Only with marketing consent" unless your shop is outside the EU and you checked the local law.', 'affiliate-captain' ) . '</p></div></td></tr>';
 		}
 		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'affiliate-captain' ), $s );
-		self::checkbox( 'js_tracking', __( 'Also record partner links via JavaScript (for full-page caches/CDNs)', 'affiliate-captain' ), $s, __( 'Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare "Cache Everything"). A tiny script reports the parameter; a visit is never counted twice.', 'affiliate-captain' ) );
+		self::text( 'cookie_domain', __( 'Cookie domain', 'affiliate-captain' ), $s, __( 'Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both.', 'affiliate-captain' ) );
+		self::checkbox( 'js_tracking', __( 'Also record partner links via JavaScript (for full-page caches/CDNs)', 'affiliate-captain' ), $s, __( 'Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare "Cache Everything"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice.', 'affiliate-captain' ) );
+		self::number( 'visit_log_percent', __( 'Record link visits (%)', 'affiliate-captain' ), $s, __( '100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected.', 'affiliate-captain' ) );
 		self::select( 'touch_model', __( 'Link attribution', 'affiliate-captain' ), $s, array( 'last' => __( 'Last touch', 'affiliate-captain' ), 'first' => __( 'First touch', 'affiliate-captain' ) ) );
 		self::checkbox( 'coupon_priority', __( 'Affiliate coupon has priority over partner links', 'affiliate-captain' ), $s );
 		self::select( 'self_referral', __( 'Self-referrals', 'affiliate-captain' ), $s, array( 'block' => __( 'Block', 'affiliate-captain' ), 'review' => __( 'Flag for review', 'affiliate-captain' ) ) );
@@ -271,7 +275,7 @@ final class SettingsPage {
 		self::section( __( 'Abuse protection', 'affiliate-captain' ), 'security' );
 		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'affiliate-captain' ), $s );
 		$err = self::error_parts( 'trusted_proxies' );
-		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy.', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy.', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'affiliate-captain' ), $s );
 		self::number( 'application_retention_days', __( 'Keep rejected applications (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised.', 'affiliate-captain' ) );
 		self::end();

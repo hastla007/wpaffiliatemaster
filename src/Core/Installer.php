@@ -805,7 +805,7 @@ final class Installer {
 
 		// Rate-limit counters (own table: millions of short-lived rows must not bloat wp_options).
 		$sql[] = "CREATE TABLE {$t('rate_limits')} (
-			rl_key char(32) NOT NULL,
+			rl_key binary(16) NOT NULL,
 			hits int(10) unsigned NOT NULL DEFAULT 0,
 			expires_at int(10) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (rl_key),
@@ -922,6 +922,20 @@ final class Installer {
 	 */
 	private static function migrate_before( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 10 ) {
+			// v10: rate-limit keys become BINARY(16) (half the size of the hex key). The counters only
+			// live for minutes: emptying the table first lets the column change without converting rows.
+			$rl = Db::table( 'rate_limits' );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $rl ) ) ) {
+				$type = $wpdb->get_row( "SHOW COLUMNS FROM {$rl} LIKE 'rl_key'" );
+				if ( $type && 0 !== stripos( (string) $type->Type, 'binary' ) ) {
+					$wpdb->query( "TRUNCATE TABLE {$rl}" );
+					$wpdb->query( "ALTER TABLE {$rl} MODIFY rl_key binary(16) NOT NULL" );
+				}
+			}
+			// phpcs:enable
+		}
 		if ( $previous > 0 && $previous < 8 ) {
 			// v8: VAT treatment and the original credit note per payout item, operator data per payout.
 			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

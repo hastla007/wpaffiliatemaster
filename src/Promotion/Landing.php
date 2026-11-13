@@ -29,6 +29,39 @@ final class Landing {
 		add_shortcode( 'wpac_partner_welcome', array( __CLASS__, 'welcome' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'no_cache_welcome' ), 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush' ), 99 );
+		// Browsers must not prefetch/prerender /partner/slug/ (Speculation Rules, WP 6.8+): a
+		// prefetch is no click. Links with ?partner=… have a query string and are excluded by core.
+		add_filter( 'wp_speculation_rules_href_exclude_paths', array( __CLASS__, 'speculation_exclude' ) );
+	}
+
+	/**
+	 * Exclude landing URLs from speculative loading.
+	 *
+	 * @param array $paths Path patterns.
+	 * @return array
+	 */
+	public static function speculation_exclude( $paths ) {
+		$paths   = (array) $paths;
+		$paths[] = '/' . trim( (string) Settings::get( 'landing_prefix' ), '/' ) . '/*';
+		return $paths;
+	}
+
+	/** @var array<string,object|null> Partners by slug in this request. */
+	private static $by_slug = array();
+
+	/**
+	 * Partner of a landing slug (looked up once per request: request filter and redirect
+	 * both need it).
+	 *
+	 * @param string $slug Slug.
+	 * @return object|null
+	 */
+	private static function affiliate_for_slug( $slug ) {
+		$key = sanitize_title( (string) $slug );
+		if ( ! array_key_exists( $key, self::$by_slug ) ) {
+			self::$by_slug[ $key ] = AffiliateRepository::find_by_slug( $key );
+		}
+		return self::$by_slug[ $key ];
 	}
 
 	/**
@@ -104,7 +137,7 @@ final class Landing {
 		if ( empty( $vars[ self::QUERY_VAR ] ) ) {
 			return $vars;
 		}
-		$aff = AffiliateRepository::find_by_slug( (string) $vars[ self::QUERY_VAR ] );
+		$aff = self::affiliate_for_slug( (string) $vars[ self::QUERY_VAR ] );
 		if ( $aff && 'active' === $aff->status ) {
 			return $vars;
 		}
@@ -153,28 +186,55 @@ final class Landing {
 		if ( ! $slug ) {
 			return;
 		}
-		$aff = AffiliateRepository::find_by_slug( $slug );
+		$aff = self::affiliate_for_slug( $slug );
 		if ( ! $aff || 'active' !== $aff->status ) {
-			return; // Handled as a normal page / 404 (see fallback_to_page()).
+			// Handled as a normal page / 404 (see fallback_to_page()). A 404 must not be cached by a
+			// proxy/CDN: the partner may be approved a minute later.
+			if ( function_exists( 'is_404' ) && is_404() && ! headers_sent() ) {
+				nocache_headers();
+			}
+			return;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$url = self::target_url( $aff, wp_unslash( $_GET ) );
+		// The redirect depends on the partner's current status, code and landing page: never cached
+		// by Varnish/Cloudflare (a cached 302 would keep sending visitors to an old target).
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+		wp_safe_redirect( $url, 302 );
+		exit;
+	}
+
+	/**
+	 * Target of a partner's landing URL: the landing page with the partner code and the
+	 * campaign parameters of the link.
+	 *
+	 * @param object $aff   Affiliate.
+	 * @param array  $query Query parameters of the request (unslashed).
+	 * @return string
+	 */
+	public static function target_url( $aff, array $query ) {
 		$code = CodeRepository::main_code( (int) $aff->id );
-		$page = $aff && (int) $aff->landing_page_id ? (int) $aff->landing_page_id : (int) Settings::get( 'landing_page_id' );
+		$page = (int) $aff->landing_page_id ? (int) $aff->landing_page_id : (int) Settings::get( 'landing_page_id' );
 		// The landing page in the visitor's current language (WPML/Polylang).
 		$url = $page ? \WPAffiliateCaptain\Core\Locale::page_url( $page ) : home_url( '/' );
 		if ( $code ) {
 			// The code is passed on: a slug could equal another partner's code (codes win when
 			// resolving), and a slug resolves to any valid code of the partner, not the main one.
 			$args = array( (string) Settings::get( 'referral_param' ) => $code );
-			// Keep campaign parameters from the partner's link.
+			// Keep campaign parameters from the partner's link (placeholders of edge caches dropped).
 			foreach ( array( 'utm_campaign', 'utm_source', 'utm_medium' ) as $k ) {
-				if ( isset( $_GET[ $k ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-					$args[ $k ] = sanitize_text_field( wp_unslash( $_GET[ $k ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				if ( isset( $query[ $k ] ) && is_string( $query[ $k ] ) ) {
+					$value = Tracker::clean_utm( $query[ $k ] );
+					if ( '' !== $value ) {
+						$args[ $k ] = $value;
+					}
 				}
 			}
 			$url = add_query_arg( $args, $url );
 		}
-		wp_safe_redirect( $url, 302 );
-		exit;
+		return $url;
 	}
 
 	/** @var array<string,bool> Rate-limit decision per URL code in this request. */
@@ -216,13 +276,44 @@ final class Landing {
 		if ( ! $aff ) {
 			return '';
 		}
+		$name = self::display_name( (string) $aff->name );
+		if ( '' === $name && ! $aff->landing_message ) {
+			return '';
+		}
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
-		// No sprintf(): editor text may contain "%" (e.g. "10% Rabatt") – only %s is replaced.
-		$text = (string) $atts['text'];
-		$out  = '<div class="wpac-welcome"><strong>' . ( false !== strpos( $text, '%s' ) ? str_replace( '%s', esc_html( $aff->name ), esc_html( $text ) ) : esc_html( $text . ' ' . $aff->name ) ) . '</strong>';
+		$out = '<div class="wpac-welcome">';
+		if ( '' !== $name ) {
+			// No sprintf(): editor text may contain "%" (e.g. "10% Rabatt") – only %s is replaced.
+			$text = (string) $atts['text'];
+			$out .= '<strong>' . ( false !== strpos( $text, '%s' ) ? str_replace( '%s', esc_html( $name ), esc_html( $text ) ) : esc_html( $text . ' ' . $name ) ) . '</strong>';
+		}
 		if ( $aff->landing_message ) {
 			$out .= '<p>' . nl2br( esc_html( $aff->landing_message ) ) . '</p>';
 		}
 		return $out . '</div>';
+	}
+
+	/**
+	 * Partner name as shown on shop pages. The name comes from the application form and is not
+	 * reviewed when applications are approved automatically: only a plain name is shown (letters,
+	 * spaces and . ' & -, at most 60 characters and 6 words, no numbers, addresses or links), so
+	 * the box cannot be used for messages like "Support – pay only by bank transfer to …".
+	 *
+	 * @param string $name Partner name.
+	 * @return string '' when the name is not shown.
+	 */
+	public static function display_name( $name ) {
+		$name = trim( preg_replace( '/\s+/u', ' ', (string) $name ) );
+		$ok   = '' !== $name
+			&& (bool) preg_match( "/^[\\p{L}\\p{M}][\\p{L}\\p{M} .'’&\\-]{0,59}$/u", $name )
+			&& ! preg_match( '/\.\p{L}/u', $name ) // No domains ("www.example.com").
+			&& count( explode( ' ', $name ) ) <= 6;
+		/**
+		 * Filter the partner name shown in the welcome box ('' = no name line).
+		 *
+		 * @param string $shown Name or ''.
+		 * @param string $name  Stored name.
+		 */
+		return (string) apply_filters( 'wpac_welcome_name', $ok ? $name : '', $name );
 	}
 }

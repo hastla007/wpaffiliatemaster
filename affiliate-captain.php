@@ -47,7 +47,7 @@ if ( defined( 'WPAC_VERSION' ) ) {
 }
 
 define( 'WPAC_VERSION', '0.10.0' );
-define( 'WPAC_DB_VERSION', 9 );
+define( 'WPAC_DB_VERSION', 10 );
 /** Version of the public integration contract (hooks + payload schema). */
 define( 'WPAC_CONTRACT_VERSION', '1.2.0' );
 define( 'WPAC_FILE', __FILE__ );

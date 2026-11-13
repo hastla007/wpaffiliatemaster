@@ -287,7 +287,7 @@ check( 'normal weekday', '2026-11-12', SepaXml::next_business_day( gmmktime( 10,
 $cf = array( '173.245.48.0/20', '2400:cb00::/32' );
 check( 'no proxy: remote addr', '203.0.113.5', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '203.0.113.5', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4' ), array() ) );
 check( 'untrusted peer: XFF ignored', '203.0.113.5', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '203.0.113.5', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4' ), $cf ) );
-check( 'trusted CF: CF-Connecting-IP', '198.51.100.7', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '173.245.50.1', 'HTTP_CF_CONNECTING_IP' => '198.51.100.7' ), $cf ) );
+check( 'trusted CF: CF-Connecting-IP when enabled', '198.51.100.7', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '173.245.50.1', 'HTTP_CF_CONNECTING_IP' => '198.51.100.7' ), $cf, array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR' ) ) );
 check( 'trusted: right-most untrusted XFF hop', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_FORWARDED_FOR' => '6.6.6.6, 198.51.100.9, 10.0.0.2' ), array( '10.0.0.0/8' ) ) );
 check( 'cidr v4', true, RateLimiter::in_cidr( '173.245.63.255', '173.245.48.0/20' ) );
 check( 'cidr v4 outside', false, RateLimiter::in_cidr( '173.245.64.0', '173.245.48.0/20' ) );
@@ -361,6 +361,24 @@ foreach ( $wpac_guard_files as $wpac_f ) {
 	}
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
+
+// R6-CC3: behind a trusted proxy only X-Forwarded-For is read by default; CF-Connecting-IP and
+// X-Real-IP (any client can send them) only when enabled.
+check( 'R6-CC3 forged CF-Connecting-IP via a trusted non-Cloudflare proxy ignored', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_CF_CONNECTING_IP' => '6.6.6.6', 'HTTP_X_FORWARDED_FOR' => '198.51.100.9' ), array( '10.0.0.0/8' ) ) );
+check( 'R6-CC3 forged X-Real-IP ignored, peer address used', '10.0.0.1', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_REAL_IP' => '6.6.6.6' ), array( '10.0.0.0/8' ) ) );
+check( 'R6-CC3 X-Real-IP when enabled', '198.51.100.3', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_REAL_IP' => '198.51.100.3' ), array( '10.0.0.0/8' ), array( 'HTTP_X_REAL_IP' ) ) );
+// R7-TR5: prefetch/prerender requests are recognised.
+check(
+	'R7-TR5 speculative requests (Sec-Purpose, Purpose, X-Moz) vs. normal navigation',
+	array( true, true, true, true, false ),
+	array(
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_SEC_PURPOSE' => 'prefetch' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_SEC_PURPOSE' => 'prefetch;prerender' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_PURPOSE' => 'prefetch' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_X_MOZ' => 'prefetch' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_USER_AGENT' => 'Mozilla/5.0' ) ),
+	)
+);
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

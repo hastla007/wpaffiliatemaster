@@ -466,7 +466,7 @@ final class Privacy {
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'use_wc_session' ) ) {
-			$p[] = __( 'If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.', 'affiliate-captain' );
+			$p[] = __( 'If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days = (int) Settings::get( 'lifetime_days' );

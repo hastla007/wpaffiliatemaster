@@ -124,18 +124,37 @@ final class CodeRepository {
 	 * @return string
 	 */
 	public static function main_code( $affiliate_id ) {
-		$codes = self::for_affiliate( $affiliate_id );
-		foreach ( $codes as $c ) {
-			if ( '' === $c->batch && '' === $c->coupon_code && self::validate( $c ) ) {
-				return $c->code;
+		// Non-batch codes without coupon first, then with coupon (partners with thousands of batch
+		// codes: only the candidates are read, never all rows).
+		$row = self::first_valid( $affiliate_id, true );
+		return $row ? $row->code : '';
+	}
+
+	/**
+	 * First usable code of a partner (active, not expired, not used up), by ID.
+	 *
+	 * @param int  $affiliate_id Affiliate.
+	 * @param bool $main_only    Only non-batch codes, those without coupon first.
+	 * @return object|null
+	 */
+	private static function first_valid( $affiliate_id, $main_only = false ) {
+		global $wpdb;
+		$t     = Db::table( 'partner_codes' );
+		$where = "affiliate_id = %d AND status = 'active' AND ( expires_at IS NULL OR expires_at > %s ) AND ( usage_limit = 0 OR usage_count < usage_limit )";
+		$order = 'id ASC';
+		if ( $main_only ) {
+			$where .= " AND batch = ''";
+			$order  = "( coupon_code <> '' ) ASC, id ASC";
+		}
+		// A few rows only: validate() checks each again (and the partner's status).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY {$order} LIMIT 5", $affiliate_id, Db::now() ) );
+		foreach ( (array) $rows as $row ) {
+			if ( self::validate( $row ) ) {
+				return $row;
 			}
 		}
-		foreach ( $codes as $c ) {
-			if ( '' === $c->batch && self::validate( $c ) ) {
-				return $c->code;
-			}
-		}
-		return '';
+		return null;
 	}
 
 	/**
@@ -334,12 +353,8 @@ final class CodeRepository {
 		}
 		$aff = AffiliateRepository::find_by_slug( $code );
 		if ( $aff && 'active' === $aff->status ) {
-			foreach ( self::for_affiliate( (int) $aff->id ) as $row ) {
-				$valid = self::validate( $row );
-				if ( $valid ) {
-					return $valid;
-				}
-			}
+			$row = self::first_valid( (int) $aff->id );
+			return $row ? self::validate( $row ) : null;
 		}
 		return null;
 	}
