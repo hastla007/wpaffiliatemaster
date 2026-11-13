@@ -948,6 +948,7 @@ final class Installer {
 					}
 				}
 				if ( $parts ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Own table and column definitions only.
 					$wpdb->query( "ALTER TABLE {$table} " . implode( ', ', $parts ) );
 				}
 				self::keep_lock();
