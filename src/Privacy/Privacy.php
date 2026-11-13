@@ -85,7 +85,9 @@ final class Privacy {
 		$items = array();
 		// Customers: lifetime partner link (stored as keyed hash).
 		$user = get_user_by( 'email', $email );
-		$link = \WPAffiliateCaptain\Tracking\CustomerLinks::find( \WPAffiliateCaptain\Tracking\CustomerLinks::hashes( $user ? (int) $user->ID : 0, $email ) );
+		// All stored links, also one still waiting for a review.
+		$links = \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( $user ? (int) $user->ID : 0, $email );
+		$link  = $links ? $links[0] : null;
 		if ( $link ) {
 			$items[] = array(
 				'group_id'    => 'wpac-customer-link',
@@ -474,6 +476,7 @@ final class Privacy {
 				/* translators: %d: days */
 				? sprintf( _n( 'After a purchase via a partner, later purchases within %d day are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', $days, 'affiliate-captain' ), $days )
 				: __( 'After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'affiliate-captain' );
+			$p[]  = __( 'This link is only created for purchases with a customer account that earned the partner a commission (never for guest orders), and it is deleted at the latest when the partnership ends or the shop stops crediting later purchases.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'js_tracking' ) ) {
 			$p[] = __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.', 'affiliate-captain' );

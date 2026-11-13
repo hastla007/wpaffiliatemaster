@@ -95,6 +95,12 @@ final class CouponLink {
 			CodeRepository::set_status( (int) $previous->id, 'active' );
 			return;
 		}
-		CodeRepository::create( $aff_id, $code, array( 'coupon_code' => $code ) );
+		// Coupon codes may contain characters partner codes cannot ("größe10", "лето20"): the partner
+		// code is derived (or random), the coupon itself is matched by the coupon column.
+		$created = CodeRepository::create( $aff_id, CodeRepository::code_for_coupon( $code ), array( 'coupon_code' => $code ) );
+		if ( is_wp_error( $created ) && class_exists( '\\WC_Admin_Meta_Boxes' ) ) {
+			/* translators: %s: error message */
+			\WC_Admin_Meta_Boxes::add_error( sprintf( __( 'Affiliate Captain: the coupon was not linked to the partner: %s', 'affiliate-captain' ), $created->get_error_message() ) );
+		}
 	}
 }

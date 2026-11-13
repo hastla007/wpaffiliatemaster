@@ -7,12 +7,14 @@
 
 namespace WPAffiliateCaptain\Cli;
 
+use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Commissions\Balance;
 use WPAffiliateCaptain\Core\Cron;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Installer;
 use WPAffiliateCaptain\Core\Jobs;
 use WPAffiliateCaptain\Privacy\Retention;
+use WPAffiliateCaptain\Tracking\CustomerLinks;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -59,6 +61,65 @@ final class Command {
 			array( 'check' => 'retention (years, hold)', 'value' => Retention::years() . ( Retention::on_hold() ? ', on hold' : '' ) ),
 		);
 		\WP_CLI\Utils\format_items( isset( $assoc['format'] ) ? $assoc['format'] : 'table', $rows, array( 'check', 'value' ) );
+	}
+
+	/**
+	 * Show or remove the lifetime partner binding of a customer.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <customer>
+	 * : Customer e-mail address or WordPress user ID.
+	 *
+	 * [--remove]
+	 * : Remove the binding (audited).
+	 *
+	 * [--reason=<reason>]
+	 * : Reason stored in the audit log (with --remove).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp wpac customer-link kunde@example.com
+	 *     wp wpac customer-link 42 --remove --reason="Binding via foreign guest order"
+	 *
+	 * @subcommand customer-link
+	 * @param array $args  Positional.
+	 * @param array $assoc Options.
+	 */
+	public function customer_link( $args, $assoc ) {
+		$who     = isset( $args[0] ) ? trim( (string) $args[0] ) : '';
+		$user_id = ctype_digit( $who ) ? (int) $who : 0;
+		$email   = $user_id ? '' : $who;
+		if ( $user_id ) {
+			$user  = get_userdata( $user_id );
+			$email = $user ? (string) $user->user_email : '';
+		} elseif ( is_email( $email ) ) {
+			$user    = get_user_by( 'email', $email );
+			$user_id = $user ? (int) $user->ID : 0;
+		} else {
+			\WP_CLI::error( 'Please give an e-mail address or a user ID.' );
+		}
+		$rows = CustomerLinks::for_customer( $user_id, $email );
+		if ( ! $rows ) {
+			\WP_CLI::success( 'No lifetime binding for this customer.' );
+			return;
+		}
+		$items = array();
+		foreach ( $rows as $r ) {
+			$aff     = AffiliateRepository::find( (int) $r->affiliate_id );
+			$items[] = array(
+				'partner' => ( $aff ? $aff->name : '' ) . ' (#' . (int) $r->affiliate_id . ')',
+				'order'   => $r->source . ' ' . $r->source_order_id,
+				'state'   => (int) $r->pending ? 'pending review' : 'active',
+				'since'   => $r->created_at,
+				'expires' => $r->expires_at ? $r->expires_at : 'never',
+			);
+		}
+		\WP_CLI\Utils\format_items( 'table', $items, array( 'partner', 'order', 'state', 'since', 'expires' ) );
+		if ( ! empty( $assoc['remove'] ) ) {
+			$n = CustomerLinks::unlink_customer( $user_id, $email, isset( $assoc['reason'] ) ? (string) $assoc['reason'] : 'wp-cli' );
+			\WP_CLI::success( sprintf( 'Removed %d link(s).', $n ) );
+		}
 	}
 
 	/**

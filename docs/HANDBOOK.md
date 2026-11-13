@@ -94,7 +94,7 @@ An exclusion always wins; otherwise the most specific rule (partner > group > gl
 
 **Lifecycle.** A commission starts as *pending* and is released (*approved*) after the hold period (Settings → Commissions; integrations can extend it, e.g. until a course has taken place). Refunds create negative correction lines, proportional per item; a cancellation or chargeback reverses the rest. Each event is booked once only, even if it is reported several times. Corrections after a payout are deducted from the next payout. *Review* marks commissions held by a fraud rule.
 
-**Monthly tiers** add a bonus in percent of the monthly net revenue (or order count), either marginal (only above the threshold) or retroactive. **Lifetime commissions** give repeat purchases of a referred customer to the same partner. **Subscription renewals** (WooCommerce Subscriptions) are commissioned by default.
+**Monthly tiers** add a bonus in percent of the monthly net revenue (or order count), either marginal (only above the threshold) or retroactive. **Lifetime commissions** give repeat purchases of a referred customer to the same partner. The binding is created only by an order with a customer account that earned a commission (never by a guest order, whose e-mail address is not verified), waits for the approval while the order is under review, and ends when the partner is terminated or lifetime commissions are switched off. The order box shows the binding of the order's customer and can remove it; `wp wpac customer-link` does the same from the command line. **Subscription renewals** (WooCommerce Subscriptions) are commissioned by default.
 
 Every partner has an append-only, hash-chained account per currency (partner page → account statement). `wp wpac verify` and a daily check compare the accounts with the bookings.
 
@@ -172,6 +172,7 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 | `wp wpac jobs [--retry-failed] [--limit=<n>]` | work through the retry queue |
 | `wp wpac cron hourly\|daily` | run the maintenance now |
 | `wp wpac verify` | check every partner account against its bookings |
+| `wp wpac customer-link <e-mail\|user-id> [--remove] [--reason=<text>]` | show or remove a customer's lifetime partner binding |
 | `wp wpac maintenance on\|off` | maintenance mode |
 | `wp wpac import partners <file.csv> [--dry-run] [--notify]` | import partners |
 | `wp wpac export <file.zip> [--include-tax-data --user=<login>]` | export the program |

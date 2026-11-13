@@ -94,8 +94,12 @@ final class OrderSync {
 			'affiliate_id' => $manual,
 			'touch'        => is_array( $touch ) ? $touch : null,
 			'customer'     => array(
-				'user_id' => (int) $order->get_customer_id(),
-				'email'   => (string) $order->get_billing_email(),
+				'user_id'  => (int) $order->get_customer_id(),
+				'email'    => (string) $order->get_billing_email(),
+				// Only for the self-referral comparison with the partner's payout profile; never stored.
+				'name'     => trim( self::billing( $order, 'first_name' ) . ' ' . self::billing( $order, 'last_name' ) ),
+				'address'  => self::billing( $order, 'address_1' ),
+				'postcode' => self::billing( $order, 'postcode' ),
 			),
 		);
 		// A renewal without its own manual assignment belongs to the partner who brought the
@@ -109,6 +113,18 @@ final class OrderSync {
 			}
 		}
 		return $payload;
+	}
+
+	/**
+	 * Billing field of an order ('' when the order object has no such getter).
+	 *
+	 * @param \WC_Order $order Order.
+	 * @param string    $field Field (first_name, last_name, address_1, postcode).
+	 * @return string
+	 */
+	private static function billing( $order, $field ) {
+		$getter = 'get_billing_' . $field;
+		return is_callable( array( $order, $getter ) ) ? (string) $order->$getter() : '';
 	}
 
 	/**

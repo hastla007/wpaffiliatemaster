@@ -46,6 +46,7 @@ final class Plugin {
 		CodeRepository::register_hooks();
 		ContractApi::register_hooks();
 		Tracker::register_hooks();
+		\WPAffiliateCaptain\Tracking\CustomerLinks::register_hooks();
 		\WPAffiliateCaptain\Tracking\Consent::register_hooks();
 		Registration::register_hooks();
 		\WPAffiliateCaptain\Affiliates\Notifications::register_hooks();

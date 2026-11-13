@@ -29,7 +29,13 @@ add_action( 'wpac_loaded', function () {
         'coupon_codes' => array( 'sommer10' ), // optional
         'affiliate_id' => 0,                   // optional: explizite Zuordnung
         'touch'        => null,                // optional: [ code, method link|cookie|app, campaign, content_id ]
-        'customer'     => array( 'user_id' => 12, 'email' => 'kunde@example.com' ),
+        'customer'     => array(
+            'user_id'  => 12,                   // 0 = Gast: legt nie eine Lifetime-Bindung an
+            'email'    => 'kunde@example.com',
+            'name'     => 'Erika Muster',       // optional: Self-Referral-Abgleich mit dem Auszahlungsprofil
+            'address'  => 'Seestraße 5',        // optional (Straße), nur Abgleich
+            'postcode' => '24937',              // optional, nur Abgleich
+        ),
         'items'        => array(
             array(
                 'item_id'      => '1',          // stabile Positions-ID (für Refunds)
@@ -49,7 +55,7 @@ add_action( 'wpac_loaded', function () {
 
 Alternativ ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_sale', $payload );` (ohne Rückgabewert).
 
-Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, commission_ids, reason )` oder `WP_Error`. Bei technischen Fehlern wird das Ereignis in die Retry-Warteschlange gelegt (`wpac_queued`); die Kunden-E-Mail wird dabei entfernt (der Self-Referral-Vergleich nutzt beim Retry nur noch die User-ID).
+Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, commission_ids, reason )` oder `WP_Error`. Bei technischen Fehlern wird das Ereignis in die Retry-Warteschlange gelegt (`wpac_queued`); Kunden-E-Mail, Name und Anschrift werden dabei entfernt (der Self-Referral-Vergleich nutzt beim Retry nur noch die User-ID). `reason` kann u. a. `no_candidate`, `self_referral` oder `code_limit` (Nutzungslimit des Codes erreicht) sein.
 
 Refunds, die **vor** einem erfolgreich gebuchten Verkauf passieren, sollte die Quelle bereits von `net_minor` abziehen (der WooCommerce-Adapter macht das automatisch). `wpac_record_refund()` ohne vorhandene Provision liefert `no_commission` – außer der Verkauf dieser Bestellung wartet noch in der Wiederholungsschlange: Dann wird die Erstattung ebenfalls eingereiht (`queued`) und nach dem Verkauf gebucht (seit 0.8.0).
 

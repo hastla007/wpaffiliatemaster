@@ -1185,7 +1185,7 @@ Settings::flush_cache();
 check( 'ZB-W17 value of an older version is still read from the settings', '2019-05', Settings::get( 'tier_month_first' ) );
 update_option( 'wpac_db_version', 8 );
 WPAffiliateCaptain\Core\Installer::install_schema();
-check( 'ZB-W17 v9 migration moves the runtime state out of the settings', array( '2019-05', false, 9 ), array( get_option( 'wpac_tier_month_first' ), array_key_exists( 'tier_month_first', (array) get_option( 'wpac_settings' ) ), (int) get_option( 'wpac_db_version' ) ) );
+check( 'ZB-W17 v9 migration moves the runtime state out of the settings', array( '2019-05', false, WPAC_DB_VERSION ), array( get_option( 'wpac_tier_month_first' ), array_key_exists( 'tier_month_first', (array) get_option( 'wpac_settings' ) ), (int) get_option( 'wpac_db_version' ) ) );
 update_option( 'wpac_tier_month_closed', gmdate( 'Y-m', strtotime( gmdate( 'Y-m-01' ) . ' -3 month' ) ) );
 $zb_settings = get_option( 'wpac_settings' );
 WPAffiliateCaptain\Commissions\TierService::close_due_months();
@@ -1512,6 +1512,7 @@ refund( 'zf-2', 'zf-r1', array( array( 'item_id' => '1', 'net_minor' => 5000 ) )
 WPAffiliateCaptain\Core\Cron::daily();
 $zf_hosts = array_values( array_unique( array_map( static function ( $u ) { return (string) parse_url( (string) $u, PHP_URL_HOST ); }, $GLOBALS['test_http_calls'] ) ) );
 check( 'ZF6 core flows make no outgoing requests (no license server, VIES off)', array(), $zf_hosts );
+require __DIR__ . '/r8-g2.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

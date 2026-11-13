@@ -80,17 +80,12 @@ final class AttributionResolver {
 		}
 
 		// Lifetime link: lowest priority, only when no explicit/new referral exists.
-		if ( ! $candidates && Settings::get( 'lifetime_enabled' ) ) {
-			$link = CustomerLinks::find( CustomerLinks::hashes( $sale['customer']['user_id'], $sale['customer']['email'] ) );
-			if ( $link ) {
-				$aff = AffiliateRepository::find( (int) $link->affiliate_id );
-				if ( self::eligible( $aff ) ) {
-					$candidates[] = array(
-						'affiliate_id' => (int) $aff->id,
-						'code_id'      => 0,
-						'method'       => 'lifetime',
-					);
-				}
+		$lifetime_tried = false;
+		if ( ! $candidates ) {
+			$lifetime_tried = true;
+			$lifetime       = self::lifetime_candidate( $sale );
+			if ( $lifetime ) {
+				$candidates[] = $lifetime;
 			}
 		}
 
@@ -103,14 +98,37 @@ final class AttributionResolver {
 		$candidates = apply_filters( 'wpac_attribution_candidates', $candidates, $sale );
 		// Whatever added a candidate (coupon links, integrations, filters): only active partners
 		// whose processing is not restricted (Art. 18 GDPR) can earn new commissions.
-		$candidates = array_values(
-			array_filter(
-				(array) $candidates,
-				static function ( $c ) {
-					return is_array( $c ) && ! empty( $c['affiliate_id'] ) && self::eligible( AffiliateRepository::find( (int) $c['affiliate_id'] ) );
+		$candidates = self::eligible_candidates( $candidates );
+
+		// A partner who is the buyer never takes the order away from another partner: self-referral
+		// candidates are skipped while a valid one (or the lifetime partner) exists.
+		$self = null;
+		foreach ( $candidates as $i => $c ) {
+			if ( self::is_self_referral( (int) $c['affiliate_id'], $sale ) ) {
+				if ( null === $self ) {
+					$self = $c;
 				}
-			)
-		);
+				unset( $candidates[ $i ] );
+			}
+		}
+		$candidates = array_values( $candidates );
+		if ( ! $candidates && null !== $self && ! $lifetime_tried ) {
+			$lifetime = self::lifetime_candidate( $sale );
+			if ( $lifetime && ! self::is_self_referral( (int) $lifetime['affiliate_id'], $sale ) ) {
+				$candidates[] = $lifetime;
+			}
+		}
+		$self_winner = false;
+		if ( ! $candidates && null !== $self ) {
+			if ( 'review' !== Settings::get( 'self_referral' ) ) {
+				return array(
+					'attribution' => null,
+					'reason'      => 'self_referral',
+				);
+			}
+			$candidates[] = $self;
+			$self_winner  = true;
+		}
 		if ( ! $candidates ) {
 			return array(
 				'attribution' => null,
@@ -130,23 +148,58 @@ final class AttributionResolver {
 			),
 			$candidates[0]
 		);
-
-		if ( self::is_self_referral( (int) $winner['affiliate_id'], $sale ) ) {
-			if ( 'review' === Settings::get( 'self_referral' ) ) {
-				$winner['review'] = true;
-				$winner['note']   = 'self_referral';
-			} else {
-				return array(
-					'attribution' => null,
-					'reason'      => 'self_referral',
-				);
-			}
+		if ( $self_winner ) {
+			$winner['review'] = true;
+			$winner['note']   = 'self_referral';
 		}
 
 		return array(
 			'attribution' => $winner,
 			'reason'      => '',
 		);
+	}
+
+	/**
+	 * Keep only well-formed candidates of eligible partners.
+	 *
+	 * @param mixed $candidates Candidates.
+	 * @return array
+	 */
+	private static function eligible_candidates( $candidates ) {
+		return array_values(
+			array_filter(
+				(array) $candidates,
+				static function ( $c ) {
+					return is_array( $c ) && ! empty( $c['affiliate_id'] ) && self::eligible( AffiliateRepository::find( (int) $c['affiliate_id'] ) );
+				}
+			)
+		);
+	}
+
+	/**
+	 * Lifetime candidate of the sale's customer: the oldest active link whose partner may earn.
+	 * A link to a paused/restricted partner does not hide a link of another partner.
+	 *
+	 * @param array $sale Sale.
+	 * @return array|null
+	 */
+	private static function lifetime_candidate( array $sale ) {
+		if ( ! Settings::get( 'lifetime_enabled' ) ) {
+			return null;
+		}
+		$user_id = isset( $sale['customer']['user_id'] ) ? (int) $sale['customer']['user_id'] : 0;
+		$email   = isset( $sale['customer']['email'] ) ? (string) $sale['customer']['email'] : '';
+		foreach ( CustomerLinks::find_all( CustomerLinks::hashes( $user_id, $email ) ) as $link ) {
+			$aff = AffiliateRepository::find( (int) $link->affiliate_id );
+			if ( self::eligible( $aff ) ) {
+				return array(
+					'affiliate_id' => (int) $aff->id,
+					'code_id'      => 0,
+					'method'       => 'lifetime',
+				);
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -187,6 +240,73 @@ final class AttributionResolver {
 				}
 			}
 		}
+		// Guest order with another address or a second partner account: compare the billing name
+		// and address with the partner's payout profile (name + postcode, or street + postcode).
+		if ( ! empty( $sale['customer'] ) && is_array( $sale['customer'] ) ) {
+			$profile = \WPAffiliateCaptain\Payouts\ProfileRepository::get( (int) $aff->id );
+			if ( $profile && self::matches_profile( $sale['customer'], array( (string) $profile->legal_name, (string) $profile->account_holder, (string) $aff->name ), (string) $profile->address ) ) {
+				return true;
+			}
+		}
 		return (bool) apply_filters( 'wpac_is_self_referral', false, $affiliate_id, $sale );
+	}
+
+	/**
+	 * Whether a buyer (billing name, street, postcode) matches a partner's payout data (pure).
+	 * A match needs the postcode plus the name or the street, so a common name alone never
+	 * marks an order.
+	 *
+	 * @param array    $customer Customer: name, address (street line), postcode.
+	 * @param string[] $names    Partner names (legal name, account holder, partner name).
+	 * @param string   $address  Partner address (free text).
+	 * @return bool
+	 */
+	public static function matches_profile( array $customer, array $names, $address ) {
+		$postcode = self::comparable( isset( $customer['postcode'] ) ? (string) $customer['postcode'] : '', true );
+		$words    = ' ' . self::comparable( (string) $address, true ) . ' ';
+		if ( '' === $postcode || false === strpos( $words, ' ' . $postcode . ' ' ) ) {
+			return false;
+		}
+		$name = self::comparable( isset( $customer['name'] ) ? (string) $customer['name'] : '' );
+		if ( strlen( $name ) >= 4 ) {
+			foreach ( $names as $n ) {
+				if ( self::comparable( (string) $n ) === $name ) {
+					return true;
+				}
+			}
+		}
+		$street = self::comparable( isset( $customer['address'] ) ? (string) $customer['address'] : '' );
+		return strlen( $street ) >= 4 && false !== strpos( str_replace( ' ', '', $words ), $street );
+	}
+
+	/**
+	 * Lower-case ASCII form for comparisons: umlauts transliterated, "straße"/"str." unified,
+	 * everything but letters and digits removed (spaces kept on request).
+	 *
+	 * @param string $text        Text.
+	 * @param bool   $keep_spaces Keep word boundaries.
+	 * @return string
+	 */
+	private static function comparable( $text, $keep_spaces = false ) {
+		$text = function_exists( 'mb_strtolower' ) ? mb_strtolower( (string) $text, 'UTF-8' ) : strtolower( (string) $text );
+		$text = strtr(
+			$text,
+			array(
+				'ä' => 'ae',
+				'ö' => 'oe',
+				'ü' => 'ue',
+				'ß' => 'ss',
+				'é' => 'e',
+				'è' => 'e',
+				'á' => 'a',
+				'à' => 'a',
+				'ó' => 'o',
+				'ò' => 'o',
+				'ç' => 'c',
+				'ñ' => 'n',
+			)
+		);
+		$text = preg_replace( '/stra(ss)?e\b|str\./', 'str', $text );
+		return trim( (string) preg_replace( $keep_spaces ? '/[^a-z0-9]+/' : '/[^a-z0-9]/', $keep_spaces ? ' ' : '', $text ) );
 	}
 }

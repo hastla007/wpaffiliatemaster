@@ -13,6 +13,22 @@ final class Settings {
 
 	const OPTION = 'wpac_settings';
 
+	/**
+	 * Fraud thresholds a new installation starts with (the defaults keep the rules off so existing
+	 * shops are not changed by an update). Order value: 2,000 in the program currency.
+	 *
+	 * @param string $currency Program currency.
+	 * @return array
+	 */
+	public static function recommended_fraud( $currency = 'EUR' ) {
+		return array(
+			'fraud_max_orders_day'    => 50,
+			'fraud_max_order_minor'   => Money::to_minor( '2000', (string) $currency ),
+			'fraud_min_click_seconds' => 5,
+			'fraud_max_refund_rate'   => 30,
+		);
+	}
+
 	/** @var array|null */
 	private static $cache = null;
 

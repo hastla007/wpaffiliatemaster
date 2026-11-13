@@ -225,6 +225,9 @@ final class ProfileRepository {
 		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
 		}
+		if ( '' !== $iban || self::METHOD_MANUAL === $method ) {
+			self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : array() );
+		}
 		$had_details = $existing && '' !== (string) $existing->iban_encrypted;
 		$changed     = $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $method !== $old_method );
 		if ( $changed ) {
@@ -243,6 +246,79 @@ final class ProfileRepository {
 			)
 		);
 		return true;
+	}
+
+	/** Option: partner ID => IDs of other partners with the same IBAN. */
+	const SHARED_IBAN_OPTION = 'wpac_shared_iban';
+
+	/**
+	 * Other partners whose payout profile has the same IBAN (only rows with the same country and
+	 * last four digits are decrypted).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $iban         Normalized IBAN.
+	 * @return int[]
+	 */
+	public static function partners_with_iban( $affiliate_id, $iban ) {
+		global $wpdb;
+		$iban = Iban::normalize( $iban );
+		if ( '' === $iban ) {
+			return array();
+		}
+		$t = Db::table( 'payout_profiles' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, iban_encrypted FROM {$t} WHERE iban_country = %s AND iban_last4 = %s AND affiliate_id <> %d LIMIT 200", substr( $iban, 0, 2 ), substr( $iban, -4 ), $affiliate_id ) );
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			if ( Crypto::decrypt( (string) $row->iban_encrypted ) === $iban ) {
+				$out[] = (int) $row->affiliate_id;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Remember (and audit) partners that share an IBAN with another partner; such partners'
+	 * orders go to review (fraud rule "shared_iban").
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param int[] $others       Other partners with the same IBAN.
+	 */
+	private static function note_shared_iban( $affiliate_id, array $others ) {
+		$map = get_option( self::SHARED_IBAN_OPTION, array() );
+		$map = is_array( $map ) ? $map : array();
+		$old = isset( $map[ $affiliate_id ] ) ? array_map( 'intval', (array) $map[ $affiliate_id ] ) : array();
+		// Drop this partner from the lists of partners it no longer shares an IBAN with.
+		foreach ( array_diff( $old, $others ) as $o ) {
+			if ( isset( $map[ $o ] ) ) {
+				$map[ $o ] = array_values( array_diff( array_map( 'intval', (array) $map[ $o ] ), array( $affiliate_id ) ) );
+				if ( ! $map[ $o ] ) {
+					unset( $map[ $o ] );
+				}
+			}
+		}
+		unset( $map[ $affiliate_id ] );
+		if ( $others ) {
+			$map[ $affiliate_id ] = array_values( $others );
+			foreach ( $others as $o ) {
+				$map[ $o ] = array_values( array_unique( array_merge( isset( $map[ $o ] ) ? array_map( 'intval', (array) $map[ $o ] ) : array(), array( $affiliate_id ) ) ) );
+			}
+			if ( array_diff( $others, $old ) ) {
+				Audit::log( 'payout_profile.iban_shared', 'affiliate', $affiliate_id, array( 'partners' => array_values( $others ) ) );
+			}
+		}
+		update_option( self::SHARED_IBAN_OPTION, $map, false );
+	}
+
+	/**
+	 * Other partners with the same IBAN as this partner.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return int[]
+	 */
+	public static function shared_iban( $affiliate_id ) {
+		$map = get_option( self::SHARED_IBAN_OPTION, array() );
+		return is_array( $map ) && isset( $map[ (int) $affiliate_id ] ) ? array_map( 'intval', (array) $map[ (int) $affiliate_id ] ) : array();
 	}
 
 	/**
@@ -278,5 +354,6 @@ final class ProfileRepository {
 	public static function delete( $affiliate_id ) {
 		global $wpdb;
 		$wpdb->delete( Db::table( 'payout_profiles' ), array( 'affiliate_id' => (int) $affiliate_id ) );
+		self::note_shared_iban( (int) $affiliate_id, array() );
 	}
 }

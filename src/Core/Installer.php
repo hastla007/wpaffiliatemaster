@@ -47,7 +47,9 @@ final class Installer {
 		Capabilities::install();
 		Cron::schedule();
 		if ( false === get_option( Settings::OPTION ) ) {
-			add_option( Settings::OPTION, Settings::defaults(), '', true );
+			// New installation: fraud rules start with sensible thresholds instead of switched off.
+			$defaults = Settings::defaults();
+			add_option( Settings::OPTION, array_merge( $defaults, Settings::recommended_fraud( (string) $defaults['currency'] ) ), '', true );
 		}
 	}
 
@@ -408,6 +410,7 @@ final class Installer {
 			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
 			'attributions'    => array( 'id', 'content_id', 'campaign' ),
 			'visits'          => array( 'id', 'content_id', 'campaign' ),
+			'customer_links'  => array( 'id', 'customer_hash', 'pending' ),
 		);
 		// Existing tables of this plugin, compared without case: with lower_case_table_names=1
 		// (Windows, some macOS/managed MySQL) the server reports names in lower case.
@@ -795,11 +798,13 @@ final class Installer {
 			customer_hash char(64) NOT NULL,
 			source varchar(40) NOT NULL DEFAULT '',
 			source_order_id varchar(64) NOT NULL DEFAULT '',
+			pending tinyint(1) NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
 			expires_at datetime NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY customer_hash (customer_hash),
 			KEY affiliate_id (affiliate_id),
+			KEY source_order (source,source_order_id),
 			KEY expires_at (expires_at)
 		) $c;";
 
