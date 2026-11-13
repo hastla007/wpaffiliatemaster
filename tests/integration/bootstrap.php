@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 8 );
+define( 'WPAC_DB_VERSION', 9 );
 define( 'WPAC_CONTRACT_VERSION', '1.1.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/wp-affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -26,6 +26,7 @@ define( 'WPAC_URL', 'http://example.test/wp-content/plugins/wp-affiliate-captain
 
 class Test_WPDB {
 	public $prefix = 'wp_';
+	public $base_prefix = 'wp_';
 	public $insert_id = 0;
 	public $last_error = '';
 	public $suppress   = false;
@@ -37,7 +38,8 @@ class Test_WPDB {
 		mysqli_report( MYSQLI_REPORT_OFF );
 		// Optional mixed-case prefix (lower_case_table_names tests) and host:port.
 		if ( getenv( 'WPAC_TEST_DB_PREFIX' ) ) {
-			$this->prefix = (string) getenv( 'WPAC_TEST_DB_PREFIX' );
+			$this->prefix      = (string) getenv( 'WPAC_TEST_DB_PREFIX' );
+			$this->base_prefix = $this->prefix;
 		}
 		$host = getenv( 'WPAC_TEST_DB_HOST' ) ?: 'localhost';
 		$port = null;
@@ -327,3 +329,6 @@ if ( ! function_exists( 'current_user_can' ) ) {
 	function current_user_can( $cap ) { return false; }
 }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
+// Multisite stand-ins (tests switch $GLOBALS['test_multisite'] / $GLOBALS['test_blog_id']).
+if ( ! function_exists( 'is_multisite' ) ) { function is_multisite() { return ! empty( $GLOBALS['test_multisite'] ); } }
+if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return isset( $GLOBALS['test_blog_id'] ) ? (int) $GLOBALS['test_blog_id'] : 1; } }

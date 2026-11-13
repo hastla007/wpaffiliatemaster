@@ -46,7 +46,8 @@ final class CustomerLinks {
 	}
 
 	/**
-	 * Delete expired links (cron).
+	 * Delete expired links (cron) in small batches (index on expires_at), so a large backlog never
+	 * becomes one long-locking DELETE.
 	 *
 	 * @return int
 	 */
@@ -54,7 +55,7 @@ final class CustomerLinks {
 		global $wpdb;
 		$t = Db::table( 'customer_links' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$t} WHERE expires_at IS NOT NULL AND expires_at <= %s", Db::now() ) );
+		return \WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( "DELETE FROM {$t} WHERE expires_at IS NOT NULL AND expires_at <= %s", Db::now() ), 2000, 100 );
 	}
 
 	/**

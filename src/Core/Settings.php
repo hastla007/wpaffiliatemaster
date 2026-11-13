@@ -48,8 +48,6 @@ final class Settings {
 			'lifetime_enabled'        => 0,
 			'lifetime_days'           => 365,
 			'lifetime_rate'           => '',
-			'tier_month_closed'       => '',
-			'tier_month_first'        => '', // First month that was ever closed (earlier months never get bonuses).
 			// Program.
 			'auto_approve'            => 0,
 			'terms_page_id'           => 0,
@@ -84,6 +82,7 @@ final class Settings {
 			'operator_tax_number'     => '',
 			'credit_prefix'           => 'GS',
 			'storno_prefix'           => 'ST',
+			'vies_check'              => 0, // Check partner VAT IDs with the EU Commission's VIES service (external request).
 			// Fraud rules (0 = off).
 			'fraud_max_orders_day'    => 0,
 			'fraud_max_order_minor'   => 0,
@@ -113,23 +112,74 @@ final class Settings {
 	}
 
 	/**
-	 * One setting.
+	 * One setting (or runtime state, see RUNTIME).
 	 *
 	 * @param string $key Key.
 	 * @return mixed
 	 */
 	public static function get( $key ) {
+		if ( isset( self::RUNTIME[ $key ] ) ) {
+			return self::state( $key );
+		}
 		$all = self::all();
 		return array_key_exists( $key, $all ) ? $all[ $key ] : null;
 	}
 
 	/**
-	 * Persist settings (already sanitized).
+	 * Runtime state the scheduled tasks write (own options, never part of the settings array:
+	 * writing the whole settings array back from a cron run would undo settings an admin saved
+	 * meanwhile). Key => option name.
+	 */
+	const RUNTIME = array(
+		'tier_month_closed' => 'wpac_tier_month_closed',
+		'tier_month_first'  => 'wpac_tier_month_first', // First month that was ever closed (earlier months never get bonuses).
+	);
+
+	/**
+	 * Read runtime state ('' when not set; values of older versions are still read from the settings).
+	 *
+	 * @param string $key Key of RUNTIME.
+	 * @return string
+	 */
+	public static function state( $key ) {
+		if ( ! isset( self::RUNTIME[ $key ] ) ) {
+			return '';
+		}
+		$value = get_option( self::RUNTIME[ $key ], null );
+		if ( null === $value ) {
+			$saved = get_option( self::OPTION, array() );
+			$value = is_array( $saved ) && isset( $saved[ $key ] ) ? $saved[ $key ] : '';
+		}
+		return (string) $value;
+	}
+
+	/**
+	 * Write runtime state (only its own option).
+	 *
+	 * @param string $key   Key of RUNTIME.
+	 * @param string $value Value.
+	 */
+	public static function set_state( $key, $value ) {
+		if ( isset( self::RUNTIME[ $key ] ) ) {
+			update_option( self::RUNTIME[ $key ], (string) $value, false );
+		}
+	}
+
+	/**
+	 * Persist settings (already sanitized). Runtime state goes to its own options.
 	 *
 	 * @param array $values Values.
 	 */
 	public static function update( array $values ) {
-		$merged = array_merge( self::all(), $values );
+		foreach ( self::RUNTIME as $key => $option ) {
+			if ( array_key_exists( $key, $values ) ) {
+				self::set_state( $key, (string) $values[ $key ] );
+				unset( $values[ $key ] );
+			} elseif ( null === get_option( $option, null ) && '' !== self::state( $key ) ) {
+				self::set_state( $key, self::state( $key ) ); // Value of an older version: keep it.
+			}
+		}
+		$merged = array_diff_key( array_merge( self::all(), $values ), self::RUNTIME );
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 	}
@@ -157,7 +207,7 @@ final class Settings {
 		$lifetime_rate        = isset( $in['lifetime_rate'] ) ? Money::normalize_decimal( (string) $in['lifetime_rate'] ) : null;
 		$out['lifetime_rate'] = ( null !== $lifetime_rate && (float) $lifetime_rate >= 0 && (float) $lifetime_rate <= 100 ) ? $lifetime_rate : '';
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 

@@ -19,6 +19,7 @@ final class Cron {
 	public static function register_hooks() {
 		add_action( self::HOURLY, array( __CLASS__, 'hourly' ) );
 		add_action( self::DAILY, array( __CLASS__, 'daily' ) );
+		add_action( self::DAILY_REST, array( __CLASS__, 'daily_rest' ) );
 		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'batch' ) );
 		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'retry_failed' ) );
 		add_action(
@@ -42,9 +43,10 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
-		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK ) as $hook ) {
+		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST ) as $hook ) {
 			Scheduler::clear( $hook );
 		}
+		Scheduler::clear_group(); // Anything else of this plugin still waiting in the Action Scheduler.
 	}
 
 	public static function hourly() {
@@ -94,40 +96,89 @@ final class Cron {
 		return $total;
 	}
 
+	/** Single event that continues a daily run that used up its time budget. */
+	const DAILY_REST = 'wpac_daily_rest';
+	const DAILY_REST_OPTION = 'wpac_daily_rest';
+
+	/**
+	 * Steps of the daily maintenance in their order: privacy and retention clean-ups first
+	 * (deleting personal data must never wait for a migration, a slow mail server or VIES), then
+	 * bookings, documents and mails, the alarm mail last.
+	 *
+	 * @return array Key => [ callable, needs current schema and no maintenance ].
+	 */
+	public static function daily_steps() {
+		return array(
+			'visits'                => array( array( __CLASS__, 'purge_visits' ), false ),
+			'customer_links'        => array( array( '\WPAffiliateCaptain\Tracking\CustomerLinks', 'purge_expired' ), false ),
+			'pending_erasures'      => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'finish_pending_erasures' ), false ),
+			'rejected_applications' => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_rejected_applications' ), false ),
+			'expired_options'       => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_expired_options' ), false ),
+			'erased'                => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_erased' ), false ),
+			'agreements'            => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_agreements' ), false ),
+			'restrictions'          => array( array( '\WPAffiliateCaptain\Privacy\Restriction', 'purge' ), false ),
+			'objections'            => array( array( '\WPAffiliateCaptain\Payouts\Objections', 'purge' ), false ),
+			'audit'                 => array( array( __CLASS__, 'purge_audit' ), false ),
+			'jobs'                  => array( array( __CLASS__, 'purge_jobs' ), false ),
+			'inflight'              => array( array( __CLASS__, 'purge_inflight' ), false ),
+			'rate_limits'           => array( array( '\WPAffiliateCaptain\Tracking\RateLimiter', 'purge' ), false ),
+			'orphaned_tables'       => array( array( Installer::class, 'drop_orphaned_tables' ), false ),
+			'tier_close'            => array( array( '\WPAffiliateCaptain\Commissions\TierService', 'close_due_months' ), true ),
+			'tier_recalculate'      => array( array( '\WPAffiliateCaptain\Commissions\TierService', 'recalculate_closed_months' ), true ),
+			'statements'            => array( array( '\WPAffiliateCaptain\Payouts\Statement', 'purge_expired' ), true ),
+			'monthly_mail'          => array( array( '\WPAffiliateCaptain\Reports\MonthlyMail', 'send_due' ), true ),
+			'vies'                  => array( array( '\WPAffiliateCaptain\Payouts\Vies', 'recheck_stale' ), true ), // Only schedules background checks.
+			'balances'              => array( array( '\WPAffiliateCaptain\Commissions\Balance', 'scheduled_check' ), true ),
+			'alert'                 => array( array( Monitor::class, 'daily_alert' ), false ),
+		);
+	}
+
 	public static function daily() {
-		global $wpdb;
-		// Privacy and retention clean-ups always run (deleting personal data must never wait for
-		// a migration); bookings, documents and mails only on the current schema.
-		$steps = array();
-		if ( Installer::schema_current() && ! Settings::get( 'maintenance_mode' ) ) {
-			$steps = array(
-				array( '\WPAffiliateCaptain\Commissions\TierService', 'close_due_months' ),
-				array( '\WPAffiliateCaptain\Commissions\TierService', 'recalculate_closed_months' ),
-				array( '\WPAffiliateCaptain\Payouts\Statement', 'purge_expired' ),
-				array( '\WPAffiliateCaptain\Reports\MonthlyMail', 'send_due' ),
-				array( '\WPAffiliateCaptain\Payouts\Vies', 'recheck_stale' ),
-				array( '\WPAffiliateCaptain\Commissions\Balance', 'scheduled_check' ),
-			);
-		} elseif ( ! Installer::schema_current() ) {
+		delete_option( self::DAILY_REST_OPTION ); // A new day's run replaces the rest of an older one.
+		if ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
 		}
-		$steps = array_merge(
-			$steps,
-			array(
-				array( __CLASS__, 'purge_visits' ),
-				array( '\WPAffiliateCaptain\Tracking\CustomerLinks', 'purge_expired' ),
-				array( '\WPAffiliateCaptain\Privacy\Privacy', 'finish_pending_erasures' ),
-				array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_rejected_applications' ),
-				array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_erased' ),
-				array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_agreements' ),
-				array( __CLASS__, 'purge_audit' ),
-				array( __CLASS__, 'purge_jobs' ),
-				array( __CLASS__, 'purge_inflight' ),
-				array( '\WPAffiliateCaptain\Tracking\RateLimiter', 'purge' ),
-				array( Monitor::class, 'daily_alert' ),
-			)
-		);
-		foreach ( $steps as $step ) {
+		self::run_daily( array_keys( self::daily_steps() ) );
+	}
+
+	/**
+	 * Continue a daily run that used up its time budget (single event).
+	 */
+	public static function daily_rest() {
+		$rest = get_option( self::DAILY_REST_OPTION );
+		delete_option( self::DAILY_REST_OPTION );
+		if ( is_array( $rest ) && $rest ) {
+			self::run_daily( array_map( 'strval', $rest ) );
+		}
+	}
+
+	/**
+	 * Run daily steps, each on its own (an error in one must not stop the others) and within a time
+	 * budget like the hourly queue: what does not fit continues in a separate run a few minutes later.
+	 *
+	 * @param string[] $keys Step keys.
+	 */
+	private static function run_daily( array $keys ) {
+		$steps    = self::daily_steps();
+		$bookings = Installer::schema_current() && ! Settings::get( 'maintenance_mode' );
+		/**
+		 * Seconds the daily maintenance may run in one request before the rest continues separately.
+		 *
+		 * @param float $budget Seconds (0 = no limit).
+		 */
+		$budget = (float) apply_filters( 'wpac_daily_budget', 60 );
+		$start  = microtime( true );
+		$keys   = array_values( array_intersect( $keys, array_keys( $steps ) ) );
+		foreach ( $keys as $i => $key ) {
+			if ( $budget > 0 && $i > 0 && microtime( true ) - $start > $budget ) {
+				update_option( self::DAILY_REST_OPTION, array_slice( $keys, $i ), false );
+				Scheduler::once( self::DAILY_REST, 120 );
+				return;
+			}
+			list( $step, $needs_bookings ) = $steps[ $key ];
+			if ( $needs_bookings && ! $bookings ) {
+				continue; // Bookings, documents and mails only on the current schema and outside maintenance.
+			}
 			try {
 				call_user_func( $step );
 			} catch ( \Throwable $e ) {

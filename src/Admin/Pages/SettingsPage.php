@@ -62,7 +62,7 @@ final class SettingsPage {
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'visit_retention_days', 'application_retention_days' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'renewal_commission' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
-			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'retention_hold', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
+			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'retention_hold', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall', 'maintenance_mode', 'monitor_token' ),
 		);
 	}
@@ -190,6 +190,7 @@ final class SettingsPage {
 		self::text( 'operator_country', __( 'Your country (ISO code)', 'wp-affiliate-captain' ), $s );
 		echo '<tr><th><label for="wpac-operator_address">' . esc_html__( 'Your address (for credit notes)', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-operator_address" name="wpac[operator_address]" rows="3" class="regular-text">' . esc_textarea( (string) $s['operator_address'] ) . '</textarea></td></tr>';
 		self::text( 'operator_vat_id', __( 'Your VAT ID', 'wp-affiliate-captain' ), $s );
+		self::checkbox( 'vies_check', __( 'VIES check: verify partner VAT IDs with the EU Commission', 'wp-affiliate-captain' ), $s, __( 'Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts.', 'wp-affiliate-captain' ) );
 		self::text( 'operator_tax_number', __( 'Your tax number (if no VAT ID)', 'wp-affiliate-captain' ), $s );
 		self::text( 'credit_prefix', __( 'Prefix credit note numbers', 'wp-affiliate-captain' ), $s, __( 'Numbers are gapless per year, e.g. GS-2026-000001.', 'wp-affiliate-captain' ) );
 		self::text( 'storno_prefix', __( 'Prefix cancellation numbers', 'wp-affiliate-captain' ), $s );
