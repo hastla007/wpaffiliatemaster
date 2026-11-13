@@ -14,6 +14,8 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 
 Betreiber-Handbuch (englisch): [docs/HANDBOOK.md](docs/HANDBOOK.md). Import/Export: [docs/IMPORT-EXPORT.md](docs/IMPORT-EXPORT.md). Release und WordPress.org: [docs/RELEASE.md](docs/RELEASE.md); Free/Premium-Entscheidung: [docs/FREE-PREMIUM.md](docs/FREE-PREMIUM.md).
 
+Kostenlos und vollständig: Das Plugin enthält keine Lizenzprüfung und keine gesperrten Funktionen (für WordPress.org). Premiumfunktionen kommen als **eigenes Add-on**, das sich über die Erweiterungspunkte in [docs/CONTRACT.md](docs/CONTRACT.md) einklinkt; Hintergrund in [docs/FREE-PREMIUM.md](docs/FREE-PREMIUM.md).
+
 ## Installation
 
 1. Ordner nach `wp-content/plugins/affiliate-captain/` kopieren und aktivieren.

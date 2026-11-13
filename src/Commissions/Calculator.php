@@ -162,8 +162,23 @@ final class Calculator {
 			$amount = Money::percent_of( $base, $rate );
 		}
 
+		$amount = max( 0, $amount );
+		if ( function_exists( 'apply_filters' ) ) {
+			/**
+			 * Commission of one line item (minor units) after the rule was applied, e.g. for
+			 * add-on rules. Never negative; excluded items are not filtered.
+			 *
+			 * @since contract 1.2.0
+			 * @param int        $amount       Commission (minor units).
+			 * @param array      $item         Line item (net_minor, product_id, quantity, …).
+			 * @param int        $affiliate_id Partner.
+			 * @param array|null $rule         Applied rule (null = program default).
+			 */
+			$amount = max( 0, (int) apply_filters( 'wpac_commission_amount', $amount, $item, (int) $affiliate_id, $rule ) );
+		}
+
 		return array(
-			'amount_minor' => max( 0, $amount ),
+			'amount_minor' => $amount,
 			'base_minor'   => $base,
 			'rate_type'    => $rate_type,
 			'rate'         => $rate,

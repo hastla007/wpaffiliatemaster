@@ -19,7 +19,7 @@ define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
 define( 'WPAC_DB_VERSION', 9 );
-define( 'WPAC_CONTRACT_VERSION', '1.1.0' );
+define( 'WPAC_CONTRACT_VERSION', '1.2.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
 define( 'WPAC_URL', 'http://example.test/wp-content/plugins/affiliate-captain/' );
@@ -312,6 +312,7 @@ function _x( $t, $c = '', $d = '' ) { return $t; }
 // HTTP: tests set $GLOBALS['test_http'] = function ( $url, $args ) { return array( 'body' => '...' ); }.
 if ( ! function_exists( 'wp_remote_post' ) ) {
 	function wp_remote_post( $url, $args = array() ) {
+		$GLOBALS['test_http_calls'][] = $url;
 		return isset( $GLOBALS['test_http'] ) ? call_user_func( $GLOBALS['test_http'], $url, $args ) : new WP_Error( 'http', 'offline' );
 	}
 }
@@ -322,7 +323,7 @@ if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $hook, $args = array() ) { return false; }
 }
 if ( ! function_exists( 'wp_remote_get' ) ) {
-	function wp_remote_get( $url, $args = array() ) { return new WP_Error( 'http', 'offline' ); }
+	function wp_remote_get( $url, $args = array() ) { $GLOBALS['test_http_calls'][] = $url; return new WP_Error( 'http', 'offline' ); }
 }
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
 	function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) && isset( $r['response']['code'] ) ? (int) $r['response']['code'] : 0; }

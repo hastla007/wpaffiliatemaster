@@ -140,7 +140,15 @@ final class PayoutsPage {
 						$keep();
 						Admin::back( $result->get_error_message(), 'error' );
 					}
-					\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', array( 'number', 'account_holder', 'iban', 'bic', 'amount', 'currency', 'reference', 'method', 'payment_details' ), $result[1] );
+					/**
+					 * Header of the transfer list; add-ons that append columns via wpac_transfer_rows
+					 * append their column names here.
+					 *
+					 * @since contract 1.2.0
+					 * @param string[] $header Column names.
+					 */
+					$header = (array) apply_filters( 'wpac_transfer_header', array( 'number', 'account_holder', 'iban', 'bic', 'amount', 'currency', 'reference', 'method', 'payment_details' ) );
+					\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', $header, $result[1] );
 				}
 				if ( 'sepa' === $action ) {
 					if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {

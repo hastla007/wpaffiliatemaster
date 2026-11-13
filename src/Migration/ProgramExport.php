@@ -82,6 +82,22 @@ final class ProgramExport {
 			$counts[ $file ] = self::write_table( $table, $tmp, $include_tax_data );
 			$zip->addFile( $tmp, $file );
 		}
+		/**
+		 * Extra files of the program export (file name => content), e.g. data of an add-on.
+		 * Core files cannot be replaced.
+		 *
+		 * @since contract 1.2.0
+		 * @param array $files            Extra files.
+		 * @param bool  $include_tax_data Whether bank data was requested.
+		 */
+		$extra = apply_filters( 'wpac_program_export_files', array(), (bool) $include_tax_data );
+		foreach ( is_array( $extra ) ? $extra : array() as $file => $content ) {
+			$file = sanitize_file_name( (string) $file );
+			if ( '' !== $file && 'README.txt' !== $file && ! isset( $counts[ $file ] ) ) {
+				$zip->addFromString( $file, (string) $content );
+				$counts[ $file ] = substr_count( rtrim( (string) $content, "\n" ), "\n" ); // Rows after a header line.
+			}
+		}
 		$zip->addFromString( 'README.txt', self::readme( $include_tax_data ) );
 		$ok = $zip->close(); // Reads the temporary files, so they are deleted afterwards.
 		foreach ( $temps as $tmp ) {

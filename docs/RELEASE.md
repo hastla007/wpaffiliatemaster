@@ -34,7 +34,7 @@ Bilder für `assets/` (Banner, Icons, Screenshots): siehe `.wordpress-org/README
 
 ## 4. Vor der ersten Einreichung
 
-- Name/Slug ohne „WP“-Präfix festlegen (Befund O21, `docs/FREE-PREMIUM.md`).
-- Free/Premium-Entscheidung (Befund K5): keine Lizenzprüfung, kein eigener Updater im eingereichten Plugin.
+- Name/Slug ohne „WP“-Präfix: erledigt in 0.11.0 („Affiliate Captain“, `affiliate-captain`); Verfügbarkeit des Slugs vor der Einreichung prüfen.
+- Kern frei, Premium als eigenes Add-on (K5, `docs/FREE-PREMIUM.md`): keine Lizenzprüfung, kein eigener Updater im eingereichten Plugin – abgesichert durch den Wächtertest in `tests/run.php` (A2) und den Plugin-Check-Job in CI.
 - CI-Job „Plugin Check“ muss ohne Fehler laufen; Ausnahmen nur mit Begründung in `tests/ci/plugin-check-ignore.txt`.
 - `readme.txt` mit `== External services ==` (VIES, Loopback) – bei jedem neuen externen Aufruf ergänzen.
