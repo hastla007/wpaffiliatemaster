@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.9.0
+Stable tag: 0.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,6 +46,18 @@ Yes. Partner codes entered at checkout work without any cookie. The optional aff
 No. Other sales sources report sales and refunds through the public contract (`wpac_record_sale()`, REST `wpac/v1/sales`).
 
 == Changelog ==
+
+= 0.10.0 =
+Second five-expert review (money, legal, operations, business flows, CI); database schema 8:
+* Money: VAT mode and rate are stored per payout item; corrections keep the treatment of the original credit note, are printed in their own section with a reference to it, and VAT is shown per rate; operator data is frozen per payout; payouts are blocked with a clear reason for reverse charge without the operator's VAT ID, self-billing without a terms page, or a VAT ID that VIES reports as invalid
+* Monthly mail: failures are stored per month, the retry is locked against parallel runs, a daily watchdog restarts a stalled batch chain; reports and the monthly mail show write-offs
+* Privacy: an erasure request restricts processing (Art. 18 GDPR) instead of changing booking texts; free texts, terms records and objections are deleted once the retention period has ended; retention minimum by operator country (DE 8, AT 7, CH 10 years); partners can request restriction in the portal
+* Privacy: extended policy text (beacon, retention periods, legal bases, recipients, rights) and a note in the application form; the beacon only sends the host of the previous page and only with marketing consent; the data export now covers commissions, attributions, visits, payouts and notes; double opt-in for all applications; name/website changes of approved partners are reviewed
+* New: objections to credit notes (portal + admin), VIES check of VAT IDs, annual overview PDF for partners, record of processing activities template, tools/purge-retained.php for deleting retained data after uninstall
+* Operations: schema check case-insensitive and limited to own tables, alarm for a stuck migration, every cron step isolated (queue first), job time budget with continuation, credit note generation with claim and back-off, own rate-limit table, notice for partners who cannot be paid
+* Operations: Site Health test and debug info, monitoring endpoint wpac/v1/health with token and daily alarm mail, WP-CLI (wp wpac status|health|upgrade|jobs|cron|verify|maintenance), Action Scheduler when available, WooCommerce logger, maintenance mode, multisite network activation in batches
+* Business flows: subscription renewals inherit the partner; commissions are reinstated after a won chargeback or a reactivated order; orders can be re-attributed to another partner; clawbacks before payment are taken out of the open payout; reminder flow and repayment booking for negative balances of ended partners; daily balance reconciliation with alarm; transfer list (CSV) for payouts in any currency
+* CI: browser and cross-plugin tests (also with Redis object cache), MySQL 8.4, lower_case_table_names, multisite, upgrade from the previous release, PHPCS/WPCS security sniffs, PHPCompatibilityWP, PHPStan, composer audit, coverage; the release publishes exactly the tested ZIP
 
 = 0.9.0 =
 * Partner area: new tab "My account" – partners change name, website and channel themselves; a new e-mail address is used after confirmation via link
