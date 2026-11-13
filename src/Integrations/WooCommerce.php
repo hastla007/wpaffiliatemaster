@@ -38,6 +38,8 @@ final class WooCommerce {
 			add_action( 'woocommerce_after_checkout_validation', array( CheckoutField::class, 'classic_validate' ), 10, 2 );
 			add_action( 'woocommerce_init', array( CheckoutField::class, 'register_blocks_field' ) );
 		}
+		// Always registered: it also stores the referral touch. The partner code itself is only taken
+		// over while the checkout field is on (checked inside).
 		add_action( 'woocommerce_checkout_create_order', array( CheckoutField::class, 'classic_save' ), 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( CheckoutField::class, 'blocks_save' ), 10, 1 );
 		add_action( 'woocommerce_checkout_order_processed', array( Tracker::class, 'clear_touch' ) );

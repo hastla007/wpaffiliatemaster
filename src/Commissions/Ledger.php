@@ -227,6 +227,22 @@ final class Ledger {
 
 		$result = Db::transaction(
 			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $hold, $status, $round, $existing ) {
+				// Usage limit of the code: counted first with a conditional UPDATE, so parallel orders
+				// cannot all pass a limit read without a lock (the row lock lasts until COMMIT; a later
+				// failure rolls the count back with everything else).
+				$counted = false;
+				if ( $attr['code_id'] ) {
+					if ( ! CodeRepository::increment_usage( (int) $attr['code_id'] ) ) {
+						return array(
+							'status'         => 'unattributed',
+							'attribution_id' => 0,
+							'commission_ids' => array(),
+							'reason'         => 'code_limit',
+						);
+					}
+					$counted = true;
+				}
+
 				// A concurrent report of the same order loses on the unique key; that is expected under
 				// load and answered as "duplicate" below, so it must not flood the PHP error log. Any other
 				// failure is raised as IntegrationException with the database error (retry queue, audit).
@@ -258,6 +274,9 @@ final class Ledger {
 				if ( ! $ok ) {
 					// Unique (source, order) – a concurrent request won.
 					if ( self::attribution_for( $sale['source'], $sale['order_id'] ) ) {
+						if ( $counted ) {
+							CodeRepository::decrement_usage( (int) $attr['code_id'] );
+						}
 						return array(
 							'status'         => 'duplicate',
 							'attribution_id' => 0,
@@ -335,10 +354,6 @@ final class Ledger {
 					self::event( $cid, 'created', '', $status, $calc['amount_minor'], $attr['review'] ? 'review: ' . $attr['note'] : '', $sale['idempotency_key'] );
 				}
 
-				if ( $attr['code_id'] ) {
-					CodeRepository::increment_usage( (int) $attr['code_id'] );
-				}
-
 				return array(
 					'status'         => 'created',
 					'attribution_id' => $attribution_id,
@@ -350,8 +365,11 @@ final class Ledger {
 
 		// Notify listeners only after COMMIT.
 		if ( 'created' === $result['status'] ) {
-			if ( Settings::get( 'lifetime_enabled' ) && 'lifetime' !== $attr['method'] && ! $attr['review'] ) {
-				CustomerLinks::link( (int) $aff->id, CustomerLinks::hashes( $sale['customer']['user_id'], $sale['customer']['email'] ), $sale['source'], $sale['order_id'] );
+			// Lifetime link only for an order that earned a commission, and only for the verified
+			// identity (customer account, account e-mail) – never for a guest's typed e-mail. Under
+			// review the link waits for the approval (approve()).
+			if ( Settings::get( 'lifetime_enabled' ) && 'lifetime' !== $attr['method'] && $result['commission_ids'] ) {
+				CustomerLinks::link( (int) $aff->id, CustomerLinks::link_hashes( $sale['customer']['user_id'], $sale['customer']['email'] ), $sale['source'], $sale['order_id'], (bool) $attr['review'] );
 			}
 			/**
 			 * Fires after an attribution was persisted.
@@ -551,7 +569,7 @@ final class Ledger {
 		if ( ! $check['attribution'] || (int) $check['attribution']['affiliate_id'] !== (int) $to->id ) {
 			return new \WP_Error(
 				'wpac_reassign_failed',
-				'self_referral' === $check['reason']
+				'self_referral' === $check['reason'] || AttributionResolver::is_self_referral( (int) $to->id, $new_sale )
 					? __( 'The order cannot be attributed to this partner: the partner is the buyer (self-referral).', 'affiliate-captain' )
 					: __( 'The order cannot be attributed to this partner. Nothing was changed.', 'affiliate-captain' )
 			);
@@ -768,6 +786,10 @@ final class Ledger {
 			if ( $child->status === $c->status ) {
 				self::transition( (int) $child->id, $to, $reason, get_current_user_id(), 0, $c->status );
 			}
+		}
+		if ( 'sale' === $c->kind && 'review' === $c->status ) {
+			// Review passed: the customer link of the order now counts.
+			CustomerLinks::activate_order( $c->source, $c->source_order_id );
 		}
 		return true;
 	}

@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 9 );
+define( 'WPAC_DB_VERSION', 10 );
 define( 'WPAC_CONTRACT_VERSION', '1.2.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -238,7 +238,7 @@ function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function wp_delete_file( $f ) { @unlink( $f ); }
 function wp_mail( $to, $s, $m ) { if ( ! empty( $GLOBALS['test_mail_fail'] ) ) { return false; } $GLOBALS['test_mails'][] = array( $to, $s ); return true; }
 function get_user_by( $f, $v ) { return false; }
-function get_userdata( $id ) { return false; }
+function get_userdata( $id ) { return isset( $GLOBALS['test_userdata'][ (int) $id ] ) ? $GLOBALS['test_userdata'][ (int) $id ] : false; }
 function username_exists( $u ) { return false; }
 function wp_insert_user( $u ) { static $id = 100; return ++$id; }
 function wp_new_user_notification( $id, $x = null, $n = '' ) {}

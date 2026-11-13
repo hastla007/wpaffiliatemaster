@@ -33,6 +33,36 @@ final class CodeRepository {
 	}
 
 	/**
+	 * Partner code for a coupon link. Coupon codes may contain any characters ("größe10",
+	 * "лето20", "€10"); partner codes are A–Z/0–9. Umlauts and accents are transliterated
+	 * (GRÖSSE10 → GROESSE10); if too little is left, a random code is used. The coupon itself
+	 * is matched by its own column, so the partner code only has to be unique.
+	 *
+	 * @param string $coupon Coupon code.
+	 * @return string
+	 */
+	public static function code_for_coupon( $coupon ) {
+		$coupon = (string) $coupon;
+		$coupon = strtr(
+			$coupon,
+			array(
+				'Ä' => 'AE',
+				'Ö' => 'OE',
+				'Ü' => 'UE',
+				'ä' => 'ae',
+				'ö' => 'oe',
+				'ü' => 'ue',
+				'ß' => 'ss',
+			)
+		);
+		if ( function_exists( 'remove_accents' ) ) {
+			$coupon = remove_accents( $coupon );
+		}
+		$code = self::normalize( $coupon );
+		return strlen( $code ) >= 3 ? $code : self::random_code();
+	}
+
+	/**
 	 * Normalize a coupon code the way WooCommerce does (trimmed, lower-case).
 	 *
 	 * @param string $coupon Coupon.
@@ -271,15 +301,55 @@ final class CodeRepository {
 	}
 
 	/**
-	 * Count one usage (after a persisted attribution).
+	 * Check a coupon before it is linked to a partner code: it must exist in WooCommerce (when
+	 * WooCommerce is active) and must not be linked to another active code already.
+	 *
+	 * @param string $coupon  Coupon code ('' = no link, always fine).
+	 * @param int    $code_id Code row being changed (0 = new row).
+	 * @return true|\WP_Error
+	 */
+	public static function check_coupon( $coupon, $code_id = 0 ) {
+		$coupon = self::normalize_coupon( sanitize_text_field( (string) $coupon ) );
+		if ( '' === $coupon ) {
+			return true;
+		}
+		if ( function_exists( 'wc_get_coupon_id_by_code' ) && ! wc_get_coupon_id_by_code( $coupon ) ) {
+			/* translators: %s: coupon code */
+			return new \WP_Error( 'wpac_coupon_missing', sprintf( __( 'There is no WooCommerce coupon "%s". Please create the coupon first (Marketing → Coupons) or check the spelling.', 'affiliate-captain' ), $coupon ) );
+		}
+		$linked = self::find_by_coupon( $coupon, true );
+		if ( $linked && (int) $linked->id !== (int) $code_id ) {
+			$aff = AffiliateRepository::find( (int) $linked->affiliate_id );
+			/* translators: 1: coupon code, 2: partner name */
+			return new \WP_Error( 'wpac_coupon_taken', sprintf( __( 'The coupon "%1$s" is already linked to partner "%2$s". Remove that link first.', 'affiliate-captain' ), $coupon, $aff ? $aff->name : '#' . (int) $linked->affiliate_id ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Count one usage, only while the usage limit is not reached (atomic, conditional UPDATE;
+	 * called inside the booking transaction).
 	 *
 	 * @param int $id Code.
+	 * @return bool False when the limit is reached (nothing counted).
 	 */
 	public static function increment_usage( $id ) {
 		global $wpdb;
 		$t = Db::table( 'partner_codes' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( $wpdb->prepare( "UPDATE {$t} SET usage_count = usage_count + 1 WHERE id = %d", $id ) );
+		return (int) $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET usage_count = usage_count + 1 WHERE id = %d AND (usage_limit = 0 OR usage_count < usage_limit)", $id ) ) > 0;
+	}
+
+	/**
+	 * Undo a usage counted for a booking that was not made.
+	 *
+	 * @param int $id Code.
+	 */
+	public static function decrement_usage( $id ) {
+		global $wpdb;
+		$t = Db::table( 'partner_codes' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$t} SET usage_count = usage_count - 1 WHERE id = %d AND usage_count > 0", $id ) );
 	}
 
 	/**
@@ -363,8 +433,9 @@ final class CodeRepository {
 		$t = Db::table( 'partner_codes' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE coupon_code = %s AND status = 'active' ORDER BY id DESC LIMIT 1", $coupon ) );
-		if ( ! $row ) {
-			// A coupon whose code equals a partner code also counts.
+		if ( ! $row && strtoupper( $coupon ) === self::normalize( $coupon ) ) {
+			// A coupon whose code equals a partner code also counts – only if the coupon has no
+			// characters normalize() would drop ("müller" must not match the code "MLLER").
 			$row = self::find_by_code( $coupon );
 		}
 		return self::validate( $row );

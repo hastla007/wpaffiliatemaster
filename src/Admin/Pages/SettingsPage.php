@@ -259,9 +259,14 @@ final class SettingsPage {
 
 		self::section( __( 'Fraud rules', 'affiliate-captain' ), 'security' );
 		echo '<tr><td colspan="2" class="description">' . esc_html__( 'Matches do not block a sale: its commissions get the status "needs review" with the reason. 0 = rule off.', 'affiliate-captain' ) . '</td></tr>';
+		if ( ! (int) $s['fraud_max_orders_day'] && ! (int) $s['fraud_max_order_minor'] && ! (int) $s['fraud_min_click_seconds'] && ! (int) $s['fraud_max_refund_rate'] ) {
+			$rec = Settings::recommended_fraud( $currency );
+			/* translators: 1: orders per day, 2: order value with currency, 3: seconds, 4: percent */
+			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'All fraud thresholds are off, so no order is ever flagged for review. Recommended starting values: %1$d orders per day, orders above %2$s, %3$d seconds between click and order, %4$d %% refund rate.', 'affiliate-captain' ), $rec['fraud_max_orders_day'], Money::format( $rec['fraud_max_order_minor'], $currency ), $rec['fraud_min_click_seconds'], $rec['fraud_max_refund_rate'] ) ) . '</p></div></td></tr>';
+		}
 		self::number( 'fraud_max_orders_day', __( 'Max. orders per partner in 24 hours', 'affiliate-captain' ), $s );
 		$err = self::error_parts( 'fraud_max_order' );
-		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html__( 'Review orders above (net)', 'affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( self::shown( 'fraud_max_order', Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html__( 'Review orders above (net)', 'affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( self::shown( 'fraud_max_order', Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description">' . esc_html__( 'Orders in other currencies are compared after conversion with the reference exchange rates; without a rate for a currency this rule cannot check them (a warning is logged).', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::number( 'fraud_min_click_seconds', __( 'Min. seconds between click and order', 'affiliate-captain' ), $s );
 		self::number( 'fraud_max_refund_rate', __( 'Max. refund rate of a partner in % (90 days, min. 5 orders)', 'affiliate-captain' ), $s );
 		self::checkbox( 'fraud_check_domains', __( 'Review orders with disposable or blocked e-mail domains', 'affiliate-captain' ), $s );

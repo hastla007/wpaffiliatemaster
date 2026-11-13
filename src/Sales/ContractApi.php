@@ -122,7 +122,7 @@ final class ContractApi {
 	 */
 	public static function strip_personal_data( array $payload ) {
 		if ( isset( $payload['customer'] ) && is_array( $payload['customer'] ) ) {
-			unset( $payload['customer']['email'] );
+			unset( $payload['customer']['email'], $payload['customer']['name'], $payload['customer']['address'], $payload['customer']['postcode'] );
 		}
 		return $payload;
 	}
@@ -261,9 +261,14 @@ final class ContractApi {
 			'attribution_method'  => isset( $p['attribution_method'] ) ? sanitize_key( $p['attribution_method'] ) : '',
 			'touch'               => $touch,
 			'customer'            => array(
-				'user_id' => isset( $p['customer']['user_id'] ) ? (int) $p['customer']['user_id'] : 0,
+				'user_id'  => isset( $p['customer']['user_id'] ) ? (int) $p['customer']['user_id'] : 0,
 				// Used only for the self-referral comparison, never stored.
-				'email'   => isset( $p['customer']['email'] ) ? sanitize_email( (string) $p['customer']['email'] ) : '',
+				'email'    => isset( $p['customer']['email'] ) ? sanitize_email( (string) $p['customer']['email'] ) : '',
+				// Optional billing name/street/postcode: only for the self-referral comparison with
+				// the partner's payout profile, never stored.
+				'name'     => isset( $p['customer']['name'] ) ? substr( sanitize_text_field( (string) $p['customer']['name'] ), 0, 190 ) : '',
+				'address'  => isset( $p['customer']['address'] ) ? substr( sanitize_text_field( (string) $p['customer']['address'] ), 0, 190 ) : '',
+				'postcode' => isset( $p['customer']['postcode'] ) ? substr( sanitize_text_field( (string) $p['customer']['postcode'] ), 0, 20 ) : '',
 			),
 			'idempotency_key'     => isset( $p['idempotency_key'] ) ? substr( sanitize_text_field( (string) $p['idempotency_key'] ), 0, 191 ) : $source . ':' . $order_id,
 		);

@@ -40,6 +40,8 @@ final class OrderMetaBox {
 		if ( ! $order ) {
 			return;
 		}
+		wp_nonce_field( 'wpac_order_assign', '_wpac_order_nonce' );
+		self::render_customer_link( $order );
 		$attr = Ledger::attribution_for( WooCommerce::SOURCE, (string) $order->get_id() );
 		if ( $attr ) {
 			$aff = AffiliateRepository::find( (int) $attr->affiliate_id );
@@ -68,7 +70,6 @@ final class OrderMetaBox {
 						'limit'  => 500,
 					)
 				);
-				wp_nonce_field( 'wpac_order_assign', '_wpac_order_nonce' );
 				echo '<details><summary>' . esc_html__( 'Attribute to another partner', 'affiliate-captain' ) . '</summary><p><label for="wpac_reassign">' . esc_html__( 'New partner', 'affiliate-captain' ) . '</label><select name="wpac_reassign" id="wpac_reassign" style="width:100%"><option value="">—</option>';
 				foreach ( $others as $a ) {
 					if ( (int) $a->id !== (int) $attr->affiliate_id ) {
@@ -95,13 +96,32 @@ final class OrderMetaBox {
 				'limit'  => 500,
 			)
 		);
-		wp_nonce_field( 'wpac_order_assign', '_wpac_order_nonce' );
 		echo '<p><label for="wpac_assign">' . esc_html__( 'Assign manually', 'affiliate-captain' ) . '</label><select name="wpac_assign" id="wpac_assign" style="width:100%"><option value="">—</option>';
 		foreach ( $affiliates as $a ) {
 			echo '<option value="' . (int) $a->id . '">' . esc_html( $a->name . ' (' . $a->slug . ')' ) . '</option>';
 		}
 		echo '</select></p><p><label for="wpac_assign_reason">' . esc_html__( 'Reason (required)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_assign_reason" id="wpac_assign_reason" style="width:100%"></p>';
 		echo '<p class="description">' . esc_html__( 'Commission is created once the order is paid.', 'affiliate-captain' ) . '</p>';
+	}
+
+	/**
+	 * Lifetime binding of the order's customer, with a checkbox to remove it.
+	 *
+	 * @param \WC_Order $order Order.
+	 */
+	private static function render_customer_link( $order ) {
+		$rows = \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( (int) $order->get_customer_id(), (string) $order->get_billing_email() );
+		if ( ! $rows ) {
+			return;
+		}
+		$aff = AffiliateRepository::find( (int) $rows[0]->affiliate_id );
+		/* translators: 1: partner name, 2: order number that created the binding */
+		echo '<p>' . esc_html( sprintf( __( 'Lifetime customer of partner "%1$s" (since order %2$s).', 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $rows[0]->affiliate_id, $rows[0]->source_order_id ) );
+		if ( (int) $rows[0]->pending ) {
+			echo ' ' . esc_html__( 'Becomes active once the order\'s commission is approved.', 'affiliate-captain' );
+		}
+		echo '</p>';
+		echo '<p><label><input type="checkbox" name="wpac_unlink_customer" value="1"> ' . esc_html__( 'Remove this customer\'s lifetime binding', 'affiliate-captain' ) . '</label></p>';
 	}
 
 	/**
@@ -115,6 +135,16 @@ final class OrderMetaBox {
 		}
 		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
 			return;
+		}
+		if ( ! empty( $_POST['wpac_unlink_customer'] ) ) {
+			$order = wc_get_order( $order_id );
+			if ( $order ) {
+				$n = \WPAffiliateCaptain\Tracking\CustomerLinks::unlink_customer( (int) $order->get_customer_id(), (string) $order->get_billing_email(), 'order ' . (int) $order_id );
+				if ( $n ) {
+					$order->add_order_note( __( 'Affiliate Captain: lifetime partner binding of the customer removed.', 'affiliate-captain' ) );
+					self::notice( 'success', __( 'The customer\'s lifetime partner binding was removed.', 'affiliate-captain' ) );
+				}
+			}
 		}
 		if ( ! empty( $_POST['wpac_reassign'] ) ) {
 			$order = wc_get_order( $order_id );
@@ -164,6 +194,12 @@ final class OrderMetaBox {
 			return;
 		}
 		$aff = AffiliateRepository::find( $aff_id );
+		if ( ! \WPAffiliateCaptain\Tracking\AttributionResolver::eligible( $aff ) ) {
+			// Paused, terminated or restricted (Art. 18 GDPR): the resolver would skip the partner and
+			// book the order for another one (link/coupon) – refuse instead.
+			self::notice( 'error', __( 'The order was not assigned: the selected partner is not active or processing of the partner\'s data is restricted.', 'affiliate-captain' ) );
+			return;
+		}
 		$order->update_meta_data( WooCommerce::META_MANUAL, $aff_id );
 		// Marks the assignment as made on this order (renewals ignore copies from the first order).
 		$order->update_meta_data( OrderSync::META_MANUAL_OWN, (int) $order->get_id() );
@@ -184,7 +220,13 @@ final class OrderMetaBox {
 			return;
 		}
 		OrderSync::sync_order( $order_id );
-		if ( Ledger::attribution_for( WooCommerce::SOURCE, (string) $order_id ) ) {
+		$booked = Ledger::attribution_for( WooCommerce::SOURCE, (string) $order_id );
+		if ( $booked && (int) $booked->affiliate_id !== $aff_id ) {
+			// The chosen partner could not be booked (e.g. is the buyer); another candidate won.
+			$other = AffiliateRepository::find( (int) $booked->affiliate_id );
+			/* translators: 1: chosen partner, 2: partner the order was attributed to */
+			self::notice( 'warning', sprintf( __( 'The order could not be attributed to partner "%1$s" (e.g. the partner is the buyer). It was attributed to partner "%2$s" instead (referral link, coupon or lifetime customer); use "Attribute to another partner" to change this.', 'affiliate-captain' ), $name, $other ? $other->name : '#' . (int) $booked->affiliate_id ) );
+		} elseif ( $booked ) {
 			/* translators: %s: partner name */
 			self::notice( 'success', sprintf( __( 'Order attributed to partner "%s".', 'affiliate-captain' ), $name ) );
 		} elseif ( Jobs::sale_pending( WooCommerce::SOURCE, (string) $order_id ) ) {

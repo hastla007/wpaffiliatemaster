@@ -133,6 +133,10 @@ final class AffiliatesPage {
 
 			case 'code_create':
 				$wish   = sanitize_text_field( Admin::post( 'code' ) );
+				$check  = CodeRepository::check_coupon( (string) Admin::post( 'coupon_code' ) );
+				if ( is_wp_error( $check ) ) {
+					Admin::back( $check->get_error_message(), 'error' );
+				}
 				$result = CodeRepository::create(
 					$id,
 					'' !== $wish ? $wish : CodeRepository::random_code(),
@@ -169,6 +173,10 @@ final class AffiliatesPage {
 				break;
 
 			case 'code_coupon':
+				$check = CodeRepository::check_coupon( (string) Admin::post( 'coupon_code' ), absint( Admin::post( 'code_id' ) ) );
+				if ( is_wp_error( $check ) ) {
+					Admin::back( $check->get_error_message(), 'error' );
+				}
 				CodeRepository::set_coupon( absint( Admin::post( 'code_id' ) ), sanitize_text_field( Admin::post( 'coupon_code' ) ) );
 				Admin::back( __( 'Coupon link updated.', 'affiliate-captain' ) );
 				break;
