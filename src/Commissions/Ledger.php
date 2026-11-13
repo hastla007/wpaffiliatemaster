@@ -65,6 +65,37 @@ final class Ledger {
 	}
 
 	/**
+	 * Human readable attribution method.
+	 *
+	 * @param string $method Method slug (code|link|cookie|coupon|app|manual|lifetime|renewal …).
+	 * @return string
+	 */
+	public static function method_label( $method ) {
+		$labels = array(
+			'link'     => __( 'Partner link', 'wp-affiliate-captain' ),
+			'cookie'   => __( 'Cookie', 'wp-affiliate-captain' ),
+			'code'     => __( 'Partner code', 'wp-affiliate-captain' ),
+			'coupon'   => __( 'Coupon', 'wp-affiliate-captain' ),
+			'lifetime' => __( 'Lifetime customer', 'wp-affiliate-captain' ),
+			'manual'   => __( 'Manual assignment', 'wp-affiliate-captain' ),
+			'app'      => __( 'App', 'wp-affiliate-captain' ),
+			'renewal'  => __( 'Subscription renewal', 'wp-affiliate-captain' ),
+		);
+		return isset( $labels[ $method ] ) ? $labels[ $method ] : ucwords( str_replace( array( '-', '_' ), ' ', (string) $method ) );
+	}
+
+	/**
+	 * Human readable label of a commission kind (never the raw code).
+	 *
+	 * @param string $kind Kind.
+	 * @return string
+	 */
+	public static function kind_label( $kind ) {
+		$labels = self::kind_labels();
+		return isset( $labels[ $kind ] ) ? $labels[ $kind ] : ucwords( str_replace( array( '-', '_' ), ' ', (string) $kind ) );
+	}
+
+	/**
 	 * Human readable sales source.
 	 *
 	 * @param string $source Source slug.
@@ -354,9 +385,23 @@ final class Ledger {
 				'adjustment_ids' => array(),
 			);
 		}
+		// After a reassignment the order has sale rows of several partners (and rounds) for the
+		// same item. Refunds belong to the partner the order is attributed to now, newest round
+		// first; the reversed rows of earlier partners are only used when no current row exists.
+		$current = self::attribution_for( $refund['source'], $refund['order_id'] );
+		$cur_aff = $current ? (int) $current->affiliate_id : 0;
+		usort(
+			$originals,
+			static function ( $a, $b ) {
+				return (int) $a->id - (int) $b->id;
+			}
+		);
 		$by_item = array();
 		foreach ( $originals as $c ) {
-			$by_item[ (string) $c->source_item_id ] = $c;
+			$k = (string) $c->source_item_id;
+			if ( ! isset( $by_item[ $k ] ) || (int) $c->affiliate_id === $cur_aff || (int) $by_item[ $k ]->affiliate_id !== $cur_aff ) {
+				$by_item[ $k ] = $c;
+			}
 		}
 
 		$lines = array();
@@ -482,35 +527,75 @@ final class Ledger {
 		if ( ! $attr ) {
 			return new \WP_Error( 'wpac_state', __( 'This order is not attributed yet; assign it instead.', 'wp-affiliate-captain' ) );
 		}
-		if ( ! $to || 'active' !== $to->status ) {
+		if ( ! $to || 'active' !== $to->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $to->id ) ) {
 			return new \WP_Error( 'wpac_state', __( 'The new partner must be active.', 'wp-affiliate-captain' ) );
 		}
 		if ( (int) $attr->affiliate_id === (int) $to->id ) {
 			return new \WP_Error( 'wpac_state', __( 'The order is already attributed to this partner.', 'wp-affiliate-captain' ) );
 		}
-		$from  = (int) $attr->affiliate_id;
-		$round = 1 + (int) get_option( 'wpac_reassign_' . md5( $sale['source'] . ':' . $sale['order_id'] ), 0 );
-		$label = sprintf( /* translators: %s: reason */ __( 'Reassigned to another partner: %s', 'wp-affiliate-captain' ), $reason );
-		self::record_refund(
-			array(
-				'source'    => $sale['source'],
-				'order_id'  => (string) $sale['order_id'],
-				'refund_id' => 'reassign-' . $round,
-				'type'      => 'cancellation',
-				'full'      => true,
-				'reason'    => $label,
-				'items'     => array(),
-			)
-		);
-		update_option( 'wpac_reassign_' . md5( $sale['source'] . ':' . $sale['order_id'] ), $round, false );
-		CustomerLinks::forget_order( $sale['source'], (string) $sale['order_id'] );
-		$sale['affiliate_id']       = (int) $to->id;
-		$sale['attribution_method'] = 'manual';
-		$sale['partner_code']       = '';
-		$sale['touch']              = null;
-		$sale['coupon_codes']       = array();
-		$sale['reassign_round']     = $round;
-		$result = self::record_sale( $sale );
+		$from       = (int) $attr->affiliate_id;
+		$option     = 'wpac_reassign_' . md5( $sale['source'] . ':' . $sale['order_id'] );
+		$round      = 1 + (int) get_option( $option, 0 );
+		$label      = sprintf( /* translators: %s: reason */ __( 'Reassigned to another partner: %s', 'wp-affiliate-captain' ), $reason );
+		$new_sale   = $sale;
+		$new_sale['affiliate_id']       = (int) $to->id;
+		$new_sale['attribution_method'] = 'manual';
+		$new_sale['partner_code']       = '';
+		$new_sale['touch']              = null;
+		$new_sale['coupon_codes']       = array();
+		$new_sale['reassign_round']     = $round;
+
+		// Check first whether the new partner can be booked at all (self-referral, restriction,
+		// filters): the current partner must not lose the commission when the new booking fails.
+		$check = AttributionResolver::resolve( $new_sale );
+		if ( ! $check['attribution'] || (int) $check['attribution']['affiliate_id'] !== (int) $to->id ) {
+			return new \WP_Error(
+				'wpac_reassign_failed',
+				'self_referral' === $check['reason']
+					? __( 'The order cannot be attributed to this partner: the partner is the buyer (self-referral).', 'wp-affiliate-captain' )
+					: __( 'The order cannot be attributed to this partner. Nothing was changed.', 'wp-affiliate-captain' )
+			);
+		}
+
+		// Reversal and new booking are one transaction: if the new booking fails, the reversal is
+		// rolled back as well and the order stays with the current partner.
+		try {
+			$result = Db::transaction(
+				static function () use ( $sale, $new_sale, $label, $round, $option ) {
+					self::record_refund(
+						array(
+							'source'    => $sale['source'],
+							'order_id'  => (string) $sale['order_id'],
+							'refund_id' => 'reassign-' . $round,
+							'type'      => 'cancellation',
+							'full'      => true,
+							'reason'    => $label,
+							'items'     => array(),
+						)
+					);
+					CustomerLinks::forget_order( $sale['source'], (string) $sale['order_id'] );
+					$booked = self::record_sale( $new_sale );
+					if ( ! is_array( $booked ) || 'created' !== $booked['status'] ) {
+						throw new IntegrationException( 'reassign_failed', 'New booking not created: ' . ( is_array( $booked ) ? $booked['status'] . ' ' . $booked['reason'] : '' ) );
+					}
+					update_option( $option, $round, false );
+					return $booked;
+				}
+			);
+		} catch ( \Throwable $e ) {
+			// The option may have been written inside the rolled back transaction: drop the cached value.
+			wp_cache_delete( $option, 'options' );
+			wp_cache_delete( 'notoptions', 'options' );
+			\WPAffiliateCaptain\Core\Log::error(
+				'Reassignment failed',
+				array(
+					'source'  => $sale['source'],
+					'order'   => (string) $sale['order_id'],
+					'message' => substr( $e->getMessage(), 0, 300 ),
+				)
+			);
+			return new \WP_Error( 'wpac_reassign_failed', __( 'The order could not be attributed to the new partner (database error). Nothing was changed; please try again.', 'wp-affiliate-captain' ) );
+		}
 		Audit::log(
 			'attribution.reassigned',
 			'order',

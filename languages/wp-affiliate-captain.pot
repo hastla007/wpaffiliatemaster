@@ -409,7 +409,7 @@ msgstr ""
 msgid "Code"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php src/Portal/Portal.php
 msgid "Coupon"
 msgstr ""
 
@@ -562,6 +562,14 @@ msgid "Tax number"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+msgid "Payout method"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
 msgid "Account holder"
 msgstr ""
 
@@ -575,6 +583,22 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "BIC"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Payment details (other method)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+msgid "Stored – leave empty to keep"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+msgid "e.g. PayPal: name@example.com"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Stored: %s"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -627,6 +651,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Level %1$d sent on %2$s"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Send a payment request for %1$s to %2$s now?"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -865,31 +893,31 @@ msgstr ""
 msgid "Rule snapshot"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "Partner link"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "Cookie"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "Partner code"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "Lifetime customer"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "Manual assignment"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "App"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "Subscription renewal"
 msgstr ""
 
@@ -1458,6 +1486,10 @@ msgid "Select %s"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Other payment method (paid manually)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Bulk action for selected payouts"
 msgstr ""
 
@@ -1483,6 +1515,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Run this action for the selected payouts?"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Payouts of partners with another payment method (e.g. PayPal) are left out of the SEPA file. The transfer list contains their payment details; pay them manually and then mark them as paid."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -1531,6 +1567,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
 msgid "Issued by"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "Payment method"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
@@ -2773,6 +2813,14 @@ msgstr ""
 msgid "Opening balance"
 msgstr ""
 
+#: src/Commissions/Dunning.php
+msgid "No payment request possible: the partner's data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin."
+msgstr ""
+
+#: src/Commissions/Dunning.php
+msgid "No payment request possible yet: enter your company's account holder and IBAN under Settings → Payouts first, so the partner knows where to transfer the amount."
+msgstr ""
+
 #: src/Commissions/Dunning.php src/Commissions/Ledger.php
 msgid "The balance is not negative."
 msgstr ""
@@ -2791,6 +2839,10 @@ msgstr ""
 
 #: src/Commissions/Dunning.php
 msgid "Hello %1$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5$d days to:\n\n%3$s\nReference: %4$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail."
+msgstr ""
+
+#: src/Commissions/Dunning.php
+msgid "The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again."
 msgstr ""
 
 #: src/Commissions/Dunning.php
@@ -2855,6 +2907,18 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "Reassigned to another partner: %s"
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The order cannot be attributed to this partner: the partner is the buyer (self-referral)."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The order cannot be attributed to this partner. Nothing was changed."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The order could not be attributed to the new partner (database error). Nothing was changed; please try again."
 msgstr ""
 
 #: src/Commissions/Ledger.php
@@ -3132,6 +3196,10 @@ msgid "The current partner gets a cancellation correction; the order is booked f
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Attribute this order to the selected partner? The current partner's commission will be reversed. This cannot be undone."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Partner code entered: %s"
 msgstr ""
 
@@ -3152,7 +3220,43 @@ msgid "Commission is created once the order is paid."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
-msgid "Order attributed to another partner."
+msgid "The order has no line items that can be booked."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Affiliate Captain: reassignment failed: %s"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order was not attributed to another partner: %s"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Order attributed to partner \"%s\"; the previous partner's commission was reversed."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order was not assigned to a partner: please enter a reason."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order is already attributed to a partner. Use \"Attribute to another partner\" instead."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Order assigned to partner \"%s\". The commission is created once the order is paid."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Order attributed to partner \"%s\"."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order could not be booked yet and was queued for an automatic retry (Affiliate Captain → Integrations)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order could not be attributed to partner \"%s\" (partner not active, processing restricted or the partner is the buyer)."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
@@ -3165,6 +3269,14 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Order cancelled"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the partner commission could not be reinstated yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
@@ -3312,7 +3424,15 @@ msgid "Only payouts that were not exported yet can be rebuilt."
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "The payout cannot be created again (%s). It was not cancelled."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "Rebuilt after a refund"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "After the refund the balance is below the minimum payout, so no new payout can be created. The payout was not cancelled; cancel it manually if it should not be paid – the balance is then carried forward."
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -3344,6 +3464,10 @@ msgid "The partner changed the payout details after payout %s was created. Pleas
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "Payment details for payout %s are missing or cannot be decrypted."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "Bank details for payout %s are missing or cannot be decrypted."
 msgstr ""
 
@@ -3359,6 +3483,10 @@ msgstr ""
 msgid "SEPA transfers are only possible in EUR."
 msgstr ""
 
+#: src/Payouts/PayoutService.php
+msgid "The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
+msgstr ""
+
 #: src/Payouts/ProfileRepository.php
 msgid "Private individual"
 msgstr ""
@@ -3371,12 +3499,28 @@ msgstr ""
 msgid "Business (VAT registered)"
 msgstr ""
 
+#: src/Payouts/ProfileRepository.php
+msgid "Bank transfer (SEPA, IBAN)"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Other payment method (e.g. PayPal), paid manually"
+msgstr ""
+
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Please enter your VAT ID."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Please enter your tax number or VAT ID (required on credit notes)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Please enter your payment details (e.g. your PayPal address)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Please enter your IBAN for payouts by bank transfer."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
@@ -3465,6 +3609,10 @@ msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "Tax number of the partner"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Other payment method as agreed with the partner"
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -3856,22 +4004,6 @@ msgid "Available from"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "refund"
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "cancellation"
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "chargeback"
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "write-off"
-msgstr ""
-
-#: src/Portal/Portal.php
 msgid "Available for payout: %s"
 msgstr ""
 
@@ -4020,7 +4152,15 @@ msgid "BIC (optional)"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Your bank details are stored encrypted and are only used for commission payouts."
+msgid "Payment details"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
 msgstr ""
 
 #: src/Portal/Portal.php

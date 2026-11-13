@@ -88,7 +88,7 @@ final class PayoutsPage {
 					if ( is_wp_error( $result ) ) {
 						Admin::back( $result->get_error_message(), 'error' );
 					}
-					\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', array( 'number', 'account_holder', 'iban', 'bic', 'amount', 'currency', 'reference' ), $result[1] );
+					\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', array( 'number', 'account_holder', 'iban', 'bic', 'amount', 'currency', 'reference', 'method', 'payment_details' ), $result[1] );
 				}
 				if ( 'sepa' === $action ) {
 					if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
@@ -299,7 +299,7 @@ final class PayoutsPage {
 				esc_html( $aff ? $aff->name : '#' . $p->affiliate_id ),
 				esc_html( mysql2date( get_option( 'date_format' ), $p->period_end ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
-				esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ),
+				esc_html( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? __( 'Other payment method (paid manually)', 'wp-affiliate-captain' ) : ( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) ),
 				Admin::badge( $p->status, $labels[ $p->status ] ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				$p->sepa_batch ? '<br><small>' . esc_html( $p->sepa_batch ) . '</small>' : ''
 			);
@@ -313,6 +313,7 @@ final class PayoutsPage {
 		echo '<option value="paid">' . esc_html__( 'Mark as paid', 'wp-affiliate-captain' ) . '</option>';
 		echo '<option value="cancel">' . esc_html__( 'Cancel', 'wp-affiliate-captain' ) . '</option>';
 		echo '</select> <button class="button" type="submit" data-wpac-confirm="' . esc_attr__( 'Run this action for the selected payouts?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Apply', 'wp-affiliate-captain' ) . '</button></p>';
+		echo '<p class="description">' . esc_html__( 'Payouts of partners with another payment method (e.g. PayPal) are left out of the SEPA file. The transfer list contains their payment details; pay them manually and then mark them as paid.', 'wp-affiliate-captain' ) . '</p>';
 		echo '<p><label for="wpac-cancel-reason">' . esc_html__( 'Cancellation reason (required for "Cancel")', 'wp-affiliate-captain' ) . '</label><br><input type="text" name="reason" id="wpac-cancel-reason" class="regular-text"></p>';
 		echo '<p><label><input type="checkbox" name="confirm" value="1"> ' . esc_html__( 'I confirm this action for the selected payouts (required for "Mark as paid" and "Cancel").', 'wp-affiliate-captain' ) . '</label>';
 		echo '<br><label><input type="checkbox" name="reexport" value="1"> ' . esc_html__( 'Export again (only if the bank did not process the previous file)', 'wp-affiliate-captain' ) . '</label>';
@@ -357,7 +358,7 @@ final class PayoutsPage {
 		$labels = ProfileRepository::tax_status_labels();
 		if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 			// Address, VAT ID and tax status are restricted to wpac_view_tax_data.
-			$snap = array_intersect_key( $snap, array( 'iban_masked' => 1 ) );
+			$snap = array_intersect_key( $snap, array( 'iban_masked' => 1, 'payout_method' => 1 ) );
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Tax and address details are hidden (missing permission wpac_view_tax_data).', 'wp-affiliate-captain' ) . '</p></div>';
 		}
 
@@ -381,7 +382,11 @@ final class PayoutsPage {
 		if ( ! empty( $snap['tax_number'] ) ) {
 			echo esc_html__( 'Tax number', 'wp-affiliate-captain' ) . ': ' . esc_html( $snap['tax_number'] ) . '<br>';
 		}
-		echo esc_html__( 'Bank account', 'wp-affiliate-captain' ) . ': ' . esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) . '</p></div></div>';
+		if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ) {
+			echo esc_html__( 'Payment method', 'wp-affiliate-captain' ) . ': ' . esc_html__( 'Other payment method (paid manually)', 'wp-affiliate-captain' ) . '</p></div></div>';
+		} else {
+			echo esc_html__( 'Bank account', 'wp-affiliate-captain' ) . ': ' . esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) . '</p></div></div>';
+		}
 		echo '<p>' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . ': ' . esc_html( mysql2date( get_option( 'date_format' ), $p->period_end ) ) . ' · ' . esc_html__( 'Created', 'wp-affiliate-captain' ) . ': ' . esc_html( Admin::date( $p->created_at ) ) . '</p>';
 
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Description', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
@@ -390,7 +395,7 @@ final class PayoutsPage {
 				'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( Admin::date( $item->commission_date ) ),
 				esc_html( $item->source . ' #' . $item->source_order_id ),
-				esc_html( 'sale' === $item->kind ? $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . $item->kind . ')' ),
+				esc_html( in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ')' ),
 				esc_html( Money::format( (int) $item->amount_minor, $p->currency ) )
 			);
 		}

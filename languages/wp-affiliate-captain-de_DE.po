@@ -425,6 +425,12 @@ msgstr "Abfragenummer %s"
 msgid "Tax number"
 msgstr "Steuernummer"
 
+msgid "Payout method"
+msgstr "Auszahlungsart"
+
+msgid "Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid."
+msgstr "Andere Auszahlungsarten sind nicht in der SEPA-Datei enthalten: Die Überweisungsliste enthält die Zahlungsangaben; zahlen Sie manuell und markieren Sie die Auszahlung dann als bezahlt."
+
 msgid "Account holder"
 msgstr "Kontoinhaber"
 
@@ -436,6 +442,18 @@ msgstr "leer lassen, um beizubehalten"
 
 msgid "BIC"
 msgstr "BIC"
+
+msgid "Payment details (other method)"
+msgstr "Zahlungsangaben (andere Auszahlungsart)"
+
+msgid "Stored – leave empty to keep"
+msgstr "Gespeichert – leer lassen, um beizubehalten"
+
+msgid "e.g. PayPal: name@example.com"
+msgstr "z. B. PayPal: name@example.com"
+
+msgid "Stored: %s"
+msgstr "Gespeichert: %s"
 
 msgid "Save payout details"
 msgstr "Auszahlungsdaten speichern"
@@ -475,6 +493,9 @@ msgstr "Zurückfordern"
 
 msgid "Level %1$d sent on %2$s"
 msgstr "Stufe %1$d gesendet am %2$s"
+
+msgid "Send a payment request for %1$s to %2$s now?"
+msgstr "Jetzt eine Zahlungsaufforderung über %1$s an %2$s senden?"
 
 msgid "Send payment request (level %d)"
 msgstr "Zahlungsaufforderung senden (Stufe %d)"
@@ -1099,6 +1120,9 @@ msgstr "Noch keine Auszahlungen."
 msgid "Select %s"
 msgstr "%s auswählen"
 
+msgid "Other payment method (paid manually)"
+msgstr "Andere Auszahlungsart (manuelle Zahlung)"
+
 msgid "Bulk action for selected payouts"
 msgstr "Sammelaktion für ausgewählte Auszahlungen"
 
@@ -1119,6 +1143,9 @@ msgstr "Stornieren"
 
 msgid "Run this action for the selected payouts?"
 msgstr "Diese Aktion für die ausgewählten Auszahlungen ausführen?"
+
+msgid "Payouts of partners with another payment method (e.g. PayPal) are left out of the SEPA file. The transfer list contains their payment details; pay them manually and then mark them as paid."
+msgstr "Auszahlungen an Partner mit einer anderen Auszahlungsart (z. B. PayPal) sind nicht in der SEPA-Datei enthalten. Die Überweisungsliste enthält ihre Zahlungsangaben; zahlen Sie diese manuell und markieren Sie sie anschließend als bezahlt."
 
 msgid "Cancellation reason (required for \"Cancel\")"
 msgstr "Stornierungsgrund (Pflicht bei „Stornieren“)"
@@ -1155,6 +1182,9 @@ msgstr "Provisionsabrechnung"
 
 msgid "Issued by"
 msgstr "Aussteller"
+
+msgid "Payment method"
+msgstr "Zahlungsart"
 
 msgid "Bank account"
 msgstr "Bankkonto"
@@ -2086,6 +2116,12 @@ msgstr "Auszahlung storniert"
 msgid "Opening balance"
 msgstr "Eröffnungssaldo"
 
+msgid "No payment request possible: the partner's data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin."
+msgstr "Keine Zahlungsaufforderung möglich: Die Daten des Partners wurden gelöscht oder ihre Verarbeitung ist eingeschränkt (DSGVO). Buchen Sie den Saldo aus oder fordern Sie ihn außerhalb des Plugins zurück."
+
+msgid "No payment request possible yet: enter your company's account holder and IBAN under Settings → Payouts first, so the partner knows where to transfer the amount."
+msgstr "Noch keine Zahlungsaufforderung möglich: Tragen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos unter Einstellungen → Auszahlungen ein, damit der Partner weiß, wohin er den Betrag überweisen soll."
+
 msgid "The balance is not negative."
 msgstr "Der Saldo ist nicht negativ."
 
@@ -2100,6 +2136,9 @@ msgstr "[%s] Letzte Mahnung: Rückzahlung von Provisionen"
 
 msgid "Hello %1$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5$d days to:\n\n%3$s\nReference: %4$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail."
 msgstr "Hallo %1$s,\n\nnach Erstattungen und Stornierungen von Bestellungen, die Sie vermittelt haben, weist Ihr Partnerkonto einen Saldo von -%2$s aus. Da die Partnerschaft beendet ist, kann er nicht mehr mit neuen Provisionen verrechnet werden. Bitte überweisen Sie den Betrag innerhalb von %5$d Tagen an:\n\n%3$s\nVerwendungszweck: %4$s\n\nDie Buchungen sehen Sie im Partnerbereich. Wenn Sie das für falsch halten, antworten Sie bitte auf diese E-Mail."
+
+msgid "The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again."
+msgstr "Die Zahlungsaufforderung konnte nicht gesendet werden (E-Mail-Fehler). Bitte prüfen Sie den E-Mail-Versand Ihrer Website und versuchen Sie es erneut."
 
 msgid "Please enter the amount received."
 msgstr "Bitte geben Sie den erhaltenen Betrag ein."
@@ -2148,6 +2187,15 @@ msgstr "Die Bestellung ist bereits diesem Partner zugeordnet."
 
 msgid "Reassigned to another partner: %s"
 msgstr "Einem anderen Partner zugeordnet: %s"
+
+msgid "The order cannot be attributed to this partner: the partner is the buyer (self-referral)."
+msgstr "Die Bestellung kann diesem Partner nicht zugeordnet werden: Der Partner ist selbst der Käufer (Eigenvermittlung)."
+
+msgid "The order cannot be attributed to this partner. Nothing was changed."
+msgstr "Die Bestellung kann diesem Partner nicht zugeordnet werden. Es wurde nichts geändert."
+
+msgid "The order could not be attributed to the new partner (database error). Nothing was changed; please try again."
+msgstr "Die Bestellung konnte dem neuen Partner nicht zugeordnet werden (Datenbankfehler). Es wurde nichts geändert; bitte versuchen Sie es erneut."
 
 msgid "Hold period ended"
 msgstr "Haltefrist abgelaufen"
@@ -2355,6 +2403,9 @@ msgstr "Grund (Pflicht, wird im Verlauf gespeichert)"
 msgid "The current partner gets a cancellation correction; the order is booked for the new partner with the current rules."
 msgstr "Der bisherige Partner erhält eine Stornokorrektur; die Bestellung wird für den neuen Partner mit den aktuellen Regeln gebucht."
 
+msgid "Attribute this order to the selected partner? The current partner's commission will be reversed. This cannot be undone."
+msgstr "Diese Bestellung dem ausgewählten Partner zuordnen? Die Provision des bisherigen Partners wird storniert. Das kann nicht rückgängig gemacht werden."
+
 msgid "Partner code entered: %s"
 msgstr "Eingegebener Partnercode: %s"
 
@@ -2370,8 +2421,35 @@ msgstr "Grund (Pflicht)"
 msgid "Commission is created once the order is paid."
 msgstr "Die Provision wird angelegt, sobald die Bestellung bezahlt ist."
 
-msgid "Order attributed to another partner."
-msgstr "Bestellung einem anderen Partner zugeordnet."
+msgid "The order has no line items that can be booked."
+msgstr "Die Bestellung hat keine Positionen, die gebucht werden können."
+
+msgid "Affiliate Captain: reassignment failed: %s"
+msgstr "Affiliate Captain: Neuzuordnung fehlgeschlagen: %s"
+
+msgid "The order was not attributed to another partner: %s"
+msgstr "Die Bestellung wurde keinem anderen Partner zugeordnet: %s"
+
+msgid "Order attributed to partner \"%s\"; the previous partner's commission was reversed."
+msgstr "Bestellung dem Partner „%s“ zugeordnet; die Provision des bisherigen Partners wurde storniert."
+
+msgid "The order was not assigned to a partner: please enter a reason."
+msgstr "Die Bestellung wurde keinem Partner zugeordnet: Bitte geben Sie einen Grund an."
+
+msgid "The order is already attributed to a partner. Use \"Attribute to another partner\" instead."
+msgstr "Die Bestellung ist bereits einem Partner zugeordnet. Nutzen Sie stattdessen „Einem anderen Partner zuordnen“."
+
+msgid "Order assigned to partner \"%s\". The commission is created once the order is paid."
+msgstr "Bestellung dem Partner „%s“ zugewiesen. Die Provision entsteht, sobald die Bestellung bezahlt ist."
+
+msgid "Order attributed to partner \"%s\"."
+msgstr "Bestellung dem Partner „%s“ zugeordnet."
+
+msgid "The order could not be booked yet and was queued for an automatic retry (Affiliate Captain → Integrations)."
+msgstr "Die Bestellung konnte noch nicht gebucht werden und wird automatisch erneut versucht (Affiliate Captain → Integrationen)."
+
+msgid "The order could not be attributed to partner \"%s\" (partner not active, processing restricted or the partner is the buyer)."
+msgstr "Die Bestellung konnte dem Partner „%s“ nicht zugeordnet werden (Partner nicht aktiv, Verarbeitung eingeschränkt oder der Partner ist selbst der Käufer)."
 
 msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
 msgstr "Affiliate Captain: dem Partner „%1$s“ zugeordnet (%2$s)."
@@ -2381,6 +2459,12 @@ msgstr "Bestellung erstattet"
 
 msgid "Order cancelled"
 msgstr "Bestellung storniert"
+
+msgid "Affiliate Captain: the partner commission could not be reinstated yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr "Affiliate Captain: Die Partnerprovision konnte noch nicht wiederhergestellt werden; es wird automatisch erneut versucht (Affiliate Captain → Integrationen)."
+
+msgid "Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later."
+msgstr "Affiliate Captain: Die Partnerprovision konnte nicht wiederhergestellt werden. Bitte ändern Sie den Bestellstatus später erneut."
 
 msgid "Order paid again (chargeback won or cancellation reversed)"
 msgstr "Bestellung wieder bezahlt (Rückbuchung gewonnen oder Stornierung aufgehoben)"
@@ -2490,8 +2574,14 @@ msgstr "Die USt-IdNr. des Partners ist laut VIES nicht gültig (Reverse Charge n
 msgid "Only payouts that were not exported yet can be rebuilt."
 msgstr "Nur noch nicht exportierte Auszahlungen können neu erstellt werden."
 
+msgid "The payout cannot be created again (%s). It was not cancelled."
+msgstr "Die Auszahlung kann nicht neu erstellt werden (%s). Sie wurde nicht storniert."
+
 msgid "Rebuilt after a refund"
 msgstr "Nach einer Erstattung neu erstellt"
+
+msgid "After the refund the balance is below the minimum payout, so no new payout can be created. The payout was not cancelled; cancel it manually if it should not be paid – the balance is then carried forward."
+msgstr "Nach der Erstattung liegt der Saldo unter der Mindestauszahlung, daher kann keine neue Auszahlung erstellt werden. Die Auszahlung wurde nicht storniert; stornieren Sie sie manuell, wenn sie nicht ausgezahlt werden soll – der Saldo wird dann vorgetragen."
 
 msgid "Your address and VAT ID or tax number are missing (Settings → Payouts) – credit notes need them."
 msgstr "Ihre Anschrift und USt-IdNr. oder Steuernummer fehlen (Einstellungen → Auszahlungen) – Gutschriften brauchen diese Angaben."
@@ -2514,6 +2604,9 @@ msgstr "Auszahlung %s wurde bereits exportiert. Wählen Sie „Erneut exportiere
 msgid "The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again."
 msgstr "Der Partner hat seine Auszahlungsdaten nach dem Anlegen der Auszahlung %s geändert. Bitte prüfen Sie die Änderung, stornieren Sie die Auszahlung und legen Sie sie neu an."
 
+msgid "Payment details for payout %s are missing or cannot be decrypted."
+msgstr "Die Zahlungsangaben für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
+
 msgid "Bank details for payout %s are missing or cannot be decrypted."
 msgstr "Die Bankdaten für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
 
@@ -2526,6 +2619,9 @@ msgstr "Bitte hinterlegen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos in
 msgid "SEPA transfers are only possible in EUR."
 msgstr "SEPA-Überweisungen sind nur in EUR möglich."
 
+msgid "The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
+msgstr "Die ausgewählten Auszahlungen nutzen eine andere Auszahlungsart (z. B. PayPal) und sind nicht Teil der SEPA-Datei. Laden Sie für die Zahlungsangaben die Überweisungsliste (CSV) herunter, zahlen Sie manuell und markieren Sie die Auszahlungen als bezahlt."
+
 msgid "Private individual"
 msgstr "Privatperson"
 
@@ -2535,11 +2631,23 @@ msgstr "Kleinunternehmer (ohne USt., z. B. § 19 UStG)"
 msgid "Business (VAT registered)"
 msgstr "Unternehmen (umsatzsteuerpflichtig)"
 
+msgid "Bank transfer (SEPA, IBAN)"
+msgstr "Banküberweisung (SEPA, IBAN)"
+
+msgid "Other payment method (e.g. PayPal), paid manually"
+msgstr "Andere Auszahlungsart (z. B. PayPal), manuelle Zahlung"
+
 msgid "Please enter your VAT ID."
 msgstr "Bitte geben Sie Ihre USt-IdNr. ein."
 
 msgid "Please enter your tax number or VAT ID (required on credit notes)."
 msgstr "Bitte geben Sie Ihre Steuernummer oder USt-IdNr. an (Pflichtangabe auf Gutschriften)."
+
+msgid "Please enter your payment details (e.g. your PayPal address)."
+msgstr "Bitte geben Sie Ihre Zahlungsangaben ein (z. B. Ihre PayPal-Adresse)."
+
+msgid "Please enter your IBAN for payouts by bank transfer."
+msgstr "Bitte geben Sie Ihre IBAN für Auszahlungen per Banküberweisung ein."
 
 msgid "The IBAN is not valid."
 msgstr "Die IBAN ist ungültig."
@@ -2606,6 +2714,9 @@ msgstr "USt-IdNr. des Partners"
 
 msgid "Tax number of the partner"
 msgstr "Steuernummer des Partners"
+
+msgid "Other payment method as agreed with the partner"
+msgstr "Andere, mit dem Partner vereinbarte Zahlungsart"
 
 msgid "Net"
 msgstr "Netto"
@@ -2898,18 +3009,6 @@ msgstr "Produkt"
 msgid "Available from"
 msgstr "Verfügbar ab"
 
-msgid "refund"
-msgstr "Rückerstattung"
-
-msgid "cancellation"
-msgstr "Stornierung"
-
-msgid "chargeback"
-msgstr "Rückbuchung"
-
-msgid "write-off"
-msgstr "Abschreibung"
-
 msgid "Available for payout: %s"
 msgstr "Für Auszahlung verfügbar: %s"
 
@@ -3021,8 +3120,14 @@ msgstr "Leer lassen, um beizubehalten"
 msgid "BIC (optional)"
 msgstr "BIC (optional)"
 
-msgid "Your bank details are stored encrypted and are only used for commission payouts."
-msgstr "Ihre Bankdaten werden verschlüsselt gespeichert und nur für Provisionsauszahlungen verwendet."
+msgid "Payment details"
+msgstr "Zahlungsangaben"
+
+msgid "Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually."
+msgstr "Wohin und wie wir Ihre Provision senden sollen (z. B. PayPal-Adresse, Wise oder ausländisches Bankkonto). Diese Auszahlungen zahlen wir manuell."
+
+msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
+msgstr "Ihre Bank- und Zahlungsangaben werden verschlüsselt gespeichert und nur für Provisionsauszahlungen verwendet."
 
 msgid "E-mail for notifications"
 msgstr "E-Mail für Benachrichtigungen"

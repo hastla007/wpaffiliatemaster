@@ -69,11 +69,20 @@ final class OrderSync {
 			);
 		}
 
-		$touch  = $order->get_meta( WooCommerce::META_TOUCH );
-		$paid   = $order->get_date_paid() ? $order->get_date_paid() : $order->get_date_created();
-		$manual = (int) $order->get_meta( WooCommerce::META_MANUAL );
+		$touch   = $order->get_meta( WooCommerce::META_TOUCH );
+		$paid    = $order->get_date_paid() ? $order->get_date_paid() : $order->get_date_created();
+		$manual  = self::manual_affiliate( $order );
+		$code    = CheckoutField::order_code( $order );
+		$renewal = self::is_renewal( $order );
+		if ( $renewal ) {
+			// Renewals have no checkout: partner code and touch on a renewal were copied from the
+			// first order by WooCommerce Subscriptions (older subscriptions, before the copy was
+			// excluded) and must not override the partner of the subscription.
+			$code  = '';
+			$touch = null;
+		}
 
-		return array(
+		$payload = array(
 			'contract'     => WPAC_CONTRACT_VERSION,
 			'source'       => WooCommerce::SOURCE,
 			'order_id'     => (string) $order->get_id(),
@@ -81,7 +90,7 @@ final class OrderSync {
 			'paid_at'      => $paid ? $paid->getTimestamp() : time(),
 			'items'        => $items,
 			'coupon_codes' => $order->get_coupon_codes(),
-			'partner_code' => CheckoutField::order_code( $order ),
+			'partner_code' => $code,
 			'affiliate_id' => $manual,
 			'touch'        => is_array( $touch ) ? $touch : null,
 			'customer'     => array(
@@ -89,6 +98,121 @@ final class OrderSync {
 				'email'   => (string) $order->get_billing_email(),
 			),
 		);
+		// A renewal without its own manual assignment belongs to the partner who brought the
+		// subscription: the partner of the subscription's first (parent) order. Part of the
+		// payload so retries of the queued order (run_job()) keep the partner as well.
+		if ( $renewal && ! $manual ) {
+			$parent = self::subscription_parent_attribution( $order );
+			if ( $parent ) {
+				$payload['affiliate_id']       = (int) $parent->affiliate_id;
+				$payload['attribution_method'] = 'renewal';
+			}
+		}
+		return $payload;
+	}
+
+	/**
+	 * Partner assigned manually to this order. On a renewal only an assignment made on the
+	 * renewal itself counts (marked by the order box), never one copied from the first order.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return int
+	 */
+	public static function manual_affiliate( $order ) {
+		$manual = (int) $order->get_meta( WooCommerce::META_MANUAL );
+		if ( $manual && self::is_renewal( $order ) && (int) $order->get_meta( self::META_MANUAL_OWN ) !== (int) $order->get_id() ) {
+			return 0;
+		}
+		return $manual;
+	}
+
+	/** Marks a manual assignment made on this order (value: the order ID). */
+	const META_MANUAL_OWN = '_wpac_manual_own';
+
+	/** Order ID the "resolved without partner" marker belongs to (copies on renewals don't count). */
+	const META_RESOLVED_FOR = '_wpac_resolved_for';
+
+	/**
+	 * Mark an order as resolved without a partner.
+	 *
+	 * @param \WC_Order $order Order.
+	 */
+	private static function mark_unresolved( $order ) {
+		$order->update_meta_data( '_wpac_resolved', 'none' );
+		$order->update_meta_data( self::META_RESOLVED_FOR, (int) $order->get_id() );
+		$order->save_meta_data();
+	}
+
+	/**
+	 * Whether the order was already resolved without a partner (its own marker, not a copy).
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return bool
+	 */
+	private static function is_unresolved( $order ) {
+		if ( 'none' !== $order->get_meta( '_wpac_resolved' ) ) {
+			return false;
+		}
+		if ( self::is_renewal( $order ) ) {
+			return (int) $order->get_meta( self::META_RESOLVED_FOR ) === (int) $order->get_id();
+		}
+		return true;
+	}
+
+	/**
+	 * Meta keys of this plugin that WooCommerce Subscriptions must not copy from the first order
+	 * to the subscription or from the subscription to renewals and resubscriptions.
+	 *
+	 * @param string $key Meta key.
+	 * @return bool
+	 */
+	public static function is_own_meta( $key ) {
+		$key = (string) $key;
+		return 0 === strpos( $key, '_wpac_' ) || 0 === strpos( $key, '_wc_other/' . WooCommerce::BLOCKS_FIELD ) || 0 === strpos( $key, '_wc_billing/' . WooCommerce::BLOCKS_FIELD ) || 0 === strpos( $key, '_wc_shipping/' . WooCommerce::BLOCKS_FIELD );
+	}
+
+	/**
+	 * Filter for WooCommerce Subscriptions' meta copy. Handles both shapes: the current
+	 * "wc_subscriptions_{type}_data" filter (meta key => value) and the older
+	 * "wcs_{type}_meta" filter (list of [ meta_key, meta_value ] rows).
+	 *
+	 * @param mixed $data Meta to copy.
+	 * @return mixed
+	 */
+	public static function exclude_subscription_meta( $data ) {
+		if ( ! is_array( $data ) ) {
+			return $data;
+		}
+		$rows = false;
+		foreach ( $data as $k => $row ) {
+			$key = $k;
+			if ( is_array( $row ) && isset( $row['meta_key'] ) ) {
+				$key  = $row['meta_key'];
+				$rows = true;
+			} elseif ( is_object( $row ) && isset( $row->meta_key ) ) {
+				$key  = $row->meta_key;
+				$rows = true;
+			}
+			if ( is_string( $key ) && self::is_own_meta( $key ) ) {
+				unset( $data[ $k ] );
+			}
+		}
+		return $rows ? array_values( $data ) : $data;
+	}
+
+	/**
+	 * Keep this plugin's order meta out of WooCommerce Subscriptions' copies (first order →
+	 * subscription → renewal/resubscription), so renewals are attributed via the subscription.
+	 */
+	public static function register_subscription_hooks() {
+		foreach ( array( 'subscription', 'renewal_order', 'resubscribe_order' ) as $type ) {
+			add_filter( 'wc_subscriptions_' . $type . '_data', array( __CLASS__, 'exclude_subscription_meta' ), 20 );
+			// Older versions only know the (since deprecated) row filter. Hooking it on newer
+			// versions would switch them to the legacy copy path with a deprecation notice.
+			if ( ! class_exists( 'WC_Subscriptions_Data_Copier' ) ) {
+				add_filter( 'wcs_' . $type . '_meta', array( __CLASS__, 'exclude_subscription_meta' ), 20 );
+			}
+		}
 	}
 
 	/**
@@ -105,25 +229,16 @@ final class OrderSync {
 			return;
 		}
 		// Already resolved without a partner (payment_complete + processing + completed fire for the same order).
-		if ( 'none' === $order->get_meta( '_wpac_resolved' ) && ! $order->get_meta( WooCommerce::META_MANUAL ) ) {
+		if ( self::is_unresolved( $order ) && ! self::manual_affiliate( $order ) ) {
 			return;
 		}
 		// Subscription renewals (WooCommerce Subscriptions) only earn commission when enabled.
-		if ( ! Settings::get( 'renewal_commission' ) && self::is_renewal( $order ) && ! $order->get_meta( WooCommerce::META_MANUAL ) ) {
-			$order->update_meta_data( '_wpac_resolved', 'none' );
-			$order->save_meta_data();
+		if ( ! Settings::get( 'renewal_commission' ) && self::is_renewal( $order ) && ! self::manual_affiliate( $order ) ) {
+			self::mark_unresolved( $order );
 			return;
 		}
+		// Renewals: partner of the subscription's first order (see payload()).
 		$payload = self::payload( $order );
-		// A renewal without its own code, touch or manual assignment belongs to the partner who
-		// brought the subscription: the partner of the subscription's first (parent) order.
-		if ( self::is_renewal( $order ) && ! $payload['affiliate_id'] && '' === (string) $payload['partner_code'] && empty( $payload['touch'] ) ) {
-			$parent = self::subscription_parent_attribution( $order );
-			if ( $parent ) {
-				$payload['affiliate_id']       = (int) $parent->affiliate_id;
-				$payload['attribution_method'] = 'renewal';
-			}
-		}
 		/**
 		 * Filter the WooCommerce sale payload before it is recorded (e.g. connector add-ons
 		 * can add hold_until or item meta).
@@ -141,15 +256,14 @@ final class OrderSync {
 		);
 
 		if ( is_array( $result ) && 'unattributed' === $result['status'] ) {
-			$order->update_meta_data( '_wpac_resolved', 'none' );
-			$order->save_meta_data();
+			self::mark_unresolved( $order );
 		}
 		if ( is_array( $result ) && 'created' === $result['status'] ) {
 			$attr = Ledger::attribution_for( WooCommerce::SOURCE, (string) $order->get_id() );
 			if ( $attr ) {
 				$aff = AffiliateRepository::find( (int) $attr->affiliate_id );
 				/* translators: 1: affiliate name, 2: method */
-				$order->add_order_note( sprintf( __( 'Affiliate Captain: attributed to partner "%1$s" (%2$s).', 'wp-affiliate-captain' ), $aff ? $aff->name : '#' . $attr->affiliate_id, $attr->method ) );
+				$order->add_order_note( sprintf( __( 'Affiliate Captain: attributed to partner "%1$s" (%2$s).', 'wp-affiliate-captain' ), $aff ? $aff->name : '#' . $attr->affiliate_id, Ledger::method_label( $attr->method ) ) );
 			}
 		}
 	}
@@ -335,6 +449,29 @@ final class OrderSync {
 	 * @param int $order_id Order.
 	 */
 	public static function reinstate( $order_id ) {
+		try {
+			self::reinstate_now( $order_id );
+		} catch ( \Throwable $e ) {
+			// Database error: retried by the job queue (Ledger::reinstate() is idempotent per reversal).
+			$queued = Jobs::enqueue( 'woo_reinstate', WooCommerce::SOURCE . ':' . (int) $order_id, array( 'order_id' => (int) $order_id ), $e instanceof \WPAffiliateCaptain\Core\IntegrationException ? $e->error_code : 'exception', $e->getMessage() );
+			$order  = wc_get_order( $order_id );
+			if ( $order ) {
+				$order->add_order_note(
+					$queued
+						? __( 'Affiliate Captain: the partner commission could not be reinstated yet and will be retried automatically (Affiliate Captain → Integrations).', 'wp-affiliate-captain' )
+						: __( 'Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later.', 'wp-affiliate-captain' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Reinstate now; database errors are thrown (job queue).
+	 *
+	 * @param int $order_id Order.
+	 * @throws \Throwable On database errors.
+	 */
+	private static function reinstate_now( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
 			return;
@@ -395,6 +532,14 @@ final class OrderSync {
 			// These refunds are already deducted from the rebuilt sale: their queued refund jobs
 			// must not deduct them a second time.
 			Jobs::supersede_refunds( WooCommerce::SOURCE, (string) $order->get_id(), $netted );
+			return true;
+		}
+		if ( 'woo_reinstate' === $type && ! empty( $payload['order_id'] ) ) {
+			$order = wc_get_order( (int) $payload['order_id'] );
+			if ( ! $order || ! $order->is_paid() ) {
+				return true; // Reversed again meanwhile: nothing to reinstate.
+			}
+			self::reinstate_now( (int) $payload['order_id'] ); // Exceptions propagate to the job runner.
 			return true;
 		}
 		return $handled;

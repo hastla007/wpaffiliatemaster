@@ -995,6 +995,178 @@ check( 'ZC8 empty block field is valid', true, WPAffiliateCaptain\Integrations\W
 check( 'ZC9 page id unchanged without a multilingual plugin', 12, WPAffiliateCaptain\Core\Locale::page_id( 12, 'de_DE' ) );
 check( 'ZC9 partner locale falls back to the site language', 'en_US', WPAffiliateCaptain\Core\Locale::for_affiliate( (object) array( 'user_id' => 0 ) ) );
 if ( null === $zc_ip ) { unset( $_SERVER['REMOTE_ADDR'] ); } else { $_SERVER['REMOTE_ADDR'] = $zc_ip; }
+// ---------------------------------------------------------------------------------------------
+// ZA: review round 4 (reassignment, restriction, renewals, payouts, dunning, payout methods).
+// ---------------------------------------------------------------------------------------------
+echo "ZA review round 4 fixes (ledger, renewals, payouts, payout methods)\n";
+function za_set( array $values ) {
+	update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), $values ) );
+	Settings::flush_cache();
+}
+$za1 = AffiliateRepository::create( array( 'name' => 'ZA Eins', 'email' => 'za1@example.de', 'status' => 'active' ) );
+$za2 = AffiliateRepository::create( array( 'name' => 'ZA Zwei', 'email' => 'za2@example.de', 'status' => 'active' ) );
+$za3 = AffiliateRepository::create( array( 'name' => 'ZA Drei', 'email' => 'za3@example.de', 'status' => 'active' ) );
+
+// W2: refunds after a reassignment belong to the new partner.
+$zs    = sale( 'za-1', WPAffiliateCaptain\Codes\CodeRepository::main_code( $za1 ), array( 10000 ), 'kaeufer-za@example.de' );
+$zsale = WPAffiliateCaptain\Sales\ContractApi::normalize_sale( array( 'source' => 'test', 'order_id' => 'za-1', 'currency' => 'EUR', 'items' => array( array( 'item_id' => '1', 'product_id' => 10, 'name' => 'Kurs 1', 'net_minor' => 10000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'kaeufer-za@example.de' ) ) );
+$zr    = Ledger::reassign( $zsale, $za2, 'Kunde hat sich geirrt' );
+check( 'ZA01 reassignment books the order for the new partner', array( 'created', 0, true ), array( is_array( $zr ) ? $zr['status'] : 'error', sum_for( $za1 ), sum_for( $za2 ) > 0 ) );
+$za2_before = sum_for( $za2 );
+refund( 'za-1', 'za-r1', array( array( 'item_id' => '1', 'net_minor' => 5000 ) ) );
+check( 'ZA02 a later refund is booked for the new partner only', array( 0, intdiv( $za2_before, 2 ) ), array( sum_for( $za1 ), sum_for( $za2 ) ) );
+$za2_after = sum_for( $za2 );
+// W2: the new booking fails → nothing changes for the current partner.
+add_filter( 'wpac_commission_base', static function () { throw new RuntimeException( 'boom' ); } );
+$zr2 = Ledger::reassign( $zsale, $za3, 'Test Fehler' );
+remove_all_filters( 'wpac_commission_base' );
+check( 'ZA03 failed reassignment is an error and rolls the reversal back', array( true, $za2_after, 0, $za2 ), array( is_wp_error( $zr2 ), sum_for( $za2 ), sum_for( $za3 ), (int) Ledger::attribution_for( 'test', 'za-1' )->affiliate_id ) );
+// W2: self-referral of the new partner is refused before anything is reversed.
+$zr3 = Ledger::reassign( array_merge( $zsale, array( 'customer' => array( 'user_id' => 0, 'email' => 'za3@example.de' ) ) ), $za3, 'Selbst' );
+check( 'ZA04 reassignment to the buyer (self-referral) is refused, nothing reversed', array( true, $za2_after ), array( is_wp_error( $zr3 ), sum_for( $za2 ) ) );
+
+// W5: restricted partners earn nothing new, also via affiliate_id (integrations, renewals).
+WPAffiliateCaptain\Privacy\Restriction::add( $za3, WPAffiliateCaptain\Privacy\Restriction::REQUEST, 'Test' );
+$zw5 = wpac_record_sale( array( 'source' => 'test', 'order_id' => 'za-5', 'currency' => 'EUR', 'affiliate_id' => $za3, 'items' => array( array( 'item_id' => '1', 'net_minor' => 10000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'k5@example.de' ) ) );
+check( 'ZA05 restricted partner gets no commission via affiliate_id', 'unattributed', is_array( $zw5 ) ? $zw5['status'] : 'error' );
+check( 'ZA06 reassignment to a restricted partner refused', true, is_wp_error( Ledger::reassign( $zsale, $za3, 'x' ) ) );
+WPAffiliateCaptain\Privacy\Restriction::remove( $za3 );
+
+// W29: readable kind and method labels.
+check( 'ZA07 kind labels for every kind', array( 'Reinstatement', 'Repayment by the partner', 'Partner code' ), array( Ledger::kind_label( 'reinstatement' ), Ledger::kind_label( 'repayment' ), Ledger::method_label( 'code' ) ) );
+
+// W3/W4: renewals – copied partner code/touch are ignored, the subscription's partner counts, also on retry.
+class ZA_Order {
+	public $id;
+	public $meta;
+	public $paid   = true;
+	public $parent = 0;
+	public function __construct( $id, $meta = array() ) { $this->id = $id; $this->meta = $meta; }
+	public function get_id() { return $this->id; }
+	public function get_meta( $k ) { return isset( $this->meta[ $k ] ) ? $this->meta[ $k ] : ''; }
+	public function update_meta_data( $k, $v ) { $this->meta[ $k ] = $v; }
+	public function save_meta_data() {}
+	public function add_order_note( $n ) { $GLOBALS['za_notes'][] = $n; }
+	public function is_paid() { return $this->paid; }
+	public function get_currency() { return 'EUR'; }
+	public function get_refunds() { return array(); }
+	public function get_items( $t = 'line_item' ) { return 'line_item' === $t ? array( 1 => new ZA_Item() ) : array(); }
+	public function get_date_paid() { return null; }
+	public function get_date_created() { return null; }
+	public function get_coupon_codes() { return array(); }
+	public function get_customer_id() { return 0; }
+	public function get_billing_email() { return 'abo@example.de'; }
+	public function get_parent_id() { return $this->parent; }
+}
+class ZA_Item {
+	public function get_product() { return null; }
+	public function get_variation_id() { return 0; }
+	public function get_product_id() { return 0; }
+	public function get_name() { return 'Abo'; }
+	public function get_quantity() { return 1; }
+	public function get_total() { return '50.00'; }
+}
+if ( ! function_exists( 'wc_get_order' ) ) {
+	function wc_get_order( $id ) { return isset( $GLOBALS['za_orders'][ (int) $id ] ) ? $GLOBALS['za_orders'][ (int) $id ] : false; }
+}
+wpac_record_sale( array( 'source' => 'woocommerce', 'order_id' => '7001', 'currency' => 'EUR', 'partner_code' => WPAffiliateCaptain\Codes\CodeRepository::main_code( $za1 ), 'items' => array( array( 'item_id' => '1', 'net_minor' => 5000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'abo@example.de' ) ) );
+$zsub         = new ZA_Order( 7002 );
+$zsub->parent = 7001;
+$zcode2       = WPAffiliateCaptain\Codes\CodeRepository::main_code( $za2 );
+$zrenewal     = new ZA_Order( 7003, array( '_subscription_renewal' => 7002, '_wpac_partner_code' => $zcode2, '_wpac_touch' => array( 'code' => $zcode2, 'method' => 'link' ), '_wpac_resolved' => 'none' ) );
+$GLOBALS['za_orders'] = array( 7002 => $zsub, 7003 => $zrenewal );
+$zp = WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::payload( $zrenewal );
+check( 'ZA08 renewal payload ignores the copied code/touch and uses the subscription partner', array( '', null, $za1, 'renewal' ), array( $zp['partner_code'], $zp['touch'], $zp['affiliate_id'], isset( $zp['attribution_method'] ) ? $zp['attribution_method'] : '' ) );
+WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::run_job( false, 'woo_order', array( 'order_id' => 7003 ) );
+$za_attr = Ledger::attribution_for( 'woocommerce', '7003' );
+check( 'ZA09 retried renewal job keeps the subscription partner', array( $za1, 'renewal' ), array( $za_attr ? (int) $za_attr->affiliate_id : 0, $za_attr ? $za_attr->method : '' ) );
+$zcopied = WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::exclude_subscription_meta( array( '_wpac_partner_code' => 'X', '_wpac_touch' => array(), '_wc_other/wp-affiliate-captain/partner-code' => 'X', '_billing_email' => 'a@b.de' ) );
+$zrows   = WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::exclude_subscription_meta( array( array( 'meta_key' => '_wpac_resolved', 'meta_value' => 'none' ), array( 'meta_key' => '_order_key', 'meta_value' => 'k' ) ) );
+check( 'ZA10 subscription copies leave out the plugin meta (both filter shapes)', array( array( '_billing_email' ), array( array( 'meta_key' => '_order_key', 'meta_value' => 'k' ) ) ), array( array_keys( $zcopied ), $zrows ) );
+$zrenewal2 = new ZA_Order( 7004, array( '_subscription_renewal' => 7002, '_wpac_manual_affiliate' => $za2 ) );
+$zrenewal3 = new ZA_Order( 7005, array( '_subscription_renewal' => 7002, '_wpac_manual_affiliate' => $za2, '_wpac_manual_own' => 7005 ) );
+check( 'ZA11 manual assignment copied to a renewal does not count, one made on the renewal does', array( 0, $za2 ), array( WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::manual_affiliate( $zrenewal2 ), WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::manual_affiliate( $zrenewal3 ) ) );
+// O9: the reinstatement retry job is handled (idempotent, nothing to do here).
+$GLOBALS['za_orders'][7001] = new ZA_Order( 7001 );
+check( 'ZA12 reinstatement retry job is handled', true, WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::run_job( false, 'woo_reinstate', array( 'order_id' => 7001 ) ) );
+
+// W8: rebuild never leaves a cancellation behind when the payout cannot be created again.
+$zb = AffiliateRepository::create( array( 'name' => 'ZA Rebuild', 'email' => 'zarebuild@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $zb, array( 'tax_status' => 'private', 'legal_name' => 'ZA Rebuild', 'address' => "Weg 2\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'ZA Rebuild', 'iban' => 'DE89370400440532013000' ) );
+$wpdb->query( 'UPDATE ' . t( 'payout_profiles' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE affiliate_id = " . (int) $zb );
+$zbs = sale( 'za-8', WPAffiliateCaptain\Codes\CodeRepository::main_code( $zb ), array( 1000000 ) );
+Ledger::transition( (int) $zbs['commission_ids'][0], 'approved' );
+$zbp = PayoutService::create_for_affiliate( $zb, gmdate( 'Y-m-d' ), 'EUR' );
+za_set( array( 'maintenance_mode' => 1 ) );
+$zbr = PayoutService::rebuild( $zbp );
+za_set( array( 'maintenance_mode' => 0 ) );
+check( 'ZA13 blocked rebuild is refused before cancelling', array( true, 'pending', '' ), array( is_wp_error( $zbr ), PayoutService::find( $zbp )->status, (string) PayoutService::find( $zbp )->storno_number ) );
+refund( 'za-8', 'za-8r', array(), 'refund' );
+foreach ( $wpdb->get_col( "SELECT id FROM {$ct} WHERE parent_id = " . (int) $zbs['commission_ids'][0] ) as $zchild ) {
+	Ledger::transition( (int) $zchild, 'approved' );
+}
+$zstorno_before = (int) $wpdb->get_var( 'SELECT COALESCE(MAX(value),0) FROM ' . t( 'sequences' ) . " WHERE name = 'storno'" );
+$zbr2           = PayoutService::rebuild( $zbp );
+check( 'ZA14 rebuild with nothing payable any more rolls back (no cancellation, no number used)', array( true, 'pending', $zstorno_before ), array( is_wp_error( $zbr2 ), PayoutService::find( $zbp )->status, (int) $wpdb->get_var( 'SELECT COALESCE(MAX(value),0) FROM ' . t( 'sequences' ) . " WHERE name = 'storno'" ) ) );
+
+// W9: failure entries of cancelled payouts are dropped.
+PayoutService::cancel( $zbp, 'Test' );
+update_option( WPAffiliateCaptain\Payouts\Statement::RETRY_OPTION, array( $zbp => array( 'n' => 3, 'next' => time() + 3600 ) ) );
+check( 'ZA15 statement failures of cancelled payouts no longer alarm', array( array(), array() ), array( WPAffiliateCaptain\Payouts\Statement::waiting(), get_option( WPAffiliateCaptain\Payouts\Statement::RETRY_OPTION ) ) );
+
+// O7: annual overview years, including years with only a cancellation.
+$wpdb->update( t( 'payouts' ), array( 'created_at' => '2023-12-30 10:00:00', 'statement_file' => 'za.pdf', 'storno_number' => 'ST-2024-000099', 'storno_at' => '2024-01-02 10:00:00' ), array( 'id' => $zbp ) );
+check( 'ZA16 annual overview years include the cancellation year', array( 2024, 2023 ), WPAffiliateCaptain\Payouts\Statement::annual_years( $zb ) );
+
+// W6: statements follow the same retention as the booking records (DE: 8 years, not 10).
+za_set( array( 'operator_country' => 'DE', 'statement_retention_years' => 8 ) );
+$zold = (int) gmdate( 'Y' ) - 10;
+$wpdb->update( t( 'payouts' ), array( 'created_at' => $zold . '-06-01 10:00:00', 'storno_at' => $zold . '-07-01 10:00:00', 'statement_file' => '', 'storno_file' => '' ), array( 'id' => $zbp ) );
+WPAffiliateCaptain\Payouts\Statement::purge_expired();
+check( 'ZA17 statement retention uses Retention::cutoff() (8 years in DE)', true, null !== PayoutService::find( $zbp )->statement_deleted_at );
+za_set( array( 'statement_retention_years' => 10 ) );
+
+// W30 / O10: no payment request without the company account or to erased/restricted partners.
+$zd = AffiliateRepository::create( array( 'name' => 'ZA Ende', 'email' => 'zaende@example.de', 'status' => 'active' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $zd, 'source' => 'test', 'source_order_id' => 'zd1', 'kind' => 'refund', 'currency' => 'EUR', 'amount_minor' => -1500, 'status' => 'approved', 'idempotency_key' => 'zd1', 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+WPAffiliateCaptain\Commissions\Balance::post( $zd, 'EUR', 'approved', -1500, (int) $wpdb->insert_id, 0, 'test' );
+AffiliateRepository::set_status( $zd, 'terminated', 'Ende' );
+$ziban = Settings::get( 'debtor_iban' );
+za_set( array( 'debtor_iban' => '' ) );
+$zdr = WPAffiliateCaptain\Commissions\Dunning::remind( $zd, 'EUR' );
+za_set( array( 'debtor_iban' => $ziban ) );
+check( 'ZA18 payment request without company IBAN refused', array( true, 'wpac_dunning_blocked', array() ), array( is_wp_error( $zdr ), is_wp_error( $zdr ) ? $zdr->get_error_code() : '', WPAffiliateCaptain\Commissions\Dunning::history( $zd, 'EUR' ) ) );
+WPAffiliateCaptain\Privacy\Restriction::add( $zd, WPAffiliateCaptain\Privacy\Restriction::ERASURE );
+$zlisted = (bool) array_filter( WPAffiliateCaptain\Commissions\Dunning::candidates(), static function ( $c ) use ( $zd ) { return (int) $c['affiliate']->id === (int) $zd; } );
+check( 'ZA19 erased/restricted partners are neither listed nor reminded', array( false, true ), array( $zlisted, is_wp_error( WPAffiliateCaptain\Commissions\Dunning::remind( $zd, 'EUR' ) ) ) );
+WPAffiliateCaptain\Privacy\Restriction::remove( $zd );
+
+// W37: second payout method "manual" (e.g. PayPal).
+$zm    = AffiliateRepository::create( array( 'name' => 'ZA PayPal', 'email' => 'zapaypal@example.de', 'status' => 'active' ) );
+$zbase = array( 'tax_status' => 'private', 'legal_name' => 'ZA PayPal', 'address' => "Weg 3\n24103 Kiel", 'country' => 'DE' );
+$zerr  = ProfileRepository::save( $zm, $zbase + array( 'payout_method' => 'manual' ) );
+check( 'ZA20 manual method needs payment details', 'wpac_payment_details', is_wp_error( $zerr ) ? $zerr->get_error_code() : '' );
+ProfileRepository::save( $zm, $zbase + array( 'payout_method' => 'manual', 'payment_details' => 'PayPal: zapaypal@example.de' ) );
+$zmp = ProfileRepository::get( $zm );
+check( 'ZA21 manual profile: complete without IBAN, details encrypted, no IBAN', array( 'manual', true, 'PayPal: zapaypal@example.de', null, false ), array( ProfileRepository::method( $zmp ), ProfileRepository::is_complete( $zmp ), ProfileRepository::payment_details( $zmp ), ProfileRepository::iban( $zmp ), false !== strpos( (string) $zmp->iban_encrypted, 'PayPal' ) ) );
+ProfileRepository::save( $zm, $zbase );
+check( 'ZA22 saving without a method keeps the method and details', array( 'manual', 'PayPal: zapaypal@example.de' ), array( ProfileRepository::method( ProfileRepository::get( $zm ) ), ProfileRepository::payment_details( ProfileRepository::get( $zm ) ) ) );
+$wpdb->query( 'UPDATE ' . t( 'payout_profiles' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE affiliate_id = " . (int) $zm );
+$zms = sale( 'za-37', WPAffiliateCaptain\Codes\CodeRepository::main_code( $zm ), array( 100000 ) );
+Ledger::transition( (int) $zms['commission_ids'][0], 'approved' );
+$zmpay = PayoutService::create_for_affiliate( $zm, gmdate( 'Y-m-d' ), 'EUR' );
+$zsnap = json_decode( (string) PayoutService::find( $zmpay )->profile_snapshot, true );
+check( 'ZA23 payout and credit note for the manual method (no details in the snapshot)', array( true, 'manual', false ), array( $zmpay > 0, $zsnap['payout_method'], false !== strpos( (string) PayoutService::find( $zmpay )->profile_snapshot, 'zapaypal@' ) ) );
+$zsepa = PayoutService::sepa_export( array( $zmpay ) );
+check( 'ZA24 manual payouts are left out of the SEPA file', array( true, 'pending' ), array( is_wp_error( $zsepa ), PayoutService::find( $zmpay )->status ) );
+$ztl = PayoutService::transfer_csv( array( $zmpay ) );
+check( 'ZA25 transfer list carries the payment details', array( '', 'manual', 'PayPal: zapaypal@example.de' ), is_array( $ztl ) ? array( $ztl[1][0][2], $ztl[1][0][7], $ztl[1][0][8] ) : array() );
+check( 'ZA26 manual payout can be marked as paid', array( true, 'paid' ), array( true === PayoutService::mark_paid( $zmpay ), PayoutService::find( $zmpay )->status ) );
+$zerr = ProfileRepository::save( $zm, $zbase + array( 'account_holder' => 'ZA', 'payout_method' => 'sepa' ) );
+check( 'ZA27 switching back to SEPA needs an IBAN', 'wpac_iban_required', is_wp_error( $zerr ) ? $zerr->get_error_code() : '' );
+ProfileRepository::save( $zm, $zbase + array( 'account_holder' => 'ZA', 'payout_method' => 'sepa', 'iban' => 'DE89370400440532013000' ) );
+check( 'ZA28 back to SEPA with IBAN', array( 'sepa', 'DE89370400440532013000', null ), array( ProfileRepository::method( ProfileRepository::get( $zm ) ), ProfileRepository::iban( ProfileRepository::get( $zm ) ), ProfileRepository::payment_details( ProfileRepository::get( $zm ) ) ) );
+check( 'ZA accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

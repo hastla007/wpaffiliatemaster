@@ -200,7 +200,7 @@ final class AffiliatesPage {
 					Admin::back( __( 'You are not allowed to view tax and bank details.', 'wp-affiliate-captain' ), 'error' );
 				}
 				$in = array();
-				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic' ) as $f ) {
+				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details' ) as $f ) {
 					$in[ $f ] = (string) Admin::post( $f );
 				}
 				$result = ProfileRepository::save( $id, $in );
@@ -525,10 +525,23 @@ final class AffiliatesPage {
 				echo '<tr><th>VIES</th><td>' . esc_html( sprintf( __( '%1$s (checked %2$s%3$s)', 'wp-affiliate-captain' ), $vies_labels[ $vies['status'] ], Admin::date( $vies['checked_at'], true ), $vies['consultation'] ? ', ' . sprintf( /* translators: %s: number */ __( 'consultation number %s', 'wp-affiliate-captain' ), $vies['consultation'] ) : '' ) ) . ( $vies['name'] ? '<br>' . esc_html( $vies['name'] ) : '' ) . '</td></tr>';
 			}
 			self::row_input( 'tax_number', __( 'Tax number', 'wp-affiliate-captain' ), $v( 'tax_number' ) );
+			$method = ProfileRepository::method( $p );
+			echo '<tr><th><label for="wpac-payout-method">' . esc_html__( 'Payout method', 'wp-affiliate-captain' ) . '</label></th><td><select name="payout_method" id="wpac-payout-method">';
+			foreach ( ProfileRepository::method_labels() as $k => $l ) {
+				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $method, $k, false ), esc_html( $l ) );
+			}
+			echo '</select><p class="description">' . esc_html__( 'Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 			self::row_input( 'account_holder', __( 'Account holder', 'wp-affiliate-captain' ), $v( 'account_holder' ) );
-			$masked = $p ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
+			$masked = $p && ProfileRepository::METHOD_SEPA === $method ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 			self::row_input( 'iban', __( 'IBAN', 'wp-affiliate-captain' ), '', 'autocomplete="off" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'wp-affiliate-captain' ) : '' ) . '"' );
 			self::row_input( 'bic', __( 'BIC', 'wp-affiliate-captain' ), $v( 'bic' ) );
+			$details = ProfileRepository::payment_details( $p );
+			echo '<tr><th><label for="wpac-payment-details">' . esc_html__( 'Payment details (other method)', 'wp-affiliate-captain' ) . '</label></th><td><textarea name="payment_details" id="wpac-payment-details" rows="3" class="regular-text" autocomplete="off" placeholder="' . esc_attr( null !== $details ? __( 'Stored – leave empty to keep', 'wp-affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'wp-affiliate-captain' ) ) . '"></textarea>';
+			if ( null !== $details ) {
+				/* translators: %s: stored payment details */
+				echo '<p class="description">' . esc_html( sprintf( __( 'Stored: %s', 'wp-affiliate-captain' ), $details ) ) . '</p>';
+			}
+			echo '</td></tr>';
 			echo '</table>';
 			if ( current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
 				submit_button( __( 'Save payout details', 'wp-affiliate-captain' ), 'secondary' );
@@ -596,10 +609,15 @@ final class AffiliatesPage {
 						echo '<li>' . esc_html( sprintf( __( 'Level %1$d sent on %2$s', 'wp-affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) ) ) . '</li>';
 					}
 					echo '</ul>';
-					if ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+					$dunning_blocked = \WPAffiliateCaptain\Commissions\Dunning::blocked_reason( $partner );
+					if ( '' !== $dunning_blocked && count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+						echo '<p class="description">' . esc_html( $dunning_blocked ) . '</p>';
+					} elseif ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
 						Admin::form_open( 'dunning_send', 'wpac-inline' );
+						/* translators: 1: amount, 2: e-mail address */
+						$dunning_confirm = sprintf( __( 'Send a payment request for %1$s to %2$s now?', 'wp-affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ), $partner->email );
 						/* translators: %d: level */
-						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><button class="button">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'wp-affiliate-captain' ), count( $history ) + 1 ) ) . '</button></form> ';
+						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><button class="button" data-wpac-confirm="' . esc_attr( $dunning_confirm ) . '">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'wp-affiliate-captain' ), count( $history ) + 1 ) ) . '</button></form> ';
 					} else {
 						echo '<p class="description">' . esc_html__( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) . '</p>';
 					}
