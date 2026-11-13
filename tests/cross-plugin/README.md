@@ -36,4 +36,4 @@ Geprüft: Die Mobile-API hängt Partnercode und `utm_campaign=app` an den Shop-L
 
 ## Wann laufen lassen
 
-Vor jedem Release eines der Plugins und nach Änderungen an den Schnittstellen (Vertrag `wpac_*`, Gutschein-Brücke, Scanner-Dienst, Mobile-API). Beide Skripte enden mit Exit-Code 0, wenn alles bestanden ist.
+Teil 1 läuft in der CI bei jedem Push (Job „Browser tests“, mit dem aktuellen `main` von Voucher Captain und Pass Captain); ein Fehler blockiert das Release-ZIP. Teil 2 braucht LearnBoating und läuft weiterhin von Hand: vor jedem Release eines der Plugins und nach Änderungen an den Schnittstellen (Vertrag `wpac_*`, Gutschein-Brücke, Scanner-Dienst, Mobile-API). Beide Skripte enden mit Exit-Code 0, wenn alles bestanden ist.

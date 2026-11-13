@@ -70,9 +70,74 @@ jobs:
           python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
           git diff --exit-code -- languages/*.po languages/*.pot || (echo "Run: python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE" && exit 1)
 
+  e2e:
+    name: Browser tests (WordPress + WooCommerce)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_e2e
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: hastla007/wp-couponmaster
+          path: siblings/wp-couponmaster
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: hastla007/wp-passmaster
+          path: siblings/wp-passmaster
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring, gd, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Test site (WordPress, WooCommerce, all three plugins)
+        run: |
+          tests/ci/install-wp.sh "$RUNNER_TEMP/wp" --siblings "$GITHUB_WORKSPACE/siblings" > "$RUNNER_TEMP/site.env"
+          cat "$RUNNER_TEMP/site.env"
+          grep -E '^(PRODUCT_ID|PARTNER_CODE)=[A-Za-z0-9-]+$' "$RUNNER_TEMP/site.env" >> "$GITHUB_ENV"
+      - name: Web server
+        run: (cd "$RUNNER_TEMP/wp" && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8088 -t . "$GITHUB_WORKSPACE/tests/ci/router.php" > "$RUNNER_TEMP/server.log" 2>&1 &) && sleep 2
+      - name: Browser tests
+        working-directory: tests/e2e
+        env:
+          WP_URL: http://127.0.0.1:8088
+          ADMIN_USER: admin
+          ADMIN_PASS: admin-pass-123
+          PARTNER_USER: perf2
+          PARTNER_PASS: perf2-pass-123
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          node run.js
+      - name: Cross-plugin test (Voucher Captain, Pass Captain, WooCommerce)
+        run: php tests/cross-plugin/run.php "$RUNNER_TEMP/wp" 127.0.0.1:8088
+      - name: Logs on failure
+        if: failure()
+        run: |
+          tail -n 100 "$RUNNER_TEMP/server.log" || true
+          tail -n 100 "$RUNNER_TEMP/wp/wp-content/debug.log" || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-artifacts
+          path: tests/e2e/artifacts
+
   release:
     name: Release ZIP
-    needs: [test, integration, qr-decode]
+    needs: [test, integration, qr-decode, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read

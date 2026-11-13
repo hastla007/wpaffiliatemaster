@@ -1,6 +1,6 @@
 # Browser-Tests (Playwright + axe-core)
 
-Prüfen WP Affiliate Captain in einem echten Chromium gegen eine laufende WordPress-Installation mit WooCommerce (Blocks-Checkout). Nicht Teil der CI, weil sie eine vorbereitete Seite brauchen.
+Prüfen WP Affiliate Captain in einem echten Chromium gegen eine laufende WordPress-Installation mit WooCommerce (Blocks-Checkout). Laufen in der CI (Job „Browser tests“) gegen eine frisch aufgebaute Testseite (`tests/ci/install-wp.sh`); ein Fehler blockiert das Release-ZIP.
 
 | Bereich | Geprüft |
 |---|---|
