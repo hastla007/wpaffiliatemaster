@@ -193,8 +193,8 @@ final class Admin {
 	 * @return mixed
 	 */
 	public static function post( $key, $default = '' ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in dispatch().
-		return isset( $_POST[ $key ] ) ? wp_unslash( $_POST[ $key ] ) : $default; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		// Nonce verified in dispatch(); callers sanitize per field.
+		return isset( $_POST[ $key ] ) ? wp_unslash( $_POST[ $key ] ) : $default; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	}
 
 	/**

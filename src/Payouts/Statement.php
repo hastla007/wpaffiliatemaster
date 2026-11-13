@@ -138,9 +138,11 @@ final class Statement {
 		$snap   = json_decode( (string) $p->profile_snapshot, true );
 		$snap   = is_array( $snap ) ? $snap : array();
 		$labels = ProfileRepository::tax_status_labels();
-		$issuer = (string) Settings::get( 'debtor_name' );
-		$issuer = '' !== $issuer ? $issuer : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-		$self   = (bool) Settings::get( 'self_billing' );
+		// Operator data as frozen with the payout (older payouts: current settings).
+		$op     = json_decode( (string) ( isset( $p->operator_snapshot ) ? $p->operator_snapshot : '' ), true );
+		$op     = is_array( $op ) ? $op : PayoutService::operator_snapshot();
+		$issuer = (string) $op['name'];
+		$self   = ! empty( $op['self_billing'] );
 		$sign   = $storno ? -1 : 1;
 		$net    = (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor;
 		$date   = static function ( $mysql ) {
@@ -171,11 +173,11 @@ final class Statement {
 		$y   += 14;
 		$left = array_merge(
 			array( $issuer ),
-			preg_split( '/\r\n|\r|\n/', (string) Settings::get( 'operator_address' ) ),
+			preg_split( '/\r\n|\r|\n/', (string) $op['address'] ),
 			array_filter(
 				array(
-					Settings::get( 'operator_vat_id' ) ? __( 'VAT ID', 'wp-affiliate-captain' ) . ': ' . Settings::get( 'operator_vat_id' ) : '',
-					Settings::get( 'operator_tax_number' ) ? __( 'Tax number', 'wp-affiliate-captain' ) . ': ' . Settings::get( 'operator_tax_number' ) : '',
+					$op['vat_id'] ? __( 'VAT ID', 'wp-affiliate-captain' ) . ': ' . $op['vat_id'] : '',
+					$op['tax_number'] ? __( 'Tax number', 'wp-affiliate-captain' ) . ': ' . $op['tax_number'] : '',
 				)
 			)
 		);
@@ -231,30 +233,84 @@ final class Statement {
 			$pdf->line( 50, $y + 4, 545, $y + 4 );
 			return $y + 16;
 		};
-		$y = $head( $pdf, $y );
-		foreach ( PayoutService::items( (int) $p->id ) as $item ) {
-			if ( $y > 760 ) {
-				$pdf->add_page();
-				$y = $head( $pdf, 60 );
+		// Regular items first, then corrections of earlier credit notes, each block with a
+		// reference to the original document and its VAT treatment (§17 UStG).
+		$items  = PayoutService::items( (int) $p->id );
+		$blocks = array( 0 => array() );
+		foreach ( $items as $item ) {
+			$ref              = isset( $item->ref_payout_id ) ? (int) $item->ref_payout_id : 0;
+			$blocks[ $ref ][] = $item;
+		}
+		$rate_of = static function ( $item ) use ( $p ) {
+			return isset( $item->vat_rate ) && '' !== (string) $item->vat_rate ? (string) $item->vat_rate : (string) $p->vat_rate;
+		};
+		$groups = array();
+		foreach ( $blocks as $ref => $list ) {
+			if ( ! $list ) {
+				continue;
 			}
-			$desc = in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? (string) $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . $item->kind . ')';
-			$desc = Pdf::wrap( $desc, 230, 9 );
-			$pdf->text( 50, $y, $date( get_date_from_gmt( (string) $item->commission_date ) ), 9 );
-			$pdf->text( 120, $y, ( 'wpac' === $item->source ? '' : '#' . $item->source_order_id ), 9 );
-			$pdf->text( 230, $y, $desc[0], 9 );
-			$pdf->text( 545, $y, Money::format( $sign * (int) $item->amount_minor, $p->currency ), 9, false, 'right' );
-			$y += 13;
+			if ( $ref ) {
+				$orig = PayoutService::find( $ref );
+				$y   += 8;
+				if ( $y > 740 ) {
+					$pdf->add_page();
+					$y = 60;
+				}
+				/* translators: 1: credit note number, 2: date */
+				$pdf->text( 50, $y, sprintf( __( 'Correction of credit note %1$s of %2$s', 'wp-affiliate-captain' ), $orig ? $orig->number : '#' . $ref, $orig ? $date( get_date_from_gmt( $orig->created_at ) ) : '—' ), 10, true );
+				$y += 16;
+			}
+			$y   = $head( $pdf, $y );
+			$sum = 0;
+			foreach ( $list as $item ) {
+				if ( $y > 760 ) {
+					$pdf->add_page();
+					$y = $head( $pdf, 60 );
+				}
+				$desc = in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? (string) $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . $item->kind . ')';
+				$desc = Pdf::wrap( $desc, 230, 9 );
+				$pdf->text( 50, $y, $date( get_date_from_gmt( (string) $item->commission_date ) ), 9 );
+				$pdf->text( 120, $y, ( 'wpac' === $item->source ? '' : '#' . $item->source_order_id ), 9 );
+				$pdf->text( 230, $y, $desc[0], 9 );
+				$pdf->text( 545, $y, Money::format( $sign * (int) $item->amount_minor, $p->currency ), 9, false, 'right' );
+				$y   += 13;
+				$sum += (int) $item->amount_minor;
+				$rate = $rate_of( $item );
+				$groups[ $rate ] = ( isset( $groups[ $rate ] ) ? $groups[ $rate ] : 0 ) + (int) $item->amount_minor;
+			}
+			if ( $ref ) {
+				$orig_rate = $orig ? (string) $orig->vat_rate : '0';
+				$pdf->line( 50, $y - 6, 545, $y - 6 );
+				/* translators: %s: VAT rate */
+				$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (VAT %s %%)', 'wp-affiliate-captain' ), $orig_rate ), 9 );
+				$pdf->text( 545, $y + 4, Money::format( $sign * $sum, $p->currency ), 9, false, 'right' );
+				$y += 18;
+			}
 		}
 		$pdf->line( 50, $y - 6, 545, $y - 6 );
 		$y     += 6;
 		$totals = array(
 			array( __( 'Net amount', 'wp-affiliate-captain' ), $sign * $net, false ),
 		);
-		if ( (int) $p->vat_minor ) {
-			/* translators: %s: rate */
-			$totals[] = array( sprintf( __( 'plus VAT %s %%', 'wp-affiliate-captain' ), $p->vat_rate ), $sign * (int) $p->vat_minor, false );
+		$legacy = true;
+		foreach ( $items as $item ) {
+			if ( isset( $item->vat_rate ) && '' !== (string) $item->vat_rate ) {
+				$legacy = false;
+			}
+		}
+		if ( $legacy || count( $groups ) <= 1 ) {
+			if ( (int) $p->vat_minor ) {
+				/* translators: %s: rate */
+				$totals[] = array( sprintf( __( 'plus VAT %s %%', 'wp-affiliate-captain' ), $legacy || ! $groups ? $p->vat_rate : (string) key( $groups ) ), $sign * (int) $p->vat_minor, false );
+			} else {
+				$totals[] = array( __( 'VAT', 'wp-affiliate-captain' ), 0, false );
+			}
 		} else {
-			$totals[] = array( __( 'VAT', 'wp-affiliate-captain' ), 0, false );
+			ksort( $groups );
+			foreach ( $groups as $rate => $group_net ) {
+				/* translators: 1: rate, 2: net amount */
+				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'wp-affiliate-captain' ), $rate, Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
+			}
 		}
 		$totals[] = array( $storno ? __( 'Total cancelled', 'wp-affiliate-captain' ) : __( 'Total payout', 'wp-affiliate-captain' ), $sign * (int) $p->amount_minor, true );
 		foreach ( $totals as $t ) {
@@ -265,7 +321,7 @@ final class Statement {
 		$y += 15;
 		$notes = array_filter(
 			array(
-				self::vat_note( (string) $p->vat_mode ),
+				self::vat_note( (string) $p->vat_mode, (string) $op['country'] ),
 				$self && ! $storno ? __( 'This document is a credit note (self-billing) agreed with the partner. Please check it and object within 14 days if anything is incorrect; the partner does not issue a separate invoice.', 'wp-affiliate-captain' ) : '',
 				$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'wp-affiliate-captain' ) : '',
 			)

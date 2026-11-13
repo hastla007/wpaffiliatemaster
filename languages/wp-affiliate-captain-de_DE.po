@@ -2059,8 +2059,14 @@ msgstr "Unter Mindestbetrag – vorgetragen"
 msgid "Payout profile incomplete"
 msgstr "Auszahlungsprofil unvollständig"
 
+msgid "Self-billing needs partner terms with the credit note agreement (Settings → Program → Terms page)"
+msgstr "Das Gutschriftverfahren braucht Partner-AGB mit der Gutschriftvereinbarung (Einstellungen → Programm → AGB-Seite)"
+
 msgid "No accepted partner terms (self-billing agreement)"
 msgstr "Keine akzeptierten Partnerbedingungen (Vereinbarung zum Gutschriftverfahren)"
+
+msgid "Reverse charge needs your VAT ID (Settings → Payouts)"
+msgstr "Reverse Charge braucht Ihre USt-IdNr. (Einstellungen → Auszahlungen)"
 
 msgid "Your address and VAT ID or tax number are missing (Settings → Payouts) – credit notes need them."
 msgstr "Ihre Anschrift und USt-IdNr. oder Steuernummer fehlen (Einstellungen → Auszahlungen) – Gutschriften brauchen diese Angaben."
@@ -2178,6 +2184,15 @@ msgstr "Steuernummer des Partners"
 
 msgid "Net"
 msgstr "Netto"
+
+msgid "Correction of credit note %1$s of %2$s"
+msgstr "Korrektur zur Gutschrift %1$s vom %2$s"
+
+msgid "Correction net (VAT %s %%)"
+msgstr "Korrektur netto (USt %s %%)"
+
+msgid "VAT %1$s %% on %2$s"
+msgstr "USt %1$s %% auf %2$s"
 
 msgid "Total cancelled"
 msgstr "Storniert gesamt"

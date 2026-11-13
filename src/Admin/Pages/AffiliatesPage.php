@@ -488,8 +488,8 @@ final class AffiliatesPage {
 		$labels = \WPAffiliateCaptain\Commissions\Balance::type_labels();
 		foreach ( $currencies as $cur ) {
 			$problems = \WPAffiliateCaptain\Commissions\Balance::verify( $id, $cur );
-			/* translators: 1: currency, 2: balance */
 			$bal = \WPAffiliateCaptain\Commissions\Balance::get( $id, $cur );
+			/* translators: 1: currency, 2: balance */
 			echo '<h3>' . esc_html( sprintf( __( 'Account %1$s – balance %2$s', 'wp-affiliate-captain' ), $cur, Money::format( $bal, $cur ) ) ) . '</h3>';
 			if ( $bal < 0 && current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
 				// Negative balance (clawbacks without new earnings): settle it.

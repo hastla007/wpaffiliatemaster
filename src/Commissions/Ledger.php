@@ -887,8 +887,9 @@ final class Ledger {
 		$t = Db::table( 'commissions' );
 		// A locking read sees rows committed by parallel refunds (a plain read in a REPEATABLE READ
 		// transaction would use the older snapshot and reverse the same amount twice).
+		$for = $lock ? ' FOR UPDATE' : ''; // Constant fragment, no input.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected'" . ( $lock ? ' FOR UPDATE' : '' ), $id ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected'{$for}", $id ) );
 	}
 
 	/**
@@ -901,8 +902,9 @@ final class Ledger {
 	public static function refunded_base( $id, $lock = false ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
+		$for = $lock ? ' FOR UPDATE' : ''; // Constant fragment, no input.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND base_minor < 0" . ( $lock ? ' FOR UPDATE' : '' ), $id ) ) );
+		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND base_minor < 0{$for}", $id ) ) );
 	}
 
 	/**

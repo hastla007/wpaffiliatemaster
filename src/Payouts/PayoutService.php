@@ -79,7 +79,8 @@ final class PayoutService {
 	public static function preview( $period_end, $currency ) {
 		global $wpdb;
 		list( $from, $params ) = self::payable_sql( $currency, $period_end . ' 23:59:59' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// $from is built by payable_sql() from constants; its values are placeholders in $params.
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.affiliate_id, SUM(c.amount_minor) total, COUNT(*) c {$from} GROUP BY c.affiliate_id ORDER BY total DESC", $params ) );
 		$min      = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
 		$operator = self::operator_missing();
@@ -115,6 +116,80 @@ final class PayoutService {
 	}
 
 	/**
+	 * VAT treatment per commission row: corrections whose original commission was settled in
+	 * an earlier (not cancelled) credit note take over that credit note's mode and rate.
+	 *
+	 * @param array $rows Rows with id, parent_id, parent_payout_id.
+	 * @param array $vat  Current treatment (mode, rate).
+	 * @return array commission ID => [ mode, rate, ref ]
+	 */
+	public static function item_treatments( array $rows, array $vat ) {
+		$out   = array();
+		$cache = array();
+		foreach ( $rows as $r ) {
+			$ref = (int) ( isset( $r->parent_payout_id ) ? $r->parent_payout_id : 0 );
+			if ( $ref && ! array_key_exists( $ref, $cache ) ) {
+				$cache[ $ref ] = self::find( $ref );
+			}
+			$orig = $ref ? $cache[ $ref ] : null;
+			if ( $orig && 'cancelled' !== $orig->status ) {
+				$out[ (int) $r->id ] = array(
+					'mode' => (string) $orig->vat_mode,
+					'rate' => (string) $orig->vat_rate,
+					'ref'  => $ref,
+				);
+			} else {
+				$out[ (int) $r->id ] = array(
+					'mode' => (string) $vat['mode'],
+					'rate' => (string) $vat['rate'],
+					'ref'  => 0,
+				);
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Net sums per VAT rate (the VAT is computed per rate, not per line).
+	 *
+	 * @param array $rows  Rows with id and amount_minor.
+	 * @param array $treat item_treatments().
+	 * @return array rate => [ rate, net ]
+	 */
+	public static function vat_groups( array $rows, array $treat ) {
+		$groups = array();
+		foreach ( $rows as $r ) {
+			$rate = $treat[ (int) $r->id ]['rate'];
+			if ( ! isset( $groups[ $rate ] ) ) {
+				$groups[ $rate ] = array(
+					'rate' => $rate,
+					'net'  => 0,
+				);
+			}
+			$groups[ $rate ]['net'] += (int) $r->amount_minor;
+		}
+		return $groups;
+	}
+
+	/**
+	 * Operator details as printed on the credit note, frozen with each payout
+	 * (a later cancellation shows the data of the original document).
+	 *
+	 * @return array
+	 */
+	public static function operator_snapshot() {
+		$name = (string) Settings::get( 'debtor_name' );
+		return array(
+			'name'       => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
+			'address'    => (string) Settings::get( 'operator_address' ),
+			'country'    => strtoupper( (string) Settings::get( 'operator_country' ) ),
+			'vat_id'     => (string) Settings::get( 'operator_vat_id' ),
+			'tax_number' => (string) Settings::get( 'operator_tax_number' ),
+			'self_billing' => (bool) Settings::get( 'self_billing' ),
+		);
+	}
+
+	/**
 	 * Why a partner cannot be paid out right now ('' = can be paid). Checked for every
 	 * payout, also single payouts from requests.
 	 *
@@ -127,9 +202,18 @@ final class PayoutService {
 		if ( ! ProfileRepository::is_complete( $profile ) ) {
 			return __( 'Payout profile incomplete', 'wp-affiliate-captain' );
 		}
-		if ( Settings::get( 'self_billing' ) && Settings::get( 'terms_page_id' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::latest( (int) $affiliate_id ) ) {
+		if ( Settings::get( 'self_billing' ) && ! Settings::get( 'terms_page_id' ) ) {
+			// Self-billing needs a prior agreement (§14 Abs. 2 S. 2 UStG); without partner terms there is none.
+			return __( 'Self-billing needs partner terms with the credit note agreement (Settings → Program → Terms page)', 'wp-affiliate-captain' );
+		}
+		if ( Settings::get( 'self_billing' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::latest( (int) $affiliate_id ) ) {
 			// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the accepted terms.
 			return __( 'No accepted partner terms (self-billing agreement)', 'wp-affiliate-captain' );
+		}
+		$vat = Vat::treatment( isset( $profile->tax_status ) ? (string) $profile->tax_status : '', isset( $profile->country ) ? (string) $profile->country : '', (string) Settings::get( 'operator_country' ), (string) Settings::get( 'vat_rate' ) );
+		if ( Vat::REVERSE_CHARGE === $vat['mode'] && '' === trim( (string) Settings::get( 'operator_vat_id' ) ) ) {
+			// Reverse-charge documents must show the VAT ID of the recipient (the operator).
+			return __( 'Reverse charge needs your VAT ID (Settings → Payouts)', 'wp-affiliate-captain' );
 		}
 		return '';
 	}
@@ -213,8 +297,8 @@ final class PayoutService {
 			static function () use ( $wpdb, $affiliate_id, $period_end, $currency ) {
 				$t                     = Db::table( 'commissions' );
 				list( $from, $params ) = self::payable_sql( $currency, $period_end . ' 23:59:59', $affiliate_id );
-				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor {$from} FOR UPDATE", $params ) );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.parent_id, p.payout_id AS parent_payout_id {$from} FOR UPDATE", $params ) );
 				$total = 0;
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
@@ -239,8 +323,14 @@ final class PayoutService {
 				 * @param array $snapshot     Partner tax data snapshot.
 				 * @param int   $affiliate_id Partner.
 				 */
-				$vat       = (array) apply_filters( 'wpac_vat_treatment', $vat, $snapshot, $affiliate_id );
-				$vat_minor = Vat::amount( $total, $vat['rate'] );
+				$vat = (array) apply_filters( 'wpac_vat_treatment', $vat, $snapshot, $affiliate_id );
+				// Corrections of commissions settled in an earlier credit note keep that credit note's
+				// VAT treatment (§17 UStG) and refer to it; everything else uses the current treatment.
+				$treat = self::item_treatments( $rows, $vat );
+				$vat_minor = 0;
+				foreach ( self::vat_groups( $rows, $treat ) as $group ) {
+					$vat_minor += Vat::amount( $group['net'], $group['rate'] );
+				}
 				$year      = (int) wp_date( 'Y' );
 				// Gapless credit note number, allocated inside this transaction.
 				$number = Sequence::number( (string) Settings::get( 'credit_prefix' ), 'credit', $year );
@@ -258,6 +348,7 @@ final class PayoutService {
 						'amount_minor'     => $total + $vat_minor, // Amount paid out (gross).
 						'status'           => 'pending',
 						'profile_snapshot' => wp_json_encode( $snapshot ),
+						'operator_snapshot' => wp_json_encode( self::operator_snapshot() ),
 						'created_by'       => get_current_user_id(),
 						'created_at'       => Db::now(),
 					)
@@ -275,6 +366,9 @@ final class PayoutService {
 							'commission_id'        => (int) $r->id,
 							'active_commission_id' => (int) $r->id, // UNIQUE: one active payout per commission.
 							'amount_minor'         => (int) $r->amount_minor,
+							'vat_mode'             => $treat[ (int) $r->id ]['mode'],
+							'vat_rate'             => $treat[ (int) $r->id ]['rate'],
+							'ref_payout_id'        => $treat[ (int) $r->id ]['ref'],
 						)
 					);
 					if ( ! $ok ) {
@@ -610,8 +704,9 @@ final class PayoutService {
 		global $wpdb;
 		$i = Db::table( 'payout_items' );
 		$c = Db::table( 'commissions' );
+		$active = $active_only ? ' AND i.released_at IS NULL' : ''; // Constant fragment, no input.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_results( $wpdb->prepare( "SELECT i.*, c.source, c.source_order_id, c.description, c.kind, c.created_at AS commission_date FROM {$i} i LEFT JOIN {$c} c ON c.id = i.commission_id WHERE i.payout_id = %d" . ( $active_only ? ' AND i.released_at IS NULL' : '' ) . ' ORDER BY i.id ASC', $id ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT i.*, c.source, c.source_order_id, c.description, c.kind, c.created_at AS commission_date FROM {$i} i LEFT JOIN {$c} c ON c.id = i.commission_id WHERE i.payout_id = %d{$active} ORDER BY i.id ASC", $id ) );
 	}
 
 	/**

@@ -887,7 +887,7 @@ final class Portal {
 		$t   = \WPAffiliateCaptain\Core\Db::table( 'commission_events' );
 		$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 		$out = array();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- %d placeholders built above.
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT commission_id, reason FROM {$t} WHERE to_status = 'rejected' AND reason <> '' AND commission_id IN ({$in}) ORDER BY id ASC", $ids ) ) as $e ) {
 			// Internal fraud notes start with "review:" and are not shown.
 			if ( 0 !== strpos( (string) $e->reason, 'review:' ) ) {

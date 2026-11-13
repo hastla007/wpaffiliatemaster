@@ -64,7 +64,8 @@ final class Audit {
 		}
 		$params[] = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
 		$params[] = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// $where holds only placeholders (built above); all values are in $params.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", $params ) );
 	}
 }

@@ -80,10 +80,13 @@ update_option(
 			'operator_address' => "Hafenstraße 1\n24937 Flensburg",
 			'operator_vat_id' => 'DE123456789',
 			'fraud_check_domains' => 0,
+			'terms_page_id' => 900,
 		)
 	)
 );
 Settings::flush_cache();
+// Every test partner accepted the terms (with the self-billing agreement).
+add_action( 'wpac_affiliate_created', static function ( $id ) { WPAffiliateCaptain\Affiliates\Agreements::record( (int) $id ); } );
 
 $aff  = AffiliateRepository::create( array( 'name' => 'Anna Partner', 'email' => 'anna@example.de', 'status' => 'active' ) );
 $code = WPAffiliateCaptain\Codes\CodeRepository::main_code( $aff );
@@ -655,6 +658,51 @@ q( "DELETE FROM {$ct} WHERE affiliate_id = {$vw}" );
 // V7 a foreign small business gets reverse charge.
 check( 'V7 foreign small business → reverse charge', 'reverse_charge', WPAffiliateCaptain\Payouts\Vat::treatment( 'small_business', 'AT', 'DE', '19' )['mode'] );
 check( 'V accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
+echo "W VAT per item, corrections of earlier credit notes, operator snapshot, blocks\n";
+// W1 small business paid at 0 %, later VAT-registered: the correction keeps 0 % and refers to the old credit note.
+$wa = AffiliateRepository::create( array( 'name' => 'Wandel Partner', 'email' => 'wandel@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $wa, array( 'tax_status' => 'small_business', 'legal_name' => 'Wandel', 'address' => "Weg 9\n24103 Kiel", 'country' => 'DE', 'tax_number' => '12/345/67890', 'account_holder' => 'Wandel', 'iban' => 'DE89370400440532013000' ) );
+$ws = sale( 9001, WPAffiliateCaptain\Codes\CodeRepository::main_code( $wa ), array( 1000000 ) ); // 1.000 € net → 100 € commission.
+Ledger::transition( (int) $ws['commission_ids'][0], 'approved' );
+$w1 = PayoutService::create_for_affiliate( $wa, gmdate( 'Y-m-d' ), 'EUR' );
+check( 'W1 first credit note without VAT', array( 'small_business', 0 ), array( PayoutService::find( $w1 )->vat_mode, (int) PayoutService::find( $w1 )->vat_minor ) );
+check( 'W1 item stores its VAT treatment', array( 'small_business', '0', '0' ), array_values( (array) $wpdb->get_row( 'SELECT vat_mode, vat_rate, ref_payout_id FROM ' . t( 'payout_items' ) . " WHERE payout_id = {$w1}", ARRAY_A ) ) );
+PayoutService::mark_paid( $w1 );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_address' => "Neue Adresse 5\n24937 Flensburg" ) ) );
+Settings::flush_cache();
+ProfileRepository::save( $wa, array( 'tax_status' => 'business', 'legal_name' => 'Wandel', 'address' => "Weg 9\n24103 Kiel", 'country' => 'DE', 'vat_id' => 'DE811111111', 'account_holder' => 'Wandel', 'iban' => '' ) );
+refund( 9001, 'w1', array( array( 'item_id' => '1', 'net_minor' => 400000 ) ) ); // 40 % refunded → −40 € correction.
+$ws2 = sale( 9002, WPAffiliateCaptain\Codes\CodeRepository::main_code( $wa ), array( 1000000 ) ); // 100 € new commission.
+Ledger::transition( (int) $ws2['commission_ids'][0], 'approved' );
+foreach ( $wpdb->get_col( "SELECT id FROM {$ct} WHERE parent_id = " . (int) $ws['commission_ids'][0] ) as $child ) {
+	Ledger::transition( (int) $child, 'approved' );
+}
+$w2  = PayoutService::create_for_affiliate( $wa, gmdate( 'Y-m-d' ), 'EUR' );
+$w2p = PayoutService::find( $w2 );
+check( 'W3 VAT only on the new commission (19 % of 100 €), not on the 0 % correction', array( 60000, 19000, 79000 ), array( (int) $w2p->net_minor, (int) $w2p->vat_minor, (int) $w2p->amount_minor ) );
+check( 'W2 correction refers to the original credit note and keeps 0 %', array( 'small_business', '0', (string) $w1 ), array_values( (array) $wpdb->get_row( 'SELECT i.vat_mode, i.vat_rate, i.ref_payout_id FROM ' . t( 'payout_items' ) . " i JOIN {$ct} c ON c.id = i.commission_id WHERE i.payout_id = {$w2} AND c.parent_id > 0", ARRAY_A ) ) );
+$wpdf = WPAffiliateCaptain\Payouts\Statement::build( $w2p );
+check( 'W4 credit note shows the correction block with the original number', true, false !== strpos( $wpdf, 'Correction of credit note ' . PayoutService::find( $w1 )->number ) );
+check( 'W4 VAT lines per rate', true, false !== strpos( $wpdf, 'VAT 19 % on' ) && false !== strpos( $wpdf, 'VAT 0 % on' ) );
+// W5 operator data frozen per payout: the first credit note still shows the old address.
+check( 'W5 new payout shows the new operator address', true, false !== strpos( $wpdf, 'Neue Adresse 5' ) );
+check( 'W5 old credit note keeps the address it was issued with', true, false !== strpos( WPAffiliateCaptain\Payouts\Statement::build( PayoutService::find( $w1 ) ), 'Hafenstr. 1' ) && false === strpos( WPAffiliateCaptain\Payouts\Statement::build( PayoutService::find( $w1 ) ), 'Neue Adresse 5' ) );
+// W6 reverse charge without the operator's VAT ID is blocked.
+$wr = AffiliateRepository::create( array( 'name' => 'RC Partner', 'email' => 'rc@example.at', 'status' => 'active' ) );
+ProfileRepository::save( $wr, array( 'tax_status' => 'business', 'legal_name' => 'RC', 'address' => "Ring 2\n1010 Wien", 'country' => 'AT', 'vat_id' => 'ATU22222222', 'account_holder' => 'RC', 'iban' => 'AT611904300234573201' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_vat_id' => '', 'operator_tax_number' => '12/000/00000' ) ) );
+Settings::flush_cache();
+check( 'W6 reverse charge needs the operator VAT ID', true, false !== strpos( PayoutService::blocked_reason( $wr ), 'VAT ID' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_vat_id' => 'DE123456789' ) ) );
+// W7 self-billing without a terms page is blocked.
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_page_id' => 0 ) ) );
+Settings::flush_cache();
+check( 'W7 self-billing without partner terms is blocked', true, false !== strpos( PayoutService::blocked_reason( $wr ), 'partner terms' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_page_id' => 900 ) ) );
+Settings::flush_cache();
+check( 'W7 with terms page and accepted terms: not blocked', '', PayoutService::blocked_reason( $wr ) );
+check( 'W accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

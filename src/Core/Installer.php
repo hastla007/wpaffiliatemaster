@@ -200,7 +200,8 @@ final class Installer {
 		$required = array(
 			'affiliates'      => array( 'id', 'email', 'status', 'status_reason' ),
 			'commissions'     => array( 'id', 'idempotency_key', 'payout_id', 'rule_snapshot' ),
-			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at' ),
+			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at', 'operator_snapshot' ),
+			'payout_items'    => array( 'id', 'payout_id', 'commission_id', 'vat_mode', 'vat_rate', 'ref_payout_id' ),
 			'payout_profiles' => array( 'affiliate_id', 'tax_number' ),
 			'balances'        => array( 'affiliate_id', 'last_hash' ),
 			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
@@ -455,6 +456,7 @@ final class Installer {
 			vat_minor bigint(20) NOT NULL DEFAULT 0,
 			status varchar(20) NOT NULL DEFAULT 'pending',
 			profile_snapshot text NULL,
+			operator_snapshot text NULL,
 			sepa_batch varchar(64) NOT NULL DEFAULT '',
 			statement_file varchar(255) NOT NULL DEFAULT '',
 			statement_hash char(64) NOT NULL DEFAULT '',
@@ -481,6 +483,9 @@ final class Installer {
 			commission_id bigint(20) unsigned NOT NULL,
 			active_commission_id bigint(20) unsigned NULL,
 			amount_minor bigint(20) NOT NULL DEFAULT 0,
+			vat_mode varchar(20) NOT NULL DEFAULT '',
+			vat_rate varchar(10) NOT NULL DEFAULT '',
+			ref_payout_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			released_at datetime NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY active_commission (active_commission_id),
@@ -650,6 +655,31 @@ final class Installer {
 	 */
 	private static function migrate_before( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 8 ) {
+			// v8: VAT treatment and the original credit note per payout item, operator data per payout.
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			$add = array(
+				Db::table( 'payout_items' ) => array(
+					'vat_mode'      => "varchar(20) NOT NULL DEFAULT '' AFTER amount_minor",
+					'vat_rate'      => "varchar(10) NOT NULL DEFAULT '' AFTER vat_mode",
+					'ref_payout_id' => 'bigint(20) unsigned NOT NULL DEFAULT 0 AFTER vat_rate',
+				),
+				Db::table( 'payouts' )      => array(
+					'operator_snapshot' => 'text NULL AFTER profile_snapshot',
+				),
+			);
+			foreach ( $add as $table => $columns ) {
+				if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+					continue;
+				}
+				foreach ( $columns as $col => $def ) {
+					if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE '{$col}'" ) ) {
+						$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$col} {$def}" );
+					}
+				}
+			}
+			// phpcs:enable
+		}
 		if ( $previous > 0 && $previous < 4 ) {
 			// v4: payout numbers become UNIQUE (credit note numbers), net/VAT/storno columns.
 			$t = Db::table( 'payouts' );

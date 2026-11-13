@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 6 );
+define( 'WPAC_DB_VERSION', 8 );
 define( 'WPAC_CONTRACT_VERSION', '1.1.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/wp-affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -277,10 +277,18 @@ function untrailingslashit( $p ) { return rtrim( $p, '/\\' ); }
 function wp_list_pluck( $l, $f ) { return array_map( function ( $r ) use ( $f ) { return is_object( $r ) ? $r->$f : $r[ $f ]; }, $l ); }
 $GLOBALS['test_scheduled'] = array();
 function wp_schedule_single_event( $ts, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
-function get_permalink( $id ) { return 'http://example.test/?p=' . (int) $id; }
+function get_permalink( $id ) { return 'http://example.test/?p=' . (int) ( is_object( $id ) ? $id->ID : $id ); }
 function wp_unslash( $v ) { return is_array( $v ) ? array_map( "wp_unslash", $v ) : stripslashes( (string) $v ); }
 if ( ! function_exists( 'wp_using_ext_object_cache' ) ) { function wp_using_ext_object_cache() { return false; } }
 if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $hook ) { return in_array( $hook, $GLOBALS['test_scheduled'] ?? array(), true ) ? time() + 60 : false; } }
 if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) { function wp_clear_scheduled_hook( $hook ) { $GLOBALS['test_scheduled'] = array_values( array_diff( $GLOBALS['test_scheduled'] ?? array(), array( $hook ) ) ); return 0; } }
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { return delete_option( '_t_' . $k ); } }
 if ( ! function_exists( 'wp_cache_delete' ) ) { function wp_cache_delete( $k, $g = '' ) { return true; } }
+
+// Partner terms page (self-billing needs one); everything else has no posts.
+function get_post( $id ) {
+	if ( 900 === (int) $id ) {
+		return (object) array( 'ID' => 900, 'post_title' => 'Partner-AGB', 'post_content' => 'Gutschriftverfahren vereinbart.', 'post_status' => 'publish', 'post_password' => '', 'post_author' => 1 );
+	}
+	return null;
+}

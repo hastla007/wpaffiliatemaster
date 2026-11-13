@@ -67,7 +67,7 @@ final class AffiliateRepository {
 		if ( $missing ) {
 			$t            = Db::table( 'affiliates' );
 			$placeholders = implode( ',', array_fill( 0, count( $missing ), '%d' ) );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- %d placeholders built above.
 			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE id IN ({$placeholders})", $missing ) ) as $row ) {
 				self::$cache[ (int) $row->id ] = $row;
 			}
@@ -221,6 +221,13 @@ final class AffiliateRepository {
 		if ( 'active' === $status ) {
 			self::on_activated( $id );
 		}
+		/**
+		 * A partner account was created (admin, application or API).
+		 *
+		 * @param int    $id     Affiliate ID.
+		 * @param string $status Initial status.
+		 */
+		do_action( 'wpac_affiliate_created', $id, $status );
 		return $id;
 	}
 

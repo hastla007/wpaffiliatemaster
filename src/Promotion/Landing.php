@@ -139,6 +139,7 @@ final class Landing {
 	 * @return string
 	 */
 	public static function welcome( $atts = array() ) {
+		/* translators: %s: partner name */
 		$atts  = shortcode_atts( array( 'text' => __( 'Recommended by %s', 'wp-affiliate-captain' ) ), (array) $atts, 'wpac_partner_welcome' );
 		$param = (string) Settings::get( 'referral_param' );
 		$code  = '';

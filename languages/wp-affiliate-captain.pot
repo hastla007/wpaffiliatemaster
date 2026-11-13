@@ -2740,7 +2740,15 @@ msgid "Payout profile incomplete"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "Self-billing needs partner terms with the credit note agreement (Settings → Program → Terms page)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "No accepted partner terms (self-billing agreement)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Reverse charge needs your VAT ID (Settings → Payouts)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -2897,6 +2905,18 @@ msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "Net"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Correction of credit note %1$s of %2$s"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Correction net (VAT %s %%)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "VAT %1$s %% on %2$s"
 msgstr ""
 
 #: src/Payouts/Statement.php

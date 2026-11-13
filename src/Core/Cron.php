@@ -107,6 +107,8 @@ final class Cron {
 			// statements, bank details) is kept as long as the statements (GoBD).
 			$years     = max( 10, (int) Settings::get( 'statement_retention_years' ) );
 			$financial = Db::now( strtotime( gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) ) . ' UTC' ) );
+			// Table name and the LIKE patterns are constants; the dates are placeholders.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
 			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' ) OR created_at < %s )", Db::now( time() - $audit_days * DAY_IN_SECONDS ), $financial ) );
 		}
 		$jobs = Db::table( 'jobs' );
