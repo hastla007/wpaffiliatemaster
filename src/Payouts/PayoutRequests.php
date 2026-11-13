@@ -82,18 +82,39 @@ final class PayoutRequests {
 		if ( true !== $ok ) {
 			return new \WP_Error( 'wpac_request', $ok );
 		}
-		$amount = self::available( (int) $aff->id );
-		$wpdb->insert(
-			Db::table( 'payout_requests' ),
-			array(
-				'affiliate_id' => (int) $aff->id,
-				'currency'     => (string) Settings::get( 'currency' ),
-				'amount_minor' => $amount,
-				'status'       => 'requested',
-				'created_at'   => Db::now(),
-			)
-		);
-		$id = (int) $wpdb->insert_id;
+		try {
+			$id = Db::transaction(
+				static function () use ( $wpdb, $aff ) {
+					// Serialize requests of the same partner (double click, two tabs): lock the partner row,
+					// then check again for an open request before inserting.
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Db::table( 'affiliates' ) . ' WHERE id = %d FOR UPDATE', (int) $aff->id ) );
+					if ( self::open_for( (int) $aff->id ) ) {
+						return 0;
+					}
+					$ok = $wpdb->insert(
+						Db::table( 'payout_requests' ),
+						array(
+							'affiliate_id' => (int) $aff->id,
+							'currency'     => (string) Settings::get( 'currency' ),
+							'amount_minor' => self::available( (int) $aff->id ),
+							'status'       => 'requested',
+							'created_at'   => Db::now(),
+						)
+					);
+					if ( ! $ok || ! (int) $wpdb->insert_id ) {
+						throw new \WPAffiliateCaptain\Core\IntegrationException( 'db_payout_request', $wpdb->last_error );
+					}
+					return (int) $wpdb->insert_id;
+				}
+			);
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'wpac_request', __( 'The payout request could not be saved. Please try again.', 'wp-affiliate-captain' ) );
+		}
+		if ( ! $id ) {
+			return new \WP_Error( 'wpac_request', __( 'You already have an open payout request.', 'wp-affiliate-captain' ) );
+		}
+		$amount = (int) self::find( $id )->amount_minor;
 		Audit::log( 'payout_request.created', 'affiliate', (int) $aff->id, array( 'amount' => $amount ) );
 		$to = (string) Settings::get( 'admin_email' );
 		wp_mail(
@@ -118,8 +139,9 @@ final class PayoutRequests {
 		if ( ! $r || 'requested' !== $r->status ) {
 			return new \WP_Error( 'wpac_state', __( 'This request was already handled.', 'wp-affiliate-captain' ) );
 		}
-		if ( ! ProfileRepository::is_complete( ProfileRepository::get( (int) $r->affiliate_id ) ) ) {
-			return new \WP_Error( 'wpac_profile', __( 'Payout profile incomplete.', 'wp-affiliate-captain' ) );
+		$blocked = PayoutService::blocked_reason( (int) $r->affiliate_id );
+		if ( '' !== $blocked ) {
+			return new \WP_Error( 'wpac_profile', $blocked );
 		}
 		try {
 			$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, gmdate( 'Y-m-d' ), $r->currency );
@@ -151,13 +173,17 @@ final class PayoutRequests {
 	 * Mark the open request of a partner as processed by a payout (also from regular runs).
 	 *
 	 * @param int $affiliate_id Partner.
-	 * @param int $payout_id    Payout.
+	 * @param int    $payout_id    Payout.
+	 * @param string $currency     Payout currency (a request is only settled in its own currency).
 	 */
-	public static function fulfil( $affiliate_id, $payout_id ) {
+	public static function fulfil( $affiliate_id, $payout_id, $currency = '' ) {
 		global $wpdb;
 		$open = self::open_for( (int) $affiliate_id );
 		if ( ! $open ) {
 			return;
+		}
+		if ( '' !== $currency && isset( $open->currency ) && strtoupper( (string) $open->currency ) !== strtoupper( (string) $currency ) ) {
+			return; // A payout in another currency does not pay this request.
 		}
 		$wpdb->update(
 			Db::table( 'payout_requests' ),
@@ -191,7 +217,7 @@ final class PayoutRequests {
 		if ( '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
 		}
-		$wpdb->update(
+		$updated = $wpdb->update(
 			Db::table( 'payout_requests' ),
 			array(
 				'status'       => 'rejected',
@@ -199,8 +225,14 @@ final class PayoutRequests {
 				'processed_at' => Db::now(),
 				'processed_by' => get_current_user_id(),
 			),
-			array( 'id' => (int) $id )
+			array(
+				'id'     => (int) $id,
+				'status' => 'requested', // Only an open request (it may have been processed meanwhile).
+			)
 		);
+		if ( 1 !== (int) $updated ) {
+			return new \WP_Error( 'wpac_state', __( 'This request was already handled or could not be updated. Please reload.', 'wp-affiliate-captain' ) );
+		}
 		Audit::log( 'payout_request.rejected', 'affiliate', (int) $r->affiliate_id, array( 'reason' => $reason ) );
 		$aff = AffiliateRepository::find( (int) $r->affiliate_id );
 		if ( $aff ) {

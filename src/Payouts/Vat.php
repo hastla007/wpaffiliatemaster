@@ -34,6 +34,15 @@ final class Vat {
 	public static function treatment( $tax_status, $partner_country, $operator_country, $rate ) {
 		$partner_country  = strtoupper( (string) $partner_country );
 		$operator_country = strtoupper( (string) $operator_country );
+		if ( 'small_business' === $tax_status && '' !== $partner_country && '' !== $operator_country && $partner_country !== $operator_country ) {
+			// A foreign small business is still a business: the service is taxable where the
+			// operator is and the operator owes the VAT (§13b UStG). The domestic small-business
+			// rule of the partner's country does not apply here (EU SME scheme: confirm with a tax advisor).
+			return array(
+				'mode' => self::REVERSE_CHARGE,
+				'rate' => '0',
+			);
+		}
 		if ( 'business' === $tax_status ) {
 			if ( '' === $partner_country || $partner_country === $operator_country ) {
 				return array(

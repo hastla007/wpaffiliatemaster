@@ -20,6 +20,7 @@ final class Cron {
 		add_action( self::HOURLY, array( __CLASS__, 'hourly' ) );
 		add_action( self::DAILY, array( __CLASS__, 'daily' ) );
 		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'batch' ) );
+		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'retry_failed' ) );
 	}
 
 	public static function schedule() {
@@ -35,9 +36,13 @@ final class Cron {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
 		wp_clear_scheduled_hook( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK );
+		wp_clear_scheduled_hook( \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK );
 	}
 
 	public static function hourly() {
+		if ( ! Installer::schema_current() ) {
+			return; // A migration is running or failed: no bookings against the old schema.
+		}
 		\WPAffiliateCaptain\Payouts\PayoutService::generate_missing_statements();
 		Ledger::approve_due();
 		Jobs::run_due();
@@ -68,6 +73,9 @@ final class Cron {
 
 	public static function daily() {
 		global $wpdb;
+		if ( ! Installer::schema_current() ) {
+			return;
+		}
 		// Each step runs on its own: an error or timeout in one (e.g. a large tier
 		// recalculation) must not skip retention and the other tasks every day.
 		foreach ( array(

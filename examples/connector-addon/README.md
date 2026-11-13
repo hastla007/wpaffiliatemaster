@@ -71,7 +71,7 @@ A full cancellation or chargeback reverses the remaining commission. Partial ref
 - Send integer minor units and a three-letter currency code.
 - Keep `order_id`, `refund_id`, and item IDs stable.
 - Send only the customer user ID and email needed for self-referral checks. Do not pass payment details or full order objects.
-- Store the referral code or touch with the app's order at checkout and include it when reporting the later payment. Do not rely on cookies for cookie-free attribution.
+- Store the touch on the server when the app's order is created (`wpac_current_touch()` in that request) as `server_touch` and report it with the later payment. Never take `touch` or `hold_until` from client input (forged attribution, skipped hold). Do not rely on cookies for cookie-free attribution.
 - For app orders, choose a stable source slug and use it for both sales and refunds.
 
 See [the public integration contract](../../docs/CONTRACT.md) and [REST API](../../docs/REST.md) for the full schema and behavior.

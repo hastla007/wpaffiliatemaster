@@ -81,6 +81,10 @@ final class Admin {
 		if ( ! current_user_can( Capabilities::MANAGE_PROGRAM ) ) {
 			return;
 		}
+		$schema = get_option( 'wpac_schema_problems' );
+		if ( is_array( $schema ) && $schema ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load.', 'wp-affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $schema, 0, 10 ) ) ) . '</li></ul></div>';
+		}
 		\WPAffiliateCaptain\Core\Cron::schedule(); // Cheap; restores events lost e.g. after a migration.
 		$next = wp_next_scheduled( \WPAffiliateCaptain\Core\Cron::HOURLY );
 		if ( ! $next || $next > time() - 2 * HOUR_IN_SECONDS ) {
@@ -212,7 +216,7 @@ final class Admin {
 			'code_status'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_coupon'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'profile_update'    => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'commission_status' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'commission_export' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),

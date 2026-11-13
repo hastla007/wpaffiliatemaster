@@ -247,13 +247,14 @@ final class Tracker {
 				return null;
 			}
 		} else {
+			// Only sites that ran the transition (the option was set back then) accept old cookies
+			// within the window. Never start the window here: a forged unsigned cookie would open it.
 			$since = (int) get_option( 'wpac_cookie_signed_since' );
-			if ( ! $since ) {
-				$since = time();
-				update_option( 'wpac_cookie_signed_since', $since, false );
-			}
-			if ( time() > $since + DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) ) ) {
+			if ( ! $since || time() > $since + DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) ) ) {
 				return null;
+			}
+			if ( ! isset( $parts[3] ) || (int) $parts[3] <= 0 ) {
+				return null; // Without a click time the attribution window and fraud checks would be skipped.
 			}
 		}
 		$touch = array(

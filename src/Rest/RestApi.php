@@ -424,7 +424,8 @@ final class RestApi {
 			'date'         => $c->created_at,
 			'order'        => 'wpac' === $c->source ? '' : $c->source_order_id,
 			'kind'         => $c->kind,
-			'description'  => $c->description,
+			// Partners see the internal reason of corrections/write-offs only as a label (as in the portal).
+			'description'  => $admin || in_array( $c->kind, array( 'sale', 'bonus' ), true ) ? $c->description : ( isset( Ledger::kind_labels()[ $c->kind ] ) ? Ledger::kind_labels()[ $c->kind ] : $c->kind ),
 			'currency'     => $c->currency,
 			'amount_minor' => (int) $c->amount_minor,
 			'amount'       => Money::to_decimal( (int) $c->amount_minor, $c->currency ),

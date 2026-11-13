@@ -52,7 +52,15 @@ final class CheckoutField {
 	public static function classic_validate( $data, $errors ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- WooCommerce verified the checkout nonce.
 		$code = isset( $_POST['wpac_partner_code'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_partner_code'] ) ) : '';
-		if ( '' !== $code && ! wpac_resolve_partner_code( $code, array( 'context' => 'checkout' ) ) ) {
+		if ( '' === $code ) {
+			return;
+		}
+		// Same limit as the REST code check, so the checkout cannot be used to guess codes.
+		if ( ! \WPAffiliateCaptain\Tracking\RateLimiter::allow( 'code_check', 20, MINUTE_IN_SECONDS ) ) {
+			$errors->add( 'wpac_partner_code', __( 'Too many attempts. Please wait a minute and try again.', 'wp-affiliate-captain' ) );
+			return;
+		}
+		if ( ! wpac_resolve_partner_code( $code, array( 'context' => 'checkout' ) ) ) {
 			$errors->add( 'wpac_partner_code', __( 'The partner code is not valid.', 'wp-affiliate-captain' ) );
 		}
 	}

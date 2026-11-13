@@ -149,21 +149,86 @@ final class Installer {
 		if ( (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION ) {
 			return;
 		}
-		// Only one request migrates (after a deploy many requests see the old version at once;
-		// parallel runs would repeat ALTERs and data migrations). add_option() is atomic.
-		if ( ! add_option( 'wpac_upgrade_lock', time(), '', false ) ) {
-			if ( time() - (int) get_option( 'wpac_upgrade_lock' ) < 10 * MINUTE_IN_SECONDS ) {
-				return; // Another request is migrating; this one keeps running on the old schema.
+		// A migration that failed is retried at most every 5 minutes (not on every page load).
+		if ( get_option( 'wpac_schema_problems' ) && get_transient( 'wpac_upgrade_retry' ) ) {
+			return;
+		}
+		// Migrations run in admin, cron or WP-CLI requests – never inline in a checkout, payment
+		// webhook or REST call. Background work waits meanwhile (schema_current()).
+		if ( ! is_admin() && ! wp_doing_cron() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			if ( ! wp_next_scheduled( Cron::HOURLY ) ) {
+				Cron::schedule(); // Make sure a cron request comes to run it.
 			}
-			update_option( 'wpac_upgrade_lock', time(), false ); // Stale lock of a run that died.
+			return;
+		}
+		// Only one request migrates (parallel runs would repeat ALTERs and data migrations).
+		$owner = Db::lock( 'wpac_upgrade_lock', 15 * MINUTE_IN_SECONDS );
+		if ( '' === $owner ) {
+			return; // Another request is migrating.
+		}
+		ignore_user_abort( true );
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 		try {
 			self::install_schema();
 			Capabilities::install();
 			Cron::schedule();
 		} finally {
-			delete_option( 'wpac_upgrade_lock' );
+			Db::unlock( 'wpac_upgrade_lock', $owner );
 		}
+	}
+
+	/**
+	 * Whether the stored schema matches this plugin version (background work waits otherwise).
+	 *
+	 * @return bool
+	 */
+	public static function schema_current() {
+		return (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION;
+	}
+
+	/**
+	 * Problems of the schema after a migration: missing tables or columns this version needs,
+	 * tables without transactions (not InnoDB). Empty = fine.
+	 *
+	 * @return string[]
+	 */
+	public static function verify_schema() {
+		global $wpdb;
+		$problems = array();
+		$required = array(
+			'affiliates'      => array( 'id', 'email', 'status', 'status_reason' ),
+			'commissions'     => array( 'id', 'idempotency_key', 'payout_id', 'rule_snapshot' ),
+			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at' ),
+			'payout_profiles' => array( 'affiliate_id', 'tax_number' ),
+			'balances'        => array( 'affiliate_id', 'last_hash' ),
+			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
+			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
+			'attributions'    => array( 'id', 'content_id', 'campaign' ),
+			'visits'          => array( 'id', 'content_id', 'campaign' ),
+		);
+		foreach ( $required as $table => $columns ) {
+			$name = Db::table( $table );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $name ) ) ) !== $name ) {
+				$problems[] = 'missing table ' . $name;
+				continue;
+			}
+			$have = array_map( 'strval', (array) $wpdb->get_col( "SHOW COLUMNS FROM {$name}" ) );
+			// phpcs:enable
+			foreach ( array_diff( $columns, $have ) as $missing ) {
+				$problems[] = 'missing column ' . $name . '.' . $missing;
+			}
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$engines = $wpdb->get_results( $wpdb->prepare( 'SELECT TABLE_NAME AS t, ENGINE AS e FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE %s', $wpdb->esc_like( Db::table( '' ) ) . '%' ) );
+		foreach ( (array) $engines as $row ) {
+			if ( $row->e && 'innodb' !== strtolower( (string) $row->e ) ) {
+				$problems[] = 'table ' . $row->t . ' uses ' . $row->e . ' (InnoDB required for transactions)';
+			}
+		}
+		return $problems;
 	}
 
 	/**
@@ -565,6 +630,16 @@ final class Installer {
 			// v5: opening balance entries for existing approved, unassigned commissions.
 			\WPAffiliateCaptain\Commissions\Balance::open_from_ledger();
 		}
+		// Only a verified schema counts as migrated; otherwise the next request tries again.
+		$problems = self::verify_schema();
+		if ( $problems ) {
+			update_option( 'wpac_schema_problems', $problems, false );
+			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( 'WP Affiliate Captain: database migration incomplete: ' . implode( '; ', $problems ) );
+			return;
+		}
+		delete_option( 'wpac_schema_problems' );
 		update_option( self::DB_OPTION, WPAC_DB_VERSION, true );
 	}
 

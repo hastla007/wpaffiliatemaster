@@ -153,6 +153,10 @@ final class TierService {
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
 			return 0;
 		}
+		$first = (string) Settings::get( 'tier_month_first' );
+		if ( '' === $first || $month < $first ) {
+			Settings::update( array( 'tier_month_first' => $month ) );
+		}
 		$c        = Db::table( 'commissions' );
 		$currency = strtoupper( (string) Settings::get( 'currency' ) );
 		$start    = $month . '-01 00:00:00';
@@ -192,36 +196,45 @@ final class TierService {
 				'orders'  => $result['orders'],
 				'reached' => $result['reached'],
 			);
-			$ok = $wpdb->insert(
-				$c,
-				array(
-					'affiliate_id'    => (int) $affiliate_id,
-					'source'          => 'wpac',
-					'source_order_id' => 'tier-' . $month,
-					'source_item_id'  => '',
-					'kind'            => 'bonus',
-					'parent_id'       => 0,
-					'product_ref'     => '',
-					/* translators: 1: month, 2: rate */
-					'description'     => sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'wp-affiliate-captain' ), $month, $result['reached']['rate'] ),
-					'currency'        => $currency,
-					'base_minor'      => $result['revenue'],
-					'amount_minor'    => $result['amount'],
-					'rate_type'       => 'percent',
-					'rate'            => (string) $result['reached']['rate'],
-					'rule_id'         => (int) $plan->id,
-					'rule_snapshot'   => wp_json_encode( $snapshot ),
-					'status'          => 'approved',
-					'hold_until'      => Db::now(),
-					'idempotency_key' => $key,
-					'created_at'      => Db::now(),
-					'updated_at'      => Db::now(),
-				)
+			// Row, event and balance together: a half-written bonus would block its own repair (idempotency key).
+			$id = Db::transaction(
+				static function () use ( $wpdb, $c, $affiliate_id, $month, $currency, $result, $plan, $snapshot, $key ) {
+					$ok = $wpdb->insert(
+						$c,
+						array(
+							'affiliate_id'    => (int) $affiliate_id,
+							'source'          => 'wpac',
+							'source_order_id' => 'tier-' . $month,
+							'source_item_id'  => '',
+							'kind'            => 'bonus',
+							'parent_id'       => 0,
+							'product_ref'     => '',
+							/* translators: 1: month, 2: rate */
+							'description'     => sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'wp-affiliate-captain' ), $month, $result['reached']['rate'] ),
+							'currency'        => $currency,
+							'base_minor'      => $result['revenue'],
+							'amount_minor'    => $result['amount'],
+							'rate_type'       => 'percent',
+							'rate'            => (string) $result['reached']['rate'],
+							'rule_id'         => (int) $plan->id,
+							'rule_snapshot'   => wp_json_encode( $snapshot ),
+							'status'          => 'approved',
+							'hold_until'      => Db::now(),
+							'idempotency_key' => $key,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
+						)
+					);
+					if ( ! $ok ) {
+						return 0;
+					}
+					$id = (int) $wpdb->insert_id;
+					Balance::post( (int) $affiliate_id, $currency, 'approved', $result['amount'], $id, 0, 'tier ' . $month );
+					Ledger::event( $id, 'created', '', 'approved', $result['amount'], 'tier_bonus ' . $month, $key, 0 );
+					return $id;
+				}
 			);
-			if ( $ok ) {
-				$id = (int) $wpdb->insert_id;
-				Balance::post( (int) $affiliate_id, $currency, 'approved', $result['amount'], $id, 0, 'tier ' . $month );
-				Ledger::event( $id, 'created', '', 'approved', $result['amount'], 'tier_bonus ' . $month, $key, 0 );
+			if ( $id ) {
 				do_action( 'wpac_commission_created', $id );
 				++$created;
 			}
@@ -301,11 +314,23 @@ final class TierService {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND currency = %s AND created_at BETWEEN %s AND %s", $currency, $start, $end ) );
 		$booked     = 0;
+		$first      = (string) Settings::get( 'tier_month_first' );
+		if ( '' === $first ) {
+			$first = (string) Settings::get( 'tier_month_closed' ); // Installs from before this setting.
+		}
 		foreach ( $affiliates as $affiliate_id ) {
 			$affiliate_id = (int) $affiliate_id;
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$c} WHERE affiliate_id = %d AND kind = 'bonus' AND source = 'wpac' AND source_order_id = %s AND status <> 'rejected' ORDER BY id ASC", $affiliate_id, 'tier-' . $month ) );
-			$plan  = null;
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$all  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d AND kind = 'bonus' AND source = 'wpac' AND source_order_id = %s", $affiliate_id, 'tier-' . $month ) );
+			$plan = null;
+			if ( ! $rows && $all ) {
+				continue; // The bonus of this month was rejected by an admin: that decision is final.
+			}
+			if ( ! $rows && ( '' === $first || $month < $first ) ) {
+				continue; // Never closed (before the program had tiers): no retroactive bonus.
+			}
 			if ( $rows ) {
 				$snap = json_decode( (string) $rows[0]->rule_snapshot, true );
 				$plan = isset( $snap['plan'] ) ? $snap['plan'] : null;
@@ -342,52 +367,58 @@ final class TierService {
 				}
 			}
 			// Suffix from ALL rows of the month (incl. rejected ones), so a key never repeats.
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$all = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d AND kind = 'bonus' AND source = 'wpac' AND source_order_id = %s", $affiliate_id, 'tier-' . $month ) );
 			$key = 'bonus:tier:' . $affiliate_id . ':' . $month . ( $all ? ':corr:' . $all : '' );
 			if ( Ledger::find_by_key( $key ) ) {
 				continue;
 			}
-			$ok = $wpdb->insert(
-				$c,
-				array(
-					'affiliate_id'    => $affiliate_id,
-					'source'          => 'wpac',
-					'source_order_id' => 'tier-' . $month,
-					'source_item_id'  => '',
-					'kind'            => 'bonus',
-					'parent_id'       => $rows ? (int) $rows[0]->id : 0,
-					'product_ref'     => '',
-					/* translators: %s: month */
-					'description'     => $rows ? sprintf( __( 'Monthly bonus correction %s', 'wp-affiliate-captain' ), $month ) : sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'wp-affiliate-captain' ), $month, $result['reached'] ? $result['reached']['rate'] : '0' ),
-					'currency'        => $currency,
-					'base_minor'      => $result['revenue'],
-					'amount_minor'    => $delta,
-					'rate_type'       => 'percent',
-					'rate'            => (string) ( $result['reached'] ? $result['reached']['rate'] : '0' ),
-					'rule_id'         => (int) $plan['id'],
-					'rule_snapshot'   => wp_json_encode(
+			$id = Db::transaction(
+				static function () use ( $wpdb, $c, $affiliate_id, $month, $currency, $result, $plan, $rows, $before, $delta, $key ) {
+					$ok = $wpdb->insert(
+						$c,
 						array(
-							'plan'       => $plan,
-							'month'      => $month,
-							'revenue'    => $result['revenue'],
-							'orders'     => $result['orders'],
-							'reached'    => $result['reached'],
-							'previous'   => $before,
-							'correction' => (bool) $rows,
+							'affiliate_id'    => $affiliate_id,
+							'source'          => 'wpac',
+							'source_order_id' => 'tier-' . $month,
+							'source_item_id'  => '',
+							'kind'            => 'bonus',
+							'parent_id'       => $rows ? (int) $rows[0]->id : 0,
+							'product_ref'     => '',
+							/* translators: %s: month */
+							'description'     => $rows ? sprintf( __( 'Monthly bonus correction %s', 'wp-affiliate-captain' ), $month ) : sprintf( __( 'Monthly bonus %1$s (tier %2$s %%)', 'wp-affiliate-captain' ), $month, $result['reached'] ? $result['reached']['rate'] : '0' ),
+							'currency'        => $currency,
+							'base_minor'      => $result['revenue'],
+							'amount_minor'    => $delta,
+							'rate_type'       => 'percent',
+							'rate'            => (string) ( $result['reached'] ? $result['reached']['rate'] : '0' ),
+							'rule_id'         => (int) $plan['id'],
+							'rule_snapshot'   => wp_json_encode(
+								array(
+									'plan'       => $plan,
+									'month'      => $month,
+									'revenue'    => $result['revenue'],
+									'orders'     => $result['orders'],
+									'reached'    => $result['reached'],
+									'previous'   => $before,
+									'correction' => (bool) $rows,
+								)
+							),
+							'status'          => 'approved',
+							'hold_until'      => Db::now(),
+							'idempotency_key' => $key,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
 						)
-					),
-					'status'          => 'approved',
-					'hold_until'      => Db::now(),
-					'idempotency_key' => $key,
-					'created_at'      => Db::now(),
-					'updated_at'      => Db::now(),
-				)
+					);
+					if ( ! $ok ) {
+						return 0;
+					}
+					$id = (int) $wpdb->insert_id;
+					Ledger::event( $id, 'created', '', 'approved', $delta, 'tier_bonus_correction ' . $month, $key, 0 );
+					Balance::post( $affiliate_id, $currency, 'approved', $delta, $id, 0, 'tier correction ' . $month );
+					return $id;
+				}
 			);
-			if ( $ok ) {
-				$id = (int) $wpdb->insert_id;
-				Ledger::event( $id, 'created', '', 'approved', $delta, 'tier_bonus_correction ' . $month, $key, 0 );
-				Balance::post( $affiliate_id, $currency, 'approved', $delta, $id, 0, 'tier correction ' . $month );
+			if ( $id ) {
 				++$booked;
 			}
 		}

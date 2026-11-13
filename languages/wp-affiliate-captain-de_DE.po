@@ -35,6 +35,9 @@ msgstr "Audit-Log"
 msgid "Settings"
 msgstr "Einstellungen"
 
+msgid "Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load."
+msgstr "Affiliate Captain: Das Datenbank-Update ist unvollständig. Geplante Aufgaben sind pausiert, bis es gelingt; es wird beim nächsten Seitenaufruf erneut versucht."
+
 msgid "Affiliate Captain: the scheduled tasks have not run for more than two hours. Commissions are not released and failed jobs are not retried."
 msgstr "Affiliate Captain: Die geplanten Aufgaben sind seit mehr als zwei Stunden nicht gelaufen. Provisionen werden nicht freigegeben und fehlgeschlagene Jobs nicht wiederholt."
 
@@ -90,6 +93,9 @@ msgstr "Gutschein-Verknüpfung aktualisiert."
 
 msgid "The negative balance was written off."
 msgstr "Der negative Saldo wurde ausgebucht."
+
+msgid "You are not allowed to view tax and bank details."
+msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
 
 msgid "Payout details saved."
 msgstr "Auszahlungsdaten gespeichert."
@@ -304,9 +310,6 @@ msgstr "Vollständig."
 msgid "Incomplete."
 msgstr "Unvollständig."
 
-msgid "You are not allowed to view tax and bank details."
-msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
-
 msgid "Tax status"
 msgstr "Steuerstatus"
 
@@ -339,6 +342,9 @@ msgstr "BIC"
 
 msgid "Save payout details"
 msgstr "Auszahlungsdaten speichern"
+
+msgid "Only users who manage payouts can change payout details."
+msgstr "Nur wer Auszahlungen verwaltet, kann Auszahlungsdaten ändern."
 
 msgid "History"
 msgstr "Verlauf"
@@ -1645,6 +1651,12 @@ msgstr "Der Partner konnte nicht gespeichert werden."
 msgid "This e-mail address is already used by another partner account."
 msgstr "Diese E-Mail-Adresse wird bereits von einem anderen Partnerkonto verwendet."
 
+msgid "[%s] The e-mail address of your partner account was changed"
+msgstr "[%s] Die E-Mail-Adresse Ihres Partnerkontos wurde geändert"
+
+msgid "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately."
+msgstr "Hallo,\n\ndie E-Mail-Adresse Ihres Partnerkontos wurde auf %s geändert. Wenn Sie das nicht waren, melden Sie sich bitte sofort bei uns."
+
 msgid "Affiliate not found."
 msgstr "Partner nicht gefunden."
 
@@ -1653,6 +1665,12 @@ msgstr "Ungültiger Status."
 
 msgid "Partnership terminated"
 msgstr "Partnerschaft beendet"
+
+msgid "[%s] Connect your partner account"
+msgstr "[%s] Partnerkonto verbinden"
+
+msgid "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us."
+msgstr "Hallo,\n\nmit dieser E-Mail-Adresse gibt es bereits ein Kundenkonto. Melden Sie sich in diesem Konto an und öffnen Sie diesen Link, um es für das Partnerprogramm zu nutzen (7 Tage gültig):\n%s\n\nWenn Sie dieses Konto nicht kennen, ignorieren Sie diese E-Mail und melden Sie sich bei uns."
 
 msgid "Invalid field definition: %s"
 msgstr "Ungültige Felddefinition: %s"
@@ -1867,6 +1885,9 @@ msgstr "Ausgezahlte oder abgelehnte Provisionen können nicht abgelehnt werden."
 msgid "This commission is part of a payout. Cancel the payout first."
 msgstr "Diese Provision ist Teil einer Auszahlung. Stornieren Sie zuerst die Auszahlung."
 
+msgid "A correction of this commission is part of a payout. Cancel that payout first."
+msgstr "Eine Korrektur dieser Provision ist Teil einer Auszahlung. Stornieren Sie zuerst diese Auszahlung."
+
 msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
 msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung zugeordnet). Bitte laden Sie die Seite neu und versuchen Sie es erneut."
 
@@ -1933,6 +1954,9 @@ msgstr "Partnercode (optional)"
 msgid "e.g. from your sailing school"
 msgstr "z. B. von Ihrer Segelschule"
 
+msgid "Too many attempts. Please wait a minute and try again."
+msgstr "Zu viele Versuche. Bitte warten Sie eine Minute und versuchen Sie es erneut."
+
 msgid "The partner code is not valid."
 msgstr "Der Partnercode ist ungültig."
 
@@ -1987,6 +2011,9 @@ msgstr "Bitte vervollständigen Sie zuerst Ihre Auszahlungsdaten."
 msgid "Your approved balance is below the minimum payout of %s."
 msgstr "Ihr freigegebenes Guthaben liegt unter der Mindestauszahlung von %s."
 
+msgid "The payout request could not be saved. Please try again."
+msgstr "Der Auszahlungsantrag konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+
 msgid "Payout request from %s"
 msgstr "Auszahlungsantrag von %s"
 
@@ -1996,14 +2023,14 @@ msgstr "%1$s hat eine Auszahlung von %2$s beantragt.\n\n%3$s"
 msgid "This request was already handled."
 msgstr "Dieser Antrag wurde bereits bearbeitet."
 
-msgid "Payout profile incomplete."
-msgstr "Auszahlungsprofil unvollständig."
-
 msgid "The payout could not be created. Please try again."
 msgstr "Die Auszahlung konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
 
 msgid "The approved balance is no longer above the minimum."
 msgstr "Das freigegebene Guthaben liegt nicht mehr über dem Mindestbetrag."
+
+msgid "This request was already handled or could not be updated. Please reload."
+msgstr "Dieser Antrag wurde bereits bearbeitet oder konnte nicht aktualisiert werden. Bitte laden Sie die Seite neu."
 
 msgid "[%s] Your payout request"
 msgstr "[%s] Ihr Auszahlungsantrag"
@@ -2173,8 +2200,8 @@ msgstr "Der Link ist abgelaufen."
 msgid "[%s] Please confirm your new e-mail address"
 msgstr "[%s] Bitte bestätigen Sie Ihre neue E-Mail-Adresse"
 
-msgid "Hello %1$s,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%2$s\n\nIf you did not request this, ignore this e-mail."
-msgstr "Hallo %1$s,\n\nbitte bestätigen Sie Ihre neue E-Mail-Adresse für das Partnerprogramm (24 Stunden gültig):\n%2$s\n\nWenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail."
+msgid "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail."
+msgstr "Hallo,\n\nbitte bestätigen Sie Ihre neue E-Mail-Adresse für das Partnerprogramm (24 Stunden gültig):\n%s\n\nWenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail."
 
 msgid "Copied to the clipboard."
 msgstr "In die Zwischenablage kopiert."
@@ -2244,6 +2271,12 @@ msgstr "Ihre neue E-Mail-Adresse ist bestätigt."
 
 msgid "The confirmation link is invalid or has expired."
 msgstr "Der Bestätigungslink ist ungültig oder abgelaufen."
+
+msgid "Too many e-mail changes today. Please try again tomorrow."
+msgstr "Zu viele E-Mail-Änderungen heute. Bitte versuchen Sie es morgen erneut."
+
+msgid "Your customer account is now connected to the partner program."
+msgstr "Ihr Kundenkonto ist jetzt mit dem Partnerprogramm verbunden."
 
 msgid "Our partner program terms have been updated."
 msgstr "Die Bedingungen unseres Partnerprogramms wurden aktualisiert."
@@ -2379,6 +2412,9 @@ msgstr "Stornierung"
 
 msgid "chargeback"
 msgstr "Rückbuchung"
+
+msgid "write-off"
+msgstr "Abschreibung"
 
 msgid "Available for payout: %s"
 msgstr "Für Auszahlung verfügbar: %s"
@@ -2556,6 +2592,9 @@ msgstr "(keine Kampagne)"
 
 msgid "The sale could not be processed and was queued for retry."
 msgstr "Der Verkauf konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
+
+msgid "The sale or refund could not be processed and could not be stored for a retry. Please send it again later."
+msgstr "Der Verkauf bzw. die Erstattung konnte nicht verarbeitet und auch nicht für eine Wiederholung gespeichert werden. Bitte später erneut senden."
 
 msgid "The refund could not be processed and was queued for retry."
 msgstr "Die Rückerstattung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."

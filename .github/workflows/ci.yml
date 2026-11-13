@@ -75,19 +75,51 @@ jobs:
     needs: [test, integration, qr-decode]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
           coverage: none
+      # Ref names are never interpolated into the script (shell injection via tag names):
+      # they are passed as environment variables and validated against a strict version pattern.
       - name: Build ZIP
-        run: bin/build-zip.sh ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          expected=""
+          if [ "$REF_TYPE" = "tag" ]; then
+            if ! printf '%s' "$REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$'; then
+              echo "Refusing tag name that is not a version: $REF_NAME"; exit 1
+            fi
+            expected="$REF_NAME"
+          fi
+          bin/build-zip.sh "$expected"
       - uses: actions/upload-artifact@v4
         with:
           name: wp-affiliate-captain
           path: dist/*.zip
+
+  # Only this job gets write access, and only for tags and main (never for branches or PRs).
+  publish:
+    name: GitHub release
+    needs: [release]
+    if: github.event_name == 'push' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
       # Release on a pushed tag v*, or on a push to main for v<plugin version>
       # when that release does not exist yet (the tag is then created on this commit).
       - name: Determine release tag
@@ -95,11 +127,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "${GITHUB_REF_NAME#v}" != "$GITHUB_REF_NAME" ]; then
-            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          version_re='^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$'
+          tag=""
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            tag="$GITHUB_REF_NAME"
           elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
             v="$(sed -n 's/^ \* Version: *\([0-9A-Za-z.\-]*\).*/\1/p' wp-affiliate-captain.php)"
-            if gh release view "v$v" >/dev/null 2>&1; then echo "Release v$v exists"; else echo "tag=v$v" >> "$GITHUB_OUTPUT"; fi
+            if gh release view "v$v" >/dev/null 2>&1; then echo "Release v$v exists"; else tag="v$v"; fi
+          fi
+          if [ -n "$tag" ]; then
+            printf '%s' "$tag" | grep -Eq "$version_re" || { echo "Refusing release tag that is not a version: $tag"; exit 1; }
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
           fi
       - name: GitHub release
         if: steps.rel.outputs.tag != ''

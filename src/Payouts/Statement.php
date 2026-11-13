@@ -72,7 +72,8 @@ final class Statement {
 		$name  = 'probe-' . wp_generate_password( 12, false ) . '.txt';
 		file_put_contents( $dir . '/' . $name, 'wpac' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		$upload = wp_upload_dir( null, false );
-		$res    = wp_remote_get( trailingslashit( $upload['baseurl'] ) . 'wpac-statements/' . $name, array( 'timeout' => 5, 'sslverify' => false ) );
+		// TLS is verified; an unverifiable answer counts as "unknown", never as "protected".
+		$res    = wp_remote_get( trailingslashit( $upload['baseurl'] ) . 'wpac-statements/' . $name, array( 'timeout' => 5 ) );
 		wp_delete_file( $dir . '/' . $name );
 		if ( is_wp_error( $res ) ) {
 			// Hosts that block loopback requests: remember "unknown" for an hour instead of

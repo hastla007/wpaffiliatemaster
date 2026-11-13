@@ -44,14 +44,18 @@ final class WPAC_Connector_Example {
 		}
 
 		$payload = array(
-			'contract'     => defined( 'WPAC_CONTRACT_VERSION' ) ? WPAC_CONTRACT_VERSION : '1.0.0',
+			// The contract version THIS connector was written for (never the plugin's own constant,
+			// otherwise the compatibility check could not detect a breaking change).
+			'contract'     => '1.0.0',
 			'source'       => self::SOURCE,
 			'order_id'     => isset( $order['order_id'] ) ? (string) $order['order_id'] : '',
 			'currency'     => isset( $order['currency'] ) ? strtoupper( (string) $order['currency'] ) : '',
 			'paid_at'      => isset( $order['paid_at'] ) ? $order['paid_at'] : '',
-			'hold_until'   => isset( $order['hold_until'] ) ? $order['hold_until'] : '',
+			// No hold_until and no touch from the order data: if the app filled them from client
+			// input, buyers could skip the hold period or forge the attribution. The plugin sets the
+			// hold itself; the touch comes from the server (stored when the order was created).
 			'partner_code' => isset( $order['partner_code'] ) ? (string) $order['partner_code'] : '',
-			'touch'        => isset( $order['touch'] ) && is_array( $order['touch'] ) ? $order['touch'] : null,
+			'touch'        => isset( $order['server_touch'] ) && is_array( $order['server_touch'] ) ? $order['server_touch'] : null,
 			'customer'     => array(
 				'user_id' => isset( $order['customer']['user_id'] ) ? (int) $order['customer']['user_id'] : 0,
 				'email'   => isset( $order['customer']['email'] ) ? (string) $order['customer']['email'] : '',

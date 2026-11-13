@@ -43,12 +43,31 @@ final class RateLimiter {
 			$hits = (int) wp_cache_incr( $key, 1, $group );
 			return $hits <= $limit;
 		}
-		$hits = (int) get_transient( $key );
-		if ( $hits >= $limit ) {
-			return false;
+		return self::count_in_db( $key, $window ) <= $limit;
+	}
+
+	/**
+	 * Atomic counter without an external object cache: one INSERT … ON DUPLICATE KEY UPDATE,
+	 * so parallel requests cannot all read the same old value (get/set_transient could).
+	 * The rows are ordinary transients, so WordPress' expired-transient clean-up removes them.
+	 *
+	 * @param string $key    Transient name.
+	 * @param int    $window Seconds.
+	 * @return int Hits in this window, including this one.
+	 */
+	private static function count_in_db( $key, $window ) {
+		global $wpdb;
+		$name    = '_transient_' . $key;
+		$timeout = '_transient_timeout_' . $key;
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $timeout, (string) ( time() + (int) $window ) ) );
+		$ok = $wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, '1', 'off') ON DUPLICATE KEY UPDATE option_value = option_value + 1", $name ) );
+		if ( false === $ok ) {
+			return 0; // Database unavailable: do not block visitors (best effort, like before).
 		}
-		set_transient( $key, $hits + 1, $window );
-		return true;
+		$hits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		// phpcs:enable
+		return max( 1, $hits );
 	}
 
 	/**

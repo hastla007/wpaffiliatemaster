@@ -174,8 +174,15 @@ function do_action( $tag, ...$args ) {
 function remove_all_filters( $tag ) { unset( $GLOBALS['test_hooks'][ $tag ] ); }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['test_options'] ) ? $GLOBALS['test_options'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['test_options'][ $k ] = $v; return true; }
-function add_option( $k, $v, $x = '', $a = null ) { $GLOBALS['test_options'][ $k ] = $v; return true; }
-function delete_option( $k ) { unset( $GLOBALS['test_options'][ $k ] ); return true; }
+function add_option( $k, $v, $x = '', $a = null ) {
+	// Like WordPress core: a cached read, then an UPSERT – NOT atomic (use Db::lock() for locks).
+	global $wpdb;
+	if ( array_key_exists( $k, $GLOBALS['test_options'] ) ) { return false; }
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)", $k, is_scalar( $v ) ? (string) $v : serialize( $v ) ) );
+	$GLOBALS['test_options'][ $k ] = $v;
+	return true;
+}
+function delete_option( $k ) { global $wpdb; unset( $GLOBALS['test_options'][ $k ] ); $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", $k ) ); return true; }
 function get_transient( $k ) { return get_option( '_t_' . $k ); }
 function set_transient( $k, $v, $e = 0 ) { return update_option( '_t_' . $k, $v ); }
 function __( $t, $d = null ) { return $t; }
@@ -214,7 +221,7 @@ function wp_upload_dir( $t = null, $c = true ) { return array( 'basedir' => sys_
 function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
 function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function wp_delete_file( $f ) { @unlink( $f ); }
-function wp_mail( $to, $s, $m ) { $GLOBALS['test_mails'][] = array( $to, $s ); return true; }
+function wp_mail( $to, $s, $m ) { if ( ! empty( $GLOBALS['test_mail_fail'] ) ) { return false; } $GLOBALS['test_mails'][] = array( $to, $s ); return true; }
 function get_user_by( $f, $v ) { return false; }
 function get_userdata( $id ) { return false; }
 function username_exists( $u ) { return false; }
@@ -272,3 +279,8 @@ $GLOBALS['test_scheduled'] = array();
 function wp_schedule_single_event( $ts, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
 function get_permalink( $id ) { return 'http://example.test/?p=' . (int) $id; }
 function wp_unslash( $v ) { return is_array( $v ) ? array_map( "wp_unslash", $v ) : stripslashes( (string) $v ); }
+if ( ! function_exists( 'wp_using_ext_object_cache' ) ) { function wp_using_ext_object_cache() { return false; } }
+if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $hook ) { return in_array( $hook, $GLOBALS['test_scheduled'] ?? array(), true ) ? time() + 60 : false; } }
+if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) { function wp_clear_scheduled_hook( $hook ) { $GLOBALS['test_scheduled'] = array_values( array_diff( $GLOBALS['test_scheduled'] ?? array(), array( $hook ) ) ); return 0; } }
+if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { return delete_option( '_t_' . $k ); } }
+if ( ! function_exists( 'wp_cache_delete' ) ) { function wp_cache_delete( $k, $g = '' ) { return true; } }
