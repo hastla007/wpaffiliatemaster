@@ -53,10 +53,13 @@ final class WooCommerce {
 		// Evaluated at status change time, so filters from themes/snippets (loaded later) apply.
 		add_action( 'woocommerce_order_status_changed', array( OrderSync::class, 'maybe_chargeback' ), 10, 3 );
 		add_filter( 'wpac_run_job', array( OrderSync::class, 'run_job' ), 10, 3 );
+		// WooCommerce Subscriptions must not copy the partner code/touch to renewals (loaded by then).
+		add_action( 'init', array( OrderSync::class, 'register_subscription_hooks' ), 1 );
 
 		// Admin: order meta box and coupon ↔ affiliate link.
 		add_action( 'add_meta_boxes', array( OrderMetaBox::class, 'add_meta_box' ) );
 		add_action( 'woocommerce_process_shop_order_meta', array( OrderMetaBox::class, 'save_meta_box' ) );
+		add_action( 'admin_notices', array( OrderMetaBox::class, 'admin_notice' ) );
 		add_action( 'woocommerce_coupon_options', array( CouponLink::class, 'coupon_field' ), 10, 2 );
 		add_action( 'woocommerce_coupon_options_save', array( CouponLink::class, 'coupon_save' ), 10, 2 );
 	}

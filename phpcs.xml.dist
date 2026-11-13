@@ -8,7 +8,8 @@
 	<arg name="extensions" value="php"/>
 	<arg value="sp"/>
 	<arg name="colors"/>
-	<config name="minimum_wp_version" value="6.4"/>
+	<!-- Same as "Requires at least" (blocks use block.json apiVersion 3, which needs WordPress 6.3). -->
+	<config name="minimum_wp_version" value="6.3"/>
 	<config name="testVersion" value="7.4-"/>
 	<config name="text_domain" value="wp-affiliate-captain"/>
 

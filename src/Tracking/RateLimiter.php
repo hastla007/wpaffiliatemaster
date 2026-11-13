@@ -35,15 +35,61 @@ final class RateLimiter {
 		if ( $limit <= 0 ) {
 			return true;
 		}
-		$ip     = self::bucket_ip( self::current_ip() );
-		$key    = 'wpac_rl_' . substr( hash_hmac( 'sha256', $bucket . '|' . $ip . '|' . (int) floor( time() / $window ), wp_salt( 'nonce' ) ), 0, 32 );
+		return self::hit( $bucket, 'ip:' . self::bucket_ip( self::current_ip() ), $window ) <= $limit;
+	}
+
+	/**
+	 * Whether an action for a subject other than the client IP may be performed,
+	 * e.g. per partner or per recipient address (an attacker can rotate IPs, not
+	 * the account or the address being targeted). The subject is only stored as
+	 * a salted hash.
+	 *
+	 * @param string     $bucket  Bucket name.
+	 * @param string|int $subject Subject (partner ID, e-mail address …).
+	 * @param int        $limit   Max hits per window (0 = unlimited).
+	 * @param int        $window  Seconds.
+	 * @return bool
+	 */
+	public static function allow_for( $bucket, $subject, $limit, $window = 60 ) {
+		if ( $limit <= 0 ) {
+			return true;
+		}
+		return self::hit( $bucket, 'subject:' . (string) $subject, $window ) <= $limit;
+	}
+
+	/**
+	 * Whether this is the first time the subject is seen in the window (dedup).
+	 * Uses the object cache or the plugin's rate-limit table, never wp_options rows
+	 * (unless the table is not there yet).
+	 *
+	 * @param string $bucket  Bucket name.
+	 * @param string $subject Subject.
+	 * @param int    $window  Seconds.
+	 * @param int    $offset  Shift of the fixed window in seconds.
+	 * @return bool True also when no storage is available (best effort, nothing is lost).
+	 */
+	public static function first( $bucket, $subject, $window, $offset = 0 ) {
+		return self::hit( $bucket, 'subject:' . (string) $subject, $window, $offset ) <= 1;
+	}
+
+	/**
+	 * Count one hit for bucket + subject in the current fixed window.
+	 *
+	 * @param string $bucket  Bucket.
+	 * @param string $subject Subject.
+	 * @param int    $window  Seconds.
+	 * @param int    $offset  Shift of the fixed window in seconds.
+	 * @return int Hits including this one (0 = storage unavailable).
+	 */
+	private static function hit( $bucket, $subject, $window, $offset = 0 ) {
+		$window = max( 1, (int) $window );
+		$key    = 'wpac_rl_' . substr( hash_hmac( 'sha256', $bucket . '|' . $subject . '|' . (int) floor( ( time() + (int) $offset ) / $window ), wp_salt( 'nonce' ) ), 0, 32 );
 		$group  = 'wpac_rl';
 		if ( wp_using_ext_object_cache() ) {
 			wp_cache_add( $key, 0, $group, $window );
-			$hits = (int) wp_cache_incr( $key, 1, $group );
-			return $hits <= $limit;
+			return (int) wp_cache_incr( $key, 1, $group );
 		}
-		return self::count_in_db( $key, $window ) <= $limit;
+		return self::count_in_db( $key, $window );
 	}
 
 	/**

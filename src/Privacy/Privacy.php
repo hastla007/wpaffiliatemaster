@@ -348,6 +348,13 @@ final class Privacy {
 		delete_transient( 'wpac_email_change_' . (int) $aff->id );
 		delete_option( 'wpac_prev_email_' . (int) $aff->id );
 		delete_option( 'wpac_user_link_' . (int) $aff->id );
+		// Requested public name/website change, VIES result (VAT ID, company name) and payment
+		// request history (one option per currency).
+		delete_option( 'wpac_public_change_' . (int) $aff->id );
+		delete_option( 'wpac_vies_' . (int) $aff->id );
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'wpac_dunning_' . (int) $aff->id . '_' ) . '%' ) ) as $option ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			delete_option( (string) $option );
+		}
 		// Free-text details in the audit log (reasons may contain personal data); acceptance records stay as proof.
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%'", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache();
@@ -450,12 +457,13 @@ final class Privacy {
 		$p   = array();
 		$p[] = __( 'When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details.', 'wp-affiliate-captain' );
 		$mode = Settings::get( 'cookie_mode' );
+		$cookie_days = (int) Settings::get( 'cookie_days' );
 		if ( 'consent' === $mode ) {
 			/* translators: %d: days */
-			$p[] = sprintf( __( 'An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.', 'wp-affiliate-captain' ), (int) Settings::get( 'cookie_days' ) );
+			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it.', 'An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.', $cookie_days, 'wp-affiliate-captain' ), $cookie_days );
 		} elseif ( 'always' === $mode ) {
 			/* translators: %d: days */
-			$p[] = sprintf( __( 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', 'wp-affiliate-captain' ), (int) Settings::get( 'cookie_days' ) );
+			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', $cookie_days, 'wp-affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'use_wc_session' ) ) {
 			$p[] = __( 'If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.', 'wp-affiliate-captain' );
@@ -464,7 +472,7 @@ final class Privacy {
 			$days = (int) Settings::get( 'lifetime_days' );
 			$p[]  = $days > 0
 				/* translators: %d: days */
-				? sprintf( __( 'After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'wp-affiliate-captain' ), $days )
+				? sprintf( _n( 'After a purchase via a partner, later purchases within %d day are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', $days, 'wp-affiliate-captain' ), $days )
 				: __( 'After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'wp-affiliate-captain' );
 		}
 		if ( Settings::get( 'js_tracking' ) ) {
@@ -479,22 +487,22 @@ final class Privacy {
 		$apps     = (int) Settings::get( 'application_retention_days' );
 		$audit    = (int) Settings::get( 'audit_retention_days' );
 		/* translators: %d: days */
-		$periods[] = $visits > 0 ? sprintf( __( 'link visits (without IP address): %d days', 'wp-affiliate-captain' ), $visits ) : __( 'link visits (without IP address): until deleted manually', 'wp-affiliate-captain' );
+		$periods[] = $visits > 0 ? sprintf( _n( 'link visits (without IP address): %d day', 'link visits (without IP address): %d days', $visits, 'wp-affiliate-captain' ), $visits ) : __( 'link visits (without IP address): until deleted manually', 'wp-affiliate-captain' );
 		if ( Settings::get( 'cookie_mode' ) !== 'off' ) {
 			/* translators: %d: days */
-			$periods[] = sprintf( __( 'affiliate cookie: %d days', 'wp-affiliate-captain' ), (int) Settings::get( 'cookie_days' ) );
+			$periods[] = sprintf( _n( 'affiliate cookie: %d day', 'affiliate cookie: %d days', $cookie_days, 'wp-affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days      = (int) Settings::get( 'lifetime_days' );
 			/* translators: %d: days */
-			$periods[] = $days > 0 ? sprintf( __( 'customer link to the referring partner: %d days', 'wp-affiliate-captain' ), $days ) : __( 'customer link to the referring partner: until the partner relationship ends', 'wp-affiliate-captain' );
+			$periods[] = $days > 0 ? sprintf( _n( 'customer link to the referring partner: %d day', 'customer link to the referring partner: %d days', $days, 'wp-affiliate-captain' ), $days ) : __( 'customer link to the referring partner: until the partner relationship ends', 'wp-affiliate-captain' );
 		}
 		/* translators: %d: days */
-		$periods[] = $apps > 0 ? sprintf( __( 'rejected partner applications: %d days', 'wp-affiliate-captain' ), $apps ) : __( 'rejected partner applications: until deleted manually', 'wp-affiliate-captain' );
+		$periods[] = $apps > 0 ? sprintf( _n( 'rejected partner applications: %d day', 'rejected partner applications: %d days', $apps, 'wp-affiliate-captain' ), $apps ) : __( 'rejected partner applications: until deleted manually', 'wp-affiliate-captain' );
 		/* translators: %d: years */
-		$periods[] = $years > 0 ? sprintf( __( 'commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)', 'wp-affiliate-captain' ), $years ) : __( 'commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically', 'wp-affiliate-captain' );
+		$periods[] = $years > 0 ? sprintf( _n( 'commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)', 'commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)', $years, 'wp-affiliate-captain' ), $years ) : __( 'commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically', 'wp-affiliate-captain' );
 		/* translators: %d: days */
-		$periods[] = $audit > 0 ? sprintf( __( 'change log of other settings and partner data: %d days', 'wp-affiliate-captain' ), $audit ) : __( 'change log: until deleted manually', 'wp-affiliate-captain' );
+		$periods[] = $audit > 0 ? sprintf( _n( 'change log of other settings and partner data: %d day', 'change log of other settings and partner data: %d days', $audit, 'wp-affiliate-captain' ), $audit ) : __( 'change log: until deleted manually', 'wp-affiliate-captain' );
 		$p[] = __( 'Storage periods:', 'wp-affiliate-captain' ) . ' ' . implode( '; ', $periods ) . '.';
 
 		// Legal bases.
@@ -502,6 +510,11 @@ final class Privacy {
 
 		// Recipients.
 		$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'wp-affiliate-captain' );
+		// VIES (Vies::check()): on unless switched off under Settings → Payouts ("vies_check").
+		$vies = Settings::get( 'vies_check' );
+		if ( null === $vies || $vies ) {
+			$p[] = __( 'VAT ID check: if a partner enters an EU VAT ID, it is checked with the VIES service of the European Commission (ec.europa.eu) when the payout details are saved and again periodically. The VAT ID of the partner and our own VAT ID are sent; the European Commission receives these as an independent controller (legal basis: our obligation and legitimate interest to verify the VAT ID before issuing reverse-charge credit notes, Art. 6(1)(c) and (f) GDPR). The result and the consultation number are stored with the payout details.', 'wp-affiliate-captain' );
+		}
 		$p[] = __( 'Partners can ask for a copy of their data, its correction, erasure or restriction of processing, and can object to processing based on legitimate interest. Records we must keep by law are restricted instead of deleted until the retention period ends.', 'wp-affiliate-captain' );
 		$html = '';
 		foreach ( $p as $para ) {
@@ -531,6 +544,37 @@ final class Privacy {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$payouts = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p} WHERE affiliate_id = %d AND status IN ('pending','exported')", $affiliate_id ) );
 		return $rows > 0 || $payouts > 0;
+	}
+
+	/**
+	 * Daily: delete expired per-partner options that contain e-mail addresses or tokens (previous
+	 * address kept 30 days after a change, account-link tokens valid 7 days). They used to be
+	 * removed only when read again, i.e. possibly never.
+	 *
+	 * @return int Options deleted.
+	 */
+	public static function purge_expired_options() {
+		global $wpdb;
+		$fields = array(
+			'wpac_prev_email_' => 'until',
+			'wpac_user_link_'  => 'expires',
+		);
+		$n      = 0;
+		foreach ( $fields as $prefix => $field ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$names = (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT 2000", $wpdb->esc_like( $prefix ) . '%' ) );
+			foreach ( $names as $name ) {
+				if ( ! preg_match( '/^' . preg_quote( $prefix, '/' ) . '\d+$/', (string) $name ) ) {
+					continue;
+				}
+				$value = get_option( (string) $name );
+				if ( ! is_array( $value ) || ! isset( $value[ $field ] ) || (int) $value[ $field ] < time() ) {
+					delete_option( (string) $name );
+					++$n;
+				}
+			}
+		}
+		return $n;
 	}
 
 	/**

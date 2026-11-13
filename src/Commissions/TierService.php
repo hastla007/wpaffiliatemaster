@@ -122,6 +122,9 @@ final class TierService {
 		return time() >= $end + ( (int) Settings::get( 'hold_days' ) + 1 ) * DAY_IN_SECONDS;
 	}
 
+	/** Months whose recalculation did not fit into the last run's time budget. */
+	const RECALC_PENDING = 'wpac_tier_recalc_pending';
+
 	/**
 	 * Close all months that are due (cron).
 	 */
@@ -129,7 +132,7 @@ final class TierService {
 		if ( ! self::all() ) {
 			return;
 		}
-		$last = (string) Settings::get( 'tier_month_closed' );
+		$last = Settings::state( 'tier_month_closed' );
 		// Without history: start with the previous month.
 		$month = $last ? gmdate( 'Y-m', strtotime( $last . '-01 +1 month' ) ) : gmdate( 'Y-m', strtotime( 'first day of previous month' ) );
 		for ( $guard = 0; $guard < 24; $guard++ ) {
@@ -137,7 +140,7 @@ final class TierService {
 				break;
 			}
 			self::close_month( $month );
-			Settings::update( array( 'tier_month_closed' => $month ) );
+			Settings::set_state( 'tier_month_closed', $month ); // Own option: never writes the settings back.
 			$month = gmdate( 'Y-m', strtotime( $month . '-01 +1 month' ) );
 		}
 	}
@@ -153,9 +156,9 @@ final class TierService {
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
 			return 0;
 		}
-		$first = (string) Settings::get( 'tier_month_first' );
+		$first = Settings::state( 'tier_month_first' );
 		if ( '' === $first || $month < $first ) {
-			Settings::update( array( 'tier_month_first' => $month ) );
+			Settings::set_state( 'tier_month_first', $month );
 		}
 		$c        = Db::table( 'commissions' );
 		$currency = strtoupper( (string) Settings::get( 'currency' ) );
@@ -274,10 +277,13 @@ final class TierService {
 	 * late approvals changed the result (cron, last 3 closed months). The plan
 	 * frozen in the original bonus is used; months without bonus use the current plan.
 	 *
+	 * Runs with a time budget: months that did not fit are remembered and come first in the next run.
+	 *
+	 * @param float $budget Seconds (0 = no limit).
 	 * @return int Number of corrections.
 	 */
-	public static function recalculate_closed_months() {
-		$last = (string) Settings::get( 'tier_month_closed' );
+	public static function recalculate_closed_months( $budget = 20 ) {
+		$last = Settings::state( 'tier_month_closed' );
 		if ( '' === $last || ! self::all() ) {
 			return 0;
 		}
@@ -291,10 +297,24 @@ final class TierService {
 		$c = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$changed = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT DATE_FORMAT(created_at, '%%Y-%%m') FROM {$c} WHERE kind <> 'bonus' AND updated_at >= %s AND created_at >= %s AND created_at <= %s", Db::now( time() - 3 * DAY_IN_SECONDS ), gmdate( 'Y-m-01 00:00:00', strtotime( $last . '-01 -24 month' ) ), gmdate( 'Y-m-t 23:59:59', strtotime( $last . '-01' ) ) ) );
-		$months  = array_unique( array_merge( $months, array_map( 'strval', (array) $changed ) ) );
+		$pending = array_filter(
+			array_map( 'strval', (array) get_option( self::RECALC_PENDING, array() ) ),
+			static function ( $m ) {
+				return (bool) preg_match( '/^\d{4}-\d{2}$/', $m );
+			}
+		);
+		$months  = array_values( array_unique( array_merge( $pending, $months, array_map( 'strval', (array) $changed ) ) ) );
 		$n       = 0;
-		foreach ( $months as $month ) {
+		$start   = microtime( true );
+		foreach ( $months as $i => $month ) {
+			if ( $budget > 0 && $i > 0 && microtime( true ) - $start > $budget ) {
+				update_option( self::RECALC_PENDING, array_slice( $months, $i ), false );
+				return $n;
+			}
 			$n += self::recalculate_month( $month );
+		}
+		if ( $pending ) {
+			delete_option( self::RECALC_PENDING );
 		}
 		return $n;
 	}
@@ -306,6 +326,9 @@ final class TierService {
 	 * @return int Number of corrections booked.
 	 */
 	public static function recalculate_month( $month ) {
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ) {
+			return 0;
+		}
 		global $wpdb;
 		$c        = Db::table( 'commissions' );
 		$currency = strtoupper( (string) Settings::get( 'currency' ) );
@@ -314,9 +337,9 @@ final class TierService {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND currency = %s AND created_at BETWEEN %s AND %s", $currency, $start, $end ) );
 		$booked     = 0;
-		$first      = (string) Settings::get( 'tier_month_first' );
+		$first      = Settings::state( 'tier_month_first' );
 		if ( '' === $first ) {
-			$first = (string) Settings::get( 'tier_month_closed' ); // Installs from before this setting.
+			$first = Settings::state( 'tier_month_closed' ); // Installs from before this setting.
 		}
 		foreach ( $affiliates as $affiliate_id ) {
 			$affiliate_id = (int) $affiliate_id;

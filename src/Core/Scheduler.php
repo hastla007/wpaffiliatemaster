@@ -49,28 +49,68 @@ final class Scheduler {
 	}
 
 	/**
-	 * Whether the hook is already pending.
+	 * Whether the hook is already waiting to run. The run that is executing right now does NOT
+	 * count: a task that schedules its own continuation (report batches, queue drain, network
+	 * set-up) must be able to do so from inside its own run. as_next_scheduled_action() and
+	 * as_has_scheduled_action() also report the running action, so only pending actions are
+	 * looked up. WP-Cron removes a single event before it runs it.
 	 *
 	 * @param string $hook Hook.
 	 * @param array  $args Arguments.
 	 * @return bool
 	 */
 	public static function pending( $hook, array $args = array() ) {
-		if ( self::uses_action_scheduler() && as_next_scheduled_action( $hook, $args, self::GROUP ) ) {
-			return true;
+		if ( self::uses_action_scheduler() ) {
+			if ( function_exists( 'as_get_scheduled_actions' ) ) {
+				$ids = as_get_scheduled_actions(
+					array(
+						'hook'     => $hook,
+						'args'     => $args,
+						'group'    => self::GROUP,
+						'status'   => class_exists( 'ActionScheduler_Store' ) ? \ActionScheduler_Store::STATUS_PENDING : 'pending',
+						'per_page' => 1,
+						'orderby'  => 'none',
+					),
+					'ids'
+				);
+				if ( $ids ) {
+					return true;
+				}
+			} else {
+				// Older Action Scheduler: true means "running" (or no date), a timestamp means pending.
+				$next = as_next_scheduled_action( $hook, $args, self::GROUP );
+				if ( is_int( $next ) ) {
+					return true;
+				}
+			}
 		}
 		return (bool) wp_next_scheduled( $hook, $args );
 	}
 
 	/**
-	 * Remove all pending runs of a hook (both schedulers).
+	 * Remove all pending runs of a hook, whatever their arguments (both schedulers).
+	 * as_unschedule_all_actions( $hook, array(), GROUP ) would only match runs without arguments
+	 * (e.g. not the per-partner VIES checks); by hook alone it cancels every run of the hook.
 	 *
 	 * @param string $hook Hook.
 	 */
 	public static function clear( $hook ) {
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
-			as_unschedule_all_actions( $hook, array(), self::GROUP );
+			as_unschedule_all_actions( $hook );
 		}
-		wp_clear_scheduled_hook( $hook );
+		if ( function_exists( 'wp_unschedule_hook' ) ) {
+			wp_unschedule_hook( $hook ); // All events of the hook, with any arguments.
+		} else {
+			wp_clear_scheduled_hook( $hook );
+		}
+	}
+
+	/**
+	 * Remove every pending action of this plugin from the Action Scheduler (deactivation).
+	 */
+	public static function clear_group() {
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( '', array(), self::GROUP );
+		}
 	}
 }

@@ -129,6 +129,8 @@ jobs:
       - name: Tests with line coverage
         env:
           WPAC_TEST_DB_HOST: 127.0.0.1
+          # Fails below this total line coverage (tests/coverage-report.php; measured 73 %).
+          WPAC_COVERAGE_MIN: "70"
         run: |
           php -d xdebug.mode=coverage -d auto_prepend_file=tests/coverage-prepend.php tests/run.php
           php -d xdebug.mode=coverage -d auto_prepend_file=tests/coverage-prepend.php tests/integration/run.php
@@ -244,6 +246,8 @@ jobs:
           node run.js
       - name: Cross-plugin test (Voucher Captain, Pass Captain, WooCommerce)
         run: php tests/cross-plugin/run.php "$RUNNER_TEMP/wp" 127.0.0.1:8088
+      - name: Smoke test (orders, REST, all admin pages, PHP log)
+        run: php tests/ci/smoke.php "$RUNNER_TEMP/wp" http://127.0.0.1:8088
       - name: Logs on failure
         if: failure()
         run: |
@@ -254,6 +258,83 @@ jobs:
         with:
           name: e2e-artifacts-${{ matrix.cache }}
           path: tests/e2e/artifacts
+
+  # The oldest versions the plugin declares ("Requires at least", "Requires PHP",
+  # "WC requires at least"): activation, schema, a WooCommerce order and refund, front end,
+  # REST and every admin page. The Blocks-checkout field needs WooCommerce 8.9 and is covered by
+  # the browser job with the latest versions.
+  minimum-versions:
+    name: Minimum versions (WordPress 6.3, WooCommerce 8.0, PHP 7.4)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_e2e
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "7.4"
+          extensions: mysqli, sodium, dom, mbstring, gd, zip
+          coverage: none
+      - name: Test site with the minimum versions
+        env:
+          WP_VERSION: "6.3"
+          WC_VERSION: "8.0.0"
+        run: tests/ci/install-wp.sh "$RUNNER_TEMP/wp"
+      - name: Web server
+        run: (cd "$RUNNER_TEMP/wp" && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8088 -t . "$GITHUB_WORKSPACE/tests/ci/router.php" > "$RUNNER_TEMP/server.log" 2>&1 &) && sleep 2
+      - name: Smoke test
+        run: php tests/ci/smoke.php "$RUNNER_TEMP/wp" http://127.0.0.1:8088
+      - name: Logs on failure
+        if: failure()
+        run: |
+          tail -n 100 "$RUNNER_TEMP/server.log" || true
+          tail -n 100 "$RUNNER_TEMP/wp/wp-content/debug.log" || true
+
+  # Official Plugin Check (the WordPress.org review tool) on the built ZIP. Errors fail the job,
+  # except documented false positives in tests/ci/plugin-check-ignore.txt; warnings are listed.
+  plugin-check:
+    name: Plugin Check (WordPress.org)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_pcp
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring, zip
+          tools: wp-cli
+          coverage: none
+      - name: Build ZIP
+        run: bin/build-zip.sh
+      - name: WordPress with Plugin Check and the built plugin
+        run: |
+          wp core download --path="$RUNNER_TEMP/wp"
+          wp config create --path="$RUNNER_TEMP/wp" --dbname=wpac_pcp --dbuser=root --dbpass=root --dbhost=127.0.0.1 --skip-check
+          wp core install --path="$RUNNER_TEMP/wp" --url=http://127.0.0.1:8090 --title=PCP --admin_user=admin --admin_password=admin-pass-123 --admin_email=admin@example.test --skip-email
+          unzip -q dist/wp-affiliate-captain-*.zip -d "$RUNNER_TEMP/wp/wp-content/plugins"
+          wp plugin install plugin-check --activate --path="$RUNNER_TEMP/wp"
+          wp plugin activate wp-affiliate-captain --path="$RUNNER_TEMP/wp"
+      - name: Plugin Check
+        run: |
+          wp plugin check wp-affiliate-captain --format=json --path="$RUNNER_TEMP/wp" > "$RUNNER_TEMP/plugin-check.json"
+          php tests/ci/plugin-check.php "$RUNNER_TEMP/plugin-check.json" | tee -a "$GITHUB_STEP_SUMMARY"
 
   multisite:
     name: Multisite (network activation, new and deleted sites)
@@ -317,7 +398,7 @@ jobs:
 
   release:
     name: Release ZIP
-    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade]
+    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade, minimum-versions, plugin-check]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -35,7 +35,7 @@ final class AttributionResolver {
 
 		if ( ! empty( $sale['affiliate_id'] ) ) {
 			$aff = AffiliateRepository::find( (int) $sale['affiliate_id'] );
-			if ( $aff && 'active' === $aff->status ) {
+			if ( self::eligible( $aff ) ) {
 				$candidates[] = array(
 					'affiliate_id' => (int) $aff->id,
 					'code_id'      => 0,
@@ -84,7 +84,7 @@ final class AttributionResolver {
 			$link = CustomerLinks::find( CustomerLinks::hashes( $sale['customer']['user_id'], $sale['customer']['email'] ) );
 			if ( $link ) {
 				$aff = AffiliateRepository::find( (int) $link->affiliate_id );
-				if ( $aff && 'active' === $aff->status ) {
+				if ( self::eligible( $aff ) ) {
 					$candidates[] = array(
 						'affiliate_id' => (int) $aff->id,
 						'code_id'      => 0,
@@ -101,6 +101,16 @@ final class AttributionResolver {
 		 * @param array $sale       Sale.
 		 */
 		$candidates = apply_filters( 'wpac_attribution_candidates', $candidates, $sale );
+		// Whatever added a candidate (coupon links, integrations, filters): only active partners
+		// whose processing is not restricted (Art. 18 GDPR) can earn new commissions.
+		$candidates = array_values(
+			array_filter(
+				(array) $candidates,
+				static function ( $c ) {
+					return is_array( $c ) && ! empty( $c['affiliate_id'] ) && self::eligible( AffiliateRepository::find( (int) $c['affiliate_id'] ) );
+				}
+			)
+		);
 		if ( ! $candidates ) {
 			return array(
 				'attribution' => null,
@@ -137,6 +147,16 @@ final class AttributionResolver {
 			'attribution' => $winner,
 			'reason'      => '',
 		);
+	}
+
+	/**
+	 * Whether a partner may earn new commissions: active and processing not restricted.
+	 *
+	 * @param object|null $aff Partner row.
+	 * @return bool
+	 */
+	public static function eligible( $aff ) {
+		return $aff && 'active' === $aff->status && ! \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id );
 	}
 
 	/**

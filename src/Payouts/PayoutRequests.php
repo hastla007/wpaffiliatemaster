@@ -59,8 +59,27 @@ final class PayoutRequests {
 		if ( self::open_for( (int) $aff->id ) ) {
 			return __( 'You already have an open payout request.', 'wp-affiliate-captain' );
 		}
-		if ( ! ProfileRepository::is_complete( ProfileRepository::get( (int) $aff->id ) ) ) {
+		$profile = ProfileRepository::get( (int) $aff->id );
+		if ( ! ProfileRepository::is_complete( $profile ) ) {
 			return __( 'Please complete your payout details first.', 'wp-affiliate-captain' );
+		}
+		// Do not offer a request that the payout would refuse anyway (operator data, terms, VIES).
+		$code = '';
+		if ( '' !== PayoutService::operator_missing() ) {
+			$code = 'operator';
+		} else {
+			PayoutService::blocked_reason( (int) $aff->id, $profile, $code );
+		}
+		$partner_reasons = array(
+			'maintenance'     => __( 'Payout requests are paused for maintenance. Please try again later.', 'wp-affiliate-captain' ),
+			'terms'           => __( 'Please accept the current partner terms first (see the notice above).', 'wp-affiliate-captain' ),
+			'vies'            => __( 'Your VAT ID could not be confirmed in the EU VIES database. Please check it under "Payout details".', 'wp-affiliate-captain' ),
+			'operator'        => __( 'Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'wp-affiliate-captain' ),
+			'operator_vat_id' => __( 'Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'wp-affiliate-captain' ),
+			'terms_page'      => __( 'Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'wp-affiliate-captain' ),
+		);
+		if ( '' !== $code ) {
+			return isset( $partner_reasons[ $code ] ) ? $partner_reasons[ $code ] : __( 'Please complete your payout details first.', 'wp-affiliate-captain' );
 		}
 		$min = (int) Settings::get( 'min_payout_minor' );
 		if ( self::available( (int) $aff->id ) < max( 1, $min ) ) {
@@ -146,7 +165,12 @@ final class PayoutRequests {
 		try {
 			$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, gmdate( 'Y-m-d' ), $r->currency );
 		} catch ( \Throwable $e ) {
-			return new \WP_Error( 'wpac_payout', __( 'The payout could not be created. Please try again.', 'wp-affiliate-captain' ) . ' (' . ( $e instanceof \WPAffiliateCaptain\Core\IntegrationException ? $e->error_code : 'error' ) . ')' );
+			if ( $e instanceof \WPAffiliateCaptain\Core\IntegrationException && in_array( $e->error_code, array( 'operator_data', 'not_eligible' ), true ) ) {
+				// A missing precondition (e.g. your address or VAT ID): the message says what to fix.
+				return new \WP_Error( 'wpac_payout', $e->getMessage() );
+			}
+			Audit::log( 'payout.failed', 'affiliate', (int) $r->affiliate_id, array( 'error' => $e->getMessage() ) );
+			return new \WP_Error( 'wpac_payout', __( 'The payout could not be saved because of a technical error (details in the audit log). Nothing was booked; the request stays open.', 'wp-affiliate-captain' ) );
 		}
 		if ( ! $payout_id ) {
 			return new \WP_Error( 'wpac_balance', __( 'The approved balance is no longer above the minimum.', 'wp-affiliate-captain' ) );
@@ -236,9 +260,11 @@ final class PayoutRequests {
 		Audit::log( 'payout_request.rejected', 'affiliate', (int) $r->affiliate_id, array( 'reason' => $reason ) );
 		$aff = AffiliateRepository::find( (int) $r->affiliate_id );
 		if ( $aff ) {
+			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 			/* translators: 1: name, 2: reason */
 			/* translators: %s: site name */
 			wp_mail( $aff->email, sprintf( __( '[%s] Your payout request', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ), sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, $reason ) );
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 		}
 		return true;
 	}

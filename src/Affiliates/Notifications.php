@@ -2,11 +2,15 @@
 /**
  * E-mail notifications.
  *
+ * Mails to partners are written in the partner's language (WordPress user locale of
+ * the linked account, otherwise the site language), see Locale.
+ *
  * @package WPAffiliateCaptain
  */
 
 namespace WPAffiliateCaptain\Affiliates;
 
+use WPAffiliateCaptain\Core\Locale;
 use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -39,14 +43,29 @@ final class Notifications {
 		if ( ! $p || ! $aff || 0 === strpos( (string) $aff->email, 'deleted-' ) ) {
 			return;
 		}
-		$portal = (int) Settings::get( 'portal_page_id' );
-		wp_mail(
-			$aff->email,
-			/* translators: 1: site name, 2: payout number */
-			sprintf( __( '[%1$s] Payout %2$s transferred', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
-			/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
-			sprintf( __( "Hello %1\$s,\n\nwe have transferred %2\$s to your bank account (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'wp-affiliate-captain' ), $aff->name, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), $p->number, $portal ? add_query_arg( 'wpac_tab', 'payouts', get_permalink( $portal ) ) : home_url( '/' ) )
-		);
+		$portal   = (int) Settings::get( 'portal_page_id' );
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			wp_mail(
+				$aff->email,
+				/* translators: 1: site name, 2: payout number */
+				sprintf( __( '[%1$s] Payout %2$s transferred', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
+				/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
+				sprintf( __( "Hello %1\$s,\n\nwe have transferred %2\$s to your bank account (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'wp-affiliate-captain' ), $aff->name, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), $p->number, $portal ? add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) : home_url( '/' ) )
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+	}
+
+	/**
+	 * Partner area URL in the reader's language (translated page with WPML/Polylang).
+	 *
+	 * @param object|null $aff Affiliate (null = current language).
+	 * @return string
+	 */
+	public static function portal_url( $aff = null ) {
+		return Locale::page_url( (int) Settings::get( 'portal_page_id' ), $aff ? Locale::for_affiliate( $aff ) : '' );
 	}
 
 	/**
@@ -80,19 +99,21 @@ final class Notifications {
 	}
 
 	/**
-	 * Double opt-in e-mail for an application.
+	 * Double opt-in e-mail for an application. It contains no text entered in the form
+	 * (name, note …): whoever fills in the form chooses the recipient, so such text would
+	 * turn the shop's mail server into a relay for phishing messages.
 	 *
 	 * @param string $email E-mail.
-	 * @param string $name  Name.
 	 * @param string $link  Confirmation link.
 	 */
-	public static function confirm_application( $email, $name, $link ) {
+	public static function confirm_application( $email, $link ) {
+		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		wp_mail(
 			$email,
 			/* translators: %s: site name */
-			sprintf( __( '[%s] Please confirm your partner application', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: 1: name, 2: link */
-			sprintf( __( "Hello %1\$s,\n\nplease confirm your e-mail address to complete your partner application:\n%2\$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail.", 'wp-affiliate-captain' ), $name, $link )
+			sprintf( __( '[%s] Please confirm your partner application', 'wp-affiliate-captain' ), $site ),
+			/* translators: 1: site name, 2: link */
+			sprintf( __( "Hello,\n\nsomeone (probably you) applied for the partner program of %1\$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2\$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail.", 'wp-affiliate-captain' ), $site, $link )
 		);
 	}
 
@@ -102,14 +123,19 @@ final class Notifications {
 	 * @param string $email E-mail.
 	 */
 	public static function already_registered( $email ) {
-		$portal = (int) Settings::get( 'portal_page_id' );
-		wp_mail(
-			$email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Your partner account', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: %s: portal URL */
-			sprintf( __( "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail.", 'wp-affiliate-captain' ), $portal ? get_permalink( $portal ) : home_url( '/' ) )
-		);
+		$aff      = AffiliateRepository::find_by_email( $email );
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			wp_mail(
+				$email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Your partner account', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: %s: portal URL */
+				sprintf( __( "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail.", 'wp-affiliate-captain' ), self::portal_url( $aff ) )
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
 	}
 
 	/**
@@ -122,15 +148,20 @@ final class Notifications {
 		if ( ! $aff ) {
 			return;
 		}
-		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-		$to   = array_filter( array_unique( array( $aff->email, AffiliateRepository::previous_email( (int) $id ) ) ) );
-		wp_mail(
-			$to,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Your bank details were changed', 'wp-affiliate-captain' ), $site ),
-			/* translators: %s: name */
-			sprintf( __( "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately.", 'wp-affiliate-captain' ), $aff->name )
-		);
+		$site     = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$to       = array_filter( array_unique( array( $aff->email, AffiliateRepository::previous_email( (int) $id ) ) ) );
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			wp_mail(
+				$to,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Your bank details were changed', 'wp-affiliate-captain' ), $site ),
+				/* translators: %s: name */
+				sprintf( __( "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately.", 'wp-affiliate-captain' ), $aff->name )
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
 		wp_mail(
 			self::admin_email(),
 			/* translators: %s: site name */
@@ -170,14 +201,19 @@ final class Notifications {
 		if ( ! $aff ) {
 			return;
 		}
-		wp_mail(
-			$aff->email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Your profile change', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			$approved
-				? __( "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on.", 'wp-affiliate-captain' )
-				: __( "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us.", 'wp-affiliate-captain' )
-		);
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			wp_mail(
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Your profile change', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				$approved
+					? __( "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on.", 'wp-affiliate-captain' )
+					: __( "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us.", 'wp-affiliate-captain' )
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
 	}
 
 	/**
@@ -190,15 +226,72 @@ final class Notifications {
 		if ( ! $aff ) {
 			return;
 		}
-		$portal = (int) Settings::get( 'portal_page_id' );
-		$url    = $portal ? get_permalink( $portal ) : home_url( '/' );
-		wp_mail(
-			$aff->email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Your affiliate application was approved', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: 1: name, 2: portal URL, 3: set-password URL */
-			sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program! Your partner area with links, codes and statistics: %2\$s\n\nNo password yet? Set one here: %3\$s", 'wp-affiliate-captain' ), $aff->name, $url, wp_lostpassword_url( $url ) )
-		);
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			wp_mail(
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Your affiliate application was approved', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: 1: name, 2: access instructions */
+				sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program!\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, self::access_text( $aff ) )
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+	}
+
+	/**
+	 * Welcome mail for a partner the operator created in the admin (with the portal link and,
+	 * for a new account, the link to set a password – no separate WordPress login mail).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	public static function partner_created( $id ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff || 'active' !== $aff->status ) {
+			return;
+		}
+		$site     = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			wp_mail(
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Welcome to our partner program', 'wp-affiliate-captain' ), $site ),
+				/* translators: 1: name, 2: site name, 3: access instructions */
+				sprintf( __( "Hello %1\$s,\n\n%2\$s has set up a partner account for you.\n\n%3\$s", 'wp-affiliate-captain' ), $aff->name, $site, self::access_text( $aff ) )
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+	}
+
+	/**
+	 * How the partner gets into the partner area: portal link, set-password link for a new
+	 * account, a hint on the separate link mail for an existing customer account, and the terms.
+	 *
+	 * @param object $aff Affiliate.
+	 * @return string
+	 */
+	private static function access_text( $aff ) {
+		$url = self::portal_url( $aff );
+		/* translators: %s: portal URL */
+		$lines = array( sprintf( __( 'Your partner area with links, codes and statistics: %s', 'wp-affiliate-captain' ), $url ) );
+		$set   = AffiliateRepository::set_password_url( (int) $aff->id );
+		if ( '' !== $set ) {
+			/* translators: %s: URL */
+			$lines[] = sprintf( __( 'We have created an account for you. Choose your password here: %s', 'wp-affiliate-captain' ), $set );
+		} elseif ( ! (int) $aff->user_id && AffiliateRepository::user_link_pending( (int) $aff->id ) ) {
+			$lines[] = __( 'You already have a customer account with this e-mail address: we have sent you a separate e-mail with a link to connect it to the partner program.', 'wp-affiliate-captain' );
+		} else {
+			/* translators: %s: URL */
+			$lines[] = sprintf( __( 'No password yet? Set one here: %s', 'wp-affiliate-captain' ), wp_lostpassword_url( $url ) );
+		}
+		$terms = Agreements::current( (int) $aff->group_id );
+		if ( $terms['page_id'] && ! Agreements::has_current( (int) $aff->id ) ) {
+			$lines[] = __( 'On your first visit, please read and accept the partner program terms – we need them to pay out your commissions.', 'wp-affiliate-captain' );
+		}
+		return implode( "\n\n", $lines );
 	}
 
 	/**
@@ -214,6 +307,22 @@ final class Notifications {
 		if ( ! $aff ) {
 			return;
 		}
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			self::send_status_changed( $aff, $status, $reason );
+		} finally {
+			Locale::restore( $switched );
+		}
+	}
+
+	/**
+	 * Status mail in the current locale.
+	 *
+	 * @param object $aff    Affiliate.
+	 * @param string $status New status.
+	 * @param string $reason Reason.
+	 */
+	private static function send_status_changed( $aff, $status, $reason ) {
 		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		switch ( $status ) {
 			case 'paused':
@@ -249,12 +358,17 @@ final class Notifications {
 		if ( ! $aff ) {
 			return;
 		}
-		wp_mail(
-			$aff->email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Your affiliate application', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: 1: name, 2: reason */
-			sprintf( __( "Hello %1\$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, $reason )
-		);
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			wp_mail(
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Your affiliate application', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: 1: name, 2: reason */
+				sprintf( __( "Hello %1\$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, $reason )
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
 	}
 }

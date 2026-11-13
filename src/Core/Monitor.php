@@ -25,6 +25,15 @@ final class Monitor {
 		$out['schema'] = Installer::schema_current() && ! $problems
 			? array( 'good', __( 'Database schema is current', 'wp-affiliate-captain' ), '' )
 			: array( 'critical', __( 'Database update incomplete', 'wp-affiliate-captain' ), implode( '; ', (array) $problems ) );
+		$newer = Installer::downgraded_from();
+		if ( $newer ) {
+			$out['schema'] = array(
+				'critical',
+				__( 'The database belongs to a newer version of the plugin', 'wp-affiliate-captain' ),
+				/* translators: 1: stored schema version, 2: schema version of the installed plugin */
+				sprintf( __( 'The database was updated to schema version %1$d, but the installed plugin only knows version %2$d (the plugin was downgraded). Older code may write incomplete records. Please install the newer version again or restore the database backup that belongs to this version.', 'wp-affiliate-captain' ), $newer, WPAC_DB_VERSION ),
+			);
+		}
 
 		$warnings = get_option( 'wpac_schema_warnings' );
 		if ( $warnings ) {
@@ -40,7 +49,7 @@ final class Monitor {
 		$failed = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$jobs} WHERE status = 'failed'" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$out['jobs'] = $failed
 			/* translators: %d: number */
-			? array( 'critical', sprintf( _n( '%d sale or refund could not be booked', '%d sales or refunds could not be booked', $failed, 'wp-affiliate-captain' ), $failed ), __( 'Partner program → Integrations → Retry queue.', 'wp-affiliate-captain' ) )
+			? array( 'critical', sprintf( _n( '%d sale or refund could not be booked', '%d sales or refunds could not be booked', $failed, 'wp-affiliate-captain' ), $failed ), __( 'Affiliate Captain → Integrations → Retry queue.', 'wp-affiliate-captain' ) )
 			: array( 'good', __( 'No failed sales or refunds', 'wp-affiliate-captain' ), '' );
 
 		$balance = get_option( 'wpac_balance_problems' );
@@ -138,21 +147,71 @@ final class Monitor {
 	 * @return array
 	 */
 	public static function debug_information( $info ) {
-		$fields = array(
-			'version'        => array( 'label' => 'Plugin', 'value' => WPAC_VERSION ),
-			'db_version'     => array( 'label' => 'Schema', 'value' => get_option( Installer::DB_OPTION ) . ' / ' . WPAC_DB_VERSION ),
-			'contract'       => array( 'label' => 'Contract', 'value' => WPAC_CONTRACT_VERSION ),
-			'scheduler'      => array( 'label' => 'Scheduler', 'value' => Scheduler::uses_action_scheduler() ? 'Action Scheduler' : 'WP-Cron' ),
-			'object_cache'   => array( 'label' => 'Object cache', 'value' => wp_using_ext_object_cache() ? 'external' : 'none' ),
-			'cookie_mode'    => array( 'label' => 'Cookie mode', 'value' => (string) Settings::get( 'cookie_mode' ) ),
-			'self_billing'   => array( 'label' => 'Self-billing', 'value' => Settings::get( 'self_billing' ) ? 'yes' : 'no' ),
-			'retention'      => array( 'label' => 'Retention (years)', 'value' => (string) \WPAffiliateCaptain\Privacy\Retention::years() . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (hold)' : '' ) ),
-			'maintenance'    => array( 'label' => 'Maintenance mode', 'value' => Settings::get( 'maintenance_mode' ) ? 'on' : 'off' ),
+		$yes_no  = static function ( $on ) {
+			return $on ? __( 'Yes', 'wp-affiliate-captain' ) : __( 'No', 'wp-affiliate-captain' );
+		};
+		$cookies = array(
+			'off'     => __( 'Never set', 'wp-affiliate-captain' ),
+			'consent' => __( 'Only with marketing consent', 'wp-affiliate-captain' ),
+			'always'  => __( 'Always, without consent', 'wp-affiliate-captain' ),
+		);
+		$states  = array(
+			'good'        => __( 'OK', 'wp-affiliate-captain' ),
+			'recommended' => __( 'Recommendation', 'wp-affiliate-captain' ),
+			'critical'    => __( 'Problem', 'wp-affiliate-captain' ),
+		);
+		$mode    = (string) Settings::get( 'cookie_mode' );
+		$years   = \WPAffiliateCaptain\Privacy\Retention::years();
+		$fields  = array(
+			'version'      => array(
+				'label' => __( 'Plugin version', 'wp-affiliate-captain' ),
+				'value' => WPAC_VERSION,
+			),
+			'db_version'   => array(
+				'label' => __( 'Database schema (installed / expected)', 'wp-affiliate-captain' ),
+				'value' => get_option( Installer::DB_OPTION ) . ' / ' . WPAC_DB_VERSION,
+				'debug' => get_option( Installer::DB_OPTION ) . ' / ' . WPAC_DB_VERSION,
+			),
+			'contract'     => array(
+				'label' => __( 'Integration contract version', 'wp-affiliate-captain' ),
+				'value' => WPAC_CONTRACT_VERSION,
+			),
+			'scheduler'    => array(
+				'label' => __( 'Background tasks run with', 'wp-affiliate-captain' ),
+				'value' => Scheduler::uses_action_scheduler() ? 'Action Scheduler (WooCommerce)' : 'WP-Cron',
+			),
+			'object_cache' => array(
+				'label' => __( 'Persistent object cache', 'wp-affiliate-captain' ),
+				'value' => $yes_no( wp_using_ext_object_cache() ),
+				'debug' => wp_using_ext_object_cache() ? 'external' : 'none',
+			),
+			'cookie_mode'  => array(
+				'label' => __( 'Affiliate cookie', 'wp-affiliate-captain' ),
+				'value' => isset( $cookies[ $mode ] ) ? $cookies[ $mode ] : $mode,
+				'debug' => $mode,
+			),
+			'self_billing' => array(
+				'label' => __( 'Credit notes (self-billing)', 'wp-affiliate-captain' ),
+				'value' => $yes_no( Settings::get( 'self_billing' ) ),
+				'debug' => Settings::get( 'self_billing' ) ? 'yes' : 'no',
+			),
+			'retention'    => array(
+				'label' => __( 'Statement retention', 'wp-affiliate-captain' ),
+				/* translators: %d: years */
+				'value' => ( $years > 0 ? sprintf( _n( '%d year', '%d years', $years, 'wp-affiliate-captain' ), $years ) : __( 'forever', 'wp-affiliate-captain' ) ) . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (' . __( 'deletion paused: legal hold', 'wp-affiliate-captain' ) . ')' : '' ),
+				'debug' => (string) $years . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (hold)' : '' ),
+			),
+			'maintenance'  => array(
+				'label' => __( 'Maintenance mode', 'wp-affiliate-captain' ),
+				'value' => $yes_no( Settings::get( 'maintenance_mode' ) ),
+				'debug' => Settings::get( 'maintenance_mode' ) ? 'on' : 'off',
+			),
 		);
 		foreach ( self::checks() as $key => $c ) {
 			$fields[ 'check_' . $key ] = array(
 				'label' => $c[1],
-				'value' => $c[0],
+				'value' => isset( $states[ $c[0] ] ) ? $states[ $c[0] ] : $c[0],
+				'debug' => $c[0], // Copied reports stay comparable across languages.
 			);
 		}
 		$info['wp-affiliate-captain'] = array(

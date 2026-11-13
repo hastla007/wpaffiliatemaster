@@ -804,6 +804,7 @@ check( 'Y24 owner objects', true, true === WPAffiliateCaptain\Payouts\Objections
 check( 'Y24 objection is open for the operator', true, isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) );
 check( 'Y24 resolved objection is closed', array( true, false ), array( WPAffiliateCaptain\Payouts\Objections::resolve( $w2, 'Storniert und neu ausgestellt.' ), isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) ) );
 // Y25 VIES: invalid VAT IDs block reverse charge; VIES outage blocks nothing.
+Settings::update( array( 'vies_check' => 1 ) ); // Off by default (external request), see ZB.
 $GLOBALS['test_http'] = static function ( $url, $args ) { $b = json_decode( $args['body'], true ); return array( 'body' => wp_json_encode( array( 'valid' => 'U22222222' !== $b['vatNumber'] ? true : false, 'requestIdentifier' => 'WAPIAAAA123', 'name' => 'RC GmbH' ) ) ); };
 $vr = WPAffiliateCaptain\Payouts\Vies::check( $wr );
 check( 'Y25 VIES result stored with the consultation number', array( 'invalid', 'WAPIAAAA123' ), array( $vr['status'], $vr['consultation'] ) );
@@ -934,6 +935,495 @@ WPAffiliateCaptain\Core\Cron::daily();
 check( 'Y17 commission.* audit entries are kept as booking records', array( 'commission.adjusted' ), $wpdb->get_col( 'SELECT action FROM ' . t( 'audit' ) . " WHERE created_at = '2024-01-01 00:00:00'" ) );
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 10 ) ) );
 Settings::flush_cache();
+
+echo "ZC review round 4 (agent C: abuse limits, tokens, opt-in, beacon)\n";
+// ZC1 limits per subject (partner, address) do not depend on the client IP.
+$zc_ip = $_SERVER['REMOTE_ADDR'] ?? null;
+$_SERVER['REMOTE_ADDR'] = '198.51.100.10';
+$zc_hits = array( WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 42, 2, 60 ), WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 42, 2, 60 ) );
+$_SERVER['REMOTE_ADDR'] = '198.51.100.11';
+$zc_hits[] = WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 42, 2, 60 );
+$zc_hits[] = WPAffiliateCaptain\Tracking\RateLimiter::allow_for( 'zc-subj', 43, 2, 60 );
+check( 'ZC1 per-subject limit holds across IPs, other subjects unaffected', array( true, true, false, true ), $zc_hits );
+check( 'ZC1 dedup: first hit true, second false', array( true, false ), array( WPAffiliateCaptain\Tracking\RateLimiter::first( 'zc-dedup', 'x', 60 ), WPAffiliateCaptain\Tracking\RateLimiter::first( 'zc-dedup', 'x', 60 ) ) );
+check( 'ZC1 dedup counters live in the rate-limit table, not in wp_options', 0, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '%wpac\\_vd\\_%'" ) );
+// ZC2 W11/O1: opt-in mails limited per recipient address (case-insensitive), fields capped.
+check( 'ZC2 two opt-in mails per address and day, then none', array( true, true, false, true ), array( WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'zc-target@example.de' ), WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'ZC-Target@example.de' ), WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'zc-target@example.de ' ), WPAffiliateCaptain\Affiliates\Registration::mail_allowed( 'zc-other@example.de' ) ) );
+check( 'ZC2 application fields are capped', array( 100, 2000 ), array( mb_strlen( WPAffiliateCaptain\Affiliates\Registration::cap( str_repeat( 'ä', 500 ), WPAffiliateCaptain\Affiliates\Registration::MAX_NAME ) ), mb_strlen( WPAffiliateCaptain\Affiliates\Registration::cap( str_repeat( 'x', 9000 ), WPAffiliateCaptain\Affiliates\Registration::MAX_NOTE ) ) ) );
+check( 'ZC2 opt-in mail takes no applicant text (address + link only)', 2, ( new ReflectionMethod( 'WPAffiliateCaptain\Affiliates\Notifications', 'confirm_application' ) )->getNumberOfParameters() );
+$GLOBALS['test_mails'] = array();
+WPAffiliateCaptain\Affiliates\Notifications::confirm_application( 'zc-target@example.de', 'https://example.de/?wpac_confirm=abc' );
+check( 'ZC2 opt-in mail goes to the address', 'zc-target@example.de', $GLOBALS['test_mails'][0][0] ?? '' );
+// ZC3 W33: confirmation token states (GET shows a button; a second click shows success).
+check( 'ZC3 unknown token is expired', 'expired', WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-unknown' ) );
+set_transient( 'wpac_app_' . hash( 'sha256', 'zc-token' ), array( 'email' => 'zc@example.de', 'user_id' => 0 ), 3600 );
+check( 'ZC3 stored application is pending (viewing does not consume it)', array( 'pending', 'pending' ), array( WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-token' ), WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-token' ) ) );
+delete_transient( 'wpac_app_' . hash( 'sha256', 'zc-token' ) );
+set_transient( 'wpac_appdone_' . hash( 'sha256', 'zc-token' ), 1, 3600 );
+check( 'ZC3 confirmed token shows success again', 'done', WPAffiliateCaptain\Affiliates\Registration::token_state( 'zc-token' ) );
+// ZC4 O3: e-mail change token stored only as a hash; tokens stored by older versions still work.
+$zc_hash = WPAffiliateCaptain\Portal\Portal::email_token_hash( 'AbcDef123' );
+check( 'ZC4 hash is not the token', false, false !== strpos( $zc_hash, 'abcdef123' ) );
+check( 'ZC4 hashed token matches (case-insensitive like the link), wrong token not', array( true, true, false, false ), array( WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token_hash' => $zc_hash ), 'abcdef123' ), WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token' => 'abcdef123' ), 'abcdef123' ), WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token_hash' => $zc_hash ), 'abcdef124' ), WPAffiliateCaptain\Portal\Portal::email_token_matches( array( 'token_hash' => $zc_hash ), '' ) ) );
+// ZC5 O3: monitoring token hashed; plaintext of older versions is hashed on first read.
+$zc_settings = get_option( 'wpac_settings' );
+update_option( 'wpac_settings', array_merge( $zc_settings, array( 'monitor_token' => 'PlainToken12345678901' ) ) );
+Settings::flush_cache();
+check( 'ZC5 legacy plaintext token hashed on read and still accepted', array( true, true, false ), array( 0 === strpos( (string) Settings::get( 'monitor_token' ), Settings::MONITOR_HASH ), Settings::monitor_token_matches( 'PlainToken12345678901' ), Settings::monitor_token_matches( 'PlainToken12345678902' ) ) );
+check( 'ZC5 hash persisted', true, 0 === strpos( (string) get_option( 'wpac_settings' )['monitor_token'], Settings::MONITOR_HASH ) );
+$zc_new = Settings::sanitize( array( 'monitor_token' => 'NewToken1234567890123' ) );
+check( 'ZC5 new token stored as hash', array( true, false ), array( $zc_new['monitor_token'] === Settings::monitor_token_hash( 'NewToken1234567890123' ), false !== strpos( $zc_new['monitor_token'], 'NewToken' ) ) );
+check( 'ZC5 empty field keeps the token, "remove" clears it', array( Settings::get( 'monitor_token' ), '' ), array( Settings::sanitize( array( 'monitor_token' => '' ) )['monitor_token'], Settings::sanitize( array( 'monitor_token' => '', 'monitor_token_clear' => '1' ) )['monitor_token'] ) );
+update_option( 'wpac_settings', $zc_settings );
+Settings::flush_cache();
+// ZC6 O10: unsigned (legacy/forged) cookies are never accepted.
+update_option( 'wpac_cookie_signed_since', time() );
+check( 'ZC6 unsigned cookie rejected even with the old transition option', null, WPAffiliateCaptain\Tracking\Tracker::parse_cookie( 'ABCD-EFGH||0|' . time() ) );
+delete_option( 'wpac_cookie_signed_since' );
+// ZC7 O14: beacon script is the same on every request; per-request values only in the data block.
+$zc_cfg = array( 'url' => 'https://example.de/wp-json/wpac/v1/touch', 'param' => 'partner', 'ref' => 0 );
+check( 'ZC7 static beacon script without "gen"', array( true, false ), array( WPAffiliateCaptain\Tracking\Tracker::beacon_script( $zc_cfg ) === WPAffiliateCaptain\Tracking\Tracker::beacon_script( $zc_cfg ), false !== strpos( WPAffiliateCaptain\Tracking\Tracker::beacon_script( $zc_cfg ), '"gen"' ) ) );
+check( 'ZC7 time only on pages that captured the referral', array( array( 'content' => 5 ), array( 'content' => 5, 'cap' => 1, 'gen' => 1000 ) ), array( WPAffiliateCaptain\Tracking\Tracker::beacon_data( 5, false, 1000 ), WPAffiliateCaptain\Tracking\Tracker::beacon_data( 5, true, 1000 ) ) );
+// ZC8 W10: block checkout code check is rate limited (same limit as the classic checkout).
+$_SERVER['REMOTE_ADDR'] = '198.51.100.20';
+$zc_last = true;
+for ( $zc_i = 0; $zc_i < 22; $zc_i++ ) {
+	$zc_last = WPAffiliateCaptain\Integrations\WooCommerce\CheckoutField::blocks_validate( 'ZCNOPE' . $zc_i );
+}
+check( 'ZC8 block checkout refuses after 20 code checks per minute', 'Too many attempts. Please wait a minute and try again.', $zc_last instanceof WP_Error ? $zc_last->get_error_message() : 'no error' );
+check( 'ZC8 empty block field is valid', true, WPAffiliateCaptain\Integrations\WooCommerce\CheckoutField::blocks_validate( '' ) );
+// ZC9 W13: without WPML/Polylang the page itself is used; with WPML its translation.
+check( 'ZC9 page id unchanged without a multilingual plugin', 12, WPAffiliateCaptain\Core\Locale::page_id( 12, 'de_DE' ) );
+check( 'ZC9 partner locale falls back to the site language', 'en_US', WPAffiliateCaptain\Core\Locale::for_affiliate( (object) array( 'user_id' => 0 ) ) );
+if ( null === $zc_ip ) { unset( $_SERVER['REMOTE_ADDR'] ); } else { $_SERVER['REMOTE_ADDR'] = $zc_ip; }
+// ---------------------------------------------------------------------------------------------
+// ZA: review round 4 (reassignment, restriction, renewals, payouts, dunning, payout methods).
+// ---------------------------------------------------------------------------------------------
+echo "ZA review round 4 fixes (ledger, renewals, payouts, payout methods)\n";
+function za_set( array $values ) {
+	update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), $values ) );
+	Settings::flush_cache();
+}
+$za1 = AffiliateRepository::create( array( 'name' => 'ZA Eins', 'email' => 'za1@example.de', 'status' => 'active' ) );
+$za2 = AffiliateRepository::create( array( 'name' => 'ZA Zwei', 'email' => 'za2@example.de', 'status' => 'active' ) );
+$za3 = AffiliateRepository::create( array( 'name' => 'ZA Drei', 'email' => 'za3@example.de', 'status' => 'active' ) );
+
+// W2: refunds after a reassignment belong to the new partner.
+$zs    = sale( 'za-1', WPAffiliateCaptain\Codes\CodeRepository::main_code( $za1 ), array( 10000 ), 'kaeufer-za@example.de' );
+$zsale = WPAffiliateCaptain\Sales\ContractApi::normalize_sale( array( 'source' => 'test', 'order_id' => 'za-1', 'currency' => 'EUR', 'items' => array( array( 'item_id' => '1', 'product_id' => 10, 'name' => 'Kurs 1', 'net_minor' => 10000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'kaeufer-za@example.de' ) ) );
+$zr    = Ledger::reassign( $zsale, $za2, 'Kunde hat sich geirrt' );
+check( 'ZA01 reassignment books the order for the new partner', array( 'created', 0, true ), array( is_array( $zr ) ? $zr['status'] : 'error', sum_for( $za1 ), sum_for( $za2 ) > 0 ) );
+$za2_before = sum_for( $za2 );
+refund( 'za-1', 'za-r1', array( array( 'item_id' => '1', 'net_minor' => 5000 ) ) );
+check( 'ZA02 a later refund is booked for the new partner only', array( 0, intdiv( $za2_before, 2 ) ), array( sum_for( $za1 ), sum_for( $za2 ) ) );
+$za2_after = sum_for( $za2 );
+// W2: the new booking fails → nothing changes for the current partner.
+add_filter( 'wpac_commission_base', static function () { throw new RuntimeException( 'boom' ); } );
+$zr2 = Ledger::reassign( $zsale, $za3, 'Test Fehler' );
+remove_all_filters( 'wpac_commission_base' );
+check( 'ZA03 failed reassignment is an error and rolls the reversal back', array( true, $za2_after, 0, $za2 ), array( is_wp_error( $zr2 ), sum_for( $za2 ), sum_for( $za3 ), (int) Ledger::attribution_for( 'test', 'za-1' )->affiliate_id ) );
+// W2: self-referral of the new partner is refused before anything is reversed.
+$zr3 = Ledger::reassign( array_merge( $zsale, array( 'customer' => array( 'user_id' => 0, 'email' => 'za3@example.de' ) ) ), $za3, 'Selbst' );
+check( 'ZA04 reassignment to the buyer (self-referral) is refused, nothing reversed', array( true, $za2_after ), array( is_wp_error( $zr3 ), sum_for( $za2 ) ) );
+
+// W5: restricted partners earn nothing new, also via affiliate_id (integrations, renewals).
+WPAffiliateCaptain\Privacy\Restriction::add( $za3, WPAffiliateCaptain\Privacy\Restriction::REQUEST, 'Test' );
+$zw5 = wpac_record_sale( array( 'source' => 'test', 'order_id' => 'za-5', 'currency' => 'EUR', 'affiliate_id' => $za3, 'items' => array( array( 'item_id' => '1', 'net_minor' => 10000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'k5@example.de' ) ) );
+check( 'ZA05 restricted partner gets no commission via affiliate_id', 'unattributed', is_array( $zw5 ) ? $zw5['status'] : 'error' );
+check( 'ZA06 reassignment to a restricted partner refused', true, is_wp_error( Ledger::reassign( $zsale, $za3, 'x' ) ) );
+WPAffiliateCaptain\Privacy\Restriction::remove( $za3 );
+
+// W29: readable kind and method labels.
+check( 'ZA07 kind labels for every kind', array( 'Reinstatement', 'Repayment by the partner', 'Partner code' ), array( Ledger::kind_label( 'reinstatement' ), Ledger::kind_label( 'repayment' ), Ledger::method_label( 'code' ) ) );
+
+// W3/W4: renewals – copied partner code/touch are ignored, the subscription's partner counts, also on retry.
+class ZA_Order {
+	public $id;
+	public $meta;
+	public $paid   = true;
+	public $parent = 0;
+	public function __construct( $id, $meta = array() ) { $this->id = $id; $this->meta = $meta; }
+	public function get_id() { return $this->id; }
+	public function get_meta( $k ) { return isset( $this->meta[ $k ] ) ? $this->meta[ $k ] : ''; }
+	public function update_meta_data( $k, $v ) { $this->meta[ $k ] = $v; }
+	public function save_meta_data() {}
+	public function add_order_note( $n ) { $GLOBALS['za_notes'][] = $n; }
+	public function is_paid() { return $this->paid; }
+	public function get_currency() { return 'EUR'; }
+	public function get_refunds() { return array(); }
+	public function get_items( $t = 'line_item' ) { return 'line_item' === $t ? array( 1 => new ZA_Item() ) : array(); }
+	public function get_date_paid() { return null; }
+	public function get_date_created() { return null; }
+	public function get_coupon_codes() { return array(); }
+	public function get_customer_id() { return 0; }
+	public function get_billing_email() { return 'abo@example.de'; }
+	public function get_parent_id() { return $this->parent; }
+}
+class ZA_Item {
+	public function get_product() { return null; }
+	public function get_variation_id() { return 0; }
+	public function get_product_id() { return 0; }
+	public function get_name() { return 'Abo'; }
+	public function get_quantity() { return 1; }
+	public function get_total() { return '50.00'; }
+}
+if ( ! function_exists( 'wc_get_order' ) ) {
+	function wc_get_order( $id ) { return isset( $GLOBALS['za_orders'][ (int) $id ] ) ? $GLOBALS['za_orders'][ (int) $id ] : false; }
+}
+wpac_record_sale( array( 'source' => 'woocommerce', 'order_id' => '7001', 'currency' => 'EUR', 'partner_code' => WPAffiliateCaptain\Codes\CodeRepository::main_code( $za1 ), 'items' => array( array( 'item_id' => '1', 'net_minor' => 5000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'abo@example.de' ) ) );
+$zsub         = new ZA_Order( 7002 );
+$zsub->parent = 7001;
+$zcode2       = WPAffiliateCaptain\Codes\CodeRepository::main_code( $za2 );
+$zrenewal     = new ZA_Order( 7003, array( '_subscription_renewal' => 7002, '_wpac_partner_code' => $zcode2, '_wpac_touch' => array( 'code' => $zcode2, 'method' => 'link' ), '_wpac_resolved' => 'none' ) );
+$GLOBALS['za_orders'] = array( 7002 => $zsub, 7003 => $zrenewal );
+$zp = WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::payload( $zrenewal );
+check( 'ZA08 renewal payload ignores the copied code/touch and uses the subscription partner', array( '', null, $za1, 'renewal' ), array( $zp['partner_code'], $zp['touch'], $zp['affiliate_id'], isset( $zp['attribution_method'] ) ? $zp['attribution_method'] : '' ) );
+WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::run_job( false, 'woo_order', array( 'order_id' => 7003 ) );
+$za_attr = Ledger::attribution_for( 'woocommerce', '7003' );
+check( 'ZA09 retried renewal job keeps the subscription partner', array( $za1, 'renewal' ), array( $za_attr ? (int) $za_attr->affiliate_id : 0, $za_attr ? $za_attr->method : '' ) );
+$zcopied = WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::exclude_subscription_meta( array( '_wpac_partner_code' => 'X', '_wpac_touch' => array(), '_wc_other/wp-affiliate-captain/partner-code' => 'X', '_billing_email' => 'a@b.de' ) );
+$zrows   = WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::exclude_subscription_meta( array( array( 'meta_key' => '_wpac_resolved', 'meta_value' => 'none' ), array( 'meta_key' => '_order_key', 'meta_value' => 'k' ) ) );
+check( 'ZA10 subscription copies leave out the plugin meta (both filter shapes)', array( array( '_billing_email' ), array( array( 'meta_key' => '_order_key', 'meta_value' => 'k' ) ) ), array( array_keys( $zcopied ), $zrows ) );
+$zrenewal2 = new ZA_Order( 7004, array( '_subscription_renewal' => 7002, '_wpac_manual_affiliate' => $za2 ) );
+$zrenewal3 = new ZA_Order( 7005, array( '_subscription_renewal' => 7002, '_wpac_manual_affiliate' => $za2, '_wpac_manual_own' => 7005 ) );
+check( 'ZA11 manual assignment copied to a renewal does not count, one made on the renewal does', array( 0, $za2 ), array( WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::manual_affiliate( $zrenewal2 ), WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::manual_affiliate( $zrenewal3 ) ) );
+// O9: the reinstatement retry job is handled (idempotent, nothing to do here).
+$GLOBALS['za_orders'][7001] = new ZA_Order( 7001 );
+check( 'ZA12 reinstatement retry job is handled', true, WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::run_job( false, 'woo_reinstate', array( 'order_id' => 7001 ) ) );
+
+// W8: rebuild never leaves a cancellation behind when the payout cannot be created again.
+$zb = AffiliateRepository::create( array( 'name' => 'ZA Rebuild', 'email' => 'zarebuild@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $zb, array( 'tax_status' => 'private', 'legal_name' => 'ZA Rebuild', 'address' => "Weg 2\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'ZA Rebuild', 'iban' => 'DE89370400440532013000' ) );
+$wpdb->query( 'UPDATE ' . t( 'payout_profiles' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE affiliate_id = " . (int) $zb );
+$zbs = sale( 'za-8', WPAffiliateCaptain\Codes\CodeRepository::main_code( $zb ), array( 1000000 ) );
+Ledger::transition( (int) $zbs['commission_ids'][0], 'approved' );
+$zbp = PayoutService::create_for_affiliate( $zb, gmdate( 'Y-m-d' ), 'EUR' );
+za_set( array( 'maintenance_mode' => 1 ) );
+$zbr = PayoutService::rebuild( $zbp );
+za_set( array( 'maintenance_mode' => 0 ) );
+check( 'ZA13 blocked rebuild is refused before cancelling', array( true, 'pending', '' ), array( is_wp_error( $zbr ), PayoutService::find( $zbp )->status, (string) PayoutService::find( $zbp )->storno_number ) );
+refund( 'za-8', 'za-8r', array(), 'refund' );
+foreach ( $wpdb->get_col( "SELECT id FROM {$ct} WHERE parent_id = " . (int) $zbs['commission_ids'][0] ) as $zchild ) {
+	Ledger::transition( (int) $zchild, 'approved' );
+}
+$zstorno_before = (int) $wpdb->get_var( 'SELECT COALESCE(MAX(value),0) FROM ' . t( 'sequences' ) . " WHERE name = 'storno'" );
+$zbr2           = PayoutService::rebuild( $zbp );
+check( 'ZA14 rebuild with nothing payable any more rolls back (no cancellation, no number used)', array( true, 'pending', $zstorno_before ), array( is_wp_error( $zbr2 ), PayoutService::find( $zbp )->status, (int) $wpdb->get_var( 'SELECT COALESCE(MAX(value),0) FROM ' . t( 'sequences' ) . " WHERE name = 'storno'" ) ) );
+
+// W9: failure entries of cancelled payouts are dropped.
+PayoutService::cancel( $zbp, 'Test' );
+update_option( WPAffiliateCaptain\Payouts\Statement::RETRY_OPTION, array( $zbp => array( 'n' => 3, 'next' => time() + 3600 ) ) );
+check( 'ZA15 statement failures of cancelled payouts no longer alarm', array( array(), array() ), array( WPAffiliateCaptain\Payouts\Statement::waiting(), get_option( WPAffiliateCaptain\Payouts\Statement::RETRY_OPTION ) ) );
+
+// O7: annual overview years, including years with only a cancellation.
+$wpdb->update( t( 'payouts' ), array( 'created_at' => '2023-12-30 10:00:00', 'statement_file' => 'za.pdf', 'storno_number' => 'ST-2024-000099', 'storno_at' => '2024-01-02 10:00:00' ), array( 'id' => $zbp ) );
+check( 'ZA16 annual overview years include the cancellation year', array( 2024, 2023 ), WPAffiliateCaptain\Payouts\Statement::annual_years( $zb ) );
+
+// W6: statements follow the same retention as the booking records (DE: 8 years, not 10).
+za_set( array( 'operator_country' => 'DE', 'statement_retention_years' => 8 ) );
+$zold = (int) gmdate( 'Y' ) - 10;
+$wpdb->update( t( 'payouts' ), array( 'created_at' => $zold . '-06-01 10:00:00', 'storno_at' => $zold . '-07-01 10:00:00', 'statement_file' => '', 'storno_file' => '' ), array( 'id' => $zbp ) );
+WPAffiliateCaptain\Payouts\Statement::purge_expired();
+check( 'ZA17 statement retention uses Retention::cutoff() (8 years in DE)', true, null !== PayoutService::find( $zbp )->statement_deleted_at );
+za_set( array( 'statement_retention_years' => 10 ) );
+
+// W30 / O10: no payment request without the company account or to erased/restricted partners.
+$zd = AffiliateRepository::create( array( 'name' => 'ZA Ende', 'email' => 'zaende@example.de', 'status' => 'active' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $zd, 'source' => 'test', 'source_order_id' => 'zd1', 'kind' => 'refund', 'currency' => 'EUR', 'amount_minor' => -1500, 'status' => 'approved', 'idempotency_key' => 'zd1', 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+WPAffiliateCaptain\Commissions\Balance::post( $zd, 'EUR', 'approved', -1500, (int) $wpdb->insert_id, 0, 'test' );
+AffiliateRepository::set_status( $zd, 'terminated', 'Ende' );
+$ziban = Settings::get( 'debtor_iban' );
+za_set( array( 'debtor_iban' => '' ) );
+$zdr = WPAffiliateCaptain\Commissions\Dunning::remind( $zd, 'EUR' );
+za_set( array( 'debtor_iban' => $ziban ) );
+check( 'ZA18 payment request without company IBAN refused', array( true, 'wpac_dunning_blocked', array() ), array( is_wp_error( $zdr ), is_wp_error( $zdr ) ? $zdr->get_error_code() : '', WPAffiliateCaptain\Commissions\Dunning::history( $zd, 'EUR' ) ) );
+WPAffiliateCaptain\Privacy\Restriction::add( $zd, WPAffiliateCaptain\Privacy\Restriction::ERASURE );
+$zlisted = (bool) array_filter( WPAffiliateCaptain\Commissions\Dunning::candidates(), static function ( $c ) use ( $zd ) { return (int) $c['affiliate']->id === (int) $zd; } );
+check( 'ZA19 erased/restricted partners are neither listed nor reminded', array( false, true ), array( $zlisted, is_wp_error( WPAffiliateCaptain\Commissions\Dunning::remind( $zd, 'EUR' ) ) ) );
+WPAffiliateCaptain\Privacy\Restriction::remove( $zd );
+
+// W37: second payout method "manual" (e.g. PayPal).
+$zm    = AffiliateRepository::create( array( 'name' => 'ZA PayPal', 'email' => 'zapaypal@example.de', 'status' => 'active' ) );
+$zbase = array( 'tax_status' => 'private', 'legal_name' => 'ZA PayPal', 'address' => "Weg 3\n24103 Kiel", 'country' => 'DE' );
+$zerr  = ProfileRepository::save( $zm, $zbase + array( 'payout_method' => 'manual' ) );
+check( 'ZA20 manual method needs payment details', 'wpac_payment_details', is_wp_error( $zerr ) ? $zerr->get_error_code() : '' );
+ProfileRepository::save( $zm, $zbase + array( 'payout_method' => 'manual', 'payment_details' => 'PayPal: zapaypal@example.de' ) );
+$zmp = ProfileRepository::get( $zm );
+check( 'ZA21 manual profile: complete without IBAN, details encrypted, no IBAN', array( 'manual', true, 'PayPal: zapaypal@example.de', null, false ), array( ProfileRepository::method( $zmp ), ProfileRepository::is_complete( $zmp ), ProfileRepository::payment_details( $zmp ), ProfileRepository::iban( $zmp ), false !== strpos( (string) $zmp->iban_encrypted, 'PayPal' ) ) );
+ProfileRepository::save( $zm, $zbase );
+check( 'ZA22 saving without a method keeps the method and details', array( 'manual', 'PayPal: zapaypal@example.de' ), array( ProfileRepository::method( ProfileRepository::get( $zm ) ), ProfileRepository::payment_details( ProfileRepository::get( $zm ) ) ) );
+$wpdb->query( 'UPDATE ' . t( 'payout_profiles' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE affiliate_id = " . (int) $zm );
+$zms = sale( 'za-37', WPAffiliateCaptain\Codes\CodeRepository::main_code( $zm ), array( 100000 ) );
+Ledger::transition( (int) $zms['commission_ids'][0], 'approved' );
+$zmpay = PayoutService::create_for_affiliate( $zm, gmdate( 'Y-m-d' ), 'EUR' );
+$zsnap = json_decode( (string) PayoutService::find( $zmpay )->profile_snapshot, true );
+check( 'ZA23 payout and credit note for the manual method (no details in the snapshot)', array( true, 'manual', false ), array( $zmpay > 0, $zsnap['payout_method'], false !== strpos( (string) PayoutService::find( $zmpay )->profile_snapshot, 'zapaypal@' ) ) );
+$zsepa = PayoutService::sepa_export( array( $zmpay ) );
+check( 'ZA24 manual payouts are left out of the SEPA file', array( true, 'pending' ), array( is_wp_error( $zsepa ), PayoutService::find( $zmpay )->status ) );
+$ztl = PayoutService::transfer_csv( array( $zmpay ) );
+check( 'ZA25 transfer list carries the payment details', array( '', 'manual', 'PayPal: zapaypal@example.de' ), is_array( $ztl ) ? array( $ztl[1][0][2], $ztl[1][0][7], $ztl[1][0][8] ) : array() );
+check( 'ZA26 manual payout can be marked as paid', array( true, 'paid' ), array( true === PayoutService::mark_paid( $zmpay ), PayoutService::find( $zmpay )->status ) );
+$zerr = ProfileRepository::save( $zm, $zbase + array( 'account_holder' => 'ZA', 'payout_method' => 'sepa' ) );
+check( 'ZA27 switching back to SEPA needs an IBAN', 'wpac_iban_required', is_wp_error( $zerr ) ? $zerr->get_error_code() : '' );
+ProfileRepository::save( $zm, $zbase + array( 'account_holder' => 'ZA', 'payout_method' => 'sepa', 'iban' => 'DE89370400440532013000' ) );
+check( 'ZA28 back to SEPA with IBAN', array( 'sepa', 'DE89370400440532013000', null ), array( ProfileRepository::method( ProfileRepository::get( $zm ) ), ProfileRepository::iban( ProfileRepository::get( $zm ) ), ProfileRepository::payment_details( ProfileRepository::get( $zm ) ) ) );
+check( 'ZA accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+/* ZB: scheduler, cron, migrations, runtime state, VIES switch, option lists (review round 4, agent B) */
+if ( ! function_exists( 'get_role' ) ) {
+	function get_role( $r ) { return null; }
+}
+if ( ! function_exists( 'wp_schedule_event' ) ) {
+	function wp_schedule_event( $ts, $rec, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
+}
+// ZB-W17 runtime state lives in its own options; the cron never writes the settings array back.
+Settings::update( array( 'tier_month_closed' => '2020-01' ) );
+check( 'ZB-W17 runtime state is stored in its own option', array( '2020-01', false ), array( get_option( 'wpac_tier_month_closed' ), array_key_exists( 'tier_month_closed', (array) get_option( 'wpac_settings' ) ) ) );
+check( 'ZB-W17 Settings::get still reads the runtime state', '2020-01', Settings::get( 'tier_month_closed' ) );
+delete_option( 'wpac_tier_month_first' );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'tier_month_first' => '2019-05' ) ) );
+Settings::flush_cache();
+check( 'ZB-W17 value of an older version is still read from the settings', '2019-05', Settings::get( 'tier_month_first' ) );
+update_option( 'wpac_db_version', 8 );
+WPAffiliateCaptain\Core\Installer::install_schema();
+check( 'ZB-W17 v9 migration moves the runtime state out of the settings', array( '2019-05', false, 9 ), array( get_option( 'wpac_tier_month_first' ), array_key_exists( 'tier_month_first', (array) get_option( 'wpac_settings' ) ), (int) get_option( 'wpac_db_version' ) ) );
+update_option( 'wpac_tier_month_closed', gmdate( 'Y-m', strtotime( gmdate( 'Y-m-01' ) . ' -3 month' ) ) );
+$zb_settings = get_option( 'wpac_settings' );
+WPAffiliateCaptain\Commissions\TierService::close_due_months();
+check( 'ZB-W17 closing months leaves the settings array untouched', $zb_settings, get_option( 'wpac_settings' ) );
+// ZB-O13 recalculation of closed months has a time budget; the rest comes first next time.
+WPAffiliateCaptain\Commissions\TierService::recalculate_closed_months( 0.000001 );
+$zb_pending = get_option( WPAffiliateCaptain\Commissions\TierService::RECALC_PENDING );
+check( 'ZB-O13 months beyond the time budget are remembered', true, is_array( $zb_pending ) && count( $zb_pending ) >= 2 );
+WPAffiliateCaptain\Commissions\TierService::recalculate_closed_months( 0 );
+check( 'ZB-O13 remembered months are done in the next run', false, get_option( WPAffiliateCaptain\Commissions\TierService::RECALC_PENDING ) );
+check( 'ZB-O13 index on commissions.updated_at', true, (bool) $wpdb->get_var( 'SHOW INDEX FROM ' . t( 'commissions' ) . " WHERE Key_name = 'updated_at'" ) );
+
+// ZB-K4 VIES check is a setting: off → nothing is sent, nothing is blocked.
+$zb_http = 0;
+$GLOBALS['test_http'] = static function () use ( &$zb_http ) { ++$zb_http; return array( 'body' => wp_json_encode( array( 'valid' => false, 'requestIdentifier' => 'X' ) ) ); };
+Settings::update( array( 'vies_check' => 0 ) );
+$zb_rc = AffiliateRepository::create( array( 'name' => 'ZB VIES', 'email' => 'zb-vies@example.at', 'status' => 'active' ) );
+ProfileRepository::save( $zb_rc, array( 'tax_status' => 'business', 'legal_name' => 'ZB', 'address' => "Ring 3\n1010 Wien", 'country' => 'AT', 'vat_id' => 'ATU33333333', 'account_holder' => 'ZB', 'iban' => 'AT611904300234573201' ) );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Payouts\Vies::schedule( $zb_rc );
+check( 'ZB-K4 VIES off: check sends nothing, schedules nothing', array( null, 0, array(), 0 ), array( WPAffiliateCaptain\Payouts\Vies::check( $zb_rc ), $zb_http, $GLOBALS['test_scheduled'], WPAffiliateCaptain\Payouts\Vies::recheck_stale() ) );
+update_option( 'wpac_vies_' . $zb_rc, array( 'vat_id' => 'ATU33333333', 'status' => 'invalid', 'name' => '', 'consultation' => '', 'checked_at' => Db::now() ) );
+check( 'ZB-K4 VIES off: an old "invalid" result does not block', false, WPAffiliateCaptain\Payouts\Vies::is_invalid( $zb_rc, 'ATU33333333' ) );
+check( 'ZB-K4 VIES check is off for new installs', 0, Settings::defaults()['vies_check'] );
+$zb_s = get_option( 'wpac_settings' );
+unset( $zb_s['vies_check'] );
+update_option( 'wpac_settings', $zb_s );
+$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, 'a:0:{}', 'off')", 'wpac_vies_' . $zb_rc ) );
+update_option( 'wpac_db_version', 8 );
+WPAffiliateCaptain\Core\Installer::install_schema();
+check( 'ZB-K4 upgrade with existing VIES results keeps the check on', 1, (int) Settings::get( 'vies_check' ) );
+// ZB-W14 VIES re-checks run in the background, "unavailable" with growing pauses.
+$zb_un = array( 'vat_id' => 'ATU33333333', 'status' => 'unavailable', 'name' => '', 'consultation' => '', 'checked_at' => Db::now( time() - 2 * DAY_IN_SECONDS ), 'tries' => 3 );
+update_option( 'wpac_vies_' . $zb_rc, $zb_un );
+check( 'ZB-W14 third outage: next try after 4 days, not daily', time() + 2 * DAY_IN_SECONDS, WPAffiliateCaptain\Payouts\Vies::next_check( $zb_un ) );
+$zb_un['tries'] = 1;
+update_option( 'wpac_vies_' . $zb_rc, $zb_un );
+$GLOBALS['test_scheduled'] = array();
+$zb_http                   = 0;
+$zb_n                      = WPAffiliateCaptain\Payouts\Vies::recheck_stale();
+check( 'ZB-W14 due re-checks are scheduled, not run inline', array( true, 0, true ), array( $zb_n >= 1, $zb_http, in_array( WPAffiliateCaptain\Payouts\Vies::HOOK, $GLOBALS['test_scheduled'], true ) ) );
+WPAffiliateCaptain\Payouts\Vies::check( $zb_rc );
+$GLOBALS['test_http'] = static function () { return array( 'body' => wp_json_encode( array( 'errorWrappers' => array( array( 'error' => 'MS_UNAVAILABLE' ) ) ) ) ); };
+WPAffiliateCaptain\Payouts\Vies::check( $zb_rc );
+WPAffiliateCaptain\Payouts\Vies::check( $zb_rc );
+check( 'ZB-W14 consecutive outages are counted', array( 'unavailable', 2 ), array( WPAffiliateCaptain\Payouts\Vies::result( $zb_rc )['status'], WPAffiliateCaptain\Payouts\Vies::result( $zb_rc )['tries'] ) );
+unset( $GLOBALS['test_http'] );
+// ZB-W14 daily run: privacy first, the rest continues separately when the budget is used up.
+add_filter( 'wpac_daily_budget', static function () { return 0.000001; } );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Core\Cron::daily();
+$zb_rest = get_option( WPAffiliateCaptain\Core\Cron::DAILY_REST_OPTION );
+check( 'ZB-W14 daily run starts with the privacy clean-up and hands the rest on', array( 'visits', false, true ), array( array_keys( WPAffiliateCaptain\Core\Cron::daily_steps() )[0], in_array( 'visits', (array) $zb_rest, true ), in_array( WPAffiliateCaptain\Core\Cron::DAILY_REST, $GLOBALS['test_scheduled'], true ) ) );
+remove_all_filters( 'wpac_daily_budget' );
+WPAffiliateCaptain\Core\Cron::daily_rest();
+check( 'ZB-W14 the rest of the daily run is done', false, get_option( WPAffiliateCaptain\Core\Cron::DAILY_REST_OPTION ) );
+
+// ZB-W20 personal options go with the erasure; expired ones are purged daily.
+$zb_er = AffiliateRepository::create( array( 'name' => 'ZB Erase', 'email' => 'zb-erase@example.de', 'status' => 'active' ) );
+foreach ( array( 'wpac_vies_' . $zb_er, 'wpac_public_change_' . $zb_er, 'wpac_dunning_' . $zb_er . '_EUR' ) as $zb_o ) {
+	update_option( $zb_o, array( 'x' => 1 ) );
+	$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, 'x', 'off')", $zb_o ) );
+}
+WPAffiliateCaptain\Privacy\Privacy::erase( 'zb-erase@example.de' );
+check( 'ZB-W20 erasure removes VIES result, public change request and payment requests', array( false, false, false ), array( get_option( 'wpac_vies_' . $zb_er ), get_option( 'wpac_public_change_' . $zb_er ), get_option( 'wpac_dunning_' . $zb_er . '_EUR' ) ) );
+foreach ( array( 'wpac_prev_email_9101' => array( 'email' => 'old@example.de', 'until' => time() - 10 ), 'wpac_prev_email_9102' => array( 'email' => 'new@example.de', 'until' => time() + 999 ), 'wpac_user_link_9103' => array( 'hash' => 'h', 'expires' => time() - 10 ) ) as $zb_o => $zb_v ) {
+	update_option( $zb_o, $zb_v );
+	$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, 'x', 'off')", $zb_o ) );
+}
+check( 'ZB-W20 expired previous addresses and link tokens are purged', array( 2, false, true, false ), array( WPAffiliateCaptain\Privacy\Privacy::purge_expired_options(), get_option( 'wpac_prev_email_9101' ), is_array( get_option( 'wpac_prev_email_9102' ) ), get_option( 'wpac_user_link_9103' ) ) );
+
+// ZB-O17 option lists change under a lock and are cleaned up.
+WPAffiliateCaptain\Privacy\Restriction::add( 987654, WPAffiliateCaptain\Privacy\Restriction::REQUEST, 'x' );
+check( 'ZB-O17 restriction stored, lock released', array( true, null ), array( WPAffiliateCaptain\Privacy\Restriction::is_restricted( 987654 ), $wpdb->get_var( "SELECT option_value FROM {$wpdb->options} WHERE option_name = 'wpac_restricted_lock'" ) ) );
+check( 'ZB-O17 restrictions of partners that no longer exist are dropped', array( true, false ), array( WPAffiliateCaptain\Privacy\Restriction::purge() >= 1, WPAffiliateCaptain\Privacy\Restriction::is_restricted( 987654 ) ) );
+update_option( 'wpac_objections', array_replace( WPAffiliateCaptain\Payouts\Objections::all(), array( 987654 => array( 'affiliate_id' => 1, 'at' => Db::now(), 'reason' => 'x', 'status' => 'open', 'resolution' => '', 'resolved_at' => '' ) ) ) );
+check( 'ZB-O17 objections of deleted payouts are dropped', array( true, false ), array( WPAffiliateCaptain\Payouts\Objections::purge() >= 1, isset( WPAffiliateCaptain\Payouts\Objections::all()[987654] ) ) );
+// A lock held by a request that died is taken over after its time-to-live.
+$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES ('wpac_zb_lock', %s, 'off')", ( time() - 5 ) . ':dead' ) );
+check( 'ZB-O17 a stale lock is taken over (waits up to its TTL)', 'ran', Db::with_lock( 'wpac_zb_lock', static function () { return 'ran'; }, 3 ) );
+
+// ZB-O12 expired customer links are deleted in batches (index on expires_at).
+$wpdb->insert( t( 'customer_links' ), array( 'affiliate_id' => 1, 'customer_hash' => str_repeat( 'z', 64 ), 'source' => 'test', 'source_order_id' => 'zb', 'created_at' => Db::now(), 'expires_at' => Db::now( time() - 60 ) ) );
+check( 'ZB-O12 expired customer link deleted', array( 1, true ), array( WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired(), (bool) $wpdb->get_var( 'SHOW INDEX FROM ' . t( 'customer_links' ) . " WHERE Key_name = 'expires_at'" ) ) );
+
+// ZB-O16 queue drain and report batches wait during maintenance.
+$wpdb->insert( t( 'jobs' ), array( 'type' => 'zb', 'idempotency_key' => 'zb:1', 'payload' => '{}', 'status' => 'queued', 'attempts' => 1, 'next_attempt_at' => Db::now( time() - 60 ), 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+$zb_job = (int) $wpdb->insert_id;
+Settings::update( array( 'maintenance_mode' => 1 ) );
+WPAffiliateCaptain\Core\Jobs::drain();
+update_option( 'wpac_report_progress', array( 'month' => '2026-01', 'offset' => 0, 'touched' => time() ) );
+$zb_mails                  = count( $GLOBALS['test_mails'] );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Reports\MonthlyMail::batch();
+check( 'ZB-O16 maintenance: queue untouched, report batch postponed', array( 'queued', $zb_mails, 0, true ), array( $wpdb->get_var( 'SELECT status FROM ' . t( 'jobs' ) . " WHERE id = {$zb_job}" ), count( $GLOBALS['test_mails'] ), (int) get_option( 'wpac_report_progress' )['offset'], in_array( WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, $GLOBALS['test_scheduled'], true ) ) );
+Settings::update( array( 'maintenance_mode' => 0 ) );
+delete_option( 'wpac_report_progress' );
+$wpdb->delete( t( 'jobs' ), array( 'id' => $zb_job ) );
+
+// ZB-O20 a downgrade is detected and reported.
+update_option( 'wpac_db_version', WPAC_DB_VERSION + 1 );
+check( 'ZB-O20 downgrade detected (critical in Site Health)', array( WPAC_DB_VERSION + 1, 'critical' ), array( WPAffiliateCaptain\Core\Installer::downgraded_from(), WPAffiliateCaptain\Core\Monitor::checks()['schema'][0] ) );
+update_option( 'wpac_db_version', WPAC_DB_VERSION );
+check( 'ZB-O20 no downgrade on the current schema', 0, WPAffiliateCaptain\Core\Installer::downgraded_from() );
+
+// ZB-W7 one migration at a time (also WP-CLI); the lock can be extended in the same second.
+$zb_other = Db::lock( 'wpac_upgrade_lock', 900 );
+check( 'ZB-W7 no migration while another request holds the lock', false, WPAffiliateCaptain\Core\Installer::upgrade() );
+check( 'ZB-W7 lock refresh in the same second keeps ownership', $zb_other, Db::refresh( 'wpac_upgrade_lock', $zb_other ) );
+Db::unlock( 'wpac_upgrade_lock', $zb_other );
+check( 'ZB-W7 migration runs and releases the lock', array( true, null ), array( WPAffiliateCaptain\Core\Installer::upgrade(), $wpdb->get_var( "SELECT option_value FROM {$wpdb->options} WHERE option_name = 'wpac_upgrade_lock'" ) ) );
+
+// ZB-W15 deactivation does not save rewrite rules (rebuilt without the plugin on the next request).
+update_option( 'rewrite_rules', array( '^partner/([^/]+)/?$' => 'index.php?x=$matches[1]' ) );
+WPAffiliateCaptain\Core\Installer::deactivate_site();
+check( 'ZB-W15 deactivation drops the stored rewrite rules', false, get_option( 'rewrite_rules' ) );
+WPAffiliateCaptain\Core\Cron::schedule();
+
+// ZB isolated: Action Scheduler, multisite statement folders and uninstall run in their own process.
+$zb_prefix = getenv( 'WPAC_TEST_DB_PREFIX' );
+putenv( 'WPAC_TEST_DB_PREFIX=zbu_' );
+exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( __DIR__ . '/zb-isolated.php' ) . ' 2>&1', $zb_out, $zb_rc );
+putenv( false === $zb_prefix ? 'WPAC_TEST_DB_PREFIX' : 'WPAC_TEST_DB_PREFIX=' . $zb_prefix );
+$zb_res = json_decode( (string) end( $zb_out ), true );
+if ( ! is_array( $zb_res ) ) {
+	check( 'ZB isolated checks ran', 'json', implode( "\n", $zb_out ) );
+} else {
+	foreach ( $zb_res as $zb_name => $zb_pair ) {
+		check( $zb_name, $zb_pair[0], $zb_pair[1] );
+	}
+}
+// ZD round-4 fixes (settings validation, encryption key, terms, payouts, labels).
+if ( ! function_exists( 'wp_lostpassword_url' ) ) { function wp_lostpassword_url( $r = '' ) { return 'http://example.test/wp-login.php?action=lostpassword'; } }
+if ( ! defined( 'WEEK_IN_SECONDS' ) ) { define( 'WEEK_IN_SECONDS', 604800 ); }
+echo "ZD round 4: settings, keys, terms, payouts\n";
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_page_id' => 900, 'self_billing' => 1 ) ) );
+Settings::flush_cache();
+$zd_keep = get_option( 'wpac_settings' );
+// K2: common inputs are understood.
+$zd = Settings::sanitize( array( 'default_rate_type' => 'percent', 'default_rate' => '15 %', 'vat_rate' => '20 %', 'lifetime_rate' => '15,5', 'min_payout' => '1.000,00 €', 'fraud_max_order' => '1.000 €' ), $zd_err );
+check( 'ZD K2 "15 %", "20 %", "15,5", "1.000,00 €" and "1.000 €" are accepted', array( '15', '20', '15.5', 100000, 100000, array() ), array( $zd['default_rate'], $zd['vat_rate'], $zd['lifetime_rate'], $zd['min_payout_minor'], $zd['fraud_max_order_minor'], $zd_err ) );
+$zd = Settings::sanitize( array( 'default_rate_type' => 'fixed', 'default_rate' => '25 €' ), $zd_err );
+check( 'ZD K2 fixed default rate "25 €" = 2500 minor units', array( 'fixed', '2500', array() ), array( $zd['default_rate_type'], $zd['default_rate'], $zd_err ) );
+check( 'ZD K2 amount parser: "€ 25,50", "1,000.00", "EUR 7"', array( '25.50', '1000.00', '7' ), array( Settings::parse_amount( '€ 25,50' ), Settings::parse_amount( '1,000.00' ), Settings::parse_amount( 'EUR 7' ) ) );
+// Invalid input: error per field, stored value kept (not a default).
+update_option( 'wpac_settings', array_merge( $zd_keep, array( 'vat_rate' => '7.7', 'default_rate' => '12', 'default_rate_type' => 'percent', 'operator_country' => 'AT', 'monitor_token' => str_repeat( 'a', 30 ), 'debtor_iban' => 'DE89370400440532013000' ) ) );
+Settings::flush_cache();
+$zd = Settings::sanitize( array( 'vat_rate' => 'abc', 'default_rate_type' => 'percent', 'default_rate' => '150 %', 'operator_country' => 'XX', 'monitor_token' => 'short', 'debtor_iban' => 'DE00123', 'cookie_days' => 'zehn' ), $zd_err, $zd_notes );
+check( 'ZD K2 invalid values keep the stored value', array( '7.7', '12', 'AT', Settings::monitor_token_hash( str_repeat( 'a', 30 ) ), 'DE89370400440532013000', 30 ), array( $zd['vat_rate'], $zd['default_rate'], $zd['operator_country'], $zd['monitor_token'], $zd['debtor_iban'], $zd['cookie_days'] ) );
+check( 'ZD K2 every rejected field has its own message', array( 'cookie_days', 'debtor_iban', 'default_rate', 'monitor_token', 'operator_country', 'vat_rate' ), ( function ( $e ) { $k = array_keys( $e ); sort( $k ); return $k; } )( $zd_err ) );
+$zd = Settings::sanitize( array( 'statement_retention_years' => '3', 'operator_country' => 'CH' ), $zd_err, $zd_notes );
+check( 'ZD K2 retention raised to the legal minimum is reported, not silent', array( 10, true, array() ), array( $zd['statement_retention_years'], isset( $zd_notes['statement_retention_years'] ), $zd_err ) );
+check( 'ZD K2 country list has the EU, CH, GB and US', array( true, true, true, true, true ), array( isset( Settings::countries()['DE'] ), isset( Settings::countries()['FR'] ), isset( Settings::countries()['CH'] ), isset( Settings::countries()['GB'] ), isset( Settings::countries()['US'] ) ) );
+update_option( 'wpac_settings', $zd_keep );
+Settings::flush_cache();
+
+// W25: only the version decides whether the terms must be accepted again.
+$zd_a = AffiliateRepository::create( array( 'name' => 'ZD Terms', 'email' => 'zd-terms@example.de', 'status' => 'active' ) );
+q( 'DELETE FROM ' . t( 'agreements' ) . ' WHERE affiliate_id = ' . (int) $zd_a ); // The fixture hook accepts automatically.
+check( 'ZD W25 admin-created partner without acceptance is listed as missing', true, in_array( $zd_a, WPAffiliateCaptain\Affiliates\Agreements::missing_current()[0], true ) );
+$zd_terms         = WPAffiliateCaptain\Affiliates\Agreements::current( 0 );
+$zd_terms['hash'] = hash( 'sha256', 'older page text' ); // Page edited after the acceptance.
+WPAffiliateCaptain\Affiliates\Agreements::record( $zd_a, 'accepted', $zd_terms );
+check( 'ZD W25 editing the page without a new version keeps the acceptance', array( true, false ), array( WPAffiliateCaptain\Affiliates\Agreements::has_current( $zd_a ), in_array( $zd_a, WPAffiliateCaptain\Affiliates\Agreements::missing_current()[0], true ) ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_version' => '2.0' ) ) );
+Settings::flush_cache();
+check( 'ZD W25 a new version asks for acceptance again', false, WPAffiliateCaptain\Affiliates\Agreements::has_current( $zd_a ) );
+delete_option( WPAffiliateCaptain\Affiliates\Agreements::REMIND_OPTION );
+$GLOBALS['test_mails'] = array();
+$zd_n = WPAffiliateCaptain\Affiliates\Agreements::start_reminders();
+$zd_mails = array_filter( $GLOBALS['test_mails'], static function ( $m ) { return 'zd-terms@example.de' === $m[0]; } );
+check( 'ZD W25 reminder run mails partners without the current acceptance', array( true, 1 ), array( is_int( $zd_n ) && $zd_n >= 1, count( $zd_mails ) ) );
+check( 'ZD W25 a second run within 24 hours is refused', 'wpac_rate_limited', ( function ( $r ) { return is_wp_error( $r ) ? $r->get_error_code() : $r; } )( WPAffiliateCaptain\Affiliates\Agreements::start_reminders() ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_version' => $zd_keep['terms_version'] ) ) );
+Settings::flush_cache();
+
+// W26: the request button is not offered when the payout would be refused (terms missing).
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'payout_requests' => 1, 'self_billing' => 1 ) ) );
+Settings::flush_cache();
+$zd_b = AffiliateRepository::create( array( 'name' => 'ZD Request', 'email' => 'zd-request@example.de', 'status' => 'active' ) );
+q( 'DELETE FROM ' . t( 'agreements' ) . ' WHERE affiliate_id = ' . (int) $zd_b );
+ProfileRepository::save( $zd_b, array( 'tax_status' => 'private', 'legal_name' => 'ZD', 'address' => "Weg 2\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'ZD', 'iban' => 'DE89370400440532013000' ) );
+$zd_can = WPAffiliateCaptain\Payouts\PayoutRequests::can_request( AffiliateRepository::find( $zd_b ) );
+check( 'ZD W26 no request without accepted terms; the partner is told why', true, is_string( $zd_can ) && false !== strpos( $zd_can, 'terms' ) );
+$zd_code = '';
+PayoutService::blocked_reason( $zd_b, null, $zd_code );
+check( 'ZD W23 blocked reason has a code for the fix link', 'terms', $zd_code );
+check( 'ZD W23 missing profile field is named', true, false !== strpos( PayoutService::blocked_reason( $zd_a ), 'missing' ) );
+update_option( 'wpac_settings', $zd_keep );
+Settings::flush_cache();
+
+// W27: the payout run reports per partner why it was not paid.
+$zd_run = PayoutService::create_run( gmdate( 'Y-m-d' ), 'EUR' );
+check( 'ZD W27 payout run returns details for partners that were not paid', true, isset( $zd_run[2] ) && is_array( $zd_run[2] ) && count( $zd_run[2] ) === $zd_run[1] );
+
+// W21: link requests and manual linking refuse what is not possible, with a reason.
+$zd_r = AffiliateRepository::resend_user_link( $zd_b );
+check( 'ZD W21 resend refused when there is no account with the e-mail', 'wpac_no_user', is_wp_error( $zd_r ) ? $zd_r->get_error_code() : $zd_r );
+$zd_r = AffiliateRepository::link_user( $zd_b, 'nobody@example.de' );
+check( 'ZD W21 manual link to an unknown user is refused', 'wpac_no_user', is_wp_error( $zd_r ) ? $zd_r->get_error_code() : $zd_r );
+check( 'ZD O30 no set-password link without a created account', '', AffiliateRepository::set_password_url( $zd_b ) );
+$GLOBALS['test_mails'] = array();
+WPAffiliateCaptain\Affiliates\Notifications::partner_created( $zd_b );
+check( 'ZD W22 admin-created partner gets one welcome mail', array( array( 'zd-request@example.de', '[Test Shop] Welcome to our partner program' ) ), $GLOBALS['test_mails'] );
+
+// O28: readable labels.
+check( 'ZD O28 month in the monthly mail is "October 2026", not "2026-10"', 'October 2026', WPAffiliateCaptain\Reports\MonthlyMail::month_label( '2026-10' ) );
+check( 'ZD O28 audit actions and details are readable', array( 'Status changed', 'from: Application pending; to: Active; Reason: ok' ), array( WPAffiliateCaptain\Admin\Pages\AuditPage::action_label( 'affiliate.status' ), WPAffiliateCaptain\Admin\Pages\AuditPage::details_text( '{"from":"pending","to":"active","reason":"ok"}' ) ) );
+
+// K3: a dedicated key set later keeps old bank details readable; re-encryption moves them over.
+$zd_old_cipher = WPAffiliateCaptain\Core\Crypto::encrypt( 'DE89370400440532013000' ); // Salt-derived key.
+$wpdb->update( t( 'payout_profiles' ), array( 'iban_encrypted' => $zd_old_cipher ), array( 'affiliate_id' => $zd_b ) );
+define( 'WPAC_ENCRYPTION_KEY', str_repeat( 'ab', 32 ) );
+check( 'ZD K3 old value still readable after WPAC_ENCRYPTION_KEY was set', array( 'DE89370400440532013000', true ), array( WPAffiliateCaptain\Core\Crypto::decrypt( $zd_old_cipher ), WPAffiliateCaptain\Core\Crypto::needs_reencrypt( $zd_old_cipher ) ) );
+check( 'ZD K3 legacy values are counted', true, WPAffiliateCaptain\Core\Crypto::legacy_status()[0] >= 1 );
+delete_option( 'wpac_reencrypt_cursor' );
+WPAffiliateCaptain\Core\Crypto::reencrypt_batch( 500 );
+$zd_new_cipher = (string) $wpdb->get_var( 'SELECT iban_encrypted FROM ' . t( 'payout_profiles' ) . ' WHERE affiliate_id = ' . (int) $zd_b );
+check( 'ZD K3 re-encrypted with the new key, still the same IBAN', array( false, 'DE89370400440532013000', 0 ), array( WPAffiliateCaptain\Core\Crypto::needs_reencrypt( $zd_new_cipher ), WPAffiliateCaptain\Core\Crypto::decrypt( $zd_new_cipher ), WPAffiliateCaptain\Core\Crypto::legacy_status()[0] ) );
+// K3: statements in the old folder are still found after WPAC_STATEMENT_DIR was set, and can be moved.
+$zd_up = sys_get_temp_dir() . '/wpac-uploads/wpac-statements';
+@mkdir( $zd_up, 0777, true );
+file_put_contents( $zd_up . '/zd-test.pdf', '%PDF zd' );
+$zd_pid = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'payouts' ) . " WHERE statement_file <> '' ORDER BY id DESC LIMIT 1" );
+$zd_old_file = (string) $wpdb->get_var( 'SELECT statement_file FROM ' . t( 'payouts' ) . ' WHERE id = ' . $zd_pid );
+$wpdb->update( t( 'payouts' ), array( 'statement_file' => 'zd-test.pdf' ), array( 'id' => $zd_pid ) );
+$zd_dir = sys_get_temp_dir() . '/wpac-zd-statements-' . getmypid();
+define( 'WPAC_STATEMENT_DIR', $zd_dir );
+check( 'ZD K3 statement in the old folder is still found', $zd_up . '/zd-test.pdf', WPAffiliateCaptain\Payouts\Statement::path( 'zd-test.pdf' ) );
+check( 'ZD K3 misplaced statements are listed', true, (bool) array_filter( WPAffiliateCaptain\Payouts\Statement::misplaced(), static function ( $m ) { return 'zd-test.pdf' === $m[1]; } ) );
+WPAffiliateCaptain\Payouts\Statement::move_misplaced();
+check( 'ZD K3 statements moved to the new folder', array( true, false ), array( is_readable( $zd_dir . '/zd-test.pdf' ), file_exists( $zd_up . '/zd-test.pdf' ) ) );
+$wpdb->update( t( 'payouts' ), array( 'statement_file' => $zd_old_file ), array( 'id' => $zd_pid ) );
+foreach ( (array) glob( $zd_dir . '/*' ) as $zd_f ) { @unlink( $zd_f ); }
+@unlink( $zd_dir . '/.htaccess' );
+@rmdir( $zd_dir );
+// ZE: CSV import, program export, REST permission callbacks.
+require __DIR__ . '/ze-import-rest.php';
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

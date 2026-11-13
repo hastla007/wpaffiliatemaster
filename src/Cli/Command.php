@@ -27,6 +27,8 @@ final class Command {
 	public static function register() {
 		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
 			\WP_CLI::add_command( 'wpac', __CLASS__ );
+			\WP_CLI::add_command( 'wpac import', ImportCommand::class );
+			\WP_CLI::add_command( 'wpac export', ExportCommand::class );
 		}
 	}
 
@@ -66,8 +68,14 @@ final class Command {
 	 * @param array $assoc Options.
 	 */
 	public function upgrade( $args, $assoc ) {
-		Installer::install_schema();
-		$problems = Installer::verify_schema();
+		// Under the same lock as the automatic migration (never two migrations in parallel).
+		if ( ! Installer::upgrade() ) {
+			\WP_CLI::error( 'Another process is running the migration right now. Please try again in a few minutes.' );
+		}
+		$problems = get_option( 'wpac_schema_problems' ); // Also an aborted migration.
+		if ( ! is_array( $problems ) || ! $problems ) {
+			$problems = Installer::verify_schema();
+		}
 		if ( $problems ) {
 			\WP_CLI::error( 'Migration incomplete: ' . implode( '; ', $problems ) );
 		}

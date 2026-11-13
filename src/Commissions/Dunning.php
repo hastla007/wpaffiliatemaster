@@ -35,14 +35,48 @@ final class Dunning {
 		$rows = $wpdb->get_results( "SELECT c.affiliate_id, c.currency, SUM(c.amount_minor) total FROM {$c} c JOIN {$a} a ON a.id = c.affiliate_id WHERE a.status = 'terminated' AND c.status = 'approved' AND c.payout_id = 0 GROUP BY c.affiliate_id, c.currency HAVING SUM(c.amount_minor) < 0 ORDER BY total ASC LIMIT 200" );
 		$out  = array();
 		foreach ( (array) $rows as $r ) {
+			$aff = AffiliateRepository::find( (int) $r->affiliate_id );
+			if ( ! $aff || self::is_excluded( $aff ) ) {
+				continue; // Erased or restricted (Art. 18 GDPR): no payment requests.
+			}
 			$out[] = array(
-				'affiliate' => AffiliateRepository::find( (int) $r->affiliate_id ),
+				'affiliate' => $aff,
 				'currency'  => $r->currency,
 				'amount'    => (int) $r->total,
 				'history'   => self::history( (int) $r->affiliate_id, $r->currency ),
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Whether a partner must not be asked for repayment: data erased (Art. 17 GDPR, the
+	 * address is a placeholder) or processing restricted (Art. 18 GDPR).
+	 *
+	 * @param object $aff Partner row.
+	 * @return bool
+	 */
+	public static function is_excluded( $aff ) {
+		return 'privacy_erasure' === (string) $aff->status_reason
+			|| '@invalid.invalid' === substr( (string) $aff->email, -16 )
+			|| ! is_email( (string) $aff->email )
+			|| \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id );
+	}
+
+	/**
+	 * Why no payment request can be sent right now ('' = it can).
+	 *
+	 * @param object $aff Partner row.
+	 * @return string
+	 */
+	public static function blocked_reason( $aff ) {
+		if ( self::is_excluded( $aff ) ) {
+			return __( 'No payment request possible: the partner\'s data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin.', 'wp-affiliate-captain' );
+		}
+		if ( '' === trim( (string) Settings::get( 'debtor_iban' ) ) || '' === trim( (string) Settings::get( 'debtor_name' ) ) ) {
+			return __( 'No payment request possible yet: enter your company\'s account holder and IBAN under Settings → Payouts first, so the partner knows where to transfer the amount.', 'wp-affiliate-captain' );
+		}
+		return '';
 	}
 
 	/**
@@ -71,11 +105,16 @@ final class Dunning {
 		if ( ! $aff || $open >= 0 ) {
 			return new \WP_Error( 'wpac_not_negative', __( 'The balance is not negative.', 'wp-affiliate-captain' ) );
 		}
+		$blocked = self::blocked_reason( $aff );
+		if ( '' !== $blocked ) {
+			return new \WP_Error( 'wpac_dunning_blocked', $blocked );
+		}
 		$history = self::history( (int) $affiliate_id, $currency );
 		$level   = count( $history ) + 1;
 		if ( $level > self::LEVELS ) {
 			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) );
 		}
+		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$amount  = html_entity_decode( Money::format( -$open, $currency ), ENT_QUOTES, 'UTF-8' );
 		$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
@@ -88,12 +127,16 @@ final class Dunning {
 			3 => __( '[%s] Final reminder: repayment of commissions', 'wp-affiliate-captain' ),
 		);
 		$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
-		wp_mail(
+		$sent = wp_mail(
 			$aff->email,
 			sprintf( $subject[ $level ], $site ),
 			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
 			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'wp-affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
 		);
+		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		if ( ! $sent ) {
+			return new \WP_Error( 'wpac_mail_failed', __( 'The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again.', 'wp-affiliate-captain' ) );
+		}
 		$history[] = array(
 			'level'  => $level,
 			'at'     => Db::now(),

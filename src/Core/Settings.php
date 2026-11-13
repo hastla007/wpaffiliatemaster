@@ -48,8 +48,6 @@ final class Settings {
 			'lifetime_enabled'        => 0,
 			'lifetime_days'           => 365,
 			'lifetime_rate'           => '',
-			'tier_month_closed'       => '',
-			'tier_month_first'        => '', // First month that was ever closed (earlier months never get bonuses).
 			// Program.
 			'auto_approve'            => 0,
 			'terms_page_id'           => 0,
@@ -84,6 +82,7 @@ final class Settings {
 			'operator_tax_number'     => '',
 			'credit_prefix'           => 'GS',
 			'storno_prefix'           => 'ST',
+			'vies_check'              => 0, // Check partner VAT IDs with the EU Commission's VIES service (external request).
 			// Fraud rules (0 = off).
 			'fraud_max_orders_day'    => 0,
 			'fraud_max_order_minor'   => 0,
@@ -108,44 +107,157 @@ final class Settings {
 		if ( null === self::$cache ) {
 			$saved       = get_option( self::OPTION, array() );
 			self::$cache = array_merge( self::defaults(), is_array( $saved ) ? $saved : array() );
+			// Monitoring tokens of older versions were stored in plain text: hash on first read.
+			// (wp_salt() is pluggable: not yet defined while plugins load – then on a later request.)
+			if ( '' !== (string) self::$cache['monitor_token'] && 0 !== strpos( (string) self::$cache['monitor_token'], self::MONITOR_HASH ) && function_exists( 'wp_salt' ) ) {
+				self::$cache['monitor_token'] = self::monitor_token_hash( (string) self::$cache['monitor_token'] );
+				if ( is_array( $saved ) ) {
+					$saved['monitor_token'] = self::$cache['monitor_token'];
+					update_option( self::OPTION, $saved, true );
+				}
+			}
 		}
 		return self::$cache;
 	}
 
+	/** Prefix of a hashed monitoring token. */
+	const MONITOR_HASH = 'h1:';
+
 	/**
-	 * One setting.
+	 * Stored form of a monitoring token: only a keyed hash, never the token itself.
+	 *
+	 * @param string $token Token.
+	 * @return string
+	 */
+	public static function monitor_token_hash( $token ) {
+		return self::MONITOR_HASH . hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) . 'wpac_monitor' );
+	}
+
+	/**
+	 * Whether a token sent by a monitor matches the stored one.
+	 *
+	 * @param string $sent Token from the request.
+	 * @return bool
+	 */
+	public static function monitor_token_matches( $sent ) {
+		$stored = (string) self::get( 'monitor_token' );
+		if ( '' === $stored || '' === (string) $sent ) {
+			return false;
+		}
+		if ( 0 !== strpos( $stored, self::MONITOR_HASH ) ) {
+			return hash_equals( $stored, (string) $sent ); // Not hashed yet (see all()).
+		}
+		return hash_equals( $stored, self::monitor_token_hash( (string) $sent ) );
+	}
+
+	/**
+	 * One setting (or runtime state, see RUNTIME).
 	 *
 	 * @param string $key Key.
 	 * @return mixed
 	 */
 	public static function get( $key ) {
+		if ( isset( self::RUNTIME[ $key ] ) ) {
+			return self::state( $key );
+		}
 		$all = self::all();
 		return array_key_exists( $key, $all ) ? $all[ $key ] : null;
 	}
 
 	/**
-	 * Persist settings (already sanitized).
+	 * Runtime state the scheduled tasks write (own options, never part of the settings array:
+	 * writing the whole settings array back from a cron run would undo settings an admin saved
+	 * meanwhile). Key => option name.
+	 */
+	const RUNTIME = array(
+		'tier_month_closed' => 'wpac_tier_month_closed',
+		'tier_month_first'  => 'wpac_tier_month_first', // First month that was ever closed (earlier months never get bonuses).
+	);
+
+	/**
+	 * Read runtime state ('' when not set; values of older versions are still read from the settings).
+	 *
+	 * @param string $key Key of RUNTIME.
+	 * @return string
+	 */
+	public static function state( $key ) {
+		if ( ! isset( self::RUNTIME[ $key ] ) ) {
+			return '';
+		}
+		$value = get_option( self::RUNTIME[ $key ], null );
+		if ( null === $value ) {
+			$saved = get_option( self::OPTION, array() );
+			$value = is_array( $saved ) && isset( $saved[ $key ] ) ? $saved[ $key ] : '';
+		}
+		return (string) $value;
+	}
+
+	/**
+	 * Write runtime state (only its own option).
+	 *
+	 * @param string $key   Key of RUNTIME.
+	 * @param string $value Value.
+	 */
+	public static function set_state( $key, $value ) {
+		if ( isset( self::RUNTIME[ $key ] ) ) {
+			update_option( self::RUNTIME[ $key ], (string) $value, false );
+		}
+	}
+
+	/**
+	 * Persist settings (already sanitized). Runtime state goes to its own options.
 	 *
 	 * @param array $values Values.
 	 */
 	public static function update( array $values ) {
-		$merged = array_merge( self::all(), $values );
+		foreach ( self::RUNTIME as $key => $option ) {
+			if ( array_key_exists( $key, $values ) ) {
+				self::set_state( $key, (string) $values[ $key ] );
+				unset( $values[ $key ] );
+			} elseif ( null === get_option( $option, null ) && '' !== self::state( $key ) ) {
+				self::set_state( $key, self::state( $key ) ); // Value of an older version: keep it.
+			}
+		}
+		$merged = array_diff_key( array_merge( self::all(), $values ), self::RUNTIME );
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 	}
 
 	/**
-	 * Sanitize raw input from the settings form.
+	 * Sanitize and validate raw input from the settings form.
 	 *
-	 * @param array $in Raw input (unslashed).
+	 * Invalid input is never replaced silently: the field keeps its stored value and an error
+	 * message is returned in $errors (form field name => message), so the settings page can
+	 * show it next to the field together with what was entered.
+	 *
+	 * @param array      $in      Raw input (unslashed).
+	 * @param array|null $errors  Out: rejected fields (form field name => message).
+	 * @param array|null $notices Out: accepted but adjusted fields (form field name => message).
 	 * @return array
 	 */
-	public static function sanitize( array $in ) {
-		$d   = self::defaults();
-		$out = array();
+	public static function sanitize( array $in, &$errors = null, &$notices = null ) {
+		$d       = self::defaults();
+		$out     = array();
+		$errors  = array();
+		$notices = array();
+		$old     = static function ( $key ) use ( $d ) {
+			$value = self::get( $key );
+			return null !== $value ? $value : $d[ $key ];
+		};
 
-		$param                 = isset( $in['referral_param'] ) ? preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $in['referral_param'] ) ) : '';
-		$out['referral_param'] = '' !== $param ? $param : $d['referral_param'];
+		$out['referral_param'] = $d['referral_param'];
+		if ( isset( $in['referral_param'] ) ) {
+			$param = strtolower( trim( (string) $in['referral_param'] ) );
+			if ( '' === $param ) {
+				$errors['referral_param'] = __( 'Please enter a parameter name.', 'wp-affiliate-captain' );
+				$out['referral_param']    = $old( 'referral_param' );
+			} elseif ( ! preg_match( '/^[a-z0-9_\-]+$/', $param ) ) {
+				$errors['referral_param'] = __( 'Only lowercase letters, digits, "-" and "_" are allowed.', 'wp-affiliate-captain' );
+				$out['referral_param']    = $old( 'referral_param' );
+			} else {
+				$out['referral_param'] = $param;
+			}
+		}
 
 		$out['touch_model']       = self::choice( $in, 'touch_model', array( 'last', 'first' ), $d );
 		$out['cookie_mode']       = self::choice( $in, 'cookie_mode', array( 'off', 'consent', 'always' ), $d );
@@ -154,85 +266,323 @@ final class Settings {
 		$out['terminated_open']   = self::choice( $in, 'terminated_open', array( 'pay', 'reject' ), $d );
 		$out['payout_period']     = self::choice( $in, 'payout_period', array( 'monthly', 'quarterly', 'manual' ), $d );
 
-		$lifetime_rate        = isset( $in['lifetime_rate'] ) ? Money::normalize_decimal( (string) $in['lifetime_rate'] ) : null;
-		$out['lifetime_rate'] = ( null !== $lifetime_rate && (float) $lifetime_rate >= 0 && (float) $lifetime_rate <= 100 ) ? $lifetime_rate : '';
+		$out['lifetime_rate'] = '';
+		if ( isset( $in['lifetime_rate'] ) && '' !== trim( (string) $in['lifetime_rate'] ) ) {
+			$lifetime_rate = self::parse_percent( $in['lifetime_rate'] );
+			if ( null === $lifetime_rate || (float) $lifetime_rate < 0 || (float) $lifetime_rate > 100 ) {
+				$errors['lifetime_rate'] = __( 'Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty.', 'wp-affiliate-captain' );
+				$out['lifetime_rate']    = (string) $old( 'lifetime_rate' );
+			} else {
+				$out['lifetime_rate'] = $lifetime_rate;
+			}
+		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
 		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
-			$out[ $int ] = isset( $in[ $int ] ) ? max( 0, (int) $in[ $int ] ) : $d[ $int ];
-		}
-		// Credit notes: at least 10 years (DE §147 AO/§14b UStG, AT §132 BAO, CH Art. 958f OR); 0 = forever.
-		if ( $out['statement_retention_years'] > 0 ) {
-			// Never below the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years).
-			$out['statement_retention_years'] = max( \WPAffiliateCaptain\Privacy\Retention::minimum_years( isset( $in['operator_country'] ) && '' !== (string) $in['operator_country'] ? strtoupper( substr( sanitize_text_field( (string) $in['operator_country'] ), 0, 2 ) ) : 'DE' ), $out['statement_retention_years'] );
-		}
-
-		$currency        = isset( $in['currency'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['currency'] ) ) : '';
-		// Fields of other tabs are not posted: fall back to the stored value (needed for amount conversions).
-		$out['currency'] = 3 === strlen( $currency ) ? $currency : ( self::get( 'currency' ) ? self::get( 'currency' ) : $d['currency'] );
-
-		$rates = Fx::parse( isset( $in['exchange_rates'] ) ? (string) $in['exchange_rates'] : '' );
-		$lines = array();
-		foreach ( $rates as $cur => $rate ) {
-			$lines[] = $cur . '=' . $rate;
-		}
-		$out['exchange_rates'] = implode( "\n", $lines );
-
-		$out['default_rate'] = isset( $in['default_rate'] ) ? Money::normalize_decimal( (string) $in['default_rate'] ) : $d['default_rate'];
-		if ( null === $out['default_rate'] ) {
-			$out['default_rate'] = $d['default_rate'];
-		}
-		if ( 'fixed' === $out['default_rate_type'] ) {
-			// Fixed default rate is entered as a decimal amount, stored as minor units.
-			$out['default_rate'] = (string) Money::to_minor( $out['default_rate'], $out['currency'] );
-		}
-
-		$proxies = array();
-		foreach ( preg_split( '/[\s,]+/', isset( $in['trusted_proxies'] ) ? (string) $in['trusted_proxies'] : '', -1, PREG_SPLIT_NO_EMPTY ) as $entry ) {
-			$ip = explode( '/', $entry, 2 )[0];
-			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-				$proxies[] = $entry;
+			if ( ! isset( $in[ $int ] ) ) {
+				$out[ $int ] = $d[ $int ];
+				continue;
+			}
+			$raw = trim( (string) $in[ $int ] );
+			if ( '' === $raw ) {
+				$out[ $int ] = 0;
+			} elseif ( preg_match( '/^\d+$/', $raw ) ) {
+				$out[ $int ] = (int) $raw;
+			} else {
+				$errors[ $int ] = __( 'Please enter a whole number (0 or more).', 'wp-affiliate-captain' );
+				$out[ $int ]    = (int) $old( $int );
 			}
 		}
-		$out['trusted_proxies'] = implode( "\n", $proxies );
+		if ( 100 < $out['fraud_max_refund_rate'] && ! isset( $errors['fraud_max_refund_rate'] ) ) {
+			$errors['fraud_max_refund_rate'] = __( 'Please enter a percentage between 0 and 100.', 'wp-affiliate-captain' );
+			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
+		}
 
-		$max_order                    = isset( $in['fraud_max_order'] ) ? Money::normalize_decimal( (string) $in['fraud_max_order'] ) : null;
-		$out['fraud_max_order_minor'] = null !== $max_order ? max( 0, Money::to_minor( $max_order, $out['currency'] ) ) : 0;
+		$out['operator_country'] = $d['operator_country'];
+		if ( isset( $in['operator_country'] ) ) {
+			$country = strtoupper( trim( (string) $in['operator_country'] ) );
+			if ( isset( self::countries()[ $country ] ) ) {
+				$out['operator_country'] = $country;
+			} else {
+				$errors['operator_country'] = __( 'Please choose your country from the list.', 'wp-affiliate-captain' );
+				$out['operator_country']    = (string) $old( 'operator_country' );
+			}
+		}
+		// Credit notes: at least the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years); 0 = forever.
+		if ( $out['statement_retention_years'] > 0 ) {
+			$minimum = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $out['operator_country'] );
+			if ( $out['statement_retention_years'] < $minimum ) {
+				if ( isset( $in['statement_retention_years'] ) ) {
+					/* translators: %d: years */
+					$notices['statement_retention_years'] = sprintf( __( 'Raised to the legal minimum of %d years for your country.', 'wp-affiliate-captain' ), $minimum );
+				}
+				$out['statement_retention_years'] = $minimum;
+			}
+		}
+
+		// Fields of other tabs are not posted: fall back to the stored value (needed for amount conversions).
+		$out['currency'] = self::get( 'currency' ) ? (string) self::get( 'currency' ) : $d['currency'];
+		if ( isset( $in['currency'] ) ) {
+			$currency = strtoupper( trim( (string) $in['currency'] ) );
+			if ( preg_match( '/^[A-Z]{3}$/', $currency ) ) {
+				$out['currency'] = $currency;
+			} else {
+				$errors['currency'] = __( 'Please enter a three-letter currency code (ISO 4217, e.g. EUR).', 'wp-affiliate-captain' );
+			}
+		}
+
+		$out['exchange_rates'] = '';
+		if ( isset( $in['exchange_rates'] ) ) {
+			$invalid = array();
+			foreach ( preg_split( '/[\r\n;]+/', (string) $in['exchange_rates'] ) as $line ) {
+				if ( '' !== trim( $line ) && ! Fx::parse( $line ) ) {
+					$invalid[] = trim( $line );
+				}
+			}
+			if ( $invalid ) {
+				/* translators: %s: lines */
+				$errors['exchange_rates'] = sprintf( __( 'Not understood: %s. Use one line per currency, e.g. USD=0.92.', 'wp-affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
+				$out['exchange_rates']    = (string) $old( 'exchange_rates' );
+			} else {
+				$lines = array();
+				foreach ( Fx::parse( (string) $in['exchange_rates'] ) as $cur => $rate ) {
+					$lines[] = $cur . '=' . $rate;
+				}
+				$out['exchange_rates'] = implode( "\n", $lines );
+			}
+		}
+
+		$out['default_rate'] = $d['default_rate'];
+		if ( isset( $in['default_rate'] ) ) {
+			if ( 'fixed' === $out['default_rate_type'] ) {
+				// Fixed default rate is entered as a decimal amount, stored as minor units.
+				$rate = self::parse_amount( $in['default_rate'] );
+				$ok   = null !== $rate && (float) $rate >= 0;
+				if ( $ok ) {
+					$out['default_rate'] = (string) Money::to_minor( $rate, $out['currency'] );
+				} else {
+					$errors['default_rate'] = __( 'Please enter an amount (e.g. 25 or 25,50).', 'wp-affiliate-captain' );
+				}
+			} else {
+				$rate = self::parse_percent( $in['default_rate'] );
+				$ok   = null !== $rate && (float) $rate >= 0 && (float) $rate <= 100;
+				if ( $ok ) {
+					$out['default_rate'] = $rate;
+				} else {
+					$errors['default_rate'] = __( 'Please enter a percentage between 0 and 100 (e.g. 10 or 12,5).', 'wp-affiliate-captain' );
+				}
+			}
+			if ( ! $ok ) {
+				// Rate and type belong together: keep both as stored.
+				$out['default_rate']      = (string) $old( 'default_rate' );
+				$out['default_rate_type'] = (string) $old( 'default_rate_type' );
+			}
+		}
+
+		$out['trusted_proxies'] = '';
+		if ( isset( $in['trusted_proxies'] ) ) {
+			$proxies = array();
+			$invalid = array();
+			foreach ( preg_split( '/[\s,]+/', (string) $in['trusted_proxies'], -1, PREG_SPLIT_NO_EMPTY ) as $entry ) {
+				$parts = explode( '/', $entry, 2 );
+				$max   = filter_var( $parts[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ? 128 : 32;
+				if ( filter_var( $parts[0], FILTER_VALIDATE_IP ) && ( ! isset( $parts[1] ) || ( ctype_digit( $parts[1] ) && (int) $parts[1] <= $max ) ) ) {
+					$proxies[] = $entry;
+				} else {
+					$invalid[] = $entry;
+				}
+			}
+			if ( $invalid ) {
+				/* translators: %s: entries */
+				$errors['trusted_proxies'] = sprintf( __( 'Not an IP address or range: %s', 'wp-affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
+				$out['trusted_proxies']    = (string) $old( 'trusted_proxies' );
+			} else {
+				$out['trusted_proxies'] = implode( "\n", $proxies );
+			}
+		}
+
+		$out['fraud_max_order_minor'] = 0;
+		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
+			$max_order = self::parse_amount( $in['fraud_max_order'] );
+			if ( null === $max_order || (float) $max_order < 0 ) {
+				$errors['fraud_max_order']    = __( 'Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off).', 'wp-affiliate-captain' );
+				$out['fraud_max_order_minor'] = (int) $old( 'fraud_max_order_minor' );
+			} else {
+				$out['fraud_max_order_minor'] = Money::to_minor( $max_order, $out['currency'] );
+			}
+		}
 		$out['fraud_blocked_domains'] = isset( $in['fraud_blocked_domains'] ) ? implode( "\n", array_filter( array_map( 'sanitize_text_field', preg_split( '/[\s,]+/', strtolower( (string) $in['fraud_blocked_domains'] ) ) ) ) ) : '';
 
-		$min                     = isset( $in['min_payout'] ) ? Money::normalize_decimal( (string) $in['min_payout'] ) : null;
-		$out['min_payout_minor'] = null !== $min ? Money::to_minor( $min, $out['currency'] ) : $d['min_payout_minor'];
+		$out['min_payout_minor'] = $d['min_payout_minor'];
+		if ( isset( $in['min_payout'] ) ) {
+			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'] );
+			if ( null === $min || (float) $min < 0 ) {
+				$errors['min_payout']    = __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'wp-affiliate-captain' );
+				$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
+			} else {
+				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
+			}
+		}
 
-		$landing               = isset( $in['landing_prefix'] ) ? sanitize_title( (string) $in['landing_prefix'] ) : '';
-		$out['landing_prefix'] = '' !== $landing ? $landing : $d['landing_prefix'];
-		$out['landing_page_id']      = isset( $in['landing_page_id'] ) ? absint( $in['landing_page_id'] ) : 0;
-		$out['default_disclosure']   = isset( $in['default_disclosure'] ) && '' !== trim( (string) $in['default_disclosure'] ) ? sanitize_text_field( (string) $in['default_disclosure'] ) : $d['default_disclosure'];
+		$out['landing_prefix'] = $d['landing_prefix'];
+		if ( isset( $in['landing_prefix'] ) ) {
+			$landing = sanitize_title( (string) $in['landing_prefix'] );
+			if ( '' === $landing ) {
+				$errors['landing_prefix'] = __( 'Please enter a path (letters, digits and "-").', 'wp-affiliate-captain' );
+				$out['landing_prefix']    = (string) $old( 'landing_prefix' );
+			} else {
+				$out['landing_prefix'] = $landing;
+			}
+		}
+		$out['landing_page_id']    = isset( $in['landing_page_id'] ) ? absint( $in['landing_page_id'] ) : 0;
+		$out['default_disclosure'] = $d['default_disclosure'];
+		if ( isset( $in['default_disclosure'] ) ) {
+			if ( '' === trim( (string) $in['default_disclosure'] ) ) {
+				$errors['default_disclosure'] = __( 'Please enter a disclosure note (e.g. "Advertisement"); partners need it for their posts.', 'wp-affiliate-captain' );
+				$out['default_disclosure']    = (string) $old( 'default_disclosure' );
+			} else {
+				$out['default_disclosure'] = sanitize_text_field( (string) $in['default_disclosure'] );
+			}
+		}
 		$out['promotion_guidelines'] = isset( $in['promotion_guidelines'] ) ? wp_kses_post( (string) $in['promotion_guidelines'] ) : '';
 
-		$out['terms_version']     = isset( $in['terms_version'] ) ? sanitize_text_field( (string) $in['terms_version'] ) : $d['terms_version'];
-		$out['admin_email']       = isset( $in['admin_email'] ) ? sanitize_email( (string) $in['admin_email'] ) : '';
-		$token                    = isset( $in['monitor_token'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['monitor_token'] ) : '';
-		$out['monitor_token']     = strlen( $token ) >= 20 ? substr( $token, 0, 64 ) : '';
-		$out['debtor_name']       = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
-		$vat                         = isset( $in['vat_rate'] ) ? Money::normalize_decimal( (string) $in['vat_rate'] ) : null;
-		$out['vat_rate']             = ( null !== $vat && (float) $vat >= 0 && (float) $vat < 100 ) ? $vat : $d['vat_rate'];
-		$country                     = isset( $in['operator_country'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['operator_country'] ) ) : '';
-		$out['operator_country']     = 2 === strlen( $country ) ? $country : $d['operator_country'];
-		$out['operator_address']     = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
-		$out['operator_vat_id']      = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
-		$out['operator_tax_number']  = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
+		$out['terms_version'] = $d['terms_version'];
+		if ( isset( $in['terms_version'] ) ) {
+			$version = trim( sanitize_text_field( (string) $in['terms_version'] ) );
+			if ( '' === $version ) {
+				$errors['terms_version'] = __( 'Please enter a version (e.g. 1.0).', 'wp-affiliate-captain' );
+				$out['terms_version']    = (string) $old( 'terms_version' );
+			} else {
+				$out['terms_version'] = substr( $version, 0, 20 );
+			}
+		}
+		$out['admin_email'] = '';
+		if ( isset( $in['admin_email'] ) && '' !== trim( (string) $in['admin_email'] ) ) {
+			$email = sanitize_email( (string) $in['admin_email'] );
+			if ( ! is_email( $email ) ) {
+				$errors['admin_email'] = __( 'Please enter a valid e-mail address or leave the field empty.', 'wp-affiliate-captain' );
+				$out['admin_email']    = (string) $old( 'admin_email' );
+			} else {
+				$out['admin_email'] = $email;
+			}
+		}
+		// Only a hash of the monitor token is stored; the form field stays empty and an empty field
+		// keeps the current token ("Remove token" clears it).
+		$out['monitor_token'] = (string) $old( 'monitor_token' );
+		if ( ! empty( $in['monitor_token_clear'] ) ) {
+			$out['monitor_token'] = '';
+		} elseif ( isset( $in['monitor_token'] ) && '' !== trim( (string) $in['monitor_token'] ) ) {
+			$token = trim( (string) $in['monitor_token'] );
+			if ( ! preg_match( '/^[A-Za-z0-9]{20,64}$/', $token ) ) {
+				$errors['monitor_token'] = __( 'The token needs 20 to 64 letters and digits (no spaces or special characters). The previous token stays valid.', 'wp-affiliate-captain' );
+			} else {
+				$out['monitor_token'] = self::monitor_token_hash( $token );
+			}
+		}
+		$out['debtor_name'] = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
+		$out['vat_rate']    = $d['vat_rate'];
+		if ( isset( $in['vat_rate'] ) ) {
+			$vat = self::parse_percent( $in['vat_rate'] );
+			if ( null === $vat || (float) $vat < 0 || (float) $vat >= 100 ) {
+				$errors['vat_rate'] = __( 'Please enter a percentage between 0 and 99 (e.g. 19 or 7,7).', 'wp-affiliate-captain' );
+				$out['vat_rate']    = (string) $old( 'vat_rate' );
+			} else {
+				$out['vat_rate'] = $vat;
+			}
+		}
+		$out['operator_address']    = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
+		$out['operator_vat_id']     = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
+		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
 		foreach ( array( 'credit_prefix', 'storno_prefix' ) as $k ) {
-			$prefix    = isset( $in[ $k ] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in[ $k ] ) ) : '';
-			$out[ $k ] = '' !== $prefix ? substr( $prefix, 0, 8 ) : $d[ $k ];
+			$out[ $k ] = $d[ $k ];
+			if ( ! isset( $in[ $k ] ) ) {
+				continue;
+			}
+			$prefix = strtoupper( trim( (string) $in[ $k ] ) );
+			if ( ! preg_match( '/^[A-Z0-9]{1,8}$/', $prefix ) ) {
+				$errors[ $k ] = __( 'Please enter 1 to 8 letters or digits (e.g. GS).', 'wp-affiliate-captain' );
+				$out[ $k ]    = (string) $old( $k );
+			} else {
+				$out[ $k ] = $prefix;
+			}
 		}
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];
-		$out['debtor_bic']        = isset( $in['debtor_bic'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['debtor_bic'] ) ) : '';
-		$iban                     = isset( $in['debtor_iban'] ) ? Iban::normalize( (string) $in['debtor_iban'] ) : '';
-		$out['debtor_iban']       = ( '' === $iban || Iban::is_valid( $iban ) ) ? $iban : self::get( 'debtor_iban' );
+		$out['debtor_bic']        = '';
+		if ( isset( $in['debtor_bic'] ) && '' !== trim( (string) $in['debtor_bic'] ) ) {
+			$bic = strtoupper( preg_replace( '/\s+/', '', (string) $in['debtor_bic'] ) );
+			if ( ! preg_match( '/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $bic ) ) {
+				$errors['debtor_bic'] = __( 'This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it.', 'wp-affiliate-captain' );
+				$out['debtor_bic']    = (string) $old( 'debtor_bic' );
+			} else {
+				$out['debtor_bic'] = $bic;
+			}
+		}
+		$iban               = isset( $in['debtor_iban'] ) ? Iban::normalize( (string) $in['debtor_iban'] ) : '';
+		$out['debtor_iban'] = $iban;
+		if ( '' !== $iban && ! Iban::is_valid( $iban ) ) {
+			$errors['debtor_iban'] = '' !== (string) self::get( 'debtor_iban' )
+				? __( 'This IBAN is not valid (check digits). The previous IBAN is still used.', 'wp-affiliate-captain' )
+				: __( 'This IBAN is not valid (check digits).', 'wp-affiliate-captain' );
+			$out['debtor_iban']    = (string) self::get( 'debtor_iban' );
+		}
 
+		return $out;
+	}
+
+	/**
+	 * Parse a percentage as typed by people: "15", "15 %", "15,5", "15.5%".
+	 *
+	 * @param mixed $raw Input.
+	 * @return string|null Normalized decimal or null.
+	 */
+	public static function parse_percent( $raw ) {
+		$value = trim( str_replace( array( '%', "\u{00A0}", "\u{202F}" ), array( '', ' ', ' ' ), (string) $raw ) );
+		return Money::normalize_decimal( $value );
+	}
+
+	/**
+	 * Parse an amount as typed by people: "25", "25 €", "€ 25,50", "1.000", "1.000,00 EUR",
+	 * "1,000.00". A dot followed by groups of exactly three digits (and no comma) is read as a
+	 * thousands separator: amounts never have three decimals.
+	 *
+	 * @param mixed $raw Input.
+	 * @return string|null Normalized decimal or null.
+	 */
+	public static function parse_amount( $raw ) {
+		$value = str_replace( array( '€', '$', '£', '¥', "\u{00A0}", "\u{202F}" ), array( '', '', '', '', ' ', ' ' ), (string) $raw );
+		$value = trim( (string) preg_replace( '/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/', '', trim( $value ) ) );
+		$value = str_replace( ' ', '', $value );
+		if ( preg_match( '/^-?\d{1,3}(\.\d{3})+$/', $value ) ) {
+			$value = str_replace( '.', '', $value );
+		}
+		return Money::normalize_decimal( $value );
+	}
+
+	/**
+	 * Countries the operator can choose (ISO 3166-1 alpha-2 => name): the EU, the EEA,
+	 * Switzerland, the United Kingdom and other common shop countries.
+	 *
+	 * @return array
+	 */
+	public static function countries() {
+		$codes = array( 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'CH', 'LI', 'NO', 'IS', 'GB', 'US', 'CA', 'AU', 'NZ' );
+		$names = array();
+		if ( function_exists( 'WC' ) && WC() && isset( WC()->countries ) && is_object( WC()->countries ) ) {
+			$names = (array) WC()->countries->get_countries();
+		}
+		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : 'en_US';
+		$out    = array();
+		foreach ( $codes as $code ) {
+			$name = isset( $names[ $code ] ) ? html_entity_decode( (string) $names[ $code ], ENT_QUOTES, 'UTF-8' ) : '';
+			if ( '' === $name && class_exists( '\Locale' ) ) {
+				$name = (string) \Locale::getDisplayRegion( 'und-' . $code, $locale );
+			}
+			$out[ $code ] = '' !== $name && $name !== $code ? $name : $code;
+		}
+		asort( $out, SORT_NATURAL | SORT_FLAG_CASE );
 		return $out;
 	}
 

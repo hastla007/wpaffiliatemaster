@@ -94,6 +94,12 @@ final class Db {
 	public static function refresh( $name, $owner ) {
 		global $wpdb;
 		$value = time() . ':' . substr( (string) $owner, strpos( (string) $owner, ':' ) + 1 );
+		if ( $value === (string) $owner ) {
+			// Same second: an UPDATE to the same value reports 0 changed rows, so check ownership instead.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$held = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+			return $held === $value ? $value : '';
+		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$ok = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $value, $name, $owner ) );
 		wp_cache_delete( $name, 'options' );
@@ -114,6 +120,36 @@ final class Db {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $name, $owner ) );
 		wp_cache_delete( $name, 'options' );
+	}
+
+	/**
+	 * Run a short read-modify-write (e.g. of a list kept in one option) under a named lock, so two
+	 * parallel requests cannot overwrite each other's change. Waits for the lock (a lock of a
+	 * request that died is taken over after $ttl seconds).
+	 *
+	 * @param string   $name Lock name (option name).
+	 * @param callable $fn   Callback.
+	 * @param int      $ttl  Seconds after which the lock counts as abandoned.
+	 * @return mixed Result of the callback.
+	 * @throws IntegrationException When the lock could not be taken.
+	 */
+	public static function with_lock( $name, callable $fn, $ttl = 15 ) {
+		$deadline = microtime( true ) + (int) $ttl + 2;
+		do {
+			$owner = self::lock( $name, $ttl );
+			if ( '' !== $owner ) {
+				break;
+			}
+			usleep( 100000 );
+		} while ( microtime( true ) < $deadline );
+		if ( '' === $owner ) {
+			throw new IntegrationException( 'locked', 'Could not acquire the lock ' . $name . '.' );
+		}
+		try {
+			return $fn();
+		} finally {
+			self::unlock( $name, $owner );
+		}
 	}
 
 	/**

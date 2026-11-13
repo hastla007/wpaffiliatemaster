@@ -100,6 +100,11 @@ final class Jobs {
 	 * Continue the queue (single cron event).
 	 */
 	public static function drain() {
+		// Like the hourly run: nothing is booked during maintenance or before a migration has
+		// finished (the hourly run picks the queue up again afterwards).
+		if ( ! Installer::schema_current() || Settings::get( 'maintenance_mode' ) ) {
+			return;
+		}
 		self::run_due( 50 );
 	}
 

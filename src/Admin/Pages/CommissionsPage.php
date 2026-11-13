@@ -44,7 +44,7 @@ final class CommissionsPage {
 			}
 			if ( $errors ) {
 				/* translators: 1: number of errors, 2: message */
-				Admin::back( sprintf( __( '%1$d commission(s) could not be changed: %2$s', 'wp-affiliate-captain' ), $errors, $last ), 'error' );
+				Admin::back( sprintf( _n( '%1$d commission could not be changed: %2$s', '%1$d commissions could not be changed: %2$s', $errors, 'wp-affiliate-captain' ), $errors, $last ), 'error' );
 			}
 			Admin::back( __( 'Commissions updated.', 'wp-affiliate-captain' ) );
 		}
@@ -55,6 +55,7 @@ final class CommissionsPage {
 			list( $rows ) = Ledger::query( $args );
 			$names = array();
 			$out   = array();
+			AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
 			foreach ( $rows as $r ) {
 				if ( ! isset( $names[ $r->affiliate_id ] ) ) {
 					$a                         = AffiliateRepository::find( (int) $r->affiliate_id );
@@ -118,7 +119,7 @@ final class CommissionsPage {
 		}
 		if ( $errors ) {
 			/* translators: 1: number of errors, 2: message */
-			Admin::back( sprintf( __( '%1$d commission(s) could not be changed: %2$s', 'wp-affiliate-captain' ), $errors, $last ), 'error', $back );
+			Admin::back( sprintf( _n( '%1$d commission could not be changed: %2$s', '%1$d commissions could not be changed: %2$s', $errors, 'wp-affiliate-captain' ), $errors, $last ), 'error', $back );
 		}
 		Admin::back( __( 'Commissions updated.', 'wp-affiliate-captain' ), 'success', $back );
 	}
@@ -263,7 +264,7 @@ final class CommissionsPage {
 			printf(
 				'<tr><td>%s</td><td>%s</td><td>%s → %s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( Admin::date( $e->created_at, true ) ),
-				esc_html( $e->event ),
+				esc_html( self::event_label( (string) $e->event, $labels ) ),
 				esc_html( $e->from_status ? ( isset( $labels[ $e->from_status ] ) ? $labels[ $e->from_status ] : $e->from_status ) : '·' ),
 				esc_html( isset( $labels[ $e->to_status ] ) ? $labels[ $e->to_status ] : $e->to_status ),
 				esc_html( Money::format( (int) $e->amount_minor, $c->currency ) ),
@@ -286,6 +287,27 @@ final class CommissionsPage {
 			echo '<h2>' . esc_html__( 'Rule snapshot', 'wp-affiliate-captain' ) . '</h2><pre class="wpac-pre">' . esc_html( wp_json_encode( json_decode( $c->rule_snapshot ), JSON_PRETTY_PRINT ) ) . '</pre>';
 		}
 		echo '</div>';
+	}
+
+	/**
+	 * Readable commission event.
+	 *
+	 * @param string $event  Event key.
+	 * @param array  $status Status labels.
+	 * @return string
+	 */
+	private static function event_label( $event, array $status ) {
+		$labels = array(
+			'created'         => __( 'Created', 'wp-affiliate-captain' ),
+			'adjusted'        => __( 'Corrected (refund or reinstatement)', 'wp-affiliate-captain' ),
+			'payout_assigned' => __( 'Added to a payout', 'wp-affiliate-captain' ),
+			'payout_released' => __( 'Released from a cancelled payout', 'wp-affiliate-captain' ),
+		);
+		if ( isset( $labels[ $event ] ) ) {
+			return $labels[ $event ];
+		}
+		/* translators: %s: status */
+		return isset( $status[ $event ] ) ? sprintf( __( 'Status: %s', 'wp-affiliate-captain' ), $status[ $event ] ) : $event;
 	}
 
 	/**

@@ -99,14 +99,38 @@ final class CheckoutField {
 				'sanitize_callback' => static function ( $value ) {
 					return CodeRepository::normalize( (string) $value );
 				},
-				'validate_callback' => static function ( $value ) {
-					if ( '' !== (string) $value && ! wpac_resolve_partner_code( (string) $value, array( 'context' => 'checkout' ) ) ) {
-						return new \WP_Error( 'wpac_partner_code', __( 'The partner code is not valid.', 'wp-affiliate-captain' ) );
-					}
-					return true;
-				},
+				'validate_callback' => array( __CLASS__, 'blocks_validate' ),
 			)
 		);
+	}
+
+	/** @var array<string,true|\WP_Error> Results of block validation in this request (WooCommerce may validate a field several times). */
+	private static $block_checked = array();
+
+	/**
+	 * Validate the blocks field. Same limit as the classic checkout and the REST code
+	 * check, so POST /wc/store/v1/checkout cannot be used to guess codes.
+	 *
+	 * @param mixed $value Sanitized value.
+	 * @return true|\WP_Error
+	 */
+	public static function blocks_validate( $value ) {
+		$value = (string) $value;
+		if ( '' === $value ) {
+			return true;
+		}
+		if ( isset( self::$block_checked[ $value ] ) ) {
+			return self::$block_checked[ $value ];
+		}
+		if ( ! \WPAffiliateCaptain\Tracking\RateLimiter::allow( 'code_check', 20, MINUTE_IN_SECONDS ) ) {
+			$result = new \WP_Error( 'wpac_partner_code', __( 'Too many attempts. Please wait a minute and try again.', 'wp-affiliate-captain' ) );
+		} elseif ( ! wpac_resolve_partner_code( $value, array( 'context' => 'checkout' ) ) ) {
+			$result = new \WP_Error( 'wpac_partner_code', __( 'The partner code is not valid.', 'wp-affiliate-captain' ) );
+		} else {
+			$result = true;
+		}
+		self::$block_checked[ $value ] = $result;
+		return $result;
 	}
 
 	/**

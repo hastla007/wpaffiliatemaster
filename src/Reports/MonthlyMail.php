@@ -48,6 +48,17 @@ final class MonthlyMail {
 	}
 
 	/**
+	 * Month for people: "October 2026" in the site language instead of "2026-10".
+	 *
+	 * @param string $month Month (Y-m).
+	 * @return string
+	 */
+	public static function month_label( $month ) {
+		$ts = strtotime( $month . '-15 12:00:00 UTC' );
+		return false === $ts ? (string) $month : (string) wp_date( 'F Y', $ts, new \DateTimeZone( 'UTC' ) );
+	}
+
+	/**
 	 * Atomically claim the report run of a month. WP-Cron and a system cron can run at the same time;
 	 * both would read "not sent" before either marks the month, so the claim is an INSERT that only
 	 * one process can win.
@@ -73,6 +84,11 @@ final class MonthlyMail {
 	public static function batch() {
 		$progress = get_option( self::PROGRESS );
 		if ( ! is_array( $progress ) || empty( $progress['month'] ) ) {
+			return;
+		}
+		if ( self::paused() ) {
+			// Maintenance or migration: no mails now, the chain continues later.
+			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, HOUR_IN_SECONDS );
 			return;
 		}
 		$sent = self::send( $progress['month'], false, (int) $progress['offset'], self::BATCH_SIZE );
@@ -147,10 +163,11 @@ final class MonthlyMail {
 				if ( ! $aff || 'active' !== $aff->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) || ( ! $r['orders'] && ! $r['visits'] && ! $r['commission'] ) ) {
 					continue;
 				}
-				$lines   = array();
-				$lines[] = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'wp-affiliate-captain' ), $aff->name );
+				$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
+				$lines       = array();
+				$lines[]     = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'wp-affiliate-captain' ), $aff->name );
 				$lines[] = '';
-				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'wp-affiliate-captain' ), $month );
+				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'wp-affiliate-captain' ), self::month_label( $month ) );
 				$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $r['visits'];
 				$lines[] = __( 'Sales', 'wp-affiliate-captain' ) . ': ' . $r['orders'];
 				$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['commission'] );
@@ -166,9 +183,11 @@ final class MonthlyMail {
 				$lines[] = __( 'Available for payout', 'wp-affiliate-captain' ) . ': ' . $fmt( PayoutRequests::available( (int) $aff->id ) );
 				if ( $portal ) {
 					$lines[] = '';
-					$lines[] = get_permalink( $portal );
+					$lines[] = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
 				}
-				if ( ! wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) ) ) {
+				$wpac_ok = wp_mail( $aff->email, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
+				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+				if ( ! $wpac_ok ) {
 					self::record_failure( $month, (int) $aff->id ); // Retried later (retry_failed()).
 					continue;
 				}
@@ -219,7 +238,7 @@ final class MonthlyMail {
 			}
 		}
 		$lines   = array();
-		$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'wp-affiliate-captain' ), $month );
+		$lines[] = sprintf( /* translators: %s: month */ __( 'Partner program summary %s', 'wp-affiliate-captain' ), self::month_label( $month ) );
 		$lines[] = '';
 		$lines[] = __( 'Link visits', 'wp-affiliate-captain' ) . ': ' . $tot['visits'];
 		$lines[] = __( 'Attributed orders', 'wp-affiliate-captain' ) . ': ' . $tot['orders'];
@@ -244,7 +263,7 @@ final class MonthlyMail {
 		$lines[] = '';
 		$lines[] = admin_url( 'admin.php?page=wpac&from=' . $from . '&to=' . $to );
 		$to_mail = (string) Settings::get( 'admin_email' );
-		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), $month ) ), implode( "\n", $lines ) );
+		return (bool) wp_mail( is_email( $to_mail ) ? $to_mail : (string) get_option( 'admin_email' ), sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Partner program %s', 'wp-affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
 	}
 
 	const FAILED     = 'wpac_report_failed';
@@ -305,6 +324,12 @@ final class MonthlyMail {
 	 * process retries at a time (WP-Cron and a system cron could overlap and mail twice).
 	 */
 	public static function retry_failed() {
+		if ( self::paused() ) {
+			if ( self::failures() ) {
+				\WPAffiliateCaptain\Core\Scheduler::once( self::RETRY_HOOK, HOUR_IN_SECONDS );
+			}
+			return;
+		}
 		$owner = \WPAffiliateCaptain\Core\Db::lock( 'wpac_report_retry_lock', 30 * MINUTE_IN_SECONDS );
 		if ( '' === $owner ) {
 			return;
@@ -352,6 +377,15 @@ final class MonthlyMail {
 		} finally {
 			\WPAffiliateCaptain\Core\Db::unlock( 'wpac_report_retry_lock', $owner );
 		}
+	}
+
+	/**
+	 * Whether mails have to wait (maintenance mode, or a migration has not finished).
+	 *
+	 * @return bool
+	 */
+	private static function paused() {
+		return (bool) Settings::get( 'maintenance_mode' ) || ! \WPAffiliateCaptain\Core\Installer::schema_current();
 	}
 
 	/**

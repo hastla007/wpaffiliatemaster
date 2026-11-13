@@ -35,20 +35,46 @@ final class AffiliatesPage {
 		$id = absint( Admin::post( 'id', 0 ) );
 		switch ( $do ) {
 			case 'affiliate_create':
-				$result = AffiliateRepository::create(
-					array(
-						'name'     => Admin::post( 'name' ),
-						'email'    => Admin::post( 'email' ),
-						'website'  => Admin::post( 'website' ),
-						'channel'  => Admin::post( 'channel' ),
-						'group_id' => absint( Admin::post( 'group_id', 0 ) ),
-						'status'   => 'active',
-					)
+				$input  = array(
+					'name'     => sanitize_text_field( (string) Admin::post( 'name' ) ),
+					'email'    => sanitize_text_field( (string) Admin::post( 'email' ) ),
+					'website'  => esc_url_raw( (string) Admin::post( 'website' ) ),
+					'channel'  => sanitize_text_field( (string) Admin::post( 'channel' ) ),
+					'group_id' => absint( Admin::post( 'group_id', 0 ) ),
 				);
+				$result = AffiliateRepository::create( $input + array( 'status' => 'active' ) );
+				if ( is_wp_error( $result ) ) {
+					Admin::keep_form( 'affiliate_create', $input );
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				// Welcome mail with the partner area link (and the set-password link for a new account).
+				\WPAffiliateCaptain\Affiliates\Notifications::partner_created( (int) $result );
+				Admin::back( __( 'Partner created and activated. The partner received a welcome e-mail with the link to the partner area.', 'wp-affiliate-captain' ), 'success', Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $result ) ) );
+				break;
+
+			case 'user_link_resend':
+				$result = AffiliateRepository::resend_user_link( $id );
 				if ( is_wp_error( $result ) ) {
 					Admin::back( $result->get_error_message(), 'error' );
 				}
-				Admin::back( __( 'Partner created and activated.', 'wp-affiliate-captain' ), 'success', Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $result ) ) );
+				Admin::back( __( 'The link to connect the existing customer account was sent to the partner again (valid for 7 days).', 'wp-affiliate-captain' ) );
+				break;
+
+			case 'user_link_manual':
+				$result = AffiliateRepository::link_user( $id, sanitize_text_field( (string) Admin::post( 'user' ) ) );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'The WordPress user is now linked: the partner can log in to the partner area with it.', 'wp-affiliate-captain' ) );
+				break;
+
+			case 'terms_remind':
+				$result = Agreements::start_reminders();
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'wpac_none' === $result->get_error_code() ? 'info' : 'error' );
+				}
+				/* translators: %d: number of partners */
+				Admin::back( sprintf( _n( '%d partner without the current acceptance is asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', '%d partners without the current acceptance are asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', $result, 'wp-affiliate-captain' ), $result ) );
 				break;
 
 			case 'affiliate_update':
@@ -134,7 +160,7 @@ final class AffiliatesPage {
 					)
 				);
 				/* translators: 1: count, 2: batch */
-				Admin::back( sprintf( __( '%1$d codes created (batch %2$s).', 'wp-affiliate-captain' ), count( $ids ), $batch ) );
+				Admin::back( sprintf( _n( '%1$d code created (batch %2$s).', '%1$d codes created (batch %2$s).', count( $ids ), 'wp-affiliate-captain' ), count( $ids ), $batch ) );
 				break;
 
 			case 'code_status':
@@ -165,7 +191,18 @@ final class AffiliatesPage {
 
 			case 'vies_check':
 				$r = \WPAffiliateCaptain\Payouts\Vies::check( $id );
-				Admin::back( $r ? __( 'VAT ID checked against VIES.', 'wp-affiliate-captain' ) : __( 'No VAT ID stored.', 'wp-affiliate-captain' ), $r && 'invalid' === $r['status'] ? 'error' : 'success' );
+				if ( ! $r ) {
+					$profile = ProfileRepository::get( $id );
+					Admin::back( $profile && '' !== (string) $profile->vat_id ? __( 'The VAT ID could not be checked (the VIES check may be switched off in the settings).', 'wp-affiliate-captain' ) : __( 'No VAT ID stored.', 'wp-affiliate-captain' ), 'error' );
+				}
+				$vies = array(
+					'valid'          => array( 'success', __( 'VIES confirms the VAT ID as valid.', 'wp-affiliate-captain' ) ),
+					'invalid'        => array( 'error', __( 'According to VIES, the VAT ID is NOT valid. Reverse-charge payouts to this partner are blocked until the partner corrects it.', 'wp-affiliate-captain' ) ),
+					'unavailable'    => array( 'warning', __( 'VIES could not be reached (the service of the EU or of the member state is down). Nothing was changed; the check is repeated automatically.', 'wp-affiliate-captain' ) ),
+					'not_applicable' => array( 'info', __( 'Not an EU VAT ID – VIES cannot check it.', 'wp-affiliate-captain' ) ),
+				);
+				$res  = isset( $vies[ $r['status'] ] ) ? $vies[ $r['status'] ] : array( 'warning', (string) $r['status'] );
+				Admin::back( $res[1], $res[0] );
 				break;
 
 			case 'dunning_send':
@@ -200,11 +237,14 @@ final class AffiliatesPage {
 					Admin::back( __( 'You are not allowed to view tax and bank details.', 'wp-affiliate-captain' ), 'error' );
 				}
 				$in = array();
-				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic' ) as $f ) {
+				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details' ) as $f ) {
 					$in[ $f ] = (string) Admin::post( $f );
 				}
 				$result = ProfileRepository::save( $id, $in );
 				if ( is_wp_error( $result ) ) {
+					// Keep what was typed (never the IBAN) so nothing has to be entered again.
+					unset( $in['iban'] );
+					Admin::keep_form( 'profile_' . $id, array_map( 'sanitize_textarea_field', $in ) );
 					Admin::back( $result->get_error_message(), 'error' );
 				}
 				Admin::back( __( 'Payout details saved.', 'wp-affiliate-captain' ) );
@@ -260,6 +300,7 @@ final class AffiliatesPage {
 		echo '<div class="wrap"><h1 class="wp-heading-inline">' . esc_html__( 'Partners', 'wp-affiliate-captain' ) . '</h1> ';
 		echo '<a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Add partner', 'wp-affiliate-captain' ) . '</a><hr class="wp-header-end">';
 		Admin::notice();
+		self::terms_reminder_box();
 		$table->views();
 		echo '<form method="get"><input type="hidden" name="page" value="wpac-affiliates">';
 		if ( Admin::get( 'status' ) ) {
@@ -276,14 +317,24 @@ final class AffiliatesPage {
 	private static function render_new() {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Add partner', 'wp-affiliate-captain' ) . '</h1>';
 		Admin::notice();
+		$kept = wp_parse_args(
+			Admin::kept_form( 'affiliate_create' ),
+			array(
+				'name'     => '',
+				'email'    => '',
+				'website'  => '',
+				'channel'  => '',
+				'group_id' => 0,
+			)
+		);
 		Admin::form_open( 'affiliate_create' );
 		echo '<table class="form-table">';
-		self::row_input( 'name', __( 'Name / company', 'wp-affiliate-captain' ), '', 'required' );
-		self::row_input( 'email', __( 'E-mail', 'wp-affiliate-captain' ), '', 'required type="email"' );
-		self::row_input( 'website', __( 'Website', 'wp-affiliate-captain' ), '', 'type="url"' );
-		self::row_input( 'channel', __( 'Channel', 'wp-affiliate-captain' ), '' );
-		self::row_group( 0 );
-		echo '</table><p class="description">' . esc_html__( 'The partner is activated immediately. A WordPress account is linked by e-mail or created, and a partner code is generated.', 'wp-affiliate-captain' ) . '</p>';
+		self::row_input( 'name', __( 'Name / company', 'wp-affiliate-captain' ), $kept['name'], 'required' );
+		self::row_input( 'email', __( 'E-mail', 'wp-affiliate-captain' ), $kept['email'], 'required type="email"' );
+		self::row_input( 'website', __( 'Website', 'wp-affiliate-captain' ), $kept['website'], 'type="url"' );
+		self::row_input( 'channel', __( 'Channel', 'wp-affiliate-captain' ), $kept['channel'] );
+		self::row_group( (int) $kept['group_id'] );
+		echo '</table><p class="description">' . esc_html__( 'The partner is activated immediately, gets a partner code and a welcome e-mail with the link to the partner area. Without a WordPress account, one is created (the e-mail contains the link to set a password). If a customer account with this e-mail already exists, the partner gets a link to connect it – or you link a user on the partner page.', 'wp-affiliate-captain' ) . '</p>';
 		submit_button( __( 'Create partner', 'wp-affiliate-captain' ) );
 		echo '</form></div>';
 	}
@@ -406,44 +457,61 @@ final class AffiliatesPage {
 		self::row_input( 'name', __( 'Name / company', 'wp-affiliate-captain' ), $a->name );
 		echo '<tr><th><label for="wpac-email">' . esc_html__( 'E-mail', 'wp-affiliate-captain' ) . '</label></th><td><input type="email" id="wpac-email" name="email" class="regular-text" value="' . esc_attr( $a->email ) . '">' . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'wp-affiliate-captain' ) . '</a>' : '' ) . '</td></tr>';
 		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
-			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html__( 'No WordPress user is linked: the partner cannot log in to the partner area. This happens when the e-mail belongs to an administrator or editor account (never linked automatically). Use a different e-mail or link a user manually.', 'wp-affiliate-captain' ) . '</p></div></td></tr>';
+			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html__( 'No WordPress user is linked: the partner cannot log in to the partner area yet. See "Partner area access" on the overview tab.', 'wp-affiliate-captain' ) . '</p></div></td></tr>';
 		}
 		self::row_input( 'slug', __( 'Vanity slug', 'wp-affiliate-captain' ), $a->slug );
 		self::row_input( 'website', __( 'Website', 'wp-affiliate-captain' ), $a->website, 'type="url"' );
 		self::row_input( 'channel', __( 'Channel', 'wp-affiliate-captain' ), $a->channel );
 		self::row_group( (int) $a->group_id );
-		echo '<tr><th>' . esc_html__( 'Landing page', 'wp-affiliate-captain' ) . '</th><td>';
+		echo '<tr><th><label for="wpac-landing_page_id">' . esc_html__( 'Landing page', 'wp-affiliate-captain' ) . '</label></th><td>';
 		wp_dropdown_pages(
 			array(
 				'name'              => 'landing_page_id',
+				'id'                => 'wpac-landing_page_id',
 				'selected'          => (int) $a->landing_page_id,
 				'show_option_none'  => esc_html__( '— default —', 'wp-affiliate-captain' ),
 				'option_none_value' => '0',
 			)
 		);
 		echo '<p class="description">' . esc_html( \WPAffiliateCaptain\Promotion\Landing::url( $a ) ) . '</p></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Welcome message on landing page', 'wp-affiliate-captain' ) . '</th><td><textarea name="landing_message" rows="3" class="large-text">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'wp-affiliate-captain' ) . '</p></td></tr>';
+		echo '<tr><th><label for="wpac-landing_message">' . esc_html__( 'Welcome message on landing page', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-landing_message" name="landing_message" rows="3" class="large-text">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 		echo '</table>';
 		submit_button( __( 'Save', 'wp-affiliate-captain' ), 'secondary' );
 		echo '</form></div></div>';
 
 		$parts['profile'][] = ob_get_clean();
 		ob_start();
+		// Partner area access (no linked WordPress user).
+		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
+			self::user_link_box( $a );
+		}
 		// Agreements.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Terms acceptance', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
+		$terms = Agreements::current( (int) $a->group_id );
+		if ( $terms['page_id'] && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
+			if ( Agreements::has_current( $id ) ) {
+				/* translators: %s: version */
+				echo '<p>✔ ' . esc_html( sprintf( __( 'The current terms (version %s) are accepted.', 'wp-affiliate-captain' ), $terms['version'] ) ) . '</p>';
+			} else {
+				/* translators: %s: version */
+				echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'The current terms (version %s) are not accepted yet. The partner is asked to accept them on the next login to the partner area; until then, payouts by credit note wait.', 'wp-affiliate-captain' ), $terms['version'] ) ) . '</p></div>';
+			}
+		}
 		$agreements = Agreements::for_affiliate( $id );
 		if ( ! $agreements ) {
 			echo '<p>' . esc_html__( 'No acceptance recorded.', 'wp-affiliate-captain' ) . '</p>';
 		} else {
+			$results = array(
+				'accepted' => __( 'Accepted', 'wp-affiliate-captain' ),
+				'declined' => __( 'Declined', 'wp-affiliate-captain' ),
+			);
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Version', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Document hash', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Result', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $agreements as $ag ) {
-				printf( '<tr><td>%s</td><td>%s</td><td><code title="%s">%s…</code></td><td>%s</td></tr>', esc_html( Admin::date( $ag->created_at, true ) ), esc_html( $ag->version ), esc_attr( $ag->doc_hash ), esc_html( substr( $ag->doc_hash, 0, 12 ) ), esc_html( $ag->result ) );
+				printf( '<tr><td>%s</td><td>%s</td><td><code title="%s">%s…</code></td><td>%s</td></tr>', esc_html( Admin::date( $ag->created_at, true ) ), esc_html( $ag->version ), esc_attr( $ag->doc_hash ), esc_html( substr( $ag->doc_hash, 0, 12 ) ), esc_html( isset( $results[ $ag->result ] ) ? $results[ $ag->result ] : $ag->result ) );
 			}
 			echo '</tbody></table>';
 		}
 		echo '</div></div>';
-
-
 
 		$parts['overview'][] = ob_get_clean();
 		ob_start();
@@ -499,18 +567,22 @@ final class AffiliatesPage {
 		if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 			echo '<p>' . esc_html( ProfileRepository::is_complete( $p ) ? __( 'Complete.', 'wp-affiliate-captain' ) : __( 'Incomplete.', 'wp-affiliate-captain' ) ) . ' ' . esc_html__( 'You are not allowed to view tax and bank details.', 'wp-affiliate-captain' ) . '</p>';
 		} else {
-			$v = static function ( $k ) use ( $p ) {
+			$kept = Admin::kept_form( 'profile_' . $id );
+			$v    = static function ( $k ) use ( $p, $kept ) {
+				if ( isset( $kept[ $k ] ) ) {
+					return (string) $kept[ $k ];
+				}
 				return $p ? (string) $p->$k : '';
 			};
 			Admin::form_open( 'profile_update' );
 			echo '<input type="hidden" name="id" value="' . (int) $id . '"><table class="form-table">';
-			echo '<tr><th>' . esc_html__( 'Tax status', 'wp-affiliate-captain' ) . '</th><td><select name="tax_status"><option value="">—</option>';
+			echo '<tr><th><label for="wpac-tax_status">' . esc_html__( 'Tax status', 'wp-affiliate-captain' ) . '</label></th><td><select id="wpac-tax_status" name="tax_status"><option value="">—</option>';
 			foreach ( ProfileRepository::tax_status_labels() as $k => $l ) {
 				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'tax_status' ), $k, false ), esc_html( $l ) );
 			}
 			echo '</select></td></tr>';
 			self::row_input( 'legal_name', __( 'Legal name', 'wp-affiliate-captain' ), $v( 'legal_name' ) );
-			echo '<tr><th>' . esc_html__( 'Address', 'wp-affiliate-captain' ) . '</th><td><textarea name="address" rows="3" class="regular-text">' . esc_textarea( $v( 'address' ) ) . '</textarea></td></tr>';
+			echo '<tr><th><label for="wpac-address">' . esc_html__( 'Address', 'wp-affiliate-captain' ) . '</label></th><td><textarea id="wpac-address" name="address" rows="3" class="regular-text">' . esc_textarea( $v( 'address' ) ) . '</textarea></td></tr>';
 			self::row_input( 'country', __( 'Country', 'wp-affiliate-captain' ), $v( 'country' ), 'maxlength="2"' );
 			self::row_input( 'vat_id', __( 'VAT ID', 'wp-affiliate-captain' ), $v( 'vat_id' ) );
 			$vies = \WPAffiliateCaptain\Payouts\Vies::result( $id );
@@ -522,13 +594,26 @@ final class AffiliatesPage {
 					'not_applicable' => __( 'not an EU VAT ID (no VIES check)', 'wp-affiliate-captain' ),
 				);
 				/* translators: 1: status, 2: date, 3: consultation number */
-				echo '<tr><th>VIES</th><td>' . esc_html( sprintf( __( '%1$s (checked %2$s%3$s)', 'wp-affiliate-captain' ), $vies_labels[ $vies['status'] ], Admin::date( $vies['checked_at'], true ), $vies['consultation'] ? ', ' . sprintf( /* translators: %s: number */ __( 'consultation number %s', 'wp-affiliate-captain' ), $vies['consultation'] ) : '' ) ) . ( $vies['name'] ? '<br>' . esc_html( $vies['name'] ) : '' ) . '</td></tr>';
+				echo '<tr><th scope="row">VIES</th><td>' . esc_html( sprintf( __( '%1$s (checked %2$s%3$s)', 'wp-affiliate-captain' ), $vies_labels[ $vies['status'] ], Admin::date( $vies['checked_at'], true ), $vies['consultation'] ? ', ' . sprintf( /* translators: %s: number */ __( 'consultation number %s', 'wp-affiliate-captain' ), $vies['consultation'] ) : '' ) ) . ( $vies['name'] ? '<br>' . esc_html( $vies['name'] ) : '' ) . '</td></tr>';
 			}
 			self::row_input( 'tax_number', __( 'Tax number', 'wp-affiliate-captain' ), $v( 'tax_number' ) );
+			$method = ProfileRepository::method( $p );
+			echo '<tr><th><label for="wpac-payout-method">' . esc_html__( 'Payout method', 'wp-affiliate-captain' ) . '</label></th><td><select name="payout_method" id="wpac-payout-method">';
+			foreach ( ProfileRepository::method_labels() as $k => $l ) {
+				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $method, $k, false ), esc_html( $l ) );
+			}
+			echo '</select><p class="description">' . esc_html__( 'Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.', 'wp-affiliate-captain' ) . '</p></td></tr>';
 			self::row_input( 'account_holder', __( 'Account holder', 'wp-affiliate-captain' ), $v( 'account_holder' ) );
-			$masked = $p ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
+			$masked = $p && ProfileRepository::METHOD_SEPA === $method ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 			self::row_input( 'iban', __( 'IBAN', 'wp-affiliate-captain' ), '', 'autocomplete="off" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'wp-affiliate-captain' ) : '' ) . '"' );
 			self::row_input( 'bic', __( 'BIC', 'wp-affiliate-captain' ), $v( 'bic' ) );
+			$details = ProfileRepository::payment_details( $p );
+			echo '<tr><th><label for="wpac-payment-details">' . esc_html__( 'Payment details (other method)', 'wp-affiliate-captain' ) . '</label></th><td><textarea name="payment_details" id="wpac-payment-details" rows="3" class="regular-text" autocomplete="off" placeholder="' . esc_attr( null !== $details ? __( 'Stored – leave empty to keep', 'wp-affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'wp-affiliate-captain' ) ) . '"></textarea>';
+			if ( null !== $details ) {
+				/* translators: %s: stored payment details */
+				echo '<p class="description">' . esc_html( sprintf( __( 'Stored: %s', 'wp-affiliate-captain' ), $details ) ) . '</p>';
+			}
+			echo '</td></tr>';
 			echo '</table>';
 			if ( current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
 				submit_button( __( 'Save payout details', 'wp-affiliate-captain' ), 'secondary' );
@@ -548,8 +633,9 @@ final class AffiliatesPage {
 		// Audit.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'History', 'wp-affiliate-captain' ) . '</h2><div class="inside"><ul class="wpac-history">';
 		foreach ( Audit::query( array( 'object_type' => 'affiliate', 'object_id' => $id, 'limit' => 20 ) ) as $log ) {
-			$user = $log->actor_id ? get_userdata( (int) $log->actor_id ) : null;
-			echo '<li><strong>' . esc_html( $log->action ) . '</strong> · ' . esc_html( Admin::date( $log->created_at, true ) ) . ' · ' . esc_html( $user ? $user->display_name : __( 'System', 'wp-affiliate-captain' ) ) . ( $log->details ? '<br><code>' . esc_html( $log->details ) . '</code>' : '' ) . '</li>';
+			$user    = $log->actor_id ? get_userdata( (int) $log->actor_id ) : null;
+			$details = AuditPage::details_text( (string) $log->details );
+			echo '<li><strong>' . esc_html( AuditPage::action_label( $log->action ) ) . '</strong> · ' . esc_html( Admin::date( $log->created_at, true ) ) . ' · ' . esc_html( $user ? $user->display_name : __( 'System', 'wp-affiliate-captain' ) ) . ( '' !== $details ? '<br><span class="description">' . esc_html( $details ) . '</span>' : '' ) . '</li>';
 		}
 		echo '</ul></div></div>';
 
@@ -558,6 +644,65 @@ final class AffiliatesPage {
 		self::render_balance( $id );
 		$parts['balance'][] = ob_get_clean();
 		self::render_tabs( $id, $parts );
+		echo '</div>';
+	}
+
+	/**
+	 * Partner without a linked WordPress user: resend the account link or link a user manually.
+	 *
+	 * @param object $a Affiliate.
+	 */
+	private static function user_link_box( $a ) {
+		$id = (int) $a->id;
+		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner area access', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
+		$existing = get_user_by( 'email', $a->email );
+		if ( $existing && user_can( $existing, 'edit_posts' ) ) {
+			echo '<p>' . esc_html__( 'The partner\'s e-mail address belongs to an account with backend rights (e.g. an administrator or editor). Such accounts are never linked to a partner. Use a different e-mail address for the partner or link a customer account below.', 'wp-affiliate-captain' ) . '</p>';
+		} elseif ( $existing ) {
+			echo '<p>' . esc_html(
+				AffiliateRepository::user_link_pending( $id )
+					? __( 'A customer account with the partner\'s e-mail address exists. The partner received a link to connect it (valid for 7 days) and has not used it yet.', 'wp-affiliate-captain' )
+					: __( 'A customer account with the partner\'s e-mail address exists, but the link to connect it has expired or was never sent.', 'wp-affiliate-captain' )
+			) . '</p>';
+			Admin::form_open( 'user_link_resend', 'wpac-inline' );
+			echo '<input type="hidden" name="id" value="' . (int) $id . '"><p><button class="button">' . esc_html__( 'Resend account link', 'wp-affiliate-captain' ) . '</button></p></form>';
+		} else {
+			echo '<p>' . esc_html__( 'There is no WordPress account with the partner\'s e-mail address.', 'wp-affiliate-captain' ) . '</p>';
+		}
+		Admin::form_open( 'user_link_manual' );
+		echo '<input type="hidden" name="id" value="' . (int) $id . '"><p><label for="wpac-link-user">' . esc_html__( 'Link WordPress user manually (user ID or e-mail address)', 'wp-affiliate-captain' ) . '</label><br><input type="text" id="wpac-link-user" name="user" class="regular-text" required> <button class="button" data-wpac-confirm="' . esc_attr__( 'Link this WordPress user to the partner? Whoever can log in to the account then sees the partner area including payouts.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Link user', 'wp-affiliate-captain' ) . '</button></p>';
+		echo '<p class="description">' . esc_html__( 'Only accounts without backend rights (customers, subscribers) that are not linked to another partner. Make sure the account belongs to the partner.', 'wp-affiliate-captain' ) . '</p></form>';
+		echo '</div></div>';
+	}
+
+	/**
+	 * Partners without the current terms acceptance: count and the reminder button.
+	 */
+	private static function terms_reminder_box() {
+		$terms = Agreements::current( 0 );
+		list( $missing ) = Agreements::missing_current();
+		$state = Agreements::reminder_state();
+		if ( ! $missing ) {
+			return;
+		}
+		echo '<div class="notice notice-info inline"><p>';
+		/* translators: %d: number of partners */
+		echo esc_html( sprintf( _n( '%d active partner has not accepted the current partner terms yet; credit notes cannot be issued to them.', '%d active partners have not accepted the current partner terms yet; credit notes cannot be issued to them.', count( $missing ), 'wp-affiliate-captain' ), count( $missing ) ) ) . ' ';
+		if ( $terms['page_id'] ) {
+			echo esc_html__( 'They are asked to accept them when they log in to the partner area.', 'wp-affiliate-captain' );
+		}
+		echo '</p>';
+		if ( $state && empty( $state['done'] ) ) {
+			/* translators: 1: sent, 2: total */
+			echo '<p>' . esc_html( sprintf( __( 'Reminders are being sent: %1$d of %2$d.', 'wp-affiliate-captain' ), (int) $state['sent'], (int) $state['total'] ) ) . '</p>';
+		} else {
+			if ( $state && ! empty( $state['done'] ) ) {
+				/* translators: 1: date, 2: number */
+				echo '<p class="description">' . esc_html( sprintf( __( 'Last reminder on %1$s: %2$d e-mails sent.', 'wp-affiliate-captain' ), wp_date( get_option( 'date_format' ), (int) $state['started'] ), (int) $state['sent'] ) ) . '</p>';
+			}
+			Admin::form_open( 'terms_remind' );
+			echo '<p><button class="button" data-wpac-confirm="' . esc_attr__( 'Send an e-mail to every active partner without the current acceptance?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Ask partners to accept the current terms', 'wp-affiliate-captain' ) . '</button></p></form>';
+		}
 		echo '</div>';
 	}
 
@@ -596,15 +741,20 @@ final class AffiliatesPage {
 						echo '<li>' . esc_html( sprintf( __( 'Level %1$d sent on %2$s', 'wp-affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) ) ) . '</li>';
 					}
 					echo '</ul>';
-					if ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+					$dunning_blocked = \WPAffiliateCaptain\Commissions\Dunning::blocked_reason( $partner );
+					if ( '' !== $dunning_blocked && count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+						echo '<p class="description">' . esc_html( $dunning_blocked ) . '</p>';
+					} elseif ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
 						Admin::form_open( 'dunning_send', 'wpac-inline' );
+						/* translators: 1: amount, 2: e-mail address */
+						$dunning_confirm = sprintf( __( 'Send a payment request for %1$s to %2$s now?', 'wp-affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ), $partner->email );
 						/* translators: %d: level */
-						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><button class="button">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'wp-affiliate-captain' ), count( $history ) + 1 ) ) . '</button></form> ';
+						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><button class="button" data-wpac-confirm="' . esc_attr( $dunning_confirm ) . '">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'wp-affiliate-captain' ), count( $history ) + 1 ) ) . '</button></form> ';
 					} else {
 						echo '<p class="description">' . esc_html__( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) . '</p>';
 					}
 					Admin::form_open( 'repayment', 'wpac-inline' );
-					echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><label>' . esc_html__( 'Payment received', 'wp-affiliate-captain' ) . ' <input type="text" name="amount" size="8" inputmode="decimal"></label> <input type="text" name="note" placeholder="' . esc_attr__( 'Bank reference', 'wp-affiliate-captain' ) . '"> <button class="button">' . esc_html__( 'Book repayment', 'wp-affiliate-captain' ) . '</button></form>';
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><label>' . esc_html__( 'Payment received', 'wp-affiliate-captain' ) . ' <input type="text" name="amount" size="8" inputmode="decimal"></label> <input type="text" name="note" aria-label="' . esc_attr__( 'Bank reference', 'wp-affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Bank reference', 'wp-affiliate-captain' ) . '"> <button class="button">' . esc_html__( 'Book repayment', 'wp-affiliate-captain' ) . '</button></form>';
 				}
 			}
 			if ( $problems ) {

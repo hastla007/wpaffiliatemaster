@@ -6,8 +6,9 @@
  *   (SHA-256 stored and verified on every download).
  * - Stored outside public access in uploads/wpac-statements (deny rules +
  *   random file names); downloads go through capability-checked handlers.
- * - Retention: after the configured number of years (default 10) the PDF and
- *   the partner data snapshot of the payout are deleted; amounts remain.
+ * - Retention: after the retention period (Retention::years(): setting, never below the
+ *   legal minimum of the operator country) the PDF and the partner data snapshot of the
+ *   payout are deleted; amounts remain.
  *
  * @package WPAffiliateCaptain
  */
@@ -35,6 +36,11 @@ final class Statement {
 	public static function dir() {
 		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
 			$dir = untrailingslashit( (string) WPAC_STATEMENT_DIR );
+			if ( is_multisite() ) {
+				// All sites of a network share the constant: one subfolder per site, so the documents
+				// (and their deletion on uninstall) stay apart. Older files are moved by the v9 migration.
+				$dir .= '/site-' . (int) get_current_blog_id();
+			}
 		} else {
 			$upload = wp_upload_dir( null, false );
 			$dir    = trailingslashit( $upload['basedir'] ) . 'wpac-statements';
@@ -215,9 +221,11 @@ final class Statement {
 		if ( ! empty( $snap['tax_number'] ) ) {
 			$facts[ __( 'Tax number of the partner', 'wp-affiliate-captain' ) ] = $snap['tax_number'];
 		}
-		$facts += array(
-			__( 'Bank account', 'wp-affiliate-captain' )    => ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—',
-		);
+		if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ) {
+			$facts[ __( 'Payment method', 'wp-affiliate-captain' ) ] = __( 'Other payment method as agreed with the partner', 'wp-affiliate-captain' );
+		} else {
+			$facts[ __( 'Bank account', 'wp-affiliate-captain' ) ] = ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—';
+		}
 		foreach ( $facts as $k => $v ) {
 			$pdf->text( 50, $y, $k . ':', 9, true );
 			$pdf->text( 190, $y, (string) $v, 9 );
@@ -267,7 +275,7 @@ final class Statement {
 					$pdf->add_page();
 					$y = $head( $pdf, 60 );
 				}
-				$desc = in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? (string) $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . $item->kind . ')';
+				$desc = in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? (string) $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ')';
 				$desc = Pdf::wrap( $desc, 230, 9 );
 				$pdf->text( 50, $y, $date( get_date_from_gmt( (string) $item->commission_date ) ), 9 );
 				$pdf->text( 120, $y, ( 'wpac' === $item->source ? '' : '#' . $item->source_order_id ), 9 );
@@ -352,8 +360,8 @@ final class Statement {
 		global $wpdb;
 		$aff  = AffiliateRepository::find( (int) $affiliate_id );
 		$t    = Db::table( 'payouts' );
-		$from = sprintf( '%04d-01-01 00:00:00', (int) $year );
-		$to   = sprintf( '%04d-12-31 23:59:59', (int) $year );
+		// Calendar year in the site's time zone (documents are dated locally), as UTC bounds.
+		list( $from, $to ) = self::year_bounds( (int) $year );
 		// Credit notes issued in the year, and cancellations dated in the year (they reduce it).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d AND ( ( created_at BETWEEN %s AND %s AND statement_file <> '' ) OR ( storno_at BETWEEN %s AND %s ) ) ORDER BY created_at ASC", $affiliate_id, $from, $to, $from, $to ) );
@@ -434,6 +442,44 @@ final class Statement {
 	}
 
 	/**
+	 * UTC bounds (MySQL) of a calendar year in the site's time zone.
+	 *
+	 * @param int $year Year.
+	 * @return string[] [ from, to ]
+	 */
+	public static function year_bounds( $year ) {
+		return array(
+			get_gmt_from_date( sprintf( '%04d-01-01 00:00:00', (int) $year ) ),
+			get_gmt_from_date( sprintf( '%04d-12-31 23:59:59', (int) $year ) ),
+		);
+	}
+
+	/**
+	 * Years (site time zone) with credit notes or cancellations of a partner, newest first:
+	 * the years an annual overview exists for.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return int[]
+	 */
+	public static function annual_years( $affiliate_id ) {
+		global $wpdb;
+		$t = Db::table( 'payouts' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT created_at, statement_file, storno_number, storno_at FROM {$t} WHERE affiliate_id = %d AND ( statement_file <> '' OR storno_number <> '' )", (int) $affiliate_id ) );
+		$years = array();
+		foreach ( (array) $rows as $r ) {
+			if ( '' !== (string) $r->statement_file ) {
+				$years[ (int) get_date_from_gmt( (string) $r->created_at, 'Y' ) ] = true;
+			}
+			if ( '' !== (string) $r->storno_number && $r->storno_at ) {
+				$years[ (int) get_date_from_gmt( (string) $r->storno_at, 'Y' ) ] = true;
+			}
+		}
+		krsort( $years );
+		return array_keys( $years );
+	}
+
+	/**
 	 * Generate and store the statement of a payout (only once).
 	 *
 	 * @param int $payout_id Payout.
@@ -508,6 +554,40 @@ final class Statement {
 	}
 
 	/**
+	 * Drop failure entries of payouts that no longer need a statement: cancelled (the
+	 * cancellation replaces it), generated meanwhile, deleted after the retention period or
+	 * gone. Otherwise they would stay a critical finding (Site Health, alarm mail) forever.
+	 *
+	 * @param array $all Failure entries: payout ID => [ n, next ].
+	 * @return array Remaining entries.
+	 */
+	private static function prune_backoff( array $all ) {
+		if ( ! $all ) {
+			return $all;
+		}
+		$keep = array();
+		foreach ( $all as $id => $entry ) {
+			$p = PayoutService::find( (int) $id );
+			if ( $p && 'cancelled' !== $p->status && '' === (string) $p->statement_file && ! $p->statement_deleted_at ) {
+				$keep[ $id ] = $entry;
+			}
+		}
+		if ( count( $keep ) !== count( $all ) ) {
+			update_option( self::RETRY_OPTION, $keep, false );
+		}
+		return $keep;
+	}
+
+	/**
+	 * Forget the failures of a payout that no longer needs its statement (e.g. cancelled).
+	 *
+	 * @param int $payout_id Payout.
+	 */
+	public static function forget_failures( $payout_id ) {
+		self::clear_backoff( (int) $payout_id );
+	}
+
+	/**
 	 * Whether a payout waits after failed attempts; and the failures (for the admin notice).
 	 *
 	 * @param int $payout_id Payout (0 = all failures).
@@ -517,7 +597,7 @@ final class Statement {
 		$all = get_option( self::RETRY_OPTION, array() );
 		$all = is_array( $all ) ? $all : array();
 		if ( ! $payout_id ) {
-			return $all;
+			return self::prune_backoff( $all );
 		}
 		return isset( $all[ $payout_id ] ) && (int) $all[ $payout_id ]['next'] > time();
 	}
@@ -528,7 +608,7 @@ final class Statement {
 	 * @param object $p Payout.
 	 */
 	public static function send( $p ) {
-		$path = self::dir() . '/' . basename( (string) $p->statement_file );
+		$path = self::path( (string) $p->statement_file );
 		if ( '' === (string) $p->statement_file || ! is_readable( $path ) ) {
 			wp_die( esc_html__( 'The statement is not available (anymore).', 'wp-affiliate-captain' ), 404 );
 		}
@@ -543,6 +623,114 @@ final class Statement {
 		header( 'Content-Length: ' . strlen( $bytes ) );
 		echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		exit;
+	}
+
+	/**
+	 * Earlier storage folders: the uploads folder (before WPAC_STATEMENT_DIR was defined) and the
+	 * flat WPAC_STATEMENT_DIR itself; only those that differ from the current folder.
+	 *
+	 * @return string[]
+	 */
+	public static function legacy_dirs() {
+		$upload = wp_upload_dir( null, false );
+		$dirs   = array( trailingslashit( $upload['basedir'] ) . 'wpac-statements' );
+		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
+			$dirs[] = untrailingslashit( (string) WPAC_STATEMENT_DIR );
+		}
+		$current = untrailingslashit( self::dir() );
+		$out     = array();
+		foreach ( array_unique( $dirs ) as $dir ) {
+			if ( untrailingslashit( $dir ) !== $current && is_dir( $dir ) ) {
+				$out[] = untrailingslashit( $dir );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Full path of a stored statement: the current folder, or an earlier one when the folder
+	 * was changed later (e.g. WPAC_STATEMENT_DIR defined after the first credit notes).
+	 *
+	 * @param string $file Stored file name.
+	 * @return string
+	 */
+	public static function path( $file ) {
+		$name = basename( (string) $file );
+		$path = self::dir() . '/' . $name;
+		if ( '' === $name || is_readable( $path ) ) {
+			return $path;
+		}
+		foreach ( self::legacy_dirs() as $dir ) {
+			if ( is_readable( $dir . '/' . $name ) ) {
+				return $dir . '/' . $name;
+			}
+		}
+		return $path;
+	}
+
+	/**
+	 * Statements (and cancellations) that are still in an earlier folder.
+	 *
+	 * @param int $limit Max. payouts to look at.
+	 * @return array List of [ payout ID, file name, old path ].
+	 */
+	public static function misplaced( $limit = 5000 ) {
+		global $wpdb;
+		$legacy = self::legacy_dirs();
+		if ( ! $legacy ) {
+			return array();
+		}
+		$t   = Db::table( 'payouts' );
+		$out = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE statement_file <> '' OR storno_file <> '' ORDER BY id ASC LIMIT %d", (int) $limit ) ) as $r ) {
+			foreach ( array( $r->statement_file, $r->storno_file ) as $file ) {
+				$name = basename( (string) $file );
+				if ( '' === $name || file_exists( self::dir() . '/' . $name ) ) {
+					continue;
+				}
+				foreach ( $legacy as $dir ) {
+					if ( is_readable( $dir . '/' . $name ) ) {
+						$out[] = array( (int) $r->id, $name, $dir . '/' . $name );
+						break;
+					}
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Move statements from earlier folders into the current one (copy, verify, then delete the
+	 * old file).
+	 *
+	 * @return array [ moved, failed ]
+	 */
+	public static function move_misplaced() {
+		$moved  = 0;
+		$failed = 0;
+		foreach ( self::misplaced() as $m ) {
+			$target = self::dir() . '/' . $m[1];
+			$bytes  = file_get_contents( $m[2] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			if ( false !== $bytes && false !== file_put_contents( $target, $bytes ) && hash_file( 'sha256', $target ) === hash( 'sha256', $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+				wp_delete_file( $m[2] );
+				++$moved;
+			} else {
+				++$failed;
+			}
+		}
+		if ( $moved || $failed ) {
+			Audit::log(
+				'statement.moved',
+				'settings',
+				0,
+				array(
+					'moved'  => $moved,
+					'failed' => $failed,
+				)
+			);
+		}
+		return array( $moved, $failed );
 	}
 
 	/**
@@ -595,14 +783,15 @@ final class Statement {
 	 */
 	public static function purge_expired() {
 		global $wpdb;
-		$years = \WPAffiliateCaptain\Privacy\Retention::years();
-		if ( $years <= 0 || \WPAffiliateCaptain\Privacy\Retention::on_hold() ) {
+		// One source of truth with the booking records, acceptance records and the financial change
+		// log (Retention::cutoff(): setting, never below the legal minimum of the operator country;
+		// null = keep forever or deletion suspended by a tax audit/legal hold).
+		$cutoff = \WPAffiliateCaptain\Privacy\Retention::cutoff();
+		if ( null === $cutoff ) {
 			return 0;
 		}
-		$years = max( 10, $years ); // Never below the statutory minimum (older settings).
-		$t      = Db::table( 'payouts' );
-		$cutoff = gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) );
-		// Retention starts at the end of the calendar year of the statement.
+		$t = Db::table( 'payouts' );
+		// Retention starts at the end of the calendar year of the statement (cancellations: of their own date).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE statement_deleted_at IS NULL AND created_at <= %s AND ( storno_at IS NULL OR storno_at <= %s ) LIMIT 200", $cutoff, $cutoff ) );
 		foreach ( $rows as $r ) {

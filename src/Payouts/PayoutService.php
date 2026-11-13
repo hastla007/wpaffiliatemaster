@@ -86,24 +86,32 @@ final class PayoutService {
 		$min      = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
 		$operator = self::operator_missing();
 		$out      = array();
+		// One query for all partners instead of one per row; profiles are only loaded for
+		// partners above the minimum (the others are carried forward anyway).
+		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
 		foreach ( $rows as $r ) {
-			$aff     = AffiliateRepository::find( (int) $r->affiliate_id );
-			$profile = ProfileRepository::get( (int) $r->affiliate_id );
-			$total   = (int) $r->total;
-			$reason  = '';
+			$aff    = AffiliateRepository::find( (int) $r->affiliate_id );
+			$total  = (int) $r->total;
+			$reason = '';
+			$code   = '';
 			if ( ! $aff ) {
 				$reason = __( 'Affiliate not found', 'wp-affiliate-captain' );
+				$code   = 'not_found';
 			} elseif ( $operator ) {
 				$reason = $operator;
+				$code   = 'operator';
 			} elseif ( null === $min ) {
 				/* translators: %s: currency */
 				$reason = sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'wp-affiliate-captain' ), $currency );
+				$code   = 'no_rate';
 			} elseif ( $total <= 0 ) {
 				$reason = __( 'Negative balance – carried forward', 'wp-affiliate-captain' );
+				$code   = 'negative';
 			} elseif ( $total < $min ) {
 				$reason = __( 'Below minimum – carried forward', 'wp-affiliate-captain' );
+				$code   = 'below_minimum';
 			} else {
-				$reason = self::blocked_reason( (int) $r->affiliate_id, $profile );
+				$reason = self::blocked_reason( (int) $r->affiliate_id, ProfileRepository::get( (int) $r->affiliate_id ), $code );
 			}
 			$out[] = array(
 				'affiliate'   => $aff,
@@ -111,6 +119,7 @@ final class PayoutService {
 				'count'       => (int) $r->c,
 				'eligible'    => '' === $reason,
 				'reason'      => $reason,
+				'code'        => $code,
 			);
 		}
 		return $out;
@@ -194,32 +203,52 @@ final class PayoutService {
 	 * Why a partner cannot be paid out right now ('' = can be paid). Checked for every
 	 * payout, also single payouts from requests.
 	 *
-	 * @param int        $affiliate_id Partner.
-	 * @param array|null $profile      Payout profile (loaded when null).
+	 * @param int         $affiliate_id Partner.
+	 * @param array|null  $profile      Payout profile (loaded when null).
+	 * @param string|null $code         Out: reason code (maintenance|profile|terms_page|terms|operator_vat_id|vies, '' = none).
 	 * @return string
 	 */
-	public static function blocked_reason( $affiliate_id, $profile = null ) {
+	public static function blocked_reason( $affiliate_id, $profile = null, &$code = null ) {
+		$code = '';
 		if ( Settings::get( 'maintenance_mode' ) ) {
-			return __( 'Maintenance mode is on (Settings → Reports)', 'wp-affiliate-captain' );
+			$code = 'maintenance';
+			return __( 'Maintenance mode is on (Settings → Reports & data)', 'wp-affiliate-captain' );
 		}
 		$profile = null === $profile ? ProfileRepository::get( (int) $affiliate_id ) : $profile;
-		if ( ! ProfileRepository::is_complete( $profile ) ) {
-			return __( 'Payout profile incomplete', 'wp-affiliate-captain' );
+		$missing = ProfileRepository::missing( $profile );
+		if ( true !== $missing ) {
+			$code   = 'profile';
+			$fields = array(
+				'tax_status'     => __( 'tax status', 'wp-affiliate-captain' ),
+				'legal_name'     => __( 'legal name', 'wp-affiliate-captain' ),
+				'address'        => __( 'address', 'wp-affiliate-captain' ),
+				'country'        => __( 'country', 'wp-affiliate-captain' ),
+				'account_holder' => __( 'account holder', 'wp-affiliate-captain' ),
+				'iban'           => __( 'IBAN', 'wp-affiliate-captain' ),
+				'vat_id'         => __( 'VAT ID (business)', 'wp-affiliate-captain' ),
+				'tax_number'     => __( 'tax number or VAT ID (small business)', 'wp-affiliate-captain' ),
+			);
+			/* translators: %s: missing field */
+			return sprintf( __( 'Payout details incomplete: %s missing', 'wp-affiliate-captain' ), isset( $fields[ $missing ] ) ? $fields[ $missing ] : (string) $missing );
 		}
 		if ( Settings::get( 'self_billing' ) && ! Settings::get( 'terms_page_id' ) ) {
 			// Self-billing needs a prior agreement (§14 Abs. 2 S. 2 UStG); without partner terms there is none.
+			$code = 'terms_page';
 			return __( 'Self-billing needs partner terms with the credit note agreement (Settings → Program → Terms page)', 'wp-affiliate-captain' );
 		}
 		if ( Settings::get( 'self_billing' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::latest( (int) $affiliate_id ) ) {
 			// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the accepted terms.
-			return __( 'No accepted partner terms (self-billing agreement)', 'wp-affiliate-captain' );
+			$code = 'terms';
+			return __( 'Has not accepted the partner terms yet (needed for credit notes) – the partner is asked to accept them on the next login to the partner area', 'wp-affiliate-captain' );
 		}
 		$vat = Vat::treatment( isset( $profile->tax_status ) ? (string) $profile->tax_status : '', isset( $profile->country ) ? (string) $profile->country : '', (string) Settings::get( 'operator_country' ), (string) Settings::get( 'vat_rate' ) );
 		if ( Vat::REVERSE_CHARGE === $vat['mode'] && '' === trim( (string) Settings::get( 'operator_vat_id' ) ) ) {
 			// Reverse-charge documents must show the VAT ID of the recipient (the operator).
-			return __( 'Reverse charge needs your VAT ID (Settings → Payouts)', 'wp-affiliate-captain' );
+			$code = 'operator_vat_id';
+			return __( 'Reverse charge needs your VAT ID (Settings → Payouts & credit notes)', 'wp-affiliate-captain' );
 		}
 		if ( Vat::REVERSE_CHARGE === $vat['mode'] && isset( $profile->vat_id ) && Vies::is_invalid( (int) $affiliate_id, (string) $profile->vat_id ) ) {
+			$code = 'vies';
 			return __( 'The partner\'s VAT ID is not valid according to VIES (reverse charge not possible)', 'wp-affiliate-captain' );
 		}
 		return '';
@@ -277,14 +306,39 @@ final class PayoutService {
 		if ( ! $p || 'pending' !== $p->status ) {
 			return new \WP_Error( 'wpac_state', __( 'Only payouts that were not exported yet can be rebuilt.', 'wp-affiliate-captain' ) );
 		}
-		$cancelled = self::cancel( (int) $id, __( 'Rebuilt after a refund', 'wp-affiliate-captain' ) );
-		if ( is_wp_error( $cancelled ) ) {
-			return $cancelled;
+		// Check first whether the payout can be created again: a cancellation (with its own
+		// document number) must not be left behind without a replacement.
+		$blocked = self::operator_missing();
+		$blocked = '' !== $blocked ? $blocked : self::blocked_reason( (int) $p->affiliate_id );
+		if ( '' !== $blocked ) {
+			/* translators: %s: reason */
+			return new \WP_Error( 'wpac_not_eligible', sprintf( __( 'The payout cannot be created again (%s). It was not cancelled.', 'wp-affiliate-captain' ), $blocked ) );
 		}
+		// Cancellation and new payout in one transaction: if nothing (or less than the minimum)
+		// would be payable, both are rolled back. Documents are written after the COMMIT.
+		self::$deferred = array();
 		try {
-			$new = self::create_for_affiliate( (int) $p->affiliate_id, (string) $p->period_end, (string) $p->currency );
+			$new = Db::transaction(
+				static function () use ( $p, $id ) {
+					$cancelled = self::cancel( (int) $id, __( 'Rebuilt after a refund', 'wp-affiliate-captain' ) );
+					if ( is_wp_error( $cancelled ) ) {
+						throw new IntegrationException( 'cancel', $cancelled->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+					}
+					$new = self::create_for_affiliate( (int) $p->affiliate_id, (string) $p->period_end, (string) $p->currency );
+					if ( ! $new ) {
+						throw new IntegrationException( 'rebuild_empty', __( 'After the refund the balance is below the minimum payout, so no new payout can be created. The payout was not cancelled; cancel it manually if it should not be paid – the balance is then carried forward.', 'wp-affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+					}
+					return (int) $new;
+				}
+			);
 		} catch ( \Throwable $e ) {
+			self::$deferred = null;
 			return new \WP_Error( 'wpac_payout', $e->getMessage() );
+		}
+		$deferred       = self::$deferred;
+		self::$deferred = null;
+		foreach ( (array) $deferred as $fn ) {
+			$fn();
 		}
 		$all = get_option( self::CLAWBACK_OPTION, array() );
 		if ( is_array( $all ) ) {
@@ -293,6 +347,27 @@ final class PayoutService {
 		}
 		Audit::log( 'payout.rebuilt', 'payout', (int) $id, array( 'new' => (int) $new ) );
 		return (int) $new;
+	}
+
+	/**
+	 * Steps that must only run after the COMMIT (documents, requests) while rebuild() runs
+	 * several steps in one transaction; null = run immediately.
+	 *
+	 * @var callable[]|null
+	 */
+	private static $deferred = null;
+
+	/**
+	 * Run a step now, or after the COMMIT of rebuild()'s transaction.
+	 *
+	 * @param callable $fn Step.
+	 */
+	private static function after_commit( callable $fn ) {
+		if ( is_array( self::$deferred ) ) {
+			self::$deferred[] = $fn;
+			return;
+		}
+		$fn();
 	}
 
 	/**
@@ -306,7 +381,7 @@ final class PayoutService {
 			return '';
 		}
 		if ( '' === trim( (string) Settings::get( 'operator_address' ) ) || ( '' === (string) Settings::get( 'operator_vat_id' ) && '' === trim( (string) Settings::get( 'operator_tax_number' ) ) ) ) {
-			return __( 'Your address and VAT ID or tax number are missing (Settings → Payouts) – credit notes need them.', 'wp-affiliate-captain' );
+			return __( 'Your address and VAT ID or tax number are missing (Settings → Payouts & credit notes) – credit notes need them.', 'wp-affiliate-captain' );
 		}
 		return '';
 	}
@@ -316,26 +391,38 @@ final class PayoutService {
 	 *
 	 * @param string $period_end Y-m-d.
 	 * @param string $currency   Currency.
-	 * @return array [ created payout IDs, skipped count ]
+	 * @return array [ created payout IDs, skipped count, details ] – details: list of
+	 *               [ affiliate_id, name, kind carried|blocked|failed, reason ] for every partner
+	 *               that was not paid.
 	 */
 	public static function create_run( $period_end, $currency ) {
 		$created = array();
 		$skipped = 0;
+		$details = array();
 		foreach ( self::preview( $period_end, $currency ) as $row ) {
+			$aff_id = $row['affiliate'] ? (int) $row['affiliate']->id : 0;
+			$name   = $row['affiliate'] ? (string) $row['affiliate']->name : '#';
 			if ( ! $row['eligible'] ) {
 				++$skipped;
+				$carried   = isset( $row['code'] ) && in_array( $row['code'], array( 'negative', 'below_minimum' ), true );
+				$details[] = array( $aff_id, $name, $carried ? 'carried' : 'blocked', (string) $row['reason'] );
 				continue;
 			}
 			try {
-				$id = self::create_for_affiliate( (int) $row['affiliate']->id, $period_end, $currency );
+				$id = self::create_for_affiliate( $aff_id, $period_end, $currency );
 				if ( $id ) {
 					$created[] = $id;
 				} else {
 					++$skipped;
+					$details[] = array( $aff_id, $name, 'carried', __( 'Nothing payable any more (changed meanwhile) – carried forward', 'wp-affiliate-captain' ) );
 				}
 			} catch ( \Throwable $e ) {
 				++$skipped;
-				Audit::log( 'payout.failed', 'affiliate', (int) $row['affiliate']->id, array( 'error' => $e->getMessage() ) );
+				$reason    = $e instanceof IntegrationException && in_array( $e->error_code, array( 'operator_data', 'not_eligible' ), true )
+					? $e->getMessage()
+					: __( 'Technical error while saving (details in the audit log) – please run the payout again', 'wp-affiliate-captain' );
+				$details[] = array( $aff_id, $name, 'failed', $reason );
+				Audit::log( 'payout.failed', 'affiliate', $aff_id, array( 'error' => $e->getMessage() ) );
 			}
 		}
 		Audit::log(
@@ -349,7 +436,7 @@ final class PayoutService {
 				'skipped'    => $skipped,
 			)
 		);
-		return array( $created, $skipped );
+		return array( $created, $skipped, $details );
 	}
 
 	/**
@@ -473,9 +560,13 @@ final class PayoutService {
 			}
 		);
 		if ( $payout_id ) {
-			Statement::generate( $payout_id );
-			// A regular run also settles an open payout request of the partner.
-			PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id, $currency );
+			self::after_commit(
+				static function () use ( $payout_id, $affiliate_id, $currency ) {
+					Statement::generate( $payout_id );
+					// A regular run also settles an open payout request of the partner.
+					PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id, $currency );
+				}
+			);
 		}
 		return $payout_id;
 	}
@@ -641,7 +732,13 @@ final class PayoutService {
 		} catch ( IntegrationException $e ) {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
-		Statement::generate_storno( (int) $id );
+		self::after_commit(
+			static function () use ( $id ) {
+				Statement::generate_storno( (int) $id );
+				// A cancelled payout needs no credit note any more: no further retries or alarms.
+				Statement::forget_failures( (int) $id );
+			}
+		);
 		Audit::log(
 			'payout.cancelled',
 			'payout',
@@ -692,12 +789,24 @@ final class PayoutService {
 							/* translators: %s: payout number */
 							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'wp-affiliate-captain' ), $p->number ) );
 						}
-						$iban = ProfileRepository::iban( $profile );
-						if ( ! $iban ) {
-							/* translators: %s: payout number */
-							throw new IntegrationException( 'iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'wp-affiliate-captain' ), $p->number ) );
+						if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
+							// Other payment method (e.g. PayPal): the list carries the payment details;
+							// the operator pays manually and marks the payout as paid.
+							$details = ProfileRepository::payment_details( $profile );
+							if ( null === $details || '' === $details ) {
+								/* translators: %s: payout number */
+								throw new IntegrationException( 'details', sprintf( __( 'Payment details for payout %s are missing or cannot be decrypted.', 'wp-affiliate-captain' ), $p->number ) );
+							}
+							$holder = '' !== trim( (string) $profile->account_holder ) ? (string) $profile->account_holder : (string) $profile->legal_name;
+							$rows[] = array( $p->number, $holder, '', '', Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_MANUAL, str_replace( array( "\r\n", "\r", "\n" ), ' / ', $details ) );
+						} else {
+							$iban = ProfileRepository::iban( $profile );
+							if ( ! $iban ) {
+								/* translators: %s: payout number */
+								throw new IntegrationException( 'iban', sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'wp-affiliate-captain' ), $p->number ) );
+							}
+							$rows[] = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_SEPA, '' );
 						}
-						$rows[]               = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ) );
 						$used[ (int) $p->id ] = $p->status;
 					}
 					if ( ! $rows ) {
@@ -727,6 +836,8 @@ final class PayoutService {
 	 * Already exported payouts are only included again with $allow_reexport
 	 * (e.g. the bank rejected the file) to avoid sending the same transfers twice.
 	 * Payouts whose partner changed bank details after the payout was created are refused.
+	 * Payouts of partners with another payment method (manual) are left out; they stay
+	 * pending for the transfer list and "mark as paid".
 	 *
 	 * @param int[] $ids            Payout IDs.
 	 * @param bool  $allow_reexport Include payouts that were already exported.
@@ -758,6 +869,7 @@ final class PayoutService {
 					$transfers = array();
 					$prefix    = (string) Settings::get( 'remittance_prefix' );
 					$used      = array();
+					$manual    = 0;
 					foreach ( $ids as $id ) {
 						$p = self::lock( $id ); // Serializes concurrent exports and cancellations.
 						if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
@@ -767,10 +879,15 @@ final class PayoutService {
 							/* translators: %s: payout number */
 							throw new IntegrationException( 'reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'wp-affiliate-captain' ), $p->number ) );
 						}
+						$profile = ProfileRepository::get( (int) $p->affiliate_id );
+						if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
+							// Paid by another method (transfer list, then "mark as paid"): never in the SEPA file.
+							++$manual;
+							continue;
+						}
 						if ( 'EUR' !== $p->currency ) {
 							throw new IntegrationException( 'currency', __( 'SEPA transfers are only possible in EUR.', 'wp-affiliate-captain' ) );
 						}
-						$profile = ProfileRepository::get( (int) $p->affiliate_id );
 						if ( $profile && strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
 							/* translators: %s: payout number */
 							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'wp-affiliate-captain' ), $p->number ) );
@@ -791,7 +908,12 @@ final class PayoutService {
 						$used[ (int) $p->id ] = $p->status;
 					}
 					if ( ! $transfers ) {
-						throw new IntegrationException( 'empty', __( 'No exportable payouts selected.', 'wp-affiliate-captain' ) );
+						throw new IntegrationException(
+							'empty',
+							$manual
+								? __( 'The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.', 'wp-affiliate-captain' )
+								: __( 'No exportable payouts selected.', 'wp-affiliate-captain' )
+						);
 					}
 					// Unique message ID, even for two exports in the same second.
 					$batch = 'ACSEPA' . gmdate( 'YmdHis' ) . strtoupper( wp_generate_password( 4, false ) );

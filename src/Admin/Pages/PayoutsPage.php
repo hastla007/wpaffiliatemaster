@@ -42,7 +42,9 @@ final class PayoutsPage {
 				if ( '' === trim( $note ) ) {
 					Admin::back( __( 'Please describe what was done (the partner is informed).', 'wp-affiliate-captain' ), 'error' );
 				}
-				\WPAffiliateCaptain\Payouts\Objections::resolve( absint( Admin::post( 'payout_id' ) ), $note );
+				if ( ! \WPAffiliateCaptain\Payouts\Objections::resolve( absint( Admin::post( 'payout_id' ) ), $note ) ) {
+					Admin::back( __( 'This objection was already handled (or no longer exists); nothing was sent.', 'wp-affiliate-captain' ), 'error' );
+				}
 				Admin::back( __( 'Objection marked as handled; the partner was informed.', 'wp-affiliate-captain' ) );
 				break;
 
@@ -52,19 +54,63 @@ final class PayoutsPage {
 				if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end ) || 3 !== strlen( $currency ) ) {
 					Admin::back( __( 'Please choose a period end and currency.', 'wp-affiliate-captain' ), 'error' );
 				}
-				list( $created, $skipped ) = PayoutService::create_run( $end, $currency );
-				/* translators: 1: created, 2: skipped */
-				Admin::back( sprintf( __( '%1$d payouts created, %2$d partners carried forward.', 'wp-affiliate-captain' ), count( $created ), $skipped ), 'success', Admin::url( 'wpac-payouts' ) );
+				$run     = PayoutService::create_run( $end, $currency );
+				$created = $run[0];
+				$details = isset( $run[2] ) ? $run[2] : array();
+				$counts  = array(
+					'carried' => 0,
+					'blocked' => 0,
+					'failed'  => 0,
+				);
+				$lines   = array();
+				foreach ( $details as $d ) {
+					++$counts[ $d[2] ];
+					if ( 'carried' !== $d[2] ) {
+						$lines[] = $d[1] . ': ' . $d[3];
+					}
+				}
+				/* translators: %d: number of payouts */
+				$message = sprintf( _n( '%d payout created.', '%d payouts created.', count( $created ), 'wp-affiliate-captain' ), count( $created ) );
+				if ( $counts['carried'] ) {
+					/* translators: %d: number of partners */
+					$message .= ' ' . sprintf( _n( '%d partner carried forward (below the minimum or negative balance).', '%d partners carried forward (below the minimum or negative balance).', $counts['carried'], 'wp-affiliate-captain' ), $counts['carried'] );
+				}
+				if ( $counts['blocked'] ) {
+					/* translators: %d: number of partners */
+					$message .= ' ' . sprintf( _n( '%d partner could not be paid out (blocked):', '%d partners could not be paid out (blocked):', $counts['blocked'], 'wp-affiliate-captain' ), $counts['blocked'] );
+				}
+				if ( $counts['failed'] ) {
+					/* translators: %d: number of partners */
+					$message .= ' ' . sprintf( _n( '%d payout failed:', '%d payouts failed:', $counts['failed'], 'wp-affiliate-captain' ), $counts['failed'] );
+				}
+				Admin::back( $message, $counts['failed'] ? 'error' : ( $counts['blocked'] ? 'warning' : 'success' ), Admin::url( 'wpac-payouts' ), $lines );
 				break;
 
 			case 'payout_bulk':
 				$ids    = self::selected();
 				$action = sanitize_key( Admin::post( 'bulk_action' ) );
+				$reason = sanitize_text_field( Admin::post( 'reason' ) );
+				// Keep the selection, action and reason when something is missing (no retyping).
+				$keep = static function () use ( $ids, $action, $reason ) {
+					Admin::keep_form(
+						'payout_bulk',
+						array(
+							'ids'    => $ids,
+							'action' => $action,
+							'reason' => $reason,
+						)
+					);
+				};
 				if ( ! $ids ) {
 					Admin::back( __( 'Please select at least one payout.', 'wp-affiliate-captain' ), 'error' );
 				}
 				if ( ! in_array( $action, array( 'sepa', 'csv', 'paid', 'cancel' ), true ) ) {
+					$keep();
 					Admin::back( __( 'Please choose an action.', 'wp-affiliate-captain' ), 'error' );
+				}
+				if ( 'cancel' === $action && '' === trim( $reason ) ) {
+					$keep();
+					Admin::back( __( 'Please enter a cancellation reason (it is printed on the cancellation document).', 'wp-affiliate-captain' ), 'error' );
 				}
 				if ( in_array( $action, array( 'paid', 'cancel' ), true ) && ! Admin::post( 'confirm' ) ) {
 					$sum = 0;
@@ -72,9 +118,14 @@ final class PayoutsPage {
 						$p    = PayoutService::find( $id );
 						$sum += $p ? (int) $p->amount_minor : 0;
 					}
+					$keep();
 					Admin::back(
-						/* translators: 1: number of payouts, 2: amount */
-						sprintf( __( 'Please tick the confirmation box: this affects %1$d payout(s) totalling %2$s.', 'wp-affiliate-captain' ), count( $ids ), html_entity_decode( Money::format( $sum, (string) Settings::get( 'currency' ) ), ENT_QUOTES, 'UTF-8' ) ),
+						sprintf(
+							/* translators: 1: number of payouts, 2: amount */
+							_n( 'Please tick the confirmation box: this affects %1$d payout totalling %2$s. Your selection was kept.', 'Please tick the confirmation box: this affects %1$d payouts totalling %2$s. Your selection was kept.', count( $ids ), 'wp-affiliate-captain' ),
+							count( $ids ),
+							html_entity_decode( Money::format( $sum, (string) Settings::get( 'currency' ) ), ENT_QUOTES, 'UTF-8' )
+						),
 						'error'
 					);
 				}
@@ -82,13 +133,14 @@ final class PayoutsPage {
 					// Bank transfer list for any currency (foreign banks, payment providers); afterwards
 					// "Mark as paid" when the money went out.
 					if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
-						Admin::back( __( 'The SEPA file contains bank details. You need the permission to view tax and bank data.', 'wp-affiliate-captain' ), 'error' );
+						Admin::back( __( 'The transfer list contains bank details. You need the permission to view tax and bank data.', 'wp-affiliate-captain' ), 'error' );
 					}
 					$result = PayoutService::transfer_csv( $ids, (bool) Admin::post( 'reexport' ) );
 					if ( is_wp_error( $result ) ) {
+						$keep();
 						Admin::back( $result->get_error_message(), 'error' );
 					}
-					\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', array( 'number', 'account_holder', 'iban', 'bic', 'amount', 'currency', 'reference' ), $result[1] );
+					\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', array( 'number', 'account_holder', 'iban', 'bic', 'amount', 'currency', 'reference', 'method', 'payment_details' ), $result[1] );
 				}
 				if ( 'sepa' === $action ) {
 					if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
@@ -96,6 +148,7 @@ final class PayoutsPage {
 					}
 					$result = PayoutService::sepa_export( $ids, (bool) Admin::post( 'reexport' ) );
 					if ( is_wp_error( $result ) ) {
+						$keep();
 						Admin::back( $result->get_error_message(), 'error' );
 					}
 					nocache_headers();
@@ -104,23 +157,34 @@ final class PayoutsPage {
 					echo $result[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					exit;
 				}
-				if ( 'paid' === $action ) {
-					$errors = 0;
-					foreach ( $ids as $id ) {
-						if ( is_wp_error( PayoutService::mark_paid( $id ) ) ) {
-							++$errors;
-						}
-					}
-					Admin::back( $errors ? __( 'Some payouts could not be marked as paid.', 'wp-affiliate-captain' ) : __( 'Payouts marked as paid.', 'wp-affiliate-captain' ), $errors ? 'error' : 'success' );
-				}
-				$reason = sanitize_text_field( Admin::post( 'reason' ) );
+				// Mark as paid / cancel: every payout on its own; report what worked and what did not.
+				$done   = 0;
+				$failed = array();
 				foreach ( $ids as $id ) {
-					$r = PayoutService::cancel( $id, $reason, (bool) Admin::post( 'confirm_not_sent' ) );
+					$p = PayoutService::find( $id );
+					$r = 'paid' === $action ? PayoutService::mark_paid( $id ) : PayoutService::cancel( $id, $reason, (bool) Admin::post( 'confirm_not_sent' ) );
 					if ( is_wp_error( $r ) ) {
-						Admin::back( $r->get_error_message(), 'error' );
+						$failed[] = ( $p ? $p->number : '#' . (int) $id ) . ': ' . $r->get_error_message();
+					} else {
+						++$done;
 					}
 				}
-				Admin::back( __( 'Payouts cancelled. The commissions are available for the next run.', 'wp-affiliate-captain' ) );
+				if ( 'paid' === $action ) {
+					/* translators: %d: number of payouts */
+					$message = sprintf( _n( '%d payout marked as paid.', '%d payouts marked as paid.', $done, 'wp-affiliate-captain' ), $done );
+					if ( $failed ) {
+						/* translators: %d: number of payouts */
+						$message .= ' ' . sprintf( _n( '%d payout could not be marked as paid:', '%d payouts could not be marked as paid:', count( $failed ), 'wp-affiliate-captain' ), count( $failed ) );
+					}
+				} else {
+					/* translators: %d: number of payouts */
+					$message = sprintf( _n( '%d payout cancelled; its commissions are available for the next run.', '%d payouts cancelled; their commissions are available for the next run.', $done, 'wp-affiliate-captain' ), $done );
+					if ( $failed ) {
+						/* translators: %d: number of payouts */
+						$message .= ' ' . sprintf( _n( '%d payout could not be cancelled:', '%d payouts could not be cancelled:', count( $failed ), 'wp-affiliate-captain' ), count( $failed ) );
+					}
+				}
+				Admin::back( $message, $failed ? ( $done ? 'warning' : 'error' ) : 'success', '', $failed );
 				break;
 
 			case 'payout_request_process':
@@ -157,6 +221,7 @@ final class PayoutsPage {
 			case 'payout_export':
 				list( $rows ) = PayoutService::query( array( 'limit' => 100000 ) );
 				$out          = array();
+				AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
 				foreach ( $rows as $p ) {
 					$aff   = AffiliateRepository::find( (int) $p->affiliate_id );
 					$snap  = json_decode( (string) $p->profile_snapshot, true );
@@ -209,13 +274,26 @@ final class PayoutsPage {
 			Admin::form_open( 'payout_rebuild' );
 			echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><p><button class="button button-primary" data-wpac-confirm="' . esc_attr__( 'Cancel this payout (cancellation document) and create it again with the refund deducted?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Cancel and create again', 'wp-affiliate-captain' ) . '</button></p></form></div>';
 		}
-		foreach ( \WPAffiliateCaptain\Payouts\Objections::open() as $pid => $o ) {
+		$objections = \WPAffiliateCaptain\Payouts\Objections::open();
+		AffiliateRepository::find_many( wp_list_pluck( $objections, 'affiliate_id' ) );
+		foreach ( $objections as $pid => $o ) {
 			$op  = PayoutService::find( (int) $pid );
-			$oaf = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( (int) $o['affiliate_id'] );
+			$oaf = AffiliateRepository::find( (int) $o['affiliate_id'] );
 			/* translators: 1: partner, 2: number, 3: date */
 			echo '<div class="notice notice-warning"><p><strong>' . esc_html( sprintf( __( '%1$s objected to credit note %2$s on %3$s:', 'wp-affiliate-captain' ), $oaf ? $oaf->name : '#' . (int) $o['affiliate_id'], $op ? $op->number : '#' . (int) $pid, Admin::date( $o['at'], true ) ) ) . '</strong><br>' . nl2br( esc_html( $o['reason'] ) ) . '</p><p class="description">' . esc_html__( 'The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct.', 'wp-affiliate-captain' ) . '</p>';
+			if ( $op && in_array( $op->status, array( 'pending', 'exported' ), true ) ) {
+				// Direct cancellation of the objected payout (same checks as the bulk action).
+				Admin::form_open( 'payout_bulk' );
+				echo '<input type="hidden" name="ids[]" value="' . (int) $pid . '"><input type="hidden" name="bulk_action" value="cancel"><input type="hidden" name="confirm" value="1">';
+				echo '<p><label for="wpac-obj-cancel-' . (int) $pid . '">' . esc_html__( 'Cancellation reason', 'wp-affiliate-captain' ) . '</label><br><input type="text" required class="regular-text" id="wpac-obj-cancel-' . (int) $pid . '" name="reason" value="' . esc_attr__( 'Objection of the partner', 'wp-affiliate-captain' ) . '"> ';
+				if ( 'exported' === $op->status ) {
+					echo '<label><input type="checkbox" name="confirm_not_sent" value="1" required> ' . esc_html__( 'The bank did NOT execute the exported transfer', 'wp-affiliate-captain' ) . '</label> ';
+				}
+				/* translators: %s: payout number */
+				echo '<button class="button" data-wpac-confirm="' . esc_attr( sprintf( __( 'Cancel payout %s? A cancellation document is issued and the commissions are paid with the next run.', 'wp-affiliate-captain' ), $op->number ) ) . '">' . esc_html__( 'Cancel this payout', 'wp-affiliate-captain' ) . '</button></p></form>';
+			}
 			Admin::form_open( 'objection_resolve' );
-			echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><p><textarea name="resolution" rows="2" class="large-text" placeholder="' . esc_attr__( 'What was done (sent to the partner)', 'wp-affiliate-captain' ) . '"></textarea></p><p><button class="button">' . esc_html__( 'Mark as handled', 'wp-affiliate-captain' ) . '</button></p></form></div>';
+			echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><p><label for="wpac-obj-resolution-' . (int) $pid . '">' . esc_html__( 'What was done (sent to the partner)', 'wp-affiliate-captain' ) . '</label><br><textarea id="wpac-obj-resolution-' . (int) $pid . '" name="resolution" rows="2" class="large-text" required></textarea></p><p><button class="button">' . esc_html__( 'Mark as handled', 'wp-affiliate-captain' ) . '</button></p></form></div>';
 		}
 
 		echo '<h2>' . esc_html__( 'New payout run', 'wp-affiliate-captain' ) . '</h2>';
@@ -255,6 +333,7 @@ final class PayoutsPage {
 
 		// Requests.
 		$requests = PayoutRequests::query( 'requested' );
+		AffiliateRepository::find_many( wp_list_pluck( $requests, 'affiliate_id' ) );
 		if ( $requests ) {
 			echo '<h2>' . esc_html__( 'Open payout requests', 'wp-affiliate-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Requested', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Available now', 'wp-affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
 			foreach ( $requests as $r ) {
@@ -279,6 +358,15 @@ final class PayoutsPage {
 			)
 		);
 		$labels = PayoutService::status_labels();
+		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
+		$kept = wp_parse_args(
+			Admin::kept_form( 'payout_bulk' ),
+			array(
+				'ids'    => array(),
+				'action' => '',
+				'reason' => '',
+			)
+		);
 		echo '<h2>' . esc_html__( 'Payouts', 'wp-affiliate-captain' ) . '</h2>';
 		Admin::form_open( 'payout_export', 'wpac-inline' );
 		echo '<button class="button">' . esc_html__( 'Export CSV', 'wp-affiliate-captain' ) . '</button></form>';
@@ -293,13 +381,13 @@ final class PayoutsPage {
 			$snap = json_decode( (string) $p->profile_snapshot, true );
 			printf(
 				'<tr><th class="check-column">%s</th><td><a href="%s">%s</a></td><td>%s</td><td>%s</td><td><strong>%s</strong></td><td>%s</td><td>%s%s</td></tr>',
-				in_array( $p->status, array( 'pending', 'exported' ), true ) ? '<input type="checkbox" class="wpac-cb" name="ids[]" value="' . (int) $p->id . '" aria-label="' . esc_attr( sprintf( /* translators: %s: document number */ __( 'Select %s', 'wp-affiliate-captain' ), $p->number ) ) . '">' : '',
+				in_array( $p->status, array( 'pending', 'exported' ), true ) ? '<input type="checkbox" class="wpac-cb" name="ids[]" value="' . (int) $p->id . '"' . checked( in_array( (int) $p->id, array_map( 'intval', (array) $kept['ids'] ), true ), true, false ) . ' aria-label="' . esc_attr( sprintf( /* translators: %s: document number */ __( 'Select %s', 'wp-affiliate-captain' ), $p->number ) ) . '">' : '',
 				esc_url( Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => $p->id ) ) ),
 				esc_html( $p->number ),
 				esc_html( $aff ? $aff->name : '#' . $p->affiliate_id ),
 				esc_html( mysql2date( get_option( 'date_format' ), $p->period_end ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
-				esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ),
+				esc_html( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? __( 'Other payment method (paid manually)', 'wp-affiliate-captain' ) : ( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) ),
 				Admin::badge( $p->status, $labels[ $p->status ] ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				$p->sepa_batch ? '<br><small>' . esc_html( $p->sepa_batch ) . '</small>' : ''
 			);
@@ -308,12 +396,19 @@ final class PayoutsPage {
 		echo '<fieldset class="wpac-bulk"><legend>' . esc_html__( 'Bulk action for selected payouts', 'wp-affiliate-captain' ) . '</legend>';
 		echo '<p><label for="wpac-bulk-action" class="screen-reader-text">' . esc_html__( 'Action', 'wp-affiliate-captain' ) . '</label><select name="bulk_action" id="wpac-bulk-action" required>';
 		echo '<option value="">' . esc_html__( '— Choose action —', 'wp-affiliate-captain' ) . '</option>';
-		echo '<option value="sepa">' . esc_html__( 'Download SEPA XML', 'wp-affiliate-captain' ) . '</option>';
-		echo '<option value="csv">' . esc_html__( 'Download transfer list (CSV, any currency)', 'wp-affiliate-captain' ) . '</option>';
-		echo '<option value="paid">' . esc_html__( 'Mark as paid', 'wp-affiliate-captain' ) . '</option>';
-		echo '<option value="cancel">' . esc_html__( 'Cancel', 'wp-affiliate-captain' ) . '</option>';
+		foreach (
+			array(
+				'sepa'   => __( 'Download SEPA XML', 'wp-affiliate-captain' ),
+				'csv'    => __( 'Download transfer list (CSV, any currency)', 'wp-affiliate-captain' ),
+				'paid'   => __( 'Mark as paid', 'wp-affiliate-captain' ),
+				'cancel' => __( 'Cancel', 'wp-affiliate-captain' ),
+			) as $value => $label
+		) {
+			echo '<option value="' . esc_attr( $value ) . '"' . selected( $kept['action'], $value, false ) . '>' . esc_html( $label ) . '</option>';
+		}
 		echo '</select> <button class="button" type="submit" data-wpac-confirm="' . esc_attr__( 'Run this action for the selected payouts?', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Apply', 'wp-affiliate-captain' ) . '</button></p>';
-		echo '<p><label for="wpac-cancel-reason">' . esc_html__( 'Cancellation reason (required for "Cancel")', 'wp-affiliate-captain' ) . '</label><br><input type="text" name="reason" id="wpac-cancel-reason" class="regular-text"></p>';
+		echo '<p class="description">' . esc_html__( 'Payouts of partners with another payment method (e.g. PayPal) are left out of the SEPA file. The transfer list contains their payment details; pay them manually and then mark them as paid.', 'wp-affiliate-captain' ) . '</p>';
+		echo '<p><label for="wpac-cancel-reason">' . esc_html__( 'Cancellation reason (required for "Cancel")', 'wp-affiliate-captain' ) . '</label><br><input type="text" name="reason" id="wpac-cancel-reason" class="regular-text" value="' . esc_attr( (string) $kept['reason'] ) . '"></p>';
 		echo '<p><label><input type="checkbox" name="confirm" value="1"> ' . esc_html__( 'I confirm this action for the selected payouts (required for "Mark as paid" and "Cancel").', 'wp-affiliate-captain' ) . '</label>';
 		echo '<br><label><input type="checkbox" name="reexport" value="1"> ' . esc_html__( 'Export again (only if the bank did not process the previous file)', 'wp-affiliate-captain' ) . '</label>';
 		echo '<br><label><input type="checkbox" name="confirm_not_sent" value="1"> ' . esc_html__( 'Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)', 'wp-affiliate-captain' ) . '</label></p></fieldset></form>';
@@ -357,7 +452,7 @@ final class PayoutsPage {
 		$labels = ProfileRepository::tax_status_labels();
 		if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 			// Address, VAT ID and tax status are restricted to wpac_view_tax_data.
-			$snap = array_intersect_key( $snap, array( 'iban_masked' => 1 ) );
+			$snap = array_intersect_key( $snap, array( 'iban_masked' => 1, 'payout_method' => 1 ) );
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Tax and address details are hidden (missing permission wpac_view_tax_data).', 'wp-affiliate-captain' ) . '</p></div>';
 		}
 
@@ -381,7 +476,11 @@ final class PayoutsPage {
 		if ( ! empty( $snap['tax_number'] ) ) {
 			echo esc_html__( 'Tax number', 'wp-affiliate-captain' ) . ': ' . esc_html( $snap['tax_number'] ) . '<br>';
 		}
-		echo esc_html__( 'Bank account', 'wp-affiliate-captain' ) . ': ' . esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) . '</p></div></div>';
+		if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ) {
+			echo esc_html__( 'Payment method', 'wp-affiliate-captain' ) . ': ' . esc_html__( 'Other payment method (paid manually)', 'wp-affiliate-captain' ) . '</p></div></div>';
+		} else {
+			echo esc_html__( 'Bank account', 'wp-affiliate-captain' ) . ': ' . esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) . '</p></div></div>';
+		}
 		echo '<p>' . esc_html__( 'Period until', 'wp-affiliate-captain' ) . ': ' . esc_html( mysql2date( get_option( 'date_format' ), $p->period_end ) ) . ' · ' . esc_html__( 'Created', 'wp-affiliate-captain' ) . ': ' . esc_html( Admin::date( $p->created_at ) ) . '</p>';
 
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Description', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
@@ -390,7 +489,7 @@ final class PayoutsPage {
 				'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( Admin::date( $item->commission_date ) ),
 				esc_html( $item->source . ' #' . $item->source_order_id ),
-				esc_html( 'sale' === $item->kind ? $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . $item->kind . ')' ),
+				esc_html( in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? $item->description : __( 'Correction', 'wp-affiliate-captain' ) . ' (' . \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ')' ),
 				esc_html( Money::format( (int) $item->amount_minor, $p->currency ) )
 			);
 		}

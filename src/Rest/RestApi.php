@@ -54,7 +54,7 @@ final class RestApi {
 	 */
 	public static function touch( $r ) {
 		if ( ! Settings::get( 'js_tracking' ) ) {
-			return new \WP_Error( 'wpac_disabled', 'JavaScript tracking is disabled.', array( 'status' => 404 ) );
+			return new \WP_Error( 'wpac_disabled', __( 'JavaScript tracking is disabled.', 'wp-affiliate-captain' ), array( 'status' => 404 ) );
 		}
 		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).
 		$res->header( 'Cache-Control', 'no-store' );
@@ -94,11 +94,11 @@ final class RestApi {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function health( $r ) {
-		$token = (string) Settings::get( 'monitor_token' );
 		$sent  = (string) $r->get_header( 'x-wpac-monitor-token' );
 		$admin = current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM );
-		if ( ! $admin && ( '' === $token || '' === $sent || ! hash_equals( $token, $sent ) ) ) {
-			return new \WP_Error( 'wpac_forbidden', 'Not allowed.', array( 'status' => 403 ) );
+		// Only a hash of the token is stored (compared with hash_equals()).
+		if ( ! $admin && ! Settings::monitor_token_matches( $sent ) ) {
+			return new \WP_Error( 'wpac_forbidden', __( 'Not allowed.', 'wp-affiliate-captain' ), array( 'status' => 403 ) );
 		}
 		$problems = \WPAffiliateCaptain\Core\Monitor::problems( true );
 		$body     = array(
@@ -131,10 +131,13 @@ final class RestApi {
 				'methods'             => 'GET',
 				'permission_callback' => '__return_true',
 				'callback'            => static function () {
-					return array(
-						'contract' => WPAC_CONTRACT_VERSION,
-						'plugin'   => WPAC_VERSION,
-					);
+					// The plugin version only for logged-in users who manage the program: an exact
+					// version tells anonymous scanners which known issues to try.
+					$out = array( 'contract' => WPAC_CONTRACT_VERSION );
+					if ( current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
+						$out['plugin'] = WPAC_VERSION;
+					}
+					return $out;
 				},
 			)
 		);
@@ -209,7 +212,7 @@ final class RestApi {
 				'permission_callback' => self::can( Capabilities::MANAGE_AFFILIATES ),
 				'callback'            => static function ( \WP_REST_Request $r ) {
 					$a = AffiliateRepository::find( (int) $r['id'] );
-					return $a ? self::affiliate_data( $a, true ) : new \WP_Error( 'wpac_not_found', 'Not found', array( 'status' => 404 ) );
+					return $a ? self::affiliate_data( $a, true ) : new \WP_Error( 'wpac_not_found', __( 'Not found.', 'wp-affiliate-captain' ), array( 'status' => 404 ) );
 				},
 			)
 		);
@@ -397,7 +400,7 @@ final class RestApi {
 	 */
 	public static function check_code( \WP_REST_Request $r ) {
 		if ( ! RateLimiter::allow( 'rest_code', 20, MINUTE_IN_SECONDS ) ) {
-			return new \WP_Error( 'wpac_rate_limited', 'Too many requests', array( 'status' => 429 ) );
+			return new \WP_Error( 'wpac_rate_limited', __( 'Too many attempts. Please wait a minute and try again.', 'wp-affiliate-captain' ), array( 'status' => 429 ) );
 		}
 		return array( 'valid' => (bool) wpac_resolve_partner_code( (string) $r['code'], array( 'context' => 'rest' ) ) );
 	}

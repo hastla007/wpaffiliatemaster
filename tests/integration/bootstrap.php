@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 8 );
+define( 'WPAC_DB_VERSION', 9 );
 define( 'WPAC_CONTRACT_VERSION', '1.1.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/wp-affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -26,6 +26,7 @@ define( 'WPAC_URL', 'http://example.test/wp-content/plugins/wp-affiliate-captain
 
 class Test_WPDB {
 	public $prefix = 'wp_';
+	public $base_prefix = 'wp_';
 	public $insert_id = 0;
 	public $last_error = '';
 	public $suppress   = false;
@@ -37,7 +38,8 @@ class Test_WPDB {
 		mysqli_report( MYSQLI_REPORT_OFF );
 		// Optional mixed-case prefix (lower_case_table_names tests) and host:port.
 		if ( getenv( 'WPAC_TEST_DB_PREFIX' ) ) {
-			$this->prefix = (string) getenv( 'WPAC_TEST_DB_PREFIX' );
+			$this->prefix      = (string) getenv( 'WPAC_TEST_DB_PREFIX' );
+			$this->base_prefix = $this->prefix;
 		}
 		$host = getenv( 'WPAC_TEST_DB_HOST' ) ?: 'localhost';
 		$port = null;
@@ -214,7 +216,8 @@ function esc_url_raw( $u ) { return (string) $u; }
 function absint( $v ) { return abs( (int) $v ); }
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function get_current_user_id() { return $GLOBALS['test_user']; }
-function current_user_can( $c ) { return true; }
+// Capabilities: all granted unless a test sets $GLOBALS['test_caps'] (list of granted caps).
+function current_user_can( $c ) { return ! isset( $GLOBALS['test_caps'] ) || in_array( $c, (array) $GLOBALS['test_caps'], true ); }
 function wp_generate_password( $l = 12, $s = true ) { return substr( bin2hex( random_bytes( $l ) ), 0, $l ); }
 function wp_rand( $a = 0, $b = 0 ) { return random_int( $a, $b ); }
 function wp_salt( $s = 'auth' ) { return 'test-salt-' . $s; }
@@ -226,9 +229,10 @@ function wp_specialchars_decode( $t, $q = 0 ) { return $t; }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 if ( ! function_exists( 'wp_date' ) ) { function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : $ts ); } }
 function mysql2date( $f, $d ) { return gmdate( 'd.m.Y', strtotime( $d ) ); }
-function get_date_from_gmt( $d, $f = 'Y-m-d H:i:s' ) { return $d; }
+function get_date_from_gmt( $d, $f = 'Y-m-d H:i:s' ) { return 'Y' === $f ? substr( (string) $d, 0, 4 ) : $d; }
+if ( ! function_exists( 'get_gmt_from_date' ) ) { function get_gmt_from_date( $d, $f = 'Y-m-d H:i:s' ) { return $d; } }
 function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ',', '.' ); }
-function wp_upload_dir( $t = null, $c = true ) { return array( 'basedir' => sys_get_temp_dir() . '/wpac-uploads' ); }
+function wp_upload_dir( $t = null, $c = true ) { return array( 'basedir' => sys_get_temp_dir() . '/wpac-uploads', 'baseurl' => 'https://example.test/wp-content/uploads' ); }
 function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
 function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function wp_delete_file( $f ) { @unlink( $f ); }
@@ -327,3 +331,6 @@ if ( ! function_exists( 'current_user_can' ) ) {
 	function current_user_can( $cap ) { return false; }
 }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
+// Multisite stand-ins (tests switch $GLOBALS['test_multisite'] / $GLOBALS['test_blog_id']).
+if ( ! function_exists( 'is_multisite' ) ) { function is_multisite() { return ! empty( $GLOBALS['test_multisite'] ); } }
+if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return isset( $GLOBALS['test_blog_id'] ) ? (int) $GLOBALS['test_blog_id'] : 1; } }
