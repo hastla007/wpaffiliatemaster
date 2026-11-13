@@ -88,7 +88,7 @@ final class RateLimiter {
 	 */
 	public static function purge() {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . \WPAffiliateCaptain\Core\Db::table( 'rate_limits' ) . ' WHERE expires_at < %d LIMIT 50000', time() ) );
 	}
 

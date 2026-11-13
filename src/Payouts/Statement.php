@@ -457,7 +457,7 @@ final class Statement {
 			$path  = self::dir() . '/' . $name;
 			if ( false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
 				Audit::log( 'statement.write_failed', 'payout', (int) $payout_id );
-				\WPAffiliateCaptain\Core\Log::error( 'Credit note could not be written', array( 'payout' => (int) $payout_id, 'dir_writable' => is_writable( self::dir() ) ) );
+				\WPAffiliateCaptain\Core\Log::error( 'Credit note could not be written', array( 'payout' => (int) $payout_id, 'dir_writable' => is_writable( self::dir() ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
 				self::backoff( (int) $payout_id );
 				return false;
 			}

@@ -1073,8 +1073,8 @@ final class Ledger {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
 		$for = $lock ? ' FOR UPDATE' : ''; // Constant fragment, no input.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// Reinstatements give back the base of a reversal that turned out to be wrong.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND ( base_minor < 0 OR kind = 'reinstatement' ){$for}", $id ) ) );
 	}
 
