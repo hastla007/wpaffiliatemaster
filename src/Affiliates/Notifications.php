@@ -486,8 +486,11 @@ final class Notifications {
 			self::send(
 				'payout_paid',
 				$aff->email,
-				/* translators: 1: site name, 2: payout number */
-				sprintf( __( '[%1$s] Payout %2$s transferred', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
+				$manual
+					/* translators: 1: site name, 2: payout number */
+					? sprintf( __( '[%1$s] Payout %2$s paid', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number )
+					/* translators: 1: site name, 2: payout number */
+					: sprintf( __( '[%1$s] Payout %2$s transferred', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
 				sprintf( $text, $aff->name, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), $p->number, $portal ? add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) : home_url( '/' ) ),
 				array( 'affiliate_id' => (int) $aff->id )
 			);

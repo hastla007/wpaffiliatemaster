@@ -91,7 +91,8 @@ final class Settings {
 			'payout_requests'         => 0,
 			'statement_retention_years' => 10,
 			'retention_hold'          => 0,
-			'payout_period'           => 'monthly',
+			'payout_period'           => 'monthly', // Unused (no effect, no longer offered in the settings); kept for stored settings.
+			'payout_method_manual'    => 1,         // Partners may choose "other payment method" (PayPal etc., paid manually).
 			'debtor_name'             => '',
 			'debtor_iban'             => '',
 			'debtor_bic'              => '',
@@ -300,7 +301,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'payout_method_manual' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
@@ -382,7 +383,7 @@ final class Settings {
 		if ( isset( $in['default_rate'] ) ) {
 			if ( 'fixed' === $out['default_rate_type'] ) {
 				// Fixed default rate is entered as a decimal amount, stored as minor units.
-				$rate = self::parse_amount( $in['default_rate'] );
+				$rate = self::parse_amount( $in['default_rate'], $out['currency'] );
 				$ok   = null !== $rate && (float) $rate >= 0;
 				if ( $ok ) {
 					$out['default_rate'] = (string) Money::to_minor( $rate, $out['currency'] );
@@ -455,7 +456,7 @@ final class Settings {
 
 		$out['fraud_max_order_minor'] = 0;
 		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
-			$max_order = self::parse_amount( $in['fraud_max_order'] );
+			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'] );
 			if ( null === $max_order || (float) $max_order < 0 ) {
 				$errors['fraud_max_order']    = __( 'Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off).', 'affiliate-captain' );
 				$out['fraud_max_order_minor'] = (int) $old( 'fraud_max_order_minor' );
@@ -467,7 +468,7 @@ final class Settings {
 
 		$out['min_payout_minor'] = $d['min_payout_minor'];
 		if ( isset( $in['min_payout'] ) ) {
-			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'] );
+			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'], $out['currency'] );
 			if ( null === $min || (float) $min < 0 ) {
 				$errors['min_payout']    = __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'affiliate-captain' );
 				$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
@@ -605,20 +606,15 @@ final class Settings {
 
 	/**
 	 * Parse an amount as typed by people: "25", "25 €", "€ 25,50", "1.000", "1.000,00 EUR",
-	 * "1,000.00". A dot followed by groups of exactly three digits (and no comma) is read as a
-	 * thousands separator: amounts never have three decimals.
+	 * "1,000.00". See Money::parse_amount(): grouped thousands are recognized, but for currencies
+	 * with three decimals (KWD …) "5.000" means 5 – the way the value is shown in the form.
 	 *
-	 * @param mixed $raw Input.
+	 * @param mixed  $raw      Input.
+	 * @param string $currency Currency of the amount ('' = no three-decimal rule).
 	 * @return string|null Normalized decimal or null.
 	 */
-	public static function parse_amount( $raw ) {
-		$value = str_replace( array( '€', '$', '£', '¥', "\u{00A0}", "\u{202F}" ), array( '', '', '', '', ' ', ' ' ), (string) $raw );
-		$value = trim( (string) preg_replace( '/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/', '', trim( $value ) ) );
-		$value = str_replace( ' ', '', $value );
-		if ( preg_match( '/^-?\d{1,3}(\.\d{3})+$/', $value ) ) {
-			$value = str_replace( '.', '', $value );
-		}
-		return Money::normalize_decimal( $value );
+	public static function parse_amount( $raw, $currency = '' ) {
+		return Money::parse_amount( (string) $raw, (string) $currency );
 	}
 
 	/**

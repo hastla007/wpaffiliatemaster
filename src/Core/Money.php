@@ -66,6 +66,30 @@ final class Money {
 	}
 
 	/**
+	 * Parse an amount typed into a form ("50", "50,00", "1.000", "1,000.50", "EUR 25") for a
+	 * currency. A single kind of separator followed by groups of exactly three digits is read as
+	 * thousands grouping ("1.000" and "1,000" = 1000) – except for currencies with three decimals
+	 * (KWD, BHD …), where "5.000" is the amount as shown by to_decimal() (5 dinars); several groups
+	 * ("1.000.000") are always thousands.
+	 *
+	 * @param string $raw      Input.
+	 * @param string $currency ISO code ('' = no currency specific rule).
+	 * @return string|null Canonical decimal string or null when invalid.
+	 */
+	public static function parse_amount( $raw, $currency = '' ) {
+		$value = str_replace( array( '€', '$', '£', '¥', "\u{00A0}", "\u{202F}" ), array( '', '', '', '', ' ', ' ' ), (string) $raw );
+		$value = trim( (string) preg_replace( '/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/', '', trim( $value ) ) );
+		$value = str_replace( array( ' ', "'" ), '', $value );
+		if ( preg_match( '/^-?[1-9]\d{0,2}([.,])\d{3}(?:\1\d{3})*$/', $value, $m ) ) {
+			$three = '' !== (string) $currency && 3 === self::decimals( $currency );
+			if ( ! $three || substr_count( $value, $m[1] ) > 1 ) {
+				$value = str_replace( $m[1], '', $value );
+			}
+		}
+		return self::normalize_decimal( $value );
+	}
+
+	/**
 	 * Convert a decimal amount (string preferred, float accepted) to minor units,
 	 * rounding half away from zero.
 	 *

@@ -18,16 +18,65 @@ defined( 'ABSPATH' ) || exit;
 final class PayoutRequests {
 
 	/**
-	 * Approved, unassigned balance of a partner in the program currency.
+	 * Amount a payout would pay now (gross incl. VAT, with the same hold-backs as a payout:
+	 * corrections still in review hold back their commission), in one currency.
 	 *
-	 * @param int $affiliate_id Affiliate.
+	 * @param int    $affiliate_id Affiliate.
+	 * @param string $currency     Currency ('' = program currency).
 	 * @return int
 	 */
-	public static function available( $affiliate_id ) {
+	public static function available( $affiliate_id, $currency = '' ) {
+		$currency = '' !== (string) $currency ? (string) $currency : (string) Settings::get( 'currency' );
+		return (int) PayoutService::payable( (int) $affiliate_id, $currency )['gross'];
+	}
+
+	/**
+	 * Payable amounts per currency (only currencies with a positive balance), the program
+	 * currency first.
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return array currency => [ net, vat, gross, count ]
+	 */
+	public static function available_all( $affiliate_id ) {
 		global $wpdb;
-		$t = Db::table( 'commissions' );
+		$t          = Db::table( 'commissions' );
+		$program    = strtoupper( (string) Settings::get( 'currency' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE affiliate_id = %d AND status = 'approved' AND payout_id = 0 AND currency = %s", $affiliate_id, Settings::get( 'currency' ) ) );
+		$currencies = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT currency FROM {$t} WHERE affiliate_id = %d AND status = 'approved' AND payout_id = 0", $affiliate_id ) );
+		usort(
+			$currencies,
+			static function ( $a, $b ) use ( $program ) {
+				if ( $program === $a || $program === $b ) {
+					return $program === $a ? -1 : 1;
+				}
+				return strcmp( $a, $b );
+			}
+		);
+		$out = array();
+		foreach ( $currencies as $currency ) {
+			$amounts = PayoutService::payable( (int) $affiliate_id, (string) $currency );
+			if ( $amounts['net'] > 0 ) {
+				$out[ strtoupper( (string) $currency ) ] = $amounts;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Currency a request is made in: the program currency when its balance reaches the minimum,
+	 * otherwise the first other currency that does ('' = none reaches it).
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return string
+	 */
+	public static function request_currency( $affiliate_id ) {
+		foreach ( self::available_all( (int) $affiliate_id ) as $currency => $amounts ) {
+			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+			if ( null !== $min && $amounts['net'] >= max( 1, (int) $min ) ) {
+				return (string) $currency;
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -81,8 +130,9 @@ final class PayoutRequests {
 		if ( '' !== $code ) {
 			return isset( $partner_reasons[ $code ] ) ? $partner_reasons[ $code ] : __( 'Please complete your payout details first.', 'affiliate-captain' );
 		}
-		$min = (int) Settings::get( 'min_payout_minor' );
-		if ( self::available( (int) $aff->id ) < max( 1, $min ) ) {
+		// Like the payout: the net balance (without VAT) must reach the minimum, in any currency.
+		if ( '' === self::request_currency( (int) $aff->id ) ) {
+			$min = (int) Settings::get( 'min_payout_minor' );
 			/* translators: %s: minimum */
 			return sprintf( __( 'Your approved balance is below the minimum payout of %s.', 'affiliate-captain' ), Money::format( $min, Settings::get( 'currency' ) ) );
 		}
@@ -111,12 +161,16 @@ final class PayoutRequests {
 					if ( self::open_for( (int) $aff->id ) ) {
 						return 0;
 					}
+					$currency = self::request_currency( (int) $aff->id );
+					if ( '' === $currency ) {
+						return 0;
+					}
 					$ok = $wpdb->insert(
 						Db::table( 'payout_requests' ),
 						array(
 							'affiliate_id' => (int) $aff->id,
-							'currency'     => (string) Settings::get( 'currency' ),
-							'amount_minor' => self::available( (int) $aff->id ),
+							'currency'     => $currency,
+							'amount_minor' => self::available( (int) $aff->id, $currency ),
 							'status'       => 'requested',
 							'created_at'   => Db::now(),
 						)
@@ -134,8 +188,9 @@ final class PayoutRequests {
 		if ( ! $id ) {
 			return new \WP_Error( 'wpac_request', __( 'You already have an open payout request.', 'affiliate-captain' ) );
 		}
-		$amount = (int) self::find( $id )->amount_minor;
-		Audit::log( 'payout_request.created', 'affiliate', (int) $aff->id, array( 'amount' => $amount ) );
+		$req    = self::find( $id );
+		$amount = (int) $req->amount_minor;
+		Audit::log( 'payout_request.created', 'affiliate', (int) $aff->id, array( 'amount' => $amount, 'currency' => (string) $req->currency ) );
 		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
 		\WPAffiliateCaptain\Affiliates\Notifications::send(
 			'payout_request',
@@ -143,7 +198,7 @@ final class PayoutRequests {
 			/* translators: %s: partner */
 			sprintf( __( 'Payout request from %s', 'affiliate-captain' ), $aff->name ),
 			/* translators: 1: partner, 2: amount, 3: URL */
-			sprintf( __( "%1\$s requested a payout of %2\$s.\n\n%3\$s", 'affiliate-captain' ), $aff->name, Money::format( $amount, Settings::get( 'currency' ) ), admin_url( 'admin.php?page=wpac-payouts' ) ),
+			sprintf( __( "%1\$s requested a payout of %2\$s.\n\n%3\$s", 'affiliate-captain' ), $aff->name, Money::format( $amount, (string) $req->currency ), admin_url( 'admin.php?page=wpac-payouts' ) ),
 			array(
 				'admin'        => true,
 				'affiliate_id' => (int) $aff->id,

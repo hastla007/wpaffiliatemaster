@@ -1517,6 +1517,7 @@ check( 'ZF6 core flows make no outgoing requests (no license server, VIES off)',
 require __DIR__ . '/r8-g2.php';
 require __DIR__ . '/r8-g1.php';
 require __DIR__ . '/r8-g6.php';
+require __DIR__ . '/r8-g4b.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

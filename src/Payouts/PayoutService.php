@@ -19,7 +19,9 @@ use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\IntegrationException;
+use WPAffiliateCaptain\Core\Jobs;
 use WPAffiliateCaptain\Core\Money;
+use WPAffiliateCaptain\Core\Scheduler;
 use WPAffiliateCaptain\Core\Sequence;
 use WPAffiliateCaptain\Core\Settings;
 
@@ -68,6 +70,49 @@ final class PayoutService {
 			$params[] = (int) $affiliate_id;
 		}
 		return array( $sql, $params );
+	}
+
+	/**
+	 * What a payout of a partner would contain right now: the same rows as create_for_affiliate()
+	 * (corrections still in review held back) and the gross amount incl. VAT as it would be paid.
+	 *
+	 * @param int         $affiliate_id Partner.
+	 * @param string      $currency     Currency.
+	 * @param string|null $period_end   Y-m-d (default: today).
+	 * @return array net, vat, gross (minor units), count.
+	 */
+	public static function payable( $affiliate_id, $currency, $period_end = null ) {
+		global $wpdb;
+		$end                   = ( null === $period_end ? gmdate( 'Y-m-d' ) : (string) $period_end ) . ' 23:59:59';
+		list( $from, $params ) = self::payable_sql( strtoupper( (string) $currency ), $end, (int) $affiliate_id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.parent_id, p.payout_id AS parent_payout_id {$from}", $params ) );
+		$net  = 0;
+		foreach ( $rows as $r ) {
+			$net += (int) $r->amount_minor;
+		}
+		$vat_minor = 0;
+		if ( $rows && $net > 0 ) {
+			$snapshot = ProfileRepository::snapshot( ProfileRepository::get( (int) $affiliate_id ) );
+			$vat      = Vat::treatment(
+				isset( $snapshot['tax_status'] ) ? $snapshot['tax_status'] : '',
+				isset( $snapshot['country'] ) ? $snapshot['country'] : '',
+				(string) Settings::get( 'operator_country' ),
+				(string) Settings::get( 'vat_rate' )
+			);
+			/** This filter is documented in create_for_affiliate(). */
+			$vat   = (array) apply_filters( 'wpac_vat_treatment', $vat, $snapshot, (int) $affiliate_id );
+			$treat = self::item_treatments( $rows, $vat );
+			foreach ( self::vat_groups( $rows, $treat ) as $group ) {
+				$vat_minor += Vat::amount( $group['net'], $group['rate'] );
+			}
+		}
+		return array(
+			'net'   => $net,
+			'vat'   => $vat_minor,
+			'gross' => $net + $vat_minor,
+			'count' => count( $rows ),
+		);
 	}
 
 	/**
@@ -205,7 +250,7 @@ final class PayoutService {
 	 *
 	 * @param int         $affiliate_id Partner.
 	 * @param array|null  $profile      Payout profile (loaded when null).
-	 * @param string|null $code         Out: reason code (maintenance|profile|terms_page|terms|operator_vat_id|vies, '' = none).
+	 * @param string|null $code         Out: reason code (maintenance|terminated|profile|terms_page|terms|operator_vat_id|vies, '' = none).
 	 * @return string
 	 */
 	public static function blocked_reason( $affiliate_id, $profile = null, &$code = null ) {
@@ -213,6 +258,12 @@ final class PayoutService {
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			$code = 'maintenance';
 			return __( 'Maintenance mode is on (Settings → Reports & data)', 'affiliate-captain' );
+		}
+		$aff = AffiliateRepository::find( (int) $affiliate_id );
+		if ( $aff && 'terminated' === $aff->status && 'reject' === Settings::get( 'terminated_open' ) ) {
+			// Termination with "open commissions are rejected": nothing is paid out any more.
+			$code = 'terminated';
+			return __( 'Partnership terminated – open commissions are rejected (Settings → Program)', 'affiliate-captain' );
 		}
 		$profile = null === $profile ? ProfileRepository::get( (int) $affiliate_id ) : $profile;
 		$missing = ProfileRepository::missing( $profile );
@@ -403,6 +454,92 @@ final class PayoutService {
 		$created = array();
 		$skipped = 0;
 		$details = array();
+		// Each payout is still created in its own transaction; only the credit notes (PDF) are
+		// written afterwards by the job queue, so a run with many partners does not time out.
+		$async                   = self::$async_statements;
+		self::$async_statements  = true;
+		try {
+			self::create_run_rows( $period_end, $currency, $created, $skipped, $details );
+		} finally {
+			self::$async_statements = $async;
+		}
+		if ( $created ) {
+			Scheduler::once( Jobs::DRAIN_HOOK, 0 ); // Start writing the credit notes right away.
+		}
+		Audit::log(
+			'payout.run',
+			'payout',
+			0,
+			array(
+				'period_end' => $period_end,
+				'currency'   => $currency,
+				'created'    => count( $created ),
+				'skipped'    => $skipped,
+			)
+		);
+		return array( $created, $skipped, $details );
+	}
+
+	/**
+	 * Whether payouts created now get their credit note from the job queue (payout run)
+	 * instead of right after the commit (single payouts, requests, rebuild).
+	 *
+	 * @var bool
+	 */
+	private static $async_statements = false;
+
+	/** Job type that writes the credit note of a payout. */
+	const STATEMENT_JOB = 'statement';
+
+	/**
+	 * Register the job handler for credit notes (Plugin boot).
+	 */
+	public static function register_hooks() {
+		add_filter( 'wpac_run_job', array( __CLASS__, 'run_job' ), 10, 3 );
+	}
+
+	/**
+	 * Job handler: write the credit note of a payout created by a run, then announce the payout
+	 * (wpac_payout_created fires once the credit note exists, as for single payouts). Throws
+	 * while the document cannot be written, so the queue retries with back-off.
+	 *
+	 * @param bool   $handled Handled before.
+	 * @param string $type    Job type.
+	 * @param array  $payload Payload (payout_id, affiliate_id).
+	 * @return bool
+	 * @throws IntegrationException When the credit note could not be written yet.
+	 */
+	public static function run_job( $handled, $type, $payload ) {
+		if ( $handled || self::STATEMENT_JOB !== $type ) {
+			return $handled;
+		}
+		$id = isset( $payload['payout_id'] ) ? (int) $payload['payout_id'] : 0;
+		$p  = self::find( $id );
+		if ( ! $p || 'cancelled' === $p->status || $p->statement_deleted_at ) {
+			return true; // Nothing to write any more.
+		}
+		if ( '' === (string) $p->statement_file ) {
+			Statement::generate( $id );
+			$p = self::find( $id );
+		}
+		if ( ! $p || '' === (string) $p->statement_file ) {
+			throw new IntegrationException( 'statement', 'The credit note of payout ' . $id . ' could not be written yet.' );
+		}
+		/** This action is documented in create_for_affiliate(). */
+		do_action( 'wpac_payout_created', $id, (int) $p->affiliate_id );
+		return true;
+	}
+
+	/**
+	 * Create the payouts of a run (see create_run()).
+	 *
+	 * @param string $period_end Y-m-d.
+	 * @param string $currency   Currency.
+	 * @param array  $created    Out: created payout IDs.
+	 * @param int    $skipped    Out: skipped partners.
+	 * @param array  $details    Out: details of skipped partners.
+	 */
+	private static function create_run_rows( $period_end, $currency, array &$created, &$skipped, array &$details ) {
 		foreach ( self::preview( $period_end, $currency ) as $row ) {
 			$aff_id = $row['affiliate'] ? (int) $row['affiliate']->id : 0;
 			$name   = $row['affiliate'] ? (string) $row['affiliate']->name : '#';
@@ -429,18 +566,6 @@ final class PayoutService {
 				Audit::log( 'payout.failed', 'affiliate', $aff_id, array( 'error' => $e->getMessage() ) );
 			}
 		}
-		Audit::log(
-			'payout.run',
-			'payout',
-			0,
-			array(
-				'period_end' => $period_end,
-				'currency'   => $currency,
-				'created'    => count( $created ),
-				'skipped'    => $skipped,
-			)
-		);
-		return array( $created, $skipped, $details );
 	}
 
 	/**
@@ -564,15 +689,20 @@ final class PayoutService {
 			}
 		);
 		if ( $payout_id ) {
+			$async = self::$async_statements;
 			self::after_commit(
-				static function () use ( $payout_id, $affiliate_id, $currency ) {
-					Statement::generate( $payout_id );
+				static function () use ( $payout_id, $affiliate_id, $currency, $async ) {
 					// A regular run also settles an open payout request of the partner.
 					PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id, $currency );
+					if ( $async && Jobs::enqueue( self::STATEMENT_JOB, (string) (int) $payout_id, array( 'payout_id' => (int) $payout_id, 'affiliate_id' => (int) $affiliate_id ), '', '', 0 ) ) {
+						return; // The queue writes the credit note and then fires wpac_payout_created (run_job()).
+					}
+					Statement::generate( $payout_id );
 					/**
 					 * A payout was created (after the commit, statement generated), e.g. for an
 					 * add-on that pays it through another payment provider and then calls
-					 * PayoutService::mark_paid().
+					 * PayoutService::mark_paid(). For payouts of a payout run it fires from the job
+					 * queue once the credit note was written.
 					 *
 					 * @since contract 1.2.0
 					 * @param int $payout_id    Payout.
@@ -609,16 +739,29 @@ final class PayoutService {
 	/**
 	 * Generate statements that are still missing (hourly cron).
 	 *
+	 * @param int   $limit  Payouts per run.
+	 * @param float $budget Seconds (0 = no limit).
 	 * @return int Number generated.
 	 */
-	public static function generate_missing_statements() {
+	public static function generate_missing_statements( $limit = 100, $budget = 20 ) {
 		global $wpdb;
-		$t   = Db::table( 'payouts' );
-		$ids = $wpdb->get_col( "SELECT id FROM {$t} WHERE statement_file = '' AND statement_deleted_at IS NULL AND status <> 'cancelled' ORDER BY id ASC LIMIT 20" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$n   = 0;
+		$t = Db::table( 'payouts' );
+		// Payouts in back-off (failed before, e.g. folder not writable) are left out in the query:
+		// otherwise they fill the batch and block every newer payout (head-of-line blocking).
+		$retry   = get_option( Statement::RETRY_OPTION, array() );
+		$waiting = array();
+		foreach ( is_array( $retry ) ? $retry : array() as $id => $entry ) {
+			if ( isset( $entry['next'] ) && (int) $entry['next'] > time() ) {
+				$waiting[] = (int) $id;
+			}
+		}
+		$skip  = $waiting ? ' AND id NOT IN (' . implode( ',', $waiting ) . ')' : ''; // Integers only.
+		$ids   = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE statement_file = '' AND statement_deleted_at IS NULL AND status <> 'cancelled'{$skip} ORDER BY id ASC LIMIT %d", max( 1, (int) $limit ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n     = 0;
+		$start = microtime( true );
 		foreach ( $ids as $id ) {
-			if ( Statement::waiting( (int) $id ) ) {
-				continue; // Failed before (e.g. folder not writable): back-off instead of every hour.
+			if ( $budget > 0 && microtime( true ) - $start > $budget ) {
+				break; // Time budget: the rest follows in the next hour (or from the job queue).
 			}
 			$n += Statement::generate( (int) $id ) ? 1 : 0;
 		}
@@ -740,6 +883,7 @@ final class PayoutService {
 					$wpdb->query( $wpdb->prepare( "UPDATE {$it} SET released_at = %s, active_commission_id = NULL WHERE payout_id = %d AND released_at IS NULL", Db::now(), $id ) );
 					$wpdb->query( $wpdb->prepare( "UPDATE {$ct} SET payout_id = 0, updated_at = %s WHERE payout_id = %d AND status = 'approved'", Db::now(), $id ) );
 					// phpcs:enable
+					self::reopen_request( $p );
 					return $p;
 				}
 			);
@@ -763,6 +907,157 @@ final class PayoutService {
 			)
 		);
 		return true;
+	}
+
+	/**
+	 * A payout request that was settled by a payout that is now cancelled is open again: the
+	 * partner still waits for the money (the next payout – e.g. the rebuilt one – settles it).
+	 * Not when the partnership ended with "open commissions are rejected".
+	 *
+	 * @param object $p Cancelled payout (locked row).
+	 */
+	private static function reopen_request( $p ) {
+		global $wpdb;
+		$aff = AffiliateRepository::find( (int) $p->affiliate_id );
+		if ( ! $aff || ( 'terminated' === $aff->status && 'reject' === Settings::get( 'terminated_open' ) ) || PayoutRequests::open_for( (int) $p->affiliate_id ) ) {
+			return;
+		}
+		$rt = Db::table( 'payout_requests' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$rt} SET status = 'requested', payout_id = 0, processed_at = NULL, processed_by = 0 WHERE payout_id = %d AND status = 'processed' ORDER BY id DESC LIMIT 1", (int) $p->id ) );
+		if ( $n ) {
+			Audit::log( 'payout_request.reopened', 'payout', (int) $p->id );
+		}
+	}
+
+	/**
+	 * Cancel the payouts of a partner that were not exported yet (termination with "open
+	 * commissions are rejected": they must not be paid any more). Exported payouts may already be
+	 * at the bank; they are returned for the operator to check.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $reason       Reason (cancellation document).
+	 * @return array [ cancelled payout IDs, exported payout numbers left as they are ]
+	 */
+	public static function cancel_open_for_affiliate( $affiliate_id, $reason ) {
+		$cancelled = array();
+		$exported  = array();
+		list( $rows ) = self::query(
+			array(
+				'affiliate_id' => (int) $affiliate_id,
+				'limit'        => 1000,
+			)
+		);
+		foreach ( $rows as $p ) {
+			if ( 'pending' === $p->status && true === self::cancel( (int) $p->id, $reason ) ) {
+				$cancelled[] = (int) $p->id;
+			} elseif ( 'exported' === $p->status ) {
+				$exported[] = (string) $p->number;
+			}
+		}
+		if ( $exported ) {
+			Audit::log( 'payout.termination_exported', 'affiliate', (int) $affiliate_id, array( 'payouts' => $exported ) );
+		}
+		return array( $cancelled, $exported );
+	}
+
+	/**
+	 * Payout method recorded with a payout (snapshot): manual (PayPal etc.) or sepa.
+	 *
+	 * @param object $p Payout.
+	 * @return string
+	 */
+	public static function snapshot_method( $p ) {
+		$snap = json_decode( (string) ( isset( $p->profile_snapshot ) ? $p->profile_snapshot : '' ), true );
+		return is_array( $snap ) && isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? ProfileRepository::METHOD_MANUAL : ProfileRepository::METHOD_SEPA;
+	}
+
+	/**
+	 * PayPal Payouts file (mass payment upload in the PayPal business account, "Payouts" →
+	 * "Upload file") for payouts of partners with another payment method whose payment details
+	 * contain an e-mail address. Marks them exported like the other exports; payouts without a
+	 * PayPal address are left out (and stay as they are). After PayPal executed the payouts, mark
+	 * them as paid.
+	 *
+	 * @param int[] $ids            Payout IDs.
+	 * @param bool  $allow_reexport Include payouts that were already exported.
+	 * @return array|\WP_Error [ batch, rows (email, amount, currency, reference, note), left-out payout numbers ]
+	 */
+	public static function paypal_csv( array $ids, $allow_reexport = false ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		foreach ( $ids as $id ) {
+			$missing = self::statement_missing( $id );
+			if ( $missing ) {
+				return $missing;
+			}
+		}
+		try {
+			$result = Db::transaction(
+				static function () use ( $wpdb, $ids, $allow_reexport ) {
+					$rows    = array();
+					$used    = array();
+					$skipped = array();
+					$prefix  = (string) Settings::get( 'remittance_prefix' );
+					foreach ( $ids as $id ) {
+						$p = self::lock( $id );
+						if ( ! $p || ! in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
+							continue;
+						}
+						if ( 'exported' === $p->status && ! $allow_reexport ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) );
+						}
+						$profile = ProfileRepository::get( (int) $p->affiliate_id );
+						$email   = ProfileRepository::paypal_email( ProfileRepository::payment_details( $profile ) );
+						if ( '' === $email ) {
+							$skipped[] = (string) $p->number; // Bank transfer or no PayPal address: not in this file.
+							continue;
+						}
+						if ( strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
+							/* translators: %s: payout number */
+							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'affiliate-captain' ), $p->number ) );
+						}
+						$rows[]               = array( $email, Money::to_decimal( (int) $p->amount_minor, $p->currency ), strtoupper( (string) $p->currency ), (string) $p->number, trim( $prefix . ' ' . $p->number ) );
+						$used[ (int) $p->id ] = $p->status;
+					}
+					if ( ! $rows ) {
+						throw new IntegrationException( 'empty', __( 'None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details).', 'affiliate-captain' ) );
+					}
+					$batch = 'ACPP' . gmdate( 'YmdHis' ) . strtoupper( wp_generate_password( 4, false ) );
+					$pt    = Db::table( 'payouts' );
+					foreach ( $used as $id => $status ) {
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'exported', sepa_batch = %s, exported_at = %s WHERE id = %d AND status = %s", $batch, Db::now(), $id, $status ) ) ) {
+							throw new IntegrationException( 'state', 'Payout ' . $id . ' changed during export.' );
+						}
+					}
+					return array( $batch, $rows, array_keys( $used ), $skipped );
+				}
+			);
+		} catch ( IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
+		}
+		Audit::log( 'payout.paypal_exported', 'payout', 0, array( 'batch' => $result[0], 'payouts' => $result[2] ) );
+		return array( $result[0], $result[1], $result[3] );
+	}
+
+	/**
+	 * Text of a PayPal Payouts file: comma separated, no header line, no BOM, decimal point
+	 * (recipient e-mail, amount, currency, reference ID, note to the recipient).
+	 *
+	 * @param array $rows Rows from paypal_csv().
+	 * @return string
+	 */
+	public static function paypal_csv_text( array $rows ) {
+		$fh = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Memory stream.
+		foreach ( $rows as $row ) {
+			fputcsv( $fh, array_map( array( \WPAffiliateCaptain\Core\Csv::class, 'safe_cell' ), array_values( (array) $row ) ), ',', '"', '\\' );
+		}
+		rewind( $fh );
+		$csv = (string) stream_get_contents( $fh );
+		fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Memory stream.
+		return $csv;
 	}
 
 	/**
@@ -865,7 +1160,7 @@ final class PayoutService {
 	 *
 	 * @param int[] $ids            Payout IDs.
 	 * @param bool  $allow_reexport Include payouts that were already exported.
-	 * @return array|\WP_Error [ filename, xml ]
+	 * @return array|\WP_Error [ filename, xml, number of payouts left out (other payment method), exported payout IDs ]
 	 */
 	public static function sepa_export( array $ids, $allow_reexport = false ) {
 		global $wpdb;
@@ -954,13 +1249,13 @@ final class PayoutService {
 							throw new IntegrationException( 'state', esc_html( 'Payout ' . $id . ' changed during export.' ) );
 						}
 					}
-					return array( $batch, $xml, array_keys( $used ) );
+					return array( $batch, $xml, array_keys( $used ), $manual );
 				}
 			);
 		} catch ( IntegrationException $e ) {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
-		list( $batch, $xml, $used ) = $result;
+		list( $batch, $xml, $used, $manual ) = $result;
 		Audit::log(
 			'payout.sepa_exported',
 			'payout',
@@ -970,7 +1265,7 @@ final class PayoutService {
 				'payouts' => $used,
 			)
 		);
-		return array( $batch . '.xml', $xml );
+		return array( $batch . '.xml', $xml, (int) $manual, $used );
 	}
 
 	/**

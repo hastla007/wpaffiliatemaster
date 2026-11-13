@@ -33,14 +33,15 @@ final class Jobs {
 	/**
 	 * Queue (or re-queue) a job. The idempotency key prevents duplicates.
 	 *
-	 * @param string $type    Job type (sale|refund|woo_order|woo_refund).
+	 * @param string $type    Job type (sale|refund|woo_order|woo_refund|statement …).
 	 * @param string $key     Idempotency key.
 	 * @param array  $payload Payload.
 	 * @param string $code    Error code of the first failure.
 	 * @param string $message Error message of the first failure.
+	 * @param int    $delay   Seconds until the first run (default: 5 minutes after a failure).
 	 * @return bool Whether the job is stored (only then may callers report "queued").
 	 */
-	public static function enqueue( $type, $key, array $payload, $code = '', $message = '' ) {
+	public static function enqueue( $type, $key, array $payload, $code = '', $message = '', $delay = 300 ) {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
 		$key   = substr( $type . ':' . $key, 0, 191 );
@@ -55,7 +56,7 @@ final class Jobs {
 				array(
 					'status'          => 'queued',
 					'payload'         => wp_json_encode( $payload ),
-					'next_attempt_at' => Db::now( time() + 300 ),
+					'next_attempt_at' => Db::now( time() + max( 0, (int) $delay ) ),
 					'last_error_code' => substr( (string) $code, 0, 64 ),
 					'last_error'      => substr( (string) $message, 0, 255 ),
 					'updated_at'      => $now,
@@ -72,7 +73,7 @@ final class Jobs {
 				'payload'         => wp_json_encode( $payload ),
 				'status'          => 'queued',
 				'attempts'        => 1,
-				'next_attempt_at' => Db::now( time() + 300 ),
+				'next_attempt_at' => Db::now( time() + max( 0, (int) $delay ) ),
 				'last_error_code' => substr( (string) $code, 0, 64 ),
 				'last_error'      => substr( (string) $message, 0, 255 ),
 				'created_at'      => $now,

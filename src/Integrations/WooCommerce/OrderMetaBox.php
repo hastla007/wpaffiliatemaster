@@ -62,7 +62,7 @@ final class OrderMetaBox {
 			echo esc_html__( 'Method', 'affiliate-captain' ) . ': ' . esc_html( Ledger::method_label( $attr->method ) ) . '<br>';
 			echo esc_html__( 'Commission', 'affiliate-captain' ) . ': ' . esc_html( Money::format( $sum, $order->get_currency() ) ) . '</p>';
 			echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wpac-commissions&order_id=' . $order->get_id() . '&source=' . WooCommerce::SOURCE ) ) . '">' . esc_html__( 'View commissions', 'affiliate-captain' ) . '</a></p>';
-			if ( $order->is_paid() ) {
+			if ( $order->is_paid() && current_user_can( Capabilities::MANAGE_PAYOUTS ) ) { // Separation of duties (see save_meta_box()).
 				// Re-attribution: the current partner's commission is reversed, the order is booked for the new one.
 				list( $others ) = AffiliateRepository::query(
 					array(
@@ -90,6 +90,10 @@ final class OrderMetaBox {
 			echo '<p>' . esc_html( sprintf( __( 'Partner code entered: %s', 'affiliate-captain' ), $code ) ) . '</p>';
 		}
 		echo '<p>' . esc_html__( 'Not attributed.', 'affiliate-captain' ) . '</p>';
+		if ( ! current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+			echo '<p class="description">' . esc_html__( 'Assigning orders to partners needs the permission to manage payouts.', 'affiliate-captain' ) . '</p>';
+			return;
+		}
 		list( $affiliates ) = AffiliateRepository::query(
 			array(
 				'status' => 'active',
@@ -134,6 +138,12 @@ final class OrderMetaBox {
 			return;
 		}
 		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
+			return;
+		}
+		if ( ( ! empty( $_POST['wpac_reassign'] ) || ! empty( $_POST['wpac_assign'] ) ) && ! current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+			// Separation of duties: deciding which partner earns an order moves money – together with
+			// manual linking of accounts a partner manager could steer commissions to themselves.
+			self::notice( 'error', __( 'The order was not attributed: assigning orders to partners needs the permission to manage payouts.', 'affiliate-captain' ) );
 			return;
 		}
 		if ( ! empty( $_POST['wpac_unlink_customer'] ) ) {

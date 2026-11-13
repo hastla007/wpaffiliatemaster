@@ -177,10 +177,18 @@ final class ProgramExport {
 		if ( 'payouts' === $table && ! $include_tax_data ) {
 			$row['profile_snapshot'] = ''; // Legal name, address, VAT ID of the partner.
 		}
+		if ( in_array( $table, array( 'payouts', 'payout_items' ), true ) && ! $include_tax_data && isset( $row['vat_mode'] ) ) {
+			$row['vat_mode'] = ''; // Reveals the partner's tax status (small business, reverse charge …).
+		}
 		if ( 'payout_profiles' === $table ) {
-			$iban = ProfileRepository::iban( (object) $row );
+			$profile = (object) $row;
+			$iban    = ProfileRepository::iban( $profile );
+			$details = ProfileRepository::payment_details( $profile );
 			unset( $row['iban_encrypted'] );
 			$row['iban'] = $iban ? $iban : '';
+			// Other payment method (PayPal …): method and decrypted payment details, else they would be lost.
+			$row['payout_method']   = ProfileRepository::method( $profile );
+			$row['payment_details'] = null !== $details ? $details : '';
 		}
 		return $row;
 	}
@@ -200,8 +208,8 @@ final class ProgramExport {
 		$lines[] = 'Columns are the database columns of the plugin; see docs/IMPORT-EXPORT.md.';
 		$lines[] = '';
 		$lines[] = $include_tax_data
-			? 'CONTAINS TAX AND BANK DATA (payout_details.csv with decrypted IBANs, tax snapshots in payouts.csv). Store and transfer it encrypted, delete it when no longer needed.'
-			: 'Tax and bank data are not included (payout details, IBANs and the tax snapshots of payouts).';
+			? 'CONTAINS TAX AND BANK DATA (payout_details.csv with decrypted IBANs or – column payout_method "manual" – the decrypted payment details of another payment method such as PayPal; tax snapshots in payouts.csv). Store and transfer it encrypted, delete it when no longer needed.'
+			: 'Tax and bank data are not included (payout details, IBANs, payment details, the tax snapshots and the VAT treatment (vat_mode) of payouts).';
 		$lines[] = 'The export contains personal data of partners: handle it according to your privacy policy.';
 		return implode( "\n", $lines ) . "\n";
 	}

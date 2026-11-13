@@ -77,6 +77,11 @@ final class AuditPage {
 				'payout.rebuilt'                    => __( 'Payout created again', 'affiliate-captain' ),
 				'payout.sepa_exported'              => __( 'SEPA file exported', 'affiliate-captain' ),
 				'payout.csv_exported'               => __( 'Transfer list exported', 'affiliate-captain' ),
+				'payout.paypal_exported'            => __( 'PayPal payouts file exported', 'affiliate-captain' ),
+				'payout.termination_exported'       => __( 'Exported payouts of a terminated partner to check', 'affiliate-captain' ),
+				'payout_request.reopened'           => __( 'Payout request open again (payout cancelled)', 'affiliate-captain' ),
+				'payout_profile.save_failed'        => __( 'Payout details could not be saved', 'affiliate-captain' ),
+				'payout_profile.password_refused'   => __( 'Change of bank details refused (password missing or wrong)', 'affiliate-captain' ),
 				'payout_profile.updated'            => __( 'Payout details changed', 'affiliate-captain' ),
 				'payout_profile.vies_checked'       => __( 'VAT ID checked with VIES', 'affiliate-captain' ),
 				'payout_profile.reencrypted'        => __( 'Bank details re-encrypted', 'affiliate-captain' ),
@@ -161,6 +166,9 @@ final class AuditPage {
 		foreach ( $data as $key => $value ) {
 			if ( in_array( $key, array( 'hash', 'revision_id', 'page_id' ), true ) ) {
 				continue; // Technical evidence; kept in the log, not needed for reading.
+			}
+			if ( in_array( $key, array( 'tax_status', 'vat_id', 'vat_mode' ), true ) && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::VIEW_TAX_DATA ) ) {
+				$value = '***'; // Tax data only for users with the tax data permission.
 			}
 			if ( is_bool( $value ) ) {
 				$value = $value ? __( 'yes', 'affiliate-captain' ) : __( 'no', 'affiliate-captain' );

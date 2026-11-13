@@ -53,6 +53,142 @@ final class ProfileRepository {
 	}
 
 	/**
+	 * Whether partners may choose another payment method (setting "payout_method_manual").
+	 *
+	 * @return bool
+	 */
+	public static function manual_enabled() {
+		$on = \WPAffiliateCaptain\Core\Settings::get( 'payout_method_manual' );
+		return null === $on || (bool) $on;
+	}
+
+	/**
+	 * Methods a partner can choose: all, or only SEPA when the other method is switched off
+	 * (a partner who already uses it keeps it until changing).
+	 *
+	 * @param object|null $profile Profile.
+	 * @return array
+	 */
+	public static function method_options( $profile ) {
+		$labels = self::method_labels();
+		if ( ! self::manual_enabled() && self::METHOD_MANUAL !== self::method( $profile ) ) {
+			unset( $labels[ self::METHOD_MANUAL ] );
+		}
+		return $labels;
+	}
+
+	/**
+	 * Whether an input changes where the money goes (stored IBAN, payment details or method):
+	 * such a change needs a confirmation by the partner (password).
+	 *
+	 * @param object|null $profile Stored profile.
+	 * @param array       $in      Input as passed to save().
+	 * @return bool
+	 */
+	public static function changes_destination( $profile, array $in ) {
+		if ( ! $profile || '' === (string) $profile->iban_encrypted ) {
+			return false; // First details: nothing is redirected.
+		}
+		$old    = self::method( $profile );
+		$method = isset( $in['payout_method'] ) && isset( self::method_labels()[ $in['payout_method'] ] ) ? (string) $in['payout_method'] : $old;
+		if ( $method !== $old ) {
+			return true;
+		}
+		if ( self::METHOD_MANUAL === $method ) {
+			$details = trim( substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
+			return '' !== $details && self::payment_details( $profile ) !== $details;
+		}
+		$iban = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
+		return '' !== $iban && self::iban( $profile ) !== $iban;
+	}
+
+	/**
+	 * Payment details with most characters hidden, to show the partner what is stored
+	 * ("PayPal: an•••@example.com", long numbers only with their last 4 digits).
+	 *
+	 * @param string $details Details.
+	 * @return string
+	 */
+	public static function mask_details( $details ) {
+		$out = array();
+		foreach ( preg_split( '/(\s+)/u', (string) $details, -1, PREG_SPLIT_DELIM_CAPTURE ) as $token ) {
+			if ( preg_match( '/^([^@\s]{1,2})[^@\s]*(@\S+)$/u', $token, $m ) ) {
+				$token = $m[1] . '•••' . $m[2];
+			} elseif ( preg_match_all( '/\d/', $token ) >= 6 ) {
+				$token = '•••' . substr( $token, -4 );
+			}
+			$out[] = $token;
+		}
+		return implode( '', $out );
+	}
+
+	/**
+	 * PayPal address in free-text payment details ("PayPal: name@example.com"): the first e-mail
+	 * address; '' when there is none.
+	 *
+	 * @param string|null $details Payment details.
+	 * @return string
+	 */
+	public static function paypal_email( $details ) {
+		if ( null === $details || ! preg_match( '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/', (string) $details, $m ) ) {
+			return '';
+		}
+		return strtolower( $m[0] );
+	}
+
+	/**
+	 * Input of a rejected admin form to show again: never the IBAN, the payment details only
+	 * encrypted (the form store is a plain transient), the chosen method kept.
+	 *
+	 * @param array $in Input as passed to save().
+	 * @return array
+	 */
+	public static function form_keep( array $in ) {
+		$details = trim( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' );
+		unset( $in['iban'], $in['payment_details'] );
+		$kept = array_map( 'sanitize_textarea_field', $in );
+		if ( '' !== $details ) {
+			$kept['payment_details_encrypted'] = Crypto::encrypt( $details );
+		}
+		return $kept;
+	}
+
+	/**
+	 * Payment details typed into a rejected form (see form_keep()), '' when none.
+	 *
+	 * @param array $kept Kept form.
+	 * @return string
+	 */
+	public static function form_details( array $kept ) {
+		return isset( $kept['payment_details_encrypted'] ) ? (string) Crypto::decrypt( (string) $kept['payment_details_encrypted'] ) : '';
+	}
+
+	/**
+	 * Length in characters.
+	 *
+	 * @param string $text Text.
+	 * @return int
+	 */
+	private static function length( $text ) {
+		return function_exists( 'mb_strlen' ) ? mb_strlen( (string) $text, 'UTF-8' ) : strlen( (string) $text );
+	}
+
+	/**
+	 * Label of a profile field (messages).
+	 *
+	 * @param string $field Field.
+	 * @return string
+	 */
+	private static function field_label( $field ) {
+		$labels = array(
+			'legal_name'     => __( 'Name / company', 'affiliate-captain' ),
+			'account_holder' => __( 'Account holder', 'affiliate-captain' ),
+			'vat_id'         => __( 'VAT ID', 'affiliate-captain' ),
+		);
+		return isset( $labels[ $field ] ) ? $labels[ $field ] : $field;
+	}
+
+	/**
 	 * Payout method of a profile. The manual method stores its encrypted payment details in the
 	 * same column as the IBAN, without IBAN country/last digits (an IBAN always has both).
 	 *
@@ -172,6 +308,20 @@ final class ProfileRepository {
 			'bic'            => strtoupper( substr( preg_replace( '/[^A-Za-z0-9]/', '', isset( $in['bic'] ) ? (string) $in['bic'] : '' ), 0, 11 ) ),
 			'updated_at'     => Db::now(),
 		);
+		// The columns are limited: a longer value would not be stored (and the old one kept unnoticed).
+		foreach ( array(
+			'legal_name'     => 190,
+			'account_holder' => 190,
+			'vat_id'         => 40,
+		) as $field => $max ) {
+			if ( self::length( $data[ $field ] ) > $max ) {
+				return new \WP_Error(
+					'wpac_too_long_' . $field,
+					/* translators: 1: field, 2: number of characters */
+					sprintf( __( '%1$s is too long (at most %2$d characters).', 'affiliate-captain' ), self::field_label( $field ), $max )
+				);
+			}
+		}
 		if ( 'business' === $tax && '' === $data['vat_id'] ) {
 			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID.', 'affiliate-captain' ) );
 		}
@@ -185,6 +335,9 @@ final class ProfileRepository {
 		$old_method  = self::method( $existing );
 		$details_new = false;
 		$iban        = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
+		if ( self::METHOD_MANUAL === $method && self::METHOD_MANUAL !== $old_method && ! self::manual_enabled() ) {
+			return new \WP_Error( 'wpac_method_disabled', __( 'Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer.', 'affiliate-captain' ) );
+		}
 		if ( self::METHOD_MANUAL === $method ) {
 			// Free-text payment details (e.g. "PayPal: name@example.com"), stored encrypted like the IBAN.
 			$details = trim( substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
@@ -218,9 +371,14 @@ final class ProfileRepository {
 			$data['iban_encrypted'] = Crypto::encrypt( (string) Crypto::decrypt( (string) $existing->iban_encrypted ) );
 		}
 		if ( $existing ) {
-			$wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
+			$stored = $wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
 		} else {
-			$wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
+			$stored = $wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
+		}
+		if ( false === $stored || ( ! $existing && ! $stored ) ) {
+			// Nothing was saved: no success message and no "bank details changed" mail.
+			Audit::log( 'payout_profile.save_failed', 'affiliate', (int) $affiliate_id, array( 'error' => substr( (string) $wpdb->last_error, 0, 190 ) ) );
+			return new \WP_Error( 'wpac_profile_db', __( 'Your payout details could not be saved. Please try again; your previous details are unchanged.', 'affiliate-captain' ) );
 		}
 		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.

@@ -472,6 +472,9 @@ final class AffiliateRepository {
 			Notifications::application_rejected( (int) $id, $reason );
 		}
 		if ( 'terminated' === $status && 'reject' === Settings::get( 'terminated_open' ) ) {
+			// Payouts that were created but not exported are cancelled first: their commissions
+			// would otherwise be paid although they are to be rejected.
+			\WPAffiliateCaptain\Payouts\PayoutService::cancel_open_for_affiliate( (int) $id, __( 'Partnership terminated', 'affiliate-captain' ) . ': ' . $reason );
 			Ledger::reject_open_for_affiliate( (int) $id, __( 'Partnership terminated', 'affiliate-captain' ) . ': ' . $reason );
 		}
 		if ( in_array( $status, array( 'paused', 'terminated' ), true ) || ( 'active' === $status && in_array( $aff->status, array( 'paused', 'terminated' ), true ) ) ) {

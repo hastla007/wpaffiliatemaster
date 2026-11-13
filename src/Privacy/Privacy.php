@@ -155,6 +155,14 @@ final class Privacy {
 					'value' => (string) $v,
 				);
 			}
+			// Art. 15 GDPR: the payment details of another payment method are personal data too.
+			$details = ProfileRepository::payment_details( $profile );
+			if ( null !== $details ) {
+				$data[] = array(
+					'name'  => __( 'Payment details', 'affiliate-captain' ),
+					'value' => $details,
+				);
+			}
 			$items[] = array(
 				'group_id'    => 'wpac-payout-profile',
 				'group_label' => __( 'Payout details', 'affiliate-captain' ),
@@ -453,6 +461,8 @@ final class Privacy {
 			'{retention_years}'            => Retention::years() > 0 ? (string) Retention::years() : '∞',
 			'{application_retention_days}' => $days( 'application_retention_days' ),
 			'{audit_retention_days}'       => $days( 'audit_retention_days' ),
+			// Other payment method on: the payment provider receives the payout (e.g. PayPal; outside the EU possible).
+			'{payment_providers}'          => ProfileRepository::manual_enabled() ? 'Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ' : '',
 		);
 		return strtr( $text, $map );
 	}
@@ -521,6 +531,9 @@ final class Privacy {
 
 		// Recipients.
 		$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'affiliate-captain' );
+		if ( ProfileRepository::manual_enabled() ) {
+			$p[] = __( 'Partners who choose another payment method (e.g. PayPal or Wise) instead of a bank transfer: the amount, the payment reference and the payment details they entered (e.g. their PayPal address) go to that payment provider for the payout. The provider processes them under its own responsibility and may transfer them to third countries (e.g. the USA).', 'affiliate-captain' );
+		}
 		// VIES (Vies::check()): on unless switched off under Settings → Payouts ("vies_check").
 		$vies = Settings::get( 'vies_check' );
 		if ( null === $vies || $vies ) {

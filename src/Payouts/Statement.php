@@ -570,13 +570,17 @@ final class Statement {
 	 * @return array Remaining entries.
 	 */
 	private static function prune_backoff( array $all ) {
+		global $wpdb;
 		if ( ! $all ) {
 			return $all;
 		}
-		$keep = array();
+		// One query for all entries (runs on every admin page while credit notes are waiting).
+		$ids   = array_map( 'intval', array_keys( $all ) );
+		$t     = Db::table( 'payouts' );
+		$still = array_map( 'intval', (array) $wpdb->get_col( "SELECT id FROM {$t} WHERE id IN (" . implode( ',', $ids ) . ") AND status <> 'cancelled' AND statement_file = '' AND statement_deleted_at IS NULL" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Integers only.
+		$keep  = array();
 		foreach ( $all as $id => $entry ) {
-			$p = PayoutService::find( (int) $id );
-			if ( $p && 'cancelled' !== $p->status && '' === (string) $p->statement_file && ! $p->statement_deleted_at ) {
+			if ( in_array( (int) $id, $still, true ) ) {
 				$keep[ $id ] = $entry;
 			}
 		}

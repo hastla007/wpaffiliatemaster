@@ -55,6 +55,7 @@ final class Plugin {
 		\WPAffiliateCaptain\Content\Editor::register_hooks();
 		\WPAffiliateCaptain\Rest\RestApi::register_hooks();
 		Cron::register_hooks();
+		\WPAffiliateCaptain\Payouts\PayoutService::register_hooks(); // Credit notes of payout runs (job queue).
 		Privacy::register_hooks();
 		\WPAffiliateCaptain\Cli\Command::register();
 		add_filter( 'site_status_tests', array( \WPAffiliateCaptain\Core\Monitor::class, 'site_status_tests' ) );

@@ -58,6 +58,10 @@
 		if ( iban ) {
 			iban.required = ! manual && '1' === s.getAttribute( 'data-wpac-iban-required' );
 		}
+		var details = document.getElementById( 'wpac_payment_details' );
+		if ( details ) {
+			details.required = manual && '1' === s.getAttribute( 'data-wpac-details-required' );
+		}
 	}
 	document.addEventListener( 'change', function ( e ) {
 		if ( e.target && 'wpac_payout_method' === e.target.id ) {

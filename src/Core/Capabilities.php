@@ -29,8 +29,11 @@ final class Capabilities {
 		return array( self::MANAGE_PROGRAM, self::MANAGE_AFFILIATES, self::MANAGE_PAYOUTS, self::VIEW_TAX_DATA );
 	}
 
+	/** Read-only role for the tax advisor: payouts, credit notes and tax data, nothing else. */
+	const TAX_ADVISOR_ROLE = 'wpac_tax_advisor';
+
 	/**
-	 * Grant all caps to administrators.
+	 * Grant all caps to administrators; create the read-only tax advisor role.
 	 */
 	public static function install() {
 		$role = get_role( 'administrator' );
@@ -39,5 +42,25 @@ final class Capabilities {
 				$role->add_cap( $cap );
 			}
 		}
+		if ( function_exists( 'add_role' ) && ! get_role( self::TAX_ADVISOR_ROLE ) ) {
+			add_role(
+				self::TAX_ADVISOR_ROLE,
+				__( 'Tax advisor (Affiliate Captain, read only)', 'affiliate-captain' ),
+				array(
+					'read'              => true,
+					self::VIEW_TAX_DATA => true,
+				)
+			);
+		}
+	}
+
+	/**
+	 * Capability of the payouts page: whoever manages payouts, or – read only – whoever may see
+	 * tax data (list, credit notes, cancellations; no runs, exports or changes).
+	 *
+	 * @return string
+	 */
+	public static function payouts_page_cap() {
+		return ! current_user_can( self::MANAGE_PAYOUTS ) && current_user_can( self::VIEW_TAX_DATA ) ? self::VIEW_TAX_DATA : self::MANAGE_PAYOUTS;
 	}
 }
