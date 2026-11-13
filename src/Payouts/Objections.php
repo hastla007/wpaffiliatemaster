@@ -125,27 +125,34 @@ final class Objections {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please describe what is incorrect.', 'affiliate-captain' ) );
 		}
 		// Check and write under a lock: parallel objections or resolutions must not overwrite each other.
-		$filed = Db::with_lock(
-			self::LOCK,
-			static function () use ( $payout_id, $affiliate_id, $reason ) {
-				$all = self::fresh();
-				if ( isset( $all[ (int) $payout_id ] ) && 'open' === $all[ (int) $payout_id ]['status'] ) {
-					return false;
+		try {
+			$filed = Db::with_lock(
+				self::LOCK,
+				static function () use ( $payout_id, $affiliate_id, $reason ) {
+					$all = self::fresh();
+					if ( isset( $all[ (int) $payout_id ] ) && 'open' === $all[ (int) $payout_id ]['status'] ) {
+						return 'open';
+					}
+					$all[ (int) $payout_id ] = array(
+						'affiliate_id' => (int) $affiliate_id,
+						'at'           => Db::now(),
+						'reason'       => self::cut( $reason, 1000 ),
+						'status'       => 'open',
+						'resolution'   => '',
+						'resolved_at'  => '',
+					);
+					// Success only when the objection was really stored: the partner relies on it.
+					return update_option( self::OPTION, $all, false ) ? 'filed' : 'failed';
 				}
-				$all[ (int) $payout_id ] = array(
-					'affiliate_id' => (int) $affiliate_id,
-					'at'           => Db::now(),
-					'reason'       => substr( $reason, 0, 1000 ),
-					'status'       => 'open',
-					'resolution'   => '',
-					'resolved_at'  => '',
-				);
-				update_option( self::OPTION, $all, false );
-				return true;
-			}
-		);
-		if ( ! $filed ) {
+			);
+		} catch ( \Throwable $e ) {
+			$filed = 'failed'; // Lock not available.
+		}
+		if ( 'open' === $filed ) {
 			return new \WP_Error( 'wpac_objection_open', __( 'Your objection to this credit note is already being reviewed.', 'affiliate-captain' ) );
+		}
+		if ( 'filed' !== $filed ) {
+			return new \WP_Error( 'wpac_objection_save', __( 'Your objection could not be saved. Please try again or send it to us by e-mail.', 'affiliate-captain' ) );
 		}
 		Audit::log( 'statement.objection', 'payout', (int) $payout_id );
 		$aff   = AffiliateRepository::find( (int) $affiliate_id );
@@ -161,6 +168,39 @@ final class Objections {
 	}
 
 	/**
+	 * What the operator can do about an objection, depending on the payout's state. A paid
+	 * payout cannot be cancelled (the money went out): the correction runs outside the payout.
+	 *
+	 * @param object|null $payout Payout.
+	 * @return string
+	 */
+	public static function guidance( $payout ) {
+		if ( $payout && 'paid' === $payout->status ) {
+			return __( 'The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled here. If the objection is justified, agree the correction with the partner – the partner issues their own invoice for the correct amount, or you settle the difference by a separate transfer or repayment request – and keep the documents with the credit note. If the credit note is correct, explain why. Then describe below what was done; the partner receives this text.', 'affiliate-captain' );
+		}
+		if ( $payout && 'cancelled' === $payout->status ) {
+			return __( 'The payout was already cancelled (cancellation document issued); its commissions are paid with the next run and a new credit note. Describe below what was done; the partner receives this text.', 'affiliate-captain' );
+		}
+		return __( 'The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct.', 'affiliate-captain' );
+	}
+
+	/**
+	 * Shorten text to a number of characters without cutting a multi-byte character in half
+	 * (the database rejects invalid UTF-8, and the text would be lost).
+	 *
+	 * @param string $text Text.
+	 * @param int    $max  Characters.
+	 * @return string
+	 */
+	public static function cut( $text, $max ) {
+		$text = (string) $text;
+		if ( function_exists( 'mb_substr' ) ) {
+			return mb_substr( $text, 0, (int) $max, 'UTF-8' );
+		}
+		return (string) preg_replace( '/^(.{0,' . (int) $max . '}).*$/us', '$1', $text );
+	}
+
+	/**
 	 * Mark an objection as handled (e.g. payout cancelled and reissued, or explained).
 	 *
 	 * @param int    $payout_id  Payout.
@@ -168,21 +208,25 @@ final class Objections {
 	 * @return bool
 	 */
 	public static function resolve( $payout_id, $resolution ) {
-		$resolution = substr( sanitize_textarea_field( (string) $resolution ), 0, 1000 );
-		$all        = Db::with_lock(
-			self::LOCK,
-			static function () use ( $payout_id, $resolution ) {
-				$all = self::fresh();
-				if ( ! isset( $all[ (int) $payout_id ] ) || 'open' !== $all[ (int) $payout_id ]['status'] ) {
-					return null;
+		$resolution = self::cut( sanitize_textarea_field( (string) $resolution ), 1000 );
+		try {
+			$all = Db::with_lock(
+				self::LOCK,
+				static function () use ( $payout_id, $resolution ) {
+					$all = self::fresh();
+					if ( ! isset( $all[ (int) $payout_id ] ) || 'open' !== $all[ (int) $payout_id ]['status'] ) {
+						return null;
+					}
+					$all[ (int) $payout_id ]['status']      = 'resolved';
+					$all[ (int) $payout_id ]['resolution']  = $resolution;
+					$all[ (int) $payout_id ]['resolved_at'] = Db::now();
+					// Not stored: the objection stays open and the partner is not told it was handled.
+					return update_option( self::OPTION, $all, false ) ? $all : null;
 				}
-				$all[ (int) $payout_id ]['status']      = 'resolved';
-				$all[ (int) $payout_id ]['resolution']  = $resolution;
-				$all[ (int) $payout_id ]['resolved_at'] = Db::now();
-				update_option( self::OPTION, $all, false );
-				return $all;
-			}
-		);
+			);
+		} catch ( \Throwable $e ) {
+			$all = null; // Lock not available.
+		}
 		if ( null === $all ) {
 			return false;
 		}

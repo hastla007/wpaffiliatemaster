@@ -20,6 +20,23 @@ defined( 'ABSPATH' ) || exit;
 final class CommissionsPage {
 
 	/**
+	 * Manual approval from the admin (single or bulk).
+	 *
+	 * @param int    $id     Commission.
+	 * @param string $reason Reason.
+	 * @return true|\WP_Error
+	 */
+	public static function approve_manual( $id, $reason ) {
+		$c = Ledger::find( (int) $id );
+		if ( $c && 'pending' === $c->status && strtotime( $c->hold_until . ' UTC' ) > time() && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
+			// Separation of duties: approving before the hold period ends makes money payable
+			// early – a decision for whoever is responsible for payouts, not the partner manager.
+			return new \WP_Error( 'wpac_early_approval', __( 'Approving before the end of the hold period needs the permission to manage payouts.', 'affiliate-captain' ) );
+		}
+		return Ledger::approve( (int) $id, $reason );
+	}
+
+	/**
 	 * Handle actions.
 	 *
 	 * @param string $do Action.
@@ -36,7 +53,7 @@ final class CommissionsPage {
 			$errors = 0;
 			$last   = '';
 			foreach ( $ids as $id ) {
-				$result = 'approved' === $to ? Ledger::approve( $id, $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
+				$result = 'approved' === $to ? self::approve_manual( $id, $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
 				if ( is_wp_error( $result ) ) {
 					++$errors;
 					$last = $result->get_error_message();
@@ -111,7 +128,7 @@ final class CommissionsPage {
 		$errors = 0;
 		$last   = '';
 		foreach ( $ids as $id ) {
-			$result = 'approve' === $action ? Ledger::approve( $id, '' !== $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
+			$result = 'approve' === $action ? self::approve_manual( $id, '' !== $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
 			if ( is_wp_error( $result ) ) {
 				++$errors;
 				$last = $result->get_error_message();

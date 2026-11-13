@@ -225,8 +225,19 @@ final class Dunning {
 		}
 		Audit::log( 'commission.repayment', 'affiliate', (int) $affiliate_id, array( 'amount' => $amount_minor, 'currency' => $currency ) );
 		if ( self::open( (int) $affiliate_id, $currency ) >= 0 ) {
-			delete_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . $currency );
+			self::reset( (int) $affiliate_id, $currency );
 		}
 		return $id;
+	}
+
+	/**
+	 * Forget the sent payment requests once the debt is settled (repaid or written off), so a
+	 * later new debt starts again with the first request instead of "all reminders sent".
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 */
+	public static function reset( $affiliate_id, $currency ) {
+		delete_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . strtoupper( (string) $currency ) );
 	}
 }

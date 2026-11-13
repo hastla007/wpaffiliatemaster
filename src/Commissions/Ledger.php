@@ -846,7 +846,7 @@ final class Ledger {
 		$currency = strtoupper( (string) $currency );
 		$t        = Db::table( 'commissions' );
 		try {
-			return Db::transaction(
+			$written = Db::transaction(
 				static function () use ( $wpdb, $t, $affiliate_id, $currency, $reason ) {
 					// The open (approved, unpaid) rows define the balance; lock them.
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -902,6 +902,9 @@ final class Ledger {
 		} catch ( IntegrationException $e ) {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
+		// The debt is settled: a later new debt starts again with the first payment request.
+		Dunning::reset( (int) $affiliate_id, $currency );
+		return $written;
 	}
 
 	/**
@@ -914,7 +917,8 @@ final class Ledger {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND payout_id = 0 AND amount_minor > 0", $affiliate_id ) );
+		// Earnings only: a write-off or a repayment settles a debt; rejecting it would revive the debt.
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND payout_id = 0 AND amount_minor > 0 AND kind NOT IN ('writeoff','repayment')", $affiliate_id ) );
 		foreach ( $ids as $id ) {
 			self::reject( (int) $id, $reason );
 		}

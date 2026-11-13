@@ -295,8 +295,17 @@ final class Portal {
 			foreach ( $fields as $f ) {
 				$in[ $f ] = isset( $_POST[ 'wpac_' . $f ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'wpac_' . $f ] ) ) : '';
 			}
-			$result = ProfileRepository::save( (int) $aff->id, $in );
-			$msg    = is_wp_error( $result ) ? $result->get_error_code() : 'saved';
+			// Changing where the money goes needs the account password: a taken-over session
+			// (open computer, stolen cookie) must not redirect the next payout.
+			$password = isset( $_POST['wpac_current_password'] ) ? (string) wp_unslash( $_POST['wpac_current_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password, compared with the hash only.
+			$user     = wp_get_current_user();
+			if ( ProfileRepository::changes_destination( ProfileRepository::get( (int) $aff->id ), $in ) && ( '' === $password || ! $user || ! wp_check_password( $password, $user->user_pass, $user->ID ) ) ) {
+				\WPAffiliateCaptain\Core\Audit::log( 'payout_profile.password_refused', 'affiliate', (int) $aff->id );
+				$result = new \WP_Error( 'wpac_password', __( 'Please confirm the change of your bank or payment details with your current password.', 'affiliate-captain' ) );
+			} else {
+				$result = ProfileRepository::save( (int) $aff->id, $in );
+			}
+			$msg = is_wp_error( $result ) ? $result->get_error_code() : 'saved';
 			if ( is_wp_error( $result ) ) {
 				// Keep what the partner typed (never the IBAN or payment details) and mark the field with the error.
 				unset( $in['iban'], $in['payment_details'] );
@@ -306,6 +315,11 @@ final class Portal {
 					'wpac_payment_details' => 'payment_details',
 					'wpac_vat'        => 'vat_id',
 					'wpac_tax_number' => 'tax_number',
+					'wpac_password'   => 'current_password',
+					'wpac_too_long_legal_name'     => 'legal_name',
+					'wpac_too_long_account_holder' => 'account_holder',
+					'wpac_too_long_vat_id'         => 'vat_id',
+					'wpac_method_disabled'         => 'iban',
 				);
 				set_transient(
 					'wpac_profile_form_' . get_current_user_id(),
@@ -536,6 +550,12 @@ final class Portal {
 			'wpac_payment_details' => array( 'error', __( 'Please enter your payment details (e.g. your PayPal address).', 'affiliate-captain' ) ),
 			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID.', 'affiliate-captain' ) ),
 			'wpac_tax_number' => array( 'error', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) ),
+			'wpac_password'   => array( 'error', __( 'Please confirm the change of your bank or payment details with your current password. Nothing was changed.', 'affiliate-captain' ) ),
+			'wpac_too_long_legal_name'     => array( 'error', __( 'The name is too long (at most 190 characters). Nothing was changed.', 'affiliate-captain' ) ),
+			'wpac_too_long_account_holder' => array( 'error', __( 'The account holder is too long (at most 190 characters). Nothing was changed.', 'affiliate-captain' ) ),
+			'wpac_too_long_vat_id'         => array( 'error', __( 'The VAT ID is too long (at most 40 characters). Nothing was changed.', 'affiliate-captain' ) ),
+			'wpac_method_disabled'         => array( 'error', __( 'Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer.', 'affiliate-captain' ) ),
+			'wpac_profile_db'              => array( 'error', __( 'Your payout details could not be saved. Please try again; your previous details are unchanged.', 'affiliate-captain' ) ),
 			'wpac_email'         => array( 'error', __( 'Please enter a valid e-mail address.', 'affiliate-captain' ) ),
 			'wpac_email_taken'   => array( 'error', __( 'This e-mail address is already used by another partner account.', 'affiliate-captain' ) ),
 			'email_confirm_sent' => array( 'success', __( 'Saved. We have sent a confirmation link to your new e-mail address; it is used once you confirm it.', 'affiliate-captain' ) ),
@@ -852,9 +872,16 @@ final class Portal {
 	private static function tab_payouts( $aff ) {
 		if ( Settings::get( 'payout_requests' ) ) {
 			$open      = PayoutRequests::open_for( (int) $aff->id );
-			$available = PayoutRequests::available( (int) $aff->id );
-			/* translators: %s: amount */
-			echo '<p>' . esc_html( sprintf( __( 'Available for payout: %s', 'affiliate-captain' ), Money::format( $available, Settings::get( 'currency' ) ) ) ) . '</p>';
+			$amounts   = PayoutRequests::available_all( (int) $aff->id );
+			$shown     = array();
+			foreach ( $amounts as $cur => $a ) {
+				$shown[] = Money::format( $a['gross'], $cur );
+			}
+			// What a payout would pay now (incl. VAT, without commissions held back by an open correction).
+			/* translators: %s: amount(s) */
+			echo '<p>' . esc_html( sprintf( __( 'Available for payout: %s', 'affiliate-captain' ), $shown ? implode( ' · ', $shown ) : Money::format( 0, Settings::get( 'currency' ) ) ) ) . '</p>';
+			$req_cur   = PayoutRequests::request_currency( (int) $aff->id );
+			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['gross'] : 0;
 			if ( $open ) {
 				/* translators: %s: date */
 				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
@@ -869,7 +896,7 @@ final class Portal {
 					echo '<form method="post">';
 					wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 					/* translators: %s: amount */
-					echo '<input type="hidden" name="wpac_portal_action" value="payout_request"><button class="wpac-button">' . esc_html( sprintf( __( 'Request payout of %s', 'affiliate-captain' ), Money::format( $available, Settings::get( 'currency' ) ) ) ) . '</button></form>';
+					echo '<input type="hidden" name="wpac_portal_action" value="payout_request"><button class="wpac-button">' . esc_html( sprintf( __( 'Request payout of %s', 'affiliate-captain' ), Money::format( $available, '' !== $req_cur ? $req_cur : (string) Settings::get( 'currency' ) ) ) ) . '</button></form>';
 				} else {
 					echo '<p class="wpac-muted">' . esc_html( $can ) . '</p>';
 				}
@@ -1049,7 +1076,7 @@ final class Portal {
 		$method        = is_array( $kept ) && isset( $kept['values']['payout_method'] ) && '' !== $kept['values']['payout_method'] ? (string) $kept['values']['payout_method'] : $stored_method;
 		$manual        = ProfileRepository::METHOD_MANUAL === $method;
 		echo '<p><label for="wpac_payout_method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . ' *</label><select id="wpac_payout_method" name="wpac_payout_method">';
-		foreach ( ProfileRepository::method_labels() as $key => $label ) {
+		foreach ( ProfileRepository::method_options( $p ) as $key => $label ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $method, $key, false ), esc_html( $label ) );
 		}
 		echo '</select></p>';
@@ -1060,9 +1087,16 @@ final class Portal {
 		self::input( 'bic', __( 'BIC (optional)', 'affiliate-captain' ), $v( 'bic' ) );
 		echo '</div>';
 		$has_details = ProfileRepository::METHOD_MANUAL === $stored_method;
-		echo '<div class="wpac-method-manual"' . ( $manual ? '' : ' hidden' ) . '><p><label for="wpac_payment_details">' . esc_html__( 'Payment details', 'affiliate-captain' ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off" placeholder="' . esc_attr( $has_details ? __( 'Stored – leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
+		// The partner sees what is stored (masked like the IBAN), not only "stored".
+		$stored_details = $has_details ? ProfileRepository::payment_details( $p ) : null;
+		$details_label  = __( 'Payment details', 'affiliate-captain' ) . ( null !== $stored_details && '' !== $stored_details ? ' (' . __( 'stored', 'affiliate-captain' ) . ': ' . ProfileRepository::mask_details( str_replace( array( "\r\n", "\r", "\n" ), ' / ', $stored_details ) ) . ')' : '' );
+		echo '<div class="wpac-method-manual"' . ( $manual ? '' : ' hidden' ) . '><p><label for="wpac_payment_details">' . esc_html( $details_label ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off"' . ( $manual && ! $has_details ? ' required' : '' ) . ' placeholder="' . esc_attr( $has_details ? __( 'Leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
 		echo '<p class="wpac-muted">' . esc_html__( 'Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually.', 'affiliate-captain' ) . '</p></div>';
-		echo '<script>(function(){var s=document.getElementById("wpac_payout_method");if(!s){return;}var f=function(){var m="manual"===s.value;document.querySelectorAll(".wpac-method-sepa").forEach(function(e){e.hidden=m;});document.querySelectorAll(".wpac-method-manual").forEach(function(e){e.hidden=!m;});var h=document.getElementById("wpac_account_holder");if(h){h.required=!m;}var i=document.getElementById("wpac_iban");if(i){i.required=!m&&' . ( $masked ? 'false' : 'true' ) . ';}};s.addEventListener("change",f);f();})();</script>';
+		if ( $p && '' !== (string) $p->iban_encrypted ) {
+			// Needed only when the IBAN, the payment details or the method change (checked on saving).
+			echo '<p><label for="wpac_current_password">' . esc_html__( 'Current password (only needed to change your bank or payment details)', 'affiliate-captain' ) . '</label><input type="password" id="wpac_current_password" name="wpac_current_password" autocomplete="current-password"' . ( 'current_password' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></p>';
+		}
+		echo '<script>(function(){var s=document.getElementById("wpac_payout_method");if(!s){return;}var f=function(){var m="manual"===s.value;document.querySelectorAll(".wpac-method-sepa").forEach(function(e){e.hidden=m;});document.querySelectorAll(".wpac-method-manual").forEach(function(e){e.hidden=!m;});var h=document.getElementById("wpac_account_holder");if(h){h.required=!m;}var i=document.getElementById("wpac_iban");if(i){i.required=!m&&' . ( $masked ? 'false' : 'true' ) . ';}var d=document.getElementById("wpac_payment_details");if(d){d.required=m&&' . ( $has_details ? 'false' : 'true' ) . ';}};s.addEventListener("change",f);f();})();</script>';
 		echo '<p class="wpac-muted">' . esc_html__( 'Your bank and payment details are stored encrypted and are only used for commission payouts.', 'affiliate-captain' ) . '</p>';
 		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'affiliate-captain' ) . '</button></p></form>';
 	}
@@ -1152,8 +1186,14 @@ final class Portal {
 	 */
 	private static function payout_status( $p, array $labels ) {
 		if ( 'paid' === $p->status && $p->paid_at ) {
+			$date = date_i18n( get_option( 'date_format' ), strtotime( $p->paid_at . ' UTC' ) );
+			if ( ProfileRepository::METHOD_MANUAL === PayoutService::snapshot_method( $p ) ) {
+				// PayPal, Wise …: no bank transfer.
+				/* translators: %s: date */
+				return self::status( 'paid', sprintf( __( 'Paid on %s', 'affiliate-captain' ), $date ) );
+			}
 			/* translators: %s: date */
-			return self::status( 'paid', sprintf( __( 'Transferred on %s', 'affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $p->paid_at . ' UTC' ) ) ) );
+			return self::status( 'paid', sprintf( __( 'Transferred on %s', 'affiliate-captain' ), $date ) );
 		}
 		if ( in_array( $p->status, array( 'pending', 'exported' ), true ) ) {
 			return self::status( 'pending', __( 'In progress', 'affiliate-captain' ) );

@@ -72,7 +72,7 @@ No. WooCommerce (8.0 or newer, HPOS and classic or block checkout) is supported 
 
 = How are partners paid? Which payout methods are supported? =
 
-Payout runs collect the approved commissions per partner and create a credit note or statement for each payout. You then pay by bank transfer: for EUR as a SEPA XML file (pain.001) for your online banking, for any currency as a transfer list (CSV) that you pay manually. After the transfer you mark the payouts as paid; partners see the date in their partner area. Partners enter their bank details (IBAN, stored encrypted) in the partner area. PayPal, Stripe or Wise payouts are not built in.
+Payout runs collect the approved commissions per partner and create a credit note or statement for each payout. You then pay by bank transfer: for EUR as a SEPA XML file (pain.001) for your online banking, for any currency as a transfer list (CSV) that you pay manually. After the transfer you mark the payouts as paid; partners see the date in their partner area. Partners enter their bank details (IBAN, stored encrypted) in the partner area, or – unless you switch it off – the details of another payment method such as PayPal or Wise, which you pay manually; for PayPal the plugin creates the file for the mass payout upload in your PayPal account (no PayPal API connection). Stripe or Wise API payouts are not built in.
 
 = Can I use the credit notes outside Germany, Austria and Switzerland? =
 

@@ -106,6 +106,19 @@ final class AffiliatesPage {
 				if ( is_wp_error( $result ) ) {
 					Admin::back( $result->get_error_message(), 'error' );
 				}
+				if ( 'terminated' === sanitize_key( Admin::post( 'status' ) ) && 'reject' === Settings::get( 'terminated_open' ) ) {
+					list( $exported ) = \WPAffiliateCaptain\Payouts\PayoutService::query(
+						array(
+							'affiliate_id' => $id,
+							'status'       => 'exported',
+							'limit'        => 50,
+						)
+					);
+					if ( $exported ) {
+						// These may already be at the bank: the operator decides (cancel if not executed).
+						Admin::back( __( 'Status updated. Payouts that were not exported yet were cancelled. These payouts were already exported – if the bank did not execute them, cancel them under Payouts:', 'affiliate-captain' ), 'warning', '', wp_list_pluck( $exported, 'number' ) );
+					}
+				}
 				Admin::back( __( 'Status updated.', 'affiliate-captain' ) );
 				break;
 
@@ -242,9 +255,8 @@ final class AffiliatesPage {
 				}
 				$result = ProfileRepository::save( $id, $in );
 				if ( is_wp_error( $result ) ) {
-					// Keep what was typed (never the IBAN) so nothing has to be entered again.
-					unset( $in['iban'] );
-					Admin::keep_form( 'profile_' . $id, array_map( 'sanitize_textarea_field', $in ) );
+					// Keep what was typed (never the IBAN; payment details encrypted) so nothing has to be entered again.
+					Admin::keep_form( 'profile_' . $id, ProfileRepository::form_keep( $in ) );
 					Admin::back( $result->get_error_message(), 'error' );
 				}
 				Admin::back( __( 'Payout details saved.', 'affiliate-captain' ) );
@@ -597,18 +609,21 @@ final class AffiliatesPage {
 				echo '<tr><th scope="row">VIES</th><td>' . esc_html( sprintf( __( '%1$s (checked %2$s%3$s)', 'affiliate-captain' ), $vies_labels[ $vies['status'] ], Admin::date( $vies['checked_at'], true ), $vies['consultation'] ? ', ' . sprintf( /* translators: %s: number */ __( 'consultation number %s', 'affiliate-captain' ), $vies['consultation'] ) : '' ) ) . ( $vies['name'] ? '<br>' . esc_html( $vies['name'] ) : '' ) . '</td></tr>';
 			}
 			self::row_input( 'tax_number', __( 'Tax number', 'affiliate-captain' ), $v( 'tax_number' ) );
-			$method = ProfileRepository::method( $p );
+			// After a rejected save: the method and details that were entered, not the stored ones.
+			$methods = ProfileRepository::method_labels();
+			$method  = isset( $kept['payout_method'] ) && isset( $methods[ $kept['payout_method'] ] ) ? (string) $kept['payout_method'] : ProfileRepository::method( $p );
+			$typed   = ProfileRepository::form_details( $kept );
 			echo '<tr><th><label for="wpac-payout-method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . '</label></th><td><select name="payout_method" id="wpac-payout-method">';
 			foreach ( ProfileRepository::method_labels() as $k => $l ) {
 				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $method, $k, false ), esc_html( $l ) );
 			}
 			echo '</select><p class="description">' . esc_html__( 'Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.', 'affiliate-captain' ) . '</p></td></tr>';
 			self::row_input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ) );
-			$masked = $p && ProfileRepository::METHOD_SEPA === $method ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
+			$masked = $p && ProfileRepository::METHOD_SEPA === ProfileRepository::method( $p ) ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 			self::row_input( 'iban', __( 'IBAN', 'affiliate-captain' ), '', 'autocomplete="off" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'affiliate-captain' ) : '' ) . '"' );
 			self::row_input( 'bic', __( 'BIC', 'affiliate-captain' ), $v( 'bic' ) );
 			$details = ProfileRepository::payment_details( $p );
-			echo '<tr><th><label for="wpac-payment-details">' . esc_html__( 'Payment details (other method)', 'affiliate-captain' ) . '</label></th><td><textarea name="payment_details" id="wpac-payment-details" rows="3" class="regular-text" autocomplete="off" placeholder="' . esc_attr( null !== $details ? __( 'Stored – leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"></textarea>';
+			echo '<tr><th><label for="wpac-payment-details">' . esc_html__( 'Payment details (other method)', 'affiliate-captain' ) . '</label></th><td><textarea name="payment_details" id="wpac-payment-details" rows="3" class="regular-text" autocomplete="off" placeholder="' . esc_attr( null !== $details ? __( 'Stored – leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '">' . esc_textarea( $typed ) . '</textarea>';
 			if ( null !== $details ) {
 				/* translators: %s: stored payment details */
 				echo '<p class="description">' . esc_html( sprintf( __( 'Stored: %s', 'affiliate-captain' ), $details ) ) . '</p>';

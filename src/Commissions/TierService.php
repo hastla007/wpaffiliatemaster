@@ -165,7 +165,7 @@ final class TierService {
 		$start    = $month . '-01 00:00:00';
 		$end      = gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND currency = %s AND created_at BETWEEN %s AND %s", $currency, $start, $end ) );
+		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND created_at BETWEEN %s AND %s", $start, $end ) ); // All currencies (orders() converts).
 		$created    = 0;
 
 		foreach ( $affiliates as $affiliate_id ) {
@@ -268,8 +268,23 @@ final class TierService {
 		$c     = Db::table( 'commissions' );
 		$start = $month . '-01 00:00:00';
 		$end   = gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) );
+		// All currencies: orders in another currency count with their value in the program currency
+		// (reference rate); without a rate they cannot be valued and are left out.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_results( $wpdb->prepare( "SELECT source, source_order_id, SUM(base_minor) AS revenue, MIN(CASE WHEN kind = 'sale' THEN created_at END) AS sold_at FROM {$c} WHERE affiliate_id = %d AND currency = %s AND status IN ('approved','paid') AND kind <> 'bonus' GROUP BY source, source_order_id HAVING sold_at BETWEEN %s AND %s ORDER BY sold_at ASC", $affiliate_id, $currency, $start, $end ), ARRAY_A );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT source, source_order_id, currency, SUM(base_minor) AS revenue, MIN(CASE WHEN kind = 'sale' THEN created_at END) AS sold_at FROM {$c} WHERE affiliate_id = %d AND status IN ('approved','paid') AND kind <> 'bonus' GROUP BY source, source_order_id, currency HAVING sold_at BETWEEN %s AND %s ORDER BY sold_at ASC", $affiliate_id, $start, $end ), ARRAY_A );
+		$out  = array();
+		foreach ( $rows as $row ) {
+			if ( strtoupper( (string) $row['currency'] ) !== strtoupper( (string) $currency ) ) {
+				$value = \WPAffiliateCaptain\Core\Fx::to_program( (int) $row['revenue'], (string) $row['currency'], (string) $currency, \WPAffiliateCaptain\Core\Fx::rates() );
+				if ( null === $value ) {
+					continue;
+				}
+				$row['revenue'] = $value;
+			}
+			unset( $row['currency'] );
+			$out[] = $row;
+		}
+		return $out;
 	}
 
 	/**
@@ -335,7 +350,7 @@ final class TierService {
 		$start    = $month . '-01 00:00:00';
 		$end      = gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND currency = %s AND created_at BETWEEN %s AND %s", $currency, $start, $end ) );
+		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND created_at BETWEEN %s AND %s", $start, $end ) ); // All currencies (orders() converts).
 		$booked     = 0;
 		$first      = Settings::state( 'tier_month_first' );
 		if ( '' === $first ) {

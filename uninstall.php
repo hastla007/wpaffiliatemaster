@@ -112,6 +112,9 @@ function wpac_uninstall_site() {
 	delete_post_meta_by_key( '_wpac_promote_note' );
 	// Note: order meta (_wpac_*) is kept with the orders; WordPress users created for partners are kept.
 
+	if ( function_exists( 'remove_role' ) ) {
+		remove_role( 'wpac_tax_advisor' ); // Read-only role of the plugin.
+	}
 	foreach ( array( 'wpac_manage_program', 'wpac_manage_affiliates', 'wpac_manage_payouts', 'wpac_view_tax_data' ) as $wpac_cap ) {
 		foreach ( wp_roles()->role_objects as $wpac_role ) {
 			$wpac_role->remove_cap( $wpac_cap );

@@ -49,7 +49,7 @@ Set both **before** the first partner enters bank details and the first credit n
 | Fraud & abuse | fraud rules, rate limit, trusted proxies (Cloudflare/reverse proxy IP ranges), retention of visits and rejected applications |
 | Commissions | program currency, exchange rates for reports, default rate, hold period, lifetime commissions, subscription renewals |
 | Promotion | landing page path, disclosure note, promotion guidelines |
-| Payouts & credit notes | minimum payout, period, payout requests, statement retention, self-billing, VAT rate, your country, address, VAT ID/tax number, number prefixes, company bank account for SEPA, VIES check |
+| Payouts & credit notes | minimum payout, payout requests, other payment method (on/off), statement retention, self-billing, VAT rate, your country, address, VAT ID/tax number, number prefixes, company bank account for SEPA, VIES check |
 | Reports & data | monthly summary mails, audit log retention, maintenance mode, monitoring token, data deletion on uninstall, record of processing activities |
 
 **Server cron.** Commissions are released, retries run and old data is deleted by scheduled tasks (hourly and daily). On sites with few visits or with `DISABLE_WP_CRON`, set up a system cron:
@@ -105,9 +105,22 @@ Every partner has an append-only, hash-chained account per currency (partner pag
 3. **Credit note / statement.** Each payout gets a PDF with a gapless number per year (`GS-2026-000001`), stored in the statement folder and protected by a hash.
 4. **Transfer.**
    - **SEPA (EUR):** select the payouts and download the SEPA XML file (pain.001.001.03) for your online banking. Needs the company account under Settings → Payouts & credit notes and the PHP extension `dom`.
-   - **Manual transfer (any currency):** download the transfer list (CSV) and pay the amounts manually or by importing the list into your banking software.
-   A payout can only be exported once; "export again" is only for files the bank did not process.
-5. **Mark as paid** after the bank executed the transfer. Partners get an e-mail and see the date.
+   - **Manual transfer (any currency):** download the transfer list (CSV; separator ";", decimal comma and column names in the site language, readable in German Excel) and pay the amounts manually or by importing the list into your banking software.
+   - **Other payment method (PayPal, Wise …):** partners can choose "other payment method" instead of an IBAN and enter free-text payment details (stored encrypted; switch it off under Settings → Payouts & credit notes – partners who already use it keep it until they change it). These payouts are left out of the SEPA file. The transfer list contains their payment details; **"Download PayPal payouts file"** creates the file for the mass payout upload in your PayPal business account (Pay & get paid → Payouts) for all selected payouts whose payment details contain an e-mail address – the others are listed and left as they are. There is no PayPal API connection: you upload the file and confirm the payout in PayPal yourself. Mention the payment provider as a recipient in your privacy policy (the suggested privacy text and the record of processing activities do so while the method is switched on).
+   A payout can only be exported once; "export again" is only for files the bank did not process. After a download the page reloads and says what is in the file, what was left out and that the payouts are now "exported"; the status filter above the list shows e.g. all exported payouts that still have to be marked as paid.
+5. **Mark as paid** after the bank (or PayPal) executed the transfer. Partners get an e-mail and see the date ("transferred on" for bank transfers, "paid on" for other methods).
+
+The credit notes of a payout run are written in the background by the job queue (Integrations → queue), so runs with many partners do not time out; a payout can only be exported or marked as paid once its credit note exists (missing ones are written at that moment). There is no automatic payout rhythm: you start each run yourself (the former setting "payout period" had no effect and was removed).
+
+**Read-only access for your tax advisor:** give the user the role "Tax advisor (Affiliate Captain, read only)" (or the capability `wpac_view_tax_data` alone). They see the payout list and the payout details and can download credit notes and cancellation documents, but cannot create, export or change payouts.
+
+**Separation of duties:** approving commissions before the end of the hold period and assigning or re-assigning orders to partners need `wpac_manage_payouts`; partner managers (`wpac_manage_affiliates` only) cannot steer money to a partner and release it early.
+
+**Changing bank details in the partner area** (IBAN, payment details or payout method) needs the partner's current password; the partner and the previous address are informed by e-mail. Exports refuse payouts whose partner changed the details after the payout was created.
+
+**Terminating a partner** with "open commissions are rejected" cancels the partner's payouts that were not exported yet (cancellation document) before the commissions are rejected; already exported payouts are listed for you to check. Write-offs and repayments are never rejected.
+
+**Objections** of partners against a credit note appear on the Payouts page. For unpaid payouts, cancel and create a corrected one; a paid payout cannot be cancelled – agree the correction with the partner (their own invoice, separate transfer or repayment) and describe what was done.
 
 **Cancelling** a payout (before or after export, with a reason) releases its commissions for the next run and, for credit notes, creates a cancellation document (`ST-…`). **Payout requests:** if enabled, partners request the payout of their approved balance; you create the payout from the request or reject it with a reason.
 

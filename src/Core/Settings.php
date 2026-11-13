@@ -68,7 +68,8 @@ final class Settings {
 			'payout_requests'         => 0,
 			'statement_retention_years' => 10,
 			'retention_hold'          => 0,
-			'payout_period'           => 'monthly',
+			'payout_period'           => 'monthly', // Unused (no effect, no longer offered in the settings); kept for stored settings.
+			'payout_method_manual'    => 1,         // Partners may choose "other payment method" (PayPal etc., paid manually).
 			'debtor_name'             => '',
 			'debtor_iban'             => '',
 			'debtor_bic'              => '',
@@ -277,7 +278,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'payout_method_manual' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
