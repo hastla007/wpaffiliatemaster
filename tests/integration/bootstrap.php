@@ -186,7 +186,7 @@ function do_action( $tag, ...$args ) {
 }
 function remove_all_filters( $tag ) { unset( $GLOBALS['test_hooks'][ $tag ] ); }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['test_options'] ) ? $GLOBALS['test_options'][ $k ] : $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['test_options'][ $k ] = $v; return true; }
+function update_option( $k, $v, $a = null ) { if ( ! empty( $GLOBALS['test_option_fail'][ $k ] ) ) { return false; } $GLOBALS['test_options'][ $k ] = $v; return true; } // test_option_fail: simulate a failed write.
 function add_option( $k, $v, $x = '', $a = null ) {
 	// Like WordPress core: a cached read, then an UPSERT – NOT atomic (use Db::lock() for locks).
 	global $wpdb;

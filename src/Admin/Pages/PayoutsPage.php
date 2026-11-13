@@ -71,6 +71,9 @@ final class PayoutsPage {
 				}
 				/* translators: %d: number of payouts */
 				$message = sprintf( _n( '%d payout created.', '%d payouts created.', count( $created ), 'affiliate-captain' ), count( $created ) );
+				if ( $created ) {
+					$message .= ' ' . __( 'The credit notes are written in the background within a few minutes (missing ones at the latest when you export or mark the payouts as paid).', 'affiliate-captain' );
+				}
 				if ( $counts['carried'] ) {
 					/* translators: %d: number of partners */
 					$message .= ' ' . sprintf( _n( '%d partner carried forward (below the minimum or negative balance).', '%d partners carried forward (below the minimum or negative balance).', $counts['carried'], 'affiliate-captain' ), $counts['carried'] );

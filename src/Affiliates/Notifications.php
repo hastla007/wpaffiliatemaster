@@ -46,6 +46,17 @@ final class Notifications {
 		$portal   = (int) Settings::get( 'portal_page_id' );
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			if ( \WPAffiliateCaptain\Payouts\ProfileRepository::METHOD_MANUAL === \WPAffiliateCaptain\Payouts\PayoutService::snapshot_method( $p ) ) {
+				// PayPal, Wise …: no bank transfer, no "bank account".
+				wp_mail(
+					$aff->email,
+					/* translators: 1: site name, 2: payout number */
+					sprintf( __( '[%1$s] Payout %2$s paid', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
+					/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
+					sprintf( __( "Hello %1\$s,\n\nwe have paid %2\$s with the payment method you chose (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'affiliate-captain' ), $aff->name, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), $p->number, $portal ? add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) : home_url( '/' ) )
+				);
+				return;
+			}
 			wp_mail(
 				$aff->email,
 				/* translators: 1: site name, 2: payout number */
