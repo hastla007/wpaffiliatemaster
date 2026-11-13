@@ -412,6 +412,21 @@ final class Portal {
 			// notes (open commissions are still paid out; the documents are needed for taxes).
 			$tabs = array_intersect_key( $tabs, array_flip( array( 'commissions', 'payouts', 'privacy' ) ) );
 		}
+		$core = $tabs;
+		/**
+		 * Tabs of the partner area. Add-ons add tabs (key => label) and render them on the action
+		 * "wpac_portal_tab_{key}" (argument: the partner). Core tabs cannot be replaced.
+		 *
+		 * @param array  $tabs Tabs.
+		 * @param object $aff  Partner.
+		 */
+		$extra = apply_filters( 'wpac_portal_tabs', $tabs, $aff );
+		foreach ( is_array( $extra ) ? $extra : array() as $key => $label ) {
+			$key = sanitize_key( (string) $key );
+			if ( '' !== $key && ! isset( $core[ $key ] ) && has_action( 'wpac_portal_tab_' . $key ) ) {
+				$tabs[ $key ] = (string) $label;
+			}
+		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$tab = isset( $_GET['wpac_tab'] ) ? sanitize_key( wp_unslash( $_GET['wpac_tab'] ) ) : key( $tabs );
 		$tab = isset( $tabs[ $tab ] ) ? $tab : key( $tabs );
@@ -443,7 +458,16 @@ final class Portal {
 			);
 		}
 		echo '</nav><div class="wpac-tab"><p class="wpac-sr" aria-live="polite" id="wpac-live"></p>';
-		call_user_func( array( __CLASS__, 'tab_' . $tab ), $aff );
+		if ( isset( $core[ $tab ] ) ) {
+			call_user_func( array( __CLASS__, 'tab_' . $tab ), $aff );
+		} else {
+			/**
+			 * Renders an add-on tab of the partner area (escape all output).
+			 *
+			 * @param object $aff Partner.
+			 */
+			do_action( 'wpac_portal_tab_' . $tab, $aff );
+		}
 		echo '</div></div>';
 		return (string) ob_get_clean();
 	}

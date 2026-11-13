@@ -49,6 +49,12 @@ final class Admin {
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
+		/**
+		 * Add-ons add their own pages below the plugin menu (parent slug "wpac").
+		 *
+		 * @param string $parent Parent menu slug.
+		 */
+		do_action( 'wpac_admin_menu', 'wpac' );
 	}
 
 	/**

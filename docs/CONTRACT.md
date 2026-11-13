@@ -129,6 +129,21 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 
 Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempotenten Funktionen oben.
 
+## Add-ons (z. B. Premium-Add-on)
+
+Erweiterungen sind **eigene Plugins** (eigener Slug, eigene Textdomain, bei Vertrieb außerhalb von WordPress.org eigener Header `Update URI`, eigener Updater und ggf. Lizenzprüfung). Das Kernplugin enthält keine Lizenzprüfung und sperrt keine Funktionen (siehe `docs/FREE-PREMIUM.md`). Ein Add-on startet auf `wpac_loaded` und nutzt diese Erweiterungspunkte:
+
+| Hook | Art | Zweck |
+|---|---|---|
+| `wpac_loaded` | Action | Kernplugin ist geladen – hier Hooks des Add-ons registrieren. |
+| `wpac_admin_menu` ( `$parent` ) | Action | Eigene Verwaltungsseiten unter dem Plugin-Menü (`add_submenu_page( $parent, … )`, Parent-Slug `wpac`). Eigene Einstellungen speichert das Add-on in eigenen Optionen. |
+| `wpac_portal_tabs` ( `$tabs`, `$aff` ) | Filter | Weitere Tabs im Partnerbereich (`key => Label`); bestehende Tabs lassen sich nicht ersetzen. Ein Tab erscheint nur, wenn `wpac_portal_tab_{key}` belegt ist. |
+| `wpac_portal_tab_{key}` ( `$aff` ) | Action | Ausgabe des Add-on-Tabs (vollständig escapen). |
+| `wpac_attribution_candidates`, `wpac_commission_base`, `wpac_vat_treatment`, `wpac_fraud_flags`, `wpac_hold_until`, `wpac_statement_note` | Filter | Zuordnung, Provisionsbasis, Steuerbehandlung, Betrugsregeln, Sperrfrist, Text auf Gutschriften (siehe oben). |
+| `wpac_commission_created`, `wpac_commission_adjusted`, `wpac_commission_paid`, `wpac_payout_paid`, `wpac_affiliate_created`, `wpac_affiliate_status_changed` | Action | Ereignisse für Berichte, Exporte und Integrationen. |
+
+Eine abgelaufene oder fehlende Lizenz eines Add-ons darf nur dessen eigene Zusatzfunktionen betreffen – nie Buchungen, Gutschriften, Aufbewahrung oder Datenschutz-Löschungen des Kernplugins.
+
 ## Mitgelieferte Adapter
 
 | Plugin | Ort | Verhalten |
