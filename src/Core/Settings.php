@@ -164,7 +164,8 @@ final class Settings {
 		}
 		// Credit notes: at least 10 years (DE §147 AO/§14b UStG, AT §132 BAO, CH Art. 958f OR); 0 = forever.
 		if ( $out['statement_retention_years'] > 0 ) {
-			$out['statement_retention_years'] = max( 10, $out['statement_retention_years'] );
+			// Never below the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years).
+			$out['statement_retention_years'] = max( \WPAffiliateCaptain\Privacy\Retention::minimum_years( isset( $in['operator_country'] ) && '' !== (string) $in['operator_country'] ? strtoupper( substr( sanitize_text_field( (string) $in['operator_country'] ), 0, 2 ) ) : 'DE' ), $out['statement_retention_years'] );
 		}
 
 		$currency        = isset( $in['currency'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $in['currency'] ) ) : '';

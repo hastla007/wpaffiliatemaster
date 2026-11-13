@@ -283,10 +283,11 @@ final class Privacy {
 		$wpdb->delete( Db::table( 'visits' ), array( 'affiliate_id' => (int) $aff->id ) );
 		$wpdb->delete( Db::table( 'customer_links' ), array( 'affiliate_id' => (int) $aff->id ) );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payout_requests' ) . " SET note = '' WHERE affiliate_id = %d", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		// Free-text reasons and notes may contain personal data.
-		$c = Db::table( 'commissions' );
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'commission_events' ) . " SET reason = '' WHERE commission_id IN (SELECT id FROM {$c} WHERE affiliate_id = %d)", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'attributions' ) . " SET note = '' WHERE affiliate_id = %d", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// Booking records (commission events, attribution notes, payout notes, write-off reasons and
+		// the payout change log) must stay unchanged during the retention period: processing is
+		// restricted instead (Art. 17(3)(b), Art. 18 GDPR) and the free texts are deleted when the
+		// period ends (Retention::purge_erased()).
+		Restriction::add( (int) $aff->id, Restriction::ERASURE );
 		// Free-text details in the audit log (reasons may contain personal data); acceptance records stay as proof.
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%'", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache();
@@ -298,7 +299,7 @@ final class Privacy {
 		} else {
 			ProfileRepository::delete( (int) $aff->id );
 		}
-		$messages[] = __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO) and deleted after the configured retention period.', 'wp-affiliate-captain' );
+		$messages[] = __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'wp-affiliate-captain' );
 		Audit::log( 'privacy.erased', 'affiliate', (int) $aff->id );
 
 		return array(
@@ -402,10 +403,59 @@ final class Privacy {
 		$a = Db::table( 'affiliates' );
 		$c = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$emails = $wpdb->get_col( $wpdb->prepare( "SELECT a.email FROM {$a} a WHERE a.status = 'rejected' AND a.status_reason <> 'privacy_erasure' AND a.updated_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.affiliate_id = a.id ) LIMIT 50", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
-		foreach ( $emails as $email ) {
-			self::erase( (string) $email );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT a.id FROM {$a} a WHERE a.status = 'rejected' AND a.status_reason <> 'privacy_erasure' AND a.updated_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.affiliate_id = a.id ) LIMIT 50", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
+		foreach ( $ids as $id ) {
+			self::erase_applicant( (int) $id );
 		}
-		return count( $emails );
+		return count( $ids );
+	}
+
+	/**
+	 * Remove the application data of a rejected applicant (never a partner with commissions).
+	 * Unlike erase(), this does not touch what the person has as a customer (lifetime links to
+	 * other partners stay) and nothing has to be retained: no bookings exist.
+	 *
+	 * @param int $affiliate_id Applicant.
+	 * @return bool
+	 */
+	public static function erase_applicant( $affiliate_id ) {
+		global $wpdb;
+		$aff = AffiliateRepository::find( (int) $affiliate_id );
+		if ( ! $aff || 'rejected' !== $aff->status ) {
+			return false;
+		}
+		$c = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d", $aff->id ) ) ) {
+			return false; // Has bookings: handled by erase() with retention.
+		}
+		$wpdb->update(
+			Db::table( 'affiliates' ),
+			array(
+				'name'             => __( 'Deleted applicant', 'wp-affiliate-captain' ),
+				'email'            => 'deleted-' . (int) $aff->id . '@invalid.invalid',
+				'website'          => '',
+				'channel'          => '',
+				'application_note' => '',
+				'application_data' => null,
+				'landing_message'  => null,
+				'slug'             => 'deleted-' . (int) $aff->id,
+				'user_id'          => 0,
+				'status_reason'    => 'privacy_erasure',
+				'updated_at'       => Db::now(),
+			),
+			array( 'id' => (int) $aff->id )
+		);
+		$wpdb->delete( Db::table( 'partner_codes' ), array( 'affiliate_id' => (int) $aff->id ) );
+		$wpdb->delete( Db::table( 'visits' ), array( 'affiliate_id' => (int) $aff->id ) );
+		$wpdb->delete( Db::table( 'customer_links' ), array( 'affiliate_id' => (int) $aff->id ) );
+		ProfileRepository::delete( (int) $aff->id );
+		// Without commissions there are no credit notes, so the acceptance records are not needed either.
+		Retention::delete_agreements( (int) $aff->id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d", $aff->id ) );
+		AffiliateRepository::clear_cache( (int) $aff->id );
+		Audit::log( 'privacy.applicant_erased', 'affiliate', (int) $aff->id );
+		return true;
 	}
 }

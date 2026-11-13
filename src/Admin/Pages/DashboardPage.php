@@ -44,9 +44,9 @@ final class DashboardPage {
 			Csv::download( "report-{$view}-{$from}-{$to}.csv", array( 'content' === $view ? 'content_id' : 'campaign', 'label', 'visits', 'partners', 'orders', 'conversion_percent', 'net_revenue_' . $currency, 'commission_' . $currency ), $out );
 		}
 		foreach ( Reports::partners( $from, $to ) as $r ) {
-			$out[] = array( $r['affiliate_id'], $r['name'], $r['visits'], $r['orders'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ), Money::to_decimal( $r['corrections'], $currency ), Money::to_decimal( $r['bonus'], $currency ), $r['refund_rate'] );
+			$out[] = array( $r['affiliate_id'], $r['name'], $r['visits'], $r['orders'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ), Money::to_decimal( $r['corrections'], $currency ), Money::to_decimal( $r['bonus'], $currency ), Money::to_decimal( $r['writeoffs'], $currency ), $r['refund_rate'] );
 		}
-		Csv::download( "partner-report-{$from}-{$to}.csv", array( 'affiliate_id', 'partner', 'visits', 'orders', 'net_revenue_' . $currency, 'commission_' . $currency, 'corrections_' . $currency, 'bonus_' . $currency, 'refund_rate_percent' ), $out );
+		Csv::download( "partner-report-{$from}-{$to}.csv", array( 'affiliate_id', 'partner', 'visits', 'orders', 'net_revenue_' . $currency, 'commission_' . $currency, 'corrections_' . $currency, 'bonus_' . $currency, 'writeoffs_' . $currency, 'refund_rate_percent' ), $out );
 	}
 
 	/**
@@ -147,6 +147,7 @@ final class DashboardPage {
 			'commission'  => 0,
 			'corrections' => 0,
 			'bonus'       => 0,
+			'writeoffs'   => 0,
 		);
 		$unconverted = array_keys( Reports::$unconverted );
 		foreach ( $rows as $r ) {
@@ -184,6 +185,7 @@ final class DashboardPage {
 				__( 'Net revenue', 'wp-affiliate-captain' )      => Money::format( $sum['revenue'], $currency ),
 				__( 'Commission', 'wp-affiliate-captain' )       => Money::format( $sum['commission'], $currency ),
 				__( 'Corrections', 'wp-affiliate-captain' )      => Money::format( $sum['corrections'], $currency ),
+				__( 'Write-offs', 'wp-affiliate-captain' )       => Money::format( $sum['writeoffs'], $currency ),
 			) as $label => $value
 		) {
 			echo '<div class="wpac-kpi"><span>' . esc_html( $label ) . '</span><strong>' . esc_html( $value ) . '</strong></div>';
@@ -230,13 +232,13 @@ final class DashboardPage {
 			return;
 		}
 
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Visits', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Corrections', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Monthly bonuses', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Refund rate', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Partner', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Visits', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Corrections', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Monthly bonuses', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Write-offs', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Refund rate', 'wp-affiliate-captain' ) . '</th></tr></thead><tbody>';
 		if ( ! $rows ) {
-			echo '<tr><td colspan="8">' . esc_html__( 'No activity in this period.', 'wp-affiliate-captain' ) . '</td></tr>';
+			echo '<tr><td colspan="9">' . esc_html__( 'No activity in this period.', 'wp-affiliate-captain' ) . '</td></tr>';
 		}
 		foreach ( $rows as $r ) {
 			printf(
-				'<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s %%</td></tr>',
+				'<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s %%</td></tr>',
 				esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $r['affiliate_id'] ) ) ),
 				esc_html( $r['name'] ),
 				esc_html( number_format_i18n( $r['visits'] ) ),
@@ -245,6 +247,7 @@ final class DashboardPage {
 				esc_html( Money::format( $r['commission'], $currency ) ),
 				esc_html( Money::format( $r['corrections'], $currency ) ),
 				esc_html( Money::format( $r['bonus'], $currency ) ),
+				esc_html( Money::format( $r['writeoffs'], $currency ) ),
 				esc_html( number_format_i18n( $r['refund_rate'], 1 ) )
 			);
 		}

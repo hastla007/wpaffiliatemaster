@@ -473,7 +473,8 @@ update_option( 'wpac_settings', $keep );
 Settings::flush_cache();
 
 // S3 retention: at least 10 years; legal hold stops the purge; cancellations count from their own date.
-check( 'S3 retention below 10 years raised to 10', 10, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3 ) ) )['statement_retention_years'] );
+check( 'S3 retention below the legal minimum raised (DE: 8 years)', 8, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3, 'operator_country' => 'DE' ) ) )['statement_retention_years'] );
+check( 'S3 legal minimum Austria 7, Switzerland 10', array( 7, 10 ), array( Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3, 'operator_country' => 'AT' ) ) )['statement_retention_years'], Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3, 'operator_country' => 'CH' ) ) )['statement_retention_years'] ) );
 check( 'S3 0 = forever stays', 0, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 0 ) ) )['statement_retention_years'] );
 $old = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'payouts' ) . ' ORDER BY id ASC LIMIT 1' );
 q( 'UPDATE ' . t( 'payouts' ) . " SET created_at = '2001-03-01 10:00:00', storno_at = '2025-01-10 10:00:00' WHERE id = {$old}" );
@@ -497,8 +498,12 @@ check( 'S4 other old audit entry deleted', 0, (int) $wpdb->get_var( 'SELECT COUN
 // S5 rejected applicants without commissions are anonymised after the retention period.
 $rej = AffiliateRepository::create( array( 'name' => 'Abgelehnt', 'email' => 'rejected@example.de', 'status' => 'rejected' ) );
 q( 'UPDATE ' . t( 'affiliates' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE id = {$rej}" );
+// The same person is a customer linked to another partner: that link must survive.
+$wpdb->insert( t( 'customer_links' ), array( 'affiliate_id' => $aff, 'customer_hash' => WPAffiliateCaptain\Tracking\CustomerLinks::hashes( 0, 'rejected@example.de' )[0], 'source' => 'test', 'source_order_id' => 's5', 'created_at' => Db::now() ) );
 WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
 check( 'S5 rejected applicant anonymised', 'deleted-' . $rej . '@invalid.invalid', (string) $wpdb->get_var( 'SELECT email FROM ' . t( 'affiliates' ) . " WHERE id = {$rej}" ) );
+check( 'S5 applicant mode keeps the person\'s customer links to other partners', 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'customer_links' ) . " WHERE source_order_id = 's5'" ) );
+check( 'S5 application agreements removed', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'agreements' ) . " WHERE affiliate_id = {$rej}" ) );
 
 echo "T 0.9.0 features\n";
 // T1 a negative balance can be written off; the account is consistent afterwards.
@@ -579,7 +584,7 @@ update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), arra
 Settings::flush_cache();
 $GLOBALS['test_mail_fail'] = true;
 WPAffiliateCaptain\Reports\MonthlyMail::send( gmdate( 'Y-m' ), true );
-check( 'U6 failed operator mail remembered', true, ! empty( get_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED )['admin'] ) );
+check( 'U6 failed operator mail remembered', true, ! empty( WPAffiliateCaptain\Reports\MonthlyMail::failures()[ gmdate( 'Y-m' ) ]['admin'] ) );
 $GLOBALS['test_mail_fail'] = false;
 WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
 check( 'U6 retry sends it and clears the failure', false, get_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED ) );
@@ -703,6 +708,80 @@ update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), arra
 Settings::flush_cache();
 check( 'W7 with terms page and accepted terms: not blocked', '', PayoutService::blocked_reason( $wr ) );
 check( 'W accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
+echo "X monthly mails: failures per month, locked retry, watchdog\n";
+delete_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED );
+$GLOBALS['test_mail_fail'] = true;
+WPAffiliateCaptain\Reports\MonthlyMail::send( '2026-08', true );
+WPAffiliateCaptain\Reports\MonthlyMail::send( '2026-09', true );
+check( 'X1 failures of two months are both kept', array( '2026-08', '2026-09' ), array_keys( WPAffiliateCaptain\Reports\MonthlyMail::failures() ) );
+$lk = WPAffiliateCaptain\Core\Db::lock( 'wpac_report_retry_lock', 600 );
+$GLOBALS['test_mail_fail'] = false;
+WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
+check( 'X2 a second retry run waits while one is running', 2, count( WPAffiliateCaptain\Reports\MonthlyMail::failures() ) );
+WPAffiliateCaptain\Core\Db::unlock( 'wpac_report_retry_lock', $lk );
+$GLOBALS['test_mail_fail'] = true;
+WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
+check( 'X2 a failed retry counts the attempt per month', array( 1, 1 ), array_values( array_map( static function ( $f ) { return (int) $f['tries']; }, WPAffiliateCaptain\Reports\MonthlyMail::failures() ) ) );
+$GLOBALS['test_mail_fail'] = false;
+WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
+check( 'X2 successful retry clears both months', array(), WPAffiliateCaptain\Reports\MonthlyMail::failures() );
+update_option( WPAffiliateCaptain\Reports\MonthlyMail::PROGRESS, array( 'month' => '2026-09', 'offset' => 50, 'touched' => time() - 3600 ), false );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Reports\MonthlyMail::watchdog();
+check( 'X3 watchdog restarts a stalled batch chain', true, in_array( WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, $GLOBALS['test_scheduled'], true ) );
+delete_option( WPAffiliateCaptain\Reports\MonthlyMail::PROGRESS );
+// X4 reports count write-offs.
+$xw = AffiliateRepository::create( array( 'name' => 'Report Partner', 'email' => 'report@example.de', 'status' => 'active' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $xw, 'source' => 'wpac', 'source_order_id' => 'x4', 'kind' => 'writeoff', 'currency' => 'EUR', 'amount_minor' => 1234, 'status' => 'approved', 'idempotency_key' => 'x4', 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$xr = array_values( array_filter( WPAffiliateCaptain\Reports\Reports::partners( gmdate( 'Y-m-01' ), gmdate( 'Y-m-t' ) ), static function ( $r ) use ( $xw ) { return (int) $r['affiliate_id'] === (int) $xw; } ) );
+check( 'X4 partner report shows the write-off', 1234, $xr ? (int) $xr[0]['writeoffs'] : null );
+q( "DELETE FROM {$ct} WHERE idempotency_key = 'x4'" );
+
+echo "Y erasure: restriction instead of changed booking records, retention per country\n";
+$ye = AffiliateRepository::create( array( 'name' => 'Erase Partner', 'email' => 'erase@example.de', 'status' => 'active' ) );
+$yc = WPAffiliateCaptain\Codes\CodeRepository::main_code( $ye );
+$ys = sale( 9101, $yc, array( 100000 ) );
+refund( 9101, 'y1', array( array( 'item_id' => '1', 'net_minor' => 10000 ) ) );
+$ycid = (int) $ys['commission_ids'][0];
+q( 'UPDATE ' . t( 'commission_events' ) . " SET reason = 'Kunde Max Muster beschwerte sich' WHERE commission_id = {$ycid}" );
+q( 'UPDATE ' . t( 'attributions' ) . " SET note = 'Hinweis von Max Muster' WHERE affiliate_id = {$ye}" );
+$wpdb->insert( t( 'payouts' ), array( 'number' => 'GS-Y-1', 'affiliate_id' => $ye, 'period_end' => gmdate( 'Y-m-d' ), 'currency' => 'EUR', 'status' => 'cancelled', 'note' => 'Storno wegen Max Muster', 'created_at' => Db::now() ) );
+$ypid = (int) $wpdb->insert_id;
+WPAffiliateCaptain\Core\Audit::log( 'payout.cancelled', 'payout', $ypid, array( 'reason' => 'Max Muster' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $ye, 'source' => 'wpac', 'source_order_id' => 'y-wo', 'kind' => 'writeoff', 'description' => 'Max Muster zahlt nicht', 'currency' => 'EUR', 'amount_minor' => 0, 'status' => 'approved', 'idempotency_key' => 'y-wo', 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+WPAffiliateCaptain\Privacy\Privacy::erase( 'erase@example.de' );
+check( 'Y1 commission event reasons stay unchanged during retention', 'Kunde Max Muster beschwerte sich', $wpdb->get_var( 'SELECT reason FROM ' . t( 'commission_events' ) . " WHERE commission_id = {$ycid} AND reason <> '' LIMIT 1" ) );
+check( 'Y2 attribution note stays unchanged during retention', 'Hinweis von Max Muster', $wpdb->get_var( 'SELECT note FROM ' . t( 'attributions' ) . " WHERE affiliate_id = {$ye} LIMIT 1" ) );
+check( 'Y3 processing is restricted', true, WPAffiliateCaptain\Privacy\Restriction::is_restricted( $ye ) );
+check( 'Y3 the restricted partner cannot be reactivated', true, is_wp_error( AffiliateRepository::set_status( $ye, 'active' ) ) );
+// Booking records past the retention period → free texts deleted, agreements removed, restriction lifted.
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 8, 'operator_country' => 'DE', 'retention_hold' => 1 ) ) );
+Settings::flush_cache();
+q( "UPDATE {$ct} SET created_at = '2014-03-01 10:00:00', updated_at = '2014-03-01 10:00:00' WHERE affiliate_id = {$ye}" );
+q( 'UPDATE ' . t( 'payouts' ) . " SET created_at = '2014-03-01 10:00:00' WHERE affiliate_id = {$ye}" );
+check( 'Y16 tax audit / legal hold: nothing is deleted', 0, WPAffiliateCaptain\Privacy\Retention::purge_erased() );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'retention_hold' => 0 ) ) );
+Settings::flush_cache();
+check( 'Y3 after the retention period the erased partner is cleaned up', true, WPAffiliateCaptain\Privacy\Retention::purge_erased() >= 1 );
+check( 'Y1 event reasons deleted', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'commission_events' ) . " WHERE commission_id = {$ycid} AND reason <> ''" ) );
+check( 'Y2 attribution note deleted', '', $wpdb->get_var( 'SELECT note FROM ' . t( 'attributions' ) . " WHERE affiliate_id = {$ye} LIMIT 1" ) );
+check( 'Y4 payout note deleted', '', $wpdb->get_var( 'SELECT note FROM ' . t( 'payouts' ) . " WHERE id = {$ypid}" ) );
+check( 'Y5 payout change log details deleted', null, $wpdb->get_var( 'SELECT details FROM ' . t( 'audit' ) . " WHERE object_type = 'payout' AND object_id = {$ypid} AND action = 'payout.cancelled'" ) );
+check( 'Y6 write-off reason deleted', '', $wpdb->get_var( "SELECT description FROM {$ct} WHERE idempotency_key = 'y-wo'" ) );
+check( 'Y18 acceptance records deleted with the booking records', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'agreements' ) . " WHERE affiliate_id = {$ye}" ) );
+check( 'Y3 restriction lifted after the clean-up', false, WPAffiliateCaptain\Privacy\Restriction::is_restricted( $ye ) );
+check( 'Y15 retention per country', array( 8, 7, 10, 10 ), array( WPAffiliateCaptain\Privacy\Retention::minimum_years( 'DE' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'AT' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'CH' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'FR' ) ) );
+// Audit log clean-up: commission entries are kept like the other booking records; nothing during a hold.
+q( 'DELETE FROM ' . t( 'audit' ) );
+$wpdb->insert( t( 'audit' ), array( 'action' => 'commission.adjusted', 'object_type' => 'commission', 'object_id' => 1, 'actor_id' => 0, 'created_at' => '2024-01-01 00:00:00' ) );
+$wpdb->insert( t( 'audit' ), array( 'action' => 'code.created', 'object_type' => 'code', 'object_id' => 1, 'actor_id' => 0, 'created_at' => '2024-01-01 00:00:00' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'audit_retention_days' => 30 ) ) );
+Settings::flush_cache();
+WPAffiliateCaptain\Core\Cron::daily();
+check( 'Y17 commission.* audit entries are kept as booking records', array( 'commission.adjusted' ), $wpdb->get_col( 'SELECT action FROM ' . t( 'audit' ) . " WHERE created_at = '2024-01-01 00:00:00'" ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 10 ) ) );
+Settings::flush_cache();
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

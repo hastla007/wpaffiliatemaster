@@ -99,17 +99,20 @@ final class Cron {
 		\WPAffiliateCaptain\Tracking\CustomerLinks::purge_expired();
 		\WPAffiliateCaptain\Privacy\Privacy::finish_pending_erasures();
 		\WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
+		\WPAffiliateCaptain\Privacy\Retention::purge_erased();
+		\WPAffiliateCaptain\Privacy\Retention::purge_agreements();
 		$audit_days = (int) Settings::get( 'audit_retention_days' );
 		if ( $audit_days > 0 ) {
 			$audit = Db::table( 'audit' );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			// Acceptance records stay as proof; the change log of booking-relevant data (payouts,
-			// statements, bank details) is kept as long as the statements (GoBD).
-			$years     = max( 10, (int) Settings::get( 'statement_retention_years' ) );
-			$financial = Db::now( strtotime( gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) ) . ' UTC' ) );
+			// Acceptance records stay as proof (deleted with the partner's agreements, see Retention);
+			// the change log of booking-relevant data (commissions, payouts, statements, bank details)
+			// is kept as long as the statements (GoBD), and not at all deleted during a tax audit or
+			// legal hold. "Keep forever" keeps it forever.
+			$cutoff    = \WPAffiliateCaptain\Privacy\Retention::cutoff();
+			$financial = null === $cutoff ? '1970-01-01 00:00:00' : $cutoff;
 			// Table name and the LIKE patterns are constants; the dates are placeholders.
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
-			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' ) OR created_at < %s )", Db::now( time() - $audit_days * DAY_IN_SECONDS ), $financial ) );
+			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' AND action NOT LIKE 'commission.%%' AND action NOT LIKE 'balance.%%' AND action NOT LIKE 'tier.%%' ) OR created_at < %s )", Db::now( time() - $audit_days * DAY_IN_SECONDS ), $financial ) );
 		}
 		$jobs = Db::table( 'jobs' );
 		// Failed jobs are kept 180 days for analysis, then removed (payloads may contain order data).

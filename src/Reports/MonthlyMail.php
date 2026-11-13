@@ -23,6 +23,7 @@ final class MonthlyMail {
 	 * Send the summary of the previous month if not done yet (cron, daily).
 	 */
 	public static function send_due() {
+		self::watchdog();
 		if ( ! Settings::get( 'report_admin' ) && ! Settings::get( 'report_partners' ) ) {
 			return;
 		}
@@ -36,8 +37,9 @@ final class MonthlyMail {
 			update_option(
 				self::PROGRESS,
 				array(
-					'month'  => $month,
-					'offset' => 0,
+					'month'   => $month,
+					'offset'  => 0,
+					'touched' => time(),
 				),
 				false
 			);
@@ -75,7 +77,8 @@ final class MonthlyMail {
 		}
 		$sent = self::send( $progress['month'], false, (int) $progress['offset'], self::BATCH_SIZE );
 		if ( $sent['remaining'] > 0 ) {
-			$progress['offset'] += self::BATCH_SIZE;
+			$progress['offset']  += self::BATCH_SIZE;
+			$progress['touched']  = time();
 			update_option( self::PROGRESS, $progress, false );
 			wp_schedule_single_event( time() + 60, self::BATCH_HOOK );
 		} else {
@@ -141,7 +144,7 @@ final class MonthlyMail {
 			$remaining = max( 0, count( $rows ) - $offset - ( $limit ? $limit : count( $rows ) ) );
 			foreach ( $limit ? array_slice( $rows, $offset, $limit ) : $rows as $r ) {
 				$aff = AffiliateRepository::find( $r['affiliate_id'] );
-				if ( ! $aff || 'active' !== $aff->status || ( ! $r['orders'] && ! $r['visits'] && ! $r['commission'] ) ) {
+				if ( ! $aff || 'active' !== $aff->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) || ( ! $r['orders'] && ! $r['visits'] && ! $r['commission'] ) ) {
 					continue;
 				}
 				$lines   = array();
@@ -153,6 +156,9 @@ final class MonthlyMail {
 				$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['commission'] );
 				if ( $r['corrections'] ) {
 					$lines[] = __( 'Corrections', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['corrections'] );
+				}
+				if ( $r['writeoffs'] ) {
+					$lines[] = __( 'Written-off negative balance', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['writeoffs'] );
 				}
 				if ( $r['bonus'] ) {
 					$lines[] = __( 'Monthly bonus', 'wp-affiliate-captain' ) . ': ' . $fmt( $r['bonus'] );
@@ -205,6 +211,7 @@ final class MonthlyMail {
 			'commission'  => 0,
 			'corrections' => 0,
 			'bonus'       => 0,
+			'writeoffs'   => 0,
 		);
 		foreach ( $rows as $r ) {
 			foreach ( $tot as $k => $v ) {
@@ -220,6 +227,9 @@ final class MonthlyMail {
 		$lines[] = __( 'Commission', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['commission'] );
 		$lines[] = __( 'Corrections', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['corrections'] );
 		$lines[] = __( 'Monthly bonuses', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['bonus'] );
+		if ( $tot['writeoffs'] ) {
+			$lines[] = __( 'Written-off negative balances', 'wp-affiliate-captain' ) . ': ' . $fmt( $tot['writeoffs'] );
+		}
 		$counts  = AffiliateRepository::count_by_status();
 		$lines[] = __( 'Applications waiting', 'wp-affiliate-captain' ) . ': ' . (int) $counts['pending'];
 		$lines[] = __( 'Open payout requests', 'wp-affiliate-captain' ) . ': ' . count( PayoutRequests::query( 'requested' ) );
@@ -247,18 +257,20 @@ final class MonthlyMail {
 	 * @param int    $affiliate_id Partner (0 = operator).
 	 */
 	private static function record_failure( $month, $affiliate_id ) {
-		$failed = get_option( self::FAILED );
-		$failed = is_array( $failed ) && isset( $failed['month'] ) && $failed['month'] === $month ? $failed : array(
-			'month' => $month,
-			'ids'   => array(),
-			'admin' => false,
-			'tries' => 0,
-		);
+		// Failures are kept per month: a failure of a later month must not drop an older one.
+		$failed = self::failures();
+		if ( ! isset( $failed[ $month ] ) ) {
+			$failed[ $month ] = array(
+				'ids'   => array(),
+				'admin' => false,
+				'tries' => 0,
+			);
+		}
 		if ( $affiliate_id ) {
-			$failed['ids'][] = (int) $affiliate_id;
-			$failed['ids']   = array_values( array_unique( $failed['ids'] ) );
+			$failed[ $month ]['ids'][] = (int) $affiliate_id;
+			$failed[ $month ]['ids']   = array_values( array_unique( $failed[ $month ]['ids'] ) );
 		} else {
-			$failed['admin'] = true;
+			$failed[ $month ]['admin'] = true;
 		}
 		update_option( self::FAILED, $failed, false );
 		if ( ! wp_next_scheduled( self::RETRY_HOOK ) ) {
@@ -267,41 +279,97 @@ final class MonthlyMail {
 	}
 
 	/**
-	 * Send failed report mails again (hourly, at most 3 attempts); what still fails is logged
-	 * in the audit log (report.mail_failed) instead of being lost silently.
+	 * Remembered failures: month => [ ids, admin, tries ] (older single-month format is converted).
+	 *
+	 * @return array
+	 */
+	public static function failures() {
+		wp_cache_delete( self::FAILED, 'options' );
+		$failed = get_option( self::FAILED );
+		if ( ! is_array( $failed ) ) {
+			return array();
+		}
+		if ( isset( $failed['month'] ) && is_string( $failed['month'] ) ) {
+			return array(
+				$failed['month'] => array(
+					'ids'   => isset( $failed['ids'] ) ? (array) $failed['ids'] : array(),
+					'admin' => ! empty( $failed['admin'] ),
+					'tries' => isset( $failed['tries'] ) ? (int) $failed['tries'] : 0,
+				),
+			);
+		}
+		return $failed;
+	}
+
+	/**
+	 * Send failed report mails again (hourly, at most 3 attempts per month); what still fails is
+	 * logged in the audit log (report.mail_failed) instead of being lost silently. Only one
+	 * process retries at a time (WP-Cron and a system cron could overlap and mail twice).
 	 */
 	public static function retry_failed() {
-		$failed = get_option( self::FAILED );
-		if ( ! is_array( $failed ) || empty( $failed['month'] ) ) {
+		$owner = \WPAffiliateCaptain\Core\Db::lock( 'wpac_report_retry_lock', 30 * MINUTE_IN_SECONDS );
+		if ( '' === $owner ) {
 			return;
 		}
-		delete_option( self::FAILED );
-		$attempt = (int) $failed['tries'] + 1;
-		if ( ! empty( $failed['admin'] ) ) {
-			self::send( $failed['month'], true );
-		}
-		if ( ! empty( $failed['ids'] ) ) {
-			self::send( $failed['month'], false, 0, 0, array_map( 'intval', $failed['ids'] ) );
-		}
-		$again = get_option( self::FAILED );
-		if ( is_array( $again ) && $again['month'] === $failed['month'] ) {
-			if ( $attempt >= 3 ) {
+		try {
+			$failed = self::failures();
+			if ( ! $failed ) {
+				return;
+			}
+			delete_option( self::FAILED ); // send() records what fails again in this run.
+			foreach ( $failed as $month => $f ) {
+				if ( ! empty( $f['admin'] ) ) {
+					self::send( (string) $month, true );
+				}
+				if ( ! empty( $f['ids'] ) ) {
+					self::send( (string) $month, false, 0, 0, array_map( 'intval', $f['ids'] ) );
+				}
+			}
+			$left = array();
+			foreach ( self::failures() as $month => $f ) {
+				$attempt = ( isset( $failed[ $month ] ) ? (int) $failed[ $month ]['tries'] : 0 ) + 1;
+				if ( $attempt >= 3 ) {
+					Audit::log(
+						'report.mail_failed',
+						'report',
+						0,
+						array(
+							'month'    => (string) $month,
+							'partners' => $f['ids'],
+							'operator' => ! empty( $f['admin'] ),
+						)
+					);
+					continue;
+				}
+				$f['tries']     = $attempt;
+				$left[ $month ] = $f;
+			}
+			if ( $left ) {
+				update_option( self::FAILED, $left, false );
+			} else {
 				delete_option( self::FAILED );
 				wp_clear_scheduled_hook( self::RETRY_HOOK );
-				Audit::log(
-					'report.mail_failed',
-					'report',
-					0,
-					array(
-						'month'    => $failed['month'],
-						'partners' => $again['ids'],
-						'operator' => ! empty( $again['admin'] ),
-					)
-				);
-			} else {
-				$again['tries'] = $attempt;
-				update_option( self::FAILED, $again, false );
 			}
+		} finally {
+			\WPAffiliateCaptain\Core\Db::unlock( 'wpac_report_retry_lock', $owner );
+		}
+	}
+
+	/**
+	 * Watchdog (daily): a partner batch chain whose next event got lost (cron cleared, site
+	 * migrated, fatal error) is started again; pending retries get their event back.
+	 */
+	public static function watchdog() {
+		$progress = get_option( self::PROGRESS );
+		if ( is_array( $progress ) && ! empty( $progress['month'] ) && ! wp_next_scheduled( self::BATCH_HOOK ) ) {
+			$touched = isset( $progress['touched'] ) ? (int) $progress['touched'] : 0;
+			if ( $touched < time() - 10 * MINUTE_IN_SECONDS ) {
+				wp_schedule_single_event( time() + 30, self::BATCH_HOOK );
+				Audit::log( 'report.batch_restarted', 'report', 0, array( 'month' => $progress['month'], 'offset' => (int) $progress['offset'] ) );
+			}
+		}
+		if ( self::failures() && ! wp_next_scheduled( self::RETRY_HOOK ) ) {
+			wp_schedule_single_event( time() + 60, self::RETRY_HOOK );
 		}
 	}
 }

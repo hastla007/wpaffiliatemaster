@@ -443,8 +443,8 @@ final class Statement {
 	 */
 	public static function purge_expired() {
 		global $wpdb;
-		$years = (int) Settings::get( 'statement_retention_years' );
-		if ( $years <= 0 || Settings::get( 'retention_hold' ) ) {
+		$years = \WPAffiliateCaptain\Privacy\Retention::years();
+		if ( $years <= 0 || \WPAffiliateCaptain\Privacy\Retention::on_hold() ) {
 			return 0;
 		}
 		$years = max( 10, $years ); // Never below the statutory minimum (older settings).

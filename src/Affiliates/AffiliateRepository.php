@@ -367,6 +367,10 @@ final class AffiliateRepository {
 		if ( $aff->status === $status ) {
 			return true;
 		}
+		if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $id ) && in_array( $status, array( 'active', 'pending' ), true ) ) {
+			// Restricted processing (erasure or Art. 18 request): the account cannot be reactivated.
+			return new \WP_Error( 'wpac_restricted', __( 'Processing of this partner is restricted (data protection). Lift the restriction first.', 'wp-affiliate-captain' ) );
+		}
 		if ( in_array( $status, array( 'paused', 'terminated', 'rejected' ), true ) && '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );
 		}
