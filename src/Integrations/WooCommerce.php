@@ -42,8 +42,10 @@ final class WooCommerce {
 		// over while the checkout field is on (checked inside).
 		add_action( 'woocommerce_checkout_create_order', array( CheckoutField::class, 'classic_save' ), 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( CheckoutField::class, 'blocks_save' ), 10, 1 );
-		add_action( 'woocommerce_checkout_order_processed', array( Tracker::class, 'clear_touch' ) );
-		add_action( 'woocommerce_store_api_checkout_order_processed', array( Tracker::class, 'clear_touch' ) );
+		// The session referral is cleared once the order is paid – not when it is placed: an aborted
+		// payment (PayPal, card) makes the next attempt a new order that still needs the referral.
+		add_action( 'woocommerce_payment_complete', array( Tracker::class, 'clear_touch_for_order' ) );
+		add_action( 'woocommerce_thankyou', array( Tracker::class, 'clear_touch_for_order' ) );
 
 		// Sales and refunds.
 		add_action( 'woocommerce_payment_complete', array( OrderSync::class, 'sync_order' ) );

@@ -1513,6 +1513,7 @@ WPAffiliateCaptain\Core\Cron::daily();
 $zf_hosts = array_values( array_unique( array_map( static function ( $u ) { return (string) parse_url( (string) $u, PHP_URL_HOST ); }, $GLOBALS['test_http_calls'] ) ) );
 check( 'ZF6 core flows make no outgoing requests (no license server, VIES off)', array(), $zf_hosts );
 require __DIR__ . '/r8-g2.php';
+require __DIR__ . '/r8-g1.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

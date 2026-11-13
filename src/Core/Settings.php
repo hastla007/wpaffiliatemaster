@@ -48,6 +48,8 @@ final class Settings {
 			'checkout_field'          => 1,
 			'renewal_commission'      => 1,
 			'js_tracking'             => 0,
+			'cookie_domain'           => '',         // '' = WordPress COOKIE_DOMAIN (current host).
+			'visit_log_percent'       => 100,        // Share of link visits written to the visit log (0 = off).
 			'coupon_priority'         => 1,
 			'self_referral'           => 'block',    // block|review.
 			'rate_limit_per_minute'   => 30,
@@ -395,6 +397,32 @@ final class Settings {
 				// Rate and type belong together: keep both as stored.
 				$out['default_rate']      = (string) $old( 'default_rate' );
 				$out['default_rate_type'] = (string) $old( 'default_rate_type' );
+			}
+		}
+
+		$out['visit_log_percent'] = $d['visit_log_percent'];
+		if ( isset( $in['visit_log_percent'] ) ) {
+			$raw = trim( (string) $in['visit_log_percent'] );
+			if ( preg_match( '/^\d+$/', $raw ) && (int) $raw <= 100 ) {
+				$out['visit_log_percent'] = (int) $raw;
+			} else {
+				$errors['visit_log_percent'] = __( 'Please enter a percentage between 0 and 100.', 'affiliate-captain' );
+				$out['visit_log_percent']    = (int) $old( 'visit_log_percent' );
+			}
+		}
+
+		// Cookie domain for landing pages and shop on different subdomains: must be this site's host
+		// or a parent domain of it (a browser rejects anything else).
+		$out['cookie_domain'] = '';
+		if ( isset( $in['cookie_domain'] ) && '' !== trim( (string) $in['cookie_domain'] ) ) {
+			$domain = ltrim( strtolower( trim( (string) $in['cookie_domain'] ) ), '.' );
+			$host   = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+			if ( preg_match( '/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $domain ) && ( $host === $domain || substr( $host, -strlen( $domain ) - 1 ) === '.' . $domain ) ) {
+				$out['cookie_domain'] = '.' . $domain;
+			} else {
+				/* translators: %s: host name */
+				$errors['cookie_domain'] = sprintf( __( 'Please enter this site\'s domain or a parent domain of %s (e.g. .example.com), or leave the field empty.', 'affiliate-captain' ), $host );
+				$out['cookie_domain']    = (string) $old( 'cookie_domain' );
 			}
 		}
 
