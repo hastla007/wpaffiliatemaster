@@ -21,7 +21,12 @@ final class Cron {
 		add_action( self::DAILY, array( __CLASS__, 'daily' ) );
 		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'batch' ) );
 		add_action( \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, array( \WPAffiliateCaptain\Reports\MonthlyMail::class, 'retry_failed' ) );
-		add_action( \WPAffiliateCaptain\Payouts\Vies::HOOK, array( \WPAffiliateCaptain\Payouts\Vies::class, 'check' ) );
+		add_action(
+			\WPAffiliateCaptain\Payouts\Vies::HOOK,
+			static function ( $affiliate_id ) {
+				\WPAffiliateCaptain\Payouts\Vies::check( $affiliate_id );
+			}
+		);
 		add_action( Jobs::DRAIN_HOOK, array( Jobs::class, 'drain' ) );
 	}
 

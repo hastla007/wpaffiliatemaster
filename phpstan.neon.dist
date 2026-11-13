@@ -9,6 +9,10 @@ parameters:
 		- src
 	scanFiles:
 		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+		- tests/phpstan-stubs.php
 	bootstrapFiles:
 		- tests/phpstan-bootstrap.php
 	treatPhpDocTypesAsCertain: false
+	dynamicConstantNames:
+		- COOKIEPATH
+		- WPAC_ENCRYPTION_KEY
