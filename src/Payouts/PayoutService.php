@@ -565,6 +565,16 @@ final class PayoutService {
 					Statement::generate( $payout_id );
 					// A regular run also settles an open payout request of the partner.
 					PayoutRequests::fulfil( (int) $affiliate_id, (int) $payout_id, $currency );
+					/**
+					 * A payout was created (after the commit, statement generated), e.g. for an
+					 * add-on that pays it through another payment provider and then calls
+					 * PayoutService::mark_paid().
+					 *
+					 * @since contract 1.2.0
+					 * @param int $payout_id    Payout.
+					 * @param int $affiliate_id Partner.
+					 */
+					do_action( 'wpac_payout_created', (int) $payout_id, (int) $affiliate_id );
 				}
 			);
 		}
@@ -827,7 +837,17 @@ final class PayoutService {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
 		Audit::log( 'payout.csv_exported', 'payout', 0, array( 'batch' => $result[0], 'payouts' => $result[2] ) );
-		return array( $result[0], $result[1] );
+		/**
+		 * Rows of the transfer list (one per payout, without the header line), e.g. extra columns
+		 * of an add-on (append values at the end).
+		 *
+		 * @since contract 1.2.0
+		 * @param array  $rows    Rows.
+		 * @param string $batch   Export batch.
+		 * @param int[]  $payouts Exported payouts.
+		 */
+		$rows = apply_filters( 'wpac_transfer_rows', $result[1], $result[0], $result[2] );
+		return array( $result[0], is_array( $rows ) ? $rows : $result[1] );
 	}
 
 	/**

@@ -120,7 +120,17 @@ final class Reports {
 				return $b['commission'] <=> $a['commission'];
 			}
 		);
-		return array_values( $rows );
+		/**
+		 * Partner report rows (per partner and currency), e.g. extra figures of an add-on.
+		 *
+		 * @since contract 1.2.0
+		 * @param array  $rows         Rows.
+		 * @param string $from         From (Y-m-d).
+		 * @param string $to           To (Y-m-d).
+		 * @param int    $affiliate_id Only this partner (0 = all).
+		 */
+		$rows = apply_filters( 'wpac_report_partners', array_values( $rows ), $from, $to, (int) $affiliate_id );
+		return is_array( $rows ) ? array_values( $rows ) : array();
 	}
 
 	/**

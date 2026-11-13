@@ -329,5 +329,38 @@ check( 'ZE import: percent over 100 refused', null, \WPAffiliateCaptain\Migratio
 check( 'ZE import: unknown rate type refused', null, \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( '10', 'tiered' ) );
 check( 'ZE SEPA: ext-dom available in the test run', true, SepaXml::dom_available() );
 
+// A2: the free core plugin never contains license checks, gated features or its own updater
+// (WordPress.org guidelines 5 and 8). Those belong to the separate premium add-on.
+$wpac_guard_patterns = array(
+	'LicenseClient'                          => '/LicenseClient/',
+	'license server route wplc/v1'           => '#wplc/v1#',
+	'wplc_ prefix'                           => '/\bwplc_/i',
+	'Update URI header'                      => '/Update URI\s*:/i',
+	'pre_set_site_transient_update_plugins'  => '/pre_set_site_transient_update_plugins/',
+	'site_transient_update_plugins filter'   => '/[\'"]site_transient_update_plugins[\'"]/',
+	'plugins_api filter'                     => '/[\'"]plugins_api[\'"]/',
+	'entitlement checks'                     => '/allows_entitlement|entitlement/i',
+	'license key handling'                   => '/license_key|licence_key/i',
+);
+$wpac_guard_files = array( 'affiliate-captain.php', 'uninstall.php' );
+foreach ( array( 'src', 'assets', 'blocks', 'tools' ) as $wpac_guard_dir ) {
+	$wpac_it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__ ) . '/' . $wpac_guard_dir, FilesystemIterator::SKIP_DOTS ) );
+	foreach ( $wpac_it as $wpac_f ) {
+		if ( preg_match( '/\.(php|js|json)$/', $wpac_f->getFilename() ) ) {
+			$wpac_guard_files[] = substr( $wpac_f->getPathname(), strlen( dirname( __DIR__ ) ) + 1 );
+		}
+	}
+}
+$wpac_guard_hits = array();
+foreach ( $wpac_guard_files as $wpac_f ) {
+	$wpac_src = (string) file_get_contents( dirname( __DIR__ ) . '/' . $wpac_f );
+	foreach ( $wpac_guard_patterns as $wpac_label => $wpac_re ) {
+		if ( preg_match( $wpac_re, $wpac_src ) ) {
+			$wpac_guard_hits[] = $wpac_f . ': ' . $wpac_label;
+		}
+	}
+}
+check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

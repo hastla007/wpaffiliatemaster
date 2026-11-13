@@ -1425,5 +1425,94 @@ foreach ( (array) glob( $zd_dir . '/*' ) as $zd_f ) { @unlink( $zd_f ); }
 // ZE: CSV import, program export, REST permission callbacks.
 require __DIR__ . '/ze-import-rest.php';
 
+// ---------------------------------------------------------------------------------------------
+// ZF: free core (K5/A4/A5) – add-on extension points and no network access in core flows.
+// ---------------------------------------------------------------------------------------------
+echo "ZF free core: add-on hooks, core works alone without network\n";
+$GLOBALS['test_http_calls'] = array();
+unset( $GLOBALS['test_http'] ); // Every outgoing request fails ("offline").
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'min_payout_minor' => 0, 'vies_check' => 0 ) ) );
+Settings::flush_cache();
+$zf = AffiliateRepository::create( array( 'name' => 'ZF Partner', 'email' => 'zf@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $zf, array( 'tax_status' => 'private', 'legal_name' => 'ZF Partner', 'address' => "Mole 3\n24937 Flensburg", 'country' => 'DE', 'account_holder' => 'ZF Partner', 'iban' => 'DE89370400440532013000' ) );
+$zf_code = WPAffiliateCaptain\Codes\CodeRepository::main_code( $zf );
+sale( 'zf-1', $zf_code, array( 10000 ), 'kaeufer-zf1@example.de' );
+$zf_plain = sum_for( $zf );
+add_filter(
+	'wpac_commission_amount',
+	static function ( $amount, $item, $affiliate_id ) use ( $zf ) {
+		return $affiliate_id === $zf ? $amount + 123 : $amount;
+	},
+	10,
+	3
+);
+sale( 'zf-2', $zf_code, array( 10000 ), 'kaeufer-zf2@example.de' );
+remove_all_filters( 'wpac_commission_amount' );
+check( 'ZF1 wpac_commission_amount changes the commission of an add-on rule', 2 * $zf_plain + 123, sum_for( $zf ) );
+foreach ( $GLOBALS['wpdb']->get_col( 'SELECT id FROM ' . t( 'commissions' ) . ' WHERE affiliate_id = ' . (int) $zf ) as $zf_cid ) {
+	Ledger::transition( (int) $zf_cid, 'approved' );
+}
+$zf_created = array();
+add_action(
+	'wpac_payout_created',
+	static function ( $payout_id, $affiliate_id ) use ( &$zf_created ) {
+		$zf_created[] = array( $payout_id, $affiliate_id );
+	},
+	10,
+	2
+);
+$zf_pid = PayoutService::create_for_affiliate( $zf, gmdate( 'Y-m-d' ), 'EUR' );
+remove_all_filters( 'wpac_payout_created' );
+check( 'ZF2 wpac_payout_created fires once with payout and partner', array( array( $zf_pid, $zf ) ), $zf_created );
+add_filter(
+	'wpac_transfer_rows',
+	static function ( $rows ) {
+		foreach ( $rows as $i => $row ) {
+			$rows[ $i ][] = 'X-' . $i;
+		}
+		return $rows;
+	}
+);
+$zf_csv = PayoutService::transfer_csv( array( $zf_pid ) );
+remove_all_filters( 'wpac_transfer_rows' );
+check( 'ZF3 wpac_transfer_rows adds a column to the transfer list', array( 1, 'X-0' ), is_array( $zf_csv ) ? array( count( $zf_csv[1] ), end( $zf_csv[1][0] ) ) : array() );
+add_filter(
+	'wpac_report_partners',
+	static function ( $rows ) {
+		foreach ( $rows as $i => $row ) {
+			$rows[ $i ]['addon'] = 'yes';
+		}
+		return $rows;
+	}
+);
+$zf_rep = WPAffiliateCaptain\Reports\Reports::partners( gmdate( 'Y-m-01', strtotime( '-1 year' ) ), gmdate( 'Y-m-d', strtotime( '+1 day' ) ), $zf );
+remove_all_filters( 'wpac_report_partners' );
+check( 'ZF4 wpac_report_partners extends the partner report', 'yes', isset( $zf_rep[0]['addon'] ) ? $zf_rep[0]['addon'] : '' );
+if ( WPAffiliateCaptain\Migration\ProgramExport::available() ) {
+	add_filter(
+		'wpac_program_export_files',
+		static function ( $files ) {
+			$files['addon.csv']   = "id;value\n1;a\n2;b\n";
+			$files['partners.csv'] = 'must not replace a core file';
+			return $files;
+		}
+	);
+	$zf_zip    = sys_get_temp_dir() . '/wpac-zf-export.zip';
+	$zf_counts = WPAffiliateCaptain\Migration\ProgramExport::write( $zf_zip, false );
+	remove_all_filters( 'wpac_program_export_files' );
+	$zf_z = new ZipArchive();
+	$zf_z->open( $zf_zip );
+	check( 'ZF5 wpac_program_export_files adds files, core files stay', array( 2, "id;value\n1;a\n2;b\n", false ), array( is_array( $zf_counts ) ? $zf_counts['addon.csv'] : null, $zf_z->getFromName( 'addon.csv' ), 'must not replace a core file' === $zf_z->getFromName( 'partners.csv' ) ) );
+	$zf_z->close();
+	@unlink( $zf_zip );
+}
+// A5: refunds, payouts, statements, exports and the daily maintenance run without any network
+// access; the core never contacts a license server or any other external host.
+refund( 'zf-2', 'zf-r1', array( array( 'item_id' => '1', 'net_minor' => 5000 ) ) );
+WPAffiliateCaptain\Core\Cron::daily();
+$zf_hosts = array_values( array_unique( array_map( static function ( $u ) { return (string) parse_url( (string) $u, PHP_URL_HOST ); }, $GLOBALS['test_http_calls'] ) ) );
+check( 'ZF6 core flows make no outgoing requests (no license server, VIES off)', array(), $zf_hosts );
+check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );
