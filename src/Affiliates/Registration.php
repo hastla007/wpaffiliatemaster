@@ -100,6 +100,10 @@ final class Registration {
 			self::$field = 'wpac_terms';
 			self::back( $redirect, 'terms' );
 		}
+		if ( $terms['page_id'] ) {
+			// The text accepted now is kept even if the page changes before the e-mail confirmation.
+			Agreements::store_text( $terms );
+		}
 
 		$user  = wp_get_current_user();
 		$email = $user && $user->exists() ? $user->user_email : ( isset( $_POST['wpac_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_email'] ) ) : '' );
@@ -124,13 +128,9 @@ final class Registration {
 			'redirect'         => $redirect,
 		);
 
-		// Logged-in users have a verified account e-mail: create the application directly.
-		if ( $data['user_id'] ) {
-			$result = self::finalize( $data );
-			self::back( $redirect, is_wp_error( $result ) ? 'invalid' : '', 'ok' );
-		}
-
-		// Guests: double opt-in. Nothing is created until the e-mail address is confirmed.
+		// Double opt-in for everyone, also logged-in users: WordPress never verifies an account
+		// e-mail, so someone could apply under another person's address (impersonation).
+		// Nothing is created until the e-mail address is confirmed.
 		// The response is identical whether or not the address is already known (no enumeration).
 		if ( AffiliateRepository::find_by_email( $email ) ) {
 			Notifications::already_registered( $email );
@@ -424,6 +424,16 @@ final class Registration {
 				</label>
 			</p>
 			<?php endif; ?>
+			<p class="wpac-muted wpac-privacy-note">
+				<?php
+				// Information at collection (Art. 13 GDPR): purpose, legal basis, storage, link to the policy.
+				$wpac_privacy = function_exists( 'get_privacy_policy_url' ) ? get_privacy_policy_url() : '';
+				echo esc_html__( 'We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy.', 'wp-affiliate-captain' );
+				if ( $wpac_privacy ) {
+					echo ' <a href="' . esc_url( $wpac_privacy ) . '" target="_blank" rel="noopener">' . esc_html__( 'Privacy policy', 'wp-affiliate-captain' ) . '</a>';
+				}
+				?>
+			</p>
 			<p><button type="submit" class="wpac-button"><?php esc_html_e( 'Apply now', 'wp-affiliate-captain' ); ?></button></p>
 		</form>
 		<?php

@@ -83,6 +83,28 @@ final class AffiliatesPage {
 				Admin::back( __( 'Status updated.', 'wp-affiliate-captain' ) );
 				break;
 
+			case 'restriction':
+				if ( 'lift' === sanitize_key( Admin::post( 'decision' ) ) ) {
+					$r = \WPAffiliateCaptain\Privacy\Restriction::get( $id );
+					if ( $r && \WPAffiliateCaptain\Privacy\Restriction::ERASURE === $r['kind'] ) {
+						Admin::back( __( 'A restriction after an erasure request ends automatically with the retention period.', 'wp-affiliate-captain' ), 'error' );
+					}
+					\WPAffiliateCaptain\Privacy\Restriction::remove( $id, \WPAffiliateCaptain\Privacy\Restriction::REQUEST );
+					Admin::back( __( 'Restriction lifted.', 'wp-affiliate-captain' ) );
+				}
+				$note = sanitize_text_field( Admin::post( 'note' ) );
+				if ( '' === $note ) {
+					Admin::back( __( 'Please enter a reason.', 'wp-affiliate-captain' ), 'error' );
+				}
+				\WPAffiliateCaptain\Privacy\Restriction::add( $id, \WPAffiliateCaptain\Privacy\Restriction::REQUEST, $note );
+				Admin::back( __( 'Processing is restricted: no new attributions, no report mails, no reactivation.', 'wp-affiliate-captain' ) );
+				break;
+
+			case 'public_change':
+				AffiliateRepository::resolve_public_change( $id, 'approve' === sanitize_key( Admin::post( 'decision' ) ) );
+				Admin::back( __( 'Decision saved; the partner was informed.', 'wp-affiliate-captain' ) );
+				break;
+
 			case 'code_create':
 				$wish   = sanitize_text_field( Admin::post( 'code' ) );
 				$result = CodeRepository::create(
@@ -139,6 +161,30 @@ final class AffiliatesPage {
 				}
 				Audit::log( 'code.exported', 'affiliate', $id, array( 'count' => count( $out ) ) );
 				Csv::download( 'partner-codes-' . $id . '.csv', array( 'code', 'coupon', 'batch', 'used', 'limit', 'expires_at', 'status' ), $out );
+				break;
+
+			case 'vies_check':
+				$r = \WPAffiliateCaptain\Payouts\Vies::check( $id );
+				Admin::back( $r ? __( 'VAT ID checked against VIES.', 'wp-affiliate-captain' ) : __( 'No VAT ID stored.', 'wp-affiliate-captain' ), $r && 'invalid' === $r['status'] ? 'error' : 'success' );
+				break;
+
+			case 'dunning_send':
+				$level = \WPAffiliateCaptain\Commissions\Dunning::remind( $id, sanitize_text_field( Admin::post( 'currency' ) ) );
+				if ( is_wp_error( $level ) ) {
+					Admin::back( $level->get_error_message(), 'error' );
+				}
+				/* translators: %d: level */
+				Admin::back( sprintf( __( 'Payment request (level %d) sent.', 'wp-affiliate-captain' ), $level ) );
+				break;
+
+			case 'repayment':
+				$cur    = strtoupper( sanitize_text_field( Admin::post( 'currency' ) ) );
+				$amount = Money::to_minor( (string) Money::normalize_decimal( (string) Admin::post( 'amount' ) ), $cur );
+				$result = \WPAffiliateCaptain\Commissions\Dunning::record_repayment( $id, $cur, $amount, sanitize_text_field( Admin::post( 'note' ) ) );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'Repayment booked.', 'wp-affiliate-captain' ) );
 				break;
 
 			case 'balance_writeoff':
@@ -284,6 +330,26 @@ final class AffiliatesPage {
 		ob_start();
 		// Status actions.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</h2><div class="inside">';
+		$restriction = \WPAffiliateCaptain\Privacy\Restriction::get( $id );
+		if ( $restriction ) {
+			echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'Processing restricted (Art. 18 GDPR)', 'wp-affiliate-captain' ) . '</strong> ' . esc_html( sprintf( /* translators: %s: date */ __( 'since %s', 'wp-affiliate-captain' ), Admin::date( $restriction['since'], true ) ) ) . ' – ' . esc_html( \WPAffiliateCaptain\Privacy\Restriction::ERASURE === $restriction['kind'] ? __( 'after an erasure request; kept only for the statutory retention', 'wp-affiliate-captain' ) : $restriction['note'] ) . '</p>';
+			if ( \WPAffiliateCaptain\Privacy\Restriction::REQUEST === $restriction['kind'] ) {
+				Admin::form_open( 'restriction', 'wpac-inline' );
+				echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="decision" value="lift"><p><button class="button">' . esc_html__( 'Lift restriction', 'wp-affiliate-captain' ) . '</button></p></form>';
+			}
+			echo '</div>';
+		}
+		$change = AffiliateRepository::pending_public_change( $id );
+		if ( $change ) {
+			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'The partner wants to change the public details:', 'wp-affiliate-captain' ) . '</strong><br>';
+			echo esc_html__( 'Name', 'wp-affiliate-captain' ) . ': ' . esc_html( $a->name ) . ' → <strong>' . esc_html( $change['name'] ) . '</strong><br>';
+			echo esc_html__( 'Website', 'wp-affiliate-captain' ) . ': ' . esc_html( $a->website ? $a->website : '—' ) . ' → <strong>' . esc_html( $change['website'] ? $change['website'] : '—' ) . '</strong></p><p>';
+			foreach ( array( 'approve' => __( 'Approve change', 'wp-affiliate-captain' ), 'reject' => __( 'Reject change', 'wp-affiliate-captain' ) ) as $decision => $label ) {
+				Admin::form_open( 'public_change', 'wpac-inline' );
+				echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="decision" value="' . esc_attr( $decision ) . '"><button class="button' . ( 'approve' === $decision ? ' button-primary' : '' ) . '">' . esc_html( $label ) . '</button></form> ';
+			}
+			echo '</p></div>';
+		}
 		if ( $a->status_reason ) {
 			echo '<p>' . esc_html__( 'Last reason', 'wp-affiliate-captain' ) . ': ' . esc_html( $a->status_reason ) . '</p>';
 		}
@@ -323,7 +389,13 @@ final class AffiliatesPage {
 					: __( 'On termination, open commissions remain payable (see settings).', 'wp-affiliate-captain' )
 			) . '</p>';
 		}
-		echo '</form></div></div>';
+		echo '</form>';
+		if ( ! $restriction ) {
+			// Art. 18 GDPR: e.g. accuracy disputed or objection under review.
+			Admin::form_open( 'restriction' );
+			echo '<input type="hidden" name="id" value="' . (int) $id . '"><p><label for="wpac-restrict-note">' . esc_html__( 'Restrict processing on the partner\'s request (Art. 18 GDPR) – reason', 'wp-affiliate-captain' ) . '</label><br><input type="text" id="wpac-restrict-note" name="note" class="regular-text"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Restrict processing? Codes stop attributing sales and no report mails are sent until you lift it.', 'wp-affiliate-captain' ) . '">' . esc_html__( 'Restrict processing', 'wp-affiliate-captain' ) . '</button></p></form>';
+		}
+		echo '</div></div>';
 
 		$parts['overview'][] = ob_get_clean();
 		ob_start();
@@ -441,6 +513,17 @@ final class AffiliatesPage {
 			echo '<tr><th>' . esc_html__( 'Address', 'wp-affiliate-captain' ) . '</th><td><textarea name="address" rows="3" class="regular-text">' . esc_textarea( $v( 'address' ) ) . '</textarea></td></tr>';
 			self::row_input( 'country', __( 'Country', 'wp-affiliate-captain' ), $v( 'country' ), 'maxlength="2"' );
 			self::row_input( 'vat_id', __( 'VAT ID', 'wp-affiliate-captain' ), $v( 'vat_id' ) );
+			$vies = \WPAffiliateCaptain\Payouts\Vies::result( $id );
+			if ( $vies ) {
+				$vies_labels = array(
+					'valid'          => __( 'valid', 'wp-affiliate-captain' ),
+					'invalid'        => __( 'NOT valid', 'wp-affiliate-captain' ),
+					'unavailable'    => __( 'VIES not reachable – checked again automatically', 'wp-affiliate-captain' ),
+					'not_applicable' => __( 'not an EU VAT ID (no VIES check)', 'wp-affiliate-captain' ),
+				);
+				/* translators: 1: status, 2: date, 3: consultation number */
+				echo '<tr><th>VIES</th><td>' . esc_html( sprintf( __( '%1$s (checked %2$s%3$s)', 'wp-affiliate-captain' ), $vies_labels[ $vies['status'] ], Admin::date( $vies['checked_at'], true ), $vies['consultation'] ? ', ' . sprintf( /* translators: %s: number */ __( 'consultation number %s', 'wp-affiliate-captain' ), $vies['consultation'] ) : '' ) ) . ( $vies['name'] ? '<br>' . esc_html( $vies['name'] ) : '' ) . '</td></tr>';
+			}
 			self::row_input( 'tax_number', __( 'Tax number', 'wp-affiliate-captain' ), $v( 'tax_number' ) );
 			self::row_input( 'account_holder', __( 'Account holder', 'wp-affiliate-captain' ), $v( 'account_holder' ) );
 			$masked = $p ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
@@ -453,6 +536,10 @@ final class AffiliatesPage {
 				echo '<p class="description">' . esc_html__( 'Only users who manage payouts can change payout details.', 'wp-affiliate-captain' ) . '</p>';
 			}
 			echo '</form>';
+			if ( $p && '' !== (string) $p->vat_id ) {
+				Admin::form_open( 'vies_check', 'wpac-inline' );
+				echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="button">' . esc_html__( 'Check VAT ID with VIES now', 'wp-affiliate-captain' ) . '</button></form>';
+			}
 		}
 		echo '</div></div>';
 
@@ -488,8 +575,8 @@ final class AffiliatesPage {
 		$labels = \WPAffiliateCaptain\Commissions\Balance::type_labels();
 		foreach ( $currencies as $cur ) {
 			$problems = \WPAffiliateCaptain\Commissions\Balance::verify( $id, $cur );
-			/* translators: 1: currency, 2: balance */
 			$bal = \WPAffiliateCaptain\Commissions\Balance::get( $id, $cur );
+			/* translators: 1: currency, 2: balance */
 			echo '<h3>' . esc_html( sprintf( __( 'Account %1$s – balance %2$s', 'wp-affiliate-captain' ), $cur, Money::format( $bal, $cur ) ) ) . '</h3>';
 			if ( $bal < 0 && current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
 				// Negative balance (clawbacks without new earnings): settle it.
@@ -498,7 +585,27 @@ final class AffiliatesPage {
 				echo '<p><label for="wpac-writeoff-' . esc_attr( $cur ) . '">' . esc_html__( 'Reason for the write-off', 'wp-affiliate-captain' ) . '</label><br><input type="text" required class="regular-text" id="wpac-writeoff-' . esc_attr( $cur ) . '" name="reason"> ';
 				/* translators: %s: amount */
 				echo '<button class="button" data-wpac-confirm="' . esc_attr( sprintf( __( 'Write off %s? The amount is no longer offset against future commissions.', 'wp-affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ) ) ) . '">' . esc_html__( 'Write off negative balance', 'wp-affiliate-captain' ) . '</button></p></form>';
-				echo '<p class="description">' . esc_html__( 'Otherwise the negative balance is offset against the next commissions. To claim it back, invoice the partner outside the plugin and write it off here once paid.', 'wp-affiliate-captain' ) . '</p>';
+				echo '<p class="description">' . esc_html__( 'Otherwise the negative balance is offset against the next commissions.', 'wp-affiliate-captain' ) . '</p>';
+				$partner = AffiliateRepository::find( $id );
+				if ( $partner && 'terminated' === $partner->status ) {
+					// Ended partnership: nothing left to offset – claim it back.
+					$history = \WPAffiliateCaptain\Commissions\Dunning::history( $id, $cur );
+					echo '<h4>' . esc_html__( 'Claim back', 'wp-affiliate-captain' ) . '</h4><ul>';
+					foreach ( $history as $h ) {
+						/* translators: 1: level, 2: date */
+						echo '<li>' . esc_html( sprintf( __( 'Level %1$d sent on %2$s', 'wp-affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) ) ) . '</li>';
+					}
+					echo '</ul>';
+					if ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+						Admin::form_open( 'dunning_send', 'wpac-inline' );
+						/* translators: %d: level */
+						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><button class="button">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'wp-affiliate-captain' ), count( $history ) + 1 ) ) . '</button></form> ';
+					} else {
+						echo '<p class="description">' . esc_html__( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) . '</p>';
+					}
+					Admin::form_open( 'repayment', 'wpac-inline' );
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><label>' . esc_html__( 'Payment received', 'wp-affiliate-captain' ) . ' <input type="text" name="amount" size="8" inputmode="decimal"></label> <input type="text" name="note" placeholder="' . esc_attr__( 'Bank reference', 'wp-affiliate-captain' ) . '"> <button class="button">' . esc_html__( 'Book repayment', 'wp-affiliate-captain' ) . '</button></form>';
+				}
 			}
 			if ( $problems ) {
 				echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'Integrity check failed:', 'wp-affiliate-captain' ) . '</strong></p><ul>';

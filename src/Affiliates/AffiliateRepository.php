@@ -67,7 +67,7 @@ final class AffiliateRepository {
 		if ( $missing ) {
 			$t            = Db::table( 'affiliates' );
 			$placeholders = implode( ',', array_fill( 0, count( $missing ), '%d' ) );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- %d placeholders built above.
 			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE id IN ({$placeholders})", $missing ) ) as $row ) {
 				self::$cache[ (int) $row->id ] = $row;
 			}
@@ -221,6 +221,13 @@ final class AffiliateRepository {
 		if ( 'active' === $status ) {
 			self::on_activated( $id );
 		}
+		/**
+		 * A partner account was created (admin, application or API).
+		 *
+		 * @param int    $id     Affiliate ID.
+		 * @param string $status Initial status.
+		 */
+		do_action( 'wpac_affiliate_created', $id, $status );
 		return $id;
 	}
 
@@ -312,6 +319,68 @@ final class AffiliateRepository {
 	}
 
 	/**
+	 * A partner's change of the public name or website (shown in the "recommended by" box,
+	 * creatives and mails) waits for the operator's review once the partner is approved.
+	 *
+	 * @param int    $id      Affiliate ID.
+	 * @param string $name    New name.
+	 * @param string $website New website.
+	 * @return string applied|pending|unchanged
+	 */
+	public static function request_public_change( $id, $name, $website ) {
+		$aff = self::find( (int) $id );
+		if ( ! $aff ) {
+			return 'unchanged';
+		}
+		$name    = '' !== trim( (string) $name ) ? sanitize_text_field( $name ) : (string) $aff->name;
+		$website = esc_url_raw( (string) $website );
+		if ( $name === (string) $aff->name && $website === (string) $aff->website ) {
+			delete_option( 'wpac_public_change_' . (int) $id );
+			return 'unchanged';
+		}
+		if ( ! in_array( $aff->status, array( 'active', 'paused' ), true ) ) {
+			self::update( (int) $id, array( 'name' => $name, 'website' => $website ) );
+			return 'applied';
+		}
+		update_option( 'wpac_public_change_' . (int) $id, array( 'name' => $name, 'website' => $website, 'requested_at' => Db::now() ), false );
+		Audit::log( 'affiliate.public_change_requested', 'affiliate', (int) $id );
+		Notifications::public_change_requested( (int) $id );
+		return 'pending';
+	}
+
+	/**
+	 * Pending change of name/website, or null.
+	 *
+	 * @param int $id Affiliate ID.
+	 * @return array|null
+	 */
+	public static function pending_public_change( $id ) {
+		$p = get_option( 'wpac_public_change_' . (int) $id );
+		return is_array( $p ) ? $p : null;
+	}
+
+	/**
+	 * Approve or reject the pending change.
+	 *
+	 * @param int  $id      Affiliate ID.
+	 * @param bool $approve Approve.
+	 * @return bool
+	 */
+	public static function resolve_public_change( $id, $approve ) {
+		$p = self::pending_public_change( $id );
+		if ( ! $p ) {
+			return false;
+		}
+		delete_option( 'wpac_public_change_' . (int) $id );
+		if ( $approve ) {
+			self::update( (int) $id, array( 'name' => $p['name'], 'website' => $p['website'] ) );
+		}
+		Audit::log( $approve ? 'affiliate.public_change_approved' : 'affiliate.public_change_rejected', 'affiliate', (int) $id );
+		Notifications::public_change_resolved( (int) $id, (bool) $approve );
+		return true;
+	}
+
+	/**
 	 * Previous e-mail address that still receives security alerts (30 days after a change), or ''.
 	 *
 	 * @param int $id Affiliate ID.
@@ -359,6 +428,10 @@ final class AffiliateRepository {
 		}
 		if ( $aff->status === $status ) {
 			return true;
+		}
+		if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $id ) && in_array( $status, array( 'active', 'pending' ), true ) ) {
+			// Restricted processing (erasure or Art. 18 request): the account cannot be reactivated.
+			return new \WP_Error( 'wpac_restricted', __( 'Processing of this partner is restricted (data protection). Lift the restriction first.', 'wp-affiliate-captain' ) );
 		}
 		if ( in_array( $status, array( 'paused', 'terminated', 'rejected' ), true ) && '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'wp-affiliate-captain' ) );

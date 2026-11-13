@@ -87,7 +87,7 @@ final class PayoutRequests {
 				static function () use ( $wpdb, $aff ) {
 					// Serialize requests of the same partner (double click, two tabs): lock the partner row,
 					// then check again for an open request before inserting.
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- table name only.
 					$wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Db::table( 'affiliates' ) . ' WHERE id = %d FOR UPDATE', (int) $aff->id ) );
 					if ( self::open_for( (int) $aff->id ) ) {
 						return 0;

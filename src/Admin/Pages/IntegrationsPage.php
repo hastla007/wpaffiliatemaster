@@ -23,6 +23,12 @@ final class IntegrationsPage {
 	 * @param string $do Action.
 	 */
 	public static function handle( $do ) {
+		if ( 'job_retry_all' === $do ) {
+			$n = Jobs::retry_all_failed();
+			Jobs::run_due( 25 );
+			/* translators: %d: number of jobs */
+			Admin::back( sprintf( _n( '%d failed job was queued again and processed.', '%d failed jobs were queued again and processed.', $n, 'wp-affiliate-captain' ), $n ) );
+		}
 		if ( 'job_retry' === $do ) {
 			$ok = Jobs::retry( absint( Admin::post( 'id' ) ) );
 			Admin::back( $ok ? __( 'Job processed successfully.', 'wp-affiliate-captain' ) : __( 'Job failed again – see error.', 'wp-affiliate-captain' ), $ok ? 'success' : 'error' );
@@ -91,6 +97,12 @@ final class IntegrationsPage {
 		if ( ! $jobs ) {
 			echo '<p>' . esc_html__( 'No open or failed jobs.', 'wp-affiliate-captain' ) . '</p></div>';
 			return;
+		}
+		$failed = count( Jobs::query( 'failed' ) );
+		if ( $failed ) {
+			Admin::form_open( 'job_retry_all' );
+			/* translators: %d: number */
+			echo '<p><button class="button button-primary">' . esc_html( sprintf( __( 'Retry all failed jobs (%d)', 'wp-affiliate-captain' ), $failed ) ) . '</button></p></form>';
 		}
 		echo '<table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Type', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Key', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Attempts', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Error', 'wp-affiliate-captain' ) . '</th><th>' . esc_html__( 'Next attempt', 'wp-affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $jobs as $j ) {

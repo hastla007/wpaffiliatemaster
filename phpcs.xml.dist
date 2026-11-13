@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<ruleset name="WP Affiliate Captain">
+	<description>Security-relevant WordPress Coding Standards and PHP compatibility (7.4+).</description>
+	<file>wp-affiliate-captain.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>blocks</file>
+	<arg name="extensions" value="php"/>
+	<arg value="sp"/>
+	<arg name="colors"/>
+	<config name="minimum_wp_version" value="6.4"/>
+	<config name="testVersion" value="7.4-"/>
+	<config name="text_domain" value="wp-affiliate-captain"/>
+
+	<!-- Security: escaping, nonces, sanitizing input, prepared SQL. -->
+	<rule ref="WordPress.Security">
+		<!-- Exception messages are never printed raw: they go to the audit log, job errors and
+		     WP_Error messages, which are escaped where they are shown. -->
+		<exclude name="WordPress.Security.EscapeOutput.ExceptionNotEscaped"/>
+	</rule>
+	<rule ref="WordPress.DB.PreparedSQL"/>
+	<rule ref="WordPress.DB.PreparedSQLPlaceholders"/>
+	<rule ref="WordPress.DB.RestrictedFunctions"/>
+	<rule ref="WordPress.DB.RestrictedClasses"/>
+	<rule ref="WordPress.PHP.RestrictedPHPFunctions"/>
+	<rule ref="WordPress.PHP.DevelopmentFunctions"/>
+	<rule ref="WordPress.PHP.DontExtract"/>
+	<rule ref="WordPress.PHP.IniSet"/>
+	<rule ref="WordPress.WP.I18n"/>
+	<rule ref="WordPress.WP.AlternativeFunctions">
+		<!-- Statement PDFs and exports are written with plain file functions on purpose. -->
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fopen"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fwrite"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fclose"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.unlink_unlink"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_readfile"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_mkdir"/>
+		<exclude name="WordPress.WP.AlternativeFunctions.rename_rename"/>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride"/>
+	<rule ref="Generic.PHP.Syntax"/>
+
+	<!-- PHP compatibility with the minimum supported version. -->
+	<rule ref="PHPCompatibilityWP"/>
+</ruleset>

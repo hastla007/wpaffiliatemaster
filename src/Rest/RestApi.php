@@ -56,7 +56,22 @@ final class RestApi {
 		if ( ! Settings::get( 'js_tracking' ) ) {
 			return new \WP_Error( 'wpac_disabled', 'JavaScript tracking is disabled.', array( 'status' => 404 ) );
 		}
+		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).
+		$res->header( 'Cache-Control', 'no-store' );
+		// Like a page view, but a script can send many: limited per client (same answer when over the limit).
+		if ( ! RateLimiter::allow( 'touch', 30, MINUTE_IN_SECONDS ) ) {
+			return $res;
+		}
+		// REST requests do not load the WooCommerce session: without it the touch of a visitor with a
+		// cart would not reach the checkout.
+		if ( function_exists( 'WC' ) && function_exists( 'wc_load_cart' ) && ! WC()->session ) {
+			wc_load_cart();
+		}
 		$path = wp_parse_url( (string) $r['path'], PHP_URL_PATH );
+		// Only the host of the previous page is kept (never its path or query, which may contain personal data).
+		$ref  = trim( (string) $r['referrer'] );
+		$host = false !== strpos( $ref, '://' ) ? (string) wp_parse_url( $ref, PHP_URL_HOST ) : $ref;
+		$host = preg_match( '/^[a-z0-9.-]{1,253}$/i', $host ) ? strtolower( $host ) : '';
 		\WPAffiliateCaptain\Tracking\Tracker::capture_code(
 			sanitize_text_field( (string) $r['code'] ),
 			sanitize_text_field( (string) $r['campaign'] ),
@@ -65,15 +80,50 @@ final class RestApi {
 				'utm_source' => sanitize_text_field( (string) $r['utm_source'] ),
 				'utm_medium' => sanitize_text_field( (string) $r['utm_medium'] ),
 				'path'       => is_string( $path ) ? $path : '',
-				'referrer'   => esc_url_raw( (string) $r['referrer'] ),
+				'referrer'   => '' !== $host ? 'https://' . $host . '/' : '',
 			)
 		);
-		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).
+		return $res;
+	}
+
+	/**
+	 * Health for external monitoring: administrators, or a monitor with the token from the
+	 * settings (header X-WPAC-Monitor-Token). The token only gets the names of failing checks.
+	 *
+	 * @param \WP_REST_Request $r Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function health( $r ) {
+		$token = (string) Settings::get( 'monitor_token' );
+		$sent  = (string) $r->get_header( 'x-wpac-monitor-token' );
+		$admin = current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM );
+		if ( ! $admin && ( '' === $token || '' === $sent || ! hash_equals( $token, $sent ) ) ) {
+			return new \WP_Error( 'wpac_forbidden', 'Not allowed.', array( 'status' => 403 ) );
+		}
+		$problems = \WPAffiliateCaptain\Core\Monitor::problems( true );
+		$body     = array(
+			'ok'     => ! $problems,
+			'failed' => array_keys( $problems ),
+		);
+		if ( $admin ) {
+			$body['checks'] = \WPAffiliateCaptain\Core\Monitor::checks();
+		}
+		$res = rest_ensure_response( $body );
+		$res->set_status( $problems ? 503 : 200 ); // Monitors react to the status code.
 		$res->header( 'Cache-Control', 'no-store' );
 		return $res;
 	}
 
 	public static function routes() {
+		register_rest_route(
+			self::NS,
+			'/health',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => '__return_true', // Checked in the callback (token or capability).
+				'callback'            => array( __CLASS__, 'health' ),
+			)
+		);
 		register_rest_route(
 			self::NS,
 			'/contract',

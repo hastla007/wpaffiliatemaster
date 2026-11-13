@@ -9,6 +9,12 @@ on:
 permissions:
   contents: read
 
+# One run per branch/PR: a newer push cancels the older run (never on main or tags, so a
+# release run is not cut off).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref_type != 'tag' }}
+
 jobs:
   test:
     name: PHP ${{ matrix.php }}
@@ -18,8 +24,8 @@ jobs:
       matrix:
         php: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: ${{ matrix.php }}
           extensions: sodium, dom, mbstring
@@ -32,7 +38,74 @@ jobs:
         run: php examples/connector-addon/tests/connector-test.php
 
   integration:
-    name: Integration (MariaDB)
+    name: Integration (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: "MariaDB 10.11"
+            image: mariadb:10.11
+            health: healthcheck.sh --connect --innodb_initialized
+          - db: "MySQL 8.4"
+            image: mysql:8.4
+            health: mysqladmin ping -h 127.0.0.1 -uroot -proot
+    services:
+      db:
+        image: ${{ matrix.image }}
+        env:
+          MARIADB_DATABASE: wpac_test
+          MARIADB_USER: wpac
+          MARIADB_PASSWORD: wpac
+          MARIADB_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wpac_test
+          MYSQL_USER: wpac
+          MYSQL_PASSWORD: wpac
+          MYSQL_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="${{ matrix.health }}" --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring
+          coverage: none
+      - name: Ledger and payout integration tests
+        env:
+          WPAC_TEST_DB_HOST: 127.0.0.1
+        run: php tests/integration/run.php
+
+  # MySQL with lower_case_table_names=1 (Windows, some managed hosts): table names come back in
+  # lower case; a mixed-case prefix shows whether the plugin still finds its tables.
+  integration-lower-case:
+    name: Integration (MySQL 8.4, lower_case_table_names=1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring
+          coverage: none
+      - name: MySQL with lower_case_table_names=1
+        run: |
+          docker run -d --name lcdb -p 3307:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=wpac_test -e MYSQL_USER=wpac -e MYSQL_PASSWORD=wpac mysql:8.4 --lower-case-table-names=1
+          for i in $(seq 1 60); do docker exec lcdb mysqladmin ping -uroot -proot --silent && break; sleep 2; done
+          sleep 5
+          docker exec lcdb mysql -uroot -proot -N -e "SELECT @@lower_case_table_names"
+      - name: Integration tests with prefix Wp_
+        env:
+          WPAC_TEST_DB_HOST: 127.0.0.1:3307
+          WPAC_TEST_DB_PREFIX: Wp_
+        run: php tests/integration/run.php
+
+  coverage:
+    name: Coverage (unit + integration)
     runs-on: ubuntu-latest
     services:
       mariadb:
@@ -45,22 +118,54 @@ jobs:
         ports: ["3306:3306"]
         options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: "8.3"
           extensions: mysqli, sodium, dom, mbstring
-          coverage: none
-      - name: Ledger and payout integration tests
+          coverage: xdebug
+      - name: Tests with line coverage
         env:
           WPAC_TEST_DB_HOST: 127.0.0.1
-        run: php tests/integration/run.php
+        run: |
+          php -d xdebug.mode=coverage -d auto_prepend_file=tests/coverage-prepend.php tests/run.php
+          php -d xdebug.mode=coverage -d auto_prepend_file=tests/coverage-prepend.php tests/integration/run.php
+          php tests/coverage-report.php | tee coverage/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage
+          path: coverage/
+
+  static:
+    name: Static analysis (PHPCS/WPCS, PHPCompatibility, PHPStan, composer audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.3"
+          tools: composer:v2
+          coverage: none
+      - name: Install analysis tools
+        run: composer update --no-interaction --no-progress --prefer-dist
+      - name: Composer validate and dependency audit
+        run: |
+          composer validate --strict --no-check-lock
+          composer audit --no-interaction
+      - name: PHPCS (WordPress security sniffs + PHPCompatibilityWP)
+        run: vendor/bin/phpcs
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
   qr-decode:
     name: QR decode + translations
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: sudo apt-get update && sudo apt-get install -y zbar-tools && pip install pillow
       - run: python3 tests/qr_decode_check.py
       - name: German translation complete and up to date
@@ -70,17 +175,157 @@ jobs:
           python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
           git diff --exit-code -- languages/*.po languages/*.pot || (echo "Run: python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE" && exit 1)
 
+  e2e:
+    name: Browser tests (WordPress + WooCommerce, object cache ${{ matrix.cache }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cache: [none, redis]
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_e2e
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: hastla007/wp-couponmaster
+          path: siblings/wp-couponmaster
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: hastla007/wp-passmaster
+          path: siblings/wp-passmaster
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring, gd, zip, redis
+          coverage: none
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+      - name: Test site (WordPress, WooCommerce, all three plugins)
+        run: |
+          tests/ci/install-wp.sh "$RUNNER_TEMP/wp" --siblings "$GITHUB_WORKSPACE/siblings" > "$RUNNER_TEMP/site.env"
+          cat "$RUNNER_TEMP/site.env"
+          grep -E '^(PRODUCT_ID|PARTNER_CODE)=[A-Za-z0-9-]+$' "$RUNNER_TEMP/site.env" >> "$GITHUB_ENV"
+      - name: Redis object cache
+        if: matrix.cache == 'redis'
+        run: |
+          curl -fsSL -o /tmp/redis-cache.zip https://downloads.wordpress.org/plugin/redis-cache.latest-stable.zip
+          unzip -q /tmp/redis-cache.zip -d "$RUNNER_TEMP/wp/wp-content/plugins"
+          cp "$RUNNER_TEMP/wp/wp-content/plugins/redis-cache/includes/object-cache.php" "$RUNNER_TEMP/wp/wp-content/object-cache.php"
+          sed -i "s#^define( 'DB_NAME'#define( 'WP_REDIS_HOST', '127.0.0.1' );\ndefine( 'DB_NAME'#" "$RUNNER_TEMP/wp/wp-config.php"
+          php -r '$_SERVER["HTTP_HOST"]="127.0.0.1:8088"; require getenv("RUNNER_TEMP")."/wp/wp-load.php"; if ( ! wp_using_ext_object_cache() ) { fwrite( STDERR, "object cache not active\n" ); exit( 1 ); } echo "external object cache active\n";'
+      - name: Web server
+        run: (cd "$RUNNER_TEMP/wp" && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8088 -t . "$GITHUB_WORKSPACE/tests/ci/router.php" > "$RUNNER_TEMP/server.log" 2>&1 &) && sleep 2
+      - name: Browser tests
+        working-directory: tests/e2e
+        env:
+          WP_URL: http://127.0.0.1:8088
+          ADMIN_USER: admin
+          ADMIN_PASS: admin-pass-123
+          PARTNER_USER: perf2
+          PARTNER_PASS: perf2-pass-123
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          node run.js
+      - name: Cross-plugin test (Voucher Captain, Pass Captain, WooCommerce)
+        run: php tests/cross-plugin/run.php "$RUNNER_TEMP/wp" 127.0.0.1:8088
+      - name: Logs on failure
+        if: failure()
+        run: |
+          tail -n 100 "$RUNNER_TEMP/server.log" || true
+          tail -n 100 "$RUNNER_TEMP/wp/wp-content/debug.log" || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: e2e-artifacts-${{ matrix.cache }}
+          path: tests/e2e/artifacts
+
+  multisite:
+    name: Multisite (network activation, new and deleted sites)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_e2e
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring, gd, zip
+          coverage: none
+      - name: Network test
+        env:
+          WP_URL: http://example.test
+        run: |
+          tests/ci/install-wp.sh "$RUNNER_TEMP/wp"
+          tests/ci/multisite.sh "$RUNNER_TEMP/wp"
+
+  upgrade:
+    name: Upgrade from the previous release (real dbDelta)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_e2e
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, sodium, dom, mbstring, gd, zip
+          coverage: none
+      - name: Install the previous release with test data
+        run: |
+          last="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
+          echo "Previous release: $last"
+          git worktree add "$RUNNER_TEMP/old" "$last"
+          WPAC_PLUGIN_SRC="$RUNNER_TEMP/old" tests/ci/install-wp.sh "$RUNNER_TEMP/wp"
+          php tests/ci/upgrade-check.php "$RUNNER_TEMP/wp" 127.0.0.1:8088 "$RUNNER_TEMP/before.json"
+      - name: Switch to this version and migrate
+        run: |
+          ln -sfn "$GITHUB_WORKSPACE" "$RUNNER_TEMP/wp/wp-content/plugins/wp-affiliate-captain"
+          php tests/ci/upgrade-check.php "$RUNNER_TEMP/wp" 127.0.0.1:8088 "$RUNNER_TEMP/before.json"
+
   release:
     name: Release ZIP
-    needs: [test, integration, qr-decode]
+    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: "8.3"
           coverage: none
@@ -99,7 +344,7 @@ jobs:
             expected="$REF_NAME"
           fi
           bin/build-zip.sh "$expected"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wp-affiliate-captain
           path: dist/*.zip
@@ -113,13 +358,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.3"
-          coverage: none
       # Release on a pushed tag v*, or on a push to main for v<plugin version>
       # when that release does not exist yet (the tag is then created on this commit).
       - name: Determine release tag
@@ -139,12 +380,20 @@ jobs:
             printf '%s' "$tag" | grep -Eq "$version_re" || { echo "Refusing release tag that is not a version: $tag"; exit 1; }
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
           fi
+      # Exactly the ZIP that was built and tested in this run (no second build).
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: steps.rel.outputs.tag != ''
+        with:
+          name: wp-affiliate-captain
+          path: dist
       - name: GitHub release
         if: steps.rel.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.rel.outputs.tag }}
         run: |
-          bin/build-zip.sh "$TAG" >/dev/null
+          zip="dist/wp-affiliate-captain-${TAG#v}.zip"
+          [ -f "$zip" ] || { echo "Tested ZIP $zip not found (version mismatch)"; ls dist; exit 1; }
+          sha256sum "$zip"
           notes="$(awk -v v="${TAG#v}" '$0 ~ "^= " v " " {on=1; next} on && /^= / {exit} on' readme.txt)"
-          gh release create "$TAG" dist/wp-affiliate-captain-"${TAG#v}".zip --target "$GITHUB_SHA" --title "WP Affiliate Captain ${TAG#v}" --notes "${notes:-Siehe readme.txt}"
+          gh release create "$TAG" "$zip" --target "$GITHUB_SHA" --title "WP Affiliate Captain ${TAG#v}" --notes "${notes:-Siehe readme.txt}"

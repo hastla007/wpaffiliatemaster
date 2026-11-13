@@ -80,10 +80,13 @@ update_option(
 			'operator_address' => "Hafenstraße 1\n24937 Flensburg",
 			'operator_vat_id' => 'DE123456789',
 			'fraud_check_domains' => 0,
+			'terms_page_id' => 900,
 		)
 	)
 );
 Settings::flush_cache();
+// Every test partner accepted the terms (with the self-billing agreement).
+add_action( 'wpac_affiliate_created', static function ( $id ) { WPAffiliateCaptain\Affiliates\Agreements::record( (int) $id ); } );
 
 $aff  = AffiliateRepository::create( array( 'name' => 'Anna Partner', 'email' => 'anna@example.de', 'status' => 'active' ) );
 $code = WPAffiliateCaptain\Codes\CodeRepository::main_code( $aff );
@@ -377,9 +380,11 @@ q( 'UPDATE ' . t( 'jobs' ) . " SET status = 'running', attempts = 3, next_attemp
 check( 'R4 running job is not claimed again', false, WPAffiliateCaptain\Core\Jobs::run( $jid ) );
 WPAffiliateCaptain\Core\Jobs::run_due();
 $job = $wpdb->get_row( 'SELECT status, attempts, last_error_code FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" );
-check( 'R4 expired lease → failed attempt counted', 'aborted', $job->last_error_code === 'aborted' || $job->attempts > 3 ? 'aborted' : $job->last_error_code );
+// The dead run counts as an attempt (3 → requeued as aborted) and the job then runs again in the
+// same pass and fails without a handler (attempt 4).
+check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 4, 'no_handler' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
 WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
-check( 'R4 re-enqueue resets the attempts', '1', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
+check( 'R4 re-enqueue keeps the attempts (a job that keeps failing must still end as failed)', '4', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
 
 // R5 filtered commission base: a refund of half the line reverses half the commission.
 $GLOBALS['test_hooks']['wpac_commission_base'][10][] = array( static function ( $base ) { return intdiv( $base, 2 ); }, 1 );
@@ -470,7 +475,8 @@ update_option( 'wpac_settings', $keep );
 Settings::flush_cache();
 
 // S3 retention: at least 10 years; legal hold stops the purge; cancellations count from their own date.
-check( 'S3 retention below 10 years raised to 10', 10, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3 ) ) )['statement_retention_years'] );
+check( 'S3 retention below the legal minimum raised (DE: 8 years)', 8, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3, 'operator_country' => 'DE' ) ) )['statement_retention_years'] );
+check( 'S3 legal minimum Austria 7, Switzerland 10', array( 7, 10 ), array( Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3, 'operator_country' => 'AT' ) ) )['statement_retention_years'], Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 3, 'operator_country' => 'CH' ) ) )['statement_retention_years'] ) );
 check( 'S3 0 = forever stays', 0, Settings::sanitize( array_merge( $keep, array( 'statement_retention_years' => 0 ) ) )['statement_retention_years'] );
 $old = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'payouts' ) . ' ORDER BY id ASC LIMIT 1' );
 q( 'UPDATE ' . t( 'payouts' ) . " SET created_at = '2001-03-01 10:00:00', storno_at = '2025-01-10 10:00:00' WHERE id = {$old}" );
@@ -494,8 +500,12 @@ check( 'S4 other old audit entry deleted', 0, (int) $wpdb->get_var( 'SELECT COUN
 // S5 rejected applicants without commissions are anonymised after the retention period.
 $rej = AffiliateRepository::create( array( 'name' => 'Abgelehnt', 'email' => 'rejected@example.de', 'status' => 'rejected' ) );
 q( 'UPDATE ' . t( 'affiliates' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE id = {$rej}" );
+// The same person is a customer linked to another partner: that link must survive.
+$wpdb->insert( t( 'customer_links' ), array( 'affiliate_id' => $aff, 'customer_hash' => WPAffiliateCaptain\Tracking\CustomerLinks::hashes( 0, 'rejected@example.de' )[0], 'source' => 'test', 'source_order_id' => 's5', 'created_at' => Db::now() ) );
 WPAffiliateCaptain\Privacy\Privacy::purge_rejected_applications();
 check( 'S5 rejected applicant anonymised', 'deleted-' . $rej . '@invalid.invalid', (string) $wpdb->get_var( 'SELECT email FROM ' . t( 'affiliates' ) . " WHERE id = {$rej}" ) );
+check( 'S5 applicant mode keeps the person\'s customer links to other partners', 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'customer_links' ) . " WHERE source_order_id = 's5'" ) );
+check( 'S5 application agreements removed', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'agreements' ) . " WHERE affiliate_id = {$rej}" ) );
 
 echo "T 0.9.0 features\n";
 // T1 a negative balance can be written off; the account is consistent afterwards.
@@ -576,7 +586,7 @@ update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), arra
 Settings::flush_cache();
 $GLOBALS['test_mail_fail'] = true;
 WPAffiliateCaptain\Reports\MonthlyMail::send( gmdate( 'Y-m' ), true );
-check( 'U6 failed operator mail remembered', true, ! empty( get_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED )['admin'] ) );
+check( 'U6 failed operator mail remembered', true, ! empty( WPAffiliateCaptain\Reports\MonthlyMail::failures()[ gmdate( 'Y-m' ) ]['admin'] ) );
 $GLOBALS['test_mail_fail'] = false;
 WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
 check( 'U6 retry sends it and clears the failure', false, get_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED ) );
@@ -655,6 +665,275 @@ q( "DELETE FROM {$ct} WHERE affiliate_id = {$vw}" );
 // V7 a foreign small business gets reverse charge.
 check( 'V7 foreign small business → reverse charge', 'reverse_charge', WPAffiliateCaptain\Payouts\Vat::treatment( 'small_business', 'AT', 'DE', '19' )['mode'] );
 check( 'V accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
+echo "W VAT per item, corrections of earlier credit notes, operator snapshot, blocks\n";
+// W1 small business paid at 0 %, later VAT-registered: the correction keeps 0 % and refers to the old credit note.
+$wa = AffiliateRepository::create( array( 'name' => 'Wandel Partner', 'email' => 'wandel@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $wa, array( 'tax_status' => 'small_business', 'legal_name' => 'Wandel', 'address' => "Weg 9\n24103 Kiel", 'country' => 'DE', 'tax_number' => '12/345/67890', 'account_holder' => 'Wandel', 'iban' => 'DE89370400440532013000' ) );
+$ws = sale( 9001, WPAffiliateCaptain\Codes\CodeRepository::main_code( $wa ), array( 1000000 ) ); // 1.000 € net → 100 € commission.
+Ledger::transition( (int) $ws['commission_ids'][0], 'approved' );
+$w1 = PayoutService::create_for_affiliate( $wa, gmdate( 'Y-m-d' ), 'EUR' );
+check( 'W1 first credit note without VAT', array( 'small_business', 0 ), array( PayoutService::find( $w1 )->vat_mode, (int) PayoutService::find( $w1 )->vat_minor ) );
+check( 'W1 item stores its VAT treatment', array( 'small_business', '0', '0' ), array_values( (array) $wpdb->get_row( 'SELECT vat_mode, vat_rate, ref_payout_id FROM ' . t( 'payout_items' ) . " WHERE payout_id = {$w1}", ARRAY_A ) ) );
+PayoutService::mark_paid( $w1 );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_address' => "Neue Adresse 5\n24937 Flensburg" ) ) );
+Settings::flush_cache();
+ProfileRepository::save( $wa, array( 'tax_status' => 'business', 'legal_name' => 'Wandel', 'address' => "Weg 9\n24103 Kiel", 'country' => 'DE', 'vat_id' => 'DE811111111', 'account_holder' => 'Wandel', 'iban' => '' ) );
+refund( 9001, 'w1', array( array( 'item_id' => '1', 'net_minor' => 400000 ) ) ); // 40 % refunded → −40 € correction.
+$ws2 = sale( 9002, WPAffiliateCaptain\Codes\CodeRepository::main_code( $wa ), array( 1000000 ) ); // 100 € new commission.
+Ledger::transition( (int) $ws2['commission_ids'][0], 'approved' );
+foreach ( $wpdb->get_col( "SELECT id FROM {$ct} WHERE parent_id = " . (int) $ws['commission_ids'][0] ) as $child ) {
+	Ledger::transition( (int) $child, 'approved' );
+}
+$w2  = PayoutService::create_for_affiliate( $wa, gmdate( 'Y-m-d' ), 'EUR' );
+$w2p = PayoutService::find( $w2 );
+check( 'W3 VAT only on the new commission (19 % of 100 €), not on the 0 % correction', array( 60000, 19000, 79000 ), array( (int) $w2p->net_minor, (int) $w2p->vat_minor, (int) $w2p->amount_minor ) );
+check( 'W2 correction refers to the original credit note and keeps 0 %', array( 'small_business', '0', (string) $w1 ), array_values( (array) $wpdb->get_row( 'SELECT i.vat_mode, i.vat_rate, i.ref_payout_id FROM ' . t( 'payout_items' ) . " i JOIN {$ct} c ON c.id = i.commission_id WHERE i.payout_id = {$w2} AND c.parent_id > 0", ARRAY_A ) ) );
+$wpdf = WPAffiliateCaptain\Payouts\Statement::build( $w2p );
+check( 'W4 credit note shows the correction block with the original number', true, false !== strpos( $wpdf, 'Correction of credit note ' . PayoutService::find( $w1 )->number ) );
+check( 'W4 VAT lines per rate', true, false !== strpos( $wpdf, 'VAT 19 % on' ) && false !== strpos( $wpdf, 'VAT 0 % on' ) );
+// W5 operator data frozen per payout: the first credit note still shows the old address.
+check( 'W5 new payout shows the new operator address', true, false !== strpos( $wpdf, 'Neue Adresse 5' ) );
+check( 'W5 old credit note keeps the address it was issued with', true, false !== strpos( WPAffiliateCaptain\Payouts\Statement::build( PayoutService::find( $w1 ) ), 'Hafenstr. 1' ) && false === strpos( WPAffiliateCaptain\Payouts\Statement::build( PayoutService::find( $w1 ) ), 'Neue Adresse 5' ) );
+// W6 reverse charge without the operator's VAT ID is blocked.
+$wr = AffiliateRepository::create( array( 'name' => 'RC Partner', 'email' => 'rc@example.at', 'status' => 'active' ) );
+ProfileRepository::save( $wr, array( 'tax_status' => 'business', 'legal_name' => 'RC', 'address' => "Ring 2\n1010 Wien", 'country' => 'AT', 'vat_id' => 'ATU22222222', 'account_holder' => 'RC', 'iban' => 'AT611904300234573201' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_vat_id' => '', 'operator_tax_number' => '12/000/00000' ) ) );
+Settings::flush_cache();
+check( 'W6 reverse charge needs the operator VAT ID', true, false !== strpos( PayoutService::blocked_reason( $wr ), 'VAT ID' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'operator_vat_id' => 'DE123456789' ) ) );
+// W7 self-billing without a terms page is blocked.
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_page_id' => 0 ) ) );
+Settings::flush_cache();
+check( 'W7 self-billing without partner terms is blocked', true, false !== strpos( PayoutService::blocked_reason( $wr ), 'partner terms' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_page_id' => 900 ) ) );
+Settings::flush_cache();
+check( 'W7 with terms page and accepted terms: not blocked', '', PayoutService::blocked_reason( $wr ) );
+check( 'W accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+
+echo "X monthly mails: failures per month, locked retry, watchdog\n";
+delete_option( WPAffiliateCaptain\Reports\MonthlyMail::FAILED );
+$GLOBALS['test_mail_fail'] = true;
+WPAffiliateCaptain\Reports\MonthlyMail::send( '2026-08', true );
+WPAffiliateCaptain\Reports\MonthlyMail::send( '2026-09', true );
+check( 'X1 failures of two months are both kept', array( '2026-08', '2026-09' ), array_keys( WPAffiliateCaptain\Reports\MonthlyMail::failures() ) );
+$lk = WPAffiliateCaptain\Core\Db::lock( 'wpac_report_retry_lock', 600 );
+$GLOBALS['test_mail_fail'] = false;
+WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
+check( 'X2 a second retry run waits while one is running', 2, count( WPAffiliateCaptain\Reports\MonthlyMail::failures() ) );
+WPAffiliateCaptain\Core\Db::unlock( 'wpac_report_retry_lock', $lk );
+$GLOBALS['test_mail_fail'] = true;
+WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
+check( 'X2 a failed retry counts the attempt per month', array( 1, 1 ), array_values( array_map( static function ( $f ) { return (int) $f['tries']; }, WPAffiliateCaptain\Reports\MonthlyMail::failures() ) ) );
+$GLOBALS['test_mail_fail'] = false;
+WPAffiliateCaptain\Reports\MonthlyMail::retry_failed();
+check( 'X2 successful retry clears both months', array(), WPAffiliateCaptain\Reports\MonthlyMail::failures() );
+update_option( WPAffiliateCaptain\Reports\MonthlyMail::PROGRESS, array( 'month' => '2026-09', 'offset' => 50, 'touched' => time() - 3600 ), false );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Reports\MonthlyMail::watchdog();
+check( 'X3 watchdog restarts a stalled batch chain', true, in_array( WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, $GLOBALS['test_scheduled'], true ) );
+delete_option( WPAffiliateCaptain\Reports\MonthlyMail::PROGRESS );
+// X4 reports count write-offs.
+$xw = AffiliateRepository::create( array( 'name' => 'Report Partner', 'email' => 'report@example.de', 'status' => 'active' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $xw, 'source' => 'wpac', 'source_order_id' => 'x4', 'kind' => 'writeoff', 'currency' => 'EUR', 'amount_minor' => 1234, 'status' => 'approved', 'idempotency_key' => 'x4', 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$xr = array_values( array_filter( WPAffiliateCaptain\Reports\Reports::partners( gmdate( 'Y-m-01' ), gmdate( 'Y-m-t' ) ), static function ( $r ) use ( $xw ) { return (int) $r['affiliate_id'] === (int) $xw; } ) );
+check( 'X4 partner report shows the write-off', 1234, $xr ? (int) $xr[0]['writeoffs'] : null );
+q( "DELETE FROM {$ct} WHERE idempotency_key = 'x4'" );
+
+echo "Y erasure: restriction instead of changed booking records, retention per country\n";
+$ye = AffiliateRepository::create( array( 'name' => 'Erase Partner', 'email' => 'erase@example.de', 'status' => 'active' ) );
+$yc = WPAffiliateCaptain\Codes\CodeRepository::main_code( $ye );
+$ys = sale( 9101, $yc, array( 100000 ) );
+refund( 9101, 'y1', array( array( 'item_id' => '1', 'net_minor' => 10000 ) ) );
+$ycid = (int) $ys['commission_ids'][0];
+q( 'UPDATE ' . t( 'commission_events' ) . " SET reason = 'Kunde Max Muster beschwerte sich' WHERE commission_id = {$ycid}" );
+q( 'UPDATE ' . t( 'attributions' ) . " SET note = 'Hinweis von Max Muster' WHERE affiliate_id = {$ye}" );
+$wpdb->insert( t( 'payouts' ), array( 'number' => 'GS-Y-1', 'affiliate_id' => $ye, 'period_end' => gmdate( 'Y-m-d' ), 'currency' => 'EUR', 'status' => 'cancelled', 'note' => 'Storno wegen Max Muster', 'created_at' => Db::now() ) );
+$ypid = (int) $wpdb->insert_id;
+WPAffiliateCaptain\Core\Audit::log( 'payout.cancelled', 'payout', $ypid, array( 'reason' => 'Max Muster' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $ye, 'source' => 'wpac', 'source_order_id' => 'y-wo', 'kind' => 'writeoff', 'description' => 'Max Muster zahlt nicht', 'currency' => 'EUR', 'amount_minor' => 0, 'status' => 'approved', 'idempotency_key' => 'y-wo', 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+set_transient( 'wpac_email_change_' . $ye, array( 'email' => 'neu@example.de', 'token' => 'x' ), DAY_IN_SECONDS );
+$yx = WPAffiliateCaptain\Privacy\Privacy::export( 'erase@example.de' );
+$groups = array_unique( wp_list_pluck( $yx['data'], 'group_id' ) );
+check( 'Y20 export includes attributions, visits/details and commission details', true, in_array( 'wpac-attributions', $groups, true ) && in_array( 'wpac-affiliate-details', $groups, true ) );
+check( 'Y20 export shows the pending e-mail change', true, false !== strpos( wp_json_encode( $yx ), 'neu@example.de' ) );
+WPAffiliateCaptain\Privacy\Privacy::erase( 'erase@example.de' );
+check( 'Y1 commission event reasons stay unchanged during retention', 'Kunde Max Muster beschwerte sich', $wpdb->get_var( 'SELECT reason FROM ' . t( 'commission_events' ) . " WHERE commission_id = {$ycid} AND reason <> '' LIMIT 1" ) );
+check( 'Y2 attribution note stays unchanged during retention', 'Hinweis von Max Muster', $wpdb->get_var( 'SELECT note FROM ' . t( 'attributions' ) . " WHERE affiliate_id = {$ye} LIMIT 1" ) );
+check( 'Y3 processing is restricted', true, WPAffiliateCaptain\Privacy\Restriction::is_restricted( $ye ) );
+check( 'Y21 pending e-mail change removed by the erasure', false, get_transient( 'wpac_email_change_' . $ye ) );
+
+check( 'Y3 the restricted partner cannot be reactivated', true, is_wp_error( AffiliateRepository::set_status( $ye, 'active' ) ) );
+// Booking records past the retention period → free texts deleted, agreements removed, restriction lifted.
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 8, 'operator_country' => 'DE', 'retention_hold' => 1 ) ) );
+Settings::flush_cache();
+q( "UPDATE {$ct} SET created_at = '2014-03-01 10:00:00', updated_at = '2014-03-01 10:00:00' WHERE affiliate_id = {$ye}" );
+q( 'UPDATE ' . t( 'payouts' ) . " SET created_at = '2014-03-01 10:00:00' WHERE affiliate_id = {$ye}" );
+check( 'Y16 tax audit / legal hold: nothing is deleted', 0, WPAffiliateCaptain\Privacy\Retention::purge_erased() );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'retention_hold' => 0 ) ) );
+Settings::flush_cache();
+check( 'Y3 after the retention period the erased partner is cleaned up', true, WPAffiliateCaptain\Privacy\Retention::purge_erased() >= 1 );
+check( 'Y1 event reasons deleted', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'commission_events' ) . " WHERE commission_id = {$ycid} AND reason <> ''" ) );
+check( 'Y2 attribution note deleted', '', $wpdb->get_var( 'SELECT note FROM ' . t( 'attributions' ) . " WHERE affiliate_id = {$ye} LIMIT 1" ) );
+check( 'Y4 payout note deleted', '', $wpdb->get_var( 'SELECT note FROM ' . t( 'payouts' ) . " WHERE id = {$ypid}" ) );
+check( 'Y5 payout change log details deleted', null, $wpdb->get_var( 'SELECT details FROM ' . t( 'audit' ) . " WHERE object_type = 'payout' AND object_id = {$ypid} AND action = 'payout.cancelled'" ) );
+check( 'Y6 write-off reason deleted', '', $wpdb->get_var( "SELECT description FROM {$ct} WHERE idempotency_key = 'y-wo'" ) );
+check( 'Y18 acceptance records deleted with the booking records', 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'agreements' ) . " WHERE affiliate_id = {$ye}" ) );
+check( 'Y3 restriction lifted after the clean-up', false, WPAffiliateCaptain\Privacy\Restriction::is_restricted( $ye ) );
+delete_option( 'wpac_terms_text_' . WPAffiliateCaptain\Affiliates\Agreements::current()['hash'] );
+check( 'Y19 terms text kept when shown (guests: before the e-mail confirmation)', true, WPAffiliateCaptain\Affiliates\Agreements::store_text( WPAffiliateCaptain\Affiliates\Agreements::current() ) && false !== get_option( 'wpac_terms_text_' . WPAffiliateCaptain\Affiliates\Agreements::current()['hash'] ) );
+// Y23 public name/website changes of approved partners wait for review.
+$yp = AffiliateRepository::create( array( 'name' => 'Public Partner', 'email' => 'public@example.de', 'status' => 'active', 'website' => 'https://old.example' ) );
+check( 'Y23 change of an approved partner is pending', 'pending', AffiliateRepository::request_public_change( $yp, 'Ruf mich an 0170-123', 'https://scam.example' ) );
+check( 'Y23 the public name stays until approved', 'Public Partner', AffiliateRepository::find( $yp )->name );
+AffiliateRepository::resolve_public_change( $yp, false );
+check( 'Y23 rejected change is dropped', array( 'Public Partner', null ), array( AffiliateRepository::find( $yp )->name, AffiliateRepository::pending_public_change( $yp ) ) );
+AffiliateRepository::request_public_change( $yp, 'Segelschule Nord', 'https://nord.example' );
+AffiliateRepository::resolve_public_change( $yp, true );
+check( 'Y23 approved change is applied', 'Segelschule Nord', AffiliateRepository::find( $yp )->name );
+// Y26 manual restriction (Art. 18): codes stop attributing, no reactivation, lift restores.
+$ypc = WPAffiliateCaptain\Codes\CodeRepository::main_code( $yp );
+WPAffiliateCaptain\Privacy\Restriction::add( $yp, WPAffiliateCaptain\Privacy\Restriction::REQUEST, 'Richtigkeit bestritten' );
+check( 'Y26 restricted partner code attributes nothing', null, wpac_resolve_partner_code( $ypc, array( 'context' => 'link' ) ) );
+WPAffiliateCaptain\Privacy\Restriction::remove( $yp );
+check( 'Y26 lifted restriction: code works again', true, is_array( wpac_resolve_partner_code( $ypc, array( 'context' => 'link' ) ) ) );
+// Y24 objection to a credit note: filed by the owner, refused for others, resolved by the operator.
+check( 'Y24 credit note text no longer names a 14-day deadline', false, false !== strpos( WPAffiliateCaptain\Payouts\Statement::build( PayoutService::find( $w2 ) ), '14 days' ) );
+check( 'Y24 another partner cannot object', true, is_wp_error( WPAffiliateCaptain\Payouts\Objections::file( $w2, $yp, 'falsch' ) ) );
+check( 'Y24 owner objects', true, true === WPAffiliateCaptain\Payouts\Objections::file( $w2, $wa, 'Bestellung 9002 fehlt' ) );
+check( 'Y24 objection is open for the operator', true, isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) );
+check( 'Y24 resolved objection is closed', array( true, false ), array( WPAffiliateCaptain\Payouts\Objections::resolve( $w2, 'Storniert und neu ausgestellt.' ), isset( WPAffiliateCaptain\Payouts\Objections::open()[ $w2 ] ) ) );
+// Y25 VIES: invalid VAT IDs block reverse charge; VIES outage blocks nothing.
+$GLOBALS['test_http'] = static function ( $url, $args ) { $b = json_decode( $args['body'], true ); return array( 'body' => wp_json_encode( array( 'valid' => 'U22222222' !== $b['vatNumber'] ? true : false, 'requestIdentifier' => 'WAPIAAAA123', 'name' => 'RC GmbH' ) ) ); };
+$vr = WPAffiliateCaptain\Payouts\Vies::check( $wr );
+check( 'Y25 VIES result stored with the consultation number', array( 'invalid', 'WAPIAAAA123' ), array( $vr['status'], $vr['consultation'] ) );
+check( 'Y25 invalid VAT ID blocks reverse charge', true, false !== strpos( PayoutService::blocked_reason( $wr ), 'VIES' ) );
+$GLOBALS['test_http'] = static function () { return array( 'body' => wp_json_encode( array( 'errorWrappers' => array( array( 'error' => 'MS_UNAVAILABLE' ) ) ) ) ); };
+WPAffiliateCaptain\Payouts\Vies::check( $wr );
+check( 'Y25 VIES unavailable: not blocked, checked again later', array( 'unavailable', '' ), array( WPAffiliateCaptain\Payouts\Vies::result( $wr )['status'], PayoutService::blocked_reason( $wr ) ) );
+check( 'Y25 Greek VAT IDs use EL, Swiss ones are not checked', array( array( 'EL', '123456789' ), null ), array( WPAffiliateCaptain\Payouts\Vies::split( 'GR123456789' ), WPAffiliateCaptain\Payouts\Vies::split( 'CHE123456789' ) ) );
+unset( $GLOBALS['test_http'] );
+check( 'Y27 record of processing activities filled with the settings', true, false !== strpos( WPAffiliateCaptain\Privacy\Privacy::ropa(), 'Segelschule Test GmbH' ) && false === strpos( WPAffiliateCaptain\Privacy\Privacy::ropa(), '{retention_years}' ) );
+$annual = WPAffiliateCaptain\Payouts\Statement::annual( $wa, (int) gmdate( 'Y' ) );
+check( 'Y29 annual overview lists the credit notes of the year with totals', true, 0 === strpos( $annual, '%PDF' ) && false !== strpos( $annual, PayoutService::find( $w2 )->number ) && false !== strpos( $annual, 'Total EUR' ) );
+// Jobs: attempts are kept on re-enqueue, "retry all failed", time budget.
+WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'b11', array(), 'e', 'e' );
+q( "UPDATE {$jt} SET attempts = 5 WHERE idempotency_key = 'nohandler:b11'" );
+WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'b11', array(), 'e2', 'again' );
+check( 'B11 re-enqueue keeps the attempt count', 5, (int) $wpdb->get_var( "SELECT attempts FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" ) );
+q( "UPDATE {$jt} SET status = 'failed', attempts = 8 WHERE idempotency_key = 'nohandler:b11'" );
+check( 'A05 retry all failed jobs', true, WPAffiliateCaptain\Core\Jobs::retry_all_failed() >= 1 );
+check( 'A05 retried job gets a short new series', array( 'queued', 5 ), array( $wpdb->get_var( "SELECT status FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" ), (int) $wpdb->get_var( "SELECT attempts FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" ) ) );
+q( "UPDATE {$jt} SET next_attempt_at = NOW() - INTERVAL 1 MINUTE WHERE idempotency_key = 'nohandler:b11'" );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Core\Jobs::run_due( 25, 0.000001 );
+check( 'B10 an exhausted time budget schedules the rest in 5 minutes', true, in_array( WPAffiliateCaptain\Core\Jobs::DRAIN_HOOK, $GLOBALS['test_scheduled'], true ) );
+q( "DELETE FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" );
+// BETR: schema check without case, only own tables, engine as warning; hourly isolation; keyset; claims; markers.
+check( 'B01 table names compared without case (own tables found)', array(), WPAffiliateCaptain\Core\Installer::verify_schema() );
+q( 'ALTER TABLE ' . t( 'tiers' ) . ' ENGINE=MyISAM' );
+check( 'B03 a wrong engine is a warning, not a blocker', array( array(), true ), array( WPAffiliateCaptain\Core\Installer::verify_schema(), (bool) get_option( 'wpac_schema_warnings' ) ) );
+q( 'ALTER TABLE ' . t( 'tiers' ) . ' ENGINE=InnoDB' );
+WPAffiliateCaptain\Core\Installer::verify_schema();
+check( 'B05 alarm only after an hour of failing', true, ( function () { update_option( 'wpac_schema_problems', array( 'x' ) ); update_option( 'wpac_schema_problems_since', time() - 7200 ); delete_transient( 'wpac_schema_alerted' ); $n = count( $GLOBALS['test_mails'] ?? array() ); WPAffiliateCaptain\Core\Installer::alert_if_stuck(); $sent = (bool) get_transient( 'wpac_schema_alerted' ); delete_option( 'wpac_schema_problems' ); delete_option( 'wpac_schema_problems_since' ); return $sent; } )() );
+// B12 a second generator of the same credit note waits (lock) – no second file.
+$bk = WPAffiliateCaptain\Core\Db::lock( 'wpac_stmt_' . $wr, 600 );
+check( 'B12 statement generation is claimed per payout', false, WPAffiliateCaptain\Payouts\Statement::generate( $wr ) );
+WPAffiliateCaptain\Core\Db::unlock( 'wpac_stmt_' . $wr, $bk );
+// B13 stale markers are removed.
+$wpdb->insert( $wpdb->options, array( 'option_name' => 'wpac_inflight_stale_test', 'option_value' => ( time() - 2 * DAY_IN_SECONDS ) . ':x', 'autoload' => 'off' ) );
+$wpdb->insert( $wpdb->options, array( 'option_name' => 'wpac_inflight_fresh_test', 'option_value' => time() . ':y', 'autoload' => 'off' ) );
+WPAffiliateCaptain\Core\Cron::purge_inflight();
+check( 'B13 stale in-flight markers purged, fresh kept', array( false, true ), array( (bool) $wpdb->get_var( "SELECT 1 FROM {$wpdb->options} WHERE option_name = 'wpac_inflight_stale_test'" ), (bool) $wpdb->get_var( "SELECT 1 FROM {$wpdb->options} WHERE option_name = 'wpac_inflight_fresh_test'" ) ) );
+q( "DELETE FROM {$wpdb->options} WHERE option_name = 'wpac_inflight_fresh_test'" );
+// B14 rate limits use their own table.
+check( 'B14 rate-limit counters live in their own table', true, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'rate_limits' ) ) > 0 );
+// B08 keyset: a commission that cannot be approved does not stop the others.
+$kb = AffiliateRepository::create( array( 'name' => 'Keyset Partner', 'email' => 'keyset@example.de', 'status' => 'active' ) );
+$k1 = sale( 9201, WPAffiliateCaptain\Codes\CodeRepository::main_code( $kb ), array( 10000 ) );
+refund( 9201, 'k', array( array( 'item_id' => '1', 'net_minor' => 1000 ) ) ); // pending child of a pending parent
+$k2 = sale( 9202, WPAffiliateCaptain\Codes\CodeRepository::main_code( $kb ), array( 10000 ) );
+q( "UPDATE {$ct} SET hold_until = '2000-01-01 00:00:00' WHERE affiliate_id = {$kb}" );
+q( "UPDATE {$ct} SET status = 'review' WHERE id = " . (int) $k1['commission_ids'][0] ); // parent not approvable → child stays
+WPAffiliateCaptain\Commissions\Ledger::approve_due();
+check( 'B08 later commissions are approved even if earlier ones cannot be', 'approved', $wpdb->get_var( "SELECT status FROM {$ct} WHERE id = " . (int) $k2['commission_ids'][0] ) );
+// Monitoring, Site Health, maintenance.
+$mc = WPAffiliateCaptain\Core\Monitor::checks();
+check( 'B28 Site Health checks cover schema, cron, queue, balances, key', true, isset( $mc['schema'], $mc['cron'], $mc['jobs'], $mc['balances'], $mc['key'] ) );
+check( 'B28 Site Health result has a status', true, in_array( WPAffiliateCaptain\Core\Monitor::site_health_result()['status'], array( 'good', 'recommended', 'critical' ), true ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'maintenance_mode' => 1 ) ) );
+Settings::flush_cache();
+check( 'B33 maintenance mode blocks payouts with a clear reason', true, false !== strpos( PayoutService::blocked_reason( $wa ), 'Maintenance' ) );
+check( 'B33 maintenance mode is reported', true, isset( WPAffiliateCaptain\Core\Monitor::checks()['maintenance'] ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'maintenance_mode' => 0 ) ) );
+Settings::flush_cache();
+delete_transient( 'wpac_monitor_alerted' );
+WPAffiliateCaptain\Core\Monitor::daily_alert();
+check( 'B30 daily alarm only once a day when something is critical', true, ! WPAffiliateCaptain\Core\Monitor::problems( true ) || (bool) get_transient( 'wpac_monitor_alerted' ) );
+// ABL-02/03 reinstatement after a won chargeback / reactivated order.
+$ri = sale( 9301, $rc, array( 50000 ) );
+$rid = (int) $ri['commission_ids'][0];
+refund( 9301, 'status-chargeback', array(), 'chargeback' );
+$sumr = static function () use ( $wpdb, $ct ) { return (int) $wpdb->get_var( "SELECT SUM(amount_minor) FROM {$ct} WHERE source_order_id = '9301' AND status <> 'rejected'" ); };
+check( 'A02 chargeback reverses the commission', 0, $sumr() );
+check( 'A02 chargeback won → open reversal rejected, commission back', array( 1, 5000 ), array( Ledger::reinstate( 'test', '9301', 'won' ), $sumr() ) );
+check( 'A02 reinstatement is idempotent', 0, Ledger::reinstate( 'test', '9301', 'won' ) );
+// Reversal already deducted in a payout → positive reinstatement booking.
+$ri2 = sale( 9302, $rc, array( 50000 ) );
+Ledger::transition( (int) $ri2['commission_ids'][0], 'approved' );
+refund( 9302, 'status-cancellation', array(), 'cancellation' );
+q( "UPDATE {$ct} SET status = 'paid', payout_id = 777 WHERE source_order_id = '9302'" );
+check( 'A03 reactivated order: reversal in a paid payout gets a reinstatement', array( 1, 'reinstatement', 5000 ), array( Ledger::reinstate( 'test', '9302', 'paid again' ), $wpdb->get_var( "SELECT kind FROM {$ct} WHERE source_order_id = '9302' ORDER BY id DESC LIMIT 1" ), (int) $wpdb->get_var( "SELECT amount_minor FROM {$ct} WHERE source_order_id = '9302' ORDER BY id DESC LIMIT 1" ) ) );
+check( 'A02 partial refunds are not reinstated', 0, ( function () use ( $rc ) { $p = sale( 9303, $rc, array( 50000 ) ); refund( 9303, 'r-partial', array( array( 'item_id' => '1', 'net_minor' => 10000 ) ) ); return Ledger::reinstate( 'test', '9303', 'x' ); } )() );
+// ABL-04 re-attribution: A reversed, B booked, refunds afterwards only hit B.
+$ra = AffiliateRepository::create( array( 'name' => 'Partner A', 'email' => 'pa@example.de', 'status' => 'active' ) );
+$rb = AffiliateRepository::create( array( 'name' => 'Partner B', 'email' => 'pb@example.de', 'status' => 'active' ) );
+sale( 9401, WPAffiliateCaptain\Codes\CodeRepository::main_code( $ra ), array( 100000 ) );
+$rs = WPAffiliateCaptain\Sales\ContractApi::normalize_sale( array( 'source' => 'test', 'order_id' => '9401', 'currency' => 'EUR', 'items' => array( array( 'item_id' => '1', 'product_id' => 10, 'name' => 'Kurs 1', 'net_minor' => 100000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'kunde@example.de' ) ) );
+$rr = Ledger::reassign( $rs, $rb, 'Partner B hat den Kunden nachweislich vermittelt' );
+$net = static function ( $aff ) use ( $wpdb, $ct ) { return (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$ct} WHERE source_order_id = '9401' AND affiliate_id = {$aff} AND status <> 'rejected'" ); };
+check( 'A04 reassigned: A reversed to 0, B booked 100 €', array( 'created', 0, 10000 ), array( is_array( $rr ) ? $rr['status'] : 'error', $net( $ra ), $net( $rb ) ) );
+check( 'A04 attribution now points to B', (int) $rb, (int) Ledger::attribution_for( 'test', '9401' )->affiliate_id );
+refund( 9401, 'after', array( array( 'item_id' => '1', 'net_minor' => 50000 ) ) );
+check( 'A04 a later refund only reduces B', array( 0, 5000 ), array( $net( $ra ), $net( $rb ) ) );
+check( 'A04 reason required; same partner refused', array( true, true ), array( is_wp_error( Ledger::reassign( $rs, $ra, '' ) ), is_wp_error( Ledger::reassign( $rs, $rb, 'x' ) ) ) );
+// ABL-06 a refund after the payout was created (not exported) is flagged; rebuild deducts it.
+$cb = AffiliateRepository::create( array( 'name' => 'Claw Partner', 'email' => 'claw@example.de', 'status' => 'active' ) );
+ProfileRepository::save( $cb, array( 'tax_status' => 'private', 'legal_name' => 'Claw', 'address' => "Weg 1\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'Claw', 'iban' => 'DE89370400440532013000' ) );
+$cs = sale( 9501, WPAffiliateCaptain\Codes\CodeRepository::main_code( $cb ), array( 1000000 ) );
+Ledger::transition( (int) $cs['commission_ids'][0], 'approved' );
+$cp = PayoutService::create_for_affiliate( $cb, gmdate( 'Y-m-d' ), 'EUR' );
+refund( 9501, 'late', array( array( 'item_id' => '1', 'net_minor' => 400000 ) ) );
+foreach ( $wpdb->get_col( "SELECT id FROM {$ct} WHERE parent_id = " . (int) $cs['commission_ids'][0] ) as $child ) { Ledger::transition( (int) $child, 'approved' ); }
+check( 'A06 refund after the payout run is flagged on the unexported payout', true, isset( PayoutService::clawbacks()[ $cp ] ) );
+$cp2 = PayoutService::rebuild( $cp );
+check( 'A06 rebuilt payout pays 600 € instead of 1.000 €', array( 'cancelled', 60000 ), array( PayoutService::find( $cp )->status, (int) PayoutService::find( $cp2 )->net_minor ) );
+// ABL-07 claim back a negative balance of a terminated partner.
+$dn = AffiliateRepository::create( array( 'name' => 'Ended Partner', 'email' => 'ended@example.de', 'status' => 'active' ) );
+$wpdb->insert( $ct, array( 'affiliate_id' => $dn, 'source' => 'test', 'source_order_id' => 'd1', 'kind' => 'refund', 'currency' => 'EUR', 'amount_minor' => -2500, 'status' => 'approved', 'idempotency_key' => 'd1', 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
+WPAffiliateCaptain\Commissions\Balance::post( $dn, 'EUR', 'approved', -2500, (int) $wpdb->insert_id, 0, 'test' );
+AffiliateRepository::set_status( $dn, 'terminated', 'Ende' );
+check( 'A07 terminated partner with negative balance is listed', true, (bool) array_filter( WPAffiliateCaptain\Commissions\Dunning::candidates(), static function ( $c ) use ( $dn ) { return $c['affiliate'] && (int) $c['affiliate']->id === (int) $dn; } ) );
+check( 'A07 payment request levels 1, 2, 3, then no more', array( 1, 2, 3, true ), array( WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ), WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ), WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ), is_wp_error( WPAffiliateCaptain\Commissions\Dunning::remind( $dn, 'EUR' ) ) ) );
+check( 'A07 repayment larger than the balance refused', true, is_wp_error( WPAffiliateCaptain\Commissions\Dunning::record_repayment( $dn, 'EUR', 3000, 'x' ) ) );
+WPAffiliateCaptain\Commissions\Dunning::record_repayment( $dn, 'EUR', 2500, 'Überweisung' );
+check( 'A07 repayment settles the balance and ends the dunning', array( 0, array() ), array( WPAffiliateCaptain\Commissions\Dunning::open( $dn, 'EUR' ), WPAffiliateCaptain\Commissions\Dunning::history( $dn, 'EUR' ) ) );
+// ABL-09 transfer list for any currency.
+$tl = PayoutService::transfer_csv( array( $cp2 ) );
+check( 'A09 transfer list has the IBAN and marks the payout exported', array( true, 'exported' ), array( is_array( $tl ) && 'DE89370400440532013000' === $tl[1][0][2], PayoutService::find( $cp2 )->status ) );
+check( 'A09 no second export without "export again"', true, is_wp_error( PayoutService::transfer_csv( array( $cp2 ) ) ) );
+check( 'A accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+check( 'Y15 retention per country', array( 8, 7, 10, 10 ), array( WPAffiliateCaptain\Privacy\Retention::minimum_years( 'DE' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'AT' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'CH' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'FR' ) ) );
+// Audit log clean-up: commission entries are kept like the other booking records; nothing during a hold.
+q( 'DELETE FROM ' . t( 'audit' ) );
+$wpdb->insert( t( 'audit' ), array( 'action' => 'commission.adjusted', 'object_type' => 'commission', 'object_id' => 1, 'actor_id' => 0, 'created_at' => '2024-01-01 00:00:00' ) );
+$wpdb->insert( t( 'audit' ), array( 'action' => 'code.created', 'object_type' => 'code', 'object_id' => 1, 'actor_id' => 0, 'created_at' => '2024-01-01 00:00:00' ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'audit_retention_days' => 30 ) ) );
+Settings::flush_cache();
+WPAffiliateCaptain\Core\Cron::daily();
+check( 'Y17 commission.* audit entries are kept as booking records', array( 'commission.adjusted' ), $wpdb->get_col( 'SELECT action FROM ' . t( 'audit' ) . " WHERE created_at = '2024-01-01 00:00:00'" ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 10 ) ) );
+Settings::flush_cache();
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

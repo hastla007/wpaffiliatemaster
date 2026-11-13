@@ -1,6 +1,6 @@
 {
     "name": "hastla007/wp-affiliate-captain",
-    "description": "WP Affiliate Captain \u2013 partner program, attribution, commissions and payouts for WordPress.",
+    "description": "WP Affiliate Captain – partner program, attribution, commissions and payouts for WordPress.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require": {
@@ -13,9 +13,22 @@
     },
     "scripts": {
         "test": "php tests/run.php",
-        "lint": "find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l"
+        "lint": "find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l",
+        "phpcs": "phpcs",
+        "phpstan": "phpstan analyse --memory-limit=1G"
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "require-dev": {
+        "php-stubs/woocommerce-stubs": "^9.0",
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "phpstan/phpstan": "^2.1",
+        "squizlabs/php_codesniffer": "^3.10",
+        "szepeviktor/phpstan-wordpress": "^2.0",
+        "wp-coding-standards/wpcs": "^3.1"
     }
 }

@@ -22,6 +22,13 @@ final class SettingsPage {
 	 * @param string $do Action.
 	 */
 	public static function handle( $do ) {
+		if ( 'ropa_download' === $do ) {
+			nocache_headers();
+			header( 'Content-Type: text/markdown; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="verarbeitungsverzeichnis-affiliate.md"' );
+			echo \WPAffiliateCaptain\Privacy\Privacy::ropa(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
+			exit;
+		}
 		if ( 'settings_save' !== $do ) {
 			return;
 		}
@@ -56,7 +63,7 @@ final class SettingsPage {
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'renewal_commission' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'retention_hold', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
-			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall' ),
+			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall', 'maintenance_mode', 'monitor_token' ),
 		);
 	}
 
@@ -176,7 +183,7 @@ final class SettingsPage {
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'wp-affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) . '" class="small-text"> ' . esc_html( $currency ) . '</td></tr>';
 		self::select( 'payout_period', __( 'Payout period', 'wp-affiliate-captain' ), $s, array( 'monthly' => __( 'Monthly', 'wp-affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'wp-affiliate-captain' ), 'manual' => __( 'Manual', 'wp-affiliate-captain' ) ) );
 		self::checkbox( 'payout_requests', __( 'Partners can request payouts in the partner area', 'wp-affiliate-captain' ), $s );
-		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'At least 10 years. Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain.', 'wp-affiliate-captain' ) );
+		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain.', 'wp-affiliate-captain' ) );
 		self::checkbox( 'retention_hold', __( 'Tax audit or legal hold: do not delete any statements', 'wp-affiliate-captain' ), $s, __( 'The retention period is suspended while a tax audit is running (§147 Abs. 3 AO).', 'wp-affiliate-captain' ) );
 		self::checkbox( 'self_billing', __( 'Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)', 'wp-affiliate-captain' ), $s, __( 'Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor.', 'wp-affiliate-captain' ) );
 		self::text( 'vat_rate', __( 'VAT rate in %', 'wp-affiliate-captain' ), $s );
@@ -198,12 +205,20 @@ final class SettingsPage {
 		self::end();
 
 		self::section( __( 'Housekeeping', 'wp-affiliate-captain' ), 'reports' );
-		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Terms acceptance records are always kept as proof.', 'wp-affiliate-captain' ) );
+		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'wp-affiliate-captain' ), $s, __( 'Terms acceptance records and booking-relevant entries are kept as long as the credit notes.', 'wp-affiliate-captain' ) );
+		self::checkbox( 'maintenance_mode', __( 'Maintenance mode', 'wp-affiliate-captain' ), $s, __( 'For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off.', 'wp-affiliate-captain' ) );
+		self::text( 'monitor_token', __( 'Monitoring token', 'wp-affiliate-captain' ), $s, sprintf( /* translators: %s: URL */ __( 'At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header "X-WPAC-Monitor-Token" and gets ok or the names of failing checks (no details).', 'wp-affiliate-captain' ), rest_url( 'wpac/v1/health' ) ) );
 		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'wp-affiliate-captain' ), $s, __( 'Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.', 'wp-affiliate-captain' ) );
 		self::end();
 
 		submit_button();
-		echo '</form></div>';
+		echo '</form>';
+		if ( 'reports' === self::$tab ) {
+			echo '<h2>' . esc_html__( 'Record of processing activities', 'wp-affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'wp-affiliate-captain' ) . '</p>';
+			Admin::form_open( 'ropa_download' );
+			echo '<p><button class="button">' . esc_html__( 'Download template (Markdown)', 'wp-affiliate-captain' ) . '</button></p></form>';
+		}
+		echo '</div>';
 	}
 
 	/**

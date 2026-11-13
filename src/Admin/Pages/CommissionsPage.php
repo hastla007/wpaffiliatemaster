@@ -303,6 +303,7 @@ final class CommissionsPage {
 			'lifetime' => __( 'Lifetime customer', 'wp-affiliate-captain' ),
 			'manual'   => __( 'Manual assignment', 'wp-affiliate-captain' ),
 			'app'      => __( 'App', 'wp-affiliate-captain' ),
+			'renewal'  => __( 'Subscription renewal', 'wp-affiliate-captain' ),
 		);
 		return isset( $labels[ $method ] ) ? $labels[ $method ] : (string) $method;
 	}

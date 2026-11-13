@@ -20,7 +20,19 @@ final class Installer {
 	 */
 	public static function activate( $network_wide = false ) {
 		if ( is_multisite() && $network_wide ) {
-			self::for_each_site( array( __CLASS__, 'activate_site' ) );
+			// Small networks are set up right away; large ones in batches (cron) so the network
+			// activation request never runs into the time limit. Every site also migrates itself
+			// on its next admin or cron request (maybe_upgrade()).
+			$ids = array_map( 'intval', (array) get_sites( array( 'fields' => 'ids', 'number' => 0, 'network_id' => get_current_network_id() ) ) );
+			$now = array_slice( $ids, 0, self::NETWORK_BATCH );
+			foreach ( $now as $id ) {
+				self::run_on_site( $id, array( __CLASS__, 'activate_site' ) );
+			}
+			$rest = array_slice( $ids, self::NETWORK_BATCH );
+			if ( $rest ) {
+				update_site_option( 'wpac_network_pending', $rest );
+				Scheduler::once( self::NETWORK_HOOK, 30 );
+			}
 			return;
 		}
 		self::activate_site();
@@ -65,10 +77,49 @@ final class Installer {
 		if ( ! is_multisite() ) {
 			return;
 		}
+		add_action( self::NETWORK_HOOK, array( __CLASS__, 'network_setup_batch' ) );
 		add_action( 'wp_initialize_site', array( __CLASS__, 'on_new_site' ), 200 );
 		// Per-request caches hold data of one site; drop them when code switches to another site.
 		add_action( 'switch_blog', array( __CLASS__, 'flush_site_caches' ) );
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_tables' ), 10, 2 );
+	}
+
+	const NETWORK_BATCH = 25;
+	const NETWORK_HOOK  = 'wpac_network_setup';
+
+	/**
+	 * Set up the next sites of a large network after a network-wide activation (single cron events).
+	 */
+	public static function network_setup_batch() {
+		$pending = array_map( 'intval', (array) get_site_option( 'wpac_network_pending', array() ) );
+		if ( ! $pending ) {
+			return;
+		}
+		foreach ( array_slice( $pending, 0, self::NETWORK_BATCH ) as $id ) {
+			self::run_on_site( $id, array( __CLASS__, 'activate_site' ) );
+		}
+		$rest = array_slice( $pending, self::NETWORK_BATCH );
+		if ( $rest ) {
+			update_site_option( 'wpac_network_pending', $rest );
+			Scheduler::once( self::NETWORK_HOOK, 30 );
+		} else {
+			delete_site_option( 'wpac_network_pending' );
+		}
+	}
+
+	/**
+	 * Run a callback on one site.
+	 *
+	 * @param int      $id       Site ID.
+	 * @param callable $callback Callback.
+	 */
+	private static function run_on_site( $id, callable $callback ) {
+		switch_to_blog( (int) $id );
+		try {
+			call_user_func( $callback );
+		} finally {
+			restore_current_blog();
+		}
 	}
 
 	/**
@@ -200,7 +251,8 @@ final class Installer {
 		$required = array(
 			'affiliates'      => array( 'id', 'email', 'status', 'status_reason' ),
 			'commissions'     => array( 'id', 'idempotency_key', 'payout_id', 'rule_snapshot' ),
-			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at' ),
+			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at', 'operator_snapshot' ),
+			'payout_items'    => array( 'id', 'payout_id', 'commission_id', 'vat_mode', 'vat_rate', 'ref_payout_id' ),
 			'payout_profiles' => array( 'affiliate_id', 'tax_number' ),
 			'balances'        => array( 'affiliate_id', 'last_hash' ),
 			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
@@ -208,27 +260,76 @@ final class Installer {
 			'attributions'    => array( 'id', 'content_id', 'campaign' ),
 			'visits'          => array( 'id', 'content_id', 'campaign' ),
 		);
+		// Existing tables of this plugin, compared without case: with lower_case_table_names=1
+		// (Windows, some macOS/managed MySQL) the server reports names in lower case.
+		$own = array();
+		foreach ( self::table_names() as $name ) {
+			$own[ strtolower( Db::table( $name ) ) ] = $name;
+		}
+		$in    = implode( ',', array_fill( 0, count( $own ), '%s' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery
+		$found = $wpdb->get_results( $wpdb->prepare( "SELECT TABLE_NAME AS t, ENGINE AS e FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) IN ({$in})", array_keys( $own ) ) );
+		$have  = array();
+		foreach ( (array) $found as $row ) {
+			$have[ strtolower( (string) $row->t ) ] = $row;
+		}
+		$warnings = array();
 		foreach ( $required as $table => $columns ) {
 			$name = Db::table( $table );
-			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $name ) ) ) !== $name ) {
+			if ( ! isset( $have[ strtolower( $name ) ] ) ) {
 				$problems[] = 'missing table ' . $name;
 				continue;
 			}
-			$have = array_map( 'strval', (array) $wpdb->get_col( "SHOW COLUMNS FROM {$name}" ) );
-			// phpcs:enable
-			foreach ( array_diff( $columns, $have ) as $missing ) {
+			$real = (string) $have[ strtolower( $name ) ]->t;
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			$cols = array_map( 'strtolower', array_map( 'strval', (array) $wpdb->get_col( "SHOW COLUMNS FROM `{$real}`" ) ) );
+			foreach ( array_diff( $columns, $cols ) as $missing ) {
 				$problems[] = 'missing column ' . $name . '.' . $missing;
 			}
 		}
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$engines = $wpdb->get_results( $wpdb->prepare( 'SELECT TABLE_NAME AS t, ENGINE AS e FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE %s', $wpdb->esc_like( Db::table( '' ) ) . '%' ) );
-		foreach ( (array) $engines as $row ) {
+		foreach ( $have as $row ) {
 			if ( $row->e && 'innodb' !== strtolower( (string) $row->e ) ) {
-				$problems[] = 'table ' . $row->t . ' uses ' . $row->e . ' (InnoDB required for transactions)';
+				// Not a blocker (the data is there), but without InnoDB there are no transactions.
+				$warnings[] = 'table ' . $row->t . ' uses ' . $row->e . ' (InnoDB recommended for transactions)';
 			}
 		}
+		if ( $warnings ) {
+			update_option( 'wpac_schema_warnings', $warnings, false );
+		} else {
+			delete_option( 'wpac_schema_warnings' );
+		}
 		return $problems;
+	}
+
+	/**
+	 * Names (without prefix) of all tables of this plugin.
+	 *
+	 * @return string[]
+	 */
+	public static function table_names() {
+		return Db::TABLES;
+	}
+
+	/**
+	 * Alarm when a migration has been failing for over an hour (mail at most once a day; the
+	 * admin notice and Site Health show it all the time).
+	 */
+	public static function alert_if_stuck() {
+		$problems = get_option( 'wpac_schema_problems' );
+		$since    = (int) get_option( 'wpac_schema_problems_since' );
+		if ( ! $problems || ! $since || $since > time() - HOUR_IN_SECONDS || get_transient( 'wpac_schema_alerted' ) ) {
+			return;
+		}
+		set_transient( 'wpac_schema_alerted', 1, DAY_IN_SECONDS );
+		$admin = (string) Settings::get( 'admin_email' );
+		wp_mail(
+			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Partner program: database update is stuck', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			/* translators: %s: problems */
+			sprintf( __( "The database update of WP Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade", 'wp-affiliate-captain' ), implode( "\n", (array) $problems ) )
+		);
+		Audit::log( 'schema.stuck', 'setup', 0, array( 'problems' => count( (array) $problems ) ) );
 	}
 
 	/**
@@ -455,6 +556,7 @@ final class Installer {
 			vat_minor bigint(20) NOT NULL DEFAULT 0,
 			status varchar(20) NOT NULL DEFAULT 'pending',
 			profile_snapshot text NULL,
+			operator_snapshot text NULL,
 			sepa_batch varchar(64) NOT NULL DEFAULT '',
 			statement_file varchar(255) NOT NULL DEFAULT '',
 			statement_hash char(64) NOT NULL DEFAULT '',
@@ -481,6 +583,9 @@ final class Installer {
 			commission_id bigint(20) unsigned NOT NULL,
 			active_commission_id bigint(20) unsigned NULL,
 			amount_minor bigint(20) NOT NULL DEFAULT 0,
+			vat_mode varchar(20) NOT NULL DEFAULT '',
+			vat_rate varchar(10) NOT NULL DEFAULT '',
+			ref_payout_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			released_at datetime NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY active_commission (active_commission_id),
@@ -545,6 +650,15 @@ final class Installer {
 			PRIMARY KEY  (id),
 			UNIQUE KEY customer_hash (customer_hash),
 			KEY affiliate_id (affiliate_id)
+		) $c;";
+
+		// Rate-limit counters (own table: millions of short-lived rows must not bloat wp_options).
+		$sql[] = "CREATE TABLE {$t('rate_limits')} (
+			rl_key char(32) NOT NULL,
+			hits int(10) unsigned NOT NULL DEFAULT 0,
+			expires_at int(10) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (rl_key),
+			KEY expires_at (expires_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('creatives')} (
@@ -633,13 +747,16 @@ final class Installer {
 		// Only a verified schema counts as migrated; otherwise the next request tries again.
 		$problems = self::verify_schema();
 		if ( $problems ) {
+			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
+				update_option( 'wpac_schema_problems_since', time(), false );
+			}
 			update_option( 'wpac_schema_problems', $problems, false );
 			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( 'WP Affiliate Captain: database migration incomplete: ' . implode( '; ', $problems ) );
+			Log::error( 'Database migration incomplete', array( 'problems' => $problems ) );
 			return;
 		}
 		delete_option( 'wpac_schema_problems' );
+		delete_option( 'wpac_schema_problems_since' );
 		update_option( self::DB_OPTION, WPAC_DB_VERSION, true );
 	}
 
@@ -650,6 +767,31 @@ final class Installer {
 	 */
 	private static function migrate_before( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 8 ) {
+			// v8: VAT treatment and the original credit note per payout item, operator data per payout.
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			$add = array(
+				Db::table( 'payout_items' ) => array(
+					'vat_mode'      => "varchar(20) NOT NULL DEFAULT '' AFTER amount_minor",
+					'vat_rate'      => "varchar(10) NOT NULL DEFAULT '' AFTER vat_mode",
+					'ref_payout_id' => 'bigint(20) unsigned NOT NULL DEFAULT 0 AFTER vat_rate',
+				),
+				Db::table( 'payouts' )      => array(
+					'operator_snapshot' => 'text NULL AFTER profile_snapshot',
+				),
+			);
+			foreach ( $add as $table => $columns ) {
+				if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+					continue;
+				}
+				foreach ( $columns as $col => $def ) {
+					if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE '{$col}'" ) ) {
+						$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$col} {$def}" );
+					}
+				}
+			}
+			// phpcs:enable
+		}
 		if ( $previous > 0 && $previous < 4 ) {
 			// v4: payout numbers become UNIQUE (credit note numbers), net/VAT/storno columns.
 			$t = Db::table( 'payouts' );

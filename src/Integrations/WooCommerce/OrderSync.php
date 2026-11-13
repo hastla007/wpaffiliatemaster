@@ -115,6 +115,15 @@ final class OrderSync {
 			return;
 		}
 		$payload = self::payload( $order );
+		// A renewal without its own code, touch or manual assignment belongs to the partner who
+		// brought the subscription: the partner of the subscription's first (parent) order.
+		if ( self::is_renewal( $order ) && ! $payload['affiliate_id'] && '' === (string) $payload['partner_code'] && empty( $payload['touch'] ) ) {
+			$parent = self::subscription_parent_attribution( $order );
+			if ( $parent ) {
+				$payload['affiliate_id']       = (int) $parent->affiliate_id;
+				$payload['attribution_method'] = 'renewal';
+			}
+		}
 		/**
 		 * Filter the WooCommerce sale payload before it is recorded (e.g. connector add-ons
 		 * can add hold_until or item meta).
@@ -178,6 +187,37 @@ final class OrderSync {
 				'reason'    => (string) $refund->get_reason(),
 			)
 		);
+	}
+
+	/**
+	 * Attribution of the order that started the subscription(s) of a renewal order.
+	 *
+	 * @param \WC_Order $order Renewal order.
+	 * @return object|null
+	 */
+	public static function subscription_parent_attribution( $order ) {
+		$parents = array();
+		if ( function_exists( 'wcs_get_subscriptions_for_renewal_order' ) ) {
+			foreach ( (array) wcs_get_subscriptions_for_renewal_order( $order ) as $subscription ) {
+				if ( is_object( $subscription ) && method_exists( $subscription, 'get_parent_id' ) && $subscription->get_parent_id() ) {
+					$parents[] = (int) $subscription->get_parent_id();
+				}
+			}
+		}
+		$sub_id = (int) $order->get_meta( '_subscription_renewal' );
+		if ( ! $parents && $sub_id && function_exists( 'wc_get_order' ) ) {
+			$subscription = wc_get_order( $sub_id );
+			if ( $subscription && method_exists( $subscription, 'get_parent_id' ) && $subscription->get_parent_id() ) {
+				$parents[] = (int) $subscription->get_parent_id();
+			}
+		}
+		foreach ( $parents as $parent_id ) {
+			$attr = Ledger::attribution_for( WooCommerce::SOURCE, (string) $parent_id );
+			if ( $attr ) {
+				return $attr;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -266,6 +306,12 @@ final class OrderSync {
 	 * @param string $to       New status.
 	 */
 	public static function maybe_chargeback( $order_id, $from, $to ) {
+		// Back to a paid status after a cancellation, chargeback or status refund (chargeback won,
+		// cancelled order paid after all): the commission is reinstated.
+		if ( in_array( sanitize_key( $from ), array( 'cancelled', 'failed', 'refunded' ), true ) && in_array( sanitize_key( $to ), array( 'processing', 'completed' ), true ) ) {
+			self::reinstate( $order_id );
+			return;
+		}
 		// Default: "failed" after the order was paid (payment reversed/disputed by the gateway).
 		// Commissions only exist for paid orders, so this never affects unpaid ones.
 		$statuses = array_map( 'sanitize_key', (array) apply_filters( 'wpac_wc_chargeback_statuses', array( 'failed' ) ) );
@@ -284,6 +330,24 @@ final class OrderSync {
 	}
 
 	/**
+	 * Reinstate the commission after a reversal that turned out to be wrong.
+	 *
+	 * @param int $order_id Order.
+	 */
+	public static function reinstate( $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			return;
+		}
+		$n = Ledger::reinstate( WooCommerce::SOURCE, (string) $order_id, __( 'Order paid again (chargeback won or cancellation reversed)', 'wp-affiliate-captain' ) );
+		if ( $n ) {
+			$order->update_meta_data( '_wpac_reinstated', (int) $order->get_meta( '_wpac_reinstated' ) + 1 );
+			$order->save_meta_data();
+			$order->add_order_note( __( 'Partner commission reinstated.', 'wp-affiliate-captain' ) );
+		}
+	}
+
+	/**
 	 * Reverse all remaining commission of an order.
 	 *
 	 * @param int    $order_id Order.
@@ -294,12 +358,15 @@ final class OrderSync {
 		if ( ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) && ! Jobs::sale_pending( WooCommerce::SOURCE, (string) $order_id ) ) {
 			return;
 		}
+		// After a reinstatement a new reversal of the same kind is a new event (own key).
+		$order  = wc_get_order( $order_id );
+		$round  = $order ? (int) $order->get_meta( '_wpac_reinstated' ) : 0;
 		ContractApi::record_refund(
 			array(
 				'contract'  => WPAC_CONTRACT_VERSION,
 				'source'    => WooCommerce::SOURCE,
 				'order_id'  => (string) $order_id,
-				'refund_id' => 'status-' . $type,
+				'refund_id' => 'status-' . $type . ( $round ? '-' . $round : '' ),
 				'type'      => $type,
 				'full'      => true,
 				'reason'    => $reason,

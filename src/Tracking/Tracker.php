@@ -95,6 +95,7 @@ final class Tracker {
 		}
 
 		self::store_touch( $touch );
+		self::$captured_now = true;
 
 		/**
 		 * Fires after a referral link visit was captured.
@@ -105,6 +106,9 @@ final class Tracker {
 		do_action( 'wpac_referral_captured', $resolved, $touch );
 		return true;
 	}
+
+	/** @var bool Whether this request already captured a referral (the beacon can be skipped). */
+	private static $captured_now = false;
 
 	/**
 	 * Optional beacon for sites behind a full-page cache/CDN that ignores DONOTCACHEPAGE:
@@ -119,10 +123,16 @@ final class Tracker {
 			'url'     => esc_url_raw( rest_url( 'wpac/v1/touch' ) ),
 			'param'   => (string) Settings::get( 'referral_param' ),
 			'content' => is_singular() ? (int) get_queried_object_id() : 0,
+			// The previous page is read from the browser only with marketing consent (or "always").
+			'ref'     => 'always' === Settings::get( 'cookie_mode' ) ? 1 : 0,
+			// Page generated now (not from a cache) and the referral already captured by this very
+			// request: the beacon is not needed. Cached copies carry an old time and still report.
+			'gen'     => time(),
+			'cap'     => self::$captured_now ? 1 : 0,
 		);
 		wp_register_script( 'wpac-beacon', '', array(), WPAC_VERSION, array( 'in_footer' => true ) );
 		wp_enqueue_script( 'wpac-beacon' );
-		wp_add_inline_script( 'wpac-beacon', 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",content_id:c.content,path:location.pathname,referrer:document.referrer||""})});}catch(e){}})(window.wpacBeacon);' );
+		wp_add_inline_script( 'wpac-beacon', 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}if(c.cap&&Math.abs(Date.now()/1000-c.gen)<30){return;}fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",content_id:c.content,path:location.pathname,referrer:r(c)})});}catch(e){}function r(c){try{if(!document.referrer){return"";}if(!c.ref&&!(typeof window.wp_has_consent==="function"&&window.wp_has_consent("marketing"))){return"";}return new URL(document.referrer).host;}catch(e){return"";}}})(window.wpacBeacon);' );
 	}
 
 	/**

@@ -299,8 +299,8 @@ final class CodeRepository {
 			return null;
 		}
 		$aff = AffiliateRepository::find( (int) $row->affiliate_id );
-		if ( ! $aff || 'active' !== $aff->status ) {
-			return null;
+		if ( ! $aff || 'active' !== $aff->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) ) {
+			return null; // Restricted processing (Art. 18 GDPR): no new attributions.
 		}
 		return array(
 			'affiliate_id' => (int) $row->affiliate_id,

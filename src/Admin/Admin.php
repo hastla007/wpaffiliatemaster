@@ -85,6 +85,27 @@ final class Admin {
 		if ( is_array( $schema ) && $schema ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load.', 'wp-affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $schema, 0, 10 ) ) ) . '</li></ul></div>';
 		}
+		if ( \WPAffiliateCaptain\Core\Settings::get( 'maintenance_mode' ) ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded.', 'wp-affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ) ) . '">' . esc_html__( 'Settings', 'wp-affiliate-captain' ) . '</a></p></div>';
+		}
+		$warnings = get_option( 'wpac_schema_warnings' );
+		if ( is_array( $warnings ) && $warnings ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain: some tables do not use InnoDB, so bookings cannot run in transactions. Please convert them (ALTER TABLE … ENGINE=InnoDB).', 'wp-affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $warnings, 0, 10 ) ) ) . '</li></ul></div>';
+		}
+		$balance = get_option( 'wpac_balance_problems' );
+		if ( is_array( $balance ) && ! empty( $balance['accounts'] ) ) {
+			/* translators: 1: number, 2: accounts */
+			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'Affiliate Captain: %1$d partner accounts do not match their bookings (%2$s). Please check them before the next payout.', 'wp-affiliate-captain' ), count( $balance['accounts'] ), implode( ', ', array_slice( $balance['accounts'], 0, 10 ) ) ) ) . '</p></div>';
+		}
+		$stmt = \WPAffiliateCaptain\Payouts\Statement::waiting();
+		if ( $stmt ) {
+			/* translators: %d: number */
+			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( _n( 'Affiliate Captain: %d credit note could not be written (statement folder not writable?). It is tried again with increasing pauses.', 'Affiliate Captain: %d credit notes could not be written (statement folder not writable?). They are tried again with increasing pauses.', count( $stmt ), 'wp-affiliate-captain' ), count( $stmt ) ) ) . '</p></div>';
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( $screen && false !== strpos( (string) $screen->id, 'wpac' ) && current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+			self::blocked_payouts_notice();
+		}
 		\WPAffiliateCaptain\Core\Cron::schedule(); // Cheap; restores events lost e.g. after a migration.
 		$next = wp_next_scheduled( \WPAffiliateCaptain\Core\Cron::HOURLY );
 		if ( ! $next || $next > time() - 2 * HOUR_IN_SECONDS ) {
@@ -97,6 +118,34 @@ final class Admin {
 			echo esc_html__( 'Your site may receive too few visits or block loopback requests: set up a system cron that runs "wp cron event run --due-now".', 'wp-affiliate-captain' );
 		}
 		echo '</p></div>';
+	}
+
+	/**
+	 * Partners with a payable balance who cannot be paid out (operator data, profile, terms,
+	 * VAT ID): listed so that a new rule after an update does not block payouts silently.
+	 */
+	private static function blocked_payouts_notice() {
+		$blocked = get_transient( 'wpac_blocked_payouts' );
+		if ( false === $blocked ) {
+			$blocked  = array();
+			$currency = (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' );
+			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
+				$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
+					$blocked[] = array( (int) $row['affiliate']->id, (string) $row['affiliate']->name, (string) $row['reason'] );
+				}
+			}
+			set_transient( 'wpac_blocked_payouts', $blocked, HOUR_IN_SECONDS );
+		}
+		if ( ! $blocked ) {
+			return;
+		}
+		/* translators: %d: number of partners */
+		echo '<div class="notice notice-warning"><p>' . esc_html( sprintf( _n( 'Affiliate Captain: %d partner with a payable balance cannot be paid out:', 'Affiliate Captain: %d partners with a payable balance cannot be paid out:', count( $blocked ), 'wp-affiliate-captain' ), count( $blocked ) ) ) . '</p><ul>';
+		foreach ( array_slice( $blocked, 0, 10 ) as $b ) {
+			echo '<li><a href="' . esc_url( self::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $b[0] ) ) ) . '">' . esc_html( $b[1] ) . '</a>: ' . esc_html( $b[2] ) . '</li>';
+		}
+		echo '</ul></div>';
 	}
 
 	/**
@@ -193,8 +242,8 @@ final class Admin {
 	 * @return mixed
 	 */
 	public static function post( $key, $default = '' ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in dispatch().
-		return isset( $_POST[ $key ] ) ? wp_unslash( $_POST[ $key ] ) : $default; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		// Nonce verified in dispatch(); callers sanitize per field.
+		return isset( $_POST[ $key ] ) ? wp_unslash( $_POST[ $key ] ) : $default; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	}
 
 	/**
@@ -211,6 +260,9 @@ final class Admin {
 			'affiliate_create'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'affiliate_update'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'affiliate_status'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'public_change'     => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'vies_check'        => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'restriction'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_create'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_batch'        => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_status'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
@@ -218,9 +270,13 @@ final class Admin {
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'dunning_send'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'repayment'         => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'commission_status' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'commission_export' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'payout_run'        => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'objection_resolve' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'payout_rebuild'    => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_bulk'       => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_export'     => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_request_process' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
@@ -238,7 +294,9 @@ final class Admin {
 			'creative_approve'  => array( CreativesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'creative_archive'  => array( CreativesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'job_retry'         => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
+			'job_retry_all'     => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_save'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			'ropa_download'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),
 		);

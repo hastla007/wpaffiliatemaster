@@ -1,0 +1,189 @@
+<?php
+/**
+ * Claiming back negative balances of partners whose partnership ended (they earn nothing that
+ * could offset it): payment request, reminder, final reminder; incoming payments are booked as
+ * "repayment"; what cannot be collected is written off.
+ *
+ * @package WPAffiliateCaptain
+ */
+
+namespace WPAffiliateCaptain\Commissions;
+
+use WPAffiliateCaptain\Affiliates\AffiliateRepository;
+use WPAffiliateCaptain\Core\Audit;
+use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\IntegrationException;
+use WPAffiliateCaptain\Core\Money;
+use WPAffiliateCaptain\Core\Settings;
+
+defined( 'ABSPATH' ) || exit;
+
+final class Dunning {
+
+	const LEVELS = 3;
+
+	/**
+	 * Terminated partners with a negative open balance: [ affiliate, currency, amount (negative), history ].
+	 *
+	 * @return array
+	 */
+	public static function candidates() {
+		global $wpdb;
+		$c = Db::table( 'commissions' );
+		$a = Db::table( 'affiliates' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( "SELECT c.affiliate_id, c.currency, SUM(c.amount_minor) total FROM {$c} c JOIN {$a} a ON a.id = c.affiliate_id WHERE a.status = 'terminated' AND c.status = 'approved' AND c.payout_id = 0 GROUP BY c.affiliate_id, c.currency HAVING SUM(c.amount_minor) < 0 ORDER BY total ASC LIMIT 200" );
+		$out  = array();
+		foreach ( (array) $rows as $r ) {
+			$out[] = array(
+				'affiliate' => AffiliateRepository::find( (int) $r->affiliate_id ),
+				'currency'  => $r->currency,
+				'amount'    => (int) $r->total,
+				'history'   => self::history( (int) $r->affiliate_id, $r->currency ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Sent requests: list of [ level, at, amount ].
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @return array
+	 */
+	public static function history( $affiliate_id, $currency ) {
+		$h = get_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . strtoupper( (string) $currency ) );
+		return is_array( $h ) ? $h : array();
+	}
+
+	/**
+	 * Send the next payment request (1 = request, 2 = reminder, 3 = final reminder).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @return int|\WP_Error Level sent.
+	 */
+	public static function remind( $affiliate_id, $currency ) {
+		$aff      = AffiliateRepository::find( (int) $affiliate_id );
+		$currency = strtoupper( (string) $currency );
+		$open     = self::open( (int) $affiliate_id, $currency );
+		if ( ! $aff || $open >= 0 ) {
+			return new \WP_Error( 'wpac_not_negative', __( 'The balance is not negative.', 'wp-affiliate-captain' ) );
+		}
+		$history = self::history( (int) $affiliate_id, $currency );
+		$level   = count( $history ) + 1;
+		if ( $level > self::LEVELS ) {
+			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'wp-affiliate-captain' ) );
+		}
+		$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$amount  = html_entity_decode( Money::format( -$open, $currency ), ENT_QUOTES, 'UTF-8' );
+		$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
+		$subject = array(
+			/* translators: %s: site name */
+			1 => __( '[%s] Repayment of commissions', 'wp-affiliate-captain' ),
+			/* translators: %s: site name */
+			2 => __( '[%s] Reminder: repayment of commissions', 'wp-affiliate-captain' ),
+			/* translators: %s: site name */
+			3 => __( '[%s] Final reminder: repayment of commissions', 'wp-affiliate-captain' ),
+		);
+		$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
+		wp_mail(
+			$aff->email,
+			sprintf( $subject[ $level ], $site ),
+			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
+			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'wp-affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
+		);
+		$history[] = array(
+			'level'  => $level,
+			'at'     => Db::now(),
+			'amount' => $open,
+		);
+		update_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . $currency, $history, false );
+		Audit::log( 'commission.dunning', 'affiliate', (int) $affiliate_id, array( 'level' => $level, 'amount' => $open, 'currency' => $currency ) );
+		return $level;
+	}
+
+	/**
+	 * Open (approved, unpaid) balance.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @return int
+	 */
+	public static function open( $affiliate_id, $currency ) {
+		global $wpdb;
+		$c = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$c} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0", $affiliate_id, $currency ) );
+	}
+
+	/**
+	 * Book a repayment received from the partner (at most the open negative balance).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param int    $amount_minor Amount received (positive).
+	 * @param string $note         Note (e.g. bank reference).
+	 * @return int|\WP_Error Booking ID.
+	 */
+	public static function record_repayment( $affiliate_id, $currency, $amount_minor, $note ) {
+		global $wpdb;
+		$currency     = strtoupper( (string) $currency );
+		$amount_minor = (int) $amount_minor;
+		if ( $amount_minor <= 0 ) {
+			return new \WP_Error( 'wpac_amount', __( 'Please enter the amount received.', 'wp-affiliate-captain' ) );
+		}
+		$t = Db::table( 'commissions' );
+		try {
+			$id = Db::transaction(
+				static function () use ( $wpdb, $t, $affiliate_id, $currency, $amount_minor, $note ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
+					if ( $open >= 0 || $amount_minor > -$open ) {
+						throw new IntegrationException( 'amount', __( 'The amount is larger than the negative balance.', 'wp-affiliate-captain' ) );
+					}
+					$key = Ledger::key( 'repayment:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
+					$ok  = $wpdb->insert(
+						$t,
+						array(
+							'affiliate_id'    => (int) $affiliate_id,
+							'source'          => 'wpac',
+							'source_order_id' => 'repayment',
+							'source_item_id'  => '',
+							'kind'            => 'repayment',
+							'parent_id'       => 0,
+							'product_ref'     => '',
+							'description'     => substr( sanitize_text_field( (string) $note ), 0, 255 ),
+							'currency'        => $currency,
+							'base_minor'      => 0,
+							'amount_minor'    => $amount_minor,
+							'rate_type'       => 'fixed',
+							'rate'            => '0',
+							'rule_id'         => 0,
+							'status'          => 'approved',
+							'hold_until'      => Db::now(),
+							'idempotency_key' => $key,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
+						)
+					);
+					if ( ! $ok ) {
+						throw new IntegrationException( 'db_repayment', $wpdb->last_error );
+					}
+					$id = (int) $wpdb->insert_id;
+					Balance::post( (int) $affiliate_id, $currency, 'approved', $amount_minor, $id, 0, 'repayment' );
+					Ledger::event( $id, 'created', '', 'approved', $amount_minor, 'repayment', $key, get_current_user_id() );
+					return $id;
+				}
+			);
+		} catch ( IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
+		}
+		Audit::log( 'commission.repayment', 'affiliate', (int) $affiliate_id, array( 'amount' => $amount_minor, 'currency' => $currency ) );
+		if ( self::open( (int) $affiliate_id, $currency ) >= 0 ) {
+			delete_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . $currency );
+		}
+		return $id;
+	}
+}
