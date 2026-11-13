@@ -55,6 +55,7 @@ final class Plugin {
 		\WPAffiliateCaptain\Rest\RestApi::register_hooks();
 		Cron::register_hooks();
 		Privacy::register_hooks();
+		\WPAffiliateCaptain\Cli\Command::register();
 
 		if ( class_exists( 'WooCommerce' ) ) {
 			WooCommerce::register_hooks();

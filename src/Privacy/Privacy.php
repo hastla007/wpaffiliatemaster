@@ -371,6 +371,76 @@ final class Privacy {
 	}
 
 	/**
+	 * A partner's data protection request from the portal. Export and erasure use the WordPress
+	 * request flow (confirmation e-mail, then the admin handles it under Tools); restriction and
+	 * objection go to the operator.
+	 *
+	 * @param object $aff  Partner.
+	 * @param string $type export|erase|restrict|object.
+	 * @param string $note Details.
+	 * @return string Portal message key.
+	 */
+	public static function partner_request( $aff, $type, $note ) {
+		if ( in_array( $type, array( 'export', 'erase' ), true ) ) {
+			if ( ! function_exists( 'wp_create_user_request' ) ) {
+				return 'privacy_failed';
+			}
+			$id = wp_create_user_request( (string) $aff->email, 'export' === $type ? 'export_personal_data' : 'remove_personal_data' );
+			if ( is_wp_error( $id ) ) {
+				// An open request of the same kind already exists: the confirmation mail is sent again.
+				return 'duplicate_request' === $id->get_error_code() ? 'privacy_confirm' : 'privacy_failed';
+			}
+			wp_send_user_request( $id );
+			Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type ) );
+			return 'privacy_confirm';
+		}
+		if ( ! in_array( $type, array( 'restrict', 'object' ), true ) || '' === trim( $note ) ) {
+			return 'privacy_failed';
+		}
+		$admin = (string) Settings::get( 'admin_email' );
+		wp_mail(
+			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+			'restrict' === $type
+				/* translators: %s: partner */
+				? sprintf( __( 'Data protection: %s asks to restrict processing', 'wp-affiliate-captain' ), $aff->name )
+				/* translators: %s: partner */
+				: sprintf( __( 'Data protection: %s objects to processing', 'wp-affiliate-captain' ), $aff->name ),
+			/* translators: 1: details, 2: URL */
+			sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'wp-affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) )
+		);
+		Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type ) );
+		return 'privacy_sent';
+	}
+
+	/**
+	 * Record of processing activities (template in docs/, filled with the current settings).
+	 *
+	 * @return string Markdown.
+	 */
+	public static function ropa() {
+		$file = WPAC_DIR . 'docs/VERARBEITUNGSVERZEICHNIS.md';
+		$text = is_readable( $file ) ? (string) file_get_contents( $file ) : '';
+		$name = (string) Settings::get( 'debtor_name' );
+		$days = static function ( $key ) {
+			$v = (int) Settings::get( $key );
+			return $v > 0 ? (string) $v : '∞';
+		};
+		$life = (int) Settings::get( 'lifetime_days' );
+		$map  = array(
+			'{operator_name}'              => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
+			'{operator_address}'           => str_replace( array( "\r\n", "\n" ), ', ', (string) Settings::get( 'operator_address' ) ),
+			'{date}'                       => wp_date( 'Y-m-d' ),
+			'{visit_retention_days}'       => $days( 'visit_retention_days' ),
+			'{cookie_days}'                => $days( 'cookie_days' ),
+			'{lifetime_days}'              => Settings::get( 'lifetime_enabled' ) ? ( $life > 0 ? $life . ' Tage' : 'bis Vertragsende' ) : 'nicht aktiv',
+			'{retention_years}'            => Retention::years() > 0 ? (string) Retention::years() : '∞',
+			'{application_retention_days}' => $days( 'application_retention_days' ),
+			'{audit_retention_days}'       => $days( 'audit_retention_days' ),
+		);
+		return strtr( $text, $map );
+	}
+
+	/**
 	 * Suggested privacy policy text.
 	 */
 	public static function policy_text() {

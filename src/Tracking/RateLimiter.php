@@ -57,6 +57,19 @@ final class RateLimiter {
 	 */
 	private static function count_in_db( $key, $window ) {
 		global $wpdb;
+		$table = \WPAffiliateCaptain\Core\Db::table( 'rate_limits' );
+		$now   = time();
+		// One row per key and window; an expired row starts again at 1 (atomic, no read-modify-write).
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$suppress = $wpdb->suppress_errors( true );
+		$ok       = $wpdb->query( $wpdb->prepare( "INSERT INTO {$table} (rl_key, hits, expires_at) VALUES (%s, 1, %d) ON DUPLICATE KEY UPDATE hits = IF(expires_at < %d, 1, hits + 1), expires_at = IF(expires_at < %d, %d, expires_at)", substr( $key, -32 ), $now + (int) $window, $now, $now, $now + (int) $window ) );
+		$wpdb->suppress_errors( $suppress );
+		if ( false !== $ok ) {
+			$hits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT hits FROM {$table} WHERE rl_key = %s", substr( $key, -32 ) ) );
+			// phpcs:enable
+			return max( 1, $hits );
+		}
+		// Table not there yet (migration pending): transient rows in wp_options as before.
 		$name    = '_transient_' . $key;
 		$timeout = '_transient_timeout_' . $key;
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery
@@ -68,6 +81,15 @@ final class RateLimiter {
 		$hits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
 		// phpcs:enable
 		return max( 1, $hits );
+	}
+
+	/**
+	 * Delete expired counters (daily).
+	 */
+	public static function purge() {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . \WPAffiliateCaptain\Core\Db::table( 'rate_limits' ) . ' WHERE expires_at < %d LIMIT 50000', time() ) );
 	}
 
 	/**

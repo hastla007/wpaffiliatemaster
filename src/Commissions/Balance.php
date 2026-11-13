@@ -229,6 +229,42 @@ final class Balance {
 	}
 
 	/**
+	 * Daily reconciliation: every partner account against its bookings (hash chain and sums).
+	 * Differences are kept for the admin notice and Site Health and mailed at most once a day.
+	 *
+	 * @return array Problems (empty = consistent).
+	 */
+	public static function scheduled_check() {
+		$problems = self::verify_all( 5000 );
+		if ( ! $problems ) {
+			delete_option( 'wpac_balance_problems' );
+			return array();
+		}
+		$known = get_option( 'wpac_balance_problems' );
+		update_option(
+			'wpac_balance_problems',
+			array(
+				'checked_at' => Db::now(),
+				'accounts'   => array_keys( $problems ),
+			),
+			false
+		);
+		\WPAffiliateCaptain\Core\Audit::log( 'balance.mismatch', 'balance', 0, array( 'accounts' => array_slice( array_keys( $problems ), 0, 20 ) ) );
+		if ( ! is_array( $known ) || $known['accounts'] !== array_keys( $problems ) || ! get_transient( 'wpac_balance_alerted' ) ) {
+			set_transient( 'wpac_balance_alerted', 1, DAY_IN_SECONDS );
+			$admin = (string) \WPAffiliateCaptain\Core\Settings::get( 'admin_email' );
+			wp_mail(
+				is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Partner program: account balances differ from the bookings', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: 1: number, 2: accounts */
+				sprintf( __( "The daily reconciliation found %1\$d partner accounts whose balance does not match the bookings:\n%2\$s\n\nPlease do not run payouts for them before checking (Partners → partner → Balance).", 'wp-affiliate-captain' ), count( $problems ), implode( ', ', array_slice( array_keys( $problems ), 0, 50 ) ) )
+			);
+		}
+		return $problems;
+	}
+
+	/**
 	 * Migration: opening bookings from the current commission ledger.
 	 */
 	public static function open_from_ledger() {

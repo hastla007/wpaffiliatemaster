@@ -438,6 +438,9 @@ final class PayoutService {
 		$ids = $wpdb->get_col( "SELECT id FROM {$t} WHERE statement_file = '' AND statement_deleted_at IS NULL AND status <> 'cancelled' ORDER BY id ASC LIMIT 20" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$n   = 0;
 		foreach ( $ids as $id ) {
+			if ( Statement::waiting( (int) $id ) ) {
+				continue; // Failed before (e.g. folder not writable): back-off instead of every hour.
+			}
 			$n += Statement::generate( (int) $id ) ? 1 : 0;
 		}
 		return $n;

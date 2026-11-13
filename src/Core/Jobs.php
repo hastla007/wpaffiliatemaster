@@ -33,11 +33,12 @@ final class Jobs {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE idempotency_key = %s", $key ) );
 		if ( $exists ) {
+			// The attempts are kept: a job that keeps failing must still end as "failed" for the
+			// admin instead of restarting its count with every new failure report.
 			$ok = $wpdb->update(
 				$table,
 				array(
 					'status'          => 'queued',
-					'attempts'        => 1, // A new failure starts a new backoff series.
 					'payload'         => wp_json_encode( $payload ),
 					'next_attempt_at' => Db::now( time() + 300 ),
 					'last_error_code' => substr( (string) $code, 0, 64 ),
@@ -71,9 +72,10 @@ final class Jobs {
 	 *
 	 * @param int $limit Max jobs per run.
 	 */
-	public static function run_due( $limit = 25 ) {
+	public static function run_due( $limit = 25, $budget = 20 ) {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
+		$start = microtime( true );
 		// Jobs whose lease expired (the run died, e.g. timeout or fatal error) count as a
 		// failed attempt: back to the queue, or failed after the last attempt.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -81,8 +83,43 @@ final class Jobs {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'queued' AND next_attempt_at <= %s ORDER BY next_attempt_at ASC LIMIT %d", Db::now(), $limit ) );
 		foreach ( $ids as $id ) {
+			// Time budget (seconds, 0 = none): a slow job must not push the rest of the cron run
+			// (approvals, payouts, statements) past the PHP time limit. The rest waits 5 minutes.
+			if ( $budget > 0 && microtime( true ) - $start > $budget ) {
+				if ( ! wp_next_scheduled( self::DRAIN_HOOK ) ) {
+					wp_schedule_single_event( time() + 300, self::DRAIN_HOOK );
+				}
+				break;
+			}
 			self::run( (int) $id );
 		}
+	}
+
+	/** Single event that continues a queue run that hit its time budget. */
+	const DRAIN_HOOK = 'wpac_jobs_drain';
+
+	/**
+	 * Continue the queue (single cron event).
+	 */
+	public static function drain() {
+		self::run_due( 50 );
+	}
+
+	/**
+	 * Put all failed jobs back into the queue (admin "retry all", WP-CLI).
+	 *
+	 * @return int Number of jobs queued again.
+	 */
+	public static function retry_all_failed() {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// A manual retry starts a short new series (3 more attempts) instead of failing at once.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', attempts = LEAST(attempts, %d), next_attempt_at = %s, updated_at = %s WHERE status = 'failed'", self::MAX_ATTEMPTS - 3, Db::now(), Db::now() ) );
+		if ( $n ) {
+			Audit::log( 'job.retry_all', 'job', 0, array( 'count' => $n ) );
+		}
+		return $n;
 	}
 
 	/**

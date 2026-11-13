@@ -12,6 +12,7 @@ defined( 'ABSPATH' ) || exit;
 final class Db {
 
 	const TABLES = array(
+		'rate_limits',
 		'affiliates',
 		'partner_groups',
 		'partner_codes',

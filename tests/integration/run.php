@@ -380,9 +380,11 @@ q( 'UPDATE ' . t( 'jobs' ) . " SET status = 'running', attempts = 3, next_attemp
 check( 'R4 running job is not claimed again', false, WPAffiliateCaptain\Core\Jobs::run( $jid ) );
 WPAffiliateCaptain\Core\Jobs::run_due();
 $job = $wpdb->get_row( 'SELECT status, attempts, last_error_code FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" );
-check( 'R4 expired lease → failed attempt counted', 'aborted', $job->last_error_code === 'aborted' || $job->attempts > 3 ? 'aborted' : $job->last_error_code );
+// The dead run counts as an attempt (3 → requeued as aborted) and the job then runs again in the
+// same pass and fails without a handler (attempt 4).
+check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 4, 'no_handler' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
 WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
-check( 'R4 re-enqueue resets the attempts', '1', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
+check( 'R4 re-enqueue keeps the attempts (a job that keeps failing must still end as failed)', '4', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
 
 // R5 filtered commission base: a refund of half the line reverses half the commission.
 $GLOBALS['test_hooks']['wpac_commission_base'][10][] = array( static function ( $base ) { return intdiv( $base, 2 ); }, 1 );
@@ -811,6 +813,50 @@ WPAffiliateCaptain\Payouts\Vies::check( $wr );
 check( 'Y25 VIES unavailable: not blocked, checked again later', array( 'unavailable', '' ), array( WPAffiliateCaptain\Payouts\Vies::result( $wr )['status'], PayoutService::blocked_reason( $wr ) ) );
 check( 'Y25 Greek VAT IDs use EL, Swiss ones are not checked', array( array( 'EL', '123456789' ), null ), array( WPAffiliateCaptain\Payouts\Vies::split( 'GR123456789' ), WPAffiliateCaptain\Payouts\Vies::split( 'CHE123456789' ) ) );
 unset( $GLOBALS['test_http'] );
+check( 'Y27 record of processing activities filled with the settings', true, false !== strpos( WPAffiliateCaptain\Privacy\Privacy::ropa(), 'Segelschule Test GmbH' ) && false === strpos( WPAffiliateCaptain\Privacy\Privacy::ropa(), '{retention_years}' ) );
+$annual = WPAffiliateCaptain\Payouts\Statement::annual( $wa, (int) gmdate( 'Y' ) );
+check( 'Y29 annual overview lists the credit notes of the year with totals', true, 0 === strpos( $annual, '%PDF' ) && false !== strpos( $annual, PayoutService::find( $w2 )->number ) && false !== strpos( $annual, 'Total EUR' ) );
+// Jobs: attempts are kept on re-enqueue, "retry all failed", time budget.
+WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'b11', array(), 'e', 'e' );
+q( "UPDATE {$jt} SET attempts = 5 WHERE idempotency_key = 'nohandler:b11'" );
+WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'b11', array(), 'e2', 'again' );
+check( 'B11 re-enqueue keeps the attempt count', 5, (int) $wpdb->get_var( "SELECT attempts FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" ) );
+q( "UPDATE {$jt} SET status = 'failed', attempts = 8 WHERE idempotency_key = 'nohandler:b11'" );
+check( 'A05 retry all failed jobs', true, WPAffiliateCaptain\Core\Jobs::retry_all_failed() >= 1 );
+check( 'A05 retried job gets a short new series', array( 'queued', 5 ), array( $wpdb->get_var( "SELECT status FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" ), (int) $wpdb->get_var( "SELECT attempts FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" ) ) );
+q( "UPDATE {$jt} SET next_attempt_at = NOW() - INTERVAL 1 MINUTE WHERE idempotency_key = 'nohandler:b11'" );
+$GLOBALS['test_scheduled'] = array();
+WPAffiliateCaptain\Core\Jobs::run_due( 25, 0.000001 );
+check( 'B10 an exhausted time budget schedules the rest in 5 minutes', true, in_array( WPAffiliateCaptain\Core\Jobs::DRAIN_HOOK, $GLOBALS['test_scheduled'], true ) );
+q( "DELETE FROM {$jt} WHERE idempotency_key = 'nohandler:b11'" );
+// BETR: schema check without case, only own tables, engine as warning; hourly isolation; keyset; claims; markers.
+check( 'B01 table names compared without case (own tables found)', array(), WPAffiliateCaptain\Core\Installer::verify_schema() );
+q( 'ALTER TABLE ' . t( 'tiers' ) . ' ENGINE=MyISAM' );
+check( 'B03 a wrong engine is a warning, not a blocker', array( array(), true ), array( WPAffiliateCaptain\Core\Installer::verify_schema(), (bool) get_option( 'wpac_schema_warnings' ) ) );
+q( 'ALTER TABLE ' . t( 'tiers' ) . ' ENGINE=InnoDB' );
+WPAffiliateCaptain\Core\Installer::verify_schema();
+check( 'B05 alarm only after an hour of failing', true, ( function () { update_option( 'wpac_schema_problems', array( 'x' ) ); update_option( 'wpac_schema_problems_since', time() - 7200 ); delete_transient( 'wpac_schema_alerted' ); $n = count( $GLOBALS['test_mails'] ?? array() ); WPAffiliateCaptain\Core\Installer::alert_if_stuck(); $sent = (bool) get_transient( 'wpac_schema_alerted' ); delete_option( 'wpac_schema_problems' ); delete_option( 'wpac_schema_problems_since' ); return $sent; } )() );
+// B12 a second generator of the same credit note waits (lock) – no second file.
+$bk = WPAffiliateCaptain\Core\Db::lock( 'wpac_stmt_' . $wr, 600 );
+check( 'B12 statement generation is claimed per payout', false, WPAffiliateCaptain\Payouts\Statement::generate( $wr ) );
+WPAffiliateCaptain\Core\Db::unlock( 'wpac_stmt_' . $wr, $bk );
+// B13 stale markers are removed.
+$wpdb->insert( $wpdb->options, array( 'option_name' => 'wpac_inflight_stale_test', 'option_value' => ( time() - 2 * DAY_IN_SECONDS ) . ':x', 'autoload' => 'off' ) );
+$wpdb->insert( $wpdb->options, array( 'option_name' => 'wpac_inflight_fresh_test', 'option_value' => time() . ':y', 'autoload' => 'off' ) );
+WPAffiliateCaptain\Core\Cron::purge_inflight();
+check( 'B13 stale in-flight markers purged, fresh kept', array( false, true ), array( (bool) $wpdb->get_var( "SELECT 1 FROM {$wpdb->options} WHERE option_name = 'wpac_inflight_stale_test'" ), (bool) $wpdb->get_var( "SELECT 1 FROM {$wpdb->options} WHERE option_name = 'wpac_inflight_fresh_test'" ) ) );
+q( "DELETE FROM {$wpdb->options} WHERE option_name = 'wpac_inflight_fresh_test'" );
+// B14 rate limits use their own table.
+check( 'B14 rate-limit counters live in their own table', true, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'rate_limits' ) ) > 0 );
+// B08 keyset: a commission that cannot be approved does not stop the others.
+$kb = AffiliateRepository::create( array( 'name' => 'Keyset Partner', 'email' => 'keyset@example.de', 'status' => 'active' ) );
+$k1 = sale( 9201, WPAffiliateCaptain\Codes\CodeRepository::main_code( $kb ), array( 10000 ) );
+refund( 9201, 'k', array( array( 'item_id' => '1', 'net_minor' => 1000 ) ) ); // pending child of a pending parent
+$k2 = sale( 9202, WPAffiliateCaptain\Codes\CodeRepository::main_code( $kb ), array( 10000 ) );
+q( "UPDATE {$ct} SET hold_until = '2000-01-01 00:00:00' WHERE affiliate_id = {$kb}" );
+q( "UPDATE {$ct} SET status = 'review' WHERE id = " . (int) $k1['commission_ids'][0] ); // parent not approvable → child stays
+WPAffiliateCaptain\Commissions\Ledger::approve_due();
+check( 'B08 later commissions are approved even if earlier ones cannot be', 'approved', $wpdb->get_var( "SELECT status FROM {$ct} WHERE id = " . (int) $k2['commission_ids'][0] ) );
 check( 'Y15 retention per country', array( 8, 7, 10, 10 ), array( WPAffiliateCaptain\Privacy\Retention::minimum_years( 'DE' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'AT' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'CH' ), WPAffiliateCaptain\Privacy\Retention::minimum_years( 'FR' ) ) );
 // Audit log clean-up: commission entries are kept like the other booking records; nothing during a hold.
 q( 'DELETE FROM ' . t( 'audit' ) );

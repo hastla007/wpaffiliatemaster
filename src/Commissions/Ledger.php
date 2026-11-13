@@ -467,21 +467,21 @@ final class Ledger {
 		// Time budget per run: the rest follows in the next (hourly) run, so one
 		// WP-Cron request never runs into max_execution_time.
 		$deadline = microtime( true ) + (float) apply_filters( 'wpac_approve_due_budget', 20 );
+		// Keyset pagination (id > last): rows that cannot be approved right now (changed by a
+		// concurrent request, or a correction whose parent is still open) are skipped instead of
+		// being selected again and stopping the whole run.
+		$last = 0;
 		for ( $batch = 0; $batch < 40 && microtime( true ) < $deadline; $batch++ ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE status = 'pending' AND hold_until <= %s ORDER BY id ASC LIMIT 500", Db::now() ) );
+			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE status = 'pending' AND hold_until <= %s AND id > %d ORDER BY id ASC LIMIT 500", Db::now(), $last ) );
 			if ( ! $ids ) {
 				break;
 			}
-			$moved = 0;
 			foreach ( $ids as $id ) {
+				$last = (int) $id;
 				if ( self::transition( (int) $id, 'approved', __( 'Hold period ended', 'wp-affiliate-captain' ), 0 ) ) {
-					++$moved;
+					++$count;
 				}
-			}
-			$count += $moved;
-			if ( ! $moved ) {
-				break; // Nothing changed (concurrent run) – avoid looping on the same rows.
 			}
 		}
 		return $count;

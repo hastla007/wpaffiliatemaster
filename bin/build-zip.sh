@@ -27,7 +27,7 @@ php tests/run.php
 BUILD=$(mktemp -d)
 trap 'rm -rf "$BUILD"' EXIT
 mkdir -p "$BUILD/$SLUG" dist
-cp -R wp-affiliate-captain.php uninstall.php readme.txt README.md src assets blocks languages docs "$BUILD/$SLUG/"
+cp -R wp-affiliate-captain.php uninstall.php readme.txt README.md src assets blocks languages docs tools "$BUILD/$SLUG/"
 find "$BUILD/$SLUG" -name '.DS_Store' -delete
 for f in $(find "$BUILD/$SLUG" -name '*.php'); do php -l "$f" >/dev/null; done
 

@@ -340,6 +340,100 @@ final class Statement {
 	}
 
 	/**
+	 * Annual overview of a partner's credit notes and cancellations (for the partner's tax
+	 * return): every document of the year with net, VAT and gross, and the totals per currency.
+	 * Not a tax document itself.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @param int $year         Year.
+	 * @return string PDF bytes.
+	 */
+	public static function annual( $affiliate_id, $year ) {
+		global $wpdb;
+		$aff  = AffiliateRepository::find( (int) $affiliate_id );
+		$t    = Db::table( 'payouts' );
+		$from = sprintf( '%04d-01-01 00:00:00', (int) $year );
+		$to   = sprintf( '%04d-12-31 23:59:59', (int) $year );
+		// Credit notes issued in the year, and cancellations dated in the year (they reduce it).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d AND ( ( created_at BETWEEN %s AND %s AND statement_file <> '' ) OR ( storno_at BETWEEN %s AND %s ) ) ORDER BY created_at ASC", $affiliate_id, $from, $to, $from, $to ) );
+		$op   = PayoutService::operator_snapshot();
+		$pdf  = new Pdf(
+			array(
+				/* translators: %d: year */
+				'title'  => sprintf( __( 'Annual overview %d', 'wp-affiliate-captain' ), (int) $year ),
+				'author' => $op['name'],
+			)
+		);
+		$date = static function ( $mysql ) {
+			return mysql2date( get_option( 'date_format' ), get_date_from_gmt( $mysql ) );
+		};
+		$y = 60;
+		/* translators: %d: year */
+		$pdf->text( 50, $y, sprintf( __( 'Annual overview %d', 'wp-affiliate-captain' ), (int) $year ), 15, true );
+		$y += 24;
+		$pdf->text( 50, $y, $op['name'] . ' – ' . __( 'partner program', 'wp-affiliate-captain' ), 10 );
+		$y += 14;
+		$pdf->text( 50, $y, __( 'Partner', 'wp-affiliate-captain' ) . ': ' . ( $aff ? $aff->name : '#' . (int) $affiliate_id ), 10 );
+		$y += 24;
+		$cols = array( 50 => __( 'Document', 'wp-affiliate-captain' ), 190 => __( 'Date', 'wp-affiliate-captain' ), 395 => __( 'Net', 'wp-affiliate-captain' ), 470 => __( 'VAT', 'wp-affiliate-captain' ), 545 => __( 'Gross', 'wp-affiliate-captain' ) );
+		foreach ( $cols as $x => $label ) {
+			$pdf->text( $x, $y, $label, 9, true, $x > 300 ? 'right' : 'left' );
+		}
+		$pdf->line( 50, $y + 4, 545, $y + 4 );
+		$y   += 16;
+		$sums = array();
+		$line = static function ( $doc, $when, $net, $vat, $gross, $cur ) use ( $pdf, &$y, &$sums ) {
+			if ( $y > 780 ) {
+				$pdf->add_page();
+				$y = 60;
+			}
+			$pdf->text( 50, $y, $doc, 9 );
+			$pdf->text( 190, $y, $when, 9 );
+			$pdf->text( 395, $y, Money::format( $net, $cur ), 9, false, 'right' );
+			$pdf->text( 470, $y, Money::format( $vat, $cur ), 9, false, 'right' );
+			$pdf->text( 545, $y, Money::format( $gross, $cur ), 9, false, 'right' );
+			$y += 13;
+			if ( ! isset( $sums[ $cur ] ) ) {
+				$sums[ $cur ] = array( 0, 0, 0 );
+			}
+			$sums[ $cur ][0] += $net;
+			$sums[ $cur ][1] += $vat;
+			$sums[ $cur ][2] += $gross;
+		};
+		foreach ( $rows as $p ) {
+			$net = (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor;
+			if ( $p->statement_file && $p->created_at >= $from && $p->created_at <= $to ) {
+				$line( (string) $p->number, $date( $p->created_at ), $net, (int) $p->vat_minor, (int) $p->amount_minor, $p->currency );
+			}
+			if ( $p->storno_at && $p->storno_at >= $from && $p->storno_at <= $to && (string) $p->storno_number ) {
+				/* translators: %s: credit note number */
+				$line( (string) $p->storno_number . ' (' . sprintf( __( 'cancels %s', 'wp-affiliate-captain' ), $p->number ) . ')', $date( $p->storno_at ), -$net, -(int) $p->vat_minor, -(int) $p->amount_minor, $p->currency );
+			}
+		}
+		if ( ! $rows ) {
+			$pdf->text( 50, $y, __( 'No credit notes in this year.', 'wp-affiliate-captain' ), 9 );
+			$y += 13;
+		}
+		$pdf->line( 50, $y - 6, 545, $y - 6 );
+		$y += 6;
+		foreach ( $sums as $cur => $s ) {
+			/* translators: %s: currency */
+			$pdf->text( 50, $y, sprintf( __( 'Total %s', 'wp-affiliate-captain' ), $cur ), 10, true );
+			$pdf->text( 395, $y, Money::format( $s[0], $cur ), 10, true, 'right' );
+			$pdf->text( 470, $y, Money::format( $s[1], $cur ), 10, true, 'right' );
+			$pdf->text( 545, $y, Money::format( $s[2], $cur ), 10, true, 'right' );
+			$y += 15;
+		}
+		$y += 15;
+		foreach ( Pdf::wrap( __( 'This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records.', 'wp-affiliate-captain' ), 495, 8 ) as $l ) {
+			$pdf->text( 50, $y, $l, 8 );
+			$y += 11;
+		}
+		return $pdf->output();
+	}
+
+	/**
 	 * Generate and store the statement of a payout (only once).
 	 *
 	 * @param int $payout_id Payout.
@@ -347,27 +441,84 @@ final class Statement {
 	 */
 	public static function generate( $payout_id ) {
 		global $wpdb;
-		$p = PayoutService::find( $payout_id );
-		if ( ! $p || '' !== (string) $p->statement_file ) {
+		// Claim the payout: the payout run and the hourly cron (or two cron runs) must not both
+		// write a credit note for it (two files, the second overwriting the stored hash).
+		$owner = Db::lock( 'wpac_stmt_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
+		if ( '' === $owner ) {
 			return false;
 		}
-		$bytes = self::build( $p );
-		$name  = sanitize_file_name( $p->number . '-' . wp_generate_password( 16, false ) . '.pdf' );
-		$path  = self::dir() . '/' . $name;
-		if ( false === file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-			Audit::log( 'statement.write_failed', 'payout', (int) $payout_id );
-			return false;
+		try {
+			$p = PayoutService::find( $payout_id );
+			if ( ! $p || '' !== (string) $p->statement_file ) {
+				return false;
+			}
+			$bytes = self::build( $p );
+			$name  = sanitize_file_name( $p->number . '-' . wp_generate_password( 16, false ) . '.pdf' );
+			$path  = self::dir() . '/' . $name;
+			if ( false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+				Audit::log( 'statement.write_failed', 'payout', (int) $payout_id );
+				self::backoff( (int) $payout_id );
+				return false;
+			}
+			// Only if still without a file (compare-and-set).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = ''", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
+			if ( 1 !== $done ) {
+				wp_delete_file( $path );
+				return false;
+			}
+			self::clear_backoff( (int) $payout_id );
+			Audit::log( 'statement.generated', 'payout', (int) $payout_id, array( 'hash' => hash( 'sha256', $bytes ) ) );
+			return true;
+		} finally {
+			Db::unlock( 'wpac_stmt_' . (int) $payout_id, $owner );
 		}
-		$wpdb->update(
-			Db::table( 'payouts' ),
-			array(
-				'statement_file' => $name,
-				'statement_hash' => hash( 'sha256', $bytes ),
-			),
-			array( 'id' => (int) $payout_id )
+	}
+
+	const RETRY_OPTION = 'wpac_statement_retry';
+
+	/**
+	 * Remember a failed write and wait longer each time (1, 2, 4 … 24 hours).
+	 *
+	 * @param int $payout_id Payout.
+	 */
+	private static function backoff( $payout_id ) {
+		$all              = get_option( self::RETRY_OPTION, array() );
+		$all              = is_array( $all ) ? $all : array();
+		$n                = isset( $all[ $payout_id ] ) ? (int) $all[ $payout_id ]['n'] + 1 : 1;
+		$all[ $payout_id ] = array(
+			'n'    => $n,
+			'next' => time() + min( DAY_IN_SECONDS, HOUR_IN_SECONDS * ( 2 ** ( $n - 1 ) ) ),
 		);
-		Audit::log( 'statement.generated', 'payout', (int) $payout_id, array( 'hash' => hash( 'sha256', $bytes ) ) );
-		return true;
+		update_option( self::RETRY_OPTION, $all, false );
+	}
+
+	/**
+	 * Forget the failures of a payout.
+	 *
+	 * @param int $payout_id Payout.
+	 */
+	private static function clear_backoff( $payout_id ) {
+		$all = get_option( self::RETRY_OPTION, array() );
+		if ( is_array( $all ) && isset( $all[ $payout_id ] ) ) {
+			unset( $all[ $payout_id ] );
+			update_option( self::RETRY_OPTION, $all, false );
+		}
+	}
+
+	/**
+	 * Whether a payout waits after failed attempts; and the failures (for the admin notice).
+	 *
+	 * @param int $payout_id Payout (0 = all failures).
+	 * @return bool|array
+	 */
+	public static function waiting( $payout_id = 0 ) {
+		$all = get_option( self::RETRY_OPTION, array() );
+		$all = is_array( $all ) ? $all : array();
+		if ( ! $payout_id ) {
+			return $all;
+		}
+		return isset( $all[ $payout_id ] ) && (int) $all[ $payout_id ]['next'] > time();
 	}
 
 	/**
