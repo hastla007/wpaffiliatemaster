@@ -1422,6 +1422,8 @@ $wpdb->update( t( 'payouts' ), array( 'statement_file' => $zd_old_file ), array(
 foreach ( (array) glob( $zd_dir . '/*' ) as $zd_f ) { @unlink( $zd_f ); }
 @unlink( $zd_dir . '/.htaccess' );
 @rmdir( $zd_dir );
+// ZE: CSV import, program export, REST permission callbacks.
+require __DIR__ . '/ze-import-rest.php';
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

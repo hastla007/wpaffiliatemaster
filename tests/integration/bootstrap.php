@@ -216,7 +216,8 @@ function esc_url_raw( $u ) { return (string) $u; }
 function absint( $v ) { return abs( (int) $v ); }
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function get_current_user_id() { return $GLOBALS['test_user']; }
-function current_user_can( $c ) { return true; }
+// Capabilities: all granted unless a test sets $GLOBALS['test_caps'] (list of granted caps).
+function current_user_can( $c ) { return ! isset( $GLOBALS['test_caps'] ) || in_array( $c, (array) $GLOBALS['test_caps'], true ); }
 function wp_generate_password( $l = 12, $s = true ) { return substr( bin2hex( random_bytes( $l ) ), 0, $l ); }
 function wp_rand( $a = 0, $b = 0 ) { return random_int( $a, $b ); }
 function wp_salt( $s = 'auth' ) { return 'test-salt-' . $s; }

@@ -307,5 +307,27 @@ check( 'vat amount 19 % of 100,00', 1900, Vat::amount( 10000, '19' ) );
 check( 'vat amount rounding', 2, Vat::amount( 13, '19' ) );
 check( 'vat amount zero rate', 0, Vat::amount( 10000, '0' ) );
 
+/* ZE: CSV partner import (parsing only) and SEPA prerequisites ------------- */
+$ze = \WPAffiliateCaptain\Migration\PartnerImport::parse( "\xEF\xBB\xBFName;E-Mail;Website;Status;Codes;Rate;Rate Type;Group;Foo\nAnna;anna@example.com;anna.example;active;ANNA10 ANNA-2;12,5;percent;Influencer;x\n\n\"Bob, Jr.\";bob@example.com;;inactive;;5,00 €;;;\n" );
+check( 'ZE import: header aliases, BOM and ";" detected', array( 'name', 'email', 'website', 'status', 'codes', 'rate', 'rate_type', 'group' ), $ze['fields'] );
+check( 'ZE import: unknown columns reported', array( 'Foo' ), $ze['unknown'] );
+check( 'ZE import: rows keyed by file line, empty lines skipped', array( 2, 4 ), array_keys( $ze['rows'] ) );
+check( 'ZE import: quoted cell', 'Bob, Jr.', $ze['rows'][4]['name'] );
+$ze = \WPAffiliateCaptain\Migration\PartnerImport::parse( "affiliate_id,first_name,last_name,payment_email,status,rate,rate_type\n7,Kim,Kunde,kim@example.com,active,20,percentage\n" );
+$ze_row = $ze['rows'][2];
+ksort( $ze_row );
+check( 'ZE import: AffiliateWP-style columns (first/last name, payment e-mail, "," separator)', array( 'email' => 'kim@example.com', 'name' => 'Kim Kunde', 'rate' => '20', 'rate_type' => 'percentage', 'status' => 'active' ), $ze_row );
+check( 'ZE import: file without e-mail column refused', 'no_email_column', \WPAffiliateCaptain\Migration\PartnerImport::parse( "name;website\nA;b\n" )['error'] );
+check( 'ZE import: empty file', 'empty', \WPAffiliateCaptain\Migration\PartnerImport::parse( '' )['error'] );
+check( 'ZE import: formula protection of an export is removed', '=SUM', \WPAffiliateCaptain\Migration\PartnerImport::parse( "email;name\na@b.de;'=SUM\n" )['rows'][2]['name'] );
+check( 'ZE import: codes split', array( 'A1B', 'C2D', 'E3F' ), \WPAffiliateCaptain\Migration\PartnerImport::split_codes( 'A1B, C2D|E3F  A1B' ) );
+check( 'ZE import: percent rate', array( 'percent', '12.5' ), \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( '12,5 %' ) );
+check( 'ZE import: fixed rate by currency sign', array( 'fixed', '5.00' ), \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( '5,00 €' ) );
+check( 'ZE import: fixed rate by type (AffiliateWP "flat")', array( 'fixed', '7' ), \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( '7', 'flat' ) );
+check( 'ZE import: empty rate = no rule', array(), \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( '' ) );
+check( 'ZE import: percent over 100 refused', null, \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( '120' ) );
+check( 'ZE import: unknown rate type refused', null, \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( '10', 'tiered' ) );
+check( 'ZE SEPA: ext-dom available in the test run', true, SepaXml::dom_available() );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

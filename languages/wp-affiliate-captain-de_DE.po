@@ -1,6 +1,9 @@
 msgid ""
 msgstr ""
+"Project-Id-Version: WP Affiliate Captain 0.10.0\n"
+"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Language: de_DE\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: wp-affiliate-captain\n"
@@ -1324,6 +1327,130 @@ msgstr "Monatsboni"
 
 msgid "Refund rate"
 msgstr "Rückerstattungsquote"
+
+msgid "Import finished: %d partner created."
+msgid_plural "Import finished: %d partners created."
+msgstr[0] "Import abgeschlossen: %d Partner angelegt."
+msgstr[1] "Import abgeschlossen: %d Partner angelegt."
+
+msgid "%d row with errors was skipped."
+msgid_plural "%d rows with errors were skipped."
+msgstr[0] "%d fehlerhafte Zeile wurde übersprungen."
+msgstr[1] "%d fehlerhafte Zeilen wurden übersprungen."
+
+msgid "%d partner can be imported."
+msgid_plural "%d partners can be imported."
+msgstr[0] "%d Partner kann importiert werden."
+msgstr[1] "%d Partner können importiert werden."
+
+msgid "%d row has errors and will be skipped."
+msgid_plural "%d rows have errors and will be skipped."
+msgstr[0] "%d Zeile ist fehlerhaft und wird übersprungen."
+msgstr[1] "%d Zeilen sind fehlerhaft und werden übersprungen."
+
+msgid "Import %d partner"
+msgid_plural "Import %d partners"
+msgstr[0] "%d Partner importieren"
+msgstr[1] "%d Partner importieren"
+
+msgid "Import & export"
+msgstr "Import & Export"
+
+msgid "The checked file has expired. Please upload it again."
+msgstr "Die geprüfte Datei ist abgelaufen. Bitte laden Sie sie erneut hoch."
+
+msgid "Please choose a CSV file."
+msgstr "Bitte wählen Sie eine CSV-Datei aus."
+
+msgid "The file is larger than 5 MB. Split it or use WP-CLI: wp wpac import partners <file>"
+msgstr "Die Datei ist größer als 5 MB. Teilen Sie sie auf oder nutzen Sie WP-CLI: wp wpac import partners <datei>"
+
+msgid "Please upload a .csv file."
+msgstr "Bitte laden Sie eine .csv-Datei hoch."
+
+msgid "You are not allowed to export tax and bank data."
+msgstr "Sie dürfen keine Steuer- und Bankdaten exportieren."
+
+msgid "The export file could not be created."
+msgstr "Die Exportdatei konnte nicht erstellt werden."
+
+msgid "Import partners"
+msgstr "Partner importieren"
+
+msgid "Export program"
+msgstr "Programm exportieren"
+
+msgid "Import and export sections"
+msgstr "Bereiche Import und Export"
+
+msgid "Import partners from a CSV file, for example when you move from another affiliate plugin. The file is checked first; nothing is saved until you confirm the import."
+msgstr "Importieren Sie Partner aus einer CSV-Datei, zum Beispiel beim Umstieg von einem anderen Affiliate-Plugin. Die Datei wird zuerst geprüft; gespeichert wird erst, wenn Sie den Import bestätigen."
+
+msgid "Columns (first line): name, email (required), website, status (active, pending, paused, terminated, rejected; default active), codes (several separated by spaces), rate (percent, or an amount with rate_type \"fixed\"), rate_type, group (name or ID), user_id (existing WordPress account with the same e-mail address), channel. Column names of AffiliateWP and SliceWP exports are recognised."
+msgstr "Spalten (erste Zeile): name, email (Pflicht), website, status (active, pending, paused, terminated, rejected; Standard active), codes (mehrere durch Leerzeichen getrennt), rate (Prozent oder ein Betrag mit rate_type „fixed“), rate_type, group (Name oder ID), user_id (vorhandenes WordPress-Konto mit derselben E-Mail-Adresse), channel. Spaltennamen aus Exporten von AffiliateWP und SliceWP werden erkannt."
+
+msgid "Download an example file"
+msgstr "Beispieldatei herunterladen"
+
+msgid "CSV file"
+msgstr "CSV-Datei"
+
+msgid "UTF-8, separator \";\" or \",\", up to %d partners and 5 MB per file. Larger files: wp wpac import partners <file>"
+msgstr "UTF-8, Trennzeichen „;“ oder „,“, bis zu %d Partner und 5 MB pro Datei. Größere Dateien: wp wpac import partners <datei>"
+
+msgid "E-mails"
+msgstr "E-Mails"
+
+msgid "Send the usual e-mails to imported partners (approval, new account, account link)"
+msgstr "Importierten Partnern die üblichen E-Mails senden (Freigabe, neues Konto, Kontoverknüpfung)"
+
+msgid "Off: no e-mails are sent. Partners whose e-mail address already belongs to a WordPress account are then only linked to it when you enter its user_id in the file."
+msgstr "Aus: Es werden keine E-Mails versendet. Partner, deren E-Mail-Adresse bereits zu einem WordPress-Konto gehört, werden dann nur damit verknüpft, wenn Sie dessen user_id in der Datei angeben."
+
+msgid "Check file"
+msgstr "Datei prüfen"
+
+msgid "Check of %s (nothing has been saved yet):"
+msgstr "Prüfung von %s (noch nichts gespeichert):"
+
+msgid "Ignored columns:"
+msgstr "Ignorierte Spalten:"
+
+msgid "Line"
+msgstr "Zeile"
+
+msgid "Codes"
+msgstr "Codes"
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Import another file"
+msgstr "Weitere Datei importieren"
+
+msgid "Choose another file"
+msgstr "Andere Datei wählen"
+
+msgid "No e-mails are sent to the imported partners."
+msgstr "Die importierten Partner erhalten keine E-Mails."
+
+msgid "Imported partners receive the usual e-mails."
+msgstr "Die importierten Partner erhalten die üblichen E-Mails."
+
+msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items and payout requests. Use it as a backup, for your tax advisor or to move to another system."
+msgstr "Laden Sie das gesamte Partnerprogramm als ZIP-Datei mit einer CSV-Datei je Liste herunter: Partner, Gruppen, Codes, Regeln, Staffeln, AGB-Zustimmungen, Provisionen, Auszahlungen, Auszahlungspositionen und Auszahlungsanträge – zur Sicherung, für Ihre Steuerberatung oder für den Umzug in ein anderes System."
+
+msgid "The program export needs the PHP extension \"zip\". Ask your hosting provider to enable it, or use the CSV exports of the individual lists."
+msgstr "Der Programm-Export benötigt die PHP-Erweiterung „zip“. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie die CSV-Exporte der einzelnen Listen."
+
+msgid "Include tax and bank data (payout details with full IBANs, tax data of payouts)"
+msgstr "Steuer- und Bankdaten einschließen (Auszahlungsdaten mit vollständiger IBAN, Steuerdaten der Auszahlungen)"
+
+msgid "Only tick this if you really need it: the file then contains decrypted bank details. Store it encrypted and delete it when it is no longer needed."
+msgstr "Nur ankreuzen, wenn Sie es wirklich benötigen: Die Datei enthält dann entschlüsselte Bankdaten. Bewahren Sie sie verschlüsselt auf und löschen Sie sie, sobald sie nicht mehr gebraucht wird."
+
+msgid "Download export"
+msgstr "Export herunterladen"
 
 msgid "%d job processed successfully."
 msgid_plural "%d jobs processed successfully."
@@ -2901,6 +3028,21 @@ msgstr "Monatsbonus %1$s (Stufe %2$s %%)"
 msgid "Monthly bonus correction %s"
 msgstr "Korrektur Monatsbonus %s"
 
+msgid "%d visit"
+msgid_plural "%d visits"
+msgstr[0] "%d Besuch"
+msgstr[1] "%d Besuche"
+
+msgid "%d partner"
+msgid_plural "%d partners"
+msgstr[0] "%d Partner"
+msgstr[1] "%d Partnern"
+
+msgid "%d order"
+msgid_plural "%d orders"
+msgstr[0] "%d Bestellung"
+msgstr[1] "%d Bestellungen"
+
 msgid "Recommended by [partner name]"
 msgstr "Empfohlen von [Partnername]"
 
@@ -2916,8 +3058,8 @@ msgstr "Partner-Deeplink"
 msgid "Partner traffic (90 days)"
 msgstr "Partner-Traffic (90 Tage)"
 
-msgid "%1$d visits from %2$d partners, %3$d orders"
-msgstr "%1$d Besuche von %2$d Partnern, %3$d Bestellungen"
+msgid "%1$s from %2$s, %3$s"
+msgstr "%1$s von %2$s, %3$s"
 
 msgid "Net revenue %1$s, commission %2$s"
 msgstr "Nettoumsatz %1$s, Provision %2$s"
@@ -3042,9 +3184,6 @@ msgstr "Nur mit Marketing-Einwilligung"
 
 msgid "Always, without consent"
 msgstr "Immer, ohne Einwilligung"
-
-msgid "OK"
-msgstr "OK"
 
 msgid "Recommendation"
 msgstr "Empfehlung"
@@ -3261,6 +3400,78 @@ msgstr "Bestellung wieder bezahlt (Rückbuchung gewonnen oder Stornierung aufgeh
 
 msgid "Partner commission reinstated."
 msgstr "Partnerprovision wiederhergestellt."
+
+msgid "invalid or missing e-mail address"
+msgstr "ungültige oder fehlende E-Mail-Adresse"
+
+msgid "e-mail address already used in line %d"
+msgstr "E-Mail-Adresse bereits in Zeile %d verwendet"
+
+msgid "a partner with this e-mail address already exists"
+msgstr "es gibt bereits einen Partner mit dieser E-Mail-Adresse"
+
+msgid "unknown status \"%s\" (allowed: active, pending, paused, terminated, rejected)"
+msgstr "unbekannter Status „%s“ (erlaubt: active, pending, paused, terminated, rejected)"
+
+msgid "code \"%s\" is too short (at least 3 characters)"
+msgstr "Code „%s“ ist zu kurz (mindestens 3 Zeichen)"
+
+msgid "code \"%1$s\" already used in line %2$d"
+msgstr "Code „%1$s“ bereits in Zeile %2$d verwendet"
+
+msgid "code \"%s\" is already in use"
+msgstr "Code „%s“ wird bereits verwendet"
+
+msgid "a random partner code is created"
+msgstr "ein zufälliger Partnercode wird erzeugt"
+
+msgid "invalid commission rate (percent 0–100, or an amount with rate_type \"fixed\")"
+msgstr "ungültiger Provisionssatz (Prozent 0–100 oder ein Betrag mit rate_type „fixed“)"
+
+msgid "you are not allowed to create commission rules (leave the rate empty)"
+msgstr "Sie dürfen keine Provisionsregeln anlegen (Satz leer lassen)"
+
+msgid "partner group #%s does not exist"
+msgstr "Partnergruppe #%s existiert nicht"
+
+msgid "partner group \"%s\" does not exist"
+msgstr "Partnergruppe „%s“ existiert nicht"
+
+msgid "new partner group \"%s\" is created"
+msgstr "neue Partnergruppe „%s“ wird angelegt"
+
+msgid "WordPress user #%d does not exist"
+msgstr "WordPress-Benutzer #%d existiert nicht"
+
+msgid "WordPress user #%d has a different e-mail address"
+msgstr "WordPress-Benutzer #%d hat eine andere E-Mail-Adresse"
+
+msgid "WordPress user #%d can edit content and is not linked automatically"
+msgstr "WordPress-Benutzer #%d kann Inhalte bearbeiten und wird nicht automatisch verknüpft"
+
+msgid "WordPress user #%d already belongs to a partner"
+msgstr "WordPress-Benutzer #%d gehört bereits zu einem Partner"
+
+msgid "The file is empty."
+msgstr "Die Datei ist leer."
+
+msgid "The first line must contain the column names, including \"email\"."
+msgstr "Die erste Zeile muss die Spaltennamen enthalten, darunter „email“."
+
+msgid "The file contains no partners."
+msgstr "Die Datei enthält keine Partner."
+
+msgid "The file has more than %d partners. Split it or use WP-CLI: wp wpac import partners <file>"
+msgstr "Die Datei enthält mehr als %d Partner. Teilen Sie sie auf oder nutzen Sie WP-CLI: wp wpac import partners <datei>"
+
+msgid "Partner #%1$d was created, but a code failed: %2$s"
+msgstr "Partner #%1$d wurde angelegt, aber ein Code ist fehlgeschlagen: %2$s"
+
+msgid "CSV import"
+msgstr "CSV-Import"
+
+msgid "Partner #%1$d was created, but the status could not be set: %2$s"
+msgstr "Partner #%1$d wurde angelegt, aber der Status konnte nicht gesetzt werden: %2$s"
 
 msgid "This credit note cannot be objected to."
 msgstr "Dieser Gutschrift kann nicht widersprochen werden."
@@ -3480,6 +3691,9 @@ msgstr "Bitte geben Sie Ihre IBAN für Auszahlungen per Banküberweisung ein."
 
 msgid "The IBAN is not valid."
 msgstr "Die IBAN ist ungültig."
+
+msgid "The SEPA XML export needs the PHP extension \"dom\" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead."
+msgstr "Der SEPA-XML-Export benötigt die PHP-Erweiterung „dom“ (DOMDocument), die auf diesem Server nicht installiert ist. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie stattdessen die Überweisungsliste (CSV)."
 
 msgid "The commission rates are net amounts; VAT is added at the statutory rate."
 msgstr "Die Provisionssätze sind Nettobeträge; die Umsatzsteuer wird in gesetzlicher Höhe hinzugerechnet."
@@ -4009,6 +4223,51 @@ msgstr "Überwiesen am %s"
 msgid "In progress"
 msgstr "In Bearbeitung"
 
+msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
+msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
+msgstr[0] "Ein Affiliate-Cookie (wpac_ref, %d Tag) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
+msgstr[1] "Ein Affiliate-Cookie (wpac_ref, %d Tage) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
+
+msgid "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link."
+msgid_plural "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link."
+msgstr[0] "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tag) gesetzt."
+msgstr[1] "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tage) gesetzt."
+
+msgid "After a purchase via a partner, later purchases within %d day are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
+msgid_plural "After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
+msgstr[0] "Nach einem Kauf über einen Partner werden auch spätere Käufe innerhalb von %d Tag diesem Partner gutgeschrieben. Dafür speichern wir einen verschlüsselten Hash Ihres Kundenkontos und Ihrer E-Mail-Adresse, nicht die Adresse selbst."
+msgstr[1] "Nach einem Kauf über einen Partner werden auch spätere Käufe innerhalb von %d Tagen diesem Partner gutgeschrieben. Dafür speichern wir einen verschlüsselten Hash Ihres Kundenkontos und Ihrer E-Mail-Adresse, nicht die Adresse selbst."
+
+msgid "link visits (without IP address): %d day"
+msgid_plural "link visits (without IP address): %d days"
+msgstr[0] "Link-Besuche (ohne IP-Adresse): %d Tag"
+msgstr[1] "Link-Besuche (ohne IP-Adresse): %d Tage"
+
+msgid "affiliate cookie: %d day"
+msgid_plural "affiliate cookie: %d days"
+msgstr[0] "Affiliate-Cookie: %d Tag"
+msgstr[1] "Affiliate-Cookie: %d Tage"
+
+msgid "customer link to the referring partner: %d day"
+msgid_plural "customer link to the referring partner: %d days"
+msgstr[0] "Kundenverknüpfung mit dem empfehlenden Partner: %d Tag"
+msgstr[1] "Kundenverknüpfung mit dem empfehlenden Partner: %d Tage"
+
+msgid "rejected partner applications: %d day"
+msgid_plural "rejected partner applications: %d days"
+msgstr[0] "abgelehnte Partnerbewerbungen: %d Tag"
+msgstr[1] "abgelehnte Partnerbewerbungen: %d Tage"
+
+msgid "commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)"
+msgid_plural "commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)"
+msgstr[0] "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten AGB: %d Jahr nach Ende des Kalenderjahres (gesetzliche Aufbewahrung; während einer Betriebsprüfung länger)"
+msgstr[1] "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten AGB: %d Jahre nach Ende des Kalenderjahres (gesetzliche Aufbewahrung; während einer Betriebsprüfung länger)"
+
+msgid "change log of other settings and partner data: %d day"
+msgid_plural "change log of other settings and partner data: %d days"
+msgstr[0] "Änderungsprotokoll übriger Einstellungen und Partnerdaten: %d Tag"
+msgstr[1] "Änderungsprotokoll übriger Einstellungen und Partnerdaten: %d Tage"
+
 msgid "Affiliate Captain partner data"
 msgstr "Affiliate-Captain-Partnerdaten"
 
@@ -4075,17 +4334,8 @@ msgstr "Angaben des Partners:\n\n%1$s\n\nBitte innerhalb eines Monats antworten 
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr "Wenn Sie unsere Website über einen Partnerlink besuchen oder einen Partnercode eingeben, speichern wir, welcher Partner Sie empfohlen hat, damit wir dem Partner eine Provision zahlen können. Ihre IP-Adresse speichern wir dafür nicht. Partner erhalten weder Ihren Namen noch Ihre Kontaktdaten."
 
-msgid "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
-msgstr "Ein Affiliate-Cookie (wpac_ref, %d Tage) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
-
-msgid "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link."
-msgstr "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tage) gesetzt."
-
 msgid "If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout."
 msgstr "Wenn Sie bereits einen Warenkorb (Shop-Sitzung) haben oder Marketing-Cookies zugestimmt haben, wird der Partnercode bis zur Bestellung in Ihrer Shop-Sitzung gehalten."
-
-msgid "After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
-msgstr "Nach einem Kauf über einen Partner werden auch spätere Käufe innerhalb von %d Tagen diesem Partner gutgeschrieben. Dafür speichern wir einen verschlüsselten Hash Ihres Kundenkontos und Ihrer E-Mail-Adresse, nicht die Adresse selbst."
 
 msgid "After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
 msgstr "Nach einem Kauf über einen Partner werden auch spätere Käufe diesem Partner gutgeschrieben. Dafür speichern wir einen verschlüsselten Hash Ihres Kundenkontos und Ihrer E-Mail-Adresse, nicht die Adresse selbst."
@@ -4096,35 +4346,17 @@ msgstr "Seiten aus einem Cache melden den Partnercode in der Seitenadresse mit e
 msgid "For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted."
 msgstr "Von Partnern speichern wir Bewerbungsangaben, akzeptierte AGB (Version, Zeitpunkt und den akzeptierten Text), Partnercodes, Provisionsdaten und Auszahlungsdaten. Bankdaten werden verschlüsselt gespeichert."
 
-msgid "link visits (without IP address): %d days"
-msgstr "Link-Besuche (ohne IP-Adresse): %d Tage"
-
 msgid "link visits (without IP address): until deleted manually"
 msgstr "Link-Besuche (ohne IP-Adresse): bis zur manuellen Löschung"
-
-msgid "affiliate cookie: %d days"
-msgstr "Affiliate-Cookie: %d Tage"
-
-msgid "customer link to the referring partner: %d days"
-msgstr "Kundenverknüpfung mit dem empfehlenden Partner: %d Tage"
 
 msgid "customer link to the referring partner: until the partner relationship ends"
 msgstr "Kundenverknüpfung mit dem empfehlenden Partner: bis zum Ende der Partnerschaft"
 
-msgid "rejected partner applications: %d days"
-msgstr "abgelehnte Partnerbewerbungen: %d Tage"
-
 msgid "rejected partner applications: until deleted manually"
 msgstr "abgelehnte Partnerbewerbungen: bis zur manuellen Löschung"
 
-msgid "commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)"
-msgstr "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten AGB: %d Jahre nach Ende des Kalenderjahres (gesetzliche Aufbewahrung; während einer Betriebsprüfung länger)"
-
 msgid "commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically"
 msgstr "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten AGB: gesetzliche Aufbewahrungsfrist, derzeit keine automatische Löschung"
-
-msgid "change log of other settings and partner data: %d days"
-msgstr "Änderungsprotokoll übriger Einstellungen und Partnerdaten: %d Tage"
 
 msgid "change log: until deleted manually"
 msgstr "Änderungsprotokoll: bis zur manuellen Löschung"
@@ -4137,6 +4369,9 @@ msgstr "Rechtsgrundlagen: Zuordnung einer Bestellung zu einem Partner ohne Cooki
 
 msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin."
 msgstr "Empfänger: Partner sehen ihre Bestellungen nur ohne Namen oder Kontaktdaten der Kunden; Auszahlungsdaten gehen für die Überweisung an unsere Bank und im Rahmen der Buchhaltung an unsere Steuerberatung und die Finanzbehörden; unser Hosting-Anbieter verarbeitet die Daten in unserem Auftrag (Art. 28 DSGVO). Dieses Plugin übermittelt keine Daten in Drittländer."
+
+msgid "VAT ID check: if a partner enters an EU VAT ID, it is checked with the VIES service of the European Commission (ec.europa.eu) when the payout details are saved and again periodically. The VAT ID of the partner and our own VAT ID are sent; the European Commission receives these as an independent controller (legal basis: our obligation and legitimate interest to verify the VAT ID before issuing reverse-charge credit notes, Art. 6(1)(c) and (f) GDPR). The result and the consultation number are stored with the payout details."
+msgstr "Prüfung der USt-IdNr.: Gibt ein Partner eine EU-USt-IdNr. an, wird sie beim Speichern der Auszahlungsdaten und danach regelmäßig über den VIES-Dienst der Europäischen Kommission (ec.europa.eu) geprüft. Übermittelt werden die USt-IdNr. des Partners und unsere eigene USt-IdNr.; die Europäische Kommission erhält diese als eigenständige Verantwortliche (Rechtsgrundlage: unsere Pflicht und unser berechtigtes Interesse, die USt-IdNr. vor Gutschriften im Reverse-Charge-Verfahren zu prüfen, Art. 6 Abs. 1 lit. c und f DSGVO). Ergebnis und Abfragenummer werden mit den Auszahlungsdaten gespeichert."
 
 msgid "Partners can ask for a copy of their data, its correction, erasure or restriction of processing, and can object to processing based on legitimate interest. Records we must keep by law are restricted instead of deleted until the retention period ends."
 msgstr "Partner können eine Kopie ihrer Daten, deren Berichtigung, Löschung oder die Einschränkung der Verarbeitung verlangen und der Verarbeitung aufgrund berechtigten Interesses widersprechen. Daten, die wir gesetzlich aufbewahren müssen, werden bis zum Ende der Frist eingeschränkt statt gelöscht."
@@ -4212,6 +4447,9 @@ msgstr "(kein Inhalt / direkt)"
 
 msgid "(no campaign)"
 msgstr "(keine Kampagne)"
+
+msgid "JavaScript tracking is disabled."
+msgstr "JavaScript-Erfassung ist deaktiviert."
 
 msgid "The sale could not be processed and was queued for retry."
 msgstr "Der Verkauf konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."

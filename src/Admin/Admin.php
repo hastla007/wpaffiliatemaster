@@ -32,6 +32,7 @@ final class Admin {
 		add_action( 'admin_notices', array( __CLASS__, 'setup_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'cron_notice' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WPAC_FILE ), array( __CLASS__, 'action_links' ) );
+		Pages\ImportExportPage::register_hooks(); // Own menu entry and admin-post actions.
 	}
 
 	public static function menu() {

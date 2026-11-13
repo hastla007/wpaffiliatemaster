@@ -143,8 +143,21 @@ final class Editor {
 		if ( current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
 			$stats = Reports::for_content( (int) $post->ID, 90 );
 			echo '<p><strong>' . esc_html__( 'Partner traffic (90 days)', 'wp-affiliate-captain' ) . '</strong><br>';
-			/* translators: 1: visits, 2: partners, 3: orders */
-			echo esc_html( sprintf( __( '%1$d visits from %2$d partners, %3$d orders', 'wp-affiliate-captain' ), $stats['visits'], $stats['partners'], $stats['orders'] ) ) . '<br>';
+			$visits   = (int) $stats['visits'];
+			$partners = (int) $stats['partners'];
+			$orders   = (int) $stats['orders'];
+			echo esc_html(
+				sprintf(
+					/* translators: 1: "3 visits", 2: "2 partners", 3: "1 order" */
+					__( '%1$s from %2$s, %3$s', 'wp-affiliate-captain' ),
+					/* translators: %d: number of visits */
+					sprintf( _n( '%d visit', '%d visits', $visits, 'wp-affiliate-captain' ), $visits ),
+					/* translators: %d: number of partners */
+					sprintf( _n( '%d partner', '%d partners', $partners, 'wp-affiliate-captain' ), $partners ),
+					/* translators: %d: number of orders */
+					sprintf( _n( '%d order', '%d orders', $orders, 'wp-affiliate-captain' ), $orders )
+				)
+			) . '<br>';
 			/* translators: 1: revenue, 2: commission */
 			echo esc_html( sprintf( __( 'Net revenue %1$s, commission %2$s', 'wp-affiliate-captain' ), Money::format( $stats['revenue'], $currency ), Money::format( $stats['commission'], $currency ) ) ) . '</p>';
 		}

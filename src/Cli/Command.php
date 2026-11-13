@@ -27,6 +27,8 @@ final class Command {
 	public static function register() {
 		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
 			\WP_CLI::add_command( 'wpac', __CLASS__ );
+			\WP_CLI::add_command( 'wpac import', ImportCommand::class );
+			\WP_CLI::add_command( 'wpac export', ExportCommand::class );
 		}
 	}
 

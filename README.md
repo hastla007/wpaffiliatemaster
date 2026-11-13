@@ -8,8 +8,11 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 
 ## Anforderungen
 
-- WordPress 6.2+, PHP 7.4+ (mit `sodium`, `dom`)
-- Optional: WooCommerce 8.0+ (HPOS und Classic-/Blocks-Checkout; Partnercode-Feld im Blocks-Checkout ab 8.9)
+- WordPress 6.3+ (Blöcke mit `apiVersion: 3`), PHP 7.4+ (mit `sodium`, `dom`; `zip` für den Programm-Export)
+- Optional: WooCommerce 8.0+ (HPOS und Classic-/Blocks-Checkout; Partnercode-Feld im Blocks-Checkout ab 8.9), geprüft bis 11.3
+- Die Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) prüft der CI-Job „Minimum versions“ (Aktivierung, Bestellung + Erstattung, REST, alle Admin-Seiten).
+
+Betreiber-Handbuch (englisch): [docs/HANDBOOK.md](docs/HANDBOOK.md). Import/Export: [docs/IMPORT-EXPORT.md](docs/IMPORT-EXPORT.md). Release und WordPress.org: [docs/RELEASE.md](docs/RELEASE.md); Free/Premium-Entscheidung: [docs/FREE-PREMIUM.md](docs/FREE-PREMIUM.md).
 
 ## Installation
 
@@ -64,6 +67,8 @@ Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprech
 | Mehrwährung | Ledger, Auszahlungen und SEPA bleiben immer in der Bestellwährung. Manuell gepflegte Referenzkurse (`USD=0,92`) dienen nur Berichten und dem Mindestbetrag in Fremdwährungen; Währungen ohne Kurs werden in Berichten ausgewiesen statt still verrechnet. Festbetragsregeln gelten nur in der Programmwährung. |
 | Betrugsregeln | Self-Referral, zu viele Bestellungen in 24 h, hoher Bestellwert, Bestellung direkt nach dem Klick, hohe Refund-Quote des Partners, Wegwerf-/gesperrte E-Mail-Domains, Gutschein eines anderen Partners, eigene Regeln per Filter. Treffer → Status „Prüfung nötig“ mit Grund. |
 | REST-API | `wpac/v1`, siehe [docs/REST.md](docs/REST.md). |
+| Import/Export | CSV-Import von Partnern (Prüflauf mit Fehlerliste, Aliasse für AffiliateWP/SliceWP) unter **Import & Export** oder `wp wpac import partners <datei.csv> [--dry-run]`; Programm-Export als ZIP mit CSV je Liste (`wp wpac export`), Bankdaten nur mit `wpac_view_tax_data` und ausdrücklicher Auswahl. |
+| Externe Dienste | Nur VIES (EU-Kommission, USt-IdNr.-Prüfung, abschaltbar) und eine Loopback-Prüfung des Belegordners – offengelegt in `readme.txt` → External services. |
 | Sprache | Deutsch (`de_DE`) vollständig, inkl. Editor-Blocks. Quelltexte englisch. |
 
 ## Entwicklung
@@ -90,7 +95,7 @@ bin/build-zip.sh
 python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
 ```
 
-CI (GitHub Actions) prüft PHP 7.4–8.4, Unit-Tests, QR-Dekodierung und Vollständigkeit der Übersetzung; ein Tag `v*` erzeugt ein GitHub-Release mit ZIP.
+CI (GitHub Actions) prüft PHP 7.4–8.4, Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
 
 Optional (braucht `zbarimg` und Pillow): QR-Codes wirklich dekodieren:
 

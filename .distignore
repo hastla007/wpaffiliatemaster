@@ -1,0 +1,38 @@
+# Files that are not part of the installable plugin (release ZIP and WordPress.org SVN).
+# Used by bin/build-zip.sh and the WordPress.org deploy workflow (rsync --exclude-from).
+# Patterns starting with "/" match at the plugin root only. tools/ is shipped on purpose
+# (tools/purge-retained.php deletes retained data after an uninstall); dev scripts belong in bin/.
+
+# Version control, CI, editor and OS files
+/.git
+/.github
+/.gitignore
+/.gitattributes
+/.distignore
+/.wordpress-org
+/.claude
+.DS_Store
+Thumbs.db
+*.zip
+
+# Developer documentation and tooling
+/README.md
+/TODO.md
+/docs/FREE-PREMIUM.md
+/docs/RELEASE.md
+/bin
+/tests
+/examples
+/coverage
+/dist
+/vendor
+/node_modules
+/composer.json
+/composer.lock
+/phpcs.xml.dist
+/phpstan.neon.dist
+/.phpunit.result.cache
+
+# Translation source (the .po/.mo/.json/.pot files are shipped)
+/languages/de_DE.json
+/languages/.gitkeep

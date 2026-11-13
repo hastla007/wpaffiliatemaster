@@ -4,6 +4,7 @@ Authentifizierung über WordPress (Cookie + `X-WP-Nonce` oder Application Passwo
 
 | Methode & Pfad | Berechtigung | Zweck |
 |---|---|---|
+| `GET /wp-json/wpac/v1/health` | `wpac_manage_program` **oder** Header `X-WPAC-Monitor-Token` mit dem Token aus **Einstellungen → Berichte & Daten** (20–64 Buchstaben/Ziffern; gespeichert wird nur ein Hash); sonst `403` | Zustand für externes Monitoring: `200` = alles in Ordnung, `503` = kritischer Befund. Antwort `{ "ok": true|false, "failed": ["cron", …] }`; mit Capability zusätzlich `checks` (alle Prüfungen mit Status und Text, wie Site Health). Nie gecacht (`Cache-Control: no-store`). |
 | `GET /wp-json/wpac/v1/contract` | öffentlich | Vertragsversion (Plugin-Version nur für angemeldete Nutzer mit `wpac_manage_program`) |
 | `GET /wpac/v1/codes/{code}` | öffentlich, max. 20/min je Client | `{ "valid": true|false }` – keine Partnerdaten (Schutz vor Enumeration) |
 | `POST /wpac/v1/touch` | öffentlich, nur mit Einstellung „Partnerlinks zusätzlich per JavaScript erfassen“ (sonst 404) | Meldet einen Partnerlink von einer gecachten Seite: `{ code, campaign?, utm_source?, utm_medium?, content_id?, path?, referrer? }` → immer `{ "ok": true }` (auch bei unbekanntem Code); Besuch zählt je Client und Code höchstens einmal pro Minute. |
@@ -16,6 +17,16 @@ Authentifizierung über WordPress (Cookie + `X-WP-Nonce` oder Application Passwo
 | `GET /wpac/v1/me` | angemeldeter Partner | Code, Link, Landing-URL, Summen, verfügbarer Saldo |
 | `GET /wpac/v1/me/commissions` | angemeldeter Partner | eigene Provisionen (ohne Kundendaten) |
 | `GET /wpac/v1/me/payouts` | angemeldeter Partner | eigene Auszahlungen |
+
+Jede Route hat einen `permission_callback`; die Integrationstests (Abschnitt „ZE“ in `tests/integration/run.php`) prüfen, dass genau `health`, `contract`, `touch` und `codes/{code}` öffentlich sind, Verwaltungsrouten ohne Capability und Partnerrouten für Gäste, Kunden ohne Partnerkonto und beendete Partner abgelehnt werden. Eine neue öffentliche Route muss dort bewusst eingetragen werden.
+
+Fehlermeldungen (`message`) sind übersetzt; maßgeblich für Programme ist `code` (`wpac_forbidden`, `wpac_not_found`, `wpac_rate_limited`, `wpac_disabled`, …).
+
+Monitoring-Beispiel:
+
+```bash
+curl -fsS -H 'X-WPAC-Monitor-Token: <Token aus den Einstellungen>' https://example.com/wp-json/wpac/v1/health
+```
 
 Beispiel (Application Password):
 
