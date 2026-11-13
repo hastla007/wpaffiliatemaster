@@ -9,6 +9,7 @@ namespace WPAffiliateCaptain\Affiliates;
 
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\Scheduler;
 use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -120,7 +121,9 @@ final class Agreements {
 	}
 
 	/**
-	 * Whether the affiliate accepted the current version.
+	 * Whether the affiliate accepted the current version. Only the version decides: editing the
+	 * terms page (typo, layout) does not ask all partners to accept again – increase the version
+	 * for material changes. The page hash of every acceptance is kept as evidence only.
 	 *
 	 * @param int $affiliate_id Affiliate.
 	 * @return bool
@@ -128,7 +131,162 @@ final class Agreements {
 	public static function has_current( $affiliate_id ) {
 		$latest = self::latest( $affiliate_id );
 		$terms  = self::current( self::group_of( $affiliate_id ) );
-		return $latest && $latest->version === $terms['version'] && ( '' === $terms['hash'] || $latest->doc_hash === $terms['hash'] );
+		return $latest && (string) $latest->version === (string) $terms['version'];
+	}
+
+	/** Background batches of the "accept the current terms" reminder. */
+	const REMIND_HOOK = 'wpac_terms_remind';
+
+	/** State of the reminder run (option). */
+	const REMIND_OPTION = 'wpac_terms_remind';
+
+	/**
+	 * Active partners who have not accepted the current version of their terms (one query).
+	 *
+	 * @param int $after_id Only IDs above this one.
+	 * @param int $limit    Max. partners to look at (0 = all).
+	 * @return array [ list of partner IDs without current acceptance, last ID looked at ]
+	 */
+	public static function missing_current( $after_id = 0, $limit = 0 ) {
+		global $wpdb;
+		$a     = Db::table( 'affiliates' );
+		$g     = Db::table( 'agreements' );
+		$limit = (int) $limit > 0 ? ' LIMIT ' . (int) $limit : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- table names and an integer only.
+		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT a.id, a.group_id, ( SELECT g.version FROM {$g} g WHERE g.affiliate_id = a.id AND g.result = 'accepted' ORDER BY g.id DESC LIMIT 1 ) AS version FROM {$a} a WHERE a.status = 'active' AND a.id > %d ORDER BY a.id ASC{$limit}", (int) $after_id ) );
+		$current = array();
+		$missing = array();
+		$last    = (int) $after_id;
+		foreach ( (array) $rows as $r ) {
+			$last  = (int) $r->id;
+			$group = (int) $r->group_id;
+			if ( ! isset( $current[ $group ] ) ) {
+				$current[ $group ] = self::current( $group );
+			}
+			if ( ! $current[ $group ]['page_id'] ) {
+				continue; // No terms page: nothing to accept.
+			}
+			if ( null === $r->version || (string) $r->version !== (string) $current[ $group ]['version'] ) {
+				$missing[] = (int) $r->id;
+			}
+		}
+		return array( $missing, $last );
+	}
+
+	/**
+	 * Start the reminder run: every active partner without the current acceptance gets one
+	 * e-mail with the link to the partner area (in batches in the background; at most one run
+	 * per day, and each partner at most once a week).
+	 *
+	 * @return int|\WP_Error Number of partners that will be asked.
+	 */
+	public static function start_reminders() {
+		$state = get_option( self::REMIND_OPTION );
+		if ( is_array( $state ) && empty( $state['done'] ) && (int) $state['started'] > time() - HOUR_IN_SECONDS ) {
+			return new \WP_Error( 'wpac_running', __( 'The reminders are already being sent.', 'wp-affiliate-captain' ) );
+		}
+		if ( is_array( $state ) && (int) $state['started'] > time() - DAY_IN_SECONDS ) {
+			return new \WP_Error( 'wpac_rate_limited', __( 'Reminders were already sent in the last 24 hours. Please wait a day before asking again.', 'wp-affiliate-captain' ) );
+		}
+		list( $missing ) = self::missing_current();
+		if ( ! $missing ) {
+			return new \WP_Error( 'wpac_none', __( 'All active partners have accepted the current terms.', 'wp-affiliate-captain' ) );
+		}
+		update_option(
+			self::REMIND_OPTION,
+			array(
+				'started' => time(),
+				'cursor'  => 0,
+				'sent'    => 0,
+				'done'    => 0,
+				'total'   => count( $missing ),
+			),
+			false
+		);
+		Audit::log( 'agreement.reminders_started', 'settings', 0, array( 'partners' => count( $missing ) ) );
+		self::remind_batch();
+		return count( $missing );
+	}
+
+	/**
+	 * Send one batch of reminders and schedule the next.
+	 *
+	 * @param int $size Partners per batch.
+	 */
+	public static function remind_batch( $size = 50 ) {
+		$state = get_option( self::REMIND_OPTION );
+		if ( ! is_array( $state ) || ! empty( $state['done'] ) ) {
+			return;
+		}
+		if ( Settings::get( 'maintenance_mode' ) ) {
+			Scheduler::once( self::REMIND_HOOK, HOUR_IN_SECONDS ); // Wait until maintenance ends.
+			return;
+		}
+		list( $missing, $last ) = self::missing_current( (int) $state['cursor'], $size );
+		foreach ( $missing as $id ) {
+			if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( $id ) || get_transient( 'wpac_terms_reminded_' . $id ) ) {
+				continue;
+			}
+			if ( self::send_reminder( $id ) ) {
+				set_transient( 'wpac_terms_reminded_' . $id, 1, 7 * DAY_IN_SECONDS );
+				++$state['sent'];
+			}
+		}
+		$moved           = $last > (int) $state['cursor'];
+		$state['cursor'] = $last;
+		if ( ! $moved || self::no_more_after( $last ) ) {
+			$state['done'] = time();
+			Audit::log( 'agreement.reminders_sent', 'settings', 0, array( 'sent' => (int) $state['sent'] ) );
+		} else {
+			Scheduler::once( self::REMIND_HOOK, 60 );
+		}
+		update_option( self::REMIND_OPTION, $state, false );
+	}
+
+	/**
+	 * Whether no active partner has an ID above $id.
+	 *
+	 * @param int $id Last ID.
+	 * @return bool
+	 */
+	private static function no_more_after( $id ) {
+		global $wpdb;
+		$a = Db::table( 'affiliates' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return ! $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$a} WHERE status = 'active' AND id > %d LIMIT 1", (int) $id ) );
+	}
+
+	/**
+	 * Reminder e-mail to one partner.
+	 *
+	 * @param int $id Partner.
+	 * @return bool
+	 */
+	public static function send_reminder( $id ) {
+		$aff = AffiliateRepository::find( (int) $id );
+		if ( ! $aff || ! is_email( $aff->email ) ) {
+			return false;
+		}
+		$terms  = self::current( (int) $aff->group_id );
+		$portal = (int) Settings::get( 'portal_page_id' );
+		$url    = $portal ? get_permalink( $portal ) : home_url( '/' );
+		return (bool) wp_mail(
+			$aff->email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Please accept the current partner terms', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			/* translators: 1: name, 2: version, 3: terms URL, 4: partner area URL */
+			sprintf( __( "Hello %1\$s,\n\nplease read and accept the current partner program terms (version %2\$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3\$s\nAccept them in your partner area: %4\$s\n\nThank you!", 'wp-affiliate-captain' ), $aff->name, $terms['version'], $terms['url'] ? $terms['url'] : $url, $url )
+		);
+	}
+
+	/**
+	 * State of the last reminder run (or null).
+	 *
+	 * @return array|null
+	 */
+	public static function reminder_state() {
+		$state = get_option( self::REMIND_OPTION );
+		return is_array( $state ) ? $state : null;
 	}
 
 	/**

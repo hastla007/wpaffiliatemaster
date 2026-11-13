@@ -28,6 +28,8 @@ final class Cron {
 			}
 		);
 		add_action( Jobs::DRAIN_HOOK, array( Jobs::class, 'drain' ) );
+		add_action( Crypto::REENCRYPT_HOOK, array( Crypto::class, 'reencrypt_batch' ), 10, 0 );
+		add_action( \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, array( \WPAffiliateCaptain\Affiliates\Agreements::class, 'remind_batch' ), 10, 0 );
 	}
 
 	public static function schedule() {

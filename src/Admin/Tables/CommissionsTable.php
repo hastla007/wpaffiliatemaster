@@ -128,6 +128,22 @@ final class CommissionsTable extends \WP_List_Table {
 	}
 
 	/**
+	 * Edit URL of a WooCommerce order without loading the order (HPOS and legacy storage).
+	 *
+	 * @param int $order_id Order ID.
+	 * @return string
+	 */
+	public static function order_edit_url( $order_id ) {
+		if ( $order_id <= 0 || ! class_exists( 'WooCommerce' ) ) {
+			return '';
+		}
+		if ( class_exists( \Automattic\WooCommerce\Utilities\OrderUtil::class ) && method_exists( \Automattic\WooCommerce\Utilities\OrderUtil::class, 'get_order_admin_edit_url' ) ) {
+			return (string) \Automattic\WooCommerce\Utilities\OrderUtil::get_order_admin_edit_url( $order_id );
+		}
+		return admin_url( 'post.php?post=' . $order_id . '&action=edit' );
+	}
+
+	/**
 	 * Empty state.
 	 */
 	public function no_items() {
@@ -161,11 +177,7 @@ final class CommissionsTable extends \WP_List_Table {
 				$a = AffiliateRepository::find( (int) $r->affiliate_id );
 				return '<a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $r->affiliate_id ) ) ) . '">' . esc_html( $a ? $a->name : '#' . $r->affiliate_id ) . '</a>';
 			case 'order':
-				$link = '';
-				if ( 'woocommerce' === $r->source && function_exists( 'wc_get_order' ) ) {
-					$o    = wc_get_order( (int) $r->source_order_id );
-					$link = $o ? $o->get_edit_order_url() : '';
-				}
+				$link = 'woocommerce' === $r->source ? self::order_edit_url( (int) $r->source_order_id ) : '';
 				$ref = 'wpac' === $r->source ? '—' : '#' . $r->source_order_id;
 				return esc_html( Ledger::source_label( $r->source ) ) . ' ' . ( $link ? '<a href="' . esc_url( $link ) . '">' . esc_html( $ref ) . '</a>' : esc_html( $ref ) );
 			case 'item':

@@ -935,5 +935,111 @@ check( 'Y17 commission.* audit entries are kept as booking records', array( 'com
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 10 ) ) );
 Settings::flush_cache();
 
+// ZD round-4 fixes (settings validation, encryption key, terms, payouts, labels).
+if ( ! function_exists( 'wp_lostpassword_url' ) ) { function wp_lostpassword_url( $r = '' ) { return 'http://example.test/wp-login.php?action=lostpassword'; } }
+if ( ! defined( 'WEEK_IN_SECONDS' ) ) { define( 'WEEK_IN_SECONDS', 604800 ); }
+echo "ZD round 4: settings, keys, terms, payouts\n";
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_page_id' => 900, 'self_billing' => 1 ) ) );
+Settings::flush_cache();
+$zd_keep = get_option( 'wpac_settings' );
+// K2: common inputs are understood.
+$zd = Settings::sanitize( array( 'default_rate_type' => 'percent', 'default_rate' => '15 %', 'vat_rate' => '20 %', 'lifetime_rate' => '15,5', 'min_payout' => '1.000,00 €', 'fraud_max_order' => '1.000 €' ), $zd_err );
+check( 'ZD K2 "15 %", "20 %", "15,5", "1.000,00 €" and "1.000 €" are accepted', array( '15', '20', '15.5', 100000, 100000, array() ), array( $zd['default_rate'], $zd['vat_rate'], $zd['lifetime_rate'], $zd['min_payout_minor'], $zd['fraud_max_order_minor'], $zd_err ) );
+$zd = Settings::sanitize( array( 'default_rate_type' => 'fixed', 'default_rate' => '25 €' ), $zd_err );
+check( 'ZD K2 fixed default rate "25 €" = 2500 minor units', array( 'fixed', '2500', array() ), array( $zd['default_rate_type'], $zd['default_rate'], $zd_err ) );
+check( 'ZD K2 amount parser: "€ 25,50", "1,000.00", "EUR 7"', array( '25.50', '1000.00', '7' ), array( Settings::parse_amount( '€ 25,50' ), Settings::parse_amount( '1,000.00' ), Settings::parse_amount( 'EUR 7' ) ) );
+// Invalid input: error per field, stored value kept (not a default).
+update_option( 'wpac_settings', array_merge( $zd_keep, array( 'vat_rate' => '7.7', 'default_rate' => '12', 'default_rate_type' => 'percent', 'operator_country' => 'AT', 'monitor_token' => str_repeat( 'a', 30 ), 'debtor_iban' => 'DE89370400440532013000' ) ) );
+Settings::flush_cache();
+$zd = Settings::sanitize( array( 'vat_rate' => 'abc', 'default_rate_type' => 'percent', 'default_rate' => '150 %', 'operator_country' => 'XX', 'monitor_token' => 'short', 'debtor_iban' => 'DE00123', 'cookie_days' => 'zehn' ), $zd_err, $zd_notes );
+check( 'ZD K2 invalid values keep the stored value', array( '7.7', '12', 'AT', str_repeat( 'a', 30 ), 'DE89370400440532013000', 30 ), array( $zd['vat_rate'], $zd['default_rate'], $zd['operator_country'], $zd['monitor_token'], $zd['debtor_iban'], $zd['cookie_days'] ) );
+check( 'ZD K2 every rejected field has its own message', array( 'cookie_days', 'debtor_iban', 'default_rate', 'monitor_token', 'operator_country', 'vat_rate' ), ( function ( $e ) { $k = array_keys( $e ); sort( $k ); return $k; } )( $zd_err ) );
+$zd = Settings::sanitize( array( 'statement_retention_years' => '3', 'operator_country' => 'CH' ), $zd_err, $zd_notes );
+check( 'ZD K2 retention raised to the legal minimum is reported, not silent', array( 10, true, array() ), array( $zd['statement_retention_years'], isset( $zd_notes['statement_retention_years'] ), $zd_err ) );
+check( 'ZD K2 country list has the EU, CH, GB and US', array( true, true, true, true, true ), array( isset( Settings::countries()['DE'] ), isset( Settings::countries()['FR'] ), isset( Settings::countries()['CH'] ), isset( Settings::countries()['GB'] ), isset( Settings::countries()['US'] ) ) );
+update_option( 'wpac_settings', $zd_keep );
+Settings::flush_cache();
+
+// W25: only the version decides whether the terms must be accepted again.
+$zd_a = AffiliateRepository::create( array( 'name' => 'ZD Terms', 'email' => 'zd-terms@example.de', 'status' => 'active' ) );
+q( 'DELETE FROM ' . t( 'agreements' ) . ' WHERE affiliate_id = ' . (int) $zd_a ); // The fixture hook accepts automatically.
+check( 'ZD W25 admin-created partner without acceptance is listed as missing', true, in_array( $zd_a, WPAffiliateCaptain\Affiliates\Agreements::missing_current()[0], true ) );
+$zd_terms         = WPAffiliateCaptain\Affiliates\Agreements::current( 0 );
+$zd_terms['hash'] = hash( 'sha256', 'older page text' ); // Page edited after the acceptance.
+WPAffiliateCaptain\Affiliates\Agreements::record( $zd_a, 'accepted', $zd_terms );
+check( 'ZD W25 editing the page without a new version keeps the acceptance', array( true, false ), array( WPAffiliateCaptain\Affiliates\Agreements::has_current( $zd_a ), in_array( $zd_a, WPAffiliateCaptain\Affiliates\Agreements::missing_current()[0], true ) ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_version' => '2.0' ) ) );
+Settings::flush_cache();
+check( 'ZD W25 a new version asks for acceptance again', false, WPAffiliateCaptain\Affiliates\Agreements::has_current( $zd_a ) );
+delete_option( WPAffiliateCaptain\Affiliates\Agreements::REMIND_OPTION );
+$GLOBALS['test_mails'] = array();
+$zd_n = WPAffiliateCaptain\Affiliates\Agreements::start_reminders();
+$zd_mails = array_filter( $GLOBALS['test_mails'], static function ( $m ) { return 'zd-terms@example.de' === $m[0]; } );
+check( 'ZD W25 reminder run mails partners without the current acceptance', array( true, 1 ), array( is_int( $zd_n ) && $zd_n >= 1, count( $zd_mails ) ) );
+check( 'ZD W25 a second run within 24 hours is refused', 'wpac_rate_limited', ( function ( $r ) { return is_wp_error( $r ) ? $r->get_error_code() : $r; } )( WPAffiliateCaptain\Affiliates\Agreements::start_reminders() ) );
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terms_version' => $zd_keep['terms_version'] ) ) );
+Settings::flush_cache();
+
+// W26: the request button is not offered when the payout would be refused (terms missing).
+update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'payout_requests' => 1, 'self_billing' => 1 ) ) );
+Settings::flush_cache();
+$zd_b = AffiliateRepository::create( array( 'name' => 'ZD Request', 'email' => 'zd-request@example.de', 'status' => 'active' ) );
+q( 'DELETE FROM ' . t( 'agreements' ) . ' WHERE affiliate_id = ' . (int) $zd_b );
+ProfileRepository::save( $zd_b, array( 'tax_status' => 'private', 'legal_name' => 'ZD', 'address' => "Weg 2\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'ZD', 'iban' => 'DE89370400440532013000' ) );
+$zd_can = WPAffiliateCaptain\Payouts\PayoutRequests::can_request( AffiliateRepository::find( $zd_b ) );
+check( 'ZD W26 no request without accepted terms; the partner is told why', true, is_string( $zd_can ) && false !== strpos( $zd_can, 'terms' ) );
+$zd_code = '';
+PayoutService::blocked_reason( $zd_b, null, $zd_code );
+check( 'ZD W23 blocked reason has a code for the fix link', 'terms', $zd_code );
+check( 'ZD W23 missing profile field is named', true, false !== strpos( PayoutService::blocked_reason( $zd_a ), 'missing' ) );
+update_option( 'wpac_settings', $zd_keep );
+Settings::flush_cache();
+
+// W27: the payout run reports per partner why it was not paid.
+$zd_run = PayoutService::create_run( gmdate( 'Y-m-d' ), 'EUR' );
+check( 'ZD W27 payout run returns details for partners that were not paid', true, isset( $zd_run[2] ) && is_array( $zd_run[2] ) && count( $zd_run[2] ) === $zd_run[1] );
+
+// W21: link requests and manual linking refuse what is not possible, with a reason.
+$zd_r = AffiliateRepository::resend_user_link( $zd_b );
+check( 'ZD W21 resend refused when there is no account with the e-mail', 'wpac_no_user', is_wp_error( $zd_r ) ? $zd_r->get_error_code() : $zd_r );
+$zd_r = AffiliateRepository::link_user( $zd_b, 'nobody@example.de' );
+check( 'ZD W21 manual link to an unknown user is refused', 'wpac_no_user', is_wp_error( $zd_r ) ? $zd_r->get_error_code() : $zd_r );
+check( 'ZD O30 no set-password link without a created account', '', AffiliateRepository::set_password_url( $zd_b ) );
+$GLOBALS['test_mails'] = array();
+WPAffiliateCaptain\Affiliates\Notifications::partner_created( $zd_b );
+check( 'ZD W22 admin-created partner gets one welcome mail', array( array( 'zd-request@example.de', '[Test Shop] Welcome to our partner program' ) ), $GLOBALS['test_mails'] );
+
+// O28: readable labels.
+check( 'ZD O28 month in the monthly mail is "October 2026", not "2026-10"', 'October 2026', WPAffiliateCaptain\Reports\MonthlyMail::month_label( '2026-10' ) );
+check( 'ZD O28 audit actions and details are readable', array( 'Status changed', 'from: Application pending; to: Active; Reason: ok' ), array( WPAffiliateCaptain\Admin\Pages\AuditPage::action_label( 'affiliate.status' ), WPAffiliateCaptain\Admin\Pages\AuditPage::details_text( '{"from":"pending","to":"active","reason":"ok"}' ) ) );
+
+// K3: a dedicated key set later keeps old bank details readable; re-encryption moves them over.
+$zd_old_cipher = WPAffiliateCaptain\Core\Crypto::encrypt( 'DE89370400440532013000' ); // Salt-derived key.
+$wpdb->update( t( 'payout_profiles' ), array( 'iban_encrypted' => $zd_old_cipher ), array( 'affiliate_id' => $zd_b ) );
+define( 'WPAC_ENCRYPTION_KEY', str_repeat( 'ab', 32 ) );
+check( 'ZD K3 old value still readable after WPAC_ENCRYPTION_KEY was set', array( 'DE89370400440532013000', true ), array( WPAffiliateCaptain\Core\Crypto::decrypt( $zd_old_cipher ), WPAffiliateCaptain\Core\Crypto::needs_reencrypt( $zd_old_cipher ) ) );
+check( 'ZD K3 legacy values are counted', true, WPAffiliateCaptain\Core\Crypto::legacy_status()[0] >= 1 );
+delete_option( 'wpac_reencrypt_cursor' );
+WPAffiliateCaptain\Core\Crypto::reencrypt_batch( 500 );
+$zd_new_cipher = (string) $wpdb->get_var( 'SELECT iban_encrypted FROM ' . t( 'payout_profiles' ) . ' WHERE affiliate_id = ' . (int) $zd_b );
+check( 'ZD K3 re-encrypted with the new key, still the same IBAN', array( false, 'DE89370400440532013000', 0 ), array( WPAffiliateCaptain\Core\Crypto::needs_reencrypt( $zd_new_cipher ), WPAffiliateCaptain\Core\Crypto::decrypt( $zd_new_cipher ), WPAffiliateCaptain\Core\Crypto::legacy_status()[0] ) );
+// K3: statements in the old folder are still found after WPAC_STATEMENT_DIR was set, and can be moved.
+$zd_up = sys_get_temp_dir() . '/wpac-uploads/wpac-statements';
+@mkdir( $zd_up, 0777, true );
+file_put_contents( $zd_up . '/zd-test.pdf', '%PDF zd' );
+$zd_pid = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'payouts' ) . " WHERE statement_file <> '' ORDER BY id DESC LIMIT 1" );
+$zd_old_file = (string) $wpdb->get_var( 'SELECT statement_file FROM ' . t( 'payouts' ) . ' WHERE id = ' . $zd_pid );
+$wpdb->update( t( 'payouts' ), array( 'statement_file' => 'zd-test.pdf' ), array( 'id' => $zd_pid ) );
+$zd_dir = sys_get_temp_dir() . '/wpac-zd-statements-' . getmypid();
+define( 'WPAC_STATEMENT_DIR', $zd_dir );
+check( 'ZD K3 statement in the old folder is still found', $zd_up . '/zd-test.pdf', WPAffiliateCaptain\Payouts\Statement::path( 'zd-test.pdf' ) );
+check( 'ZD K3 misplaced statements are listed', true, (bool) array_filter( WPAffiliateCaptain\Payouts\Statement::misplaced(), static function ( $m ) { return 'zd-test.pdf' === $m[1]; } ) );
+WPAffiliateCaptain\Payouts\Statement::move_misplaced();
+check( 'ZD K3 statements moved to the new folder', array( true, false ), array( is_readable( $zd_dir . '/zd-test.pdf' ), file_exists( $zd_up . '/zd-test.pdf' ) ) );
+$wpdb->update( t( 'payouts' ), array( 'statement_file' => $zd_old_file ), array( 'id' => $zd_pid ) );
+foreach ( (array) glob( $zd_dir . '/*' ) as $zd_f ) { @unlink( $zd_f ); }
+@unlink( $zd_dir . '/.htaccess' );
+@rmdir( $zd_dir );
+
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

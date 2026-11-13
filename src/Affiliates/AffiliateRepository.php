@@ -461,7 +461,7 @@ final class AffiliateRepository {
 
 		if ( 'active' === $status ) {
 			self::on_activated( (int) $id );
-			if ( 'pending' === $aff->status ) {
+			if ( in_array( $aff->status, array( 'pending', 'rejected' ), true ) ) {
 				Notifications::application_approved( (int) $id );
 			}
 		} elseif ( 'rejected' === $status && 'pending' === $aff->status ) {
@@ -517,7 +517,14 @@ final class AffiliateRepository {
 					Audit::log( 'affiliate.user_failed', 'affiliate', $id, array( 'error' => $user_id->get_error_code() ) );
 					$user_id = 0;
 				} else {
-					wp_new_user_notification( $user_id, null, 'user' );
+					// No separate WordPress "login details" mail: the welcome/approval mail carries the
+					// set-password link (one mail). If no such mail is sent in this request, WordPress'
+					// own notification is sent at the end of the request instead.
+					self::$new_users[ (int) $id ] = (int) $user_id;
+					if ( ! self::$notify_pending ) {
+						self::$notify_pending = true;
+						add_action( 'shutdown', array( __CLASS__, 'notify_new_users' ) );
+					}
 				}
 			}
 			if ( $user_id ) {
@@ -531,6 +538,146 @@ final class AffiliateRepository {
 		}
 	}
 
+	/** @var array Partner ID => WordPress user created in this request (welcome mail not sent yet). */
+	private static $new_users = array();
+
+	/** @var bool Whether the end-of-request fallback is registered. */
+	private static $notify_pending = false;
+
+	/**
+	 * Set-password link for a WordPress account that was just created for the partner (used by
+	 * the welcome mail; afterwards WordPress' own "login details" mail is no longer sent).
+	 *
+	 * @param int $id Affiliate ID.
+	 * @return string URL or '' when no account was created in this request.
+	 */
+	public static function set_password_url( $id ) {
+		if ( empty( self::$new_users[ (int) $id ] ) ) {
+			return '';
+		}
+		$user = get_userdata( self::$new_users[ (int) $id ] );
+		if ( ! $user || ! function_exists( 'get_password_reset_key' ) ) {
+			return '';
+		}
+		$key = get_password_reset_key( $user );
+		if ( is_wp_error( $key ) ) {
+			return '';
+		}
+		unset( self::$new_users[ (int) $id ] );
+		return network_site_url( 'wp-login.php?action=rp&key=' . $key . '&login=' . rawurlencode( $user->user_login ), 'login' );
+	}
+
+	/**
+	 * End of request: accounts created without a welcome mail get WordPress' login details mail.
+	 */
+	public static function notify_new_users() {
+		foreach ( self::$new_users as $user_id ) {
+			wp_new_user_notification( (int) $user_id, null, 'user' );
+		}
+		self::$new_users = array();
+	}
+
+	/**
+	 * Whether a link request to an existing customer account is open (not expired).
+	 *
+	 * @param int $id Affiliate ID.
+	 * @return bool
+	 */
+	public static function user_link_pending( $id ) {
+		$pending = get_option( 'wpac_user_link_' . (int) $id );
+		return is_array( $pending ) && (int) $pending['expires'] >= time();
+	}
+
+	/**
+	 * Why the partner cannot be linked to this WordPress user ('' = can be linked).
+	 *
+	 * @param object   $aff  Affiliate.
+	 * @param \WP_User $user User.
+	 * @return string
+	 */
+	private static function link_problem( $aff, $user ) {
+		if ( (int) $aff->user_id ) {
+			return __( 'This partner is already linked to a WordPress user.', 'wp-affiliate-captain' );
+		}
+		if ( user_can( $user, 'edit_posts' ) ) {
+			return __( 'Accounts that can edit posts (administrators, editors, authors …) are never linked to a partner – the partner area would give partner access to an account with backend rights. Use a customer or subscriber account.', 'wp-affiliate-captain' );
+		}
+		$other = self::find_by_user( (int) $user->ID );
+		if ( $other && (int) $other->id !== (int) $aff->id ) {
+			/* translators: %s: partner name */
+			return sprintf( __( 'This WordPress user is already linked to the partner "%s".', 'wp-affiliate-captain' ), $other->name );
+		}
+		return '';
+	}
+
+	/**
+	 * Send the link to connect an existing customer account again (admin or partner, at most
+	 * every 10 minutes).
+	 *
+	 * @param int $id Affiliate ID.
+	 * @return true|\WP_Error
+	 */
+	public static function resend_user_link( $id ) {
+		$aff = self::find( (int) $id );
+		if ( ! $aff || ! in_array( $aff->status, array( 'active', 'paused' ), true ) ) {
+			return new \WP_Error( 'wpac_state', __( 'Only active or paused partners can be linked to an account.', 'wp-affiliate-captain' ) );
+		}
+		$user = get_user_by( 'email', $aff->email );
+		if ( ! $user ) {
+			return new \WP_Error( 'wpac_no_user', __( 'There is no WordPress account with the partner\'s e-mail address. Link a user manually or change the e-mail address.', 'wp-affiliate-captain' ) );
+		}
+		$problem = self::link_problem( $aff, $user );
+		if ( '' !== $problem ) {
+			return new \WP_Error( 'wpac_link', $problem );
+		}
+		$pending = get_option( 'wpac_user_link_' . (int) $id );
+		if ( is_array( $pending ) && ! empty( $pending['sent'] ) && (int) $pending['sent'] > time() - 10 * MINUTE_IN_SECONDS ) {
+			return new \WP_Error( 'wpac_rate_limited', __( 'The link was sent a few minutes ago. Please wait 10 minutes before sending it again.', 'wp-affiliate-captain' ) );
+		}
+		self::request_user_link( (int) $id, $aff );
+		return true;
+	}
+
+	/**
+	 * Link a WordPress user manually (admin): by user ID or e-mail address.
+	 *
+	 * @param int        $id   Affiliate ID.
+	 * @param string|int $user User ID or e-mail.
+	 * @return true|\WP_Error
+	 */
+	public static function link_user( $id, $user ) {
+		global $wpdb;
+		$aff = self::find( (int) $id );
+		if ( ! $aff ) {
+			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'wp-affiliate-captain' ) );
+		}
+		$user = trim( (string) $user );
+		$wp   = ctype_digit( $user ) ? get_userdata( (int) $user ) : get_user_by( 'email', $user );
+		if ( ! $wp ) {
+			return new \WP_Error( 'wpac_no_user', __( 'No WordPress user with this ID or e-mail address was found.', 'wp-affiliate-captain' ) );
+		}
+		$problem = self::link_problem( $aff, $wp );
+		if ( '' !== $problem ) {
+			return new \WP_Error( 'wpac_link', $problem );
+		}
+		$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'affiliates' ) . ' SET user_id = %d WHERE id = %d AND user_id = 0', (int) $wp->ID, (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		self::clear_cache( (int) $id );
+		if ( ! $done ) {
+			return new \WP_Error( 'wpac_link', __( 'This partner is already linked to a WordPress user.', 'wp-affiliate-captain' ) );
+		}
+		delete_option( 'wpac_user_link_' . (int) $id );
+		Audit::log(
+			'affiliate.user_linked',
+			'affiliate',
+			(int) $id,
+			array(
+				'user'   => (int) $wp->ID,
+				'manual' => true,
+			)
+		);
+		return true;
+	}
+
 	/**
 	 * Send a one-time link that connects the partner to the existing WordPress account with the same e-mail.
 	 *
@@ -539,7 +686,15 @@ final class AffiliateRepository {
 	 */
 	private static function request_user_link( $id, $aff ) {
 		$token = strtolower( wp_generate_password( 32, false ) );
-		update_option( 'wpac_user_link_' . $id, array( 'hash' => wp_hash( $token ), 'expires' => time() + 7 * DAY_IN_SECONDS ), false );
+		update_option(
+			'wpac_user_link_' . $id,
+			array(
+				'hash'    => wp_hash( $token ),
+				'expires' => time() + 7 * DAY_IN_SECONDS,
+				'sent'    => time(),
+			),
+			false
+		);
 		$portal = (int) Settings::get( 'portal_page_id' );
 		$base   = $portal ? get_permalink( $portal ) : home_url( '/' );
 		$link   = add_query_arg( array( 'wpac_link_account' => $token, 'wpac_aff' => $id ), $base );

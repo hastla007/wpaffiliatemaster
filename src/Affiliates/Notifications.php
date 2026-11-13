@@ -190,15 +190,63 @@ final class Notifications {
 		if ( ! $aff ) {
 			return;
 		}
-		$portal = (int) Settings::get( 'portal_page_id' );
-		$url    = $portal ? get_permalink( $portal ) : home_url( '/' );
 		wp_mail(
 			$aff->email,
 			/* translators: %s: site name */
 			sprintf( __( '[%s] Your affiliate application was approved', 'wp-affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: 1: name, 2: portal URL, 3: set-password URL */
-			sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program! Your partner area with links, codes and statistics: %2\$s\n\nNo password yet? Set one here: %3\$s", 'wp-affiliate-captain' ), $aff->name, $url, wp_lostpassword_url( $url ) )
+			/* translators: 1: name, 2: access instructions */
+			sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program!\n\n%2\$s", 'wp-affiliate-captain' ), $aff->name, self::access_text( $aff ) )
 		);
+	}
+
+	/**
+	 * Welcome mail for a partner the operator created in the admin (with the portal link and,
+	 * for a new account, the link to set a password – no separate WordPress login mail).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	public static function partner_created( $id ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff || 'active' !== $aff->status ) {
+			return;
+		}
+		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		wp_mail(
+			$aff->email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Welcome to our partner program', 'wp-affiliate-captain' ), $site ),
+			/* translators: 1: name, 2: site name, 3: access instructions */
+			sprintf( __( "Hello %1\$s,\n\n%2\$s has set up a partner account for you.\n\n%3\$s", 'wp-affiliate-captain' ), $aff->name, $site, self::access_text( $aff ) )
+		);
+	}
+
+	/**
+	 * How the partner gets into the partner area: portal link, set-password link for a new
+	 * account, a hint on the separate link mail for an existing customer account, and the terms.
+	 *
+	 * @param object $aff Affiliate.
+	 * @return string
+	 */
+	private static function access_text( $aff ) {
+		$portal = (int) Settings::get( 'portal_page_id' );
+		$url    = $portal ? get_permalink( $portal ) : home_url( '/' );
+		/* translators: %s: portal URL */
+		$lines = array( sprintf( __( 'Your partner area with links, codes and statistics: %s', 'wp-affiliate-captain' ), $url ) );
+		$set   = AffiliateRepository::set_password_url( (int) $aff->id );
+		if ( '' !== $set ) {
+			/* translators: %s: URL */
+			$lines[] = sprintf( __( 'We have created an account for you. Choose your password here: %s', 'wp-affiliate-captain' ), $set );
+		} elseif ( ! (int) $aff->user_id && AffiliateRepository::user_link_pending( (int) $aff->id ) ) {
+			$lines[] = __( 'You already have a customer account with this e-mail address: we have sent you a separate e-mail with a link to connect it to the partner program.', 'wp-affiliate-captain' );
+		} else {
+			/* translators: %s: URL */
+			$lines[] = sprintf( __( 'No password yet? Set one here: %s', 'wp-affiliate-captain' ), wp_lostpassword_url( $url ) );
+		}
+		$terms = Agreements::current( (int) $aff->group_id );
+		if ( $terms['page_id'] && ! Agreements::has_current( (int) $aff->id ) ) {
+			$lines[] = __( 'On your first visit, please read and accept the partner program terms – we need them to pay out your commissions.', 'wp-affiliate-captain' );
+		}
+		return implode( "\n\n", $lines );
 	}
 
 	/**
