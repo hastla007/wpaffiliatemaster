@@ -28,7 +28,7 @@ final class CommissionsPage {
 	 */
 	public static function approve_manual( $id, $reason ) {
 		$c = Ledger::find( (int) $id );
-		if ( $c && 'pending' === $c->status && strtotime( $c->hold_until . ' UTC' ) > time() && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
+		if ( $c && in_array( $c->status, array( 'pending', 'review' ), true ) && strtotime( $c->hold_until . ' UTC' ) > time() && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
 			// Separation of duties: approving before the hold period ends makes money payable
 			// early – a decision for whoever is responsible for payouts, not the partner manager.
 			return new \WP_Error( 'wpac_early_approval', __( 'Approving before the end of the hold period needs the permission to manage payouts.', 'affiliate-captain' ) );

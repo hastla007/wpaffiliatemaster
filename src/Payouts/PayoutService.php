@@ -1006,7 +1006,7 @@ final class PayoutService {
 						}
 						if ( 'exported' === $p->status && ! $allow_reexport ) {
 							/* translators: %s: payout number */
-							throw new IntegrationException( 'reexport', sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) );
+							throw new IntegrationException( 'reexport', esc_html( sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$profile = ProfileRepository::get( (int) $p->affiliate_id );
 						$email   = ProfileRepository::paypal_email( ProfileRepository::payment_details( $profile ) );
@@ -1016,13 +1016,13 @@ final class PayoutService {
 						}
 						if ( strtotime( $profile->updated_at . ' UTC' ) > strtotime( $p->created_at . ' UTC' ) ) {
 							/* translators: %s: payout number */
-							throw new IntegrationException( 'profile_changed', sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'affiliate-captain' ), $p->number ) );
+							throw new IntegrationException( 'profile_changed', esc_html( sprintf( __( 'The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$rows[]               = array( $email, Money::to_decimal( (int) $p->amount_minor, $p->currency ), strtoupper( (string) $p->currency ), (string) $p->number, trim( $prefix . ' ' . $p->number ) );
 						$used[ (int) $p->id ] = $p->status;
 					}
 					if ( ! $rows ) {
-						throw new IntegrationException( 'empty', __( 'None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details).', 'affiliate-captain' ) );
+						throw new IntegrationException( 'empty', esc_html__( 'None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details).', 'affiliate-captain' ) );
 					}
 					$batch = 'ACPP' . gmdate( 'YmdHis' ) . strtoupper( wp_generate_password( 4, false ) );
 					$pt    = Db::table( 'payouts' );

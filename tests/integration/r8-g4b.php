@@ -229,7 +229,7 @@ check( 'R6-DD9 changing IBAN, payment details or method needs the password; othe
 
 /* R6-DD10 / R6-DD11 / R6-DD15: permissions --------------------------------------------------- */
 $g4b_hold = (int) ( wpac_record_sale( array( 'source' => 'test', 'order_id' => 'g4b-dd10', 'currency' => 'EUR', 'partner_code' => WPAffiliateCaptain\Codes\CodeRepository::main_code( $g4b_sepa ), 'items' => array( array( 'item_id' => '1', 'product_id' => 10, 'name' => 'Kurs', 'net_minor' => 10000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'kunde-dd10@example.de' ) ) )['commission_ids'][0] );
-$wpdb->query( 'UPDATE ' . t( 'commissions' ) . " SET hold_until = '" . gmdate( 'Y-m-d H:i:s', time() + 30 * 86400 ) . "' WHERE id = " . $g4b_hold );
+$wpdb->query( 'UPDATE ' . t( 'commissions' ) . " SET status = 'pending', hold_until = '" . gmdate( 'Y-m-d H:i:s', time() + 30 * 86400 ) . "' WHERE id = " . $g4b_hold );
 $GLOBALS['test_caps'] = array( Capabilities::MANAGE_AFFILIATES );
 $g4b_e = WPAffiliateCaptain\Admin\Pages\CommissionsPage::approve_manual( $g4b_hold, 'früh' );
 $g4b_page_cap_mgr = Capabilities::payouts_page_cap();
