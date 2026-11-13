@@ -203,7 +203,7 @@ final class ContractApi {
 			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
 		}
 		$source   = isset( $p['source'] ) ? sanitize_key( $p['source'] ) : '';
-		$order_id = isset( $p['order_id'] ) ? substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';
+		$order_id = isset( $p['order_id'] ) ? mb_substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';
 		if ( '' === $source || '' === $order_id ) {
 			throw new IntegrationException( 'missing_reference', 'source and order_id are required' );
 		}
@@ -222,7 +222,7 @@ final class ContractApi {
 				throw new IntegrationException( 'invalid_amount', 'net_minor must be an integer (minor units)' );
 			}
 			$items[] = array(
-				'item_id'      => isset( $raw['item_id'] ) ? substr( sanitize_text_field( (string) $raw['item_id'] ), 0, 64 ) : (string) $i,
+				'item_id'      => isset( $raw['item_id'] ) ? mb_substr( sanitize_text_field( (string) $raw['item_id'] ), 0, 64 ) : (string) $i,
 				'product_id'   => isset( $raw['product_id'] ) ? (int) $raw['product_id'] : 0,
 				'parent_id'    => isset( $raw['parent_id'] ) ? (int) $raw['parent_id'] : 0,
 				'sku'          => isset( $raw['sku'] ) ? sanitize_text_field( (string) $raw['sku'] ) : '',
@@ -265,7 +265,7 @@ final class ContractApi {
 				// Used only for the self-referral comparison, never stored.
 				'email'   => isset( $p['customer']['email'] ) ? sanitize_email( (string) $p['customer']['email'] ) : '',
 			),
-			'idempotency_key'     => isset( $p['idempotency_key'] ) ? substr( sanitize_text_field( (string) $p['idempotency_key'] ), 0, 191 ) : $source . ':' . $order_id,
+			'idempotency_key'     => isset( $p['idempotency_key'] ) ? mb_substr( sanitize_text_field( (string) $p['idempotency_key'] ), 0, 191 ) : $source . ':' . $order_id,
 		);
 	}
 
@@ -282,8 +282,8 @@ final class ContractApi {
 			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
 		}
 		$source    = isset( $p['source'] ) ? sanitize_key( $p['source'] ) : '';
-		$order_id  = isset( $p['order_id'] ) ? substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';
-		$refund_id = isset( $p['refund_id'] ) ? substr( sanitize_text_field( (string) $p['refund_id'] ), 0, 64 ) : '';
+		$order_id  = isset( $p['order_id'] ) ? mb_substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';
+		$refund_id = isset( $p['refund_id'] ) ? mb_substr( sanitize_text_field( (string) $p['refund_id'] ), 0, 64 ) : '';
 		if ( '' === $source || '' === $order_id || '' === $refund_id ) {
 			throw new IntegrationException( 'missing_reference', 'source, order_id and refund_id are required' );
 		}
@@ -298,7 +298,7 @@ final class ContractApi {
 					continue;
 				}
 				$items[] = array(
-					'item_id'   => substr( sanitize_text_field( (string) $raw['item_id'] ), 0, 64 ),
+					'item_id'   => mb_substr( sanitize_text_field( (string) $raw['item_id'] ), 0, 64 ),
 					'net_minor' => abs( (int) $raw['net_minor'] ),
 				);
 			}

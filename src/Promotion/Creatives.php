@@ -126,7 +126,7 @@ final class Creatives {
 				'family_id'   => (int) $family_id,
 				'version'     => $version,
 				'status'      => 'draft',
-				'change_note' => substr( sanitize_text_field( $note ), 0, 255 ),
+				'change_note' => mb_substr( sanitize_text_field( $note ), 0, 255 ),
 				'created_by'  => get_current_user_id(),
 				'created_at'  => Db::now(),
 			)

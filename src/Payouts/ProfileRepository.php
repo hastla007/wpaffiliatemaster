@@ -137,7 +137,9 @@ final class ProfileRepository {
 				return $f;
 			}
 		}
-		if ( '' === (string) $profile->iban_encrypted ) {
+		// Stored, but no longer readable (WordPress salts changed without WPAC_ENCRYPTION_KEY): a
+		// payout would only fail at the export, so the details count as missing.
+		if ( '' === (string) $profile->iban_encrypted || null === \WPAffiliateCaptain\Core\Crypto::decrypt( (string) $profile->iban_encrypted ) ) {
 			return 'iban';
 		}
 		if ( 'business' === $profile->tax_status && '' === (string) $profile->vat_id ) {
@@ -187,7 +189,7 @@ final class ProfileRepository {
 		$iban        = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
 		if ( self::METHOD_MANUAL === $method ) {
 			// Free-text payment details (e.g. "PayPal: name@example.com"), stored encrypted like the IBAN.
-			$details = trim( substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
+			$details = trim( mb_substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
 			$iban    = '';
 			if ( '' === $details && self::METHOD_MANUAL !== $old_method ) {
 				return new \WP_Error( 'wpac_payment_details', __( 'Please enter your payment details (e.g. your PayPal address).', 'affiliate-captain' ) );

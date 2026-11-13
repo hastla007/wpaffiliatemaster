@@ -74,6 +74,8 @@ function switch_to_blog( $id ) { $GLOBALS['test_blog_id'] = (int) $id; return tr
 function restore_current_blog() { $GLOBALS['test_blog_id'] = 1; return true; }
 function delete_post_meta_by_key( $k ) { return true; }
 function wp_roles() { return (object) array( 'role_objects' => array() ); }
+if ( ! function_exists( 'delete_metadata' ) ) { function delete_metadata( $t, $id, $k, $v = '', $all = false ) { $GLOBALS['zb_deleted_meta'][] = $k; return true; } }
+if ( ! function_exists( 'wp_trash_post' ) ) { function wp_trash_post( $id ) { $GLOBALS['zb_trashed'][] = (int) $id; return true; } }
 if ( ! function_exists( 'wp_schedule_event' ) ) {
 	function wp_schedule_event( $ts, $rec, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
 }

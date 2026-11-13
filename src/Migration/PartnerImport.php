@@ -430,7 +430,9 @@ final class PartnerImport {
 					'website'  => $d['website'],
 					'channel'  => $d['channel'],
 					'group_id' => $group_id,
-					'user_id'  => (int) $d['user_id'],
+					// Never linked directly (WordPress does not verify account e-mails): on activation
+					// the partner gets the one-time link to confirm the account (see on_activated()).
+					'user_id'  => 0,
 					'status'   => 'pending',
 				)
 			);

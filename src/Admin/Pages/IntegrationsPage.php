@@ -72,6 +72,7 @@ final class IntegrationsPage {
 			if ( get_option( 'wpac_reencrypt_cursor' ) ) {
 				$message .= ' ' . __( 'The rest is processed in the background.', 'affiliate-captain' );
 			}
+			\WPAffiliateCaptain\Core\Monitor::check_migrations();
 			Admin::back( $message );
 		}
 		if ( 'statements_move' === $do ) {
@@ -82,6 +83,7 @@ final class IntegrationsPage {
 				/* translators: %d: number of files */
 				$message .= ' ' . sprintf( _n( '%d file could not be moved (is the new folder writable?).', '%d files could not be moved (is the new folder writable?).', $failed, 'affiliate-captain' ), $failed );
 			}
+			\WPAffiliateCaptain\Core\Monitor::check_migrations();
 			Admin::back( $message, $failed ? 'error' : 'success' );
 		}
 	}
@@ -94,7 +96,9 @@ final class IntegrationsPage {
 		if ( ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
 			return;
 		}
-		list( $legacy, $broken ) = Crypto::legacy_status();
+		$status = Crypto::status();
+		$legacy = $status['legacy'];
+		$broken = $status['broken'];
 		if ( $legacy ) {
 			/* translators: %d: number of partners */
 			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( 'The bank details of %d partner are still encrypted with the old key (derived from the WordPress salts).', 'The bank details of %d partners are still encrypted with the old key (derived from the WordPress salts).', $legacy, 'affiliate-captain' ), $legacy ) ) . '</strong> ' . esc_html__( 'They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them.', 'affiliate-captain' ) . '</p>';
@@ -103,7 +107,7 @@ final class IntegrationsPage {
 		}
 		if ( $broken ) {
 			/* translators: %d: number of partners */
-			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( _n( 'The bank details of %d partner cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', 'The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', $broken, 'affiliate-captain' ), $broken ) ) . '</p></div>';
+			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( _n( 'The bank details of %d partner cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', 'The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', $broken, 'affiliate-captain' ), $broken ) ) . '</p><p>' . esc_html__( 'Partner IDs:', 'affiliate-captain' ) . ' ' . esc_html( implode( ', ', array_map( 'intval', $status['broken_ids'] ) ) . ( $broken > count( $status['broken_ids'] ) ? ', …' : '' ) ) . '</p></div>';
 		}
 		$misplaced = \WPAffiliateCaptain\Payouts\Statement::misplaced();
 		if ( $misplaced ) {
@@ -224,7 +228,7 @@ final class IntegrationsPage {
 			array( true !== \WPAffiliateCaptain\Payouts\Statement::publicly_accessible(), defined( 'WPAC_STATEMENT_DIR' ) ? __( 'Statements stored outside the web root (WPAC_STATEMENT_DIR)', 'affiliate-captain' ) : ( true === \WPAffiliateCaptain\Payouts\Statement::publicly_accessible() ? __( 'WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/.', 'affiliate-captain' ) : __( 'Statements folder is not publicly reachable', 'affiliate-captain' ) ) ),
 			array( '' !== (string) Settings::get( 'operator_address' ) && ( '' !== (string) Settings::get( 'operator_vat_id' ) || '' !== (string) Settings::get( 'operator_tax_number' ) ), __( 'Address and VAT ID / tax number for credit notes configured', 'affiliate-captain' ) ),
 			array( ! \WPAffiliateCaptain\Commissions\Balance::verify_all( 200 ), __( 'Partner accounts: booking chains intact and balances match the commission ledger', 'affiliate-captain' ) ),
-			array( (bool) wp_next_scheduled( 'wpac_hourly' ), __( 'Scheduled tasks active (hold period release, retries)', 'affiliate-captain' ) ),
+			array( \WPAffiliateCaptain\Core\Monitor::cron_running(), __( 'Scheduled tasks active (hold period release, retries)', 'affiliate-captain' ) ),
 		);
 		foreach ( $checks as $c ) {
 			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '">' . ( $c[0] ? '✔' : '✖' ) . ' ' . esc_html( $c[1] ) . '</li>';

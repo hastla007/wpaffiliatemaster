@@ -31,7 +31,7 @@ final class Monitor {
 				'critical',
 				__( 'The database belongs to a newer version of the plugin', 'affiliate-captain' ),
 				/* translators: 1: stored schema version, 2: schema version of the installed plugin */
-				sprintf( __( 'The database was updated to schema version %1$d, but the installed plugin only knows version %2$d (the plugin was downgraded). Older code may write incomplete records. Please install the newer version again or restore the database backup that belongs to this version.', 'affiliate-captain' ), $newer, WPAC_DB_VERSION ),
+				sprintf( __( 'The database was updated to schema version %1$d, but the installed plugin only knows version %2$d (the plugin was downgraded). Older code may write incomplete records. Please install the newer version again or restore the database backup that belongs to this version.', 'affiliate-captain' ), $newer, Installer::db_version() ),
 			);
 		}
 
@@ -40,10 +40,42 @@ final class Monitor {
 			$out['engine'] = array( 'recommended', __( 'Some tables do not use InnoDB', 'affiliate-captain' ), implode( '; ', (array) $warnings ) );
 		}
 
-		$next          = wp_next_scheduled( Cron::HOURLY );
-		$out['cron']   = $next && $next > time() - 2 * HOUR_IN_SECONDS
+		$out['cron']   = self::cron_running()
 			? array( 'good', __( 'Scheduled tasks are running', 'affiliate-captain' ), '' )
-			: array( 'critical', __( 'Scheduled tasks have not run for over two hours', 'affiliate-captain' ), __( 'Commissions are not released and failed sales are not retried. Set up a system cron ("wp cron event run --due-now").', 'affiliate-captain' ) );
+			: array( 'critical', __( 'Scheduled tasks have not run for over two hours', 'affiliate-captain' ), __( 'Commissions are not released and failed sales are not retried. Set up a system cron ("wp cron event run --due-now"; on a network for every site).', 'affiliate-captain' ) );
+
+		$failed_steps = Cron::failures();
+		if ( $failed_steps ) {
+			$lines  = array();
+			$severe = false;
+			foreach ( $failed_steps as $key => $f ) {
+				/* translators: 1: step, 2: number of runs, 3: error */
+				$lines[] = sprintf( __( '%1$s (failed %2$d times in a row: %3$s)', 'affiliate-captain' ), $key, (int) $f['count'], (string) $f['error'] );
+				$severe  = $severe || (int) $f['count'] >= 3 || (int) $f['since'] < time() - DAY_IN_SECONDS;
+			}
+			$out['cron_steps'] = array( $severe ? 'critical' : 'recommended', __( 'Scheduled steps fail', 'affiliate-captain' ), implode( '; ', $lines ) );
+		}
+
+		$migration = get_option( self::MIGRATION_STATUS );
+		if ( is_array( $migration ) ) {
+			if ( ! empty( $migration['broken'] ) ) {
+				$out['bank_details'] = array(
+					'critical',
+					/* translators: %d: number of partners */
+					sprintf( _n( 'Bank details of %d partner cannot be decrypted', 'Bank details of %d partners cannot be decrypted', (int) $migration['broken'], 'affiliate-captain' ), (int) $migration['broken'] ),
+					/* translators: %s: partner IDs */
+					sprintf( __( 'The WordPress salts were probably changed without WPAC_ENCRYPTION_KEY. No payouts for these partners until they enter their bank details again. Partner IDs: %s', 'affiliate-captain' ), implode( ', ', array_map( 'intval', (array) $migration['broken_ids'] ) ) ),
+				);
+			}
+			if ( ! empty( $migration['legacy'] ) ) {
+				/* translators: %d: number of partners */
+				$out['reencrypt'] = array( 'recommended', sprintf( _n( 'Bank details of %d partner still use the old key', 'Bank details of %d partners still use the old key', (int) $migration['legacy'], 'affiliate-captain' ), (int) $migration['legacy'] ), __( 'Affiliate Captain → Integrations: re-encrypt them with WPAC_ENCRYPTION_KEY.', 'affiliate-captain' ) );
+			}
+			if ( ! empty( $migration['misplaced'] ) ) {
+				/* translators: %d: number of files */
+				$out['statement_files'] = array( 'recommended', sprintf( _n( '%d credit note is still in the previous statement folder', '%d credit notes are still in the previous statement folder', (int) $migration['misplaced'], 'affiliate-captain' ), (int) $migration['misplaced'] ), __( 'Affiliate Captain → Integrations: move them to the current folder.', 'affiliate-captain' ) );
+			}
+		}
 
 		$jobs   = Db::table( 'jobs' );
 		$failed = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$jobs} WHERE status = 'failed'" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -76,6 +108,44 @@ final class Monitor {
 			$out['maintenance'] = array( 'recommended', __( 'Partner program is in maintenance mode', 'affiliate-captain' ), __( 'Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait.', 'affiliate-captain' ) );
 		}
 		return $out;
+	}
+
+	/** Option: result of the daily check of pending data migrations (Cron step "migrations"). */
+	const MIGRATION_STATUS = 'wpac_migration_status';
+
+	/**
+	 * Whether the scheduled tasks run – the one definition used by Site Health, the admin notice,
+	 * the integrations page and WP-CLI: the hourly event is scheduled and not overdue by more than
+	 * two hours.
+	 *
+	 * @return bool
+	 */
+	public static function cron_running() {
+		$next = wp_next_scheduled( Cron::HOURLY );
+		return $next && $next > time() - 2 * HOUR_IN_SECONDS;
+	}
+
+	/**
+	 * Daily: pending data migrations for the health check (bank details on the old key or no
+	 * longer readable, credit notes in an earlier folder) – too slow to compute on every page.
+	 *
+	 * @return array
+	 */
+	public static function check_migrations() {
+		$crypto = Crypto::status();
+		$status = array(
+			'legacy'     => (int) $crypto['legacy'],
+			'broken'     => (int) $crypto['broken'],
+			'broken_ids' => $crypto['broken_ids'],
+			'misplaced'  => count( \WPAffiliateCaptain\Payouts\Statement::misplaced() ),
+			'checked_at' => time(),
+		);
+		if ( $status['legacy'] || $status['broken'] || $status['misplaced'] ) {
+			update_option( self::MIGRATION_STATUS, $status, false );
+		} else {
+			delete_option( self::MIGRATION_STATUS );
+		}
+		return $status;
 	}
 
 	/**
@@ -169,8 +239,8 @@ final class Monitor {
 			),
 			'db_version'   => array(
 				'label' => __( 'Database schema (installed / expected)', 'affiliate-captain' ),
-				'value' => get_option( Installer::DB_OPTION ) . ' / ' . WPAC_DB_VERSION,
-				'debug' => get_option( Installer::DB_OPTION ) . ' / ' . WPAC_DB_VERSION,
+				'value' => get_option( Installer::DB_OPTION ) . ' / ' . Installer::db_version(),
+				'debug' => get_option( Installer::DB_OPTION ) . ' / ' . Installer::db_version(),
 			),
 			'contract'     => array(
 				'label' => __( 'Integration contract version', 'affiliate-captain' ),
@@ -227,8 +297,8 @@ final class Monitor {
 	 */
 	public static function daily_alert() {
 		$problems = self::problems( true );
-		if ( ! $problems || get_transient( 'wpac_monitor_alerted' ) ) {
-			return;
+		if ( ! $problems || get_transient( 'wpac_monitor_alerted' ) || Lifecycle::copy_paused() ) {
+			return; // A copy of the site (staging, clone) sends no alarms.
 		}
 		set_transient( 'wpac_monitor_alerted', 1, DAY_IN_SECONDS - 300 );
 		$lines = array();

@@ -120,8 +120,31 @@ final class Settings {
 		return self::$cache;
 	}
 
-	/** Prefix of a hashed monitoring token. */
+	/** Prefix of a hashed monitoring token (older versions keyed it with the WordPress salt). */
 	const MONITOR_HASH = 'h1:';
+
+	/**
+	 * Prefix of a token hashed with the plugin's own key. It still starts with MONITOR_HASH, so
+	 * older versions (after a downgrade) treat it as hashed and never hash it a second time.
+	 */
+	const MONITOR_HASH_KEYED = 'h1:k';
+
+	/**
+	 * Own, permanent key for the monitoring token: a rotation of the WordPress salts must not
+	 * make /health silently unusable.
+	 *
+	 * @return string
+	 */
+	private static function monitor_key() {
+		$key = get_option( 'wpac_monitor_key' );
+		if ( ! is_string( $key ) || strlen( $key ) < 32 ) {
+			$key = bin2hex( random_bytes( 32 ) );
+			add_option( 'wpac_monitor_key', $key, '', false );
+			$stored = get_option( 'wpac_monitor_key' );
+			$key    = is_string( $stored ) && strlen( $stored ) >= 32 ? $stored : $key;
+		}
+		return $key;
+	}
 
 	/**
 	 * Stored form of a monitoring token: only a keyed hash, never the token itself.
@@ -130,11 +153,12 @@ final class Settings {
 	 * @return string
 	 */
 	public static function monitor_token_hash( $token ) {
-		return self::MONITOR_HASH . hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) . 'wpac_monitor' );
+		return self::MONITOR_HASH_KEYED . hash_hmac( 'sha256', (string) $token, self::monitor_key() . 'wpac_monitor' );
 	}
 
 	/**
-	 * Whether a token sent by a monitor matches the stored one.
+	 * Whether a token sent by a monitor matches the stored one. A token hashed by an older version
+	 * (with the WordPress salt) is converted to the own key on its first successful use.
 	 *
 	 * @param string $sent Token from the request.
 	 * @return bool
@@ -147,7 +171,15 @@ final class Settings {
 		if ( 0 !== strpos( $stored, self::MONITOR_HASH ) ) {
 			return hash_equals( $stored, (string) $sent ); // Not hashed yet (see all()).
 		}
-		return hash_equals( $stored, self::monitor_token_hash( (string) $sent ) );
+		if ( 0 === strpos( $stored, self::MONITOR_HASH_KEYED ) ) {
+			return hash_equals( $stored, self::monitor_token_hash( (string) $sent ) );
+		}
+		$salted = self::MONITOR_HASH . hash_hmac( 'sha256', (string) $sent, wp_salt( 'auth' ) . 'wpac_monitor' );
+		if ( ! hash_equals( $stored, $salted ) ) {
+			return false;
+		}
+		self::update( array( 'monitor_token' => self::monitor_token_hash( (string) $sent ) ) );
+		return true;
 	}
 
 	/**
@@ -205,9 +237,28 @@ final class Settings {
 	}
 
 	/**
+	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
+	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
+	 */
+	const INT_MAX = array(
+		'audit_retention_days'       => 36500,
+		'application_retention_days' => 36500,
+		'visit_retention_days'       => 36500,
+		'fraud_max_orders_day'       => 1000000,
+		'fraud_min_click_seconds'    => 86400,
+		'statement_retention_years'  => 100,
+		'lifetime_days'              => 36500,
+		'cookie_days'                => 3650,
+		'rate_limit_per_minute'      => 1000000,
+		'hold_days'                  => 3650,
+	);
+
+	/**
 	 * Persist settings (already sanitized). Runtime state goes to its own options.
 	 *
 	 * @param array $values Values.
+	 * @return bool Whether the settings are stored as given (read back: update_option() also
+	 *              returns false for an unchanged value, and silently fails on a database error).
 	 */
 	public static function update( array $values ) {
 		foreach ( self::RUNTIME as $key => $option ) {
@@ -221,6 +272,18 @@ final class Settings {
 		$merged = array_diff_key( array_merge( self::all(), $values ), self::RUNTIME );
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
+		// A failed write leaves the cached (old) value in place, so reading back detects it.
+		$stored = get_option( self::OPTION );
+		if ( ! is_array( $stored ) ) {
+			return false;
+		}
+		foreach ( $values as $key => $value ) {
+			if ( ! array_key_exists( $key, $stored ) || (string) ( is_scalar( $stored[ $key ] ) ? $stored[ $key ] : wp_json_encode( $stored[ $key ] ) ) !== (string) ( is_scalar( $value ) ? $value : wp_json_encode( $value ) ) ) {
+				Log::error( 'Settings could not be saved', array( 'key' => (string) $key ) );
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -287,10 +350,16 @@ final class Settings {
 				continue;
 			}
 			$raw = trim( (string) $in[ $int ] );
+			$max = isset( self::INT_MAX[ $int ] ) ? self::INT_MAX[ $int ] : 2147483647;
 			if ( '' === $raw ) {
 				$out[ $int ] = 0;
-			} elseif ( preg_match( '/^\d+$/', $raw ) ) {
+			} elseif ( preg_match( '/^\d+$/', $raw ) && ( strlen( ltrim( $raw, '0' ) ) < 11 && (int) $raw <= $max ) ) {
 				$out[ $int ] = (int) $raw;
+			} elseif ( preg_match( '/^\d+$/', $raw ) ) {
+				// Huge values would overflow dates (hold period "0000-00-00" = released at once).
+				/* translators: %d: largest allowed number */
+				$errors[ $int ] = sprintf( __( 'Please enter a whole number between 0 and %d.', 'affiliate-captain' ), $max );
+				$out[ $int ]    = (int) $old( $int );
 			} else {
 				$errors[ $int ] = __( 'Please enter a whole number (0 or more).', 'affiliate-captain' );
 				$out[ $int ]    = (int) $old( $int );
@@ -456,7 +525,7 @@ final class Settings {
 				$errors['terms_version'] = __( 'Please enter a version (e.g. 1.0).', 'affiliate-captain' );
 				$out['terms_version']    = (string) $old( 'terms_version' );
 			} else {
-				$out['terms_version'] = substr( $version, 0, 20 );
+				$out['terms_version'] = mb_substr( $version, 0, 20 );
 			}
 		}
 		$out['admin_email'] = '';

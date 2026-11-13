@@ -58,6 +58,18 @@ Set both **before** the first partner enters bank details and the first credit n
 */5 * * * * cd /path/to/wordpress && wp cron event run --due-now --quiet
 ```
 
+On a multisite network `wp cron event run` only reaches the main site. Run it for every site:
+
+```
+*/5 * * * * cd /path/to/wordpress && wp site list --field=url | xargs -I{} wp cron event run --due-now --quiet --url={}
+```
+
+(or `wp wpac cron hourly --network` hourly and `wp wpac cron daily --network` daily).
+
+**Copies of the site.** When the site address changes (staging copy, clone, backup restored on another domain), maintenance mode is switched on automatically and a notice explains it: the copy sends no report mails, alarms, VIES requests or payouts to real partners. After a real move of the site, switch maintenance mode off under Settings → Reports & data. The filter `wpac_clone_protection` (return `false`) turns the detection off.
+
+**Updating by FTP/rsync.** Since 0.10 the main file is `affiliate-captain.php` (folder `affiliate-captain`). If you copy a new version over an old folder `wp-affiliate-captain/`, the old main file `wp-affiliate-captain.php` may stay active: the plugin then switches the activation to the new main file in the same folder by itself (from the next request on; the schema version is part of the code, so nothing runs with old version numbers meanwhile). An old copy in another folder is taken over the same way; "Delete all data on uninstall" is then switched off, so deleting the old copy cannot remove the shared data. A deployment that deletes the old main file (e.g. git) deactivates the plugin – activate "Affiliate Captain" again; nothing is lost.
+
 ## 2. Partners
 
 **Applications.** The application form (block "Partner application form" or `[wpac_affiliate_registration]`) asks for name, e-mail, website and channel, plus the fields of the chosen partner group. Applicants confirm their e-mail address (double opt-in) and accept the terms; the version, time and accepted text are stored. Applications appear under Partners with the status "Application pending" unless automatic approval is on.
@@ -149,7 +161,9 @@ Settings → Fraud & abuse: maximum orders per partner in 24 hours, maximum orde
 
 - **Network activation** sets up every site in batches (large networks finish in the background); new sites are set up automatically.
 - Every site has its own tables, settings, partners, payouts and credit note numbers. Partners of one site are not partners of another.
-- Deleting a site drops its tables. Deactivating or deleting the plugin works per site.
+- Deleting a site drops its tables – except the booking records (partners, commissions, payouts, accounts, audit log, terms acceptances) while a credit note is within the statutory retention period: they stay in the database, the site's credit notes are moved to `wp-content/uploads/wpac-retained/site-<id>/` (with `WPAC_STATEMENT_DIR` they stay in its `site-<id>` folder), and the daily maintenance deletes both once the period has ended. Deactivating or deleting the plugin works per site.
+- WP-CLI commands work on one site (`--url=…`); `--network` runs `status`, `health`, `upgrade`, `jobs`, `cron` and `verify` on every site where the plugin is active.
+- A deleted WordPress user is disconnected from the partner automatically (also when removed from a site); the partner page offers "Disconnect WordPress user" as well.
 - With `WPAC_STATEMENT_DIR` all sites use the folder you define; use a folder per network that only holds credit notes, back it up, and never clean it manually.
 - Capabilities are granted to the administrators of each site; super admins have them everywhere.
 
@@ -171,8 +185,9 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 | `wp wpac upgrade` | run the database migration now |
 | `wp wpac jobs [--retry-failed] [--limit=<n>]` | work through the retry queue |
 | `wp wpac cron hourly\|daily` | run the maintenance now |
-| `wp wpac verify` | check every partner account against its bookings |
+| `wp wpac verify [--limit=<n>]` | check every partner account against its bookings (all accounts) |
 | `wp wpac maintenance on\|off` | maintenance mode |
+| `… --network` | `status`, `health`, `upgrade`, `jobs`, `cron` and `verify` on every site of the network |
 | `wp wpac import partners <file.csv> [--dry-run] [--notify]` | import partners |
 | `wp wpac export <file.zip> [--include-tax-data --user=<login>]` | export the program |
 
@@ -211,4 +226,4 @@ Before contacting support, collect: `wp wpac status`, `wp wpac health`, the Site
 
 ## 14. Uninstalling
 
-Deactivating keeps everything. Deleting the plugin removes settings, partners and visits only if "Delete all data when the plugin is deleted" is on – and even then keeps commission, payout and credit note records that are still within the statutory retention period. To delete them once the period has ended, upload the plugin again (do not activate it) and run `wp eval-file wp-content/plugins/wp-affiliate-captain/tools/purge-retained.php`. Export the program (section 10) before you delete the plugin.
+Deactivating keeps everything. Deleting the plugin removes settings, partners and visits only if "Delete all data when the plugin is deleted" is on – and even then keeps commission, payout and credit note records that are still within the statutory retention period. The partners table is kept with them, pseudonymised ("Deleted partner", no contact data), because the records refer to its partner numbers. If you install the plugin again, these numbers stay reserved, so a new partner never gets a former partner's number, credit notes or balance; "Delete all data" is then off. The pages created by the setup assistant (application, partner area, landing page) are moved to the trash when they still contain the plugin's block. To delete the kept records once the period has ended, upload the plugin again (do not activate it) and run `wp eval-file wp-content/plugins/affiliate-captain/tools/purge-retained.php`. On large networks delete the plugin with `wp plugin uninstall affiliate-captain` (no time limit). Export the program (section 10) before you delete the plugin.

@@ -11,6 +11,7 @@ use WPAffiliateCaptain\Codes\CodeRepository;
 use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\Log;
 use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -441,15 +442,21 @@ final class AffiliateRepository {
 
 		$fields = array(
 			'status'        => $status,
-			'status_reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
+			'status_reason' => mb_substr( sanitize_text_field( $reason ), 0, 255 ),
 			'updated_at'    => Db::now(),
 		);
 		if ( 'active' === $status && ! $aff->approved_at ) {
 			$fields['approved_at'] = Db::now();
 			$fields['approved_by'] = get_current_user_id();
 		}
-		$wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id ) );
+		// Compare-and-set on the old status; mails, audit and ledger follow only a saved change
+		// (a failed or lost update must never terminate the partner "on paper" only).
+		$saved = $wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id, 'status' => $aff->status ) );
 		self::clear_cache( $id );
+		if ( ! $saved ) {
+			Log::error( 'Partner status could not be saved', array( 'affiliate' => (int) $id, 'to' => $status, 'error' => (string) $wpdb->last_error ) );
+			return new \WP_Error( 'wpac_status_not_saved', __( 'The status could not be saved (database error or changed meanwhile). Nothing was changed; please try again.', 'affiliate-captain' ) );
+		}
 		Audit::log(
 			'affiliate.status',
 			'affiliate',
@@ -662,6 +669,16 @@ final class AffiliateRepository {
 		if ( '' !== $problem ) {
 			return new \WP_Error( 'wpac_link', $problem );
 		}
+		// Whoever controls the linked account sees the partner area and can enter bank details:
+		// never one's own account, and an account with another e-mail address only with the
+		// program management right. The partner and the program admin are always informed.
+		if ( (int) $wp->ID === (int) get_current_user_id() ) {
+			return new \WP_Error( 'wpac_link_self', __( 'You cannot link your own account to a partner. Ask another administrator, or let the partner confirm the link from the e-mail.', 'affiliate-captain' ) );
+		}
+		$same_email = strtolower( (string) $wp->user_email ) === strtolower( (string) $aff->email );
+		if ( ! $same_email && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
+			return new \WP_Error( 'wpac_link_email', __( 'The account\'s e-mail address differs from the partner\'s. Only program managers can link such an account; otherwise change the partner\'s e-mail address first.', 'affiliate-captain' ) );
+		}
 		$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'affiliates' ) . ' SET user_id = %d WHERE id = %d AND user_id = 0', (int) $wp->ID, (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		self::clear_cache( (int) $id );
 		if ( ! $done ) {
@@ -673,11 +690,143 @@ final class AffiliateRepository {
 			'affiliate',
 			(int) $id,
 			array(
-				'user'   => (int) $wp->ID,
-				'manual' => true,
+				'user'       => (int) $wp->ID,
+				'manual'     => true,
+				'same_email' => $same_email,
+			)
+		);
+		self::notify_manual_link( $aff, $wp, $same_email );
+		return true;
+	}
+
+	/**
+	 * Disconnect the WordPress user from a partner (admin action, or the user was deleted). The
+	 * partner keeps everything; a new account can be linked or created on the next approval.
+	 *
+	 * @param int    $id     Affiliate ID.
+	 * @param string $reason manual|user_deleted|removed_from_site.
+	 * @return bool Whether a link was removed.
+	 */
+	public static function unlink_user( $id, $reason = 'manual' ) {
+		global $wpdb;
+		$aff = self::find( (int) $id );
+		if ( ! $aff || ! (int) $aff->user_id ) {
+			return false;
+		}
+		$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'affiliates' ) . ' SET user_id = 0, updated_at = %s WHERE id = %d AND user_id = %d', Db::now(), (int) $id, (int) $aff->user_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		self::clear_cache( (int) $id );
+		if ( ! $done ) {
+			return false;
+		}
+		Audit::log(
+			'affiliate.user_unlinked',
+			'affiliate',
+			(int) $id,
+			array(
+				'user'   => (int) $aff->user_id,
+				'reason' => sanitize_key( $reason ),
 			)
 		);
 		return true;
+	}
+
+	/**
+	 * Hooks for deleted WordPress users: a partner whose account was deleted must not stay
+	 * linked to a user ID that no longer exists (portal: "no partner account", new application:
+	 * "already registered").
+	 */
+	public static function register_user_hooks() {
+		add_action( 'deleted_user', array( __CLASS__, 'on_user_deleted' ), 10, 1 );
+		add_action( 'remove_user_from_blog', array( __CLASS__, 'on_user_removed_from_site' ), 10, 2 );
+		add_action( 'wpmu_delete_user', array( __CLASS__, 'on_network_user_deleted' ), 10, 1 );
+	}
+
+	/**
+	 * A user was deleted (current site).
+	 *
+	 * @param int $user_id User ID.
+	 */
+	public static function on_user_deleted( $user_id ) {
+		global $wpdb;
+		if ( ! (int) $user_id ) {
+			return;
+		}
+		$t = Db::table( 'affiliates' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE user_id = %d", (int) $user_id ) ) as $id ) {
+			self::unlink_user( (int) $id, 'user_deleted' );
+		}
+	}
+
+	/**
+	 * A user was removed from a site of the network.
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $blog_id Site ID.
+	 */
+	public static function on_user_removed_from_site( $user_id, $blog_id ) {
+		$switched = (int) $blog_id && (int) $blog_id !== (int) get_current_blog_id();
+		if ( $switched ) {
+			switch_to_blog( (int) $blog_id );
+		}
+		try {
+			self::on_user_deleted( (int) $user_id );
+		} finally {
+			if ( $switched ) {
+				restore_current_blog();
+			}
+		}
+	}
+
+	/**
+	 * A user is deleted from the whole network: every site the user belongs to.
+	 *
+	 * @param int $user_id User ID.
+	 */
+	public static function on_network_user_deleted( $user_id ) {
+		global $wpdb;
+		$blogs = function_exists( 'get_blogs_of_user' ) ? array_keys( (array) get_blogs_of_user( (int) $user_id, true ) ) : array();
+		foreach ( $blogs as $blog_id ) {
+			switch_to_blog( (int) $blog_id );
+			try {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( Db::table( 'affiliates' ) ) ) ) ) {
+					self::on_user_deleted( (int) $user_id );
+				}
+			} finally {
+				restore_current_blog();
+			}
+		}
+	}
+
+	/**
+	 * Inform the partner (at the partner e-mail) and the program admin about a manual account link.
+	 *
+	 * @param object   $aff        Partner.
+	 * @param \WP_User $wp         Linked user.
+	 * @param bool     $same_email Whether the account has the partner's e-mail address.
+	 */
+	private static function notify_manual_link( $aff, $wp, $same_email ) {
+		$site        = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
+		wp_mail(
+			$aff->email,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] An account was linked to your partner access', 'affiliate-captain' ), $site ),
+			/* translators: 1: partner name, 2: login name */
+			sprintf( __( "Hello %1\$s,\n\nthe shop team linked the user account \"%2\$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away.", 'affiliate-captain' ), $aff->name, $wp->user_login )
+		);
+		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		$admin = (string) Settings::get( 'admin_email' );
+		$admin = is_email( $admin ) ? $admin : (string) get_option( 'admin_email' );
+		$actor = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		wp_mail(
+			$admin,
+			/* translators: %s: site name */
+			sprintf( __( '[%s] Partner account linked manually', 'affiliate-captain' ), $site ),
+			/* translators: 1: partner ID, 2: login name, 3: user who linked it, 4: note */
+			sprintf( __( "Partner #%1\$d was linked to the user account \"%2\$s\" by %3\$s.%4\$s", 'affiliate-captain' ), (int) $aff->id, $wp->user_login, $actor && $actor->exists() ? $actor->user_login : '-', $same_email ? '' : ' ' . __( 'The account has a different e-mail address than the partner.', 'affiliate-captain' ) )
+		);
 	}
 
 	/**
@@ -746,7 +895,7 @@ final class AffiliateRepository {
 	 */
 	public static function unique_slug( $base ) {
 		$slug = sanitize_title( $base );
-		$slug = substr( '' !== $slug ? $slug : 'partner', 0, 50 );
+		$slug = mb_substr( '' !== $slug ? $slug : 'partner', 0, 50 );
 		$try  = $slug;
 		$i    = 2;
 		while ( self::find_by_slug( $try ) ) {

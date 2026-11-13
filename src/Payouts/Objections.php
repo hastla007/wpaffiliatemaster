@@ -135,7 +135,7 @@ final class Objections {
 				$all[ (int) $payout_id ] = array(
 					'affiliate_id' => (int) $affiliate_id,
 					'at'           => Db::now(),
-					'reason'       => substr( $reason, 0, 1000 ),
+					'reason'       => mb_substr( $reason, 0, 1000 ),
 					'status'       => 'open',
 					'resolution'   => '',
 					'resolved_at'  => '',
@@ -168,7 +168,7 @@ final class Objections {
 	 * @return bool
 	 */
 	public static function resolve( $payout_id, $resolution ) {
-		$resolution = substr( sanitize_textarea_field( (string) $resolution ), 0, 1000 );
+		$resolution = mb_substr( sanitize_textarea_field( (string) $resolution ), 0, 1000 );
 		$all        = Db::with_lock(
 			self::LOCK,
 			static function () use ( $payout_id, $resolution ) {

@@ -72,10 +72,12 @@ final class Portal {
 		if ( ! $aff ) {
 			return; // The portal shows the login form; the link works after logging in.
 		}
-		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
+		$pending = \WPAffiliateCaptain\Core\Pending::get( 'email_change_' . (int) $aff->id );
+		$pending = null !== $pending ? $pending : get_transient( 'wpac_email_change_' . (int) $aff->id ); // Older version.
 		$msg     = 'email_link_invalid';
 		if ( is_array( $pending ) && self::email_token_matches( $pending, $token ) ) {
 			$result = AffiliateRepository::set_email( (int) $aff->id, (string) $pending['email'] );
+			\WPAffiliateCaptain\Core\Pending::delete( 'email_change_' . (int) $aff->id );
 			delete_transient( 'wpac_email_change_' . (int) $aff->id );
 			$msg = is_wp_error( $result ) ? $result->get_error_code() : 'email_changed';
 		}
@@ -219,8 +221,8 @@ final class Portal {
 					$msg = 'email_change_limit';
 				} else {
 					$token = wp_generate_password( 32, false );
-					set_transient(
-						'wpac_email_change_' . (int) $aff->id,
+					\WPAffiliateCaptain\Core\Pending::set(
+						'email_change_' . (int) $aff->id,
 						array(
 							'email'      => $email,
 							'token_hash' => self::email_token_hash( $token ),
@@ -260,7 +262,7 @@ final class Portal {
 					'wpac_privacy_form_' . get_current_user_id(),
 					array(
 						'type' => $type,
-						'note' => substr( $note, 0, 2000 ),
+						'note' => mb_substr( $note, 0, 2000 ),
 					),
 					15 * MINUTE_IN_SECONDS
 				);
@@ -280,7 +282,7 @@ final class Portal {
 					'wpac_objection_form_' . get_current_user_id(),
 					array(
 						'payout' => $payout,
-						'reason' => substr( $reason, 0, 2000 ),
+						'reason' => mb_substr( $reason, 0, 2000 ),
 					),
 					15 * MINUTE_IN_SECONDS
 				);
@@ -1097,7 +1099,8 @@ final class Portal {
 	 * @param object $aff Affiliate.
 	 */
 	private static function tab_account( $aff ) {
-		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
+		$pending = \WPAffiliateCaptain\Core\Pending::get( 'email_change_' . (int) $aff->id );
+		$pending = null !== $pending ? $pending : get_transient( 'wpac_email_change_' . (int) $aff->id ); // Older version.
 		echo '<form method="post" class="wpac-form">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="account">';

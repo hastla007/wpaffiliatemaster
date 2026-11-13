@@ -28,7 +28,7 @@ final class Jobs {
 	public static function enqueue( $type, $key, array $payload, $code = '', $message = '' ) {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
-		$key   = substr( $type . ':' . $key, 0, 191 );
+		$key   = mb_substr( $type . ':' . $key, 0, 191 );
 		$now   = Db::now();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE idempotency_key = %s", $key ) );
@@ -41,8 +41,8 @@ final class Jobs {
 					'status'          => 'queued',
 					'payload'         => wp_json_encode( $payload ),
 					'next_attempt_at' => Db::now( time() + 300 ),
-					'last_error_code' => substr( (string) $code, 0, 64 ),
-					'last_error'      => substr( (string) $message, 0, 255 ),
+					'last_error_code' => mb_substr( (string) $code, 0, 64 ),
+					'last_error'      => mb_substr( (string) $message, 0, 255 ),
 					'updated_at'      => $now,
 				),
 				array( 'id' => (int) $exists )
@@ -58,8 +58,8 @@ final class Jobs {
 				'status'          => 'queued',
 				'attempts'        => 1,
 				'next_attempt_at' => Db::now( time() + 300 ),
-				'last_error_code' => substr( (string) $code, 0, 64 ),
-				'last_error'      => substr( (string) $message, 0, 255 ),
+				'last_error_code' => mb_substr( (string) $code, 0, 64 ),
+				'last_error'      => mb_substr( (string) $message, 0, 255 ),
 				'created_at'      => $now,
 				'updated_at'      => $now,
 			)
@@ -187,7 +187,7 @@ final class Jobs {
 				$delay    = HOUR_IN_SECONDS;
 			}
 			if ( $attempts >= self::MAX_ATTEMPTS ) {
-				Log::error( 'Job failed for good', array( 'job' => (int) $job->id, 'type' => $job->type, 'error' => $e instanceof IntegrationException ? $e->error_code : 'exception', 'message' => substr( $e->getMessage(), 0, 300 ) ) );
+				Log::error( 'Job failed for good', array( 'job' => (int) $job->id, 'type' => $job->type, 'error' => $e instanceof IntegrationException ? $e->error_code : 'exception', 'message' => mb_substr( $e->getMessage(), 0, 300 ) ) );
 			}
 			$wpdb->update(
 				$table,
@@ -195,8 +195,8 @@ final class Jobs {
 					'status'          => $attempts >= self::MAX_ATTEMPTS ? 'failed' : 'queued',
 					'attempts'        => $attempts,
 					'next_attempt_at' => Db::now( time() + $delay ),
-					'last_error_code' => substr( $e instanceof IntegrationException ? $e->error_code : 'exception', 0, 64 ),
-					'last_error'      => substr( $e->getMessage(), 0, 255 ),
+					'last_error_code' => mb_substr( $e instanceof IntegrationException ? $e->error_code : 'exception', 0, 64 ),
+					'last_error'      => mb_substr( $e->getMessage(), 0, 255 ),
 					'updated_at'      => Db::now(),
 				),
 				array( 'id' => (int) $job->id )
@@ -224,7 +224,7 @@ final class Jobs {
 			return true;
 		}
 		$table = Db::table( 'jobs' );
-		$keys  = array( substr( 'sale:' . $source . ':' . $order_id, 0, 191 ), substr( 'woo_order:' . $source . ':' . $order_id, 0, 191 ) );
+		$keys  = array( mb_substr( 'sale:' . $source . ':' . $order_id, 0, 191 ), mb_substr( 'woo_order:' . $source . ':' . $order_id, 0, 191 ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key IN (%s, %s) AND status IN ('queued','running','failed') LIMIT 1", $keys[0], $keys[1] ) );
 	}
@@ -255,7 +255,7 @@ final class Jobs {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
 		foreach ( $refund_ids as $rid ) {
-			$key = substr( 'refund:' . $source . ':' . $order_id . ':' . $rid, 0, 191 );
+			$key = mb_substr( 'refund:' . $source . ':' . $order_id . ':' . $rid, 0, 191 );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the retried sale.', updated_at = %s WHERE idempotency_key = %s AND status IN ('queued','failed')", Db::now(), $key ) );
 		}

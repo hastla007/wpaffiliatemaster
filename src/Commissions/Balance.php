@@ -60,7 +60,7 @@ final class Balance {
 					'balance_minor' => (int) $acc->balance_minor + (int) $amount_minor,
 					'commission_id' => (int) $commission_id,
 					'payout_id'     => (int) $payout_id,
-					'reference'     => substr( (string) $reference, 0, 191 ),
+					'reference'     => mb_substr( (string) $reference, 0, 191 ),
 					'actor_id'      => get_current_user_id(),
 					'created_at'    => Db::now(),
 					'prev_hash'     => (string) $acc->last_hash,
@@ -209,22 +209,36 @@ final class Balance {
 	}
 
 	/**
-	 * Verify all accounts (bounded).
+	 * Verify all accounts (bounded), in pages of 500 accounts.
 	 *
-	 * @param int $limit Max accounts.
+	 * @param int      $limit   Max accounts (0 = all).
+	 * @param int|null $checked Out: number of accounts checked.
 	 * @return array "affiliate_id:currency" => problems
 	 */
-	public static function verify_all( $limit = 500 ) {
+	public static function verify_all( $limit = 500, &$checked = null ) {
 		global $wpdb;
-		$b   = Db::table( 'balances' );
-		$out = array();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, currency FROM {$b} ORDER BY affiliate_id LIMIT %d", $limit ) ) as $acc ) {
-			$p = self::verify( (int) $acc->affiliate_id, $acc->currency );
-			if ( $p ) {
-				$out[ $acc->affiliate_id . ':' . $acc->currency ] = $p;
+		$b        = Db::table( 'balances' );
+		$out      = array();
+		$checked  = 0;
+		$last_id  = -1;
+		$last_cur = '';
+		do {
+			$page = $limit > 0 ? min( 500, (int) $limit - $checked ) : 500;
+			if ( $page <= 0 ) {
+				break;
 			}
-		}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, currency FROM {$b} WHERE affiliate_id > %d OR ( affiliate_id = %d AND currency > %s ) ORDER BY affiliate_id, currency LIMIT %d", $last_id, $last_id, $last_cur, $page ) );
+			foreach ( $rows as $acc ) {
+				++$checked;
+				$last_id  = (int) $acc->affiliate_id;
+				$last_cur = (string) $acc->currency;
+				$p        = self::verify( (int) $acc->affiliate_id, $acc->currency );
+				if ( $p ) {
+					$out[ $acc->affiliate_id . ':' . $acc->currency ] = $p;
+				}
+			}
+		} while ( count( $rows ) === $page );
 		return $out;
 	}
 

@@ -121,8 +121,8 @@ final class CustomerLinks {
 				array(
 					'affiliate_id'    => (int) $affiliate_id,
 					'customer_hash'   => $hash,
-					'source'          => substr( (string) $source, 0, 40 ),
-					'source_order_id' => substr( (string) $order_id, 0, 64 ),
+					'source'          => mb_substr( (string) $source, 0, 40 ),
+					'source_order_id' => mb_substr( (string) $order_id, 0, 64 ),
 					'created_at'      => Db::now(),
 					'expires_at'      => $expires,
 				)
@@ -159,8 +159,8 @@ final class CustomerLinks {
 		return (int) $wpdb->delete(
 			Db::table( 'customer_links' ),
 			array(
-				'source'          => substr( (string) $source, 0, 40 ),
-				'source_order_id' => substr( (string) $order_id, 0, 64 ),
+				'source'          => mb_substr( (string) $source, 0, 40 ),
+				'source_order_id' => mb_substr( (string) $order_id, 0, 64 ),
 			)
 		);
 	}

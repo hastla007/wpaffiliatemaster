@@ -40,8 +40,13 @@ final class Plugin {
 			1
 		);
 
+		// An old main file left in the folder loaded this code: the new one takes over next request.
+		\WPAffiliateCaptain\Core\Lifecycle::switch_main_file( WPAC_FILE );
 		Installer::maybe_upgrade();
 		Installer::register_multisite_hooks();
+		add_action( 'init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'followup' ), 5 );
+		add_action( 'admin_init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'check_clone' ), 5 );
+		\WPAffiliateCaptain\Affiliates\AffiliateRepository::register_user_hooks();
 
 		CodeRepository::register_hooks();
 		ContractApi::register_hooks();
