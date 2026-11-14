@@ -168,3 +168,9 @@ $_GET = array( 'page' => 'wpac-creatives', 's' => 'nothing-o47' );
 $r    = r_render( array( CreativesPage::class, 'render' ) );
 check( 'R5-O47 creatives: search without hits says so', true, false !== strpos( $r[0], 'No creatives match this search.' ) );
 $_GET = array();
+
+// Rows-per-page screen options of the three new tables are stored (clamped 1–500), others untouched.
+foreach ( array( 'wpac_payouts_per_page', 'wpac_creatives_per_page', 'wpac_audit_per_page' ) as $o47_opt ) {
+	check( "R5-O47 screen option {$o47_opt} clamped", 500, WPAffiliateCaptain\Admin\Admin::save_screen_option( false, $o47_opt, '9999' ) );
+}
+check( 'R5-O47 foreign screen option untouched', false, WPAffiliateCaptain\Admin\Admin::save_screen_option( false, 'edit_post_per_page', '20' ) );

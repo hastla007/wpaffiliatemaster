@@ -59,6 +59,15 @@ msgstr "Partner pro Seite"
 msgid "Commissions per page"
 msgstr "Provisionen pro Seite"
 
+msgid "Payouts per page"
+msgstr "Auszahlungen pro Seite"
+
+msgid "Creatives per page"
+msgstr "Werbemittel pro Seite"
+
+msgid "Entries per page"
+msgstr "Einträge pro Seite"
+
 msgid "More help"
 msgstr "Weitere Hilfe"
 
@@ -1246,6 +1255,12 @@ msgstr "ja"
 msgid "no"
 msgstr "nein"
 
+msgid "No entries match this filter."
+msgstr "Keine Einträge passen zu diesem Filter."
+
+msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
+msgstr "Noch keine Einträge. Änderungen an Partnern, Provisionen, Auszahlungen und Einstellungen werden hier aufgezeichnet."
+
 msgid "Partner"
 msgstr "Partner"
 
@@ -1312,23 +1327,8 @@ msgstr "Filtern"
 msgid "Order: everything about one order (attribution, commissions, refunds, manual changes). Dates are UTC."
 msgstr "Bestellung: alles zu einer Bestellung (Zuordnung, Provisionen, Erstattungen, manuelle Änderungen). Zeitangaben in UTC."
 
-msgid "Object"
-msgstr "Objekt"
-
-msgid "Details"
-msgstr "Details"
-
-msgid "No entries match this filter."
-msgstr "Keine Einträge passen zu diesem Filter."
-
-msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
-msgstr "Noch keine Einträge. Änderungen an Partnern, Provisionen, Auszahlungen und Einstellungen werden hier aufgezeichnet."
-
-msgid "No entries match the filter."
-msgstr "Keine Einträge entsprechen dem Filter."
-
-msgid "Older entries"
-msgstr "Ältere Einträge"
+msgid "Search audit log"
+msgstr "Audit-Log durchsuchen"
 
 msgid "%1$d commission could not be changed: %2$s"
 msgid_plural "%1$d commissions could not be changed: %2$s"
@@ -1509,20 +1509,8 @@ msgstr "Werbemittel archiviert."
 msgid "Only approved versions are shown to partners. Every change creates a new version that needs approval. Placeholders in texts: {link}, {code}, {partner}."
 msgstr "Partner sehen nur freigegebene Versionen. Jede Änderung erzeugt eine neue Version, die freigegeben werden muss. Platzhalter in Texten: {link}, {code}, {partner}."
 
-msgid "Disclosure"
-msgstr "Kennzeichnung"
-
-msgid "No creatives yet."
-msgstr "Noch keine Werbemittel."
-
-msgid "New version"
-msgstr "Neue Version"
-
-msgid "Archive this creative? Partners will no longer see it."
-msgstr "Dieses Werbemittel archivieren? Partner sehen es dann nicht mehr."
-
-msgid "Archive"
-msgstr "Archivieren"
+msgid "Search creatives"
+msgstr "Werbemittel suchen"
 
 msgid "New version of \"%1$s\" (based on v%2$d)"
 msgstr "Neue Version von „%1$s“ (basierend auf v%2$d)"
@@ -2392,26 +2380,11 @@ msgstr "Diesen Auszahlungsantrag ablehnen? Der Partner wird mit dem Grund benach
 msgid "cannot be checked (no exchange rate for %s)"
 msgstr "kann nicht geprüft werden (kein Wechselkurs für %s)"
 
+msgid "Search payouts"
+msgstr "Auszahlungen suchen"
+
 msgid "Read-only view: you can open the payouts and download credit notes and cancellations, but not create, export or change payouts."
 msgstr "Nur-Lese-Ansicht: Sie können Auszahlungen öffnen und Gutschriften und Stornobelege herunterladen, aber keine Auszahlungen anlegen, exportieren oder ändern."
-
-msgid "Select all"
-msgstr "Alle auswählen"
-
-msgid "Bank details"
-msgstr "Bankverbindung"
-
-msgid "No payouts with this status."
-msgstr "Keine Auszahlungen mit diesem Status."
-
-msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
-msgstr "Noch keine Auszahlungen. Freigegebene Provisionen werden mit einem Auszahlungslauf ausgezahlt: Wählen Sie oben den Stichtag und klicken Sie auf „Vorschau“."
-
-msgid "Select %s"
-msgstr "%s auswählen"
-
-msgid "Other payment method (paid manually)"
-msgstr "Andere Auszahlungsart (manuelle Zahlung)"
 
 msgid "Bulk action for selected payouts"
 msgstr "Sammelaktion für ausgewählte Auszahlungen"
@@ -2449,6 +2422,15 @@ msgstr "Erneut exportieren (nur wenn die Bank die vorherige Datei nicht verarbei
 msgid "Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)"
 msgstr "Bestätigung: Die Bank hat die exportierte Überweisung NICHT ausgeführt (nötig zum Stornieren exportierter Auszahlungen)"
 
+msgid "No payouts match this search."
+msgstr "Keine Auszahlungen passen zu dieser Suche."
+
+msgid "No payouts with this status."
+msgstr "Keine Auszahlungen mit diesem Status."
+
+msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
+msgstr "Noch keine Auszahlungen. Freigegebene Provisionen werden mit einem Auszahlungslauf ausgezahlt: Wählen Sie oben den Stichtag und klicken Sie auf „Vorschau“."
+
 msgid "Payout not found."
 msgstr "Auszahlung nicht gefunden."
 
@@ -2475,6 +2457,9 @@ msgstr "Aussteller"
 
 msgid "Payment method"
 msgstr "Zahlungsart"
+
+msgid "Other payment method (paid manually)"
+msgstr "Andere Auszahlungsart (manuelle Zahlung)"
 
 msgid "Bank account"
 msgstr "Bankkonto"
@@ -3292,6 +3277,9 @@ msgstr "Alle Partner anzeigen"
 msgid "No partners yet. Add the first partner yourself, or publish the application page so partners can apply."
 msgstr "Noch keine Partner. Legen Sie den ersten Partner selbst an oder veröffentlichen Sie die Bewerbungsseite, damit sich Partner bewerben können."
 
+msgid "Select %s"
+msgstr "%s auswählen"
+
 msgid "missing"
 msgstr "fehlt"
 
@@ -3303,6 +3291,12 @@ msgstr "noch nicht"
 
 msgid "no account"
 msgstr "kein Konto"
+
+msgid "Object"
+msgstr "Objekt"
+
+msgid "Details"
+msgstr "Details"
 
 msgid "Reject (reason required, shown to the partner)"
 msgstr "Ablehnen (Grund erforderlich, der Partner sieht ihn)"
@@ -3327,6 +3321,33 @@ msgstr "Zu den Partnern"
 
 msgid "Select commission #%d"
 msgstr "Provision #%d auswählen"
+
+msgid "Disclosure"
+msgstr "Kennzeichnung"
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "No creatives match this search."
+msgstr "Keine Werbemittel passen zu dieser Suche."
+
+msgid "No creatives yet."
+msgstr "Noch keine Werbemittel."
+
+msgid "New version"
+msgstr "Neue Version"
+
+msgid "Archive this creative? Partners will no longer see it."
+msgstr "Dieses Werbemittel archivieren? Partner sehen es dann nicht mehr."
+
+msgid "Archive"
+msgstr "Archivieren"
+
+msgid "Select all"
+msgstr "Alle auswählen"
+
+msgid "Bank details"
+msgstr "Bankverbindung"
 
 msgid "Application pending"
 msgstr "Bewerbung offen"
