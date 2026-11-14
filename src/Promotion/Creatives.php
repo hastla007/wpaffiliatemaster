@@ -76,6 +76,42 @@ final class Creatives {
 	}
 
 	/**
+	 * One page of versions for the admin list (R5-O47).
+	 *
+	 * @param array $args search (title, text, disclosure), orderby (title|version|status; anything
+	 *                    else: newest family and version first), order (asc|desc), limit, offset.
+	 * @return array [ rows, total ]
+	 */
+	public static function query( array $args = array() ) {
+		global $wpdb;
+		$t      = Db::table( 'creatives' );
+		$where  = '1=1';
+		$params = array();
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( title LIKE %s OR content LIKE %s OR disclosure LIKE %s )';
+			$params   = array( $like, $like, $like );
+		}
+		// ORDER BY only from fixed fragments (whitelist), never from the request.
+		$dir     = isset( $args['order'] ) && 'asc' === strtolower( (string) $args['order'] ) ? 'ASC' : 'DESC';
+		$orderby = isset( $args['orderby'] ) ? (string) $args['orderby'] : '';
+		$columns = array(
+			'title'   => 'title',
+			'version' => 'version',
+			'status'  => 'status',
+		);
+		$order   = isset( $columns[ $orderby ] ) ? $columns[ $orderby ] . ' ' . $dir . ', family_id DESC, version DESC' : 'family_id DESC, version DESC';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$total    = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t} WHERE {$where}", $params ) ) : $wpdb->get_var( "SELECT COUNT(*) FROM {$t}" ) );
+		$params[] = isset( $args['limit'] ) ? max( 1, (int) $args['limit'] ) : 50;
+		$params[] = isset( $args['offset'] ) ? max( 0, (int) $args['offset'] ) : 0;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY {$order} LIMIT %d OFFSET %d", $params ) );
+		return array( $rows, $total );
+	}
+
+	/**
 	 * Approved creatives visible for a partner group.
 	 *
 	 * @param int $group_id Group (0 = no group).

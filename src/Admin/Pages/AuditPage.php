@@ -8,7 +8,7 @@
 namespace WPAffiliateCaptain\Admin\Pages;
 
 use WPAffiliateCaptain\Admin\Admin;
-use WPAffiliateCaptain\Core\Audit;
+use WPAffiliateCaptain\Admin\Tables\AuditTable;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -260,8 +260,33 @@ final class AuditPage {
 			'action'      => preg_match( '/^[a-z_]+\.([a-z_]+)?$/', $action ) ? $action : '',
 			'from'        => $date( Admin::get( 'from' ) ),
 			'to'          => $date( Admin::get( 'to' ) ),
-			'order'       => ltrim( trim( sanitize_text_field( (string) Admin::get( 'order' ) ) ), '#' ),
+			'order'       => ltrim( trim( self::order_number() ), '#' ),
 		);
+	}
+
+	/**
+	 * Order number filter. "order_no" since the list sorts with orderby/order (R5-O47); an older
+	 * link with the order number in "order" still works unless it is a sort direction.
+	 *
+	 * @return string
+	 */
+	private static function order_number() {
+		$no = (string) Admin::get( 'order_no' );
+		if ( '' === $no ) {
+			$legacy = (string) Admin::get( 'order' );
+			$no     = in_array( strtolower( $legacy ), array( 'asc', 'desc' ), true ) ? '' : $legacy;
+		}
+		return $no;
+	}
+
+	/**
+	 * Text of the empty list.
+	 *
+	 * @param bool $filtered Whether a filter or search is active.
+	 * @return string
+	 */
+	public static function empty_text( $filtered ) {
+		return $filtered ? __( 'No entries match this filter.', 'affiliate-captain' ) : __( 'No entries yet. Changes to partners, commissions, payouts and settings are recorded here.', 'affiliate-captain' );
 	}
 
 	/**
@@ -325,17 +350,13 @@ final class AuditPage {
 	 * Render.
 	 */
 	public static function render() {
-		$per     = 100;
 		$filters = self::filters();
-		$rows    = Audit::query(
-			$filters + array(
-				'limit'  => $per,
-				'offset' => ( Admin::paged() - 1 ) * $per,
-			)
-		);
+		$table   = new AuditTable( $filters );
+		$table->prepare_items();
 		echo '<div class="wrap"><h1>' . esc_html__( 'Audit log', 'affiliate-captain' ) . '</h1>';
+		// One GET form: filters, search, sorting and paging keep each other (R5-O47).
 		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac-audit">';
-		echo '<label for="wpac-audit-order">' . esc_html__( 'Order', 'affiliate-captain' ) . '</label> <input type="text" id="wpac-audit-order" name="order" inputmode="numeric" class="small-text" value="' . esc_attr( $filters['order'] ) . '"> ';
+		echo '<label for="wpac-audit-order">' . esc_html__( 'Order', 'affiliate-captain' ) . '</label> <input type="text" id="wpac-audit-order" name="order_no" inputmode="numeric" class="small-text" value="' . esc_attr( $filters['order'] ) . '"> ';
 		echo '<label for="wpac-audit-action" class="screen-reader-text">' . esc_html__( 'Action', 'affiliate-captain' ) . '</label><select id="wpac-audit-action" name="audit_action"><option value="">' . esc_html__( 'All actions', 'affiliate-captain' ) . '</option>';
 		foreach ( self::action_choices() as $value => $label ) {
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $filters['action'], $value, false ), esc_html( $label ) );
@@ -351,33 +372,10 @@ final class AuditPage {
 		foreach ( $types as $key => $label ) {
 			echo '<option value="' . esc_attr( $key ) . '"' . selected( $filters['object_type'], $key, false ) . '>' . esc_html( $label ) . '</option>';
 		}
-		echo '</select> <label for="wpac-audit-id">' . esc_html__( 'ID (e.g. partner number)', 'affiliate-captain' ) . '</label> <input type="number" min="1" id="wpac-audit-id" name="object_id" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" class="small-text"> <button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button></form>';
+		echo '</select> <label for="wpac-audit-id">' . esc_html__( 'ID (e.g. partner number)', 'affiliate-captain' ) . '</label> <input type="number" min="1" id="wpac-audit-id" name="object_id" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" class="small-text"> <button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button>';
 		echo '<p class="description">' . esc_html__( 'Order: everything about one order (attribution, commissions, refunds, manual changes). Dates are UTC.', 'affiliate-captain' ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'User', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Action', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Object', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Details', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
-		if ( ! $rows ) {
-			echo '<tr><td colspan="5">' . esc_html( array_filter( $filters ) ? __( 'No entries match this filter.', 'affiliate-captain' ) : __( 'No entries yet. Changes to partners, commissions, payouts and settings are recorded here.', 'affiliate-captain' ) ) . '</td></tr>';
-		}
-		$types = self::object_types();
-		foreach ( $rows as $r ) {
-			$user = $r->actor_id ? get_userdata( (int) $r->actor_id ) : null;
-			printf(
-				'<tr><td>%s</td><td>%s</td><td title="%s">%s</td><td>%s</td><td title="%s">%s</td></tr>',
-				esc_html( Admin::date( $r->created_at, true ) ),
-				esc_html( $user ? $user->display_name : __( 'System', 'affiliate-captain' ) ),
-				esc_attr( $r->action ),
-				esc_html( self::action_label( $r->action ) ),
-				esc_html( ( isset( $types[ $r->object_type ] ) ? $types[ $r->object_type ] : $r->object_type ) . ( $r->object_id ? ' #' . $r->object_id : '' ) ),
-				esc_attr( (string) $r->details ),
-				esc_html( self::details_text( (string) $r->details ) )
-			);
-		}
-		echo '</tbody></table>';
-		if ( ! $rows ) {
-			echo '<p>' . esc_html__( 'No entries match the filter.', 'affiliate-captain' ) . '</p>';
-		}
-		if ( count( $rows ) === $per ) {
-			echo '<p><a class="button" href="' . esc_url( add_query_arg( 'paged', Admin::paged() + 1 ) ) . '">' . esc_html__( 'Older entries', 'affiliate-captain' ) . '</a></p>';
-		}
-		echo '</div>';
+		$table->search_box( __( 'Search audit log', 'affiliate-captain' ), 'wpac-audit' );
+		$table->display();
+		echo '</form></div>';
 	}
 }
