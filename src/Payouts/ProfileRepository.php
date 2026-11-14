@@ -330,37 +330,9 @@ final class ProfileRepository {
 			'bic'            => strtoupper( substr( preg_replace( '/[^A-Za-z0-9]/', '', isset( $in['bic'] ) ? (string) $in['bic'] : '' ), 0, 11 ) ),
 			'updated_at'     => Db::now(),
 		);
-		// The columns are limited: a longer value would not be stored (and the old one kept unnoticed).
-		foreach ( array(
-			'legal_name'     => 190,
-			'account_holder' => 190,
-			'vat_id'         => 40,
-		) as $field => $max ) {
-			if ( self::length( $data[ $field ] ) > $max ) {
-				return new \WP_Error(
-					'wpac_too_long_' . $field,
-					/* translators: 1: field, 2: number of characters */
-					sprintf( __( '%1$s is too long (at most %2$d characters).', 'affiliate-captain' ), self::field_label( $field ), $max )
-				);
-			}
-		}
-		if ( 'business' === $tax && '' === $data['vat_id'] && self::needs_vat_id( $data['country'] ) ) {
-			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID (required for reverse charge across borders).', 'affiliate-captain' ) );
-		}
-		if ( 'business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
-			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID or tax number (required on credit notes).', 'affiliate-captain' ) );
-		}
-		if ( '' !== $data['vat_id'] ) {
-			$problem = Vat::vat_id_problem( $data['vat_id'], $data['country'] );
-			if ( 'prefix' === $problem ) {
-				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not start with the code of your country. Please check the VAT ID and the country.', 'affiliate-captain' ) );
-			}
-			if ( '' !== $problem ) {
-				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not have a valid format. Please check it.', 'affiliate-captain' ) );
-			}
-		}
-		if ( 'small_business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
-			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) );
+		$invalid = self::tax_data_problem( $data, $tax );
+		if ( $invalid ) {
+			return $invalid;
 		}
 		$existing = self::get( $affiliate_id );
 		$methods  = self::method_labels();
@@ -407,22 +379,7 @@ final class ProfileRepository {
 		// Tax data: compare with the stored data (old values go to the audit log and the history).
 		$tax_old = TaxHistory::fields( $existing );
 		$tax_new = TaxHistory::fields( $data );
-		$pending = false;
-		if ( $tax_old !== $tax_new ) {
-			if ( 'partner' === $context && TaxHistory::needs_approval( $tax_old, $tax_new ) ) {
-				// Takes effect only after an admin approved it; the stored tax data stay meanwhile.
-				TaxHistory::set_pending( (int) $affiliate_id, $tax_new, $tax_old );
-				foreach ( TaxHistory::FIELDS as $f ) {
-					$data[ $f ] = $tax_old[ $f ];
-				}
-				$pending = true;
-			} else {
-				TaxHistory::record_profile( (int) $affiliate_id, $tax_old );
-				TaxHistory::clear_pending( (int) $affiliate_id );
-			}
-		} elseif ( 'partner' === $context ) {
-			TaxHistory::clear_pending( (int) $affiliate_id ); // Back to the stored data: nothing waits any more.
-		}
+		$pending = self::apply_tax_change( $affiliate_id, $context, $tax_old, $tax_new, $data );
 		if ( $existing ) {
 			$stored = $wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
 		} else {
@@ -434,13 +391,7 @@ final class ProfileRepository {
 			return new \WP_Error( 'wpac_profile_db', __( 'Your payout details could not be saved. Please try again; your previous details are unchanged.', 'affiliate-captain' ) );
 		}
 		if ( isset( $data['iban_encrypted'] ) ) {
-			// New bank details: the cached migration check (unreadable/old-key details) is due again
-			// on the next view of the integrations page.
-			$migration = get_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS );
-			if ( is_array( $migration ) && ( ! empty( $migration['broken'] ) || ! empty( $migration['legacy'] ) ) ) {
-				$migration['checked_at'] = 0;
-				update_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS, $migration, false );
-			}
+			self::recheck_migration();
 		}
 		if ( $tax_old !== $tax_new ) {
 			Audit::log(
@@ -481,6 +432,92 @@ final class ProfileRepository {
 			)
 		);
 		return true;
+	}
+
+	/**
+	 * Validate field lengths and the tax data of a profile (save()).
+	 *
+	 * @param array  $data Sanitized profile row.
+	 * @param string $tax  Tax status.
+	 * @return \WP_Error|null
+	 */
+	private static function tax_data_problem( array $data, $tax ) {
+		// The columns are limited: a longer value would not be stored (and the old one kept unnoticed).
+		foreach ( array(
+			'legal_name'     => 190,
+			'account_holder' => 190,
+			'vat_id'         => 40,
+		) as $field => $max ) {
+			if ( self::length( $data[ $field ] ) > $max ) {
+				return new \WP_Error(
+					'wpac_too_long_' . $field,
+					/* translators: 1: field, 2: number of characters */
+					sprintf( __( '%1$s is too long (at most %2$d characters).', 'affiliate-captain' ), self::field_label( $field ), $max )
+				);
+			}
+		}
+		if ( 'business' === $tax && '' === $data['vat_id'] && self::needs_vat_id( $data['country'] ) ) {
+			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID (required for reverse charge across borders).', 'affiliate-captain' ) );
+		}
+		if ( 'business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
+			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID or tax number (required on credit notes).', 'affiliate-captain' ) );
+		}
+		if ( '' !== $data['vat_id'] ) {
+			$problem = Vat::vat_id_problem( $data['vat_id'], $data['country'] );
+			if ( 'prefix' === $problem ) {
+				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not start with the code of your country. Please check the VAT ID and the country.', 'affiliate-captain' ) );
+			}
+			if ( '' !== $problem ) {
+				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not have a valid format. Please check it.', 'affiliate-captain' ) );
+			}
+		}
+		if ( 'small_business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
+			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) );
+		}
+		return null;
+	}
+
+	/**
+	 * Changed tax data (save()): recorded at once, or – for a partner change that affects the VAT –
+	 * waiting for an admin's approval with the stored tax data kept meanwhile.
+	 *
+	 * @param int    $affiliate_id Affiliate.
+	 * @param string $context      admin|partner.
+	 * @param array  $tax_old      Stored tax data.
+	 * @param array  $tax_new      Entered tax data.
+	 * @param array  $data         In/out: profile row to store.
+	 * @return bool Whether the change waits for approval.
+	 */
+	private static function apply_tax_change( $affiliate_id, $context, array $tax_old, array $tax_new, array &$data ) {
+		$pending = false;
+		if ( $tax_old !== $tax_new ) {
+			if ( 'partner' === $context && TaxHistory::needs_approval( $tax_old, $tax_new ) ) {
+				// Takes effect only after an admin approved it; the stored tax data stay meanwhile.
+				TaxHistory::set_pending( (int) $affiliate_id, $tax_new, $tax_old );
+				foreach ( TaxHistory::FIELDS as $f ) {
+					$data[ $f ] = $tax_old[ $f ];
+				}
+				$pending = true;
+			} else {
+				TaxHistory::record_profile( (int) $affiliate_id, $tax_old );
+				TaxHistory::clear_pending( (int) $affiliate_id );
+			}
+		} elseif ( 'partner' === $context ) {
+			TaxHistory::clear_pending( (int) $affiliate_id ); // Back to the stored data: nothing waits any more.
+		}
+		return $pending;
+	}
+
+	/**
+	 * New bank details: the cached migration check (unreadable/old-key details) is due again on
+	 * the next view of the integrations page.
+	 */
+	private static function recheck_migration() {
+		$migration = get_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS );
+		if ( is_array( $migration ) && ( ! empty( $migration['broken'] ) || ! empty( $migration['legacy'] ) ) ) {
+			$migration['checked_at'] = 0;
+			update_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS, $migration, false );
+		}
 	}
 
 	/** Option: partner ID => IDs of other partners with the same IBAN. */
