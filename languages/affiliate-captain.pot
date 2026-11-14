@@ -2581,7 +2581,7 @@ msgid "Imported active partners receive a welcome e-mail."
 msgstr ""
 
 #: src/Admin/Pages/ImportExportPage.php
-msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items and payout requests. Use it as a backup, for your tax advisor or to move to another system."
+msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items, correction credit notes and payout requests. Use it as a backup, for your tax advisor or to move to another system."
 msgstr ""
 
 #: src/Admin/Pages/ImportExportPage.php src/Migration/ProgramExport.php

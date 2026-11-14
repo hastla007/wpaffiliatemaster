@@ -1903,8 +1903,8 @@ msgstr "Die importierten Partner erhalten keine E-Mails."
 msgid "Imported active partners receive a welcome e-mail."
 msgstr "Importierte aktive Partner erhalten eine Willkommens-E-Mail."
 
-msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items and payout requests. Use it as a backup, for your tax advisor or to move to another system."
-msgstr "Laden Sie das gesamte Partnerprogramm als ZIP-Datei mit einer CSV-Datei je Liste herunter: Partner, Gruppen, Codes, Regeln, Stufenpläne, Zustimmungen zu den Partnerbedingungen, Provisionen, Auszahlungen, Auszahlungspositionen und Auszahlungsanträge – zur Sicherung, für Ihre Steuerberatung oder für den Umzug in ein anderes System."
+msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items, correction credit notes and payout requests. Use it as a backup, for your tax advisor or to move to another system."
+msgstr "Laden Sie das gesamte Partnerprogramm als ZIP-Datei mit einer CSV-Datei je Liste herunter: Partner, Gruppen, Codes, Regeln, Stufenpläne, Zustimmungen zu den Partnerbedingungen, Provisionen, Auszahlungen, Auszahlungspositionen, Korrektur-Gutschriften und Auszahlungsanträge – zur Sicherung, für Ihre Steuerberatung oder für den Umzug in ein anderes System."
 
 msgid "The program export needs the PHP extension \"zip\". Ask your hosting provider to enable it, or use the CSV exports of the individual lists."
 msgstr "Der Programm-Export benötigt die PHP-Erweiterung „zip“. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie die CSV-Exporte der einzelnen Listen."
