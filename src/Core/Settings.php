@@ -343,6 +343,29 @@ final class Settings {
 			return null !== $value ? $value : $d[ $key ];
 		};
 
+		// In this order: the currency change converts amounts that later fields fall back to.
+		self::sanitize_tracking_basics( $in, $d, $old, $out, $errors, $notices );
+		self::sanitize_country( $in, $d, $old, $out, $errors, $notices );
+		self::sanitize_currency( $in, $d, $old, $out, $errors, $notices );
+		self::sanitize_currency_change_and_rate( $in, $d, $old, $out, $errors, $notices );
+		self::sanitize_tracking_and_limits( $in, $d, $old, $out, $errors, $notices );
+		self::sanitize_content_and_mail( $in, $d, $old, $out, $errors, $notices );
+		self::sanitize_billing( $in, $d, $old, $out, $errors, $notices );
+
+		return $out;
+	}
+
+	/**
+	 * Referral parameter, choices, lifetime rate, flags and whole numbers (part of sanitize()).
+	 *
+	 * @param array    $in      Raw input (unslashed).
+	 * @param array    $d       Defaults.
+	 * @param callable $old     Stored value (or default) of a key.
+	 * @param array    $out     In/out: sanitized settings.
+	 * @param array    $errors  In/out: rejected fields (form field name => message).
+	 * @param array    $notices In/out: accepted but adjusted fields (form field name => message).
+	 */
+	private static function sanitize_tracking_basics( array $in, array $d, callable $old, array &$out, array &$errors, array &$notices ) {
 		$out['referral_param'] = $d['referral_param'];
 		if ( isset( $in['referral_param'] ) ) {
 			$param = strtolower( trim( (string) $in['referral_param'] ) );
@@ -406,7 +429,19 @@ final class Settings {
 			$errors['fraud_max_refund_rate'] = __( 'Please enter a percentage between 0 and 100.', 'affiliate-captain' );
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
 		}
+	}
 
+	/**
+	 * Operator country and the statement retention minimum it implies (part of sanitize()).
+	 *
+	 * @param array    $in      Raw input (unslashed).
+	 * @param array    $d       Defaults.
+	 * @param callable $old     Stored value (or default) of a key.
+	 * @param array    $out     In/out: sanitized settings.
+	 * @param array    $errors  In/out: rejected fields (form field name => message).
+	 * @param array    $notices In/out: accepted but adjusted fields (form field name => message).
+	 */
+	private static function sanitize_country( array $in, array $d, callable $old, array &$out, array &$errors, array &$notices ) {
 		// Not posted (another tab): the stored country, which also sets the retention minimum below.
 		$out['operator_country'] = (string) $old( 'operator_country' );
 		if ( isset( $in['operator_country'] ) ) {
@@ -429,7 +464,19 @@ final class Settings {
 				$out['statement_retention_years'] = $minimum;
 			}
 		}
+	}
 
+	/**
+	 * Program currency and exchange rates (part of sanitize()).
+	 *
+	 * @param array    $in      Raw input (unslashed).
+	 * @param array    $d       Defaults.
+	 * @param callable $old     Stored value (or default) of a key.
+	 * @param array    $out     In/out: sanitized settings.
+	 * @param array    $errors  In/out: rejected fields (form field name => message).
+	 * @param array    $notices In/out: accepted but adjusted fields (form field name => message).
+	 */
+	private static function sanitize_currency( array $in, array $d, callable $old, array &$out, array &$errors, array &$notices ) {
 		// Fields of other tabs are not posted: fall back to the stored value (needed for amount conversions).
 		$out['currency'] = self::get( 'currency' ) ? (string) self::get( 'currency' ) : $d['currency'];
 		if ( isset( $in['currency'] ) ) {
@@ -461,7 +508,19 @@ final class Settings {
 				$out['exchange_rates'] = implode( "\n", $lines );
 			}
 		}
+	}
 
+	/**
+	 * Amount conversion after a currency change and the default rate (part of sanitize()).
+	 *
+	 * @param array    $in      Raw input (unslashed).
+	 * @param array    $d       Defaults.
+	 * @param callable $old     Stored value (or default) of a key.
+	 * @param array    $out     In/out: sanitized settings.
+	 * @param array    $errors  In/out: rejected fields (form field name => message).
+	 * @param array    $notices In/out: accepted but adjusted fields (form field name => message).
+	 */
+	private static function sanitize_currency_change_and_rate( array $in, array $d, callable $old, array &$out, array &$errors, array &$notices ) {
 		// A new program currency: amounts stored in minor units of the old currency are converted
 		// (with an exchange rate between the two currencies if one is known, otherwise the shown
 		// value is kept, e.g. 50.00 EUR → 50 JPY – reported so it can be checked).
@@ -534,7 +593,19 @@ final class Settings {
 				$out['default_rate_type'] = (string) $old( 'default_rate_type' );
 			}
 		}
+	}
 
+	/**
+	 * Visit log, cookie domain, trusted proxies, fraud limits and minimum payout (part of sanitize()).
+	 *
+	 * @param array    $in      Raw input (unslashed).
+	 * @param array    $d       Defaults.
+	 * @param callable $old     Stored value (or default) of a key.
+	 * @param array    $out     In/out: sanitized settings.
+	 * @param array    $errors  In/out: rejected fields (form field name => message).
+	 * @param array    $notices In/out: accepted but adjusted fields (form field name => message).
+	 */
+	private static function sanitize_tracking_and_limits( array $in, array $d, callable $old, array &$out, array &$errors, array &$notices ) {
 		$out['visit_log_percent'] = $d['visit_log_percent'];
 		if ( isset( $in['visit_log_percent'] ) ) {
 			$raw = trim( (string) $in['visit_log_percent'] );
@@ -605,7 +676,19 @@ final class Settings {
 				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
 			}
 		}
+	}
 
+	/**
+	 * Landing pages, disclosure, terms, mail sender and monitor token (part of sanitize()).
+	 *
+	 * @param array    $in      Raw input (unslashed).
+	 * @param array    $d       Defaults.
+	 * @param callable $old     Stored value (or default) of a key.
+	 * @param array    $out     In/out: sanitized settings.
+	 * @param array    $errors  In/out: rejected fields (form field name => message).
+	 * @param array    $notices In/out: accepted but adjusted fields (form field name => message).
+	 */
+	private static function sanitize_content_and_mail( array $in, array $d, callable $old, array &$out, array &$errors, array &$notices ) {
 		$out['landing_prefix'] = $d['landing_prefix'];
 		if ( isset( $in['landing_prefix'] ) ) {
 			$landing = sanitize_title( (string) $in['landing_prefix'] );
@@ -672,6 +755,19 @@ final class Settings {
 				$out['monitor_token'] = self::monitor_token_hash( $token );
 			}
 		}
+	}
+
+	/**
+	 * Debtor, VAT, operator data, number prefixes, coupon template and bank details (part of sanitize()).
+	 *
+	 * @param array    $in      Raw input (unslashed).
+	 * @param array    $d       Defaults.
+	 * @param callable $old     Stored value (or default) of a key.
+	 * @param array    $out     In/out: sanitized settings.
+	 * @param array    $errors  In/out: rejected fields (form field name => message).
+	 * @param array    $notices In/out: accepted but adjusted fields (form field name => message).
+	 */
+	private static function sanitize_billing( array $in, array $d, callable $old, array &$out, array &$errors, array &$notices ) {
 		$out['debtor_name'] = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
 		$out['vat_rate']    = $d['vat_rate'];
 		if ( isset( $in['vat_rate'] ) ) {
@@ -739,8 +835,6 @@ final class Settings {
 				: __( 'This IBAN is not valid (check digits).', 'affiliate-captain' );
 			$out['debtor_iban']    = (string) self::get( 'debtor_iban' );
 		}
-
-		return $out;
 	}
 
 	/**
