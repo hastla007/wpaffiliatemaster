@@ -2902,6 +2902,9 @@ msgstr "Eigenkäufe über eigenen Link/Code"
 msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
 msgstr "Partnerlinks zusätzlich per JavaScript erfassen (für Seiten-Caches/CDNs)"
 
+msgid "Keep the referral of a partner link on the next pages until consent (link parameter, no storage)"
+msgstr "Zuordnung eines Partnerlinks bis zur Einwilligung auf den nächsten Seiten erhalten (Link-Parameter, keine Speicherung)"
+
 msgid "Review orders with disposable or blocked e-mail domains"
 msgstr "Bestellungen mit Wegwerf- oder gesperrten E-Mail-Domains prüfen"
 
@@ -3072,6 +3075,9 @@ msgstr "Immer, ohne Einwilligung (in der EU nicht zulässig – §25 TDDDG, ePri
 
 msgid "An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use \"Only with marketing consent\" unless your shop is outside the EU and you checked the local law."
 msgstr "Ein Affiliate-Cookie ist nicht unbedingt erforderlich: In der EU darf es nur mit Einwilligung gesetzt werden. Verwenden Sie „Nur mit Marketing-Einwilligung“, außer Ihr Shop liegt außerhalb der EU und Sie haben das dortige Recht geprüft."
+
+msgid "Only with \"Only with marketing consent\": if the visitor answers the consent banner only on a later page, links and search forms of this shop carry the referral for 30 minutes (signed URL parameter, nothing is stored in the browser before consent). With consent the cookie is set; without consent nothing is kept."
+msgstr "Nur bei „Nur mit Marketing-Einwilligung“: Beantwortet der Besucher das Einwilligungsbanner erst auf einer späteren Seite, tragen Links und Suchformulare dieses Shops die Zuordnung 30 Minuten lang weiter (signierter URL-Parameter, vor der Einwilligung wird nichts im Browser gespeichert). Mit Einwilligung wird das Cookie gesetzt; ohne Einwilligung bleibt nichts erhalten."
 
 msgid "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both."
 msgstr "Normalerweise leer lassen. Nur wenn Landingpages und Shop auf verschiedenen Subdomains laufen (z. B. www.example.com und shop.example.com): Tragen Sie die gemeinsame Domain .example.com ein, damit Empfehlungs-Cookie und Warenkorb-Rückfall auf beiden funktionieren."
@@ -5873,6 +5879,9 @@ msgstr "Angaben des Partners:\n\n%1$s\n\nBitte innerhalb eines Monats antworten 
 
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr "Wenn Sie unsere Website über einen Partnerlink besuchen oder einen Partnercode eingeben, speichern wir, welcher Partner Sie empfohlen hat, damit wir dem Partner eine Provision zahlen können. Ihre IP-Adresse speichern wir dafür nicht. Partner erhalten weder Ihren Namen noch Ihre Kontaktdaten."
+
+msgid "Until you answer the consent banner (at most 30 minutes after the partner link), the links of our shop carry the partner code as a signed parameter in the page address, so a consent given on a later page still credits the partner. Nothing is stored on your device for this; without consent the information ends with your visit."
+msgstr "Bis Sie das Einwilligungsbanner beantworten (höchstens 30 Minuten nach dem Partnerlink), tragen die Links unseres Shops den Partnercode als signierten Parameter in der Seitenadresse weiter, damit eine Einwilligung auf einer späteren Seite dem Partner noch zugutekommt. Dafür wird nichts auf Ihrem Gerät gespeichert; ohne Einwilligung endet die Information mit Ihrem Besuch."
 
 msgid "If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout."
 msgstr "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode bis zur Kasse in Ihrer Shop-Sitzung gespeichert."
