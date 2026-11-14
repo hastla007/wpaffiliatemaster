@@ -407,17 +407,23 @@ final class Portal {
 		if ( 'account' === $action ) {
 			// Name, website and channel directly; a new e-mail only after confirmation.
 			// The channel is internal; name and website are public and wait for the operator's review.
-			AffiliateRepository::update(
-				(int) $aff->id,
-				array(
-					'channel' => isset( $_POST['wpac_acc_channel'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_channel'] ) ) : $aff->channel,
-				)
+			$acc = array(
+				'channel' => isset( $_POST['wpac_acc_channel'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_channel'] ) ) : $aff->channel,
+				'name'    => isset( $_POST['wpac_acc_name'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) : $aff->name,
+				'website' => isset( $_POST['wpac_acc_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_acc_website'] ) ) : $aff->website,
 			);
-			$public = AffiliateRepository::request_public_change(
-				(int) $aff->id,
-				isset( $_POST['wpac_acc_name'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) : $aff->name,
-				isset( $_POST['wpac_acc_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_acc_website'] ) ) : $aff->website
-			);
+			// All fields checked first: a too long name must not leave the channel half saved.
+			$saved = AffiliateRepository::length_problem( $acc );
+			if ( ! $saved ) {
+				$saved = AffiliateRepository::update( (int) $aff->id, array( 'channel' => $acc['channel'] ) );
+			}
+			$public = is_wp_error( $saved ) ? $saved : AffiliateRepository::request_public_change( (int) $aff->id, $acc['name'], $acc['website'] );
+			if ( is_wp_error( $public ) ) {
+				// Too long or not stored: an error instead of "saved" (and no e-mail change started).
+				set_transient( 'wpac_portal_error_' . get_current_user_id(), $public->get_error_message(), 5 * MINUTE_IN_SECONDS );
+				wp_safe_redirect( add_query_arg( array( 'wpac_msg' => 'account_failed', 'wpac_tab' => 'account' ), $redirect ) );
+				exit;
+			}
 			$msg   = 'pending' === $public ? 'change_review' : 'saved';
 			$email = isset( $_POST['wpac_acc_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_acc_email'] ) ) : '';
 			if ( '' !== $email && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
@@ -824,6 +830,7 @@ final class Portal {
 			'saved'     => array( 'success', __( 'Your details have been saved.', 'affiliate-captain' ) ),
 			'requested' => array( 'success', __( 'Your payout request was sent.', 'affiliate-captain' ) ),
 			'request_failed' => array( 'error', __( 'The payout request could not be created.', 'affiliate-captain' ) ),
+			'account_failed' => array( 'error', __( 'Your details could not be saved.', 'affiliate-captain' ) ),
 			'terms'     => array( 'success', __( 'Thank you for accepting the terms.', 'affiliate-captain' ) ),
 			'terms_changed' => array( 'error', __( 'The terms were changed in the meantime. Please read the current version and accept it again.', 'affiliate-captain' ) ),
 			'wpac_iban' => array( 'error', __( 'The IBAN is not valid.', 'affiliate-captain' ) ),
@@ -864,7 +871,7 @@ final class Portal {
 		$key = isset( $_GET['wpac_msg'] ) ? sanitize_key( wp_unslash( $_GET['wpac_msg'] ) ) : '';
 		if ( isset( $messages[ $key ] ) ) {
 			$text = $messages[ $key ][1];
-			if ( in_array( $key, array( 'request_failed', 'objection_failed' ), true ) ) {
+			if ( in_array( $key, array( 'request_failed', 'objection_failed', 'account_failed' ), true ) ) {
 				// The actual reason (e.g. below the minimum, profile incomplete).
 				$detail = self::flash( 'wpac_portal_error_' . get_current_user_id() );
 				if ( $detail ) {
@@ -1868,14 +1875,14 @@ final class Portal {
 		echo '<form method="post" class="wpac-form">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="account">';
-		self::input( 'acc_name', __( 'Name / company', 'affiliate-captain' ), (string) $aff->name, true );
+		self::input( 'acc_name', __( 'Name / company', 'affiliate-captain' ), (string) $aff->name, true, 'maxlength="190"' );
 		printf( '<p><label for="wpac_acc_email">%1$s *</label><input type="email" id="wpac_acc_email" name="wpac_acc_email" value="%2$s" required autocomplete="email"></p>', esc_html__( 'E-mail for notifications', 'affiliate-captain' ), esc_attr( (string) $aff->email ) );
 		if ( is_array( $pending ) ) {
 			/* translators: %s: e-mail */
 			echo '<p class="wpac-muted">' . esc_html( sprintf( __( 'Waiting for confirmation of %s.', 'affiliate-captain' ), $pending['email'] ) ) . '</p>';
 		}
-		printf( '<p><label for="wpac_acc_website">%1$s</label><input type="url" id="wpac_acc_website" name="wpac_acc_website" value="%2$s"></p>', esc_html__( 'Website', 'affiliate-captain' ), esc_attr( (string) $aff->website ) );
-		self::input( 'acc_channel', __( 'Channel (e.g. blog, Instagram, sailing school)', 'affiliate-captain' ), (string) $aff->channel );
+		printf( '<p><label for="wpac_acc_website">%1$s</label><input type="url" id="wpac_acc_website" name="wpac_acc_website" value="%2$s" maxlength="255"></p>', esc_html__( 'Website', 'affiliate-captain' ), esc_attr( (string) $aff->website ) );
+		self::input( 'acc_channel', __( 'Channel (e.g. blog, Instagram, sailing school)', 'affiliate-captain' ), (string) $aff->channel, false, 'maxlength="255"' );
 		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'affiliate-captain' ) . '</button></p></form>';
 
 		// E-mail preferences: optional mails (the same setting as the unsubscribe link in the mails).

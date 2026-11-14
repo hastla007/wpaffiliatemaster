@@ -20,6 +20,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class Creatives {
 
+	/** @var int Max characters of a text creative (TEXT column, up to 4 bytes per character). */
+	const CONTENT_MAX = 16000;
+
 	/**
 	 * Labels.
 	 *
@@ -106,6 +109,21 @@ final class Creatives {
 			'disclosure'    => sanitize_text_field( isset( $in['disclosure'] ) && '' !== trim( $in['disclosure'] ) ? $in['disclosure'] : Settings::get( 'default_disclosure' ) ),
 			'group_id'      => absint( isset( $in['group_id'] ) ? $in['group_id'] : 0 ),
 		);
+		// Column limits: wpdb refuses the whole INSERT for a longer value (no draft would be saved).
+		foreach ( array(
+			'title'       => array( 190, __( 'Title', 'affiliate-captain' ) ),
+			'content'     => array( self::CONTENT_MAX, __( 'Text', 'affiliate-captain' ) ),
+			'landing_url' => array( 255, __( 'Target page', 'affiliate-captain' ) ),
+			'disclosure'  => array( 255, __( 'Disclosure note', 'affiliate-captain' ) ),
+		) as $field => $limit ) {
+			if ( Db::too_long( $data[ $field ], $limit[0] ) ) {
+				return new \WP_Error(
+					'wpac_too_long_' . $field,
+					/* translators: 1: field, 2: number of characters */
+					sprintf( __( '%1$s is too long (at most %2$d characters). Nothing was changed.', 'affiliate-captain' ), $limit[1], $limit[0] )
+				);
+			}
+		}
 		if ( 'image' === $type && ( ! $data['attachment_id'] || ! wp_attachment_is_image( $data['attachment_id'] ) ) ) {
 			return new \WP_Error( 'wpac_image', __( 'Please choose an image from the media library.', 'affiliate-captain' ) );
 		}
@@ -124,7 +142,8 @@ final class Creatives {
 	 * @param array  $data      Sanitized data.
 	 * @param int    $family_id Family.
 	 * @param string $note      Change note.
-	 * @return int New version ID.
+	 * @return int|\WP_Error New version ID, or an error when the database refused it (nothing saved,
+	 *                      nothing logged).
 	 */
 	public static function save_draft( array $data, $family_id = 0, $note = '' ) {
 		global $wpdb;
@@ -134,7 +153,8 @@ final class Creatives {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$version = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$t} WHERE family_id = %d", $family_id ) );
 		}
-		$wpdb->insert(
+		$failed = new \WP_Error( 'wpac_creative_db', __( 'The draft could not be saved. Please try again; nothing was changed.', 'affiliate-captain' ) );
+		$ok     = $wpdb->insert(
 			$t,
 			$data + array(
 				'family_id'   => (int) $family_id,
@@ -145,9 +165,15 @@ final class Creatives {
 				'created_at'  => Db::now(),
 			)
 		);
+		if ( ! $ok ) {
+			return $failed;
+		}
 		$id = (int) $wpdb->insert_id;
 		if ( ! $family_id ) {
-			$wpdb->update( $t, array( 'family_id' => $id ), array( 'id' => $id ) );
+			if ( false === $wpdb->update( $t, array( 'family_id' => $id ), array( 'id' => $id ) ) ) {
+				$wpdb->delete( $t, array( 'id' => $id ) ); // Without a family the version would be orphaned.
+				return $failed;
+			}
 			$family_id = $id;
 		}
 		Audit::log(

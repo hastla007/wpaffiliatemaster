@@ -1315,10 +1315,14 @@ final class Ledger {
 	 * @param string $reason   Reason.
 	 * @param string $event_id Source event ID.
 	 * @param int    $actor    Actor (defaults to current user).
+	 * @return true
+	 * @throws IntegrationException When the event could not be stored: the history of a commission
+	 *                              must not miss a step, so the caller's transaction is rolled back
+	 *                              (and the booking reported as failed) instead of looking saved.
 	 */
 	public static function event( $id, $event, $from, $to, $amount, $reason = '', $event_id = '', $actor = null ) {
 		global $wpdb;
-		$wpdb->insert(
+		$ok = $wpdb->insert(
 			Db::table( 'commission_events' ),
 			array(
 				'commission_id'   => (int) $id,
@@ -1332,6 +1336,10 @@ final class Ledger {
 				'created_at'      => Db::now(),
 			)
 		);
+		if ( ! $ok ) {
+			throw new IntegrationException( 'db_commission_event', esc_html( 'Could not store the commission event: ' . $wpdb->last_error ) );
+		}
+		return true;
 	}
 
 	/**

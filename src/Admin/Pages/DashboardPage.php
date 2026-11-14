@@ -45,9 +45,12 @@ final class DashboardPage {
 		$out      = array();
 		if ( in_array( $view, array( 'content', 'campaign' ), true ) ) {
 			foreach ( Reports::by_dimension( 'content' === $view ? 'content_id' : 'campaign', $from, $to ) as $r ) {
-				$out[] = array( $r['key'], $r['label'], $r['visits'], $r['partners'], $r['orders'], $r['conversion'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ) );
+				$line = array( $r['key'], $r['label'], $r['visits'], $r['partners'], $r['orders'], $r['conversion'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ) );
+				// Campaigns are per partner (same names of different partners are separate rows).
+				$out[] = 'campaign' === $view ? array_merge( array( $r['affiliate_id'], $r['partner'] ), $line ) : $line;
 			}
-			Csv::download( "report-{$view}-{$from}-{$to}.csv", array( 'content' === $view ? 'content_id' : 'campaign', 'label', 'visits', 'partners', 'orders', 'conversion_percent', 'net_revenue_' . $currency, 'commission_' . $currency ), $out );
+			$head = array( 'content' === $view ? 'content_id' : 'campaign', 'label', 'visits', 'partners', 'orders', 'conversion_percent', 'net_revenue_' . $currency, 'commission_' . $currency );
+			Csv::download( "report-{$view}-{$from}-{$to}.csv", 'campaign' === $view ? array_merge( array( 'affiliate_id', 'partner' ), $head ) : $head, $out );
 		}
 		foreach ( Reports::partners( $from, $to ) as $r ) {
 			$out[] = array( $r['affiliate_id'], $r['name'], $r['visits'], $r['orders'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ), Money::to_decimal( $r['corrections'], $currency ), Money::to_decimal( $r['bonus'], $currency ), Money::to_decimal( $r['writeoffs'], $currency ), $r['refund_rate'] );
@@ -297,20 +300,26 @@ final class DashboardPage {
 
 		if ( 'partners' !== $view ) {
 			$dim = Reports::cached( 'content' === $view ? 'content_id' : 'campaign', $from, $to );
-			echo '<table class="widefat striped"><thead><tr><th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+			$per_partner = 'campaign' === $view; // Campaign names are chosen by each partner: one row per partner and campaign.
+			echo '<table class="widefat striped"><thead><tr>' . ( $per_partner ? '<th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th>' : '' ) . '<th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th>' . ( $per_partner ? '' : '<th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th>' ) . '<th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 			if ( ! $dim ) {
 				echo '<tr><td colspan="7">' . esc_html__( 'No activity in this period.', 'affiliate-captain' ) . '</td></tr>';
 			}
 			foreach ( $dim as $r ) {
+				$first = $per_partner
+					? '<td><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $r['affiliate_id'] ) ) ) . '">' . esc_html( $r['partner'] ) . '</a></td>'
+					: '';
+				$count = $per_partner ? '' : '<td>' . esc_html( number_format_i18n( $r['partners'] ) ) . '</td>';
 				$label = esc_html( $r['label'] );
 				if ( 'content' === $view && (int) $r['key'] && get_edit_post_link( (int) $r['key'] ) ) {
 					$label = '<a href="' . esc_url( get_edit_post_link( (int) $r['key'] ) ) . '">' . $label . '</a> <small>(' . esc_html( get_post_type( (int) $r['key'] ) ) . ')</small>';
 				}
 				printf(
-					'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s %%</td><td>%s</td><td>%s</td></tr>',
+					'<tr>%s<td>%s</td><td>%s</td>%s<td>%s</td><td>%s %%</td><td>%s</td><td>%s</td></tr>',
+					$first, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 					$label, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					esc_html( number_format_i18n( $r['visits'] ) ),
-					esc_html( number_format_i18n( $r['partners'] ) ),
+					$count, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 					esc_html( number_format_i18n( $r['orders'] ) ),
 					esc_html( number_format_i18n( $r['conversion'], 1 ) ),
 					esc_html( Money::format( $r['revenue'], $currency ) ),
@@ -318,7 +327,7 @@ final class DashboardPage {
 				);
 			}
 			echo '</tbody></table>';
-			echo '<p class="description">' . esc_html__( 'Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution.', 'affiliate-captain' ) . '</p></div>';
+			echo '<p class="description">' . esc_html__( 'Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution.', 'affiliate-captain' ) . ( $per_partner ? ' ' . esc_html__( 'Campaign names are set by each partner, so the campaigns of each partner are listed separately.', 'affiliate-captain' ) : '' ) . '</p></div>';
 			return;
 		}
 

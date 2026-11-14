@@ -20,6 +20,9 @@ final class AffiliateRepository {
 
 	const STATUSES = array( 'pending', 'active', 'paused', 'terminated', 'rejected' );
 
+	/** @var int Max characters of the welcome message on the landing page (TEXT column, up to 4 bytes per character). */
+	const LANDING_MESSAGE_MAX = 5000;
+
 	/**
 	 * Translated status labels.
 	 *
@@ -237,6 +240,8 @@ final class AffiliateRepository {
 	 *
 	 * @param int   $id   ID.
 	 * @param array $data Fields.
+	 * @return true|\WP_Error Error when a value is too long or the database refused the change
+	 *                        (then nothing was changed and nothing is logged).
 	 */
 	public static function update( $id, array $data ) {
 		global $wpdb;
@@ -266,13 +271,47 @@ final class AffiliateRepository {
 				$fields['slug'] = self::unique_slug( $slug );
 			}
 		}
+		$problem = self::length_problem( $fields );
+		if ( $problem ) {
+			return $problem;
+		}
 		if ( ! $fields ) {
-			return;
+			return true;
 		}
 		$fields['updated_at'] = Db::now();
-		$wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id ) );
+		$stored               = $wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id ) );
 		self::clear_cache( $id );
+		if ( false === $stored ) {
+			return new \WP_Error( 'wpac_affiliate_db', __( 'The partner data could not be saved. Please try again; the previous data are unchanged.', 'affiliate-captain' ) );
+		}
 		Audit::log( 'affiliate.updated', 'affiliate', (int) $id, array( 'fields' => array_keys( $fields ) ) );
+		return true;
+	}
+
+	/**
+	 * Column limits of the editable fields: wpdb refuses the whole UPDATE for a longer value, so
+	 * the old data would stay unnoticed.
+	 *
+	 * @param array $fields Sanitized fields (name, website, channel, landing_message).
+	 * @return \WP_Error|null
+	 */
+	public static function length_problem( array $fields ) {
+		$limits = array(
+			'name'            => array( 190, __( 'Name / company', 'affiliate-captain' ) ),
+			'website'         => array( 255, __( 'Website', 'affiliate-captain' ) ),
+			'channel'         => array( 255, __( 'Channel', 'affiliate-captain' ) ),
+			'landing_message' => array( self::LANDING_MESSAGE_MAX, __( 'Welcome message on landing page', 'affiliate-captain' ) ),
+		);
+		foreach ( $limits as $field => $limit ) {
+			if ( isset( $fields[ $field ] ) && Db::too_long( $fields[ $field ], $limit[0] ) ) {
+				return new \WP_Error(
+					'wpac_too_long_' . $field,
+					/* translators: 1: field, 2: number of characters */
+					sprintf( __( '%1$s is too long (at most %2$d characters). Nothing was changed.', 'affiliate-captain' ), $limit[1], $limit[0] )
+				);
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -333,7 +372,7 @@ final class AffiliateRepository {
 	 * @param int    $id      Affiliate ID.
 	 * @param string $name    New name.
 	 * @param string $website New website.
-	 * @return string applied|pending|unchanged
+	 * @return string|\WP_Error applied|pending|unchanged, or an error (too long, database).
 	 */
 	public static function request_public_change( $id, $name, $website ) {
 		$aff = self::find( (int) $id );
@@ -346,9 +385,19 @@ final class AffiliateRepository {
 			delete_option( 'wpac_public_change_' . (int) $id );
 			return 'unchanged';
 		}
+		// Checked before the review: an approved change must fit the columns.
+		$problem = self::length_problem(
+			array(
+				'name'    => $name,
+				'website' => $website,
+			)
+		);
+		if ( $problem ) {
+			return $problem;
+		}
 		if ( ! in_array( $aff->status, array( 'active', 'paused' ), true ) ) {
-			self::update( (int) $id, array( 'name' => $name, 'website' => $website ) );
-			return 'applied';
+			$stored = self::update( (int) $id, array( 'name' => $name, 'website' => $website ) );
+			return is_wp_error( $stored ) ? $stored : 'applied';
 		}
 		update_option( 'wpac_public_change_' . (int) $id, array( 'name' => $name, 'website' => $website, 'requested_at' => Db::now() ), false );
 		Audit::log( 'affiliate.public_change_requested', 'affiliate', (int) $id );
@@ -372,17 +421,21 @@ final class AffiliateRepository {
 	 *
 	 * @param int  $id      Affiliate ID.
 	 * @param bool $approve Approve.
-	 * @return bool
+	 * @return bool|\WP_Error False without a pending change, an error when the approved change
+	 *                       could not be saved (it then stays pending; the partner is not informed).
 	 */
 	public static function resolve_public_change( $id, $approve ) {
 		$p = self::pending_public_change( $id );
 		if ( ! $p ) {
 			return false;
 		}
-		delete_option( 'wpac_public_change_' . (int) $id );
 		if ( $approve ) {
-			self::update( (int) $id, array( 'name' => $p['name'], 'website' => $p['website'] ) );
+			$stored = self::update( (int) $id, array( 'name' => $p['name'], 'website' => $p['website'] ) );
+			if ( is_wp_error( $stored ) ) {
+				return $stored;
+			}
 		}
+		delete_option( 'wpac_public_change_' . (int) $id );
 		Audit::log( $approve ? 'affiliate.public_change_approved' : 'affiliate.public_change_rejected', 'affiliate', (int) $id );
 		Notifications::public_change_resolved( (int) $id, (bool) $approve );
 		return true;
