@@ -239,7 +239,7 @@ final class Dunning {
 							'kind'            => 'repayment',
 							'parent_id'       => 0,
 							'product_ref'     => '',
-							'description'     => mb_substr( sanitize_text_field( (string) $note ), 0, 255 ),
+							'description'     => Db::cut( sanitize_text_field( (string) $note ), 255 ),
 							'currency'        => $currency,
 							'base_minor'      => 0,
 							'amount_minor'    => $amount_minor,

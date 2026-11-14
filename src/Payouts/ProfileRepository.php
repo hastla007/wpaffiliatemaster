@@ -95,7 +95,7 @@ final class ProfileRepository {
 			return true;
 		}
 		if ( self::METHOD_MANUAL === $method ) {
-			$details = trim( mb_substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
+			$details = trim( Db::cut( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 500 ) );
 			return '' !== $details && self::payment_details( $profile ) !== $details;
 		}
 		$iban = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
@@ -374,7 +374,7 @@ final class ProfileRepository {
 		}
 		if ( self::METHOD_MANUAL === $method ) {
 			// Free-text payment details (e.g. "PayPal: name@example.com"), stored encrypted like the IBAN.
-			$details = trim( mb_substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
+			$details = trim( Db::cut( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 500 ) );
 			$iban    = '';
 			if ( '' === $details && self::METHOD_MANUAL !== $old_method ) {
 				return new \WP_Error( 'wpac_payment_details', __( 'Please enter your payment details (e.g. your PayPal address).', 'affiliate-captain' ) );
@@ -430,7 +430,7 @@ final class ProfileRepository {
 		}
 		if ( false === $stored || ( ! $existing && ! $stored ) ) {
 			// Nothing was saved: no success message and no "bank details changed" mail.
-			Audit::log( 'payout_profile.save_failed', 'affiliate', (int) $affiliate_id, array( 'error' => mb_substr( (string) $wpdb->last_error, 0, 190 ) ) );
+			Audit::log( 'payout_profile.save_failed', 'affiliate', (int) $affiliate_id, array( 'error' => Db::cut( (string) $wpdb->last_error, 190 ) ) );
 			return new \WP_Error( 'wpac_profile_db', __( 'Your payout details could not be saved. Please try again; your previous details are unchanged.', 'affiliate-captain' ) );
 		}
 		if ( $tax_old !== $tax_new ) {

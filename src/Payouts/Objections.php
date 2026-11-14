@@ -198,11 +198,7 @@ final class Objections {
 	 * @return string
 	 */
 	public static function cut( $text, $max ) {
-		$text = (string) $text;
-		if ( function_exists( 'mb_substr' ) ) {
-			return mb_substr( $text, 0, (int) $max, 'UTF-8' );
-		}
-		return (string) preg_replace( '/^(.{0,' . (int) $max . '}).*$/us', '$1', $text );
+		return Db::cut( $text, $max ); // One helper for character-safe truncation.
 	}
 
 	/**

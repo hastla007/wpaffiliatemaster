@@ -110,7 +110,7 @@ final class Cron {
 			call_user_func( $step );
 			self::record_step( $key, null );
 		} catch ( \Throwable $e ) {
-			Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $key, 'error' => mb_substr( $e->getMessage(), 0, 190 ) ) );
+			Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $key, 'error' => Db::cut( $e->getMessage(), 190 ) ) );
 			Log::exception( 'Scheduled step failed: ' . $key, $e );
 			self::record_step( $key, $e );
 		}
@@ -140,7 +140,7 @@ final class Cron {
 			'since' => isset( $all[ $key ]['since'] ) ? (int) $all[ $key ]['since'] : time(),
 			'last'  => time(),
 			'count' => isset( $all[ $key ]['count'] ) ? (int) $all[ $key ]['count'] + 1 : 1,
-			'error' => mb_substr( $e->getMessage(), 0, 190 ),
+			'error' => Db::cut( $e->getMessage(), 190 ),
 		);
 		update_option( self::FAILURES, $all, false );
 	}
@@ -309,10 +309,78 @@ final class Cron {
 	public static function purge_jobs() {
 		global $wpdb;
 		$jobs = Db::table( 'jobs' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'failed' AND updated_at < %s", Db::now( time() - 180 * DAY_IN_SECONDS ) ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$jobs} WHERE status = 'done' AND updated_at < %s", Db::now( time() - 30 * DAY_IN_SECONDS ) ) );
+		/**
+		 * How long jobs are kept (days, 0 = keep). failed_sales: sales, renewals and reinstatements
+		 * that could not be booked – kept by default (the commission is missing until someone
+		 * retries them); failed: other failed jobs; parked: refunds still waiting for their sale;
+		 * superseded: markers of refunds already part of a booked sale; done: finished jobs.
+		 *
+		 * @param array $days Days per kind.
+		 */
+		$days = array_map(
+			'absint',
+			(array) apply_filters(
+				'wpac_job_retention_days',
+				array(
+					'failed_sales' => 0,
+					'failed'       => 180,
+					'parked'       => 365,
+					'superseded'   => 365,
+					'done'         => 30,
+				)
+			)
+		) + array(
+			'failed_sales' => 0,
+			'failed'       => 180,
+			'parked'       => 365,
+			'superseded'   => 365,
+			'done'         => 30,
+		);
+		$sales = "'sale','woo_order','reinstate','woo_reinstate'";
+		$sets  = array(
+			'failed_sales' => "status = 'failed' AND type IN ({$sales})",
+			'failed'       => "status = 'failed' AND type NOT IN ({$sales})",
+			'parked'       => "status = 'parked'",
+			'superseded'   => "status = 'done' AND last_error_code = 'superseded'",
+			'done'         => "status = 'done' AND last_error_code <> 'superseded'",
+		);
+		foreach ( $sets as $kind => $where ) {
+			if ( ! $days[ $kind ] ) {
+				continue;
+			}
+			$before = Db::now( time() - $days[ $kind ] * DAY_IN_SECONDS );
+			if ( in_array( $kind, array( 'failed_sales', 'failed', 'parked' ), true ) ) {
+				// Unfinished work is not deleted silently: audit and log which jobs go.
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$keys = $wpdb->get_col( $wpdb->prepare( "SELECT idempotency_key FROM {$jobs} WHERE {$where} AND updated_at < %s ORDER BY id ASC LIMIT 50", $before ) );
+				if ( ! $keys ) {
+					continue;
+				}
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$n = self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$jobs} WHERE {$where} AND updated_at < %s", $before ) );
+				Audit::log(
+					'job.purged',
+					'job',
+					0,
+					array(
+						'kind'  => $kind,
+						'days'  => $days[ $kind ],
+						'count' => $n,
+						'jobs'  => $keys,
+					)
+				);
+				Log::warning(
+					'Unfinished jobs deleted after the retention period',
+					array(
+						'kind'  => $kind,
+						'count' => $n,
+					)
+				);
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$jobs} WHERE {$where} AND updated_at < %s", $before ) );
+		}
 	}
 
 	/**

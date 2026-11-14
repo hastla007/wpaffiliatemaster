@@ -1060,8 +1060,15 @@ class ZA_Order {
 	public function get_customer_id() { return 0; }
 	public function get_billing_email() { return 'abo@example.de'; }
 	public function get_parent_id() { return $this->parent; }
+	public function get_total() { return '50.00'; }
+	public function get_total_tax() { return '0.00'; }
+	public function get_shipping_total() { return '0.00'; }
+	public function get_status() { return 'processing'; }
+	public function has_status( $s ) { return in_array( 'processing', (array) $s, true ); }
 }
 class ZA_Item {
+	public function get_meta( $k ) { return ''; }
+	public function get_total_tax() { return '0.00'; }
 	public function get_product() { return null; }
 	public function get_variation_id() { return 0; }
 	public function get_product_id() { return 0; }
@@ -1520,6 +1527,7 @@ require __DIR__ . '/r8-g6.php';
 require __DIR__ . '/r8-g4b.php';
 require __DIR__ . '/r8-g4a.php';
 require __DIR__ . '/r8-g5.php';
+require __DIR__ . '/r8-g3.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

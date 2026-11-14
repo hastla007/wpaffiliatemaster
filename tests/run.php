@@ -505,6 +505,21 @@ $g4a_pdf->text( 50, 60, 'Łukasz Wiśniewski' );
 $g4a_out = $g4a_pdf->output();
 check( 'R5-W45 original spelling kept in the document properties', array( array( 'Łukasz Wiśniewski' ), true, false ), array( $g4a_pdf->transliterated(), false !== strpos( $g4a_out, '/Subject <FEFF' ), false !== strpos( $g4a_out, '?' ) && false !== strpos( $g4a_out, '(?' ) ) );
 check( 'R6-QA14 wrap breaks words longer than the column', true, max( array_map( static function ( $l ) { return Pdf::width( $l, 9 ); }, Pdf::wrap( 'a3f1c2d4-5b6e-4f70-8a9b-0c1d2e3f4a5b Kurs', 100, 9 ) ) ) <= 100 );
+/* R8-G3: rule precision and precedence (R7-AD11, R7-AD12, R7-AD7), amount cap (R5-O3). -------- */
+$g3_rule = static function ( $id, $scope, $scope_id, $target, $value, $type, $rate, $prio = 0 ) {
+	return array( 'id' => $id, 'scope' => $scope, 'scope_id' => $scope_id, 'target' => $target, 'target_value' => $value, 'rate_type' => $type, 'rate' => $rate, 'priority' => $prio, 'active' => 1 );
+};
+$g3_def = array( 'rate_type' => 'percent', 'rate' => '10' );
+$g3_var = array( 'product_id' => 11, 'parent_id' => 10, 'sku' => 'PASS-E12-T3', 'category_ids' => array( 4 ), 'category_ancestor_ids' => array( 2 ), 'quantity' => 1, 'net_minor' => 10000 );
+check( 'R7-AD11 variation rule beats the (newer) rule of its parent product', 1, Calculator::calculate( $g3_var, array( $g3_rule( 1, 'global', 0, 'product', '11', 'percent', '20' ), $g3_rule( 2, 'global', 0, 'product', '10', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'] );
+check( 'R7-AD11 exact SKU beats a (newer) wildcard, longer prefix beats shorter', array( 1, 3 ), array( Calculator::calculate( $g3_var, array( $g3_rule( 1, 'global', 0, 'sku', 'PASS-E12-T3', 'percent', '20' ), $g3_rule( 2, 'global', 0, 'sku', 'PASS-*', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'], Calculator::calculate( $g3_var, array( $g3_rule( 3, 'global', 0, 'sku', 'PASS-E12-*', 'percent', '20' ), $g3_rule( 4, 'global', 0, 'sku', 'PASS-*', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'] ) );
+check( 'R7-AD7 own category beats a (newer) rule of the parent category, the parent rule still applies alone', array( 1, 2 ), array( Calculator::calculate( $g3_var, array( $g3_rule( 1, 'global', 0, 'category', '4', 'percent', '20' ), $g3_rule( 2, 'global', 0, 'category', '2', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'], Calculator::calculate( $g3_var, array( $g3_rule( 2, 'global', 0, 'category', '2', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'] ) );
+$g3_prec = array( $g3_rule( 1, 'affiliate', 7, 'all', '', 'percent', '3' ), $g3_rule( 2, 'global', 0, 'product', '11', 'percent', '20' ) );
+check( 'R7-AD12 precedence "scope" (default): partner/all beats global/product; "target": the product rule wins', array( 1, 2 ), array( Calculator::calculate( $g3_var, $g3_prec, 7, 0, $g3_def )['rule_id'], Calculator::calculate( $g3_var, $g3_prec, 7, 0, $g3_def, true, 'target' )['rule_id'] ) );
+$g3_excl = array( $g3_rule( 1, 'global', 0, 'category', '4', 'exclude', '0' ), $g3_rule( 2, 'affiliate', 7, 'category', '4', 'percent', '15' ) );
+check( 'R7-AD12 a partner rule overrides a global exclusion only with precedence "target"', array( true, false, 1500 ), array( Calculator::calculate( $g3_var, $g3_excl, 7, 0, $g3_def )['excluded'], Calculator::calculate( $g3_var, $g3_excl, 7, 0, $g3_def, true, 'target' )['excluded'], Calculator::calculate( $g3_var, $g3_excl, 7, 0, $g3_def, true, 'target' )['amount_minor'] ) );
+check( 'R7-AD12 with "target" an exclusion still wins at the same rank', true, Calculator::calculate( $g3_var, array( $g3_rule( 1, 'affiliate', 7, 'category', '4', 'percent', '15' ), $g3_rule( 2, 'affiliate', 7, 'category', '4', 'exclude', '0' ) ), 7, 0, $g3_def, true, 'target' )['excluded'] );
+check( 'R5-O3 filter_amount without WordPress leaves the amount', 300, Calculator::filter_amount( 300, $g3_var, 1, null, 10000 ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

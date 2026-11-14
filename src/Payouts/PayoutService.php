@@ -1069,7 +1069,7 @@ final class PayoutService {
 					}
 					$pt = Db::table( 'payouts' );
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$rows = $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'cancelled', note = %s WHERE id = %d AND status = %s", mb_substr( sanitize_text_field( $reason ), 0, 255 ), $id, $p->status ) );
+					$rows = $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'cancelled', note = %s WHERE id = %d AND status = %s", Db::cut( sanitize_text_field( $reason ), 255 ), $id, $p->status ) );
 					if ( false === $rows ) {
 						throw new IntegrationException( 'db_error', esc_html__( 'The cancellation could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
 					}

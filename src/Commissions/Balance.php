@@ -60,7 +60,7 @@ final class Balance {
 					'balance_minor' => (int) $acc->balance_minor + (int) $amount_minor,
 					'commission_id' => (int) $commission_id,
 					'payout_id'     => (int) $payout_id,
-					'reference'     => mb_substr( (string) $reference, 0, 191 ),
+					'reference'     => Db::cut( (string) $reference, 191 ),
 					'actor_id'      => get_current_user_id(),
 					'created_at'    => Db::now(),
 					'prev_hash'     => (string) $acc->last_hash,

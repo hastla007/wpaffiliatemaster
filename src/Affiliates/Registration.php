@@ -58,7 +58,7 @@ final class Registration {
 	 * @return string
 	 */
 	public static function cap( $value, $max ) {
-		return function_exists( 'mb_substr' ) ? mb_substr( (string) $value, 0, (int) $max ) : substr( (string) $value, 0, (int) $max );
+		return Db::cut( $value, $max ); // One helper for character-safe truncation.
 	}
 
 	/**
@@ -100,7 +100,7 @@ final class Registration {
 				break;
 			}
 			if ( is_string( $v ) && 0 === strpos( (string) $k, 'wpac_' ) && strlen( (string) $k ) <= 64 && ! in_array( $k, array( 'wpac_register', 'wpac_url_confirm', 'wpac_group_sig', 'wpac_group_post' ), true ) ) {
-				self::$values[ sanitize_key( $k ) ] = mb_substr( sanitize_textarea_field( wp_unslash( $v ) ), 0, 2000 );
+				self::$values[ sanitize_key( $k ) ] = Db::cut( sanitize_textarea_field( wp_unslash( $v ) ), 2000 );
 			}
 		}
 

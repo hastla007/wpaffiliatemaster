@@ -277,7 +277,7 @@ final class Notifications {
 		}
 		if ( ! $ok ) {
 			$error = self::$last_error instanceof \WP_Error ? self::$last_error->get_error_message() : 'wp_mail() returned false';
-			Log::warning( 'E-mail could not be sent', $context + array( 'error' => mb_substr( (string) $error, 0, 300 ) ) );
+			Log::warning( 'E-mail could not be sent', $context + array( 'error' => \WPAffiliateCaptain\Core\Db::cut( (string) $error, 300 ) ) );
 			/**
 			 * Fires when an e-mail of Affiliate Captain could not be sent.
 			 *

@@ -1030,6 +1030,12 @@ msgstr "Manuell freigegeben"
 msgid "Commissions updated."
 msgstr "Provisionen aktualisiert."
 
+msgid "Please enter a valid amount (e.g. 25 or -12,50)."
+msgstr "Bitte einen gültigen Betrag eingeben (z. B. 25 oder -12,50)."
+
+msgid "Manual booking saved. It is payable with the next payout."
+msgstr "Manuelle Buchung gespeichert. Sie wird mit der nächsten Auszahlung ausgezahlt."
+
 msgid "Please enter a reason for the rejection."
 msgstr "Bitte geben Sie einen Grund für die Ablehnung an."
 
@@ -1044,6 +1050,21 @@ msgstr "Quelle"
 
 msgid "Order"
 msgstr "Bestellung"
+
+msgid "Manual booking (commission, bonus or deduction)"
+msgstr "Manuelle Buchung (Provision, Bonus oder Abzug)"
+
+msgid "Amount (negative = deduction)"
+msgstr "Betrag (negativ = Abzug)"
+
+msgid "Reason (shown to the partner)"
+msgstr "Grund (für den Partner sichtbar)"
+
+msgid "Book this amount for the partner? It is approved at once and paid with the next payout."
+msgstr "Diesen Betrag für den Partner buchen? Er ist sofort freigegeben und wird mit der nächsten Auszahlung gezahlt."
+
+msgid "Book"
+msgstr "Buchen"
 
 msgid "Commission"
 msgstr "Provision"
@@ -1107,6 +1128,24 @@ msgstr "Grund (wird dem Partner bei einer Ablehnung angezeigt)"
 
 msgid "Reject this commission (%s)? The partner sees the reason."
 msgstr "Diese Provision (%s) ablehnen? Der Partner sieht den Grund."
+
+msgid "Reopen"
+msgstr "Wieder öffnen"
+
+msgid "Reason (required)"
+msgstr "Grund (Pflicht)"
+
+msgid "Reopen for review"
+msgstr "Zur Prüfung wieder öffnen"
+
+msgid "Correction"
+msgstr "Korrektur"
+
+msgid "Book this correction? Approved commissions change the payable balance at once."
+msgstr "Diese Korrektur buchen? Bei freigegebenen Provisionen ändert sich der auszahlbare Saldo sofort."
+
+msgid "Book correction"
+msgstr "Korrektur buchen"
 
 msgid "Events"
 msgstr "Ereignisse"
@@ -1536,11 +1575,20 @@ msgstr[1] "%d Gutschrift-Dateien liegen noch im bisherigen Belegordner."
 msgid "There are no failed jobs."
 msgstr "Es gibt keine fehlgeschlagenen Jobs."
 
+msgid "This job is running or already done and was not started again."
+msgstr "Dieser Auftrag läuft gerade oder ist erledigt und wurde nicht erneut gestartet."
+
 msgid "Job processed successfully."
 msgstr "Auftrag erfolgreich verarbeitet."
 
 msgid "Job failed again – see error."
 msgstr "Auftrag erneut fehlgeschlagen – siehe Fehler."
+
+msgid "Job dismissed. It will not be retried."
+msgstr "Auftrag verworfen. Er wird nicht mehr wiederholt."
+
+msgid "Only failed or parked jobs can be dismissed."
+msgstr "Nur fehlgeschlagene oder wartende Aufträge können verworfen werden."
 
 msgid "Define WPAC_ENCRYPTION_KEY in wp-config.php first."
 msgstr "Definieren Sie zuerst WPAC_ENCRYPTION_KEY in der wp-config.php."
@@ -1575,6 +1623,9 @@ msgstr "WooCommerce-Erstattung"
 msgid "Waiting for the next attempt"
 msgstr "Wartet auf den nächsten Versuch"
 
+msgid "Waiting for its sale"
+msgstr "Wartet auf den Verkauf"
+
 msgid "Running"
 msgstr "Läuft"
 
@@ -1592,6 +1643,12 @@ msgstr "Wartet darauf, dass zuerst der Verkauf dieser Bestellung gebucht wird."
 
 msgid "Already included in the retried sale."
 msgstr "Bereits im erneut versuchten Verkauf enthalten."
+
+msgid "The sale of this order was not reported yet; the refund is booked once it is."
+msgstr "Der Verkauf dieser Bestellung wurde noch nicht gemeldet; die Erstattung wird gebucht, sobald er gemeldet ist."
+
+msgid "The integration of this job is not active right now (e.g. WooCommerce deactivated); it is retried later without using up attempts."
+msgstr "Die Integration dieses Auftrags ist gerade nicht aktiv (z. B. WooCommerce deaktiviert); er wird später wiederholt, ohne Versuche zu verbrauchen."
 
 msgid "Unexpected error."
 msgstr "Unerwarteter Fehler."
@@ -1700,6 +1757,12 @@ msgstr "Fehler beim Buchen."
 
 msgid "Retry now"
 msgstr "Jetzt wiederholen"
+
+msgid "Dismiss this job? It will not be retried; a sale in it stays without commission."
+msgstr "Diesen Auftrag verwerfen? Er wird nicht mehr wiederholt; ein Verkauf darin bleibt ohne Provision."
+
+msgid "Dismiss"
+msgstr "Verwerfen"
 
 msgid "%d payout created."
 msgid_plural "%d payouts created."
@@ -1966,9 +2029,6 @@ msgstr "Stichtag"
 
 msgid "Description"
 msgstr "Beschreibung"
-
-msgid "Correction"
-msgstr "Korrektur"
 
 msgid "Net amount"
 msgstr "Nettobetrag"
@@ -2297,6 +2357,9 @@ msgstr "Besuchsdaten aufbewahren (Tage)"
 msgid "Hold period (days after payment)"
 msgstr "Haltefrist (Tage nach Zahlung)"
 
+msgid "Renewal commission for (months, 0 = unlimited)"
+msgstr "Provision auf Verlängerungen für (Monate, 0 = unbegrenzt)"
+
 msgid "Your country"
 msgstr "Ihr Land"
 
@@ -2510,11 +2573,32 @@ msgstr "Gilt nur, wenn kein neuer Partnerlink, Code oder Gutschein verwendet wir
 msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
 msgstr "Provision auf Abo-Verlängerungen (WooCommerce Subscriptions)"
 
-msgid "Off: only the first order of a subscription earns commission; renewals are not attributed."
-msgstr "Aus: Nur die erste Bestellung eines Abos bringt Provision; Verlängerungen werden nicht zugeordnet."
+msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
+msgstr "Aus: nur die Erstbestellung eines Abos bringt Provision; Verlängerungen werden nicht zugeordnet. Verlängerungen bringen nie Provision, wenn die Provision der Erstbestellung abgelehnt, erstattet oder storniert wurde."
 
-msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until."
-msgstr "Provisionen werden nach dieser Frist freigegeben. Integrationen können sie je Auftrag verlängern (z. B. Garantieende) über hold_until / wpac_hold_until."
+msgid "Renewals earn commission only within this many months after the first order of the subscription."
+msgstr "Verlängerungen bringen nur so viele Monate nach der Erstbestellung des Abos Provision."
+
+msgid "Rule precedence"
+msgstr "Regelvorrang"
+
+msgid "Partner rules first: partner > group > all partners, then product > category > all; exclusions always win"
+msgstr "Partnerregeln zuerst: Partner > Gruppe > alle Partner, dann Produkt > Kategorie > alle; Ausschlüsse gewinnen immer"
+
+msgid "Most specific product first: product > category > all, then partner > group > all partners; exclusions compete like other rules"
+msgstr "Genauestes Produkt zuerst: Produkt > Kategorie > alle, dann Partner > Gruppe > alle Partner; Ausschlüsse konkurrieren wie andere Regeln"
+
+msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
+msgstr "Provisionen werden nach dieser Frist freigegeben. Integrationen können sie je Bestellung verlängern (z. B. Garantieende) über hold_until / wpac_hold_until. Provisionen von WooCommerce-Bestellungen „In Wartestellung“ werden erst freigegeben, wenn die Bestellung wieder in Bearbeitung oder abgeschlossen ist."
+
+msgid "Hold period starts"
+msgstr "Haltefrist beginnt"
+
+msgid "At payment"
+msgstr "Bei Zahlung"
+
+msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
+msgstr "Wenn die WooCommerce-Bestellung abgeschlossen (versendet) ist – für Vorbestellung, Rechnung und Nachnahme"
 
 msgid "Partner landing URLs look like %s"
 msgstr "Partner-Landing-URLs sehen so aus: %s"
@@ -2641,6 +2725,9 @@ msgstr "Keine Partner gefunden."
 
 msgid "Reject (reason required, shown to the partner)"
 msgstr "Ablehnen (Grund erforderlich, der Partner sieht ihn)"
+
+msgid "Reject all selected commissions? The partners see the reason."
+msgstr "Alle ausgewählten Provisionen ablehnen? Die Partner sehen den Grund."
 
 msgid "Reason (required for rejection)"
 msgstr "Grund (Pflicht bei Ablehnung)"
@@ -3083,6 +3170,9 @@ msgstr "Ausbuchung"
 msgid "Reinstatement"
 msgstr "Wiederherstellung"
 
+msgid "Manual booking"
+msgstr "Manuelle Buchung"
+
 msgid "Repayment by the partner"
 msgstr "Rückzahlung durch den Partner"
 
@@ -3103,6 +3193,9 @@ msgstr "Die Bestellung kann diesem Partner nicht zugeordnet werden: Der Partner 
 
 msgid "The order cannot be attributed to this partner. Nothing was changed."
 msgstr "Die Bestellung kann diesem Partner nicht zugeordnet werden. Es wurde nichts geändert."
+
+msgid "The order could not be booked for the new partner (the booking was refused, e.g. by a filter or because no line earns commission). Nothing was changed."
+msgstr "Die Bestellung konnte nicht für den neuen Partner gebucht werden (die Buchung wurde abgelehnt, z. B. durch einen Filter oder weil keine Position Provision bringt). Es wurde nichts geändert."
 
 msgid "The order could not be attributed to the new partner (database error). Nothing was changed; please try again."
 msgstr "Die Bestellung konnte dem neuen Partner nicht zugeordnet werden (Datenbankfehler). Es wurde nichts geändert; bitte versuchen Sie es erneut."
@@ -3130,6 +3223,27 @@ msgstr "Eine Korrektur dieser Provision ist Teil einer Auszahlung. Stornieren Si
 
 msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
 msgstr "Die Provision wurde zwischenzeitlich geändert (z. B. einer Auszahlung zugeordnet). Bitte laden Sie die Seite neu und versuchen Sie es erneut."
+
+msgid "The commission could not be rejected (database error). Please try again."
+msgstr "Die Provision konnte nicht abgelehnt werden (Datenbankfehler). Bitte erneut versuchen."
+
+msgid "Only rejected sale commissions and manual bookings can be reopened."
+msgstr "Nur abgelehnte Verkaufsprovisionen und manuelle Buchungen können wieder geöffnet werden."
+
+msgid "The commission could not be reopened (database error). Please try again."
+msgstr "Die Provision konnte nicht wieder geöffnet werden (Datenbankfehler). Bitte erneut versuchen."
+
+msgid "Please enter an amount other than 0."
+msgstr "Bitte einen Betrag ungleich 0 eingeben."
+
+msgid "Corrections can only be booked for commissions that are not rejected."
+msgstr "Korrekturen können nur für nicht abgelehnte Provisionen gebucht werden."
+
+msgid "Unknown partner or currency."
+msgstr "Unbekannter Partner oder unbekannte Währung."
+
+msgid "The booking could not be saved (database error). Please try again."
+msgstr "Die Buchung konnte nicht gespeichert werden (Datenbankfehler). Bitte erneut versuchen."
 
 msgid "Please enter a valid rate."
 msgstr "Bitte geben Sie einen gültigen Satz ein."
@@ -3459,14 +3573,20 @@ msgstr "Der bisherige Partner erhält eine Stornokorrektur; die Bestellung wird 
 msgid "Partner code entered: %s"
 msgstr "Eingegebener Partnercode: %s"
 
+msgid "Referral before the order: %1$s (%2$s)"
+msgstr "Empfehlung vor der Bestellung: %1$s (%2$s)"
+
 msgid "Not attributed."
 msgstr "Nicht zugeordnet."
 
+msgid "The booking failed and is retried automatically (Affiliate Captain → Integrations)."
+msgstr "Die Buchung ist fehlgeschlagen und wird automatisch wiederholt (Affiliate Captain → Integrationen)."
+
+msgid "The sale was not accepted (%s), see the order notes."
+msgstr "Der Verkauf wurde nicht angenommen (%s), siehe Bestellnotizen."
+
 msgid "Assign manually"
 msgstr "Manuell zuordnen"
-
-msgid "Reason (required)"
-msgstr "Grund (Pflicht)"
 
 msgid "Commission is created once the order is paid."
 msgstr "Die Provision wird angelegt, sobald die Bestellung bezahlt ist."
@@ -3501,14 +3621,62 @@ msgstr "Die Bestellung konnte noch nicht gebucht werden und wird automatisch ern
 msgid "The order could not be attributed to partner \"%s\" (partner not active, processing restricted or the partner is the buyer)."
 msgstr "Die Bestellung konnte dem Partner „%s“ nicht zugeordnet werden (Partner nicht aktiv, Verarbeitung eingeschränkt oder der Partner ist selbst der Käufer)."
 
+msgid "No partner link, partner code, coupon or lifetime customer."
+msgstr "Kein Partnerlink, Partnercode, Gutschein oder Lifetime-Kunde."
+
+msgid "The partner code or link is unknown, expired, blocked or used up."
+msgstr "Der Partnercode oder -link ist unbekannt, abgelaufen, gesperrt oder aufgebraucht."
+
+msgid "The partner is not active or processing is restricted."
+msgstr "Der Partner ist nicht aktiv oder die Verarbeitung ist eingeschränkt."
+
+msgid "The partner is the buyer (self-referral)."
+msgstr "Der Partner ist der Käufer (Selbstempfehlung)."
+
+msgid "Commission on subscription renewals is switched off."
+msgstr "Provision auf Abo-Verlängerungen ist ausgeschaltet."
+
+msgid "The first order of the subscription has no partner, its commission was rejected or reversed, or the renewal period has ended."
+msgstr "Die Erstbestellung des Abos hat keinen Partner, ihre Provision wurde abgelehnt oder storniert, oder der Verlängerungszeitraum ist abgelaufen."
+
+msgid "No partner found."
+msgstr "Kein Partner gefunden."
+
 msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
 msgstr "Affiliate Captain: dem Partner „%1$s“ zugeordnet (%2$s)."
+
+msgid "Affiliate Captain: the partner commission could not be booked yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr "Affiliate Captain: Die Partnerprovision konnte noch nicht gebucht werden und wird automatisch wiederholt (Affiliate Captain → Integrationen)."
+
+msgid "Affiliate Captain: the refund could not be deducted from the partner commission yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr "Affiliate Captain: Die Erstattung konnte noch nicht von der Partnerprovision abgezogen werden und wird automatisch wiederholt (Affiliate Captain → Integrationen)."
+
+msgid "Affiliate Captain: the sale could not be booked: %1$s (%2$s)"
+msgstr "Affiliate Captain: Der Verkauf konnte nicht gebucht werden: %1$s (%2$s)"
+
+msgid "Affiliate Captain: the refund could not be booked: %1$s (%2$s)"
+msgstr "Affiliate Captain: Die Erstattung konnte nicht gebucht werden: %1$s (%2$s)"
 
 msgid "Order refunded"
 msgstr "Bestellung erstattet"
 
 msgid "Order cancelled"
 msgstr "Bestellung storniert"
+
+msgid "Order moved to the trash"
+msgstr "Bestellung in den Papierkorb verschoben"
+
+msgid "Order deleted"
+msgstr "Bestellung gelöscht"
+
+msgid "Order items changed after payment"
+msgstr "Bestellpositionen nach der Zahlung geändert"
+
+msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
+msgstr "Affiliate Captain: Die Partnerprovision wurde verringert, weil die Bestellpositionen geändert wurden."
+
+msgid "Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically. If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction)."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; die Partnerprovision wurde nicht automatisch erhöht. Soll der Partner mehr erhalten, eine Korrektur buchen (Affiliate Captain → Provisionen → Provision → Korrektur)."
 
 msgid "Affiliate Captain: the partner commission could not be reinstated yet and will be retried automatically (Affiliate Captain → Integrations)."
 msgstr "Affiliate Captain: Die Partnerprovision konnte noch nicht wiederhergestellt werden; es wird automatisch erneut versucht (Affiliate Captain → Integrationen)."
@@ -4662,6 +4830,12 @@ msgstr "Der Verkauf bzw. die Erstattung konnte nicht verarbeitet und auch nicht 
 msgid "The refund could not be processed and was queued for retry."
 msgstr "Die Rückerstattung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
 
+msgid "Reversal withdrawn by the sales source (e.g. chargeback won)"
+msgstr "Umkehr von der Verkaufsquelle zurückgenommen (z. B. Chargeback gewonnen)"
+
+msgid "The reinstatement could not be processed and was queued for retry."
+msgstr "Die Wiederherstellung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
+
 msgid "Self-referral"
 msgstr "Eigenkauf über eigenen Link/Code"
 
@@ -4682,6 +4856,9 @@ msgstr "Gesperrte oder Wegwerf-E-Mail-Domain"
 
 msgid "Coupon of another partner used"
 msgstr "Gutschein eines anderen Partners verwendet"
+
+msgid "Review requested by the sales source (e.g. first order of the subscription under review)"
+msgstr "Prüfung von der Verkaufsquelle angefordert (z. B. Erstbestellung des Abos in Prüfung)"
 
 msgctxt "block title"
 msgid "Recommended partner targets"

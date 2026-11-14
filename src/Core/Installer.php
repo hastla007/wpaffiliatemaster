@@ -605,7 +605,7 @@ final class Installer {
 			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
 				update_option( 'wpac_schema_problems_since', time(), false );
 			}
-			update_option( 'wpac_schema_problems', array( 'migration aborted: ' . mb_substr( $e->getMessage(), 0, 300 ) ), false );
+			update_option( 'wpac_schema_problems', array( 'migration aborted: ' . Db::cut( $e->getMessage(), 300 ) ), false );
 			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
 			Log::exception( 'Database migration aborted', $e );
 		} finally {

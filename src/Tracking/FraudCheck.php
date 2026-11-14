@@ -47,6 +47,7 @@ final class FraudCheck {
 			'coupon_mismatch'  => __( 'Coupon of another partner used', 'affiliate-captain' ),
 			'touch_overridden' => __( 'Coupon replaced the referral of another partner', 'affiliate-captain' ),
 			'shared_iban'      => __( 'Payout IBAN also used by another partner', 'affiliate-captain' ),
+			'source_review'    => __( 'Review requested by the sales source (e.g. first order of the subscription under review)', 'affiliate-captain' ),
 		);
 	}
 

@@ -76,7 +76,7 @@ final class Restriction {
 		$entry = array(
 			'kind'  => $kind,
 			'since' => Db::now(),
-			'note'  => mb_substr( sanitize_text_field( (string) $note ), 0, 190 ),
+			'note'  => Db::cut( sanitize_text_field( (string) $note ), 190 ),
 		);
 		// Read and write under a lock: two parallel changes must not overwrite each other.
 		// update_option() also returns false for an unchanged value, so the stored list decides.

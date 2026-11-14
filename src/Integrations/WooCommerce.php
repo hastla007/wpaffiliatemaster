@@ -56,6 +56,18 @@ final class WooCommerce {
 		add_action( 'woocommerce_order_status_cancelled', array( OrderSync::class, 'full_reversal_cancelled' ) );
 		// Evaluated at status change time, so filters from themes/snippets (loaded later) apply.
 		add_action( 'woocommerce_order_status_changed', array( OrderSync::class, 'maybe_chargeback' ), 10, 3 );
+		add_action( 'woocommerce_order_status_completed', array( OrderSync::class, 'order_completed' ), 20 );
+		// Trash, restore and delete (HPOS and classic order storage), item changes after payment.
+		add_action( 'woocommerce_trash_order', array( OrderSync::class, 'order_trashed' ) );
+		add_action( 'woocommerce_untrash_order', array( OrderSync::class, 'order_untrashed' ) );
+		add_action( 'woocommerce_before_delete_order', array( OrderSync::class, 'order_deleted' ) );
+		add_action( 'wp_trash_post', array( OrderSync::class, 'post_trashed' ) );
+		add_action( 'untrashed_post', array( OrderSync::class, 'post_untrashed' ) );
+		add_action( 'before_delete_post', array( OrderSync::class, 'post_deleted' ) );
+		add_action( 'woocommerce_saved_order_items', array( OrderSync::class, 'items_changed' ), 20 );
+		// No release while the order is on hold or disputed; optional hold period from completion.
+		add_filter( 'wpac_hold_release', array( OrderSync::class, 'hold_release' ), 10, 3 );
+		add_filter( 'wpac_hold_until', array( OrderSync::class, 'hold_until' ), 10, 2 );
 		add_filter( 'wpac_run_job', array( OrderSync::class, 'run_job' ), 10, 3 );
 		// WooCommerce Subscriptions must not copy the partner code/touch to renewals (loaded by then).
 		add_action( 'init', array( OrderSync::class, 'register_subscription_hooks' ), 1 );

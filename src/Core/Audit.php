@@ -33,8 +33,8 @@ final class Audit {
 			Db::table( 'audit' ),
 			array(
 				'actor_id'    => get_current_user_id(),
-				'action'      => mb_substr( (string) $action, 0, 60 ),
-				'object_type' => mb_substr( (string) $object_type, 0, 40 ),
+				'action'      => Db::cut( (string) $action, 60 ),
+				'object_type' => Db::cut( (string) $object_type, 40 ),
 				'object_id'   => (int) $object_id,
 				'details'     => $details ? wp_json_encode( $details ) : null,
 				'created_at'  => Db::now(),

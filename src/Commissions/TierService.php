@@ -5,8 +5,9 @@
  * A month is closed automatically once the hold period of its last day has
  * passed, so refunds within the hold period are already reflected. The bonus is
  * booked as an approved ledger row of kind "bonus" with a frozen snapshot of the
- * plan; it is idempotent per partner and month. Refunds after closing do not
- * change a booked bonus.
+ * plan; it is idempotent per partner and month. Later changes of a closed month (refunds,
+ * rejections, late approvals) are booked as bonus corrections by recalculate_closed_months(),
+ * counted in the month of the original sale.
  *
  * @package WPAffiliateCaptain
  */
@@ -302,16 +303,11 @@ final class TierService {
 		if ( '' === $last || ! self::all() ) {
 			return 0;
 		}
-		global $wpdb;
 		$months = array();
 		for ( $i = 0; $i < 3; $i++ ) {
 			$months[] = gmdate( 'Y-m', strtotime( $last . '-01 -' . $i . ' month' ) );
 		}
-		// Older closed months whose commissions changed recently (late approvals after a
-		// long hold, e.g. event or money-back periods; late rejections and refunds).
-		$c = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$changed = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT DATE_FORMAT(created_at, '%%Y-%%m') FROM {$c} WHERE kind <> 'bonus' AND updated_at >= %s AND created_at >= %s AND created_at <= %s", Db::now( time() - 3 * DAY_IN_SECONDS ), gmdate( 'Y-m-01 00:00:00', strtotime( $last . '-01 -24 month' ) ), gmdate( 'Y-m-t 23:59:59', strtotime( $last . '-01' ) ) ) );
+		$changed = self::changed_months( $last );
 		$pending = array_filter(
 			array_map( 'strval', (array) get_option( self::RECALC_PENDING, array() ) ),
 			static function ( $m ) {
@@ -332,6 +328,22 @@ final class TierService {
 			delete_option( self::RECALC_PENDING );
 		}
 		return $n;
+	}
+
+	/**
+	 * Older closed months (up to 24 months before $last) whose commissions changed in the last
+	 * three days: late approvals after a long hold, late rejections and refunds. A late refund is
+	 * a new row (created now): the month that changes is the month of the order's sale, so the
+	 * changed orders are mapped to the month of their sale row.
+	 *
+	 * @param string $last Last closed month (YYYY-MM).
+	 * @return string[] Months (YYYY-MM).
+	 */
+	public static function changed_months( $last ) {
+		global $wpdb;
+		$c = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT LEFT(s.created_at, 7) FROM {$c} s INNER JOIN ( SELECT DISTINCT source, source_order_id FROM {$c} WHERE kind <> 'bonus' AND updated_at >= %s ) r ON r.source = s.source AND r.source_order_id = s.source_order_id WHERE s.kind = 'sale' AND s.created_at >= %s AND s.created_at <= %s", Db::now( time() - 3 * DAY_IN_SECONDS ), gmdate( 'Y-m-01 00:00:00', strtotime( $last . '-01 -24 month' ) ), gmdate( 'Y-m-t 23:59:59', strtotime( $last . '-01' ) ) ) ) );
 	}
 
 	/**

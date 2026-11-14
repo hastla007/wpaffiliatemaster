@@ -761,7 +761,7 @@ final class Statement {
 					array(
 						'payout'       => (int) $payout_id,
 						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-						'cause'        => is_array( $last ) ? mb_substr( (string) $last['message'], 0, 300 ) : '',
+						'cause'        => is_array( $last ) ? Db::cut( (string) $last['message'], 300 ) : '',
 					)
 				);
 				self::backoff( (int) $payout_id );
@@ -1069,7 +1069,7 @@ final class Statement {
 					array(
 						'payout'       => (int) $payout_id,
 						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-						'cause'        => is_array( $last ) ? mb_substr( (string) $last['message'], 0, 300 ) : '',
+						'cause'        => is_array( $last ) ? Db::cut( (string) $last['message'], 300 ) : '',
 					)
 				);
 				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );

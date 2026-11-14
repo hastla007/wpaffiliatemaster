@@ -66,6 +66,9 @@ final class Settings {
 			'lifetime_enabled'        => 0,
 			'lifetime_days'           => 365,
 			'lifetime_rate'           => '',
+			'hold_start'              => 'paid',     // paid|completed (WooCommerce: hold period starts when the order is completed).
+			'renewal_limit_months'    => 0,          // Renewals earn commission for this many months after the first order (0 = no limit).
+			'rule_precedence'         => 'scope',    // scope|target, see Calculator.
 			// Program.
 			'auto_approve'            => 0,
 			'terms_page_id'           => 0,
@@ -356,6 +359,8 @@ final class Settings {
 		$out['default_rate_type'] = self::choice( $in, 'default_rate_type', array( 'percent', 'fixed' ), $d );
 		$out['terminated_open']   = self::choice( $in, 'terminated_open', array( 'pay', 'reject' ), $d );
 		$out['payout_period']     = self::choice( $in, 'payout_period', array( 'monthly', 'quarterly', 'manual' ), $d );
+		$out['hold_start']        = self::choice( $in, 'hold_start', array( 'paid', 'completed' ), $d );
+		$out['rule_precedence']   = self::choice( $in, 'rule_precedence', array( 'scope', 'target' ), $d );
 
 		$out['lifetime_rate'] = '';
 		if ( isset( $in['lifetime_rate'] ) && '' !== trim( (string) $in['lifetime_rate'] ) ) {
@@ -372,7 +377,7 @@ final class Settings {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			if ( ! isset( $in[ $int ] ) ) {
 				$out[ $int ] = $d[ $int ];
 				continue;
@@ -579,7 +584,7 @@ final class Settings {
 				$errors['terms_version'] = __( 'Please enter a version (e.g. 1.0).', 'affiliate-captain' );
 				$out['terms_version']    = (string) $old( 'terms_version' );
 			} else {
-				$out['terms_version'] = mb_substr( $version, 0, 20 );
+				$out['terms_version'] = Db::cut( $version, 20 );
 			}
 		}
 		$out['admin_email'] = '';
@@ -592,7 +597,7 @@ final class Settings {
 				$out['admin_email'] = $email;
 			}
 		}
-		$out['mail_from_name']  = isset( $in['mail_from_name'] ) ? mb_substr( trim( str_replace( array( '<', '>', '"' ), '', sanitize_text_field( (string) $in['mail_from_name'] ) ) ), 0, 100 ) : '';
+		$out['mail_from_name']  = isset( $in['mail_from_name'] ) ? Db::cut( trim( str_replace( array( '<', '>', '"' ), '', sanitize_text_field( (string) $in['mail_from_name'] ) ) ), 100 ) : '';
 		$out['mail_from_email'] = '';
 		if ( isset( $in['mail_from_email'] ) && '' !== trim( (string) $in['mail_from_email'] ) ) {
 			$email = sanitize_email( (string) $in['mail_from_email'] );

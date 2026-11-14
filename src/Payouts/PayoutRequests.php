@@ -307,7 +307,7 @@ final class PayoutRequests {
 			Db::table( 'payout_requests' ),
 			array(
 				'status'       => 'rejected',
-				'note'         => mb_substr( sanitize_text_field( $reason ), 0, 255 ),
+				'note'         => Db::cut( sanitize_text_field( $reason ), 255 ),
 				'processed_at' => Db::now(),
 				'processed_by' => get_current_user_id(),
 			),

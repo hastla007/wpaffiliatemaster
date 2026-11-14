@@ -444,7 +444,7 @@ final class AffiliateRepository {
 
 		$fields = array(
 			'status'        => $status,
-			'status_reason' => mb_substr( sanitize_text_field( $reason ), 0, 255 ),
+			'status_reason' => Db::cut( sanitize_text_field( $reason ), 255 ),
 			'updated_at'    => Db::now(),
 		);
 		if ( 'active' === $status && ! $aff->approved_at ) {
@@ -814,24 +814,37 @@ final class AffiliateRepository {
 	private static function notify_manual_link( $aff, $wp, $same_email ) {
 		$site        = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-		wp_mail(
-			$aff->email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] An account was linked to your partner access', 'affiliate-captain' ), $site ),
-			/* translators: 1: partner name, 2: login name */
-			sprintf( __( "Hello %1\$s,\n\nthe shop team linked the user account \"%2\$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away.", 'affiliate-captain' ), $aff->name, $wp->user_login )
-		);
-		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
-		$admin = (string) Settings::get( 'admin_email' );
-		$admin = is_email( $admin ) ? $admin : (string) get_option( 'admin_email' );
-		$actor = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
-		wp_mail(
-			$admin,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Partner account linked manually', 'affiliate-captain' ), $site ),
-			/* translators: 1: partner ID, 2: login name, 3: user who linked it, 4: note */
-			sprintf( __( "Partner #%1\$d was linked to the user account \"%2\$s\" by %3\$s.%4\$s", 'affiliate-captain' ), (int) $aff->id, $wp->user_login, $actor && $actor->exists() ? $actor->user_login : '-', $same_email ? '' : ' ' . __( 'The account has a different e-mail address than the partner.', 'affiliate-captain' ) )
-		);
+		try {
+			Notifications::send(
+				'account_linked',
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] An account was linked to your partner access', 'affiliate-captain' ), $site ),
+				/* translators: 1: partner name, 2: login name */
+				sprintf( __( "Hello %1\$s,\n\nthe shop team linked the user account \"%2\$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away.", 'affiliate-captain' ), $aff->name, $wp->user_login ),
+				array( 'affiliate_id' => (int) $aff->id )
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
+		$actor       = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		$wpac_locale = Notifications::switch_for_admin();
+		try {
+			Notifications::send(
+				'account_linked_admin',
+				Notifications::admin_email(),
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Partner account linked manually', 'affiliate-captain' ), $site ),
+				/* translators: 1: partner ID, 2: login name, 3: user who linked it, 4: note */
+				sprintf( __( "Partner #%1\$d was linked to the user account \"%2\$s\" by %3\$s.%4\$s", 'affiliate-captain' ), (int) $aff->id, $wp->user_login, $actor && $actor->exists() ? $actor->user_login : '-', $same_email ? '' : ' ' . __( 'The account has a different e-mail address than the partner.', 'affiliate-captain' ) ),
+				array(
+					'admin'        => true,
+					'affiliate_id' => (int) $aff->id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
 	}
 
 	/**
@@ -902,7 +915,7 @@ final class AffiliateRepository {
 	 */
 	public static function unique_slug( $base ) {
 		$slug = sanitize_title( $base );
-		$slug = mb_substr( '' !== $slug ? $slug : 'partner', 0, 50 );
+		$slug = Db::cut( '' !== $slug ? $slug : 'partner', 50 );
 		$try  = $slug;
 		$i    = 2;
 		while ( self::find_by_slug( $try ) ) {

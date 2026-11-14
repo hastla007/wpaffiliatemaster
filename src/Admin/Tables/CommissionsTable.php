@@ -99,7 +99,8 @@ final class CommissionsTable extends \WP_List_Table {
 	 */
 	protected function extra_tablenav( $which ) {
 		if ( 'top' === $which ) {
-			echo '<div class="alignleft actions"><label class="screen-reader-text" for="wpac-bulk-reason">' . esc_html__( 'Reason', 'affiliate-captain' ) . '</label><input type="text" name="reason" id="wpac-bulk-reason" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'affiliate-captain' ) . '"></div>';
+			// Bulk rejection asks first (admin.js): it cannot be undone in one step.
+			echo '<div class="alignleft actions" data-wpac-bulk-confirm="reject" data-wpac-bulk-message="' . esc_attr__( 'Reject all selected commissions? The partners see the reason.', 'affiliate-captain' ) . '"><label class="screen-reader-text" for="wpac-bulk-reason">' . esc_html__( 'Reason', 'affiliate-captain' ) . '</label><input type="text" name="reason" id="wpac-bulk-reason" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'affiliate-captain' ) . '"></div>';
 		}
 	}
 

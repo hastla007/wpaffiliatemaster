@@ -5,6 +5,21 @@ document.addEventListener( 'click', function ( e ) {
 		e.preventDefault();
 	}
 } );
+/* Bulk actions that need a confirmation: data-wpac-bulk-confirm="action" inside the list form. */
+document.addEventListener( 'submit', function ( e ) {
+	var form = e.target;
+	var marker = form.querySelector ? form.querySelector( '[data-wpac-bulk-confirm]' ) : null;
+	if ( ! marker ) {
+		return;
+	}
+	var wanted = marker.getAttribute( 'data-wpac-bulk-confirm' );
+	var chosen = Array.prototype.some.call( form.querySelectorAll( 'select[name="action"], select[name="action2"]' ), function ( s ) {
+		return s.value === wanted;
+	} );
+	if ( chosen && ! window.confirm( marker.getAttribute( 'data-wpac-bulk-message' ) ) ) {
+		e.preventDefault();
+	}
+} );
 document.addEventListener( 'change', function ( e ) {
 	if ( e.target.classList && e.target.classList.contains( 'wpac-cb-all' ) ) {
 		var form = e.target.form;

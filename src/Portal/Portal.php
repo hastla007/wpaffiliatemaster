@@ -264,7 +264,7 @@ final class Portal {
 					'wpac_privacy_form_' . get_current_user_id(),
 					array(
 						'type' => $type,
-						'note' => mb_substr( $note, 0, 2000 ),
+						'note' => Db::cut( $note, 2000 ),
 					),
 					15 * MINUTE_IN_SECONDS
 				);
@@ -284,7 +284,7 @@ final class Portal {
 					'wpac_objection_form_' . get_current_user_id(),
 					array(
 						'payout' => $payout,
-						'reason' => mb_substr( $reason, 0, 2000 ),
+						'reason' => Db::cut( $reason, 2000 ),
 					),
 					15 * MINUTE_IN_SECONDS
 				);

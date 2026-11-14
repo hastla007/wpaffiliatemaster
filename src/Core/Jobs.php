@@ -39,26 +39,33 @@ final class Jobs {
 	 * @param string $code    Error code of the first failure.
 	 * @param string $message Error message of the first failure.
 	 * @param int    $delay   Seconds until the first run (default: 5 minutes after a failure).
+	 * @param string $status  queued, or parked (runs only when woken, see wake_refunds()).
 	 * @return bool Whether the job is stored (only then may callers report "queued").
 	 */
-	public static function enqueue( $type, $key, array $payload, $code = '', $message = '', $delay = 300 ) {
+	public static function enqueue( $type, $key, array $payload, $code = '', $message = '', $delay = 300, $status = 'queued' ) {
+		$status = 'parked' === $status ? 'parked' : 'queued';
 		global $wpdb;
 		$table = Db::table( 'jobs' );
-		$key   = mb_substr( $type . ':' . $key, 0, 191 );
+		$key   = Db::cut( $type . ':' . $key, 191 );
 		$now   = Db::now();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE idempotency_key = %s", $key ) );
+		$row    = $wpdb->get_row( $wpdb->prepare( "SELECT id, status, last_error_code FROM {$table} WHERE idempotency_key = %s", $key ) );
+		$exists = $row ? (int) $row->id : 0;
+		if ( $row && 'done' === $row->status && 'superseded' === $row->last_error_code ) {
+			// This refund is already part of the booked sale (supersede_refunds()): never run it again.
+			return true;
+		}
 		if ( $exists ) {
 			// The attempts are kept: a job that keeps failing must still end as "failed" for the
 			// admin instead of restarting its count with every new failure report.
 			$ok = $wpdb->update(
 				$table,
 				array(
-					'status'          => 'queued',
+					'status'          => $status,
 					'payload'         => wp_json_encode( $payload ),
 					'next_attempt_at' => Db::now( time() + max( 0, (int) $delay ) ),
-					'last_error_code' => mb_substr( (string) $code, 0, 64 ),
-					'last_error'      => mb_substr( (string) $message, 0, 255 ),
+					'last_error_code' => Db::cut( (string) $code, 64 ),
+					'last_error'      => Db::cut( (string) $message, 255 ),
 					'updated_at'      => $now,
 				),
 				array( 'id' => (int) $exists )
@@ -71,11 +78,11 @@ final class Jobs {
 				'type'            => $type,
 				'idempotency_key' => $key,
 				'payload'         => wp_json_encode( $payload ),
-				'status'          => 'queued',
-				'attempts'        => 1,
+				'status'          => $status,
+				'attempts'        => 'parked' === $status ? 0 : 1,
 				'next_attempt_at' => Db::now( time() + max( 0, (int) $delay ) ),
-				'last_error_code' => mb_substr( (string) $code, 0, 64 ),
-				'last_error'      => mb_substr( (string) $message, 0, 255 ),
+				'last_error_code' => Db::cut( (string) $code, 64 ),
+				'last_error'      => Db::cut( (string) $message, 255 ),
 				'created_at'      => $now,
 				'updated_at'      => $now,
 			)
@@ -224,8 +231,8 @@ final class Jobs {
 					'status'          => $attempts >= $max ? 'failed' : 'queued',
 					'attempts'        => $attempts,
 					'next_attempt_at' => Db::now( time() + $delay ),
-					'last_error_code' => mb_substr( $code, 0, 64 ),
-					'last_error'      => mb_substr( Log::plain( $e->getMessage() ), 0, 255 ),
+					'last_error_code' => Db::cut( $code, 64 ),
+					'last_error'      => Db::cut( Log::plain( $e->getMessage() ), 255 ),
 					'updated_at'      => Db::now(),
 				),
 				array( 'id' => (int) $job->id )
@@ -244,8 +251,14 @@ final class Jobs {
 	 */
 	public static function sale_pending( $source, $order_id ) {
 		global $wpdb;
-		// Being booked right now by another request (see ContractApi::record_sale()).
+		// Being booked right now by another request (see ContractApi::record_sale()): a MySQL
+		// user lock held by that request's connection (nothing is written for it).
 		$inflight = self::inflight_key( $source, $order_id );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( null !== $wpdb->get_var( $wpdb->prepare( 'SELECT IS_USED_LOCK(%s)', self::inflight_lock( $inflight ) ) ) ) {
+			return true;
+		}
+		// Marker row of older versions (and of a request still running during an update).
 		wp_cache_delete( $inflight, 'options' );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$since = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $inflight ) );
@@ -253,9 +266,23 @@ final class Jobs {
 			return true;
 		}
 		$table = Db::table( 'jobs' );
-		$keys  = array( mb_substr( 'sale:' . $source . ':' . $order_id, 0, 191 ), mb_substr( 'woo_order:' . $source . ':' . $order_id, 0, 191 ) );
+		$keys  = array( Db::cut( 'sale:' . $source . ':' . $order_id, 191 ), Db::cut( 'woo_order:' . $source . ':' . $order_id, 191 ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key IN (%s, %s) AND status IN ('queued','running','failed') LIMIT 1", $keys[0], $keys[1] ) );
+	}
+
+	/**
+	 * Whether refund jobs of an order are still waiting (queued, running, failed or parked).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @return bool
+	 */
+	public static function refunds_pending( $source, $order_id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE type = 'refund' AND idempotency_key LIKE %s AND status IN ('queued','running','failed','parked') LIMIT 1", $wpdb->esc_like( Db::cut( 'refund:' . $source . ':' . $order_id . ':', 191 ) ) . '%' ) );
 	}
 
 	/**
@@ -270,7 +297,7 @@ final class Jobs {
 		}
 		$table = Db::table( 'jobs' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE type = 'refund' AND idempotency_key LIKE %s AND status IN ('queued','failed')", Db::now(), Db::now(), $wpdb->esc_like( 'refund:' . $order_key . ':' ) . '%' ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE type = 'refund' AND idempotency_key LIKE %s AND status IN ('queued','failed','parked')", Db::now(), Db::now(), $wpdb->esc_like( 'refund:' . $order_key . ':' ) . '%' ) );
 	}
 
 	/**
@@ -283,11 +310,48 @@ final class Jobs {
 	public static function supersede_refunds( $source, $order_id, array $refund_ids ) {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
-		foreach ( $refund_ids as $rid ) {
-			$key = mb_substr( 'refund:' . $source . ':' . $order_id . ':' . $rid, 0, 191 );
+		foreach ( array_unique( array_map( 'strval', $refund_ids ) ) as $rid ) {
+			if ( '' === $rid ) {
+				continue;
+			}
+			$key = Db::cut( 'refund:' . $source . ':' . $order_id . ':' . $rid, 191 );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the retried sale.', updated_at = %s WHERE idempotency_key = %s AND status IN ('queued','failed')", Db::now(), $key ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the retried sale.', updated_at = %s WHERE idempotency_key = %s AND status IN ('queued','failed','parked','running')", Db::now(), $key ) );
+			// A refund reported later (or still on its way, parallel request) must not be deducted
+			// again: leave a closed marker that enqueue() and is_superseded() recognize.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$table} (type, idempotency_key, payload, status, attempts, next_attempt_at, last_error_code, last_error, created_at, updated_at) VALUES ('refund', %s, '{}', 'done', 0, %s, 'superseded', 'Already deducted in the retried sale.', %s, %s)", $key, Db::now(), Db::now(), Db::now() ) );
 		}
+	}
+
+	/**
+	 * Close the parked refunds of an order (reported before the sale; the sale of a source
+	 * without `netted_refund_ids` already deducted them, see ContractApi::after_booking()).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 */
+	public static function supersede_parked( $source, $order_id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the reported sale.', updated_at = %s WHERE type = 'refund' AND idempotency_key LIKE %s AND status = 'parked'", Db::now(), $wpdb->esc_like( Db::cut( 'refund:' . $source . ':' . $order_id . ':', 191 ) ) . '%' ) );
+	}
+
+	/**
+	 * Whether a refund is already part of the booked sale of its order (supersede_refunds()).
+	 *
+	 * @param string $source    Source.
+	 * @param string $order_id  Order ID.
+	 * @param string $refund_id Refund ID.
+	 * @return bool
+	 */
+	public static function is_superseded( $source, $order_id, $refund_id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		$key   = Db::cut( 'refund:' . $source . ':' . $order_id . ':' . $refund_id, 191 );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key = %s AND status = 'done' AND last_error_code = 'superseded'", $key ) );
 	}
 
 	/**
@@ -302,8 +366,46 @@ final class Jobs {
 	}
 
 	/**
-	 * Reset a waiting or failed job so it runs at the next opportunity. A job that is running
-	 * right now or already done is left alone (it would otherwise run twice).
+	 * Name of the MySQL user lock for an in-flight marker. User locks are server-wide, so the
+	 * database and table prefix are part of the name (several sites on one server). Max. 64 characters.
+	 *
+	 * @param string $inflight Marker name (inflight_key()).
+	 * @return string
+	 */
+	public static function inflight_lock( $inflight ) {
+		global $wpdb;
+		return 'wpac_' . md5( ( defined( 'DB_NAME' ) ? DB_NAME : '' ) . '|' . $wpdb->prefix . '|' . $inflight );
+	}
+
+	/**
+	 * Mark a sale as being booked by this request (no database write; released at the latest
+	 * when the connection ends, so a request that dies leaves nothing behind).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @return bool Whether this request holds the marker (false: a parallel request books it).
+	 */
+	public static function begin_inflight( $source, $order_id ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return 1 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', self::inflight_lock( self::inflight_key( $source, $order_id ) ) ) );
+	}
+
+	/**
+	 * Release the marker of begin_inflight().
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 */
+	public static function end_inflight( $source, $order_id ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', self::inflight_lock( self::inflight_key( $source, $order_id ) ) ) );
+	}
+
+	/**
+	 * Run a failed or waiting job now ("retry now"). Jobs that are running or done are left
+	 * alone: a second run next to a running one would book in parallel.
 	 *
 	 * @param int $id Job ID.
 	 * @return bool Whether the job ran successfully.
@@ -312,12 +414,52 @@ final class Jobs {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE id = %d AND status IN ('queued','failed')", Db::now(), Db::now(), (int) $id ) );
-		if ( 1 !== $rows ) {
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE id = %d AND status IN ('queued','failed','parked')", Db::now(), Db::now(), (int) $id ) );
+		if ( 1 !== $n ) {
 			return false;
 		}
 		Audit::log( 'job.retry', 'job', (int) $id );
 		return self::run( (int) $id );
+	}
+
+	/**
+	 * One job.
+	 *
+	 * @param int $id Job ID.
+	 * @return object|null
+	 */
+	public static function find( $id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", (int) $id ) );
+	}
+
+	/**
+	 * Dismiss a failed or parked job on purpose (it is not retried any more). Audited.
+	 *
+	 * @param int $id Job ID.
+	 * @return bool
+	 */
+	public static function dismiss( $id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		$job   = self::find( $id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'dismissed', last_error = 'Dismissed in the admin.', updated_at = %s WHERE id = %d AND status IN ('failed','parked')", Db::now(), (int) $id ) );
+		if ( 1 !== $n ) {
+			return false;
+		}
+		Audit::log(
+			'job.dismissed',
+			'job',
+			(int) $id,
+			array(
+				'type' => $job ? $job->type : '',
+				'key'  => $job ? $job->idempotency_key : '',
+			)
+		);
+		return true;
 	}
 
 	/**
