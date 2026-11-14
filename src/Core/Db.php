@@ -25,6 +25,7 @@ final class Db {
 		'commission_events',
 		'payouts',
 		'payout_items',
+		'payout_corrections',
 		'jobs',
 		'audit',
 		'tiers',

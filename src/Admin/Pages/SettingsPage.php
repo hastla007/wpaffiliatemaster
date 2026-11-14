@@ -162,6 +162,7 @@ final class SettingsPage {
 			'vat_rate'                   => __( 'VAT rate in %', 'affiliate-captain' ),
 			'credit_prefix'              => __( 'Prefix credit note numbers', 'affiliate-captain' ),
 			'storno_prefix'              => __( 'Prefix cancellation numbers', 'affiliate-captain' ),
+			'correction_prefix'          => __( 'Prefix correction credit note numbers', 'affiliate-captain' ),
 			'debtor_bic'                 => __( 'Company BIC (optional)', 'affiliate-captain' ),
 			'debtor_iban'                => __( 'Company IBAN (SEPA)', 'affiliate-captain' ),
 		);
@@ -267,7 +268,7 @@ final class SettingsPage {
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
-			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
+			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
 			'data'        => array( 'visit_retention_days', 'application_retention_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
 		);
@@ -517,6 +518,7 @@ final class SettingsPage {
 		self::text( 'vat_rate', __( 'VAT rate in %', 'affiliate-captain' ), $s, __( 'E.g. 19 or 7,7 – "%" may be typed.', 'affiliate-captain' ) );
 		self::text( 'credit_prefix', __( 'Prefix credit note numbers', 'affiliate-captain' ), $s, __( 'Numbers are gapless per year, e.g. GS-2026-000001.', 'affiliate-captain' ) );
 		self::text( 'storno_prefix', __( 'Prefix cancellation numbers', 'affiliate-captain' ), $s );
+		self::text( 'correction_prefix', __( 'Prefix correction credit note numbers', 'affiliate-captain' ), $s, __( 'Correction credit notes of paid payouts, e.g. KG-2026-000001.', 'affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'VAT ID check (VIES)', 'affiliate-captain' ), 'payouts' );

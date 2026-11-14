@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 11;
+	const DB_VERSION = 12;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -285,7 +285,7 @@ final class Installer {
 	 * Tables with booking records that must be kept for the statutory retention period (the same
 	 * list as in uninstall.php; the partners table is kept too, see there).
 	 */
-	const FINANCIAL_TABLES = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements' );
+	const FINANCIAL_TABLES = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements', 'payout_corrections' );
 
 	/** Site option: deleted sites whose booking records are kept (site ID => retention data). */
 	const RETAINED_SITES = 'wpac_retained_sites';
@@ -315,7 +315,17 @@ final class Installer {
 			}
 			// Cancellations start their own period (storno_at).
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-			return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE created_at > %s OR storno_at > %s LIMIT 1", $cutoff, $cutoff ) );
+			if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE created_at > %s OR storno_at > %s LIMIT 1", $cutoff, $cutoff ) ) ) {
+				return true;
+			}
+			// So do correction credit notes (issued later than the credit note they correct).
+			$k = Db::table( 'payout_corrections' );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $k ) ) ) ) {
+				return false;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$k} WHERE created_at > %s LIMIT 1", $cutoff ) );
 		} finally {
 			if ( $switched ) {
 				restore_current_blog();
@@ -689,6 +699,7 @@ final class Installer {
 			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at', 'operator_snapshot' ),
 			'payout_items'    => array( 'id', 'payout_id', 'commission_id', 'vat_mode', 'vat_rate', 'ref_payout_id' ),
 			'payout_profiles' => array( 'affiliate_id', 'tax_number' ),
+			'payout_corrections' => array( 'id', 'payout_id', 'number', 'request_key', 'commission_id', 'file', 'hash' ),
 			'balances'        => array( 'affiliate_id', 'last_hash', 'verified_id', 'verified_hash' ),
 			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
 			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
@@ -1038,6 +1049,38 @@ final class Installer {
 			UNIQUE KEY active_commission (active_commission_id),
 			KEY commission_id (commission_id),
 			KEY payout_id (payout_id)
+		) $c;";
+
+		// v12: correction credit notes of paid payouts (R5-W55).
+		$sql[] = "CREATE TABLE {$t('payout_corrections')} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			payout_id bigint(20) unsigned NOT NULL,
+			number varchar(40) NOT NULL,
+			affiliate_id bigint(20) unsigned NOT NULL,
+			currency char(3) NOT NULL,
+			base_number varchar(40) NOT NULL DEFAULT '',
+			prev_net_minor bigint(20) NOT NULL DEFAULT 0,
+			prev_vat_minor bigint(20) NOT NULL DEFAULT 0,
+			net_minor bigint(20) NOT NULL DEFAULT 0,
+			vat_minor bigint(20) NOT NULL DEFAULT 0,
+			vat_mode varchar(20) NOT NULL DEFAULT '',
+			vat_rate varchar(10) NOT NULL DEFAULT '0',
+			reason text NULL,
+			commission_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			request_key varchar(64) NOT NULL,
+			profile_snapshot text NULL,
+			operator_snapshot text NULL,
+			file varchar(255) NOT NULL DEFAULT '',
+			hash char(64) NOT NULL DEFAULT '',
+			file_deleted_at datetime NULL,
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY number (number),
+			UNIQUE KEY request_key (request_key),
+			KEY payout_id (payout_id),
+			KEY affiliate_id (affiliate_id),
+			KEY created_at (created_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('jobs')} (

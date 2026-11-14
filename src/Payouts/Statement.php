@@ -431,18 +431,27 @@ final class Statement {
 		$items  = PayoutService::items( (int) $p->id );
 		$blocks = array( 0 => array() );
 		$modes  = array();
+		$settles = false;
 		foreach ( $items as $item ) {
 			$mode = isset( $item->vat_mode ) ? (string) $item->vat_mode : '';
+			if ( Corrections::KIND === (string) $item->kind ) {
+				// Gross difference of a correction credit note: its VAT is shown on that document.
+				$blocks['kg'][] = $item;
+				$settles        = true;
+				continue;
+			}
 			$ref  = Vat::NONE === $mode ? 'none' : ( isset( $item->ref_payout_id ) ? (int) $item->ref_payout_id : 0 );
 			$blocks[ $ref ][] = $item;
 			if ( '' !== $mode ) {
 				$modes[] = $mode;
 			}
 		}
-		if ( isset( $blocks['none'] ) ) {
-			$none = $blocks['none'];
-			unset( $blocks['none'] );
-			$blocks['none'] = $none; // Last.
+		foreach ( array( 'none', 'kg' ) as $last ) {
+			if ( isset( $blocks[ $last ] ) ) {
+				$move = $blocks[ $last ];
+				unset( $blocks[ $last ] );
+				$blocks[ $last ] = $move; // Last.
+			}
 		}
 		$rate_of = static function ( $item ) use ( $p ) {
 			return isset( $item->vat_rate ) && '' !== (string) $item->vat_rate ? (string) $item->vat_rate : (string) $p->vat_rate;
@@ -466,6 +475,8 @@ final class Statement {
 				}
 				if ( 'none' === $ref ) {
 					$pdf->text( 50, $y, __( 'Repayments and write-offs (not taxable)', 'affiliate-captain' ), 10, true );
+				} elseif ( 'kg' === $ref ) {
+					$pdf->text( 50, $y, __( 'Correction credit notes settled (VAT shown on the correction credit note)', 'affiliate-captain' ), 10, true );
 				} else {
 					$orig = PayoutService::find( (int) $ref );
 					/* translators: 1: credit note number, 2: date */
@@ -507,7 +518,7 @@ final class Statement {
 				$rate = $rate_of( $item );
 				$groups[ $rate ] = ( isset( $groups[ $rate ] ) ? $groups[ $rate ] : 0 ) + (int) $item->amount_minor;
 			}
-			if ( $ref && 'none' !== $ref ) {
+			if ( $ref && 'none' !== $ref && 'kg' !== $ref ) {
 				$first = reset( $list );
 				$imode = isset( $first->vat_mode ) && '' !== (string) $first->vat_mode ? (string) $first->vat_mode : ( $orig ? (string) $orig->vat_mode : '' );
 				$pdf->line( 50, $y - 6, 545, $y - 6 );
@@ -573,6 +584,7 @@ final class Statement {
 			array_filter(
 				array(
 					$correct ? __( 'This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred.', 'affiliate-captain' ) : '',
+					$settles ? __( 'Correction credit notes settled: the amounts are the gross differences of the correction credit notes named, whose VAT is shown there; no VAT is added on this document.', 'affiliate-captain' ) : '',
 					$self_note,
 					$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'affiliate-captain' ) : '',
 					$duplicate ? __( 'Duplicate: built again from the stored data because the original file was not available on this server.', 'affiliate-captain' ) : '',
@@ -661,17 +673,40 @@ final class Statement {
 			$sums[ $cur ][1] += $vat;
 			$sums[ $cur ][2] += $gross;
 		};
+		// Differences of correction credit notes settled on a credit note are counted with the
+		// correction credit note (below), not a second time with the credit note that paid them.
+		$settled = array();
+		if ( $rows ) {
+			$it = Db::table( 'payout_items' );
+			$ct = Db::table( 'commissions' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Integers only.
+			foreach ( (array) $wpdb->get_results( "SELECT i.payout_id, SUM(i.amount_minor) s FROM {$it} i JOIN {$ct} c ON c.id = i.commission_id WHERE c.kind = '" . Corrections::KIND . "' AND i.payout_id IN (" . implode( ',', array_map( 'intval', wp_list_pluck( $rows, 'id' ) ) ) . ') GROUP BY i.payout_id' ) as $s ) {
+				$settled[ (int) $s->payout_id ] = (int) $s->s;
+			}
+		}
 		foreach ( $rows as $p ) {
-			$net = (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor;
+			$kg  = isset( $settled[ (int) $p->id ] ) ? $settled[ (int) $p->id ] : 0;
+			$net = ( (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor ) - $kg;
+			$sum = (int) $p->amount_minor - $kg;
 			if ( $p->statement_file && $p->created_at >= $from && $p->created_at <= $to ) {
-				$line( (string) $p->number, $date( $p->created_at ), $net, (int) $p->vat_minor, (int) $p->amount_minor, $p->currency );
+				$line( (string) $p->number, $date( $p->created_at ), $net, (int) $p->vat_minor, $sum, $p->currency );
 			}
 			if ( $p->storno_at && $p->storno_at >= $from && $p->storno_at <= $to && (string) $p->storno_number ) {
 				/* translators: %s: credit note number */
-				$line( (string) $p->storno_number . ' (' . sprintf( __( 'cancels %s', 'affiliate-captain' ), $p->number ) . ')', $date( $p->storno_at ), -$net, -(int) $p->vat_minor, -(int) $p->amount_minor, $p->currency );
+				$line( (string) $p->storno_number . ' (' . sprintf( __( 'cancels %s', 'affiliate-captain' ), $p->number ) . ')', $date( $p->storno_at ), -$net, -(int) $p->vat_minor, -$sum, $p->currency );
 			}
 		}
-		if ( ! $rows ) {
+		// Correction credit notes dated in the year: their difference changes the year's amounts.
+		$k = Db::table( Corrections::TABLE );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$corrections = (array) $wpdb->get_results( $wpdb->prepare( "SELECT k.*, p.number AS payout_number FROM {$k} k LEFT JOIN {$t} p ON p.id = k.payout_id WHERE k.affiliate_id = %d AND k.created_at BETWEEN %s AND %s ORDER BY k.created_at ASC", $affiliate_id, $from, $to ) );
+		foreach ( $corrections as $kg ) {
+			$diff_net = (int) $kg->net_minor - (int) $kg->prev_net_minor;
+			$diff_vat = (int) $kg->vat_minor - (int) $kg->prev_vat_minor;
+			/* translators: %s: credit note number */
+			$line( (string) $kg->number . ' (' . sprintf( __( 'corrects %s', 'affiliate-captain' ), (string) $kg->payout_number ) . ')', $date( $kg->created_at ), $diff_net, $diff_vat, $diff_net + $diff_vat, (string) $kg->currency );
+		}
+		if ( ! $rows && ! $corrections ) {
 			$pdf->text( 50, $y, __( 'No credit notes in this year.', 'affiliate-captain' ), 9 );
 			$y += 13;
 		}
@@ -726,6 +761,11 @@ final class Statement {
 			if ( '' !== (string) $r->storno_number && $r->storno_at ) {
 				$years[ (int) get_date_from_gmt( (string) $r->storno_at, 'Y' ) ] = true;
 			}
+		}
+		$k = Db::table( Corrections::TABLE );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT created_at FROM {$k} WHERE affiliate_id = %d", (int) $affiliate_id ) ) as $when ) {
+			$years[ (int) get_date_from_gmt( (string) $when, 'Y' ) ] = true;
 		}
 		krsort( $years );
 		return array_keys( $years );
@@ -1209,6 +1249,7 @@ final class Statement {
 			);
 			Audit::log( 'statement.retention_deleted', 'payout', (int) $r->id );
 		}
-		return count( $rows );
+		// Correction credit notes: the period starts with their own date.
+		return count( $rows ) + Corrections::purge_expired( $cutoff );
 	}
 }

@@ -685,6 +685,8 @@ final class Admin {
 			'payout_request_process' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_request_reject'  => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statement_download'     => array( PayoutsPage::class, Capabilities::VIEW_TAX_DATA ),
+			'payout_correction'      => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'correction_download'    => array( PayoutsPage::class, Capabilities::VIEW_TAX_DATA ),
 			'rule_save'         => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'rule_delete'       => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'group_create'      => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),

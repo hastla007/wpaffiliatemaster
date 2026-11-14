@@ -163,7 +163,8 @@ final class PayoutService {
 
 	/**
 	 * VAT treatment per commission row:
-	 * - repayments and write-offs are no service (not taxable, Vat::NONE);
+	 * - repayments and write-offs are no service, differences of correction credit notes had their
+	 *   VAT shown there (not taxable, Vat::NONE);
 	 * - corrections whose original commission was settled in an earlier (not cancelled) credit
 	 *   note take over the treatment the original commission had there (§17 UStG);
 	 * - everything else gets the treatment valid at the time of the service ($resolver), or
@@ -975,6 +976,8 @@ final class PayoutService {
 		}
 		// Cancellation documents whose file could not be written (number already allocated).
 		$n += Statement::generate_missing_stornos();
+		// Correction credit notes whose file could not be written.
+		$n += Corrections::generate_missing();
 		return $n;
 	}
 
