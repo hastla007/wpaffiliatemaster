@@ -463,7 +463,7 @@ final class Cron {
 			'superseded'   => 365,
 			'done'         => 30,
 		);
-		$sales = "'sale','woo_order','reinstate','woo_reinstate'";
+		$sales = "'sale','woo_order','reinstate','woo_reinstate','woo_increase'";
 		$sets  = array(
 			'failed_sales' => "status = 'failed' AND type IN ({$sales})",
 			'failed'       => "status = 'failed' AND type NOT IN ({$sales})",

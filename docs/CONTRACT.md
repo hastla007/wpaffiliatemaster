@@ -158,6 +158,7 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_contract_currencies` | `string[]` | Akzeptierte Währungscodes. |
 | `wpac_job_retention_days` | `array` | Aufbewahrung der Warteschlange in Tagen (`failed_sales` 0 = behalten, `failed` 180, `parked` 365, `superseded` 365, `done` 30). |
 | `wpac_hold_until` | `int $timestamp, array $sale` | Spätestes Garantie-/Widerrufsende; nur spätere Daten verlängern. |
+| `wpac_book_order_increase` | `bool $book, array $sale, object $attribution` | Ob die Differenz einer nach der Buchung erhöhten Bestellung (WooCommerce: Positionen nach Zahlung erhöht oder hinzugefügt) automatisch als zusätzliche Provision gebucht wird (Standard: Einstellung „Zusätzliche Provision buchen, wenn eine bezahlte Bestellung erhöht wird“, an). `false` = nur Bestellnotiz. |
 | `wpac_resolve_partner_code` | `?array $resolved, string $code, array $context` | Eigene Code-Auflösung vorschalten. |
 | `wpac_coupon_affiliate` | `?array $resolved, string $coupon` | Coupon → Partner (Voucher Captain). |
 | `wpac_partner_coupon_args` | `array $args, object $affiliate, string $coupon` | Eigenschaften eines im Admin angelegten Partnergutscheins (Partnerseite → „Gutschein für Partner anlegen“) vor dem Anlegen ändern. Schlüssel sind `WC_Coupon`-Eigenschaften (`set_{key}()`), z. B. `product_ids`, `email_restrictions`, `description`; `expiry_days` wird zu `date_expires`. |
@@ -190,6 +191,7 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_affiliate_attributed` | `string $order_id, int $affiliate_id, string $method, string $source` |
 | `wpac_commission_created` | `int $commission_id` |
 | `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` |
+| `wpac_commission_increased` | `array $sale, int[] $commission_ids` – zusätzliche Provision einer nachträglich erhöhten Bestellung gebucht (`$sale` = aktueller Stand der Bestellung; die neuen Zeilen sind Verkaufszeilen derselben Bestellung und Position). |
 | `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` | `int $commission_id` |
 | `wpac_payout_paid` | `int $payout_id` |
 | `wpac_affiliate_status_changed` | `int $affiliate_id, string $new, string $old` |

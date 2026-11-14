@@ -152,7 +152,7 @@ final class JobsTable extends ListTable {
 				$edit = '';
 				if ( \WPAffiliateCaptain\Integrations\WooCommerce::SOURCE === $order[0] && ctype_digit( $order[1] ) && function_exists( 'wc_get_order' ) ) {
 					$wc   = wc_get_order( (int) $order[1] );
-					$edit = $wc ? (string) $wc->get_edit_order_url() : '';
+					$edit = ( $wc && is_callable( array( $wc, 'get_edit_order_url' ) ) ) ? (string) $wc->get_edit_order_url() : '';
 				}
 				return ( '' !== $edit ? '<a href="' . esc_url( $edit ) . '">#' . esc_html( $order[1] ) . '</a>' : '#' . esc_html( $order[1] ) )
 					. ' <small>(<a href="' . esc_url( Admin::url( 'wpac-audit', array( 'order_ref' => $order[1] ) ) ) . '">' . esc_html__( 'log', 'affiliate-captain' ) . '</a>)</small><br>' . $cell;

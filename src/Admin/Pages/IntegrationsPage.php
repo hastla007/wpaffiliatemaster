@@ -137,10 +137,11 @@ final class IntegrationsPage {
 	 */
 	public static function job_type_label( $type ) {
 		$labels = array(
-			'sale'       => __( 'Sale', 'affiliate-captain' ),
-			'refund'     => __( 'Refund', 'affiliate-captain' ),
-			'woo_order'  => __( 'WooCommerce order', 'affiliate-captain' ),
-			'woo_refund' => __( 'WooCommerce refund', 'affiliate-captain' ),
+			'sale'         => __( 'Sale', 'affiliate-captain' ),
+			'refund'       => __( 'Refund', 'affiliate-captain' ),
+			'woo_order'    => __( 'WooCommerce order', 'affiliate-captain' ),
+			'woo_refund'   => __( 'WooCommerce refund', 'affiliate-captain' ),
+			'woo_increase' => __( 'WooCommerce order increase', 'affiliate-captain' ),
 		);
 		return isset( $labels[ $type ] ) ? $labels[ $type ] : (string) $type;
 	}

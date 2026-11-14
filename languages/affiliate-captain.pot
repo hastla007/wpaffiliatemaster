@@ -2760,6 +2760,10 @@ msgid "WooCommerce refund"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "WooCommerce order increase"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "Waiting for the next attempt"
 msgstr ""
 
@@ -3995,6 +3999,10 @@ msgid "Hold period starts"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Book additional commission when a paid order is increased"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
 msgstr ""
 
@@ -4325,6 +4333,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "When the items of a paid WooCommerce order are increased later (higher quantity or price, new items), the difference earns commission with the rules of the sale, as a new commission with its own hold period. Lowered items are always corrected. Off: the order only gets a note."
 msgstr ""
 
 #. translators: %s: example URL of a partner landing page
@@ -6583,7 +6595,32 @@ msgid "Affiliate Captain: the partner commission was reduced because the order i
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
-msgid "Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically. If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction)."
+msgid "Affiliate Captain: the additional partner commission for the increased order could not be booked yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the additional partner commission for the increased order could not be booked. Please save the order again later."
+msgstr ""
+
+#. translators: %s: commission amount
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment; an additional partner commission of %s was booked (attribution unchanged)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically (automatic booking is switched off). If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because processing of the partner's data is restricted."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because the partner is no longer active (paused, terminated or deleted)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because the commission of the order was rejected or reversed."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php

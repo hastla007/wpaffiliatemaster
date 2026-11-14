@@ -21,6 +21,7 @@ use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Fx;
 use WPAffiliateCaptain\Core\IntegrationException;
+use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Tracking\AttributionResolver;
 use WPAffiliateCaptain\Tracking\CustomerLinks;
@@ -180,55 +181,7 @@ final class Ledger {
 			);
 		}
 
-		// Only the rules that can apply to this partner (global, own, own group).
-		$rules      = RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id );
-		$default    = RuleRepository::default_rate();
-		$precedence = RuleRepository::precedence();
-		$program = strtoupper( (string) Settings::get( 'currency' ) );
-		if ( $program !== $sale['currency'] ) {
-			// Fixed amounts are stored in the program currency: convert them with the
-			// configured rates. Without a rate the matching rule still wins (and pays 0)
-			// so a broader percent rule never takes over a more specific fixed rule.
-			$rates = Fx::rates();
-			foreach ( $rules as $i => $r ) {
-				if ( 'fixed' === $r['rate_type'] ) {
-					$converted = Fx::from_program( (int) $r['rate'], $sale['currency'], $program, $rates );
-					if ( null === $converted ) {
-						// Stays a (zero) fixed rule: it competes by specificity like any other rule.
-						// As 'exclude' it would beat every more specific rule and the lifetime rate.
-						$rules[ $i ]['rate']    = '0';
-						$rules[ $i ]['no_rate'] = 1;
-					} else {
-						$rules[ $i ]['rate'] = (string) $converted;
-					}
-				}
-			}
-			if ( 'fixed' === $default['rate_type'] ) {
-				$converted = Fx::from_program( (int) $default['rate'], $sale['currency'], $program, $rates );
-				$default   = null === $converted ? array(
-					'rate_type' => 'percent',
-					'rate'      => '0',
-				) : array(
-					'rate_type' => 'fixed',
-					'rate'      => (string) $converted,
-				);
-			}
-		}
-		if ( 'lifetime' === $attr['method'] && '' !== (string) Settings::get( 'lifetime_rate' ) ) {
-			// Separate rate for repeat purchases of linked customers (exclusions still apply).
-			$rules   = array_values(
-				array_filter(
-					$rules,
-					static function ( $r ) {
-						return 'exclude' === $r['rate_type'];
-					}
-				)
-			);
-			$default = array(
-				'rate_type' => 'percent',
-				'rate'      => (string) Settings::get( 'lifetime_rate' ),
-			);
-		}
+		list( $rules, $default, $precedence ) = self::rules_for( $aff, $sale['currency'], (string) $attr['method'] );
 		$hold    = self::hold_until( $sale );
 		$status  = $attr['review'] ? 'review' : 'pending';
 
@@ -299,26 +252,7 @@ final class Ledger {
 				$ids            = array();
 
 				foreach ( $sale['items'] as $item ) {
-					// The amount filter runs once, after the base filter (Calculator::filter_amount()).
-					$calc = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default, false, $precedence );
-
-					/**
-					 * Adjust the net commission base of a line (minor units, same currency).
-					 * Return 0 to exclude the line (e.g. group packages/upgrades).
-					 *
-					 * @param int   $base Base in minor units.
-					 * @param array $item Normalized item.
-					 * @param array $sale Normalized sale.
-					 */
-					$line_net = (int) $calc['base_minor'];
-					$base     = (int) apply_filters( 'wpac_commission_base', $calc['base_minor'], $item, $sale );
-					if ( $base !== $calc['base_minor'] && ! $calc['excluded'] ) {
-						$item['net_minor'] = max( 0, $base );
-						$calc              = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default, false, $precedence );
-					}
-					if ( ! $calc['excluded'] ) {
-						$calc['amount_minor'] = Calculator::filter_amount( $calc['amount_minor'], $item, (int) $aff->id, $calc['rule'], (int) $calc['base_minor'] );
-					}
+					list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $rules, $default, $precedence );
 					if ( $calc['amount_minor'] <= 0 ) {
 						continue;
 					}
@@ -406,6 +340,443 @@ final class Ledger {
 	}
 
 	/**
+	 * Rules, program default and precedence that apply to a sale of a partner (same for the
+	 * original booking and later increases of an order).
+	 *
+	 * @param object $aff      Partner.
+	 * @param string $currency Currency of the sale.
+	 * @param string $method   Attribution method (lifetime customers may have their own rate).
+	 * @return array [ rules, default, precedence ]
+	 */
+	private static function rules_for( $aff, $currency, $method ) {
+		// Only the rules that can apply to this partner (global, own, own group).
+		$rules      = RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id );
+		$default    = RuleRepository::default_rate();
+		$precedence = RuleRepository::precedence();
+		$program = strtoupper( (string) Settings::get( 'currency' ) );
+		if ( $program !== $currency ) {
+			// Fixed amounts are stored in the program currency: convert them with the
+			// configured rates. Without a rate the matching rule still wins (and pays 0)
+			// so a broader percent rule never takes over a more specific fixed rule.
+			$rates = Fx::rates();
+			foreach ( $rules as $i => $r ) {
+				if ( 'fixed' === $r['rate_type'] ) {
+					$converted = Fx::from_program( (int) $r['rate'], $currency, $program, $rates );
+					if ( null === $converted ) {
+						// Stays a (zero) fixed rule: it competes by specificity like any other rule.
+						// As 'exclude' it would beat every more specific rule and the lifetime rate.
+						$rules[ $i ]['rate']    = '0';
+						$rules[ $i ]['no_rate'] = 1;
+					} else {
+						$rules[ $i ]['rate'] = (string) $converted;
+					}
+				}
+			}
+			if ( 'fixed' === $default['rate_type'] ) {
+				$converted = Fx::from_program( (int) $default['rate'], $currency, $program, $rates );
+				$default   = null === $converted ? array(
+					'rate_type' => 'percent',
+					'rate'      => '0',
+				) : array(
+					'rate_type' => 'fixed',
+					'rate'      => (string) $converted,
+				);
+			}
+		}
+		if ( 'lifetime' === $method && '' !== (string) Settings::get( 'lifetime_rate' ) ) {
+			// Separate rate for repeat purchases of linked customers (exclusions still apply).
+			$rules   = array_values(
+				array_filter(
+					$rules,
+					static function ( $r ) {
+						return 'exclude' === $r['rate_type'];
+					}
+				)
+			);
+			$default = array(
+				'rate_type' => 'percent',
+				'rate'      => (string) Settings::get( 'lifetime_rate' ),
+			);
+		}
+		return array( $rules, $default, $precedence );
+	}
+
+	/**
+	 * Commission of one line of a sale: rule, base filter and amount filter (one path for the
+	 * original booking and later increases).
+	 *
+	 * @param array  $item       Normalized item.
+	 * @param array  $sale       Normalized sale.
+	 * @param object $aff        Partner.
+	 * @param array  $rules      Rules.
+	 * @param array  $default    Program default.
+	 * @param string $precedence Rule precedence.
+	 * @return array [ calc (Calculator::calculate()), unfiltered line net ]
+	 */
+	private static function line_commission( array $item, array $sale, $aff, array $rules, array $default, $precedence ) {
+		// The amount filter runs once, after the base filter (Calculator::filter_amount()).
+		$calc = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default, false, $precedence );
+
+		/**
+		 * Adjust the net commission base of a line (minor units, same currency).
+		 * Return 0 to exclude the line (e.g. group packages/upgrades).
+		 *
+		 * @param int   $base Base in minor units.
+		 * @param array $item Normalized item.
+		 * @param array $sale Normalized sale.
+		 */
+		$line_net = (int) $calc['base_minor'];
+		$base     = (int) apply_filters( 'wpac_commission_base', $calc['base_minor'], $item, $sale );
+		if ( $base !== $calc['base_minor'] && ! $calc['excluded'] ) {
+			$item['net_minor'] = max( 0, $base );
+			$calc              = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default, false, $precedence );
+		}
+		if ( ! $calc['excluded'] ) {
+			$calc['amount_minor'] = Calculator::filter_amount( $calc['amount_minor'], $item, (int) $aff->id, $calc['rule'], (int) $calc['base_minor'] );
+		}
+		return array( $calc, $line_net );
+	}
+
+	/** Idempotency key prefix of the bookings for increased orders (record_increase()). */
+	const INCREASE_KEY = 'increase:';
+
+	/**
+	 * Book the additional commission of an order that was increased after its sale was booked
+	 * (higher quantity or line total, new lines – e.g. edited in the shop admin after payment).
+	 *
+	 * The sale is the current state of the whole order (net amounts after refunds), built by the
+	 * same code as the original sale (caps, gift cards, bundles). Per line the commission is
+	 * calculated on the same path as a sale: a line that already earned commission keeps the
+	 * rule stored with it (rate snapshot – later rule changes never alter history), a new line
+	 * gets the rules that apply now (precedence, exclusions, lifetime rate). Only the positive
+	 * difference to what is booked and still stands (after refunds) is booked: as an own sale
+	 * row of the same order, line and partner (the attribution is never changed). Commissions
+	 * that are approved or paid are never touched; the difference is a new commission with its
+	 * own hold period (counted from now, never shorter than the open original) and the status a
+	 * sale gets (review while the line or the order is under review, otherwise pending).
+	 *
+	 * Idempotent: the booked base is read from the ledger and the booking key contains it, so
+	 * saving the order again books nothing.
+	 *
+	 * No booking for a partner who is no longer active or whose processing is restricted, for
+	 * lines that were rejected or fully reversed, and when switched off (setting
+	 * book_order_increase, filter wpac_book_order_increase).
+	 *
+	 * @param array $sale Normalized sale (ContractApi::normalize_sale()) with the current order state.
+	 * @return array { status: created|unchanged|no_commission|disabled|ineligible|reversed, commission_ids, amount_minor, reason }
+	 * @throws IntegrationException On DB errors.
+	 */
+	public static function record_increase( array $sale ) {
+		global $wpdb;
+		$none = static function ( $status, $reason ) {
+			return array(
+				'status'         => $status,
+				'commission_ids' => array(),
+				'amount_minor'   => 0,
+				'reason'         => $reason,
+			);
+		};
+		$attr = self::attribution_for( $sale['source'], $sale['order_id'] );
+		if ( ! $attr ) {
+			return $none( 'no_commission', 'no_attribution' );
+		}
+		/**
+		 * Whether the additional commission of an order increased after its sale was booked is
+		 * booked automatically (default: setting "book_order_increase", on). Off: the order only
+		 * gets a note and a correction can be booked manually.
+		 *
+		 * @param bool   $book Book it.
+		 * @param array  $sale Normalized sale (current state of the order).
+		 * @param object $attr Attribution of the order.
+		 */
+		if ( ! apply_filters( 'wpac_book_order_increase', (bool) Settings::get( 'book_order_increase' ), $sale, $attr ) ) {
+			return $none( 'disabled', 'disabled' );
+		}
+		$aff = AffiliateRepository::find( (int) $attr->affiliate_id );
+		if ( ! $aff ) {
+			return $none( 'ineligible', 'partner_missing' );
+		}
+		if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) ) {
+			return $none( 'ineligible', 'partner_restricted' );
+		}
+		if ( 'active' !== $aff->status ) {
+			return $none( 'ineligible', 'partner_' . sanitize_key( (string) $aff->status ) );
+		}
+		if ( ! self::commission_stands( $sale['source'], $sale['order_id'] ) ) {
+			return $none( 'reversed', 'commission_reversed' );
+		}
+		list( $rules, $default, $precedence ) = self::rules_for( $aff, $sale['currency'], (string) $attr->method );
+		$round  = (int) get_option( 'wpac_reassign_' . md5( $sale['source'] . ':' . $sale['order_id'] ), 0 );
+		$hold   = self::hold_until( array_merge( $sale, array( 'paid_at' => Db::now() ) ) );
+		$review = 'review' === (string) $attr->status;
+
+		$result = Db::transaction(
+			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $precedence, $round, $hold, $review ) {
+				// One booking per order at a time (parallel saves of the order).
+				$at = Db::table( 'attributions' );
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$at} WHERE id = %d FOR UPDATE", (int) $attr->id ) );
+				$lines = self::sale_lines( $sale['source'], $sale['order_id'], (int) $aff->id, true );
+				$ids   = array();
+				$sum   = 0;
+				foreach ( $sale['items'] as $item ) {
+					$item_id      = (string) $item['item_id'];
+					$line         = isset( $lines[ $item_id ] ) ? $lines[ $item_id ] : null;
+					$until        = $hold;
+					$line_default = $default;
+					if ( $line ) {
+						$o = $line['original'];
+						if ( 'rejected' === $o->status || $line['reversed'] ) {
+							continue; // Rejected (e.g. fraud) or reversed lines never earn more.
+						}
+						// The rule stored with the line (snapshot), not the rules of today.
+						$snap       = $o->rule_snapshot ? json_decode( (string) $o->rule_snapshot, true ) : null;
+						$line_rules = is_array( $snap ) && ! empty( $snap['rule'] ) && is_array( $snap['rule'] ) ? array( $snap['rule'] ) : array();
+						if ( is_array( $snap ) && ! empty( $snap['default'] ) && is_array( $snap['default'] ) && isset( $snap['default']['rate_type'], $snap['default']['rate'] ) ) {
+							$line_default = $snap['default'];
+						}
+						list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $line_rules, $line_default, $precedence );
+						$delta_base              = (int) $calc['base_minor'] - (int) $line['remaining'];
+						$delta_amount            = (int) $calc['amount_minor'] - (int) $line['standing'];
+						// One minor unit per line is rounding of the shop totals, not an increase.
+						if ( $calc['excluded'] || $delta_base <= 1 || $delta_amount <= 0 ) {
+							continue;
+						}
+						$status = $review || 'review' === $o->status ? 'review' : 'pending';
+						if ( in_array( $o->status, array( 'pending', 'review' ), true ) ) {
+							$until = max( $until, (int) strtotime( $o->hold_until . ' UTC' ) ); // Never released before the original.
+						}
+						$key      = self::INCREASE_KEY . $sale['source'] . ':' . $sale['order_id'] . ':' . $item_id . ':' . (int) $o->id . ':' . (int) $line['remaining'] . ':' . (int) $calc['base_minor'];
+						$of       = (int) $o->id;
+						$line_net = (int) $calc['base_minor'] > 0 ? Money::prorate( $delta_base, $line_net, (int) $calc['base_minor'] ) : $delta_base;
+					} else {
+						// A new line (or a line that earned nothing so far): booked like a line of the sale.
+						list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $rules, $default, $precedence );
+						if ( $calc['excluded'] || (int) $calc['amount_minor'] <= 0 ) {
+							continue;
+						}
+						$delta_base   = (int) $calc['base_minor'];
+						$delta_amount = (int) $calc['amount_minor'];
+						$status       = $review ? 'review' : 'pending';
+						$key          = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item_id . ( $round ? ':r' . $round : '' );
+						$of           = 0;
+					}
+					$key = self::key( $key );
+					if ( self::find_by_key( $key ) ) {
+						continue; // Booked already (idempotent).
+					}
+					$snapshot = array(
+						'rule'          => $calc['rule'],
+						'default'       => $calc['rule'] ? null : $line_default,
+						'touch_model'   => $attr->touch_model,
+						'method'        => $attr->method,
+						'contract'      => $sale['contract'],
+						'calculated_at' => Db::now(),
+						'line_net'      => $line_net,
+					);
+					if ( $of ) {
+						$snapshot['increase_of'] = $of;
+					}
+					$suppress = $wpdb->suppress_errors( true );
+					$ok       = $wpdb->insert(
+						Db::table( 'commissions' ),
+						array(
+							'affiliate_id'    => (int) $aff->id,
+							'source'          => $sale['source'],
+							'source_order_id' => $sale['order_id'],
+							'source_item_id'  => $item_id,
+							'kind'            => 'sale',
+							'parent_id'       => 0,
+							'product_ref'     => Db::cut( (string) ( $item['sku'] ? $item['sku'] : $item['product_id'] ), 190 ),
+							'description'     => Db::cut( (string) $item['name'], 255 ),
+							'currency'        => $sale['currency'],
+							'base_minor'      => $delta_base,
+							'amount_minor'    => $delta_amount,
+							'rate_type'       => $calc['rate_type'],
+							'rate'            => $calc['rate'],
+							'rule_id'         => $calc['rule_id'],
+							'rule_snapshot'   => wp_json_encode( $snapshot ),
+							'status'          => $status,
+							'hold_until'      => Db::now( $until ),
+							'idempotency_key' => $key,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
+						)
+					);
+					$wpdb->suppress_errors( $suppress );
+					if ( ! $ok ) {
+						if ( self::find_by_key( $key ) ) {
+							continue; // A parallel request booked it.
+						}
+						throw new IntegrationException( 'db_commission', esc_html( $wpdb->last_error ) );
+					}
+					$cid   = (int) $wpdb->insert_id;
+					$ids[] = $cid;
+					$sum  += $delta_amount;
+					self::event( $cid, 'created', '', $status, $delta_amount, $of ? 'increase of #' . $of : 'increase: new line', $key );
+				}
+				return array(
+					'status'         => $ids ? 'created' : 'unchanged',
+					'commission_ids' => $ids,
+					'amount_minor'   => $sum,
+					'reason'         => '',
+				);
+			}
+		);
+		if ( $result['commission_ids'] ) {
+			// Inside an outer transaction only once it is committed.
+			Db::after_commit(
+				static function () use ( $sale, $aff, $result ) {
+					Audit::log(
+						'commission.increased',
+						'order',
+						0,
+						array(
+							'source'      => $sale['source'],
+							'order_id'    => $sale['order_id'],
+							'affiliate'   => (int) $aff->id,
+							'commissions' => $result['commission_ids'],
+							'amount'      => (int) $result['amount_minor'],
+							'currency'    => $sale['currency'],
+						)
+					);
+					foreach ( $result['commission_ids'] as $cid ) {
+						do_action( 'wpac_commission_created', $cid );
+					}
+					/**
+					 * Fires after the additional commission of an increased order was booked.
+					 *
+					 * @param array $sale           Normalized sale (current state of the order).
+					 * @param int[] $commission_ids New commissions.
+					 */
+					do_action( 'wpac_commission_increased', $sale, $result['commission_ids'] );
+				}
+			);
+		}
+		return $result;
+	}
+
+	/**
+	 * Sale row that a row books an increase of (record_increase()); 0 for an original sale row.
+	 *
+	 * @param object $row Commission row.
+	 * @return int ID of the original sale row.
+	 */
+	public static function increase_of( $row ) {
+		if ( 0 !== strpos( (string) $row->idempotency_key, self::INCREASE_KEY ) ) {
+			return 0;
+		}
+		$snap = $row->rule_snapshot ? json_decode( (string) $row->rule_snapshot, true ) : null;
+		return is_array( $snap ) && ! empty( $snap['increase_of'] ) ? (int) $snap['increase_of'] : 0;
+	}
+
+	/**
+	 * Rows booked for increases of a sale row (record_increase()), rejected ones included.
+	 *
+	 * @param object $c Sale row.
+	 * @return array
+	 */
+	public static function increases( $c ) {
+		if ( ! $c || 'sale' !== $c->kind || self::increase_of( $c ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( self::sale_commissions( $c->source, $c->source_order_id ) as $r ) {
+			if ( self::increase_of( $r ) === (int) $c->id ) {
+				$out[] = $r;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Booked lines of an order for one partner: per item the original sale row (the newest
+	 * booking round) and the rows booked for increases of it, with the base that is still booked
+	 * (after refunds and corrections) and the commission that still stands.
+	 *
+	 * @param string $source       Source.
+	 * @param string $order_id     Order.
+	 * @param int    $affiliate_id Partner.
+	 * @param bool   $lock         Locking reads (inside a transaction).
+	 * @return array item_id => { original, rows, base, line_net, remaining, standing, reversed }
+	 */
+	public static function sale_lines( $source, $order_id, $affiliate_id, $lock = false ) {
+		$rows = self::sale_commissions( $source, $order_id );
+		usort(
+			$rows,
+			static function ( $a, $b ) {
+				return (int) $a->id - (int) $b->id;
+			}
+		);
+		$lines     = array();
+		$increases = array();
+		foreach ( $rows as $r ) {
+			if ( (int) $r->affiliate_id !== (int) $affiliate_id ) {
+				continue;
+			}
+			$of = self::increase_of( $r );
+			if ( $of ) {
+				$increases[ $of ][] = $r;
+				continue;
+			}
+			$lines[ (string) $r->source_item_id ] = array( 'original' => $r ); // A newer round replaces older ones.
+		}
+		foreach ( $lines as $item_id => $line ) {
+			$o     = $line['original'];
+			$chain = array_merge( array( $o ), isset( $increases[ (int) $o->id ] ) ? $increases[ (int) $o->id ] : array() );
+			$line  = array(
+				'original'  => $o,
+				'rows'      => array(),
+				'base'      => 0,
+				'line_net'  => 0,
+				'remaining' => 0,
+				'standing'  => 0,
+				'reversed'  => 'rejected' !== $o->status && self::is_reversed( (int) $o->id ),
+			);
+			foreach ( $chain as $r ) {
+				if ( 'rejected' === $r->status ) {
+					continue;
+				}
+				$snap               = $r->rule_snapshot ? json_decode( (string) $r->rule_snapshot, true ) : null;
+				$line['rows'][]     = $r;
+				$line['base']      += (int) $r->base_minor;
+				$line['line_net']  += is_array( $snap ) && ! empty( $snap['line_net'] ) ? (int) $snap['line_net'] : (int) $r->base_minor;
+				$line['remaining'] += max( 0, (int) $r->base_minor - self::refunded_base( (int) $r->id, $lock ) );
+				$line['standing']  += (int) $r->amount_minor + self::adjusted_sum( (int) $r->id, $lock );
+			}
+			$lines[ $item_id ] = $line;
+		}
+		return $lines;
+	}
+
+	/**
+	 * Whether a sale row was fully reversed (cancellation, chargeback, status reversal such as
+	 * trash or "refunded", reassignment) and not reinstated.
+	 *
+	 * @param int $id Sale row.
+	 * @return bool
+	 */
+	private static function is_reversed( $id ) {
+		foreach ( self::children( (int) $id ) as $child ) {
+			if ( 'rejected' === $child->status || (int) $child->amount_minor >= 0 || ! in_array( $child->kind, array( 'refund', 'cancellation', 'chargeback' ), true ) ) {
+				continue;
+			}
+			$event_id = '';
+			foreach ( self::events( (int) $child->id ) as $e ) {
+				if ( 'created' === $e->event ) {
+					$event_id = (string) $e->source_event_id;
+					break;
+				}
+			}
+			$full = 0 === strpos( $event_id, 'status-' ) || 0 === strpos( $event_id, 'reassign-' ) || 'refund' !== $child->kind;
+			if ( $full && ! self::find_by_key( self::key( 'reinstate:' . (int) $child->id ) ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Record a normalized refund/cancellation/chargeback.
 	 *
 	 * @param array $refund Normalized refund.
@@ -432,8 +803,15 @@ final class Ledger {
 				return (int) $a->id - (int) $b->id;
 			}
 		);
-		$by_item = array();
+		$by_item   = array();
+		$increases = array();
 		foreach ( $originals as $c ) {
+			$of = self::increase_of( $c );
+			if ( $of ) {
+				// Booked for an increase of the order (record_increase()): refunded together with its line.
+				$increases[ $of ] = array_merge( array( $c ), isset( $increases[ $of ] ) ? $increases[ $of ] : array() ); // Newest first.
+				continue;
+			}
 			$k = (string) $c->source_item_id;
 			if ( ! isset( $by_item[ $k ] ) || (int) $c->affiliate_id === $cur_aff || (int) $by_item[ $k ]->affiliate_id !== $cur_aff ) {
 				$by_item[ $k ] = $c;
@@ -473,72 +851,42 @@ final class Ledger {
 		}
 
 		$result = Db::transaction(
-			static function () use ( $wpdb, $refund, $by_item, $lines ) {
+			static function () use ( $wpdb, $refund, $by_item, $increases, $lines ) {
 				$ids = array();
 				$t   = Db::table( 'commissions' );
 				foreach ( $lines as $item_id => $refunded_net ) {
-					// Lock the original commission so parallel refunds/chargebacks are serialized.
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$parent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d FOR UPDATE", $by_item[ $item_id ]->id ) );
-					if ( ! $parent || 'rejected' === $parent->status ) {
-						continue;
-					}
-					$key = self::key( 'refund:' . $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'] . ':' . $item_id );
-					if ( self::find_by_key( $key ) ) {
-						continue; // Idempotent.
-					}
-					// The base may differ from the line net (wpac_commission_base filter): scale the refund.
-					$snap = $parent->rule_snapshot ? json_decode( (string) $parent->rule_snapshot, true ) : null;
-					if ( ! $refund['full'] && is_array( $snap ) && ! empty( $snap['line_net'] ) && (int) $snap['line_net'] !== (int) $parent->base_minor ) {
-						$refunded_net = (int) round( $refunded_net * (int) $parent->base_minor / (int) $snap['line_net'] );
-					}
-					$adjusted = self::adjusted_sum( (int) $parent->id, true );
-					$refunded = self::refunded_base( (int) $parent->id, true );
-					$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor, (int) $parent->base_minor, $adjusted, $refunded_net, $refund['full'], $refunded );
-					if ( 0 === $amount ) {
-						continue;
-					}
-					// Pending/review parents: adjustment follows the parent. Approved/paid: offset in next payout.
-					$status = in_array( $parent->status, array( 'pending', 'review' ), true ) ? $parent->status : 'approved';
-					$ok     = $wpdb->insert(
-						Db::table( 'commissions' ),
-						array(
-							'affiliate_id'    => (int) $parent->affiliate_id,
-							'source'          => $parent->source,
-							'source_order_id' => $parent->source_order_id,
-							'source_item_id'  => $parent->source_item_id,
-							'kind'            => $refund['type'],
-							'parent_id'       => (int) $parent->id,
-							'product_ref'     => $parent->product_ref,
-							'description'     => Db::cut( $refund['reason'], 255 ),
-							'currency'        => $parent->currency,
-							'base_minor'      => -( $refund['full'] ? max( 0, (int) $parent->base_minor - $refunded ) : min( abs( (int) $refunded_net ), max( 0, (int) $parent->base_minor - $refunded ) ) ),
-							'amount_minor'    => $amount,
-							'rate_type'       => $parent->rate_type,
-							'rate'            => $parent->rate,
-							'rule_id'         => (int) $parent->rule_id,
-							'rule_snapshot'   => null,
-							'status'          => $status,
-							'hold_until'      => $parent->hold_until,
-							'idempotency_key' => $key,
-							'created_at'      => Db::now(),
-							'updated_at'      => Db::now(),
-						)
-					);
-					if ( ! $ok ) {
-						if ( self::find_by_key( $key ) ) {
+					// The line and the rows booked for increases of it: a partial refund takes the
+					// increases first (newest first), the rest from the original sale row.
+					$chain   = isset( $increases[ (int) $by_item[ $item_id ]->id ] ) ? $increases[ (int) $by_item[ $item_id ]->id ] : array();
+					$last    = count( $chain );
+					$chain[] = $by_item[ $item_id ];
+					$left    = (int) $refunded_net;
+					foreach ( $chain as $i => $row ) {
+						// Lock the commission so parallel refunds/chargebacks are serialized.
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						$parent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d FOR UPDATE", $row->id ) );
+						if ( ! $parent || 'rejected' === $parent->status ) {
 							continue;
 						}
-						throw new IntegrationException( 'db_adjustment', esc_html( $wpdb->last_error ) );
+						$snap  = $parent->rule_snapshot ? json_decode( (string) $parent->rule_snapshot, true ) : null;
+						$share = $left;
+						if ( ! $refund['full'] && $i < $last ) {
+							// Net of the line still booked in this row (line net units, like the refund).
+							$open  = max( 0, (int) $parent->base_minor - self::refunded_base( (int) $parent->id, true ) );
+							$net   = is_array( $snap ) && ! empty( $snap['line_net'] ) ? (int) $snap['line_net'] : (int) $parent->base_minor;
+							$share = min( $left, (int) $parent->base_minor > 0 ? Money::prorate( $open, $net, (int) $parent->base_minor ) : 0 );
+						}
+						if ( ! $refund['full'] ) {
+							$left -= $share;
+							if ( $share <= 0 ) {
+								continue;
+							}
+						}
+						$aid = self::refund_row( $refund, $parent, $snap, $share, $item_id . ( $i < $last ? ':c' . (int) $parent->id : '' ) );
+						if ( $aid ) {
+							$ids[] = $aid;
+						}
 					}
-					$aid   = (int) $wpdb->insert_id;
-					$ids[] = $aid;
-					if ( 'approved' === $status ) {
-						// Correction of an approved/paid commission: payable balance changes immediately.
-						Balance::post( (int) $parent->affiliate_id, $parent->currency, 'approved', $amount, $aid, 0, $refund['type'] );
-					}
-					self::event( $aid, 'created', '', $status, $amount, $refund['type'] . ': ' . $refund['reason'], $refund['refund_id'] );
-					self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount, $refund['type'], $refund['refund_id'] );
 				}
 				return array(
 					'status'         => $ids ? 'adjusted' : 'unchanged',
@@ -570,6 +918,77 @@ final class Ledger {
 			);
 		}
 		return $result;
+	}
+
+	/**
+	 * Book the correction of one sale row for a refund (inside the transaction of record_refund(),
+	 * the row is locked).
+	 *
+	 * @param array      $refund       Normalized refund.
+	 * @param object     $parent       Sale row.
+	 * @param array|null $snap         Rule snapshot of the row.
+	 * @param int        $refunded_net Refunded line net for this row (ignored for full reversals).
+	 * @param string     $key_suffix   Line part of the booking key.
+	 * @return int Correction ID (0 = nothing to book).
+	 * @throws IntegrationException On DB errors.
+	 */
+	private static function refund_row( array $refund, $parent, $snap, $refunded_net, $key_suffix ) {
+		global $wpdb;
+		$key = self::key( 'refund:' . $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'] . ':' . $key_suffix );
+		if ( self::find_by_key( $key ) ) {
+			return 0; // Idempotent.
+		}
+		// The base may differ from the line net (wpac_commission_base filter): scale the refund.
+		if ( ! $refund['full'] && is_array( $snap ) && ! empty( $snap['line_net'] ) && (int) $snap['line_net'] !== (int) $parent->base_minor ) {
+			$refunded_net = (int) round( $refunded_net * (int) $parent->base_minor / (int) $snap['line_net'] );
+		}
+		$adjusted = self::adjusted_sum( (int) $parent->id, true );
+		$refunded = self::refunded_base( (int) $parent->id, true );
+		$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor, (int) $parent->base_minor, $adjusted, $refunded_net, $refund['full'], $refunded );
+		if ( 0 === $amount ) {
+			return 0;
+		}
+		// Pending/review parents: adjustment follows the parent. Approved/paid: offset in next payout.
+		$status = in_array( $parent->status, array( 'pending', 'review' ), true ) ? $parent->status : 'approved';
+		$ok     = $wpdb->insert(
+			Db::table( 'commissions' ),
+			array(
+				'affiliate_id'    => (int) $parent->affiliate_id,
+				'source'          => $parent->source,
+				'source_order_id' => $parent->source_order_id,
+				'source_item_id'  => $parent->source_item_id,
+				'kind'            => $refund['type'],
+				'parent_id'       => (int) $parent->id,
+				'product_ref'     => $parent->product_ref,
+				'description'     => Db::cut( $refund['reason'], 255 ),
+				'currency'        => $parent->currency,
+				'base_minor'      => -( $refund['full'] ? max( 0, (int) $parent->base_minor - $refunded ) : min( abs( (int) $refunded_net ), max( 0, (int) $parent->base_minor - $refunded ) ) ),
+				'amount_minor'    => $amount,
+				'rate_type'       => $parent->rate_type,
+				'rate'            => $parent->rate,
+				'rule_id'         => (int) $parent->rule_id,
+				'rule_snapshot'   => null,
+				'status'          => $status,
+				'hold_until'      => $parent->hold_until,
+				'idempotency_key' => $key,
+				'created_at'      => Db::now(),
+				'updated_at'      => Db::now(),
+			)
+		);
+		if ( ! $ok ) {
+			if ( self::find_by_key( $key ) ) {
+				return 0;
+			}
+			throw new IntegrationException( 'db_adjustment', esc_html( $wpdb->last_error ) );
+		}
+		$aid = (int) $wpdb->insert_id;
+		if ( 'approved' === $status ) {
+			// Correction of an approved/paid commission: payable balance changes immediately.
+			Balance::post( (int) $parent->affiliate_id, $parent->currency, 'approved', $amount, $aid, 0, $refund['type'] );
+		}
+		self::event( $aid, 'created', '', $status, $amount, $refund['type'] . ': ' . $refund['reason'], $refund['refund_id'] );
+		self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount, $refund['type'], $refund['refund_id'] );
+		return $aid;
 	}
 
 	/**
@@ -865,6 +1284,11 @@ final class Ledger {
 				self::transition( (int) $child->id, $to, $reason, get_current_user_id(), 0, $c->status );
 			}
 		}
+		foreach ( self::increases( $c ) as $inc ) {
+			if ( $inc->status === $c->status ) {
+				self::approve( (int) $inc->id, $reason ); // Additional commission of the same line (increased order).
+			}
+		}
 		if ( 'sale' === $c->kind && 'review' === $c->status ) {
 			// Review passed: the customer link of the order now counts.
 			CustomerLinks::activate_order( $c->source, $c->source_order_id );
@@ -916,6 +1340,11 @@ final class Ledger {
 				)
 			);
 			return new \WP_Error( 'wpac_db_error', __( 'The commission could not be rejected (database error). Please try again.', 'affiliate-captain' ) );
+		}
+		foreach ( self::increases( $c ) as $inc ) {
+			if ( in_array( $inc->status, array( 'pending', 'review', 'approved' ), true ) ) {
+				self::reject( (int) $inc->id, $reason ); // Additional commission of the same line (increased order).
+			}
 		}
 		if ( 'sale' === $c->kind ) {
 			self::maybe_forget_links( $c->source, $c->source_order_id );
