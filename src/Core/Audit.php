@@ -61,7 +61,51 @@ final class Audit {
 	 */
 	public static function query( array $args = array() ) {
 		global $wpdb;
-		$table  = Db::table( 'audit' );
+		$table                  = Db::table( 'audit' );
+		list( $where, $params ) = self::where( $args );
+		$params[]               = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
+		$params[]               = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
+		// $where holds only placeholders (built in where()); all values are in $params.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", $params ) );
+	}
+
+	/**
+	 * Columns the admin list may sort by (whitelist for ORDER BY).
+	 *
+	 * @return string[]
+	 */
+	public static function sortable() {
+		return array( 'id', 'created_at', 'action', 'object_type' );
+	}
+
+	/**
+	 * One page of entries with the total, for the admin list.
+	 *
+	 * @param array $args Filters of query() ("order" stays the order number), plus search (action,
+	 *                    details, object ID), orderby (see sortable(); anything else sorts by ID),
+	 *                    sort (asc|desc), limit, offset.
+	 * @return array [ rows, total ]
+	 */
+	public static function page( array $args = array() ) {
+		list( $where, $params ) = self::where( $args );
+		$paging                 = array(
+			'orderby' => isset( $args['orderby'] ) ? (string) $args['orderby'] : 'id',
+			'order'   => isset( $args['sort'] ) ? (string) $args['sort'] : 'desc',
+			'limit'   => isset( $args['limit'] ) ? (int) $args['limit'] : 50,
+			'offset'  => isset( $args['offset'] ) ? (int) $args['offset'] : 0,
+		);
+		return Paged::fetch( Db::table( 'audit' ), $where, $params, $paging, self::sortable() );
+	}
+
+	/**
+	 * WHERE clause (placeholders only) and its values for the filters.
+	 *
+	 * @param array $args See query() and page().
+	 * @return array [ where, params ]
+	 */
+	private static function where( array $args ) {
+		global $wpdb;
 		$where  = '1=1';
 		$params = array();
 		if ( ! empty( $args['object_type'] ) ) {
@@ -101,10 +145,17 @@ final class Audit {
 			$params[] = $older;
 			$params[] = $order;
 		}
-		$params[] = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
-		$params[] = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
-		// $where holds only placeholders (built above); all values are in $params.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", $params ) );
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			// Free text in the action key and the details; a number also finds the object ID.
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( action LIKE %s OR details LIKE %s' . ( ctype_digit( $search ) ? ' OR object_id = %d' : '' ) . ' )';
+			$params[] = $like;
+			$params[] = $like;
+			if ( ctype_digit( $search ) ) {
+				$params[] = (int) $search;
+			}
+		}
+		return array( $where, $params );
 	}
 }
