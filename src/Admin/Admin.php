@@ -730,6 +730,7 @@ final class Admin {
 			'commission_manual' => array( CommissionsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_run'        => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'objection_resolve' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'correction_note'   => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ), // Tax document: CorrectionNote::issue() checks again.
 			'payout_rebuild'    => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_bulk'       => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_export'     => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),

@@ -311,6 +311,7 @@ final class Statement {
 		$country = strtoupper( isset( $op['country'] ) && '' !== (string) $op['country'] ? (string) $op['country'] : 'DE' );
 		$german  = in_array( $country, array( 'DE', 'AT', 'CH' ), true );
 		$correct = isset( $op['document'] ) && 'correction' === $op['document'];
+		$kg      = CorrectionNote::document( $op ); // Correction credit note of a paid credit note (R5-W55).
 		$sign   = $storno ? -1 : 1;
 		$net    = (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor;
 		$format = ! empty( $op['date_format'] ) ? (string) $op['date_format'] : get_option( 'date_format' );
@@ -322,6 +323,9 @@ final class Statement {
 			/* translators: %s: original document number */
 			$title = sprintf( __( 'Cancellation of credit note %s', 'affiliate-captain' ), $p->number );
 			$doc   = (string) $p->storno_number;
+		} elseif ( $kg ) {
+			$title = CorrectionNote::title( $self, $german );
+			$doc   = (string) $p->number;
 		} elseif ( $correct ) {
 			$title = $self && $german ? __( 'Correction of credit notes (Gutschrift)', 'affiliate-captain' ) : __( 'Correction of credit notes', 'affiliate-captain' );
 			$doc   = (string) $p->number;
@@ -392,6 +396,8 @@ final class Statement {
 		);
 		if ( $storno ) {
 			$facts[ __( 'Cancels', 'affiliate-captain' ) ] = $p->number . ' (' . $date( get_date_from_gmt( $p->created_at ) ) . ')';
+		} elseif ( $kg ) {
+			$facts += CorrectionNote::facts( $kg, $date );
 		}
 		$facts += array(
 			__( 'Service', 'affiliate-captain' )         => __( 'Referral of customers (affiliate commission)', 'affiliate-captain' ),
@@ -549,6 +555,8 @@ final class Statement {
 		}
 		if ( $storno ) {
 			$total_label = __( 'Total cancelled', 'affiliate-captain' );
+		} elseif ( $kg ) {
+			$total_label = CorrectionNote::total_label( $p );
 		} elseif ( $correct ) {
 			$total_label = __( 'Balance (settled, no transfer)', 'affiliate-captain' );
 		} else {
@@ -572,6 +580,7 @@ final class Statement {
 			self::vat_notes( (string) $p->vat_mode, $modes, $country ),
 			array_filter(
 				array(
+					$kg ? CorrectionNote::note( $p ) : '',
 					$correct ? __( 'This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred.', 'affiliate-captain' ) : '',
 					$self_note,
 					$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'affiliate-captain' ) : '',

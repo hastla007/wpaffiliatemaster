@@ -1653,7 +1653,12 @@ final class Portal {
 			$url = static function ( $storno ) use ( $p ) {
 				return wp_nonce_url( add_query_arg( array( 'wpac_statement' => (int) $p->id, 'storno' => $storno ? 1 : 0 ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id );
 			};
-			$pdf = $p->statement_file ? '<a href="' . esc_url( $url( false ) ) . '">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</a>' : '—';
+			$kg  = \WPAffiliateCaptain\Payouts\CorrectionNote::document( $p );
+			$pdf = $p->statement_file ? '<a href="' . esc_url( $url( false ) ) . '">' . ( $kg ? esc_html__( 'Correction credit note', 'affiliate-captain' ) : esc_html__( 'Credit note', 'affiliate-captain' ) ) . '</a>' : '—';
+			if ( $kg ) {
+				/* translators: %s: original credit note number */
+				$pdf .= ' <span class="wpac-muted">' . esc_html( sprintf( __( '(corrects %s)', 'affiliate-captain' ), (string) $kg['number'] ) ) . '</span>';
+			}
 			if ( $p->storno_file ) {
 				$pdf .= ' · <a href="' . esc_url( $url( true ) ) . '">' . esc_html__( 'Cancellation', 'affiliate-captain' ) . '</a>';
 			}
