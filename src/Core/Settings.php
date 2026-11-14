@@ -124,7 +124,7 @@ final class Settings {
 			'report_partners'         => 0,
 			// Housekeeping.
 			'delete_on_uninstall'     => 0,
-		);
+		) + \WPAffiliateCaptain\Codes\PartnerCoupon::defaults(); // Partner coupon template (R7-PU5).
 	}
 
 	/**
@@ -697,6 +697,27 @@ final class Settings {
 				$out[ $k ] = $prefix;
 			}
 		}
+		// Partner coupon template (R7-PU5): amounts in the shop currency, never converted.
+		$tpl_in = array();
+		foreach ( \WPAffiliateCaptain\Codes\PartnerCoupon::FIELDS as $f ) {
+			if ( isset( $in[ 'coupon_tpl_' . $f ] ) ) {
+				$tpl_in[ $f ] = $in[ 'coupon_tpl_' . $f ];
+			} elseif ( in_array( $f, \WPAffiliateCaptain\Codes\PartnerCoupon::FLAGS, true ) ) {
+				$tpl_in[ $f ] = 0; // Unchecked checkbox.
+			}
+		}
+		$tpl_old = array();
+		foreach ( \WPAffiliateCaptain\Codes\PartnerCoupon::FIELDS as $f ) {
+			$tpl_old[ $f ] = $old( 'coupon_tpl_' . $f );
+		}
+		$tpl_errors = array();
+		foreach ( \WPAffiliateCaptain\Codes\PartnerCoupon::clean( $tpl_in, $tpl_old, $tpl_errors ) as $f => $value ) {
+			$out[ 'coupon_tpl_' . $f ] = $value;
+		}
+		foreach ( $tpl_errors as $f => $message ) {
+			$errors[ 'coupon_tpl_' . $f ] = $message;
+		}
+
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];
 		$out['debtor_bic']        = '';
 		if ( isset( $in['debtor_bic'] ) && '' !== trim( (string) $in['debtor_bic'] ) ) {

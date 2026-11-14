@@ -164,6 +164,11 @@ final class SettingsPage {
 			'storno_prefix'              => __( 'Prefix cancellation numbers', 'affiliate-captain' ),
 			'debtor_bic'                 => __( 'Company BIC (optional)', 'affiliate-captain' ),
 			'debtor_iban'                => __( 'Company IBAN (SEPA)', 'affiliate-captain' ),
+			'coupon_tpl_discount_type'   => __( 'Partner coupon: discount type', 'affiliate-captain' ),
+			'coupon_tpl_amount'          => __( 'Partner coupon: discount', 'affiliate-captain' ),
+			'coupon_tpl_usage_limit_per_user' => __( 'Partner coupon: uses per customer (0 = unlimited)', 'affiliate-captain' ),
+			'coupon_tpl_expiry_days'     => __( 'Partner coupon: valid for (days, 0 = no expiry)', 'affiliate-captain' ),
+			'coupon_tpl_minimum_amount'  => __( 'Partner coupon: minimum spend', 'affiliate-captain' ),
 		);
 	}
 
@@ -217,6 +222,9 @@ final class SettingsPage {
 				'report_partners'       => __( 'Monthly summary e-mail to active partners', 'affiliate-captain' ),
 				'maintenance_mode'      => __( 'Maintenance mode', 'affiliate-captain' ),
 				'delete_on_uninstall'   => __( 'Delete all data when the plugin is deleted', 'affiliate-captain' ),
+				'coupon_tpl_individual_use'     => __( 'Partner coupon: individual use only', 'affiliate-captain' ),
+				'coupon_tpl_free_shipping'      => __( 'Partner coupon: free shipping', 'affiliate-captain' ),
+				'coupon_tpl_exclude_sale_items' => __( 'Partner coupon: exclude sale items', 'affiliate-captain' ),
 			)
 		);
 	}
@@ -266,7 +274,7 @@ final class SettingsPage {
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
-			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
+			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines', 'coupon_tpl_discount_type', 'coupon_tpl_amount', 'coupon_tpl_individual_use', 'coupon_tpl_usage_limit_per_user', 'coupon_tpl_expiry_days', 'coupon_tpl_free_shipping', 'coupon_tpl_minimum_amount', 'coupon_tpl_exclude_sale_items' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
 			'data'        => array( 'visit_retention_days', 'application_retention_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
@@ -490,6 +498,19 @@ final class SettingsPage {
 		self::page_select( 'landing_page_id', __( 'Default landing page', 'affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'affiliate-captain' ) );
 		self::text( 'default_disclosure', __( 'Default disclosure note', 'affiliate-captain' ), $s );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'affiliate-captain' ) . '</p></td></tr>';
+		self::end();
+
+		// Template for "Create coupon for partner" on the partner page (R7-PU5).
+		self::section( __( 'Partner coupon template', 'affiliate-captain' ), 'promotion' );
+		echo '<tr><td colspan="2" class="description">' . esc_html__( 'Default values for coupons created on the partner page (Partners → partner → Partner codes → Create coupon for partner). Each value can be changed per coupon there. Amounts are in the shop currency.', 'affiliate-captain' ) . '</td></tr>';
+		self::select( 'coupon_tpl_discount_type', __( 'Partner coupon: discount type', 'affiliate-captain' ), $s, \WPAffiliateCaptain\Codes\PartnerCoupon::discount_types() );
+		self::text( 'coupon_tpl_amount', __( 'Partner coupon: discount', 'affiliate-captain' ), $s, __( 'Percent (e.g. 10) or amount (e.g. 5,00), depending on the discount type. 0 only together with free shipping.', 'affiliate-captain' ) );
+		self::checkbox( 'coupon_tpl_individual_use', __( 'Partner coupon: individual use only', 'affiliate-captain' ), $s, __( 'The coupon cannot be combined with other coupons.', 'affiliate-captain' ) );
+		self::number( 'coupon_tpl_usage_limit_per_user', __( 'Partner coupon: uses per customer (0 = unlimited)', 'affiliate-captain' ), $s );
+		self::number( 'coupon_tpl_expiry_days', __( 'Partner coupon: valid for (days, 0 = no expiry)', 'affiliate-captain' ), $s );
+		self::checkbox( 'coupon_tpl_free_shipping', __( 'Partner coupon: free shipping', 'affiliate-captain' ), $s );
+		self::text( 'coupon_tpl_minimum_amount', __( 'Partner coupon: minimum spend', 'affiliate-captain' ), $s, __( 'Empty = no minimum.', 'affiliate-captain' ) );
+		self::checkbox( 'coupon_tpl_exclude_sale_items', __( 'Partner coupon: exclude sale items', 'affiliate-captain' ), $s );
 		self::end();
 
 		self::section( __( 'Payouts', 'affiliate-captain' ), 'payouts' );

@@ -515,7 +515,11 @@ final class Admin {
 		if ( ! empty( $data['details'] ) && is_array( $data['details'] ) ) {
 			$details = '<ul class="wpac-notice-details"><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $data['details'], 0, 30 ) ) ) . '</li></ul>';
 		}
-		printf( '<div class="notice notice-%s is-dismissible" role="%s"><p>%s</p>%s</div>', esc_attr( $type ), in_array( $type, array( 'error', 'warning' ), true ) ? 'alert' : 'status', esc_html( $data['message'] ), $details ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $details is escaped above.
+		$link = '';
+		if ( ! empty( $data['link']['url'] ) && ! empty( $data['link']['label'] ) ) {
+			$link = ' <a href="' . esc_url( (string) $data['link']['url'] ) . '">' . esc_html( (string) $data['link']['label'] ) . '</a>';
+		}
+		printf( '<div class="notice notice-%s is-dismissible" role="%s"><p>%s%s</p>%s</div>', esc_attr( $type ), in_array( $type, array( 'error', 'warning' ), true ) ? 'alert' : 'status', esc_html( $data['message'] ), $link, $details ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $link and $details are escaped above.
 	}
 
 	/**
@@ -525,8 +529,9 @@ final class Admin {
 	 * @param string   $type    success|error|warning|info.
 	 * @param string   $url     Target (defaults to referer).
 	 * @param string[] $details Optional list shown below the message (e.g. what failed and why).
+	 * @param array    $link    Optional link after the message: [ 'url' => …, 'label' => … ].
 	 */
-	public static function back( $message, $type = 'success', $url = '', array $details = array() ) {
+	public static function back( $message, $type = 'success', $url = '', array $details = array(), array $link = array() ) {
 		$url = $url ? $url : wpac_return_url();
 		$url = $url ? $url : admin_url( 'admin.php?page=wpac' );
 		$url = remove_query_arg( array( 'wpac_notice', 'wpac_type' ), $url );
@@ -536,6 +541,7 @@ final class Admin {
 				'message' => (string) $message,
 				'type'    => $type,
 				'details' => array_values( array_map( 'strval', $details ) ),
+				'link'    => $link,
 			),
 			5 * MINUTE_IN_SECONDS
 		);
@@ -670,6 +676,7 @@ final class Admin {
 			'code_status'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_coupon'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'partner_coupon_create' => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ), // Also needs edit_shop_coupons (PartnerCoupon::can_create()).
 			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'dunning_send'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
