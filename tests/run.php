@@ -521,5 +521,10 @@ check( 'R7-AD12 a partner rule overrides a global exclusion only with precedence
 check( 'R7-AD12 with "target" an exclusion still wins at the same rank', true, Calculator::calculate( $g3_var, array( $g3_rule( 1, 'affiliate', 7, 'category', '4', 'percent', '15' ), $g3_rule( 2, 'affiliate', 7, 'category', '4', 'exclude', '0' ) ), 7, 0, $g3_def, true, 'target' )['excluded'] );
 check( 'R5-O3 filter_amount without WordPress leaves the amount', 300, Calculator::filter_amount( 300, $g3_var, 1, null, 10000 ) );
 
+/* R8-G9: QR code with text alternative (R5-O39). */
+$g9_svg = Qr::svg( 'https://example.test/?partner=A&b=1', 4, 4, 'QR "partner"' );
+check( 'R5-O39 QR SVG has role="img", aria-label and title (escaped)', array( true, true ), array( false !== strpos( $g9_svg, 'role="img" aria-label="QR &quot;partner&quot;"' ), false !== strpos( $g9_svg, '<title>QR &quot;partner&quot;</title>' ) ) );
+check( 'R5-O39 QR label defaults to the encoded text', true, false !== strpos( Qr::svg( 'AB&C' ), 'aria-label="AB&amp;C"' ) );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

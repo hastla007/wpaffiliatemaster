@@ -81,9 +81,37 @@ final class Tracker {
 			array(
 				'utm_source' => isset( $_GET['utm_source'] ) ? self::clean_utm( wp_unslash( $_GET['utm_source'] ) ) : '',
 				'utm_medium' => isset( $_GET['utm_medium'] ) ? self::clean_utm( wp_unslash( $_GET['utm_medium'] ) ) : '',
+				'sub_id'     => isset( $_GET[ self::sub_param() ] ) ? self::clean_sub( wp_unslash( $_GET[ self::sub_param() ] ) ) : '',
 			)
 		);
 		// phpcs:enable
+	}
+
+	/**
+	 * Name of the sub-ID parameter of partner links (default "sub"): the partner's own tracking
+	 * value (placement, click ID of their ad network), stored with the visit and the attribution.
+	 *
+	 * @return string
+	 */
+	public static function sub_param() {
+		/**
+		 * Name of the sub-ID query parameter of partner links.
+		 *
+		 * @param string $param Default "sub".
+		 */
+		$param = sanitize_key( (string) apply_filters( 'wpac_sub_id_param', 'sub' ) );
+		return '' !== $param ? $param : 'sub';
+	}
+
+	/**
+	 * Clean a sub-ID: letters, digits and . _ - : ~ only, at most 100 characters.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string
+	 */
+	public static function clean_sub( $value ) {
+		$value = is_scalar( $value ) ? (string) $value : '';
+		return Db::cut( (string) preg_replace( '/[^A-Za-z0-9._:~\-]/', '', $value ), 100 );
 	}
 
 	/**
@@ -176,6 +204,7 @@ final class Tracker {
 			'campaign'   => Db::cut( (string) $campaign, 100 ),
 			'content_id' => (int) $content_id,
 			'ts'         => time(),
+			'sub_id'     => isset( $extra['sub_id'] ) ? self::clean_sub( $extra['sub_id'] ) : '',
 		);
 		// Checked after the code resolved, so unknown codes cause no counter writes. The limit only
 		// throttles visit statistics – the referral itself is always kept.
@@ -289,6 +318,7 @@ final class Tracker {
 			'ref'     => 'always' === Settings::get( 'cookie_mode' ) ? 1 : 0,
 			'beacon'  => $beacon ? 1 : 0,
 			'consent' => $consent ? 1 : 0,
+			'sub'     => self::sub_param(),
 		);
 		wp_register_script( 'wpac-beacon', '', array(), WPAC_VERSION, array( 'in_footer' => true ) );
 		wp_enqueue_script( 'wpac-beacon' );
@@ -307,7 +337,7 @@ final class Tracker {
 		return 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}var d={},e=document.getElementById("wpac-beacon-data"),done=0;if(e){try{d=JSON.parse(e.textContent)||{};}catch(x){}}'
 			. 'function has(){return typeof window.wp_has_consent==="function"&&window.wp_has_consent("marketing");}'
 			. 'function r(){try{if(!document.referrer){return"";}if(!c.ref&&!has()){return"";}return new URL(document.referrer).host;}catch(x){return"";}}'
-			. 'function send(k){var b={code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",content_id:d.content||0,path:location.pathname,referrer:r()};if(k){b.consent=1;}try{fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});}catch(x){}}'
+			. 'function send(k){var b={code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",sub:q.get(c.sub||"sub")||"",content_id:d.content||0,path:location.pathname,referrer:r()};if(k){b.consent=1;}try{fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});}catch(x){}}'
 			. 'function granted(){if(done){return;}done=1;send(1);}window.wpacConsentGranted=granted;'
 			. 'function go(){if(c.beacon!==0){if(has()){done=1;}send(0);}else if(has()){granted();}}'
 			. 'if(c.consent){document.addEventListener("wp_listen_for_consent_change",function(ev){var x=ev&&ev.detail||{};if(x.marketing==="allow"){granted();}});}'
@@ -369,11 +399,28 @@ final class Tracker {
 		if ( Consent::cookie_allowed() ) {
 			if ( ! $first || ! self::touch_valid( self::read_cookie() ) ) {
 				self::write_cookie(
-					self::sign( $touch['code'] . '|' . rawurlencode( $touch['campaign'] ) . '|' . (int) $touch['content_id'] . '|' . (int) $touch['ts'] ),
+					self::cookie_value( $touch ),
 					time() + DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) )
 				);
 			}
 		}
+	}
+
+	/**
+	 * Signed cookie value of a touch: code|campaign|content|ts, plus sub-ID and visit ID when one
+	 * of them is set (cookies without them keep the older five-part format).
+	 *
+	 * @param array $touch Touch.
+	 * @return string
+	 */
+	public static function cookie_value( array $touch ) {
+		$value = $touch['code'] . '|' . rawurlencode( (string) $touch['campaign'] ) . '|' . (int) $touch['content_id'] . '|' . (int) $touch['ts'];
+		$sub   = isset( $touch['sub_id'] ) ? self::clean_sub( $touch['sub_id'] ) : '';
+		$visit = isset( $touch['visit_id'] ) ? (int) $touch['visit_id'] : 0;
+		if ( '' !== $sub || $visit ) {
+			$value .= '|' . $sub . '|' . $visit;
+		}
+		return self::sign( $value );
 	}
 
 	/**
@@ -412,6 +459,7 @@ final class Tracker {
 					array(
 						'utm_source' => isset( $_GET['utm_source'] ) ? self::clean_utm( wp_unslash( $_GET['utm_source'] ) ) : '',
 						'utm_medium' => isset( $_GET['utm_medium'] ) ? self::clean_utm( wp_unslash( $_GET['utm_medium'] ) ) : '',
+						'sub_id'     => isset( $_GET[ self::sub_param() ] ) ? self::clean_sub( wp_unslash( $_GET[ self::sub_param() ] ) ) : '',
 						'cart'       => true,
 					)
 				);
@@ -440,6 +488,7 @@ final class Tracker {
 				// The referring page is the content the visitor came through (same as a direct link visit).
 				'content_id' => (int) url_to_postid( $ref ),
 				'ts'         => time(),
+				'sub_id'     => isset( $query[ self::sub_param() ] ) ? self::clean_sub( $query[ self::sub_param() ] ) : '',
 			),
 			true
 		);
@@ -604,7 +653,7 @@ final class Tracker {
 	 */
 	public static function parse_cookie( $raw ) {
 		$parts = explode( '|', (string) $raw );
-		if ( 5 !== count( $parts ) ) {
+		if ( 5 !== count( $parts ) && 7 !== count( $parts ) ) {
 			return null;
 		}
 		$sig = array_pop( $parts );
@@ -616,6 +665,8 @@ final class Tracker {
 			'campaign'   => isset( $parts[1] ) ? Db::cut( rawurldecode( $parts[1] ), 100 ) : '',
 			'content_id' => isset( $parts[2] ) ? (int) $parts[2] : 0,
 			'ts'         => isset( $parts[3] ) ? (int) $parts[3] : 0,
+			'sub_id'     => isset( $parts[4] ) ? self::clean_sub( $parts[4] ) : '',
+			'visit_id'   => isset( $parts[5] ) ? (int) $parts[5] : 0,
 			'method'     => 'cookie',
 		);
 		// Server-side attribution window (the cookie lifetime alone is client-controlled).
@@ -734,6 +785,7 @@ final class Tracker {
 				'referrer_host' => $ref_host,
 				'landing_path'  => Db::cut( (string) $path, 255 ),
 				'content_id'    => (int) $touch['content_id'],
+				'sub_id'        => isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '',
 				'created_at'    => Db::now(),
 			)
 		);

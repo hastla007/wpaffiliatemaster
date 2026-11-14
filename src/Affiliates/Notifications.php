@@ -23,7 +23,16 @@ final class Notifications {
 	const OPTOUT_OPTION = 'wpac_mail_optout';
 
 	/** Mail types a partner can unsubscribe from (everything else is needed for the partnership). */
-	const OPTOUT_TYPES = array( 'monthly_partner', 'commission' );
+	const OPTOUT_TYPES = array( 'monthly_partner', 'commission', 'broadcast' );
+
+	/** Cron hook of the broadcast mail batches. */
+	const BROADCAST_HOOK = 'wpac_broadcast_batch';
+
+	/** Option: state of the running broadcast mail. */
+	const BROADCAST_OPTION = 'wpac_broadcast';
+
+	/** Partners per broadcast batch. */
+	const BROADCAST_BATCH = 50;
 
 	/** @var bool Whether the wp_mail hooks of send() are registered. */
 	private static $hooked = false;
@@ -51,6 +60,121 @@ final class Notifications {
 		add_action( 'init', array( __CLASS__, 'handle_unsubscribe' ) );
 		add_action( 'wpac_statement_generated', array( __CLASS__, 'credit_note_issued' ), 10, 2 );
 		add_action( 'wpac_storno_generated', array( __CLASS__, 'credit_note_cancelled' ), 10, 2 );
+		add_action( self::BROADCAST_HOOK, array( __CLASS__, 'broadcast_batch' ), 10, 0 );
+	}
+
+	/**
+	 * Labels of the mail types a partner can switch off (partner area, "My account").
+	 *
+	 * @return array type => label
+	 */
+	public static function optout_labels() {
+		return array(
+			'commission'      => __( 'New, approved and rejected commissions', 'affiliate-captain' ),
+			'monthly_partner' => __( 'Monthly summary', 'affiliate-captain' ),
+			'broadcast'       => __( 'News and announcements of the partner program', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Start a broadcast mail to all active partners (optionally of one group). The mails are sent
+	 * in batches in the background through send(); partners who unsubscribed from "broadcast"
+	 * are skipped, every mail carries the unsubscribe link. Only one broadcast runs at a time.
+	 *
+	 * @param string $subject  Subject.
+	 * @param string $message  Plain text.
+	 * @param int    $group_id Only partners of this group (0 = all).
+	 * @return int|\WP_Error Number of active partners addressed.
+	 */
+	public static function start_broadcast( $subject, $message, $group_id = 0 ) {
+		global $wpdb;
+		$subject = trim( sanitize_text_field( (string) $subject ) );
+		$message = trim( (string) $message );
+		if ( '' === $subject || '' === $message ) {
+			return new \WP_Error( 'wpac_broadcast_empty', __( 'Please enter a subject and a text.', 'affiliate-captain' ) );
+		}
+		$state = get_option( self::BROADCAST_OPTION );
+		if ( is_array( $state ) && empty( $state['done'] ) && (int) $state['started'] > time() - DAY_IN_SECONDS ) {
+			return new \WP_Error( 'wpac_broadcast_running', __( 'Another broadcast mail is still being sent. Please wait until it is finished.', 'affiliate-captain' ) );
+		}
+		$a     = \WPAffiliateCaptain\Core\Db::table( 'affiliates' );
+		$group = (int) $group_id ? $wpdb->prepare( ' AND group_id = %d', (int) $group_id ) : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$a} WHERE status = 'active'{$group}" );
+		if ( ! $total ) {
+			return new \WP_Error( 'wpac_none', __( 'There are no active partners to write to.', 'affiliate-captain' ) );
+		}
+		update_option(
+			self::BROADCAST_OPTION,
+			array(
+				'subject' => \WPAffiliateCaptain\Core\Db::cut( $subject, 190 ),
+				'message' => \WPAffiliateCaptain\Core\Db::cut( $message, 20000 ),
+				'group'   => (int) $group_id,
+				'cursor'  => 0,
+				'sent'    => 0,
+				'skipped' => 0,
+				'total'   => $total,
+				'started' => time(),
+				'done'    => 0,
+			),
+			false
+		);
+		Audit::log( 'mail.broadcast_started', 'settings', 0, array( 'total' => $total, 'group' => (int) $group_id ) );
+		\WPAffiliateCaptain\Core\Scheduler::once( self::BROADCAST_HOOK, 0 );
+		return $total;
+	}
+
+	/**
+	 * State of the last broadcast mail.
+	 *
+	 * @return array|null
+	 */
+	public static function broadcast_state() {
+		$state = get_option( self::BROADCAST_OPTION );
+		return is_array( $state ) ? $state : null;
+	}
+
+	/**
+	 * Send the next batch of the broadcast mail (cron), then schedule the next one.
+	 *
+	 * @param int $size Batch size.
+	 */
+	public static function broadcast_batch( $size = self::BROADCAST_BATCH ) {
+		global $wpdb;
+		$state = get_option( self::BROADCAST_OPTION );
+		if ( ! is_array( $state ) || ! empty( $state['done'] ) ) {
+			return;
+		}
+		$a     = \WPAffiliateCaptain\Core\Db::table( 'affiliates' );
+		$group = (int) $state['group'] ? $wpdb->prepare( ' AND group_id = %d', (int) $state['group'] ) : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$a} WHERE status = 'active' AND id > %d{$group} ORDER BY id ASC LIMIT %d", (int) $state['cursor'], max( 1, (int) $size ) ) ) );
+		foreach ( $ids as $id ) {
+			$state['cursor'] = $id;
+			$aff             = AffiliateRepository::find( $id );
+			if ( ! $aff || ! is_email( $aff->email ) || self::opted_out( $id, 'broadcast' ) || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( $id ) ) {
+				++$state['skipped'];
+				continue;
+			}
+			$switched = Locale::switch_for_affiliate( $aff );
+			try {
+				$name = trim( (string) $aff->name );
+				/* translators: %s: partner name */
+				$body = ( '' !== $name ? sprintf( __( 'Hello %s,', 'affiliate-captain' ), $name ) . "\n\n" : '' ) . $state['message'];
+				if ( self::send_optional( 'broadcast', $aff, $state['subject'], $body ) ) {
+					++$state['sent'];
+				}
+			} finally {
+				Locale::restore( $switched );
+			}
+		}
+		if ( count( $ids ) < max( 1, (int) $size ) ) {
+			$state['done'] = time();
+			Audit::log( 'mail.broadcast_sent', 'settings', 0, array( 'sent' => (int) $state['sent'], 'skipped' => (int) $state['skipped'] ) );
+		} else {
+			\WPAffiliateCaptain\Core\Scheduler::once( self::BROADCAST_HOOK, 60 );
+		}
+		update_option( self::BROADCAST_OPTION, $state, false );
 	}
 
 	/**

@@ -53,6 +53,10 @@ final class Editor {
 		if ( function_exists( 'wp_set_script_translations' ) ) {
 			wp_set_script_translations( 'wpac-blocks', 'affiliate-captain', WPAC_DIR . 'languages' );
 		}
+		if ( ! wp_style_is( 'wpac-portal', 'registered' ) ) {
+			// block.json "style": the portal stylesheet in the editor preview and in the head of the page.
+			\WPAffiliateCaptain\Portal\Portal::register_assets();
+		}
 		$dir = WPAC_DIR . 'blocks/';
 		register_block_type(
 			$dir . 'registration',

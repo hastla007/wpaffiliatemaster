@@ -28,7 +28,7 @@ add_action( 'wpac_loaded', function () {
         'partner_code_method' => 'app',        // optional: code|app
         'coupon_codes' => array( 'sommer10' ), // optional
         'affiliate_id' => 0,                   // optional: explizite Zuordnung
-        'touch'        => null,                // optional: [ code, method link|cookie|app, campaign, content_id ]
+        'touch'        => null,                // optional: [ code, method link|cookie|app, campaign, content_id, ts, sub_id, visit_id ]
         'customer'     => array(
             'user_id'  => 12,                   // 0 = Gast: legt nie eine Lifetime-Bindung an
             'email'    => 'kunde@example.com',
@@ -128,7 +128,8 @@ Ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_reinstatement', $payload )
 
 ```php
 $touch = function_exists( 'wpac_current_touch' ) ? wpac_current_touch() : null;
-// null oder array( code, method link|cookie, campaign, content_id ) – ohne personenbezogene Daten.
+// null oder array( code, method link|cookie, campaign, content_id, ts, sub_id, visit_id ) – ohne personenbezogene Daten.
+// sub_id: Sub-ID des Partners (Parameter `sub`, Filter `wpac_sub_id_param`), visit_id: erfasster Besuch (0 = keiner).
 ```
 
 Für Quellen mit eigenem Checkout: beim Anlegen der Bestellung speichern und später als `touch` an `wpac_record_sale()` übergeben (die Zahlung wird oft erst später, z. B. vom Personal, bestätigt). Nicht bei Kassen-/POS-Verkäufen verwenden – dort gehört die Anfrage dem Personal, nicht dem Käufer.

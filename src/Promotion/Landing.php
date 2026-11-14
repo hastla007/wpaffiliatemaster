@@ -232,6 +232,10 @@ final class Landing {
 					}
 				}
 			}
+			$sub = isset( $query[ Tracker::sub_param() ] ) ? Tracker::clean_sub( $query[ Tracker::sub_param() ] ) : '';
+			if ( '' !== $sub ) {
+				$args[ Tracker::sub_param() ] = $sub;
+			}
 			$url = add_query_arg( $args, $url );
 		}
 		return $url;

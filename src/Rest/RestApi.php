@@ -85,6 +85,7 @@ final class RestApi {
 			array(
 				'utm_source' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['utm_source'] ),
 				'utm_medium' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['utm_medium'] ),
+				'sub_id'     => \WPAffiliateCaptain\Tracking\Tracker::clean_sub( (string) $r['sub'] ),
 				'path'       => is_string( $path ) ? $path : '',
 				'referrer'   => '' !== $host ? 'https://' . $host . '/' : '',
 				'count'      => ! $consent_only,
@@ -188,6 +189,7 @@ final class RestApi {
 					'campaign'   => array( 'type' => 'string' ),
 					'utm_source' => array( 'type' => 'string' ),
 					'utm_medium' => array( 'type' => 'string' ),
+					'sub'        => array( 'type' => 'string' ),
 					'content_id' => array( 'type' => 'integer' ),
 					'path'       => array( 'type' => 'string' ),
 					'referrer'   => array( 'type' => 'string' ),
@@ -703,6 +705,14 @@ final class RestApi {
 			'currency'          => $currency,
 			'totals_minor'      => $sum,
 			'available_minor'   => PayoutRequests::available( (int) $aff->id ),
+			// All booking currencies (orders in USD are booked in USD): status => currency => minor.
+			'totals_by_currency'    => $totals,
+			'available_by_currency' => array_map(
+				static function ( $a ) {
+					return (int) $a['gross'];
+				},
+				PayoutRequests::available_all( (int) $aff->id )
+			),
 			'min_payout_minor'  => (int) Settings::get( 'min_payout_minor' ),
 			'codes'             => array_values(
 				array_map(

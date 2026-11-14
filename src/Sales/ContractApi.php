@@ -395,6 +395,8 @@ final class ContractApi {
 				'campaign'   => isset( $p['touch']['campaign'] ) && is_scalar( $p['touch']['campaign'] ) ? Db::cut( sanitize_text_field( (string) $p['touch']['campaign'] ), 100 ) : '',
 				'content_id' => isset( $p['touch']['content_id'] ) && is_scalar( $p['touch']['content_id'] ) ? (int) $p['touch']['content_id'] : 0,
 				'ts'         => isset( $p['touch']['ts'] ) && is_scalar( $p['touch']['ts'] ) ? (int) $p['touch']['ts'] : 0,
+				'sub_id'     => isset( $p['touch']['sub_id'] ) ? \WPAffiliateCaptain\Tracking\Tracker::clean_sub( $p['touch']['sub_id'] ) : '',
+				'visit_id'   => isset( $p['touch']['visit_id'] ) && is_scalar( $p['touch']['visit_id'] ) ? absint( $p['touch']['visit_id'] ) : 0,
 			);
 		}
 

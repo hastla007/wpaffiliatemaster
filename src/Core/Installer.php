@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 10;
+	const DB_VERSION = 11;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -688,8 +688,8 @@ final class Installer {
 			'balances'        => array( 'affiliate_id', 'last_hash' ),
 			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
 			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
-			'attributions'    => array( 'id', 'content_id', 'campaign' ),
-			'visits'          => array( 'id', 'content_id', 'campaign' ),
+			'attributions'    => array( 'id', 'content_id', 'campaign', 'sub_id', 'visit_id' ),
+			'visits'          => array( 'id', 'content_id', 'campaign', 'sub_id' ),
 			'customer_links'  => array( 'id', 'customer_hash', 'pending' ),
 		);
 		// Existing tables of this plugin, compared without case: with lower_case_table_names=1
@@ -883,6 +883,7 @@ final class Installer {
 			referrer_host varchar(190) NOT NULL DEFAULT '',
 			landing_path varchar(255) NOT NULL DEFAULT '',
 			content_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			sub_id varchar(100) NOT NULL DEFAULT '',
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY affiliate_created (affiliate_id,created_at),
@@ -901,6 +902,8 @@ final class Installer {
 			method varchar(20) NOT NULL,
 			campaign varchar(100) NOT NULL DEFAULT '',
 			content_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			sub_id varchar(100) NOT NULL DEFAULT '',
+			visit_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			consent tinyint(1) NOT NULL DEFAULT 0,
 			touch_model varchar(10) NOT NULL DEFAULT '',
 			status varchar(20) NOT NULL DEFAULT 'attributed',

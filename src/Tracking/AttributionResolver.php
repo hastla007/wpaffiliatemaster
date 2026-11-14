@@ -71,6 +71,8 @@ final class AttributionResolver {
 					'method'     => in_array( $sale['touch']['method'], array( 'link', 'cookie', 'app' ), true ) ? $sale['touch']['method'] : 'link',
 					'campaign'   => isset( $sale['touch']['campaign'] ) ? (string) $sale['touch']['campaign'] : '',
 					'content_id' => isset( $sale['touch']['content_id'] ) ? (int) $sale['touch']['content_id'] : 0,
+					'sub_id'     => isset( $sale['touch']['sub_id'] ) ? (string) $sale['touch']['sub_id'] : '',
+					'visit_id'   => isset( $sale['touch']['visit_id'] ) ? (int) $sale['touch']['visit_id'] : 0,
 				);
 			}
 		}
@@ -150,6 +152,8 @@ final class AttributionResolver {
 				'code_id'     => 0,
 				'campaign'    => '',
 				'content_id'  => 0,
+				'sub_id'      => '',
+				'visit_id'    => 0,
 				'consent'     => 'cookie' === $candidates[0]['method'] ? 1 : 0,
 				'touch_model' => (string) Settings::get( 'touch_model' ),
 				'review'      => false,

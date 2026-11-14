@@ -82,7 +82,11 @@ On a multisite network `wp cron event run` only reaches the main site. Run it fo
 
 **Partner codes.** Every partner has at least one code (random by default, a custom code is possible). Codes can have a usage limit and an expiry date, be linked to a WooCommerce coupon, or be created in batches (with CSV export) for print campaigns.
 
-**Partner area** (block "Partner area" or `[wpac_affiliate_portal]`): partner link with campaign builder, codes, QR code, creatives, statistics, commissions (without customer data), payouts and credit notes, payout details (bank and tax data), account and privacy requests.
+**Partner area** (block "Partner area" or `[wpac_affiliate_portal]`): partner link with campaign builder (campaign, source and sub-ID), short link and QR code, codes, creatives (with embed code and sub-ID), statistics (period filter, conversion rate, earnings per month, report by campaign and sub-ID), commissions and payouts (filters, CSV export, without customer data), credit notes, payout details (bank and tax data), the partner's conditions and terms, e-mail preferences, account and privacy requests. The page with the partner area is never cached (`DONOTCACHEPAGE`), and partners land there after logging in (also from WooCommerce "My account", which gets a "Partner area" entry).
+
+**Sub-IDs.** Partner links accept a sub-ID next to the referral parameter (`?partner=CODE&sub=placement-1`; parameter name via the filter `wpac_sub_id_param`). It is stored with the visit and the attribution (together with the visit ID) and shown to the partner per campaign and sub-ID.
+
+**Broadcast mail.** Under Partners, "Write to all active partners" sends a plain-text e-mail to all active partners or one group, in batches of 50 in the background. Every mail has an unsubscribe link (type "broadcast"); partners can also switch announcements, commission notices and the monthly summary off under "My account".
 
 ## 3. Tracking, caching and CDNs
 
