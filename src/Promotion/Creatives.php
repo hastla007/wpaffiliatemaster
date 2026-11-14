@@ -102,11 +102,11 @@ final class Creatives {
 			'status'  => 'status',
 		);
 		$order   = isset( $columns[ $orderby ] ) ? $columns[ $orderby ] . ' ' . $dir . ', family_id DESC, version DESC' : 'family_id DESC, version DESC';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Placeholders are in $where.
 		$total    = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t} WHERE {$where}", $params ) ) : $wpdb->get_var( "SELECT COUNT(*) FROM {$t}" ) );
 		$params[] = isset( $args['limit'] ) ? max( 1, (int) $args['limit'] ) : 50;
 		$params[] = isset( $args['offset'] ) ? max( 0, (int) $args['offset'] ) : 0;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Placeholders of $where plus LIMIT/OFFSET.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY {$order} LIMIT %d OFFSET %d", $params ) );
 		return array( $rows, $total );
 	}
