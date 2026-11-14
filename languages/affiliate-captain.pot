@@ -39,7 +39,7 @@ msgstr ""
 msgid "Commissions"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Admin.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Payouts"
 msgstr ""
 
@@ -59,8 +59,56 @@ msgstr ""
 msgid "Audit log"
 msgstr ""
 
-#: src/Admin/Admin.php
+#: src/Admin/Admin.php src/Admin/Pages/AuditPage.php
 msgid "Settings"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Partners per page"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Commissions per page"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "More help"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Handbook"
+msgstr ""
+
+#: src/Admin/Admin.php src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+msgid "Overview"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "The dashboard shows visits, attributed orders and commissions of the chosen period, by partner, content or campaign. Until the setup is complete, the checklist at the top shows what is still missing."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "All partners with their status. New applications are listed under \"Application pending\" and can be approved or rejected there, also in bulk. Use \"Screen Options\" to choose the columns and the number of rows."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Partner page"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Open a partner to edit the details, codes and coupons, payout details and tax status, and to see the account and the history."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Every commission with its status: pending (hold period), needs review, approved, paid, rejected. Approved commissions are paid with the next payout run. Filter by partner name, e-mail or number."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Create a payout run: choose the period end, check the preview and create the payouts. Each payout gets a numbered credit note. Then download the SEPA file or transfer list and mark the payouts as paid once the bank executed them."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Each tab saves only its own fields. Invalid values are not saved and are shown again with a message next to the field."
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -145,7 +193,7 @@ msgstr ""
 msgid "Affiliate Captain is not fully set up yet."
 msgstr ""
 
-#: src/Admin/Admin.php
+#: src/Admin/Admin.php src/Admin/Tables/AffiliatesTable.php
 msgid "Open the setup checklist"
 msgstr ""
 
@@ -190,10 +238,45 @@ msgid_plural "%d applications approved."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%d application rejected."
+msgid_plural "%d applications rejected."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%d selected partner was skipped because it is not a pending application."
+msgid_plural "%d selected partners were skipped because they are not pending applications."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: number of partners
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "%d active partner has not accepted the current partner terms yet; credit notes cannot be issued to them."
 msgid_plural "%d active partners have not accepted the current partner terms yet; credit notes cannot be issued to them."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: date, 2: number
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Last reminder on %1$s: %2$d e-mail sent."
+msgid_plural "Last reminder on %1$s: %2$d e-mails sent."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Send an e-mail to %d active partner without the current acceptance?"
+msgid_plural "Send an e-mail to %d active partners without the current acceptance?"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%d partner is left out (reminded in the last 7 days, restricted or without a valid e-mail address)."
+msgid_plural "%d partners are left out (reminded in the last 7 days, restricted or without a valid e-mail address)."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -322,7 +405,7 @@ msgstr ""
 msgid "Payout details saved."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Tables/AffiliatesTable.php
 msgid "Add partner"
 msgstr ""
 
@@ -334,7 +417,7 @@ msgstr ""
 msgid "Name / company"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/ImportExportPage.php src/Affiliates/Registration.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/ImportExportPage.php src/Affiliates/Registration.php src/Privacy/Privacy.php
 msgid "E-mail"
 msgstr ""
 
@@ -575,7 +658,7 @@ msgstr ""
 msgid "Partner codes"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Tables/AffiliatesTable.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Code"
 msgstr ""
 
@@ -603,8 +686,9 @@ msgstr ""
 msgid "Blocked"
 msgstr ""
 
+#. translators: %s: date
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Tables/CommissionsTable.php
-msgid "until"
+msgid "until %s"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -672,7 +756,7 @@ msgstr ""
 msgid "Generate"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Tables/AffiliatesTable.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Payout details"
 msgstr ""
 
@@ -750,7 +834,7 @@ msgstr ""
 msgid "Tax number"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
 msgid "Payout method"
 msgstr ""
 
@@ -820,8 +904,16 @@ msgstr ""
 msgid "History"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "No entries yet."
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
 msgid "System"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Show the full history in the audit log"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -869,13 +961,8 @@ msgstr ""
 msgid "Reminders are being sent: %1$d of %2$d."
 msgstr ""
 
-#. translators: 1: date, 2: number
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "Last reminder on %1$s: %2$d e-mails sent."
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Send an e-mail to every active partner without the current acceptance?"
+msgid "Paused while maintenance mode is on."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -968,12 +1055,8 @@ msgstr ""
 msgid "Amount"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php
 msgid "Balance"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
-msgid "Overview"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -1348,15 +1431,7 @@ msgstr ""
 msgid "Bonus month recalculated"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php
-msgid "from"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php
-msgid "to"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Affiliates/Notifications.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php
 msgid "Reason"
 msgstr ""
 
@@ -1405,6 +1480,58 @@ msgid "Currency"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Payment details changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Privacy/Privacy.php
+msgid "Type"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Fields"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/IntegrationsPage.php
+msgid "Failed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Settings section"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Month"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Moved"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "sent"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "failed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Data export"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Erasure"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Restriction of processing"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Objection"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Tables/AffiliatesTable.php
 msgid "yes"
 msgstr ""
 
@@ -1412,8 +1539,68 @@ msgstr ""
 msgid "no"
 msgstr ""
 
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php
+msgid "Partner"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Reports/MonthlyMail.php
+msgid "Commission"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Balance.php
+msgid "Payout"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Privacy/Privacy.php
+msgid "Partner account"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Order"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Rule"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
+msgid "Group"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Bonus tier"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php
+msgid "Creative"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Job"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Report"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Setup"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Scheduled tasks"
+msgstr ""
+
 #: src/Admin/Pages/AuditPage.php
 msgid "Object type"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php
+msgid "All"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "ID (e.g. partner number)"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
@@ -1430,6 +1617,14 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php src/Admin/Tables/CommissionsTable.php
 msgid "Details"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "No entries match this filter."
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -1468,23 +1663,27 @@ msgid "Please enter a reason for the rejection."
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
+msgid "No single partner matches this name. Enter more of the name, the e-mail address or the partner number."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
 msgid "All statuses"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Privacy/Privacy.php
-msgid "Partner ID"
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Partner (name, e-mail or number)"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Source"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Order"
-msgstr ""
-
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Manual booking (commission, bonus or deduction)"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Privacy/Privacy.php
+msgid "Partner ID"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -1503,10 +1702,6 @@ msgstr ""
 msgid "Book"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Reports/MonthlyMail.php
-msgid "Commission"
-msgstr ""
-
 #: src/Admin/Pages/CommissionsPage.php
 msgid "All commissions"
 msgstr ""
@@ -1515,20 +1710,12 @@ msgstr ""
 msgid "Not found."
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php
-msgid "Partner"
-msgstr ""
-
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Source / order"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "item"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Privacy/Privacy.php
-msgid "Type"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Tables/CommissionsTable.php
@@ -1565,10 +1752,6 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Review reasons"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Commissions/Balance.php
-msgid "Payout"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -1694,23 +1877,11 @@ msgid "Only approved versions are shown to partners. Every change creates a new 
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
-msgid "Creative"
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
-msgid "Group"
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php
 msgid "Disclosure"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
 msgid "No creatives yet."
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php
-msgid "All"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
@@ -1751,11 +1922,19 @@ msgid "For images: optional suggested caption."
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
+msgid "No image chosen."
+msgstr ""
+
+#: src/Admin/Pages/CreativesPage.php
 msgid "Image"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
 msgid "Choose from media library"
+msgstr ""
+
+#: src/Admin/Pages/CreativesPage.php
+msgid "Remove image"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
@@ -1767,7 +1946,7 @@ msgid "Disclosure note"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
-msgid "How partners must label posts, e.g. \"Werbung\" or \"Anzeige\"."
+msgid "How partners must label posts, e.g. \"Advertisement\" or \"Sponsored\"."
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
@@ -1824,8 +2003,49 @@ msgstr ""
 msgid "Welcome! Here you can introduce your offer to visitors referred by a partner."
 msgstr ""
 
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SettingsPage.php
+msgid "Partner program terms"
+msgstr ""
+
 #: src/Admin/Pages/DashboardPage.php
 msgid "unknown error"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Template – please adapt it to your program and have it checked before publishing."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Admin/Pages/DashboardPage.php
+msgid "1. Parties and subject: these terms govern the partner program of %s. Partners promote our offer with their personal links, codes and coupons and receive a commission for attributed sales."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "2. Commission: the rates shown in the partner area apply. Commissions are released after the hold period; refunded or cancelled orders reduce them."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "3. Payout: payouts are made once the minimum payout is reached, by bank transfer or another agreed payment method."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "4. Credit notes (self-billing): we settle commissions by credit note in the name and for the account of the partner (§14 (2) sentence 2 German VAT Act). The partner agrees to this procedure, keeps the tax details in the partner area up to date and may object to a credit note; it then loses its effect as an invoice."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "5. Advertising rules: partners label their posts as advertising, follow the promotion guidelines and do not use misleading claims, spam, brand bidding or cookie stuffing."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "6. Data protection: we process the partner data needed for the program and payouts as described in our privacy policy."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "7. Term and termination: either party can end the partnership at any time; commissions earned until then are settled as described in the partner area."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "A sales source: WooCommerce or another shop integration is active"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -1833,7 +2053,7 @@ msgid "Application page and partner area page"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Partner program terms (page and version)"
+msgid "Partner program terms: published page and version (a draft from the template can be created below)"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -1845,11 +2065,7 @@ msgid "Your VAT ID – needed for credit notes to business partners abroad (reve
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Company bank account for SEPA payouts (account holder and IBAN)"
-msgstr ""
-
-#: src/Admin/Pages/DashboardPage.php
-msgid "Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php"
+msgid "Affiliate cookie only with consent (not \"always\")"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -1857,7 +2073,11 @@ msgid "First partner approved"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Affiliate cookie only with consent (not \"always\")"
+msgid "Optional: company bank account for SEPA files (account holder and IBAN) – not needed if you pay by hand or by PayPal"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Recommended: own encryption key WPAC_ENCRYPTION_KEY in wp-config.php (bank details then survive a change of the WordPress salts)"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -1873,11 +2093,15 @@ msgid "open"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
+msgid "optional"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
 msgid "Create pages automatically"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Creates \"Become a partner\", \"Partner area\" and a landing page with the matching blocks."
+msgid "Creates \"Become a partner\", \"Partner area\" and a landing page with the matching blocks, and a draft of the partner terms from a template (review it with your legal advisor, then publish it)."
 msgstr ""
 
 #. translators: %s: currencies
@@ -1919,6 +2143,10 @@ msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
 msgid "By campaign"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Report views"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -2053,7 +2281,7 @@ msgstr ""
 msgid "UTF-8, separator \";\" or \",\", up to %d partners and 5 MB per file. Larger files: wp wpac import partners <file>"
 msgstr ""
 
-#: src/Admin/Pages/ImportExportPage.php src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/ImportExportPage.php
 msgid "E-mails"
 msgstr ""
 
@@ -2086,7 +2314,7 @@ msgstr ""
 msgid "Codes"
 msgstr ""
 
-#: src/Admin/Pages/ImportExportPage.php src/Core/Monitor.php
+#: src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Core/Monitor.php
 msgid "OK"
 msgstr ""
 
@@ -2270,10 +2498,6 @@ msgid "Running"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "Failed"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
 msgid "Done"
 msgstr ""
 
@@ -2341,9 +2565,33 @@ msgstr ""
 msgid "Statements folder is not publicly reachable"
 msgstr ""
 
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Connections"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "System status"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Retry queue"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Integration sections"
+msgstr ""
+
 #. translators: %s: version
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Public contract version: %s. Integrations with a different major version are not called."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WooCommerce orders are recorded directly. No further shop or booking system has registered through the integration contract."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "No sales source is connected yet: activate WooCommerce or an integration that reports sales through the integration contract (see CONTRACT.md)."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -2411,11 +2659,11 @@ msgid "Scheduled tasks active (hold period release, retries)"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "Retry queue"
+msgid "check"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "No open or failed jobs."
+msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
 msgstr ""
 
 #. translators: %d: number
@@ -2777,7 +3025,11 @@ msgid "Bank details"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
-msgid "No payouts yet."
+msgid "No payouts with this status."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
 msgstr ""
 
 #. translators: %s: document number
@@ -2816,10 +3068,6 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Cancel"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Run this action for the selected payouts?"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -3114,6 +3362,18 @@ msgid "Save rule"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "Search for a product…"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Categories"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Choose categories…"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "e.g. \"Training partner\" and \"Content partner\" – each group can get its own rules."
 msgstr ""
 
@@ -3289,7 +3549,11 @@ msgstr ""
 msgid "Settings saved."
 msgstr ""
 
-#. translators: %s: example URL
+#. translators: 1: number of rules, 2: number of tier plans
+#: src/Admin/Pages/SettingsPage.php
+msgid "Not converted: %1$d active fixed-amount rules and %2$d bonus tier plans with revenue thresholds – please adjust them under Rules & groups."
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "Link parameter"
 msgstr ""
@@ -3382,7 +3646,6 @@ msgstr ""
 msgid "Minimum payout"
 msgstr ""
 
-#. translators: %s: example URL
 #: src/Admin/Pages/SettingsPage.php
 msgid "Landing page path"
 msgstr ""
@@ -3428,7 +3691,168 @@ msgid "Company IBAN (SEPA)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Application page"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner area page"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Approve applications automatically"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Open commissions on termination"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Sender name"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "E-mail to the partner when a payout was paid"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "E-mail to partners about new, approved and rejected commissions"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Show partner code field at checkout (classic + blocks)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Keep the code from a partner link in the WooCommerce shop session"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
+msgid "Affiliate cookie"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Link attribution"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Affiliate coupon has priority over partner links"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Self-referrals"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Review orders with disposable or blocked e-mail domains"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Additional blocked domains"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Default commission type"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Lifetime commissions: repeat purchases of referred customers go to the same partner"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Hold period starts"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Rule precedence"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Default landing page"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Promotion guidelines for partners"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partners can request payouts in the partner area"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Tax audit or legal hold: do not delete any statements"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your address (for credit notes)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your VAT ID"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "VIES check: verify partner VAT IDs with the EU Commission"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Your tax number (if no VAT ID)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Company account holder (SEPA)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Remittance text prefix"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Monthly summary e-mail to the operator"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Monthly summary e-mail to active partners"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
+msgid "Maintenance mode"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Delete all data when the plugin is deleted"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Changing it converts the minimum payout, the review limit and a fixed default rate (with an exchange rate between the two currencies if one is entered, otherwise keeping the value); fixed rules and bonus tiers must be checked by you."
+msgstr ""
+
+#. translators: 1: currency name, 2: ISO code
+#: src/Admin/Pages/SettingsPage.php
+msgid "%1$s (%2$s)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Program"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "E-mails & reports"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3448,7 +3872,7 @@ msgid "Payouts & credit notes"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Reports & data"
+msgid "Data & maintenance"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3460,19 +3884,7 @@ msgid "Settings sections"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Program & pages"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Application page"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partner area page"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partner program terms"
+msgid "Pages & terms"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3484,11 +3896,7 @@ msgid "Increase the version only for material changes: partners are then asked t
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Approve applications automatically"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Open commissions on termination"
+msgid "Applications & termination"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3500,11 +3908,11 @@ msgid "Are rejected"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Defaults to the site admin e-mail."
+msgid "Addresses"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Sender name"
+msgid "Defaults to the site admin e-mail."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3516,11 +3924,7 @@ msgid "Empty: WordPress default. Use an address of your own domain, otherwise ma
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "E-mail to the partner when a payout was paid"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "E-mail to partners about new, approved and rejected commissions"
+msgid "Notices to partners"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3528,27 +3932,24 @@ msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly 
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Monthly reports"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Sent on the first days of the month for the previous month."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Tracking & attribution"
 msgstr ""
 
+#. translators: %s: example URL with the link parameter
 #: src/Admin/Pages/SettingsPage.php
 msgid "Example: %s"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Show partner code field at checkout (classic + blocks)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep the code from a partner link in the WooCommerce shop session"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
-msgid "Affiliate cookie"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
@@ -3572,10 +3973,6 @@ msgid "Leave empty normally. Only if landing pages and shop run on different sub
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice."
 msgstr ""
 
@@ -3584,23 +3981,11 @@ msgid "100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic 
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Link attribution"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Last touch"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "First touch"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Affiliate coupon has priority over partner links"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Self-referrals"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3625,23 +4010,11 @@ msgid "Orders in other currencies are compared after conversion with the referen
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Review orders with disposable or blocked e-mail domains"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Additional blocked domains"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Abuse protection"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
 msgstr ""
 
 #. translators: %s: currency
@@ -3650,35 +4023,11 @@ msgid "One per line: 1 unit of the currency = x %s. Commissions and payouts are 
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Default commission type"
+msgid "Default commission"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Lifetime commissions: repeat purchases of referred customers go to the same partner"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Renewals earn commission only within this many months after the first order of the subscription."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Rule precedence"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3690,11 +4039,31 @@ msgid "Most specific product first: product > category > all, then partner > gro
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
+msgid "Lifetime commissions"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Hold period starts"
+msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Subscription renewals"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Renewals earn commission only within this many months after the first order of the subscription."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Hold period"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3705,12 +4074,9 @@ msgstr ""
 msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
 msgstr ""
 
+#. translators: %s: example URL of a partner landing page
 #: src/Admin/Pages/SettingsPage.php
 msgid "Partner landing URLs look like %s"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Default landing page"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3718,19 +4084,7 @@ msgid "Add [wpac_partner_welcome] to show \"Recommended by …\"."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Promotion guidelines for partners"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partners can request payouts in the partner area"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3738,19 +4092,11 @@ msgid "Payment details are stored encrypted like the IBAN. You pay these payouts
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
+msgid "Your company details (for credit notes)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Tax audit or legal hold: do not delete any statements"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
+msgid "Credit notes & VAT"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3762,15 +4108,11 @@ msgid "E.g. 19 or 7,7 – \"%\" may be typed."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Your address (for credit notes)"
+msgid "Numbers are gapless per year, e.g. GS-2026-000001."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Your VAT ID"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "VIES check: verify partner VAT IDs with the EU Commission"
+msgid "VAT ID check (VIES)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3778,47 +4120,31 @@ msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Your tax number (if no VAT ID)"
+msgid "SEPA bank transfer"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Numbers are gapless per year, e.g. GS-2026-000001."
+msgid "Retention periods"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Company account holder (SEPA)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Remittance text prefix"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Reporting"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Monthly summary e-mail to the operator"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Monthly summary e-mail to active partners"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Sent on the first days of the month for the previous month."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Housekeeping"
+msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
-msgid "Maintenance mode"
+#: src/Admin/Pages/SettingsPage.php
+msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Maintenance & monitoring"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3826,7 +4152,7 @@ msgid "For migrations or the accounting close: sales are still recorded, but app
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Delete all data when the plugin is deleted"
+msgid "Uninstall"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3866,6 +4192,14 @@ msgstr ""
 msgid "Website / channel"
 msgstr ""
 
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "Terms"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "Login"
+msgstr ""
+
 #: src/Admin/Tables/AffiliatesTable.php src/Privacy/Privacy.php
 msgid "Since"
 msgstr ""
@@ -3875,7 +4209,35 @@ msgid "Approve applications"
 msgstr ""
 
 #: src/Admin/Tables/AffiliatesTable.php
-msgid "No partners found."
+msgid "Reject applications"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "No partners match this search or view."
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "Show all partners"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "No partners yet. Add the first partner yourself, or publish the application page so partners can apply."
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "missing"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "accepted"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "not yet"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php
+msgid "no account"
 msgstr ""
 
 #: src/Admin/Tables/CommissionsTable.php
@@ -3891,7 +4253,19 @@ msgid "Reason (required for rejection)"
 msgstr ""
 
 #: src/Admin/Tables/CommissionsTable.php
-msgid "No commissions found."
+msgid "No commissions match these filters."
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "Reset filters"
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "No commissions yet. They appear here as soon as an order placed through a partner link, code or coupon is paid."
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "Go to the partners"
 msgstr ""
 
 #. translators: %d: commission ID
@@ -3987,6 +4361,10 @@ msgid "The link was sent a few minutes ago. Please wait 10 minutes before sendin
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
+msgid "This account cannot be linked. Only existing accounts without backend rights that are not linked to another partner (and, for partner managers, with the partner's e-mail address) can be linked. Ask an administrator if you are unsure."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
 msgid "No WordPress user with this ID or e-mail address was found."
 msgstr ""
 
@@ -4041,7 +4419,15 @@ msgid "Reminders were already sent in the last 24 hours. Please wait a day befor
 msgstr ""
 
 #: src/Affiliates/Agreements.php
+msgid "Maintenance mode is on: no reminders are sent. Switch it off first (Settings → Data & maintenance)."
+msgstr ""
+
+#: src/Affiliates/Agreements.php
 msgid "All active partners have accepted the current terms."
+msgstr ""
+
+#: src/Affiliates/Agreements.php
+msgid "All partners without the current acceptance were reminded in the last 7 days, have restricted processing or no valid e-mail address – nobody is asked now."
 msgstr ""
 
 #. translators: %s: site name
@@ -4324,6 +4710,11 @@ msgstr ""
 #. translators: 1: name, 2: message, 3: reason
 #: src/Affiliates/Notifications.php
 msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
+msgstr ""
+
+#. translators: %s: reason entered by the shop team
+#: src/Affiliates/Notifications.php src/Portal/Portal.php
+msgid "Reason: %s"
 msgstr ""
 
 #. translators: %s: site name
@@ -4790,6 +5181,15 @@ msgstr ""
 msgid "Recommended target pages"
 msgstr ""
 
+#. translators: %s: page title
+#: src/Content/Editor.php
+msgid "Your partner link to %s"
+msgstr ""
+
+#: src/Content/Editor.php src/Portal/Portal.php
+msgid "Copy"
+msgstr ""
+
 #: src/Core/Capabilities.php
 msgid "Tax advisor (Affiliate Captain, read only)"
 msgstr ""
@@ -5066,6 +5466,10 @@ msgid "The daily check of the partner program found problems:\n\n%1$s\n\nDetails
 msgstr ""
 
 #: src/Core/Settings.php
+msgid "Advertisement"
+msgstr ""
+
+#: src/Core/Settings.php
 msgid "Please enter a parameter name."
 msgstr ""
 
@@ -5108,12 +5512,31 @@ msgstr ""
 msgid "Not understood: %s. Use one line per currency, e.g. USD=0.92."
 msgstr ""
 
+#. translators: %s: currency code
+#: src/Core/Settings.php
+msgid "Converted to the new program currency %s."
+msgstr ""
+
+#. translators: 1: old currency, 2: new currency
+#: src/Core/Settings.php
+msgid "No exchange rate between %1$s and %2$s is known, so amounts keep their value (e.g. 50.00 %1$s becomes 50 %2$s). Please check the minimum payout, the review limit for large orders, fixed commission rules, bonus tiers and the exchange rates."
+msgstr ""
+
+#. translators: 1: old currency, 2: new currency
+#: src/Core/Settings.php
+msgid "Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency."
+msgstr ""
+
 #: src/Core/Settings.php
 msgid "Please enter an amount (e.g. 25 or 25,50)."
 msgstr ""
 
 #: src/Core/Settings.php
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Not changed, because the default rate entered with it is not valid."
 msgstr ""
 
 #. translators: %s: host name
@@ -5172,6 +5595,150 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "This IBAN is not valid (check digits)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Austria"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Belgium"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Bulgaria"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Croatia"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Cyprus"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Czechia"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Denmark"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Estonia"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Finland"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "France"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Germany"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Greece"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Hungary"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Ireland"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Italy"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Latvia"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Lithuania"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Luxembourg"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Malta"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Netherlands"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Poland"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Portugal"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Romania"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Slovakia"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Slovenia"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Spain"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Sweden"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Switzerland"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Liechtenstein"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Norway"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Iceland"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "United Kingdom"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "United States"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Canada"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Australia"
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "New Zealand"
 msgstr ""
 
 #: src/Integrations/WooCommerce/CheckoutField.php
@@ -5392,6 +5959,7 @@ msgstr ""
 msgid "Affiliate Captain: the sale could not be booked: %1$s (%2$s)"
 msgstr ""
 
+#. translators: 1: error message, 2: error code
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Affiliate Captain: the refund could not be booked: %1$s (%2$s)"
 msgstr ""
@@ -5670,12 +6238,12 @@ msgstr ""
 msgid "This request was already handled or could not be updated. Please reload."
 msgstr ""
 
-#. translators: 1: name, 2: reason
 #. translators: %s: site name
 #: src/Payouts/PayoutRequests.php
 msgid "[%s] Your payout request"
 msgstr ""
 
+#. translators: 1: name, 2: reason
 #: src/Payouts/PayoutRequests.php
 msgid "Hello %1$s,\n\nyour payout request could not be processed.\n\n%2$s"
 msgstr ""
@@ -5710,7 +6278,7 @@ msgid "Below minimum – carried forward"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "Maintenance mode is on (Settings → Reports & data)"
+msgid "Maintenance mode is on (Settings → Data & maintenance)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -5755,7 +6323,7 @@ msgid "Payout details incomplete: %s missing"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "Self-billing needs partner terms with the credit note agreement (Settings → Program → Terms page)"
+msgid "Self-billing needs partner terms with the credit note agreement (Settings → Program → Partner program terms)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -6233,10 +6801,6 @@ msgstr ""
 msgid "Your application was not accepted."
 msgstr ""
 
-#: src/Portal/Portal.php
-msgid "Reason:"
-msgstr ""
-
 #. translators: %s: e-mail link
 #: src/Portal/Portal.php
 msgid "Questions? Contact us at %s."
@@ -6264,10 +6828,6 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your partnership has ended. You can still see your commissions and payouts and download your credit notes."
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "Copy"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -6851,10 +7411,6 @@ msgid "Partner referral (lifetime link)"
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Partner account"
-msgstr ""
-
-#: src/Privacy/Privacy.php
 msgid "Commission base"
 msgstr ""
 
@@ -7184,7 +7740,7 @@ msgid "Proxy or CDN not configured"
 msgstr ""
 
 #: src/Tracking/Tracker.php
-msgid "This request came through a proxy/CDN (X-Forwarded-For) that is not listed under Settings → Security → Trusted proxies. All visitors then share the proxy address: code checks and registrations hit the limits early. Add the proxy addresses, or raise single limits with the filter wpac_rate_limit."
+msgid "This request came through a proxy/CDN (X-Forwarded-For) that is not listed under Settings → Fraud & abuse → Trusted proxies / CDN. All visitors then share the proxy address: code checks and registrations hit the limits early. Add the proxy addresses, or raise single limits with the filter wpac_rate_limit."
 msgstr ""
 
 #: src/Tracking/Tracker.php
@@ -7290,6 +7846,26 @@ msgid "Number"
 msgstr ""
 
 #: blocks/src
+msgctxt "audit detail: previous value"
+msgid "from"
+msgstr ""
+
+#: blocks/src
+msgctxt "audit detail: new value"
+msgid "to"
+msgstr ""
+
+#: blocks/src
 msgctxt "document number"
 msgid "Number"
+msgstr ""
+
+#: blocks/src
+msgctxt "date range start"
+msgid "From"
+msgstr ""
+
+#: blocks/src
+msgctxt "date range end"
+msgid "To"
 msgstr ""

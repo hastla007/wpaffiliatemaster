@@ -79,8 +79,9 @@ final class Admin {
 		if ( ! $user ) {
 			return;
 		}
-		if ( get_current_user_id() !== $user ) {
-			return; // Left for the user who activated it.
+		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'get';
+		if ( get_current_user_id() !== $user || 'get' !== $method ) {
+			return; // Left for the user who activated it; never interrupts a form post.
 		}
 		delete_option( 'wpac_activation_redirect' );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only read to skip the redirect.
