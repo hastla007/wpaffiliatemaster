@@ -123,6 +123,7 @@ Database schema 12:
 * Admin: audit log, payouts and creatives lists with sortable columns, search, paging and rows-per-page screen options
 * Privacy: credit notes deleted after the retention period are also removed on every other app server (per-server sweep, new command wp wpac statements sweep); deleted credit notes are never served or rebuilt
 * WordPress.org: icon, banner and screenshots
+* Add-ons (contract 1.3.0): public read/write functions for partners and commissions (wpac_get_affiliate(s), wpac_get_commission(s), wpac_update_affiliate, wpac_set_affiliate_status, wpac_set_commission_status, wpac_create_adjustment), portal hooks for white-label add-ons (wpac_portal_before/after, wpac_portal_classes, wpac_portal_labels, wpac_mail_from_name), wpac_commission_created for every new ledger booking and new action wpac_payout_cancelled
 * Add-ons (contract 1.3.0): payouts can be paid through a payment provider add-on – read, claim, mark paid or release a payout with the same guards against paying twice as the export files; a claimed payout cannot be cancelled in the admin for 7 days
 
 = 0.11.0 =
