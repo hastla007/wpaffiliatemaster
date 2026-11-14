@@ -59,6 +59,18 @@ msgstr "Partner pro Seite"
 msgid "Commissions per page"
 msgstr "Provisionen pro Seite"
 
+msgid "Payouts per page"
+msgstr "Auszahlungen pro Seite"
+
+msgid "Creatives per page"
+msgstr "Werbemittel pro Seite"
+
+msgid "Rules per page"
+msgstr "Regeln pro Seite"
+
+msgid "Entries per page"
+msgstr "Einträge pro Seite"
+
 msgid "More help"
 msgstr "Weitere Hilfe"
 
@@ -1279,23 +1291,8 @@ msgstr "Filtern"
 msgid "Order: everything about one order (attribution, commissions, refunds, manual changes). Dates are UTC."
 msgstr "Bestellung: alles zu einer Bestellung (Zuordnung, Provisionen, Erstattungen, manuelle Änderungen). Zeitangaben in UTC."
 
-msgid "Object"
-msgstr "Objekt"
-
-msgid "Details"
-msgstr "Details"
-
-msgid "No entries match this filter."
-msgstr "Keine Einträge passen zu diesem Filter."
-
-msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
-msgstr "Noch keine Einträge. Änderungen an Partnern, Provisionen, Auszahlungen und Einstellungen werden hier aufgezeichnet."
-
-msgid "No entries match the filter."
-msgstr "Keine Einträge entsprechen dem Filter."
-
-msgid "Older entries"
-msgstr "Ältere Einträge"
+msgid "Search entries"
+msgstr "Einträge suchen"
 
 msgid "%1$d commission could not be changed: %2$s"
 msgid_plural "%1$d commissions could not be changed: %2$s"
@@ -1479,20 +1476,8 @@ msgstr "Werbemittel archiviert."
 msgid "Only approved versions are shown to partners. Every change creates a new version that needs approval. Placeholders in texts: {link}, {code}, {partner}."
 msgstr "Partner sehen nur freigegebene Versionen. Jede Änderung erzeugt eine neue Version, die freigegeben werden muss. Platzhalter in Texten: {link}, {code}, {partner}."
 
-msgid "Disclosure"
-msgstr "Kennzeichnung"
-
-msgid "No creatives yet."
-msgstr "Noch keine Werbemittel."
-
-msgid "New version"
-msgstr "Neue Version"
-
-msgid "Archive this creative? Partners will no longer see it."
-msgstr "Dieses Werbemittel archivieren? Partner sehen es dann nicht mehr."
-
-msgid "Archive"
-msgstr "Archivieren"
+msgid "Search creatives"
+msgstr "Werbemittel suchen"
 
 msgid "New version of \"%1$s\" (based on v%2$d)"
 msgstr "Neue Version von „%1$s“ (basierend auf v%2$d)"
@@ -2110,32 +2095,11 @@ msgstr "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)"
 msgid "check"
 msgstr "prüfen"
 
-msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
-msgstr "Keine offenen oder fehlgeschlagenen Aufträge. Verkäufe und Erstattungen, die nicht sofort gebucht werden können (z. B. bei einem Datenbankproblem), warten hier und werden automatisch wiederholt."
-
 msgid "Retry all failed jobs (%d)"
 msgstr "Alle fehlgeschlagenen Jobs wiederholen (%d)"
 
-msgid "Attempts"
-msgstr "Versuche"
-
-msgid "Next attempt"
-msgstr "Nächster Versuch"
-
-msgid "log"
-msgstr "Protokoll"
-
-msgid "Error while booking."
-msgstr "Fehler beim Buchen."
-
-msgid "Retry now"
-msgstr "Jetzt wiederholen"
-
-msgid "Dismiss this job? It will not be retried; a sale in it stays without commission."
-msgstr "Diesen Auftrag verwerfen? Er wird nicht mehr wiederholt; ein Verkauf darin bleibt ohne Provision."
-
-msgid "Dismiss"
-msgstr "Verwerfen"
+msgid "Search jobs"
+msgstr "Aufträge suchen"
 
 msgid "%d payout created."
 msgid_plural "%d payouts created."
@@ -2362,26 +2326,11 @@ msgstr "Diesen Auszahlungsantrag ablehnen? Der Partner wird mit dem Grund benach
 msgid "cannot be checked (no exchange rate for %s)"
 msgstr "kann nicht geprüft werden (kein Wechselkurs für %s)"
 
+msgid "Search payouts"
+msgstr "Auszahlungen suchen"
+
 msgid "Read-only view: you can open the payouts and download credit notes and cancellations, but not create, export or change payouts."
 msgstr "Nur-Lese-Ansicht: Sie können Auszahlungen öffnen und Gutschriften und Stornobelege herunterladen, aber keine Auszahlungen anlegen, exportieren oder ändern."
-
-msgid "Select all"
-msgstr "Alle auswählen"
-
-msgid "Bank details"
-msgstr "Bankverbindung"
-
-msgid "No payouts with this status."
-msgstr "Keine Auszahlungen mit diesem Status."
-
-msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
-msgstr "Noch keine Auszahlungen. Freigegebene Provisionen werden mit einem Auszahlungslauf ausgezahlt: Wählen Sie oben den Stichtag und klicken Sie auf „Vorschau“."
-
-msgid "Select %s"
-msgstr "%s auswählen"
-
-msgid "Other payment method (paid manually)"
-msgstr "Andere Auszahlungsart (manuelle Zahlung)"
 
 msgid "Bulk action for selected payouts"
 msgstr "Sammelaktion für ausgewählte Auszahlungen"
@@ -2445,6 +2394,9 @@ msgstr "Aussteller"
 
 msgid "Payment method"
 msgstr "Zahlungsart"
+
+msgid "Other payment method (paid manually)"
+msgstr "Andere Auszahlungsart (manuelle Zahlung)"
 
 msgid "Bank account"
 msgstr "Bankkonto"
@@ -2537,47 +2489,8 @@ msgstr "Programmstandard: %s. Basis ist der Netto-Positionsbetrag nach Rabatt, o
 msgid "Resolution: an exclusion always wins; otherwise the most specific rule applies (partner > group > global, product/SKU > category > all, then priority)."
 msgstr "Auflösung: Ein Ausschluss gewinnt immer; sonst gilt die spezifischste Regel (Partner > Gruppe > global, Produkt/SKU > Kategorie > alle, dann Priorität)."
 
-msgid "Global"
-msgstr "Global"
-
-msgid "All products"
-msgstr "Alle Produkte"
-
-msgid "Product IDs"
-msgstr "Produkt-IDs"
-
-msgid "Category IDs"
-msgstr "Kategorie-IDs"
-
-msgid "Product tag IDs"
-msgstr "Produkt-Tag-IDs"
-
-msgid "SKU / course code"
-msgstr "SKU / Kurscode"
-
-msgid "Applies to"
-msgstr "Gilt für"
-
-msgid "Products"
-msgstr "Produkte"
-
-msgid "Priority"
-msgstr "Priorität"
-
-msgid "Note"
-msgstr "Notiz"
-
-msgid "No rules yet – the program default applies to all sales."
-msgstr "Noch keine Regeln – für alle Verkäufe gilt der Programmstandard."
-
-msgid "Edit"
-msgstr "Bearbeiten"
-
-msgid "Delete this rule? Existing commissions are not changed."
-msgstr "Diese Regel löschen? Bestehende Provisionen bleiben unverändert."
-
-msgid "Delete"
-msgstr "Löschen"
+msgid "Search rules"
+msgstr "Regeln suchen"
 
 msgid "Edit rule"
 msgstr "Regel bearbeiten"
@@ -2585,11 +2498,17 @@ msgstr "Regel bearbeiten"
 msgid "Add rule"
 msgstr "Regel hinzufügen"
 
+msgid "Applies to"
+msgstr "Gilt für"
+
 msgid "Single partner"
 msgstr "Einzelner Partner"
 
 msgid "– group –"
 msgstr "– Gruppe –"
+
+msgid "Products"
+msgstr "Produkte"
 
 msgid "IDs or SKUs"
 msgstr "IDs oder SKUs"
@@ -2608,6 +2527,12 @@ msgstr "Ausschließen (keine Provision)"
 
 msgid "per unit"
 msgstr "pro Stück"
+
+msgid "Priority"
+msgstr "Priorität"
+
+msgid "Note"
+msgstr "Notiz"
 
 msgid "Reason for change"
 msgstr "Grund der Änderung"
@@ -2675,6 +2600,9 @@ msgstr "Stufen"
 msgid "No tier plans."
 msgstr "Keine Stufenpläne."
 
+msgid "Global"
+msgstr "Global"
+
 msgid "Number of orders"
 msgstr "Anzahl Bestellungen"
 
@@ -2719,6 +2647,12 @@ msgstr "Monat jetzt abschließen"
 
 msgid "Product ID"
 msgstr "Produkt-ID"
+
+msgid "SKU / course code"
+msgstr "SKU / Kurscode"
+
+msgid "Category IDs"
+msgstr "Kategorie-IDs"
 
 msgid "Tag IDs"
 msgstr "Tag-IDs"
@@ -3262,6 +3196,12 @@ msgstr "Alle Partner anzeigen"
 msgid "No partners yet. Add the first partner yourself, or publish the application page so partners can apply."
 msgstr "Noch keine Partner. Legen Sie den ersten Partner selbst an oder veröffentlichen Sie die Bewerbungsseite, damit sich Partner bewerben können."
 
+msgid "Select %s"
+msgstr "%s auswählen"
+
+msgid "Edit"
+msgstr "Bearbeiten"
+
 msgid "missing"
 msgstr "fehlt"
 
@@ -3273,6 +3213,18 @@ msgstr "noch nicht"
 
 msgid "no account"
 msgstr "kein Konto"
+
+msgid "Object"
+msgstr "Objekt"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "No entries match this filter."
+msgstr "Keine Einträge passen zu diesem Filter."
+
+msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
+msgstr "Noch keine Einträge. Änderungen an Partnern, Provisionen, Auszahlungen und Einstellungen werden hier aufgezeichnet."
 
 msgid "Reject (reason required, shown to the partner)"
 msgstr "Ablehnen (Grund erforderlich, der Partner sieht ihn)"
@@ -3297,6 +3249,90 @@ msgstr "Zu den Partnern"
 
 msgid "Select commission #%d"
 msgstr "Provision #%d auswählen"
+
+msgid "Disclosure"
+msgstr "Kennzeichnung"
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "No creatives match this search."
+msgstr "Keine Werbemittel passen zu dieser Suche."
+
+msgid "Reset search"
+msgstr "Suche zurücksetzen"
+
+msgid "No creatives yet."
+msgstr "Noch keine Werbemittel."
+
+msgid "New version"
+msgstr "Neue Version"
+
+msgid "Archive this creative? Partners will no longer see it."
+msgstr "Dieses Werbemittel archivieren? Partner sehen es dann nicht mehr."
+
+msgid "Archive"
+msgstr "Archivieren"
+
+msgid "Attempts"
+msgstr "Versuche"
+
+msgid "Next attempt"
+msgstr "Nächster Versuch"
+
+msgid "No jobs match this search or filter."
+msgstr "Keine Aufträge passen zu dieser Suche oder diesem Filter."
+
+msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
+msgstr "Keine offenen oder fehlgeschlagenen Aufträge. Verkäufe und Erstattungen, die nicht sofort gebucht werden können (z. B. bei einem Datenbankproblem), warten hier und werden automatisch wiederholt."
+
+msgid "log"
+msgstr "Protokoll"
+
+msgid "Error while booking."
+msgstr "Fehler beim Buchen."
+
+msgid "Retry now"
+msgstr "Jetzt wiederholen"
+
+msgid "Dismiss this job? It will not be retried; a sale in it stays without commission."
+msgstr "Diesen Auftrag verwerfen? Er wird nicht mehr wiederholt; ein Verkauf darin bleibt ohne Provision."
+
+msgid "Dismiss"
+msgstr "Verwerfen"
+
+msgid "Bank details"
+msgstr "Bankverbindung"
+
+msgid "No payouts match this search."
+msgstr "Keine Auszahlungen passen zu dieser Suche."
+
+msgid "No payouts with this status."
+msgstr "Keine Auszahlungen mit diesem Status."
+
+msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
+msgstr "Noch keine Auszahlungen. Freigegebene Provisionen werden mit einem Auszahlungslauf ausgezahlt: Wählen Sie oben den Stichtag und klicken Sie auf „Vorschau“."
+
+msgid "All products"
+msgstr "Alle Produkte"
+
+msgid "Product IDs"
+msgstr "Produkt-IDs"
+
+msgid "Product tag IDs"
+msgstr "Produkt-Tag-IDs"
+
+msgid "No rules match this search."
+msgstr "Keine Regeln passen zu dieser Suche."
+
+msgid "No rules yet – the program default applies to all sales."
+msgstr "Noch keine Regeln – für alle Verkäufe gilt der Programmstandard."
+
+msgid "Delete this rule? Existing commissions are not changed."
+msgstr "Diese Regel löschen? Bestehende Provisionen bleiben unverändert."
+
+msgid "Delete"
+msgstr "Löschen"
 
 msgid "Application pending"
 msgstr "Bewerbung offen"

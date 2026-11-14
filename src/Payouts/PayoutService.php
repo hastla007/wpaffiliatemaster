@@ -1513,7 +1513,8 @@ final class PayoutService {
 	/**
 	 * List payouts.
 	 *
-	 * @param array $args affiliate_id, status, limit, offset.
+	 * @param array $args affiliate_id, status, search (document number, SEPA batch, partner name or
+	 *                    e-mail), limit, offset, orderby, order.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -1529,6 +1530,12 @@ final class PayoutService {
 			$where   .= ' AND status = %s';
 			$params[] = $args['status'];
 		}
-		return \WPAffiliateCaptain\Core\Paged::fetch( $t, $where, $params, $args, array( 'id', 'created_at', 'amount_minor', 'status', 'period_end' ) );
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( number LIKE %s OR storno_number LIKE %s OR sepa_batch LIKE %s OR affiliate_id IN ( SELECT id FROM ' . Db::table( 'affiliates' ) . ' WHERE name LIKE %s OR email LIKE %s ) )';
+			$params   = array_merge( $params, array( $like, $like, $like, $like, $like ) );
+		}
+		return \WPAffiliateCaptain\Core\Paged::fetch( $t, $where, $params, $args, array( 'id', 'number', 'created_at', 'amount_minor', 'status', 'period_end' ) );
 	}
 }

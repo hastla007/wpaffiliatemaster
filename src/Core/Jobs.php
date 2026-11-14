@@ -506,4 +506,28 @@ final class Jobs {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status <> 'done' ORDER BY id DESC LIMIT %d", $limit ) );
 	}
+
+	/**
+	 * Jobs for the admin list (retry queue).
+	 *
+	 * @param array $args status ('' = all open and failed), search (key, type, error), limit, offset,
+	 *                    orderby (id, type, created_at, status, attempts, next_attempt_at), order.
+	 * @return array [ rows, total ]
+	 */
+	public static function query_paged( array $args = array() ) {
+		global $wpdb;
+		$where  = "status <> 'done'";
+		$params = array();
+		if ( ! empty( $args['status'] ) ) {
+			$where    = 'status = %s';
+			$params[] = (string) $args['status'];
+		}
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( idempotency_key LIKE %s OR type LIKE %s OR last_error_code LIKE %s OR last_error LIKE %s )';
+			$params   = array_merge( $params, array( $like, $like, $like, $like ) );
+		}
+		return Paged::fetch( Db::table( 'jobs' ), $where, $params, $args, array( 'id', 'type', 'created_at', 'status', 'attempts', 'next_attempt_at' ) );
+	}
 }

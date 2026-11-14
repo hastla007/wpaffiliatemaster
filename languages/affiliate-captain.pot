@@ -79,6 +79,22 @@ msgid "Commissions per page"
 msgstr ""
 
 #: src/Admin/Admin.php
+msgid "Payouts per page"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Creatives per page"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Rules per page"
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Entries per page"
+msgstr ""
+
+#: src/Admin/Admin.php
 msgid "More help"
 msgstr ""
 
@@ -505,7 +521,7 @@ msgstr ""
 msgid "Commissions of this partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php src/Admin/Tables/JobsTable.php src/Admin/Tables/PayoutsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Status"
 msgstr ""
 
@@ -550,7 +566,7 @@ msgstr ""
 msgid "Application"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Tables/CommissionsTable.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php
 msgid "Approve"
 msgstr ""
 
@@ -678,11 +694,11 @@ msgstr ""
 msgid "Declined"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Date"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CreativesTable.php src/Privacy/Privacy.php
 msgid "Version"
 msgstr ""
 
@@ -948,7 +964,7 @@ msgstr ""
 msgid "No entries yet."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Tables/AuditTable.php
 msgid "System"
 msgstr ""
 
@@ -1129,7 +1145,7 @@ msgstr ""
 msgid "Reference"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Amount"
 msgstr ""
 
@@ -1533,7 +1549,7 @@ msgstr ""
 msgid "Bonus month recalculated"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/RulesTable.php src/Privacy/Privacy.php
 msgid "Reason"
 msgstr ""
 
@@ -1545,11 +1561,11 @@ msgstr ""
 msgid "Number"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Tables/JobsTable.php
 msgid "Error"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Tables/AuditTable.php
 msgid "User"
 msgstr ""
 
@@ -1565,7 +1581,7 @@ msgstr ""
 msgid "Sent"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/JobsTable.php src/Payouts/PayoutService.php src/Privacy/Privacy.php
 msgid "Created"
 msgstr ""
 
@@ -1573,7 +1589,7 @@ msgstr ""
 msgid "Skipped"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php
 msgid "Period end"
 msgstr ""
 
@@ -1581,7 +1597,7 @@ msgstr ""
 msgid "Currency"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/JobsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Order"
 msgstr ""
 
@@ -1589,7 +1605,7 @@ msgstr ""
 msgid "Payment details changed"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/IntegrationsPage.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/CreativesPage.php src/Admin/Tables/JobsTable.php src/Privacy/Privacy.php
 msgid "Type"
 msgstr ""
 
@@ -1645,7 +1661,7 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/PayoutsTable.php src/Admin/Tables/RulesTable.php src/Payouts/Statement.php
 msgid "Partner"
 msgstr ""
 
@@ -1665,7 +1681,7 @@ msgstr ""
 msgid "Rule"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CreativesTable.php src/Admin/Tables/RulesTable.php
 msgid "Group"
 msgstr ""
 
@@ -1673,7 +1689,7 @@ msgstr ""
 msgid "Bonus tier"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Tables/CreativesTable.php
 msgid "Creative"
 msgstr ""
 
@@ -1698,7 +1714,7 @@ msgstr ""
 msgid "All of \"%s\""
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php
 msgid "Action"
 msgstr ""
 
@@ -1718,7 +1734,7 @@ msgstr ""
 msgid "Object type"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php src/Portal/Portal.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CreativesTable.php src/Admin/Tables/JobsTable.php src/Portal/Portal.php
 msgid "All"
 msgstr ""
 
@@ -1735,27 +1751,7 @@ msgid "Order: everything about one order (attribution, commissions, refunds, man
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
-msgid "Object"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php src/Admin/Tables/CommissionsTable.php
-msgid "Details"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php
-msgid "No entries match this filter."
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php
-msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php
-msgid "No entries match the filter."
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php
-msgid "Older entries"
+msgid "Search entries"
 msgstr ""
 
 #. translators: 1: number of errors, 2: message
@@ -1853,7 +1849,7 @@ msgstr ""
 msgid "Base"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/RulesTable.php src/Portal/Portal.php
 msgid "Rate"
 msgstr ""
 
@@ -2004,23 +2000,7 @@ msgid "Only approved versions are shown to partners. Every change creates a new 
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
-msgid "Disclosure"
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php
-msgid "No creatives yet."
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php
-msgid "New version"
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php
-msgid "Archive this creative? Partners will no longer see it."
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php
-msgid "Archive"
+msgid "Search creatives"
 msgstr ""
 
 #. translators: 1: title, 2: version
@@ -2858,41 +2838,13 @@ msgstr ""
 msgid "check"
 msgstr ""
 
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
-msgstr ""
-
 #. translators: %d: number
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Retry all failed jobs (%d)"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "Attempts"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Next attempt"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "log"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Error while booking."
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Retry now"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Dismiss this job? It will not be retried; a sale in it stays without commission."
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Dismiss"
+msgid "Search jobs"
 msgstr ""
 
 #. translators: %d: number of payouts
@@ -3209,33 +3161,11 @@ msgid "cannot be checked (no exchange rate for %s)"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Search payouts"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Read-only view: you can open the payouts and download credit notes and cancellations, but not create, export or change payouts."
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Select all"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Bank details"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "No payouts with this status."
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
-msgstr ""
-
-#. translators: %s: document number
-#. translators: %s: partner name
-#: src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php
-msgid "Select %s"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Other payment method (paid manually)"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -3321,6 +3251,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
 msgid "Payment method"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php
+msgid "Other payment method (paid manually)"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
@@ -3450,59 +3384,7 @@ msgid "Resolution: an exclusion always wins; otherwise the most specific rule ap
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
-msgid "Global"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "All products"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Product IDs"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Category IDs"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Product tag IDs"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "SKU / course code"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Applies to"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Products"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Priority"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
-msgid "Note"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "No rules yet – the program default applies to all sales."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
-msgid "Edit"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Delete this rule? Existing commissions are not changed."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Delete"
+msgid "Search rules"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -3513,12 +3395,20 @@ msgstr ""
 msgid "Add rule"
 msgstr ""
 
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/RulesTable.php
+msgid "Applies to"
+msgstr ""
+
 #: src/Admin/Pages/RulesPage.php
 msgid "Single partner"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "– group –"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/RulesTable.php
+msgid "Products"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -3543,6 +3433,14 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "per unit"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/RulesTable.php
+msgid "Priority"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/RulesTable.php src/Privacy/Privacy.php
+msgid "Note"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -3633,6 +3531,10 @@ msgstr ""
 msgid "No tier plans."
 msgstr ""
 
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/RulesTable.php
+msgid "Global"
+msgstr ""
+
 #: src/Admin/Pages/RulesPage.php
 msgid "Number of orders"
 msgstr ""
@@ -3693,6 +3595,14 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Product ID"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/RulesTable.php
+msgid "SKU / course code"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/Tables/RulesTable.php
+msgid "Category IDs"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4429,6 +4339,16 @@ msgstr ""
 msgid "No partners yet. Add the first partner yourself, or publish the application page so partners can apply."
 msgstr ""
 
+#. translators: %s: partner name
+#. translators: %s: document number
+#: src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/PayoutsTable.php
+msgid "Select %s"
+msgstr ""
+
+#: src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/RulesTable.php
+msgid "Edit"
+msgstr ""
+
 #: src/Admin/Tables/AffiliatesTable.php
 msgid "missing"
 msgstr ""
@@ -4443,6 +4363,22 @@ msgstr ""
 
 #: src/Admin/Tables/AffiliatesTable.php
 msgid "no account"
+msgstr ""
+
+#: src/Admin/Tables/AuditTable.php
+msgid "Object"
+msgstr ""
+
+#: src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php
+msgid "Details"
+msgstr ""
+
+#: src/Admin/Tables/AuditTable.php
+msgid "No entries match this filter."
+msgstr ""
+
+#: src/Admin/Tables/AuditTable.php
+msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
 msgstr ""
 
 #: src/Admin/Tables/CommissionsTable.php
@@ -4476,6 +4412,118 @@ msgstr ""
 #. translators: %d: commission ID
 #: src/Admin/Tables/CommissionsTable.php
 msgid "Select commission #%d"
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php
+msgid "Disclosure"
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php src/Admin/Tables/JobsTable.php src/Admin/Tables/RulesTable.php
+msgid "Actions"
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php
+msgid "No creatives match this search."
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php src/Admin/Tables/JobsTable.php src/Admin/Tables/PayoutsTable.php src/Admin/Tables/RulesTable.php
+msgid "Reset search"
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php
+msgid "No creatives yet."
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php
+msgid "New version"
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php
+msgid "Archive this creative? Partners will no longer see it."
+msgstr ""
+
+#: src/Admin/Tables/CreativesTable.php
+msgid "Archive"
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "Attempts"
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "Next attempt"
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "No jobs match this search or filter."
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "log"
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "Error while booking."
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "Retry now"
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "Dismiss this job? It will not be retried; a sale in it stays without commission."
+msgstr ""
+
+#: src/Admin/Tables/JobsTable.php
+msgid "Dismiss"
+msgstr ""
+
+#: src/Admin/Tables/PayoutsTable.php
+msgid "Bank details"
+msgstr ""
+
+#: src/Admin/Tables/PayoutsTable.php
+msgid "No payouts match this search."
+msgstr ""
+
+#: src/Admin/Tables/PayoutsTable.php
+msgid "No payouts with this status."
+msgstr ""
+
+#: src/Admin/Tables/PayoutsTable.php
+msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
+msgstr ""
+
+#: src/Admin/Tables/RulesTable.php
+msgid "All products"
+msgstr ""
+
+#: src/Admin/Tables/RulesTable.php
+msgid "Product IDs"
+msgstr ""
+
+#: src/Admin/Tables/RulesTable.php
+msgid "Product tag IDs"
+msgstr ""
+
+#: src/Admin/Tables/RulesTable.php
+msgid "No rules match this search."
+msgstr ""
+
+#: src/Admin/Tables/RulesTable.php
+msgid "No rules yet – the program default applies to all sales."
+msgstr ""
+
+#: src/Admin/Tables/RulesTable.php
+msgid "Delete this rule? Existing commissions are not changed."
+msgstr ""
+
+#: src/Admin/Tables/RulesTable.php
+msgid "Delete"
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php

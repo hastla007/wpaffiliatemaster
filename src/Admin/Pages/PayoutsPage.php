@@ -553,17 +553,9 @@ final class PayoutsPage {
 	 */
 	private static function render_list( $manage ) {
 		$status = Admin::get( 'status' );
-		$per    = 50;
-		list( $rows, $total ) = PayoutService::query(
-			array(
-				'status' => $status,
-				'limit'  => $per,
-				'offset' => ( Admin::paged() - 1 ) * $per,
-			)
-		);
 		$labels = PayoutService::status_labels();
-		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
-		$kept = wp_parse_args(
+		$status = isset( $labels[ $status ] ) ? $status : '';
+		$kept   = wp_parse_args(
 			Admin::kept_form( 'payout_bulk' ),
 			array(
 				'ids'    => array(),
@@ -571,6 +563,9 @@ final class PayoutsPage {
 				'reason' => '',
 			)
 		);
+		// List table (R5-O47): search, sorting and rows per page (screen options).
+		$table = new \WPAffiliateCaptain\Admin\Tables\PayoutsTable( $manage, $status, (array) $kept['ids'] );
+		$table->prepare_items();
 		echo '<h2>' . esc_html__( 'Payouts', 'affiliate-captain' ) . '</h2>';
 		// Status filter: e.g. everything exported (at the bank) that still has to be marked as paid.
 		$filters = array( '' => __( 'All', 'affiliate-captain' ) ) + $labels;
@@ -579,7 +574,11 @@ final class PayoutsPage {
 			$url     = Admin::url( 'wpac-payouts', '' === $key ? array() : array( 'status' => $key ) );
 			$links[] = (string) $status === (string) $key ? '<strong aria-current="page">' . esc_html( $label ) . '</strong>' : '<a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 		}
-		echo '<p class="subsubsub wpac-status-filter">' . implode( ' | ', $links ) . '</p><div class="clear"></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+		echo '<p class="subsubsub wpac-status-filter">' . implode( ' | ', $links ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+		echo '<form method="get" class="wpac-list-search">';
+		\WPAffiliateCaptain\Admin\Tables\ListTable::hidden_fields( 'wpac-payouts', array( 'status' => $status ), false );
+		$table->search_box( __( 'Search payouts', 'affiliate-captain' ), 'wpac-payout' );
+		echo '</form><div class="clear"></div>';
 		if ( $manage ) {
 			Admin::form_open( 'payout_export', 'wpac-inline' );
 			echo '<button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form>';
@@ -589,29 +588,8 @@ final class PayoutsPage {
 		}
 		// A download ends without a page change: admin.js reloads the list afterwards
 		// (data-wpac-reload-after), so the new status and the message about the download are shown.
-		echo '<table class="wp-list-table widefat striped"><thead><tr><td class="check-column">' . ( $manage ? '<input type="checkbox" class="wpac-cb-all" aria-label="' . esc_attr__( 'Select all', 'affiliate-captain' ) . '">' : '' ) . '</td><th>' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Period end', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Bank details', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
-		if ( ! $rows ) {
-			echo '<tr><td colspan="7">' . esc_html( '' !== (string) $status ? __( 'No payouts with this status.', 'affiliate-captain' ) : __( 'No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click "Preview".', 'affiliate-captain' ) ) . '</td></tr>';
-		}
-		foreach ( $rows as $p ) {
-			$aff  = AffiliateRepository::find( (int) $p->affiliate_id );
-			$snap = json_decode( (string) $p->profile_snapshot, true );
-			printf(
-				'<tr><th class="check-column">%s</th><td><a href="%s">%s</a></td><td>%s</td><td>%s</td><td><strong>%s</strong></td><td>%s</td><td>%s%s</td></tr>',
-				$manage && in_array( $p->status, array( 'pending', 'exported' ), true ) ? '<input type="checkbox" class="wpac-cb" name="ids[]" value="' . (int) $p->id . '"' . checked( in_array( (int) $p->id, array_map( 'intval', (array) $kept['ids'] ), true ), true, false ) . ' aria-label="' . esc_attr( sprintf( /* translators: %s: document number */ __( 'Select %s', 'affiliate-captain' ), $p->number ) ) . '">' : '',
-				esc_url( Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => $p->id ) ) ),
-				esc_html( $p->number ),
-				esc_html( $aff ? $aff->name : '#' . $p->affiliate_id ),
-				esc_html( mysql2date( get_option( 'date_format' ), $p->period_end ) ),
-				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
-				esc_html( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? __( 'Other payment method (paid manually)', 'affiliate-captain' ) : ( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) ),
-				Admin::badge( $p->status, $labels[ $p->status ] ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				$p->sepa_batch ? '<br><small>' . esc_html( $p->sepa_batch ) . '</small>' : ''
-			);
-		}
-		echo '</tbody></table>';
+		$table->display();
 		if ( ! $manage ) {
-			Admin::pager( $total, $per );
 			echo '</div>';
 			return;
 		}
@@ -637,7 +615,6 @@ final class PayoutsPage {
 		echo '<p data-wpac-depends="bulk_action=paid|cancel"><label><input type="checkbox" name="confirm" value="1"> ' . esc_html__( 'I confirm this action for the selected payouts (required for "Mark as paid" and "Cancel").', 'affiliate-captain' ) . '</label></p>';
 		echo '<p data-wpac-depends="bulk_action=sepa|csv|paypal"><label><input type="checkbox" name="reexport" value="1"> ' . esc_html__( 'Export again (only if the bank did not process the previous file)', 'affiliate-captain' ) . '</label></p>';
 		echo '<p data-wpac-depends="bulk_action=cancel"><label><input type="checkbox" name="confirm_not_sent" value="1"> ' . esc_html__( 'Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)', 'affiliate-captain' ) . '</label></p></fieldset></form>';
-		Admin::pager( $total, $per );
 		echo '</div>';
 	}
 

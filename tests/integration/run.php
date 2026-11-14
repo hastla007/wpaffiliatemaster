@@ -1538,6 +1538,7 @@ require __DIR__ . '/r8-g10.php';
 require __DIR__ . '/r9-h1.php';
 require __DIR__ . '/r9-h2.php';
 require __DIR__ . '/r9-h3.php';
+require __DIR__ . '/r10-j4.php';
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 

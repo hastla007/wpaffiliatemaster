@@ -64,7 +64,32 @@ final class Creatives {
 	}
 
 	/**
-	 * All versions, newest first.
+	 * Creatives for the admin list (every version).
+	 *
+	 * @param array $args status, search (title, text, disclosure, change note), limit, offset,
+	 *                    orderby (id, title, version, status, created_at, approved_at), order.
+	 * @return array [ rows, total ]
+	 */
+	public static function query( array $args = array() ) {
+		global $wpdb;
+		$where  = '1=1';
+		$params = array();
+		if ( ! empty( $args['status'] ) ) {
+			$where   .= ' AND status = %s';
+			$params[] = (string) $args['status'];
+		}
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( title LIKE %s OR content LIKE %s OR disclosure LIKE %s OR change_note LIKE %s )';
+			$params   = array_merge( $params, array( $like, $like, $like, $like ) );
+		}
+		// Default: newest creative first, its versions together (as all()).
+		return \WPAffiliateCaptain\Core\Paged::fetch( Db::table( 'creatives' ), $where, $params, $args, array( 'id', 'title', 'version', 'status', 'created_at', 'approved_at' ), 'family_id DESC, version DESC' );
+	}
+
+	/**
+	 * All creatives (every version), newest first.
 	 *
 	 * @return array
 	 */
