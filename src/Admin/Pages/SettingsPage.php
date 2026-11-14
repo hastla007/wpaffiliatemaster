@@ -184,6 +184,7 @@ final class SettingsPage {
 				'mail_from_name'        => __( 'Sender name', 'affiliate-captain' ),
 				'notify_payout_paid'    => __( 'E-mail to the partner when a payout was paid', 'affiliate-captain' ),
 				'notify_commissions'    => __( 'E-mail to partners about new, approved and rejected commissions', 'affiliate-captain' ),
+				'notify_admin_review'   => __( 'E-mail to the operator when commissions need review', 'affiliate-captain' ),
 				'checkout_field'        => __( 'Show partner code field at checkout (classic + blocks)', 'affiliate-captain' ),
 				'use_wc_session'        => __( 'Keep the code from a partner link in the WooCommerce shop session', 'affiliate-captain' ),
 				'cookie_mode'           => __( 'Affiliate cookie', 'affiliate-captain' ),
@@ -261,7 +262,7 @@ final class SettingsPage {
 	public static function tab_keys() {
 		return array(
 			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open' ),
-			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'report_admin', 'report_partners' ),
+			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'report_admin', 'report_partners' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
@@ -377,6 +378,10 @@ final class SettingsPage {
 		self::section( __( 'Notices to partners', 'affiliate-captain' ), 'emails' );
 		self::checkbox( 'notify_payout_paid', __( 'E-mail to the partner when a payout was paid', 'affiliate-captain' ), $s );
 		self::checkbox( 'notify_commissions', __( 'E-mail to partners about new, approved and rejected commissions', 'affiliate-captain' ), $s, __( 'At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary.', 'affiliate-captain' ) );
+		self::end();
+
+		self::section( __( 'Notices to the operator', 'affiliate-captain' ), 'emails' );
+		self::checkbox( 'notify_admin_review', __( 'E-mail to the operator when commissions need review', 'affiliate-captain' ), $s, __( 'Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically.', 'affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'Monthly reports', 'affiliate-captain' ), 'emails' );

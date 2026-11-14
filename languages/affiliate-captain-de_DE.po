@@ -8,6 +8,11 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: affiliate-captain\n"
 
+msgid "%d commission needs review"
+msgid_plural "%d commissions need review"
+msgstr[0] "%d Provision benötigt Prüfung"
+msgstr[1] "%d Provisionen benötigen Prüfung"
+
 msgid "Affiliate Captain: %d credit note could not be written (statement folder not writable?). It is tried again with increasing pauses."
 msgid_plural "Affiliate Captain: %d credit notes could not be written (statement folder not writable?). They are tried again with increasing pauses."
 msgstr[0] "Affiliate Captain: %d Gutschrift konnte nicht geschrieben werden (Belegordner nicht beschreibbar?). Sie wird mit wachsenden Pausen erneut versucht."
@@ -1539,6 +1544,11 @@ msgid_plural "%d applications waiting for review"
 msgstr[0] "%d Bewerbung wartet auf Prüfung"
 msgstr[1] "%d Bewerbungen warten auf Prüfung"
 
+msgid "%d commission needs review. It is not approved automatically."
+msgid_plural "%d commissions need review. They are not approved automatically."
+msgstr[0] "%d Provision benötigt Prüfung. Sie wird nicht automatisch freigegeben."
+msgstr[1] "%d Provisionen benötigen Prüfung. Sie werden nicht automatisch freigegeben."
+
 msgid "%d integration job failed"
 msgid_plural "%d integration jobs failed"
 msgstr[0] "%d Integrationsauftrag fehlgeschlagen"
@@ -1639,6 +1649,9 @@ msgstr "Seiten automatisch anlegen"
 
 msgid "Creates \"Become a partner\", \"Partner area\" and a landing page with the matching blocks, and a draft of the partner terms from a template (review it with your legal advisor, then publish it)."
 msgstr "Legt „Partner werden“, „Partnerbereich“ und eine Landingpage mit den passenden Blöcken an sowie einen Entwurf der Partnerbedingungen aus einer Vorlage (mit Ihrer Rechtsberatung prüfen, dann veröffentlichen)."
+
+msgid "Review commissions"
+msgstr "Provisionen prüfen"
 
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr "Beträge in %s sind in den Geldspalten nicht enthalten (kein Referenzkurs in den Einstellungen)."
@@ -2859,6 +2872,9 @@ msgstr "E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde"
 msgid "E-mail to partners about new, approved and rejected commissions"
 msgstr "E-Mail an Partner über neue, freigegebene und abgelehnte Provisionen"
 
+msgid "E-mail to the operator when commissions need review"
+msgstr "E-Mail an den Betreiber, wenn Provisionen geprüft werden müssen"
+
 msgid "Show partner code field at checkout (classic + blocks)"
 msgstr "Partnercode-Feld an der Kasse anzeigen (Classic + Blocks)"
 
@@ -3017,6 +3033,12 @@ msgstr "Benachrichtigungen an Partner"
 
 msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
 msgstr "Höchstens eine E-Mail je Partner und Lauf (z. B. alle Freigaben des stündlichen Laufs zusammen). Partner können sich über einen Link in der E-Mail abmelden, wie von der Monatsübersicht."
+
+msgid "Notices to the operator"
+msgstr "Hinweise an den Betreiber"
+
+msgid "Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically."
+msgstr "Wird höchstens einmal pro Stunde an die Benachrichtigungs-E-Mail gesendet, mit der Zahl der wartenden Provisionen (z. B. Eigenempfehlungen oder von der Betrugsprüfung markierte Bestellungen). Markierte Provisionen werden nie automatisch freigegeben."
 
 msgid "Monthly reports"
 msgstr "Monatsberichte"
@@ -3860,6 +3882,27 @@ msgstr "Unbekannter Partner oder unbekannte Währung."
 
 msgid "The booking could not be saved (database error). Please try again."
 msgstr "Die Buchung konnte nicht gespeichert werden (Datenbankfehler). Bitte erneut versuchen."
+
+msgid "[%1$s] %2$d commission needs review"
+msgid_plural "[%1$s] %2$d commissions need review"
+msgstr[0] "[%1$s] %2$d Provision benötigt Prüfung"
+msgstr[1] "[%1$s] %2$d Provisionen benötigen Prüfung"
+
+msgid "%d commission entered \"Needs review\" since the last notice."
+msgid_plural "%d commissions entered \"Needs review\" since the last notice."
+msgstr[0] "Seit dem letzten Hinweis ist %d Provision auf „Prüfung nötig“ gesetzt worden."
+msgstr[1] "Seit dem letzten Hinweis sind %d Provisionen auf „Prüfung nötig“ gesetzt worden."
+
+msgid "In total %d commission is waiting for your decision. It is not approved automatically."
+msgid_plural "In total %d commissions are waiting for your decision. They are not approved automatically."
+msgstr[0] "Insgesamt wartet %d Provision auf Ihre Entscheidung. Sie wird nicht automatisch freigegeben."
+msgstr[1] "Insgesamt warten %d Provisionen auf Ihre Entscheidung. Sie werden nicht automatisch freigegeben."
+
+msgid "Review now:"
+msgstr "Jetzt prüfen:"
+
+msgid "You receive at most one such e-mail per hour. Switch it off under Settings > E-mails."
+msgstr "Sie erhalten höchstens eine solche E-Mail pro Stunde. Sie können sie unter Einstellungen > E-Mails abschalten."
 
 msgid "Please enter a valid rate."
 msgstr "Bitte geben Sie einen gültigen Satz ein."

@@ -43,6 +43,18 @@
   "%d Bewerbung wartet auf Prüfung",
   "%d Bewerbungen warten auf Prüfung"
  ],
+ "%d commission entered \"Needs review\" since the last notice.": [
+  "Seit dem letzten Hinweis ist %d Provision auf „Prüfung nötig“ gesetzt worden.",
+  "Seit dem letzten Hinweis sind %d Provisionen auf „Prüfung nötig“ gesetzt worden."
+ ],
+ "%d commission needs review": [
+  "%d Provision benötigt Prüfung",
+  "%d Provisionen benötigen Prüfung"
+ ],
+ "%d commission needs review. It is not approved automatically.": [
+  "%d Provision benötigt Prüfung. Sie wird nicht automatisch freigegeben.",
+  "%d Provisionen benötigen Prüfung. Sie werden nicht automatisch freigegeben."
+ ],
  "%d commission rule of the group was deactivated.": [
   "%d Provisionsregel der Gruppe wurde deaktiviert.",
   "%d Provisionsregeln der Gruppe wurden deaktiviert."
@@ -723,6 +735,7 @@
  "E-mail notifications": "E-Mail-Benachrichtigungen",
  "E-mail settings": "E-Mail-Einstellungen",
  "E-mail to partners about new, approved and rejected commissions": "E-Mail an Partner über neue, freigegebene und abgelehnte Provisionen",
+ "E-mail to the operator when commissions need review": "E-Mail an den Betreiber, wenn Provisionen geprüft werden müssen",
  "E-mail to the partner when a payout was paid": "E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde",
  "E-mails": "E-Mails",
  "E-mails & reports": "E-Mails & Berichte",
@@ -874,6 +887,10 @@
  "Imported active partners receive a welcome e-mail.": "Importierte aktive Partner erhalten eine Willkommens-E-Mail.",
  "Imported partners receive the usual e-mails.": "Die importierten Partner erhalten die üblichen E-Mails.",
  "In progress": "In Bearbeitung",
+ "In total %d commission is waiting for your decision. It is not approved automatically.": [
+  "Insgesamt wartet %d Provision auf Ihre Entscheidung. Sie wird nicht automatisch freigegeben.",
+  "Insgesamt warten %d Provisionen auf Ihre Entscheidung. Sie werden nicht automatisch freigegeben."
+ ],
  "Inactive": "Inaktiv",
  "Include tax and bank data (payout details with full IBANs, tax data of payouts)": "Steuer- und Bankdaten einschließen (Auszahlungsdaten mit vollständiger IBAN, Steuerdaten der Auszahlungen)",
  "Includes approved commissions and corrections up to the period end. Minimum payout: %s. Negative balances and amounts below the minimum are carried forward.": "Enthält freigegebene Provisionen und Korrekturen bis zum Periodenende. Mindestauszahlung: %s. Negative Salden und Beträge unter dem Minimum werden vorgetragen.",
@@ -1115,6 +1132,7 @@
  "Note for partners": "Hinweis für Partner",
  "Nothing payable any more (changed meanwhile) – carried forward": "Nichts mehr auszahlbar (inzwischen geändert) – vorgetragen",
  "Notices to partners": "Benachrichtigungen an Partner",
+ "Notices to the operator": "Hinweise an den Betreiber",
  "Notification e-mail": "Benachrichtigungs-E-Mail",
  "Number": "Anzahl",
  "Number of orders": "Anzahl Bestellungen",
@@ -1571,6 +1589,8 @@
  "Reverse charge: the recipient of the service is liable for VAT (Bezugsteuer, Art. 45 MWSTG).": "Reverse Charge: Die Steuer schuldet der Leistungsempfänger (Bezugsteuer, Art. 45 MWSTG).",
  "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive).": "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge, § 13b UStG / Art. 196 MwStSystRL).",
  "Reverse charge: the recipient of the service is liable for VAT (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 VAT Directive).": "Reverse Charge: Die Steuer schuldet der Leistungsempfänger (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 MwStSystRL).",
+ "Review commissions": "Provisionen prüfen",
+ "Review now:": "Jetzt prüfen:",
  "Review orders above (net)": "Bestellungen prüfen ab (netto)",
  "Review orders with disposable or blocked e-mail domains": "Bestellungen mit Wegwerf- oder gesperrten E-Mail-Domains prüfen",
  "Review reasons": "Prüfgründe",
@@ -1650,6 +1670,7 @@
  "Sender name": "Absendername",
  "Sent": "Gesendet",
  "Sent on the first days of the month for the previous month.": "Wird in den ersten Tagen des Monats für den Vormonat versendet.",
+ "Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically.": "Wird höchstens einmal pro Stunde an die Benachrichtigungs-E-Mail gesendet, mit der Zahl der wartenden Provisionen (z. B. Eigenempfehlungen oder von der Betrugsprüfung markierte Bestellungen). Markierte Provisionen werden nie automatisch freigegeben.",
  "Service": "Leistung",
  "Service period until": "Leistungszeitraum bis",
  "Settings": "Einstellungen",
@@ -2095,6 +2116,7 @@
  "You do not have a partner account yet.": "Sie haben noch kein Partnerkonto.",
  "You have been unsubscribed. You will no longer receive these e-mails from the partner program.": "Sie wurden abgemeldet. Sie erhalten diese E-Mails des Partnerprogramms nicht mehr.",
  "You have sent several requests today. Please try again tomorrow or contact us by e-mail.": "Sie haben heute bereits mehrere Anfragen gesendet. Bitte versuchen Sie es morgen erneut oder schreiben Sie uns eine E-Mail.",
+ "You receive at most one such e-mail per hour. Switch it off under Settings > E-mails.": "Sie erhalten höchstens eine solche E-Mail pro Stunde. Sie können sie unter Einstellungen > E-Mails abschalten.",
  "You will receive these e-mails again.": "Sie erhalten diese E-Mails wieder.",
  "Your VAT ID": "Ihre USt-IdNr.",
  "Your VAT ID could not be confirmed in the EU VIES database. Please check it under \"Payout details\".": "Ihre USt-IdNr. konnte in der EU-Datenbank VIES nicht bestätigt werden. Bitte prüfen Sie sie unter „Auszahlungsdaten“.",
@@ -2158,6 +2180,10 @@
  "Your site may receive too few visits or block loopback requests: set up a system cron that runs \"wp cron event run --due-now\".": "Ihre Seite hat möglicherweise zu wenige Besucher oder blockiert Loopback-Anfragen: Richten Sie einen System-Cron ein, der „wp cron event run --due-now“ ausführt.",
  "Your submission could not be processed.": "Ihre Eingabe konnte nicht verarbeitet werden.",
  "Your tax number (if no VAT ID)": "Ihre Steuernummer (falls keine USt-IdNr.)",
+ "[%1$s] %2$d commission needs review": [
+  "[%1$s] %2$d Provision benötigt Prüfung",
+  "[%1$s] %2$d Provisionen benötigen Prüfung"
+ ],
  "[%1$s] Credit note %2$s": "[%1$s] Gutschrift %2$s",
  "[%1$s] Credit note %2$s cancelled": "[%1$s] Gutschrift %2$s storniert",
  "[%1$s] Payout %2$s paid": "[%1$s] Auszahlung %2$s bezahlt",

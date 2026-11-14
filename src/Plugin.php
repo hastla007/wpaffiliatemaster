@@ -55,6 +55,7 @@ final class Plugin {
 		\WPAffiliateCaptain\Tracking\Consent::register_hooks();
 		Registration::register_hooks();
 		\WPAffiliateCaptain\Affiliates\Notifications::register_hooks();
+		\WPAffiliateCaptain\Commissions\ReviewAlert::register_hooks(); // Review count cache and digest mail (R5-W58).
 		Portal::register_hooks();
 		\WPAffiliateCaptain\Promotion\Landing::register_hooks();
 		\WPAffiliateCaptain\Content\Editor::register_hooks();

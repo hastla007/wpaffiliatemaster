@@ -1298,6 +1298,7 @@ final class Ledger {
 		if ( ! $ok ) {
 			return false;
 		}
+		ReviewAlert::flush(); // Menu bubble count, also when the hooks are fired later.
 		if ( $fire_hooks ) {
 			do_action( 'wpac_commission_' . $to, (int) $id );
 		}

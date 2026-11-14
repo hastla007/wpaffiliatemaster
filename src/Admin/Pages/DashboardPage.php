@@ -255,6 +255,11 @@ final class DashboardPage {
 			/* translators: %d: count */
 			echo '<div class="notice notice-warning inline"><p><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'status' => 'pending' ) ) ) . '">' . esc_html( sprintf( _n( '%d application waiting for review', '%d applications waiting for review', $counts['pending'], 'affiliate-captain' ), $counts['pending'] ) ) . '</a></p></div>';
 		}
+		$review = \WPAffiliateCaptain\Commissions\ReviewAlert::count_for_user();
+		if ( $review ) {
+			/* translators: %d: count */
+			echo '<div class="notice notice-warning inline wpac-review-notice"><p>' . esc_html( sprintf( _n( '%d commission needs review. It is not approved automatically.', '%d commissions need review. They are not approved automatically.', $review, 'affiliate-captain' ), $review ) ) . ' <a href="' . esc_url( Admin::url( 'wpac-commissions', array( 'status' => 'review' ) ) ) . '">' . esc_html__( 'Review commissions', 'affiliate-captain' ) . '</a></p></div>';
+		}
 		if ( $failed ) {
 			/* translators: %d: count */
 			echo '<div class="notice notice-error inline"><p><a href="' . esc_url( Admin::url( 'wpac-integrations', array( 'tab' => 'queue' ) ) ) . '">' . esc_html( sprintf( _n( '%d integration job failed', '%d integration jobs failed', $failed, 'affiliate-captain' ), $failed ) ) . '</a></p></div>';
