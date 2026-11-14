@@ -194,3 +194,127 @@ if ( ! function_exists( 'wpac_release_payout' ) ) {
 		return \WPAffiliateCaptain\Payouts\PayoutService::release_claim( (int) $payout_id, (string) $claim, (string) $reason );
 	}
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * Read and write API for add-ons (contract 1.3.0). Plain arrays with stable fields (see
+ * docs/CONTRACT.md, "Lese- und Schreib-API (1.3.0)") or WP_Error. These functions do NOT check
+ * the current user (PHP API for trusted code): REST/AJAX wrappers must check the capability
+ * wpac_manage_affiliates (partners, commissions) or wpac_manage_payouts (payouts, approving
+ * before the end of the hold period) themselves. Writes are audited with the current user.
+ * ---------------------------------------------------------------------------
+ */
+
+if ( ! function_exists( 'wpac_get_affiliate' ) ) {
+	/**
+	 * One partner.
+	 *
+	 * @since contract 1.3.0
+	 * @param int $id Partner ID.
+	 * @return array|null { id, user_id, group_id, status, status_reason, slug, name, email, website,
+	 *                        channel, created_at, updated_at, approved_at }, or null when unknown.
+	 */
+	function wpac_get_affiliate( $id ) {
+		return \WPAffiliateCaptain\Core\PublicApi::get_affiliate( $id );
+	}
+}
+
+if ( ! function_exists( 'wpac_get_affiliates' ) ) {
+	/**
+	 * List partners.
+	 *
+	 * @since contract 1.3.0
+	 * @param array $args status, group, search, per_page (1–100, default 20), page, orderby
+	 *                    (id|name|status|created_at), order (asc|desc).
+	 * @return array|WP_Error { items (as wpac_get_affiliate()), total, page, per_page }
+	 */
+	function wpac_get_affiliates( array $args = array() ) {
+		return \WPAffiliateCaptain\Core\PublicApi::get_affiliates( $args );
+	}
+}
+
+if ( ! function_exists( 'wpac_get_commission' ) ) {
+	/**
+	 * One ledger row (commission, correction, bonus, manual booking …).
+	 *
+	 * @since contract 1.3.0
+	 * @param int $id Commission ID.
+	 * @return array|null See docs/CONTRACT.md, or null when unknown.
+	 */
+	function wpac_get_commission( $id ) {
+		return \WPAffiliateCaptain\Core\PublicApi::get_commission( $id );
+	}
+}
+
+if ( ! function_exists( 'wpac_get_commissions' ) ) {
+	/**
+	 * List ledger rows.
+	 *
+	 * @since contract 1.3.0
+	 * @param array $args affiliate_id, status, kind, from, to (Y-m-d), per_page (1–100), page, orderby, order.
+	 * @return array|WP_Error { items (as wpac_get_commission()), total, page, per_page }
+	 */
+	function wpac_get_commissions( array $args = array() ) {
+		return \WPAffiliateCaptain\Core\PublicApi::get_commissions( $args );
+	}
+}
+
+if ( ! function_exists( 'wpac_update_affiliate' ) ) {
+	/**
+	 * Change name, website, channel or group of a partner (validated like the admin form, audited).
+	 *
+	 * @since contract 1.3.0
+	 * @param int   $id   Partner ID.
+	 * @param array $data name, website, channel, group (ID, 0 = none); other keys → WP_Error.
+	 * @return array|WP_Error The partner (as wpac_get_affiliate()).
+	 */
+	function wpac_update_affiliate( $id, array $data ) {
+		return \WPAffiliateCaptain\Core\PublicApi::update_affiliate( $id, $data );
+	}
+}
+
+if ( ! function_exists( 'wpac_set_affiliate_status' ) ) {
+	/**
+	 * Change the status of a partner with the admin rules (e-mails, termination steps, audit).
+	 *
+	 * @since contract 1.3.0
+	 * @param int    $id     Partner ID.
+	 * @param string $status pending|active|paused|terminated|rejected.
+	 * @param string $reason Reason (required for paused, terminated, rejected).
+	 * @return array|WP_Error The partner (as wpac_get_affiliate()).
+	 */
+	function wpac_set_affiliate_status( $id, $status, $reason = '' ) {
+		return \WPAffiliateCaptain\Core\PublicApi::set_affiliate_status( $id, $status, $reason );
+	}
+}
+
+if ( ! function_exists( 'wpac_set_commission_status' ) ) {
+	/**
+	 * Approve or reject a commission with the ledger rules (audited).
+	 *
+	 * @since contract 1.3.0
+	 * @param int    $id     Commission ID.
+	 * @param string $status approved|rejected.
+	 * @param string $reason Reason (required for rejected).
+	 * @return array|WP_Error The commission (as wpac_get_commission()).
+	 */
+	function wpac_set_commission_status( $id, $status, $reason = '' ) {
+		return \WPAffiliateCaptain\Core\PublicApi::set_commission_status( $id, $status, $reason );
+	}
+}
+
+if ( ! function_exists( 'wpac_create_adjustment' ) ) {
+	/**
+	 * Manual booking for a partner, approved at once (audited; fires wpac_commission_created).
+	 *
+	 * @since contract 1.3.0
+	 * @param int    $affiliate_id Partner ID.
+	 * @param int    $amount_minor Amount in minor units (not 0; negative = deduction).
+	 * @param string $currency     ISO 4217 code.
+	 * @param string $reason       Reason (required, shown to the partner).
+	 * @return array|WP_Error The booking (as wpac_get_commission()).
+	 */
+	function wpac_create_adjustment( $affiliate_id, $amount_minor, $currency, $reason ) {
+		return \WPAffiliateCaptain\Core\PublicApi::create_adjustment( $affiliate_id, $amount_minor, $currency, $reason );
+	}
+}

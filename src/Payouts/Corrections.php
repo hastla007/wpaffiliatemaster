@@ -255,6 +255,12 @@ final class Corrections {
 					$cid = (int) $wpdb->insert_id;
 					Balance::post( (int) $p->affiliate_id, (string) $p->currency, 'correction', $a['diff_gross'], $cid, (int) $p->id, $number );
 					Ledger::event( $cid, 'created', '', 'approved', $a['diff_gross'], 'correction: ' . $number . ' (' . $p->number . ')', $key, get_current_user_id() );
+					// After COMMIT (dropped on rollback), like the other ledger bookings.
+					Db::after_commit(
+						static function () use ( $cid ) {
+							do_action( 'wpac_commission_created', $cid );
+						}
+					);
 					$ok = $wpdb->insert(
 						Db::table( self::TABLE ),
 						array(

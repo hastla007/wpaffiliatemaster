@@ -1199,6 +1199,12 @@ final class Ledger {
 					Balance::post( (int) $child->affiliate_id, $child->currency, 'approved', $amount, $id, 0, 'reinstatement' );
 					self::event( $id, 'created', '', 'approved', $amount, 'reinstatement: ' . $reason, 'reinstate-' . (int) $child->id );
 					self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount, 'reinstatement', 'reinstate-' . (int) $child->id );
+					// After COMMIT (dropped on rollback), like the other ledger bookings.
+					Db::after_commit(
+						static function () use ( $id ) {
+							do_action( 'wpac_commission_created', $id );
+						}
+					);
 				}
 			);
 			++$n;
@@ -1512,7 +1518,11 @@ final class Ledger {
 				'reason'     => $reason,
 			)
 		);
-		do_action( 'wpac_commission_created', $id );
+		Db::after_commit(
+			static function () use ( $id ) {
+				do_action( 'wpac_commission_created', $id );
+			}
+		);
 		return $id;
 	}
 
@@ -1619,6 +1629,12 @@ final class Ledger {
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $affiliate_id, $currency, 'approved', -$open, $id, 0, 'write-off' );
 					self::event( $id, 'created', '', 'approved', -$open, 'write-off: ' . $reason, $key, get_current_user_id() );
+					// After COMMIT (dropped on rollback), like the other ledger bookings.
+					Db::after_commit(
+						static function () use ( $id ) {
+							do_action( 'wpac_commission_created', $id );
+						}
+					);
 					Audit::log(
 						'commission.written_off',
 						'affiliate',
@@ -1965,7 +1981,7 @@ final class Ledger {
 	/**
 	 * List commissions.
 	 *
-	 * @param array $args affiliate_id, status, source, from, to (Y-m-d), order_id, limit, offset.
+	 * @param array $args affiliate_id, status, kind, source, from, to (Y-m-d), order_id, limit, offset.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -2025,6 +2041,10 @@ final class Ledger {
 		if ( ! empty( $args['status'] ) && in_array( $args['status'], self::STATUSES, true ) ) {
 			$where   .= ' AND status = %s';
 			$params[] = $args['status'];
+		}
+		if ( ! empty( $args['kind'] ) && array_key_exists( (string) $args['kind'], self::kind_labels() ) ) {
+			$where   .= ' AND kind = %s';
+			$params[] = (string) $args['kind'];
 		}
 		if ( ! empty( $args['source'] ) ) {
 			$where   .= ' AND source = %s';

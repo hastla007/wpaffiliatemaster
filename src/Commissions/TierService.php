@@ -342,7 +342,11 @@ final class TierService {
 				}
 			);
 			if ( $id ) {
-				do_action( 'wpac_commission_created', $id );
+				Db::after_commit(
+					static function () use ( $id ) {
+						do_action( 'wpac_commission_created', $id );
+					}
+				);
 				++$created;
 			}
 		}
@@ -604,6 +608,12 @@ final class TierService {
 					$id = (int) $wpdb->insert_id;
 					Ledger::event( $id, 'created', '', 'approved', $delta, 'tier_bonus_correction ' . $month, $key, 0 );
 					Balance::post( $affiliate_id, $currency, 'approved', $delta, $id, 0, 'tier correction ' . $month );
+					// After COMMIT (dropped on rollback), like the other ledger bookings.
+					Db::after_commit(
+						static function () use ( $id ) {
+							do_action( 'wpac_commission_created', $id );
+						}
+					);
 					return $id;
 				}
 			);

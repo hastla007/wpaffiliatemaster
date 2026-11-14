@@ -4337,6 +4337,12 @@ msgstr "[%s] Partnerprogramm braucht Aufmerksamkeit"
 msgid "The daily check of the partner program found problems:\n\n%1$s\n\nDetails: Tools → Site Health, or %2$s"
 msgstr "Die tägliche Prüfung des Partnerprogramms hat Probleme gefunden:\n\n%1$s\n\nDetails: Werkzeuge → Website-Zustand, oder %2$s"
 
+msgid "These fields cannot be changed: %s"
+msgstr "Diese Felder können nicht geändert werden: %s"
+
+msgid "Invalid value for \"%s\"."
+msgstr "Ungültiger Wert für „%s“."
+
 msgid "Advertisement"
 msgstr "Werbung"
 
