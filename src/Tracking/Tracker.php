@@ -41,7 +41,7 @@ final class Tracker {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_beacon' ) );
 		add_filter( 'wp_consent_api_registered_' . plugin_basename( WPAC_FILE ), '__return_true' );
 		// Expired rate-limit counters are removed every hour (not once a day).
-		add_action( 'wpac_hourly', array( RateLimiter::class, 'purge' ) );
+		add_action( 'wpac_hourly', array( RateLimiter::class, 'hourly_purge' ) );
 		add_filter( 'site_status_tests', array( __CLASS__, 'site_status_tests' ) );
 	}
 

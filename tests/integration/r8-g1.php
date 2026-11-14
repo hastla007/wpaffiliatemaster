@@ -300,7 +300,7 @@ for ( $i = 0; $i < 12; $i++ ) {
 	$wpdb->query( $wpdb->prepare( "INSERT INTO {$g1_rl} (rl_key, hits, expires_at) VALUES (UNHEX(%s), 1, %d)", md5( 'g1-old-' . $i ), time() - 10 ) );
 }
 check( 'R5-W31 expired counters purged (hourly hook)', array( true, 0 ), array( RateLimiter::purge() >= 12, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$g1_rl} WHERE expires_at < %d", time() ) ) ) );
-check( 'R5-W31 purge runs every hour', true, isset( $GLOBALS['test_hooks']['wpac_hourly'] ) && (bool) array_filter( $GLOBALS['test_hooks']['wpac_hourly'][10], static function ( $h ) { return is_array( $h[0] ) && 'purge' === $h[0][1]; } ) );
+check( 'R5-W31 purge runs every hour', true, isset( $GLOBALS['test_hooks']['wpac_hourly'] ) && (bool) array_filter( $GLOBALS['test_hooks']['wpac_hourly'][10], static function ( $h ) { return is_array( $h[0] ) && 'hourly_purge' === $h[0][1]; } ) );
 // Migration: a char(32) table of an older version becomes BINARY(16).
 $wpdb->query( "DROP TABLE {$g1_rl}" );
 $wpdb->query( "CREATE TABLE {$g1_rl} ( rl_key char(32) NOT NULL, hits int(10) unsigned NOT NULL DEFAULT 0, expires_at int(10) unsigned NOT NULL DEFAULT 0, PRIMARY KEY (rl_key), KEY expires_at (expires_at) )" );

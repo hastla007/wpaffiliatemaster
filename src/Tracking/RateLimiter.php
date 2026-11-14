@@ -223,6 +223,13 @@ final class RateLimiter {
 	}
 
 	/**
+	 * Hook callback for "wpac_hourly" (actions return nothing): see purge().
+	 */
+	public static function hourly_purge() {
+		self::purge();
+	}
+
+	/**
 	 * Delete expired counters in small batches. Runs hourly, so the table never holds more
 	 * than about an hour of expired rows, however many visits there are.
 	 *

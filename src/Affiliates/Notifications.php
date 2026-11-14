@@ -535,9 +535,16 @@ final class Notifications {
 			return;
 		}
 		if ( ! self::$commission_events ) {
-			add_action( 'shutdown', array( __CLASS__, 'flush_commissions' ) );
+			add_action( 'shutdown', array( __CLASS__, 'flush_on_shutdown' ) );
 		}
 		self::$commission_events[ (int) $c->affiliate_id ][ $event ][] = $c;
+	}
+
+	/**
+	 * Hook callback for "shutdown" (actions return nothing): see flush_commissions().
+	 */
+	public static function flush_on_shutdown() {
+		self::flush_commissions();
 	}
 
 	/**

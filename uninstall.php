@@ -88,7 +88,7 @@ function wpac_uninstall_site() {
 		// With WPAC_STATEMENT_DIR also the uploads folder used before the constant was defined.
 		$wpac_uploads = trailingslashit( wp_upload_dir( null, false )['basedir'] ) . 'wpac-statements';
 		$wpac_custom  = defined( 'WPAC_STATEMENT_DIR' ) && WPAC_STATEMENT_DIR;
-		$wpac_root    = $wpac_custom ? untrailingslashit( WPAC_STATEMENT_DIR ) : $wpac_uploads;
+		$wpac_root    = $wpac_custom ? untrailingslashit( (string) constant( 'WPAC_STATEMENT_DIR' ) ) : $wpac_uploads;
 		$wpac_dirs    = array( $wpac_root );
 		if ( is_multisite() && $wpac_custom ) {
 			array_unshift( $wpac_dirs, $wpac_root . '/site-' . (int) get_current_blog_id() );

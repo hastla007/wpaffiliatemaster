@@ -190,6 +190,13 @@ final class Lifecycle {
 	const SWEEP_BUDGET = 10;
 
 	/**
+	 * Hook callback for "init" (actions return nothing): see followup().
+	 */
+	public static function run_followup() {
+		self::followup();
+	}
+
+	/**
 	 * After a takeover (first request of the new copy on a site): what the activation hook would
 	 * have done, and on a network the "delete all data" switch of every site.
 	 */
