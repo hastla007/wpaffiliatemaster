@@ -3043,6 +3043,15 @@ msgstr "Einstellungen Affiliate Captain"
 msgid "Settings sections"
 msgstr "Einstellungsbereiche"
 
+msgid "Record of processing activities"
+msgstr "Verzeichnis von Verarbeitungstätigkeiten"
+
+msgid "Template for your record of processing activities (Art. 30 GDPR), filled with your current settings."
+msgstr "Vorlage für Ihr Verzeichnis von Verarbeitungstätigkeiten (Art. 30 DSGVO), ausgefüllt mit Ihren aktuellen Einstellungen."
+
+msgid "Download template (Markdown)"
+msgstr "Vorlage herunterladen (Markdown)"
+
 msgid "Pages & terms"
 msgstr "Seiten & Bedingungen"
 
@@ -3270,15 +3279,6 @@ msgstr "Deinstallation"
 
 msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
 msgstr "Provisions- und Auszahlungsdaten, Gutschriften und das Protokoll bleiben erhalten, solange eine Gutschrift in der Aufbewahrungsfrist liegt; alles andere wird gelöscht."
-
-msgid "Record of processing activities"
-msgstr "Verzeichnis von Verarbeitungstätigkeiten"
-
-msgid "Template for your record of processing activities (Art. 30 GDPR), filled with your current settings."
-msgstr "Vorlage für Ihr Verzeichnis von Verarbeitungstätigkeiten (Art. 30 DSGVO), ausgefüllt mit Ihren aktuellen Einstellungen."
-
-msgid "Download template (Markdown)"
-msgstr "Vorlage herunterladen (Markdown)"
 
 msgid "A token is set – enter a new one to replace it"
 msgstr "Ein Token ist gesetzt – geben Sie ein neues ein, um es zu ersetzen"
@@ -3829,6 +3829,21 @@ msgstr "Zum Partnerbereich"
 msgid "You already have a partner account."
 msgstr "Sie haben bereits ein Partnerkonto."
 
+msgid "Fields marked with * are required."
+msgstr "Mit * markierte Felder sind Pflichtfelder."
+
+msgid "Application as: %s"
+msgstr "Bewerbung als: %s"
+
+msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
+msgstr "Kanal (z. B. Instagram, YouTube, Newsletter, Schule)"
+
+msgid "How do you want to promote us?"
+msgstr "Wie möchten Sie uns bewerben?"
+
+msgid "Apply now"
+msgstr "Jetzt bewerben"
+
 msgid "The form expired. Please try again."
 msgstr "Das Formular ist abgelaufen. Bitte versuchen Sie es erneut."
 
@@ -3853,18 +3868,6 @@ msgstr "Ihre Bewerbung konnte nicht gespeichert werden. Bitte versuchen Sie es s
 msgid "Which kind of partner are you?"
 msgstr "Welche Art von Partner sind Sie?"
 
-msgid "Fields marked with * are required."
-msgstr "Mit * markierte Felder sind Pflichtfelder."
-
-msgid "Application as: %s"
-msgstr "Bewerbung als: %s"
-
-msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
-msgstr "Kanal (z. B. Instagram, YouTube, Newsletter, Schule)"
-
-msgid "How do you want to promote us?"
-msgstr "Wie möchten Sie uns bewerben?"
-
 msgid "I accept the %1$s (version %2$s)."
 msgstr "Ich akzeptiere die %1$s (Version %2$s)."
 
@@ -3876,9 +3879,6 @@ msgstr "Wir verwenden Ihre Angaben, um Ihre Bewerbung zu prüfen und nach einer 
 
 msgid "Privacy policy"
 msgstr "Datenschutzerklärung"
-
-msgid "Apply now"
-msgstr "Jetzt bewerben"
 
 msgid "Codes need at least 3 characters."
 msgstr "Codes benötigen mindestens 3 Zeichen."
@@ -5126,6 +5126,21 @@ msgstr "Banküberweisung (SEPA, IBAN)"
 msgid "Other payment method (e.g. PayPal), paid manually"
 msgstr "Andere Auszahlungsart (z. B. PayPal), manuelle Zahlung"
 
+msgid "Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer."
+msgstr "Auszahlungen über eine andere Auszahlungsart werden nicht angeboten. Bitte geben Sie Ihre IBAN für eine Überweisung ein."
+
+msgid "Please enter your payment details (e.g. your PayPal address)."
+msgstr "Bitte geben Sie Ihre Zahlungsangaben ein (z. B. Ihre PayPal-Adresse)."
+
+msgid "Please enter your IBAN for payouts by bank transfer."
+msgstr "Bitte geben Sie Ihre IBAN für Auszahlungen per Banküberweisung ein."
+
+msgid "The IBAN is not valid."
+msgstr "Die IBAN ist ungültig."
+
+msgid "Your payout details could not be saved. Please try again; your previous details are unchanged."
+msgstr "Ihre Auszahlungsdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut; Ihre bisherigen Angaben sind unverändert."
+
 msgid "%1$s is too long (at most %2$d characters)."
 msgstr "%1$s ist zu lang (höchstens %2$d Zeichen)."
 
@@ -5143,21 +5158,6 @@ msgstr "Die USt-IdNr. hat kein gültiges Format. Bitte prüfen Sie sie."
 
 msgid "Please enter your tax number or VAT ID (required on credit notes)."
 msgstr "Bitte geben Sie Ihre Steuernummer oder USt-IdNr. an (Pflichtangabe auf Gutschriften)."
-
-msgid "Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer."
-msgstr "Auszahlungen über eine andere Auszahlungsart werden nicht angeboten. Bitte geben Sie Ihre IBAN für eine Überweisung ein."
-
-msgid "Please enter your payment details (e.g. your PayPal address)."
-msgstr "Bitte geben Sie Ihre Zahlungsangaben ein (z. B. Ihre PayPal-Adresse)."
-
-msgid "Please enter your IBAN for payouts by bank transfer."
-msgstr "Bitte geben Sie Ihre IBAN für Auszahlungen per Banküberweisung ein."
-
-msgid "The IBAN is not valid."
-msgstr "Die IBAN ist ungültig."
-
-msgid "Your payout details could not be saved. Please try again; your previous details are unchanged."
-msgstr "Ihre Auszahlungsdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut; Ihre bisherigen Angaben sind unverändert."
 
 msgid "There is no pending change of the tax data."
 msgstr "Es gibt keine offene Änderung der Steuerdaten."
@@ -6000,6 +6000,9 @@ msgstr "Bezahlt am"
 msgid "Partner account entries"
 msgstr "Einträge im Partnerkonto"
 
+msgid "Payout requests"
+msgstr "Auszahlungsanträge"
+
 msgid "Partner referral (lifetime link)"
 msgstr "Partnerempfehlung (Lifetime-Bindung)"
 
@@ -6077,9 +6080,6 @@ msgstr "Beantragt am"
 
 msgid "Previous e-mail address (security notices for 30 days)"
 msgstr "Vorherige E-Mail-Adresse (Sicherheitshinweise für 30 Tage)"
-
-msgid "Payout requests"
-msgstr "Auszahlungsanträge"
 
 msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period."
 msgstr "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden wegen gesetzlicher Aufbewahrungspflichten (z. B. §147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt und sie werden nach Ablauf der Frist gelöscht."

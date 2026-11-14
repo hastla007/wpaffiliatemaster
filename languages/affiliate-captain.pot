@@ -4132,6 +4132,18 @@ msgid "Settings sections"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Record of processing activities"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Template for your record of processing activities (Art. 30 GDPR), filled with your current settings."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Download template (Markdown)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Pages & terms"
 msgstr ""
 
@@ -4438,18 +4450,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Record of processing activities"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Template for your record of processing activities (Art. 30 GDPR), filled with your current settings."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Download template (Markdown)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5249,6 +5249,27 @@ msgid "You already have a partner account."
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Fields marked with * are required."
+msgstr ""
+
+#. translators: %s: group
+#: src/Affiliates/Registration.php
+msgid "Application as: %s"
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "How do you want to promote us?"
+msgstr ""
+
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Apply now"
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "The form expired. Please try again."
 msgstr ""
 
@@ -5280,23 +5301,6 @@ msgstr ""
 msgid "Which kind of partner are you?"
 msgstr ""
 
-#: src/Affiliates/Registration.php
-msgid "Fields marked with * are required."
-msgstr ""
-
-#. translators: %s: group
-#: src/Affiliates/Registration.php
-msgid "Application as: %s"
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "How do you want to promote us?"
-msgstr ""
-
 #. translators: 1: link to terms, 2: version
 #. translators: 1: link, 2: version
 #: src/Affiliates/Registration.php src/Portal/Portal.php
@@ -5313,10 +5317,6 @@ msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Privacy policy"
-msgstr ""
-
-#: src/Affiliates/Registration.php src/Portal/Portal.php
-msgid "Apply now"
 msgstr ""
 
 #: src/Codes/CodeRepository.php
@@ -7081,6 +7081,26 @@ msgstr ""
 msgid "Other payment method (e.g. PayPal), paid manually"
 msgstr ""
 
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Please enter your payment details (e.g. your PayPal address)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Please enter your IBAN for payouts by bank transfer."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "The IBAN is not valid."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Your payout details could not be saved. Please try again; your previous details are unchanged."
+msgstr ""
+
 #. translators: 1: field, 2: number of characters
 #: src/Payouts/ProfileRepository.php
 msgid "%1$s is too long (at most %2$d characters)."
@@ -7104,26 +7124,6 @@ msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Please enter your tax number or VAT ID (required on credit notes)."
-msgstr ""
-
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer."
-msgstr ""
-
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "Please enter your payment details (e.g. your PayPal address)."
-msgstr ""
-
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "Please enter your IBAN for payouts by bank transfer."
-msgstr ""
-
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "The IBAN is not valid."
-msgstr ""
-
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "Your payout details could not be saved. Please try again; your previous details are unchanged."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php
@@ -8281,6 +8281,10 @@ msgid "Partner account entries"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Payout requests"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Partner referral (lifetime link)"
 msgstr ""
 
@@ -8382,10 +8386,6 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Previous e-mail address (security notices for 30 days)"
-msgstr ""
-
-#: src/Privacy/Privacy.php
-msgid "Payout requests"
 msgstr ""
 
 #: src/Privacy/Privacy.php
