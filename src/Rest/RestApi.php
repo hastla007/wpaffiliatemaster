@@ -144,6 +144,16 @@ final class RestApi {
 	}
 
 	public static function routes() {
+		self::public_routes();
+		self::contract_routes();
+		self::admin_routes();
+		self::partner_routes();
+	}
+
+	/**
+	 * Public routes: health, contract version, JS tracking beacon, code check.
+	 */
+	private static function public_routes() {
 		register_rest_route(
 			self::NS,
 			'/health',
@@ -206,6 +216,12 @@ final class RestApi {
 				'callback'            => array( __CLASS__, 'check_code' ),
 			)
 		);
+	}
+
+	/**
+	 * Contract write routes: sales, refunds, reinstatements.
+	 */
+	private static function contract_routes() {
 		register_rest_route(
 			self::NS,
 			'/sales',
@@ -277,6 +293,12 @@ final class RestApi {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Admin read routes: partners, commissions, reports.
+	 */
+	private static function admin_routes() {
 		register_rest_route(
 			self::NS,
 			'/affiliates',
@@ -331,6 +353,12 @@ final class RestApi {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Routes of the logged-in partner (/me).
+	 */
+	private static function partner_routes() {
 		register_rest_route(
 			self::NS,
 			'/me',

@@ -358,6 +358,31 @@ final class SettingsPage {
 		Admin::form_open( 'settings_save', 'wpac-tabs-content' );
 		echo '<input type="hidden" name="tab" value="' . esc_attr( self::$tab ) . '">';
 
+		self::render_program_tab( $s );
+		self::render_emails_tab( $s );
+		self::render_tracking_tab( $s );
+		self::render_security_tab( $s, $currency );
+		self::render_commissions_tab( $s, $currency );
+		self::render_promotion_tab( $s );
+		self::render_payouts_tab( $s, $currency );
+		self::render_data_tab( $s );
+
+		submit_button();
+		echo '</form>';
+		if ( 'data' === self::$tab ) {
+			echo '<h2>' . esc_html__( 'Record of processing activities', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'affiliate-captain' ) . '</p>';
+			Admin::form_open( 'ropa_download' );
+			echo '<p><button class="button">' . esc_html__( 'Download template (Markdown)', 'affiliate-captain' ) . '</button></p></form>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Fields of the 'Program' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_program_tab( array $s ) {
 		self::section( __( 'Pages & terms', 'affiliate-captain' ), 'program' );
 		self::page_select( 'registration_page_id', __( 'Application page', 'affiliate-captain' ), $s, '[wpac_affiliate_registration]' );
 		self::page_select( 'portal_page_id', __( 'Partner area page', 'affiliate-captain' ), $s, '[wpac_affiliate_portal]' );
@@ -369,7 +394,14 @@ final class SettingsPage {
 		self::checkbox( 'auto_approve', __( 'Approve applications automatically', 'affiliate-captain' ), $s );
 		self::select( 'terminated_open', __( 'Open commissions on termination', 'affiliate-captain' ), $s, array( 'pay' => __( 'Remain payable', 'affiliate-captain' ), 'reject' => __( 'Are rejected', 'affiliate-captain' ) ) );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'E-mails & reports' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_emails_tab( array $s ) {
 		self::section( __( 'Addresses', 'affiliate-captain' ), 'emails' );
 		self::text( 'admin_email', __( 'Notification e-mail', 'affiliate-captain' ), $s, __( 'Defaults to the site admin e-mail.', 'affiliate-captain' ) );
 		self::text( 'mail_from_name', __( 'Sender name', 'affiliate-captain' ), $s, __( 'Empty: WordPress default (or the setting of your SMTP plugin).', 'affiliate-captain' ) );
@@ -389,7 +421,14 @@ final class SettingsPage {
 		self::checkbox( 'report_admin', __( 'Monthly summary e-mail to the operator', 'affiliate-captain' ), $s );
 		self::checkbox( 'report_partners', __( 'Monthly summary e-mail to active partners', 'affiliate-captain' ), $s, __( 'Sent on the first days of the month for the previous month.', 'affiliate-captain' ) );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Tracking' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_tracking_tab( array $s ) {
 		self::section( __( 'Tracking & attribution', 'affiliate-captain' ), 'tracking' );
 		self::text( 'referral_param', __( 'Link parameter', 'affiliate-captain' ), $s, sprintf( /* translators: %s: example URL with the link parameter */ __( 'Example: %s', 'affiliate-captain' ), home_url( '/?' . $s['referral_param'] . '=CODE' ) ) );
 		self::checkbox( 'checkout_field', __( 'Show partner code field at checkout (classic + blocks)', 'affiliate-captain' ), $s );
@@ -415,7 +454,15 @@ final class SettingsPage {
 		self::checkbox( 'coupon_priority', __( 'Affiliate coupon has priority over partner links', 'affiliate-captain' ), $s );
 		self::select( 'self_referral', __( 'Self-referrals', 'affiliate-captain' ), $s, array( 'block' => __( 'Block', 'affiliate-captain' ), 'review' => __( 'Flag for review', 'affiliate-captain' ) ) );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Fraud & abuse' tab.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function render_security_tab( array $s, $currency ) {
 		self::section( __( 'Fraud rules', 'affiliate-captain' ), 'security' );
 		echo '<tr><td colspan="2" class="description">' . esc_html__( 'Matches do not block a sale: its commissions get the status "needs review" with the reason. 0 = rule off.', 'affiliate-captain' ) . '</td></tr>';
 		if ( ! (int) $s['fraud_max_orders_day'] && ! (int) $s['fraud_max_order_minor'] && ! (int) $s['fraud_min_click_seconds'] && ! (int) $s['fraud_max_refund_rate'] ) {
@@ -437,7 +484,15 @@ final class SettingsPage {
 		$err = self::error_parts( 'trusted_proxies' );
 		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy.', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Commissions' tab.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function render_commissions_tab( array $s, $currency ) {
 		self::section( __( 'Program currency', 'affiliate-captain' ), 'commissions' );
 		self::currency_field( $s );
 		$err = self::error_parts( 'exchange_rates' );
@@ -485,14 +540,29 @@ final class SettingsPage {
 			)
 		);
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Promotion' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_promotion_tab( array $s ) {
 		self::section( __( 'Promotion', 'affiliate-captain' ), 'promotion' );
 		self::text( 'landing_prefix', __( 'Landing page path', 'affiliate-captain' ), $s, sprintf( /* translators: %s: example URL of a partner landing page */ __( 'Partner landing URLs look like %s', 'affiliate-captain' ), home_url( '/' . $s['landing_prefix'] . '/partner-slug/' ) ) );
 		self::page_select( 'landing_page_id', __( 'Default landing page', 'affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'affiliate-captain' ) );
 		self::text( 'default_disclosure', __( 'Default disclosure note', 'affiliate-captain' ), $s );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'affiliate-captain' ) . '</p></td></tr>';
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Payouts & credit notes' tab.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function render_payouts_tab( array $s, $currency ) {
 		self::section( __( 'Payouts', 'affiliate-captain' ), 'payouts' );
 		$err = self::error_parts( 'min_payout' );
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( self::shown( 'min_payout', Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
@@ -531,7 +601,14 @@ final class SettingsPage {
 		self::text( 'debtor_bic', __( 'Company BIC (optional)', 'affiliate-captain' ), $s );
 		self::text( 'remittance_prefix', __( 'Remittance text prefix', 'affiliate-captain' ), $s );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Data & maintenance' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_data_tab( array $s ) {
 		self::section( __( 'Retention periods', 'affiliate-captain' ), 'data' );
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'affiliate-captain' ), $s );
 		self::number( 'application_retention_days', __( 'Keep rejected applications (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised.', 'affiliate-captain' ) );
@@ -548,15 +625,6 @@ final class SettingsPage {
 		self::section( __( 'Uninstall', 'affiliate-captain' ), 'data' );
 		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'affiliate-captain' ), $s, __( 'Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.', 'affiliate-captain' ) );
 		self::end();
-
-		submit_button();
-		echo '</form>';
-		if ( 'data' === self::$tab ) {
-			echo '<h2>' . esc_html__( 'Record of processing activities', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'affiliate-captain' ) . '</p>';
-			Admin::form_open( 'ropa_download' );
-			echo '<p><button class="button">' . esc_html__( 'Download template (Markdown)', 'affiliate-captain' ) . '</button></p></form>';
-		}
-		echo '</div>';
 	}
 
 	/**

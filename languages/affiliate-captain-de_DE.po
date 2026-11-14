@@ -2284,6 +2284,12 @@ msgstr "Bitte wählen Sie Periodenende und Währung."
 msgid "The credit notes are written in the background within a few minutes (missing ones at the latest when you export or mark the payouts as paid)."
 msgstr "Die Gutschriften werden in wenigen Minuten im Hintergrund erstellt (fehlende spätestens beim Export oder wenn Sie die Auszahlungen als bezahlt markieren)."
 
+msgid "Payout created from the request."
+msgstr "Auszahlung aus dem Antrag angelegt."
+
+msgid "Request rejected."
+msgstr "Antrag abgelehnt."
+
 msgid "Please select at least one payout."
 msgstr "Bitte wählen Sie mindestens eine Auszahlung aus."
 
@@ -2301,12 +2307,6 @@ msgstr "Die PayPal-Datei enthält Zahlungsangaben. Dafür brauchen Sie das Recht
 
 msgid "The SEPA file contains bank details. You need the permission to view tax and bank data."
 msgstr "Die SEPA-Datei enthält Bankdaten. Dafür benötigen Sie die Berechtigung für Steuer- und Bankdaten."
-
-msgid "Payout created from the request."
-msgstr "Auszahlung aus dem Antrag angelegt."
-
-msgid "Request rejected."
-msgstr "Antrag abgelehnt."
 
 msgid "Payment details"
 msgstr "Zahlungsangaben"
@@ -3082,6 +3082,15 @@ msgstr "Einstellungen Affiliate Captain"
 msgid "Settings sections"
 msgstr "Einstellungsbereiche"
 
+msgid "Record of processing activities"
+msgstr "Verzeichnis von Verarbeitungstätigkeiten"
+
+msgid "Template for your record of processing activities (Art. 30 GDPR), filled with your current settings."
+msgstr "Vorlage für Ihr Verzeichnis von Verarbeitungstätigkeiten (Art. 30 DSGVO), ausgefüllt mit Ihren aktuellen Einstellungen."
+
+msgid "Download template (Markdown)"
+msgstr "Vorlage herunterladen (Markdown)"
+
 msgid "Pages & terms"
 msgstr "Seiten & Bedingungen"
 
@@ -3294,15 +3303,6 @@ msgstr "Deinstallation"
 
 msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
 msgstr "Provisions- und Auszahlungsdaten, Gutschriften und das Protokoll bleiben erhalten, solange eine Gutschrift in der Aufbewahrungsfrist liegt; alles andere wird gelöscht."
-
-msgid "Record of processing activities"
-msgstr "Verzeichnis von Verarbeitungstätigkeiten"
-
-msgid "Template for your record of processing activities (Art. 30 GDPR), filled with your current settings."
-msgstr "Vorlage für Ihr Verzeichnis von Verarbeitungstätigkeiten (Art. 30 DSGVO), ausgefüllt mit Ihren aktuellen Einstellungen."
-
-msgid "Download template (Markdown)"
-msgstr "Vorlage herunterladen (Markdown)"
 
 msgid "A token is set – enter a new one to replace it"
 msgstr "Ein Token ist gesetzt – geben Sie ein neues ein, um es zu ersetzen"
@@ -4358,12 +4358,6 @@ msgstr "Bitte geben Sie eine ganze Zahl ein (0 oder mehr)."
 msgid "Please enter a percentage between 0 and 100."
 msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein."
 
-msgid "Please choose your country from the list."
-msgstr "Bitte wählen Sie Ihr Land aus der Liste."
-
-msgid "Raised to the legal minimum of %d years for your country."
-msgstr "Auf die gesetzliche Mindestfrist von %d Jahren für Ihr Land angehoben."
-
 msgid "Please enter a three-letter currency code (ISO 4217, e.g. EUR)."
 msgstr "Bitte geben Sie einen dreistelligen Währungscode ein (ISO 4217, z. B. EUR)."
 
@@ -4387,6 +4381,12 @@ msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein (z. B. 10 oder 
 
 msgid "Not changed, because the default rate entered with it is not valid."
 msgstr "Nicht geändert, da der zusammen eingegebene Standardsatz ungültig ist."
+
+msgid "Please choose your country from the list."
+msgstr "Bitte wählen Sie Ihr Land aus der Liste."
+
+msgid "Raised to the legal minimum of %d years for your country."
+msgstr "Auf die gesetzliche Mindestfrist von %d Jahren für Ihr Land angehoben."
 
 msgid "Please enter this site's domain or a parent domain of %s (e.g. .example.com), or leave the field empty."
 msgstr "Bitte geben Sie die Domain dieser Website oder eine übergeordnete Domain von %s ein (z. B. .example.com) oder lassen Sie das Feld leer."
@@ -5373,14 +5373,14 @@ msgstr[1] "%d Tage (Rücksendungen und Stornierungen), dann wird die Provision f
 msgid "The link has expired."
 msgstr "Der Link ist abgelaufen."
 
+msgid "Please confirm the change of your bank or payment details with your current password."
+msgstr "Bitte bestätigen Sie die Änderung Ihrer Bank- oder Zahlungsangaben mit Ihrem aktuellen Passwort."
+
 msgid "[%s] Please confirm your new e-mail address"
 msgstr "[%s] Bitte bestätigen Sie Ihre neue E-Mail-Adresse"
 
 msgid "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail."
 msgstr "Hallo,\n\nbitte bestätigen Sie Ihre neue E-Mail-Adresse für das Partnerprogramm (24 Stunden gültig):\n%s\n\nWenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail."
-
-msgid "Please confirm the change of your bank or payment details with your current password."
-msgstr "Bitte bestätigen Sie die Änderung Ihrer Bank- oder Zahlungsangaben mit Ihrem aktuellen Passwort."
 
 msgid "Copied to the clipboard."
 msgstr "In die Zwischenablage kopiert."
@@ -6036,6 +6036,9 @@ msgstr "wartet auf den Abschluss der Bestellung"
 msgid "active"
 msgstr "aktiv"
 
+msgid "Payout requests"
+msgstr "Auszahlungsanträge"
+
 msgid "Name registered with VIES"
 msgstr "Bei VIES registrierter Name"
 
@@ -6101,9 +6104,6 @@ msgstr "Beantragt am"
 
 msgid "Previous e-mail address (security notices for 30 days)"
 msgstr "Vorherige E-Mail-Adresse (Sicherheitshinweise für 30 Tage)"
-
-msgid "Payout requests"
-msgstr "Auszahlungsanträge"
 
 msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period."
 msgstr "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden wegen gesetzlicher Aufbewahrungspflichten (z. B. §147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt und sie werden nach Ablauf der Frist gelöscht."
