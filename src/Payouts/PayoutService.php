@@ -354,7 +354,7 @@ final class PayoutService {
 		$code = '';
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			$code = 'maintenance';
-			return __( 'Maintenance mode is on (Settings → Reports & data)', 'affiliate-captain' );
+			return __( 'Maintenance mode is on (Settings → Data & maintenance)', 'affiliate-captain' );
 		}
 		$aff = AffiliateRepository::find( (int) $affiliate_id );
 		if ( $aff && 'terminated' === $aff->status && 'reject' === Settings::get( 'terminated_open' ) ) {
@@ -386,7 +386,7 @@ final class PayoutService {
 		if ( Settings::get( 'self_billing' ) && ! Settings::get( 'terms_page_id' ) ) {
 			// Self-billing needs a prior agreement (§14 Abs. 2 S. 2 UStG); without partner terms there is none.
 			$code = 'terms_page';
-			return __( 'Self-billing needs partner terms with the credit note agreement (Settings → Program → Terms page)', 'affiliate-captain' );
+			return __( 'Self-billing needs partner terms with the credit note agreement (Settings → Program → Partner program terms)', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'self_billing' ) && ! \WPAffiliateCaptain\Affiliates\Agreements::has_current( (int) $affiliate_id ) ) {
 			// Self-billing needs a prior agreement (§14 Abs. 2 UStG): the current terms (with the

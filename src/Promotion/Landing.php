@@ -281,6 +281,7 @@ final class Landing {
 			return '';
 		}
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
+		\WPAffiliateCaptain\Core\Locale::enqueue_rtl( 'wpac-portal', 'portal' ); // R6-MS11.
 		$out = '<div class="wpac-welcome">';
 		if ( '' !== $name ) {
 			// No sprintf(): editor text may contain "%" (e.g. "10% Rabatt") – only %s is replaced.

@@ -404,7 +404,8 @@ final class Settings {
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
 		}
 
-		$out['operator_country'] = $d['operator_country'];
+		// Not posted (another tab): the stored country, which also sets the retention minimum below.
+		$out['operator_country'] = (string) $old( 'operator_country' );
 		if ( isset( $in['operator_country'] ) ) {
 			$country = strtoupper( trim( (string) $in['operator_country'] ) );
 			if ( isset( self::countries()[ $country ] ) ) {

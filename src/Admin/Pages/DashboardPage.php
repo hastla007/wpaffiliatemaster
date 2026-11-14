@@ -65,6 +65,8 @@ final class DashboardPage {
 			'registration_page_id' => array( __( 'Become a partner', 'affiliate-captain' ), '<!-- wp:wpac/registration /-->' ),
 			'portal_page_id'       => array( __( 'Partner area', 'affiliate-captain' ), '<!-- wp:wpac/portal /-->' ),
 			'landing_page_id'      => array( __( 'Recommended by our partner', 'affiliate-captain' ), "<!-- wp:wpac/partner-welcome /-->\n<!-- wp:paragraph --><p>" . esc_html__( 'Welcome! Here you can introduce your offer to visitors referred by a partner.', 'affiliate-captain' ) . '</p><!-- /wp:paragraph -->' ),
+			// Draft only: the operator reviews and publishes it (R5-O44).
+			'terms_page_id'        => array( __( 'Partner program terms', 'affiliate-captain' ), self::terms_template(), 'draft' ),
 		);
 		$update  = array();
 		$created = array();
@@ -77,7 +79,7 @@ final class DashboardPage {
 			$id = wp_insert_post(
 				array(
 					'post_type'    => 'page',
-					'post_status'  => 'publish',
+					'post_status'  => isset( $page[2] ) ? $page[2] : 'publish',
 					'post_title'   => $page[0],
 					'post_content' => $page[1],
 				),
@@ -98,6 +100,32 @@ final class DashboardPage {
 	}
 
 	/**
+	 * Template of the partner program terms (blocks), with the self-billing agreement credit
+	 * notes need. A starting point to adapt, not legal advice.
+	 *
+	 * @return string
+	 */
+	public static function terms_template() {
+		$site  = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+		$parts = array(
+			__( 'Template – please adapt it to your program and have it checked before publishing.', 'affiliate-captain' ),
+			/* translators: %s: site name */
+			sprintf( __( '1. Parties and subject: these terms govern the partner program of %s. Partners promote our offer with their personal links, codes and coupons and receive a commission for attributed sales.', 'affiliate-captain' ), $site ),
+			__( '2. Commission: the rates shown in the partner area apply. Commissions are released after the hold period; refunded or cancelled orders reduce them.', 'affiliate-captain' ),
+			__( '3. Payout: payouts are made once the minimum payout is reached, by bank transfer or another agreed payment method.', 'affiliate-captain' ),
+			__( '4. Credit notes (self-billing): we settle commissions by credit note in the name and for the account of the partner (§14 (2) sentence 2 German VAT Act). The partner agrees to this procedure, keeps the tax details in the partner area up to date and may object to a credit note; it then loses its effect as an invoice.', 'affiliate-captain' ),
+			__( '5. Advertising rules: partners label their posts as advertising, follow the promotion guidelines and do not use misleading claims, spam, brand bidding or cookie stuffing.', 'affiliate-captain' ),
+			__( '6. Data protection: we process the partner data needed for the program and payouts as described in our privacy policy.', 'affiliate-captain' ),
+			__( '7. Term and termination: either party can end the partnership at any time; commissions earned until then are settled as described in the partner area.', 'affiliate-captain' ),
+		);
+		$out = '';
+		foreach ( $parts as $part ) {
+			$out .= "<!-- wp:paragraph -->\n<p>" . esc_html( $part ) . "</p>\n<!-- /wp:paragraph -->\n";
+		}
+		return $out;
+	}
+
+	/**
 	 * Whether partners exist whose credit notes need reverse charge (foreign businesses).
 	 *
 	 * @return bool
@@ -110,36 +138,69 @@ final class DashboardPage {
 	}
 
 	/**
-	 * Setup checklist (shown until everything is done).
+	 * Setup checklist items: [ done, label, URL, required ]. Optional items (recommended, not needed
+	 * by every shop) never keep the checklist or the setup notice open (R5-O44).
+	 *
+	 * @return array
+	 */
+	public static function checklist_items() {
+		$terms_page = (int) Settings::get( 'terms_page_id' );
+		$self_bill  = (bool) Settings::get( 'self_billing' );
+		$source     = class_exists( 'WooCommerce' );
+		if ( ! $source && class_exists( '\WPAffiliateCaptain\Sales\ContractApi' ) ) {
+			foreach ( (array) \WPAffiliateCaptain\Sales\ContractApi::integrations() as $info ) {
+				if ( ! empty( $info['active'] ) ) {
+					$source = true;
+					break;
+				}
+			}
+		}
+		return array(
+			array( $source, __( 'A sales source: WooCommerce or another shop integration is active', 'affiliate-captain' ), Admin::url( 'wpac-integrations' ), true ),
+			array( (bool) Settings::get( 'registration_page_id' ) && (bool) Settings::get( 'portal_page_id' ), __( 'Application page and partner area page', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ), true ),
+			array( $terms_page && 'publish' === get_post_status( $terms_page ), __( 'Partner program terms: published page and version (a draft from the template can be created below)', 'affiliate-captain' ), $terms_page && get_edit_post_link( $terms_page ) ? (string) get_edit_post_link( $terms_page, 'url' ) : Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ), true ),
+			array( ! $self_bill || '' === \WPAffiliateCaptain\Payouts\PayoutService::operator_missing(), __( 'Your address and VAT ID or tax number for credit notes', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), $self_bill ),
+			array( '' !== trim( (string) Settings::get( 'operator_vat_id' ) ) || ! self::has_reverse_charge_partners(), __( 'Your VAT ID – needed for credit notes to business partners abroad (reverse charge); a tax number is not enough', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), true ),
+			array( 'always' !== Settings::get( 'cookie_mode' ), __( 'Affiliate cookie only with consent (not "always")', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ), true ),
+			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'affiliate-captain' ), Admin::url( 'wpac-affiliates' ), true ),
+			array( '' !== (string) Settings::get( 'debtor_iban' ) && '' !== trim( (string) Settings::get( 'debtor_name' ) ), __( 'Optional: company bank account for SEPA files (account holder and IBAN) – not needed if you pay by hand or by PayPal', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), false ),
+			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Recommended: own encryption key WPAC_ENCRYPTION_KEY in wp-config.php (bank details then survive a change of the WordPress salts)', 'affiliate-captain' ), Admin::url( 'wpac-integrations', array( 'tab' => 'status' ) ), false ),
+		);
+	}
+
+	/**
+	 * Whether a required checklist item is still open.
+	 *
+	 * @return bool
+	 */
+	public static function setup_open() {
+		foreach ( self::checklist_items() as $i ) {
+			if ( ! $i[0] && $i[3] ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Setup checklist (shown until every required item is done).
 	 */
 	private static function checklist() {
-		$items = array(
-			array( (bool) Settings::get( 'registration_page_id' ) && (bool) Settings::get( 'portal_page_id' ), __( 'Application page and partner area page', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
-			array( (bool) Settings::get( 'terms_page_id' ), __( 'Partner program terms (page and version)', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ) ),
-			array( '' === \WPAffiliateCaptain\Payouts\PayoutService::operator_missing(), __( 'Your address and VAT ID or tax number for credit notes', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
-			array( '' !== trim( (string) Settings::get( 'operator_vat_id' ) ) || ! self::has_reverse_charge_partners(), __( 'Your VAT ID – needed for credit notes to business partners abroad (reverse charge); a tax number is not enough', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
-			array( '' !== (string) Settings::get( 'debtor_iban' ) && '' !== trim( (string) Settings::get( 'debtor_name' ) ), __( 'Company bank account for SEPA payouts (account holder and IBAN)', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) ),
-			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Own encryption key WPAC_ENCRYPTION_KEY in wp-config.php', 'affiliate-captain' ), Admin::url( 'wpac-integrations' ) ),
-			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'affiliate-captain' ), Admin::url( 'wpac-affiliates' ) ),
-			array( 'always' !== Settings::get( 'cookie_mode' ), __( 'Affiliate cookie only with consent (not "always")', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ),
-		);
-		$open = array_filter(
-			$items,
-			static function ( $i ) {
-				return ! $i[0];
-			}
-		);
-		if ( ! $open ) {
+		$items = self::checklist_items();
+		if ( ! self::setup_open() ) {
 			return;
 		}
 		echo '<div class="wpac-checklist"><h2>' . esc_html__( 'Setup checklist', 'affiliate-captain' ) . '</h2><ul>';
 		foreach ( $items as $i ) {
-			echo '<li class="' . ( $i[0] ? 'done' : 'todo' ) . '">' . ( $i[0] ? esc_html( $i[1] ) : '<a href="' . esc_url( $i[2] ) . '">' . esc_html( $i[1] ) . '</a>' ) . '<span class="screen-reader-text"> – ' . esc_html( $i[0] ? __( 'done', 'affiliate-captain' ) : __( 'open', 'affiliate-captain' ) ) . '</span></li>';
+			$class = $i[0] ? 'done' : ( $i[3] ? 'todo' : 'optional' );
+			$state = $i[0] ? __( 'done', 'affiliate-captain' ) : ( $i[3] ? __( 'open', 'affiliate-captain' ) : __( 'optional', 'affiliate-captain' ) );
+			echo '<li class="' . esc_attr( $class ) . '">' . ( $i[0] ? esc_html( $i[1] ) : '<a href="' . esc_url( $i[2] ) . '">' . esc_html( $i[1] ) . '</a>' ) . '<span class="screen-reader-text"> – ' . esc_html( $state ) . '</span></li>';
 		}
 		echo '</ul>';
-		if ( ! Settings::get( 'registration_page_id' ) || ! Settings::get( 'portal_page_id' ) ) {
+		$terms_page = (int) Settings::get( 'terms_page_id' );
+		if ( ! Settings::get( 'registration_page_id' ) || ! Settings::get( 'portal_page_id' ) || ! $terms_page || ! get_post( $terms_page ) ) {
 			Admin::form_open( 'setup_pages' );
-			echo '<p><button class="button button-primary">' . esc_html__( 'Create pages automatically', 'affiliate-captain' ) . '</button> <span class="description">' . esc_html__( 'Creates "Become a partner", "Partner area" and a landing page with the matching blocks.', 'affiliate-captain' ) . '</span></p></form>';
+			echo '<p><button class="button button-primary">' . esc_html__( 'Create pages automatically', 'affiliate-captain' ) . '</button> <span class="description">' . esc_html__( 'Creates "Become a partner", "Partner area" and a landing page with the matching blocks, and a draft of the partner terms from a template (review it with your legal advisor, then publish it).', 'affiliate-captain' ) . '</span></p></form>';
 		}
 		echo '</div>';
 	}
@@ -202,7 +263,7 @@ final class DashboardPage {
 			/* translators: %s: currencies */
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Amounts in %s are not included in the money columns (no reference exchange rate in the settings).', 'affiliate-captain' ), implode( ', ', $unconverted ) ) ) . '</p></div>';
 		}
-		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><label>' . esc_html__( 'from', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>' . esc_html__( 'to', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> <button class="button">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form>';
+		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><label>' . esc_html_x( 'From', 'date range start', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>' . esc_html_x( 'To', 'date range end', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> <button class="button">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form>';
 
 		echo '<div class="wpac-kpis">';
 		foreach (
@@ -225,9 +286,9 @@ final class DashboardPage {
 			'content'  => __( 'By content', 'affiliate-captain' ),
 			'campaign' => __( 'By campaign', 'affiliate-captain' ),
 		);
-		echo '<nav class="nav-tab-wrapper">';
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Report views', 'affiliate-captain' ) . '">';
 		foreach ( $tabs as $k => $l ) {
-			echo '<a class="nav-tab ' . ( $k === $view ? 'nav-tab-active' : '' ) . '" href="' . esc_url( Admin::url( 'wpac', array( 'view' => $k, 'from' => $from, 'to' => $to ) ) ) . '">' . esc_html( $l ) . '</a>';
+			echo '<a class="nav-tab ' . ( $k === $view ? 'nav-tab-active' : '' ) . '" href="' . esc_url( Admin::url( 'wpac', array( 'view' => $k, 'from' => $from, 'to' => $to ) ) ) . '"' . ( $k === $view ? ' aria-current="page"' : '' ) . '>' . esc_html( $l ) . '</a>';
 		}
 		echo '</nav><p>';
 		Admin::form_open( 'report_export', 'wpac-inline' );

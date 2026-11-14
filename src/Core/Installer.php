@@ -36,6 +36,10 @@ final class Installer {
 	 * @param bool $network_wide Network-wide activation (multisite).
 	 */
 	public static function activate( $network_wide = false ) {
+		if ( ! $network_wide && function_exists( 'get_current_user_id' ) && get_current_user_id() ) {
+			// Show the setup checklist once after a manual activation (Admin::activation_redirect()).
+			update_option( 'wpac_activation_redirect', (int) get_current_user_id(), false );
+		}
 		if ( is_multisite() && $network_wide ) {
 			// Small networks are set up right away; large ones in batches (cron) so the network
 			// activation request never runs into the time limit. Every site also migrates itself

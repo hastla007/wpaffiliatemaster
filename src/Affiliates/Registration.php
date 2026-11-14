@@ -479,6 +479,7 @@ final class Registration {
 	public static function render( $atts = array() ) {
 		$atts = shortcode_atts( array( 'group' => 0 ), (array) $atts, self::SHORTCODE );
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
+		\WPAffiliateCaptain\Core\Locale::enqueue_rtl( 'wpac-portal', 'portal' ); // R6-MS11.
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		if ( ! empty( $_GET['wpac_confirm'] ) && is_string( $_GET['wpac_confirm'] ) ) {

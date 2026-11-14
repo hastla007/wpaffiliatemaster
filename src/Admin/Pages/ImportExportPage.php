@@ -26,7 +26,7 @@ final class ImportExportPage {
 	const MAX_BYTES = 5242880;
 
 	public static function register_hooks() {
-		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 20 );
+		// The menu entry is added by Admin::menu() (before the technical pages and the settings).
 		add_action( 'admin_post_wpac_import', array( __CLASS__, 'handle_import' ) );
 		add_action( 'admin_post_wpac_import_template', array( __CLASS__, 'handle_template' ) );
 		add_action( 'admin_post_wpac_export', array( __CLASS__, 'handle_export' ) );

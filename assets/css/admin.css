@@ -17,7 +17,7 @@
 .wpac-inactive td{color:#50575e;background:#f6f7f7}
 .wpac-inactive td::after{content:''}
 .wpac-filters{margin:12px 0}
-.wpac-totals span{margin-right:16px}
+.wpac-totals span{margin-inline-end:16px}
 .wpac-bulk{margin-top:12px}
 .wpac-history{margin:0}
 .wpac-history li{border-bottom:1px solid #f0f0f1;padding:6px 0}
@@ -27,13 +27,15 @@
 .wpac-dl th{width:220px}
 @media print{#adminmenumain,#wpadminbar,#wpfooter,.wpac-noprint,.notice{display:none!important}#wpcontent{margin:0!important}}
 .wpac-tabs-content{margin-top:16px}
-.wpac-checklist{background:#fff;border:1px solid #dcdcde;border-left:4px solid #2271b1;padding:12px 16px;margin:16px 0}
+.wpac-checklist{background:#fff;border:1px solid #dcdcde;border-inline-start:4px solid #2271b1;padding:12px 16px;margin:16px 0}
 .wpac-checklist ul{margin:8px 0}
 .wpac-checklist li{margin:4px 0}
 .wpac-checklist .done{color:#00704a}
-.wpac-checklist .todo{color:#8a2424}
+.wpac-checklist .todo{color:#1d2327}
+.wpac-checklist .optional{color:#50575e}
 .wpac-checklist .done::before{content:'✔ '}
-.wpac-checklist .todo::before{content:'✖ '}
+.wpac-checklist .todo::before{content:'○ '}
+.wpac-checklist .optional::before{content:'– '}
 .wpac-field-hint{color:#50575e;font-size:12px;margin:4px 0 0}
 fieldset.wpac-bulk{border:1px solid #dcdcde;padding:8px 12px;margin-top:12px}
 fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
@@ -44,5 +46,17 @@ fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
 /* Field errors after a rejected save; details below admin notices. */
 .wpac-field-error { color: #b32d2e; margin: .25em 0 0; font-weight: 600; }
 [aria-invalid="true"] { border-color: #b32d2e !important; }
-.notice .wpac-notice-details { list-style: disc; margin: 0 0 .5em 1.5em; }
+.notice .wpac-notice-details { list-style: disc; margin-block: 0 .5em; margin-inline: 1.5em 0; }
 .wpac-hide-notice { white-space: nowrap; }
+
+/* Wide tables scroll in their own box (admin.js wraps them; R5-O43). */
+.wpac-table-scroll { overflow-x: auto; max-width: 100%; }
+.wpac-table-scroll > table.widefat { min-width: 640px; }
+/* State words in the partner list. */
+.wpac-state--ok { color: #00704a; }
+.wpac-state--open { color: #6b5300; }
+.wpac-attachment img, .wpac-attachment-img { max-width: 150px; height: auto; display: block; }
+/* Right-to-left languages: logical properties above; codes, IBANs and URLs stay left-to-right (R6-MS11). */
+[dir="ltr"], .wpac-wrap code, .wrap td code { unicode-bidi: isolate; }
+.rtl .wpac-dl th { text-align: right; }
+.rtl .wpac-mirror { display: inline-block; transform: scaleX(-1); }

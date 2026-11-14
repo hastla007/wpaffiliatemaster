@@ -99,6 +99,19 @@ final class Locale {
 	}
 
 	/**
+	 * Right-to-left overrides of a plugin stylesheet (assets/css/<name>-rtl.css), loaded after it
+	 * for right-to-left languages.
+	 *
+	 * @param string $handle Handle of the main stylesheet.
+	 * @param string $name   File name without extension.
+	 */
+	public static function enqueue_rtl( $handle, $name ) {
+		if ( function_exists( 'is_rtl' ) && is_rtl() && function_exists( 'wp_enqueue_style' ) ) {
+			wp_enqueue_style( $handle . '-rtl', WPAC_URL . 'assets/css/' . $name . '-rtl.css', array( $handle ), WPAC_VERSION );
+		}
+	}
+
+	/**
 	 * A stored decimal ("12.5", "19.00") for display in the current language ("12,5", "19"):
 	 * as many decimals as it has (without trailing zeros), at most 4.
 	 *
