@@ -111,6 +111,7 @@ final class Settings {
 			'operator_tax_number'     => '',
 			'credit_prefix'           => 'GS',
 			'storno_prefix'           => 'ST',
+			'correction_prefix'       => 'KG', // Correction credit notes of paid payouts.
 			'vies_check'              => 0, // Check partner VAT IDs with the EU Commission's VIES service (external request).
 			// Fraud rules (0 = off).
 			'fraud_max_orders_day'    => 0,
@@ -405,28 +406,7 @@ final class Settings {
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
 		}
 
-		// Not posted (another tab): the stored country, which also sets the retention minimum below.
-		$out['operator_country'] = (string) $old( 'operator_country' );
-		if ( isset( $in['operator_country'] ) ) {
-			$country = strtoupper( trim( (string) $in['operator_country'] ) );
-			if ( isset( self::countries()[ $country ] ) ) {
-				$out['operator_country'] = $country;
-			} else {
-				$errors['operator_country'] = __( 'Please choose your country from the list.', 'affiliate-captain' );
-				$out['operator_country']    = (string) $old( 'operator_country' );
-			}
-		}
-		// Credit notes: at least the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years); 0 = forever.
-		if ( $out['statement_retention_years'] > 0 ) {
-			$minimum = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $out['operator_country'] );
-			if ( $out['statement_retention_years'] < $minimum ) {
-				if ( isset( $in['statement_retention_years'] ) ) {
-					/* translators: %d: years */
-					$notices['statement_retention_years'] = sprintf( __( 'Raised to the legal minimum of %d years for your country.', 'affiliate-captain' ), $minimum );
-				}
-				$out['statement_retention_years'] = $minimum;
-			}
-		}
+		self::sanitize_operator_country( $in, $out, $errors, $notices, $old );
 
 		// Fields of other tabs are not posted: fall back to the stored value (needed for amount conversions).
 		$out['currency'] = self::get( 'currency' ) ? (string) self::get( 'currency' ) : $d['currency'];
@@ -533,6 +513,60 @@ final class Settings {
 			}
 		}
 
+		self::sanitize_tracking_fields( $in, $out, $errors, $old, $d );
+
+		self::sanitize_amount_fields( $in, $out, $errors, $old, $d );
+
+		self::sanitize_promotion_mail_fields( $in, $out, $errors, $old, $d );
+		self::sanitize_billing_fields( $in, $out, $errors, $old, $d );
+
+		return $out;
+	}
+
+	/**
+	 * Sanitize: operator country and the statement retention minimum it sets.
+	 *
+	 * @param array    $in      Raw input.
+	 * @param array    $out     Sanitized settings so far (extended).
+	 * @param array    $errors  Rejected fields (extended).
+	 * @param array    $notices Adjusted fields (extended).
+	 * @param callable $old     Stored value of a key.
+	 */
+	private static function sanitize_operator_country( array $in, array &$out, array &$errors, array &$notices, callable $old ) {
+		// Not posted (another tab): the stored country, which also sets the retention minimum below.
+		$out['operator_country'] = (string) $old( 'operator_country' );
+		if ( isset( $in['operator_country'] ) ) {
+			$country = strtoupper( trim( (string) $in['operator_country'] ) );
+			if ( isset( self::countries()[ $country ] ) ) {
+				$out['operator_country'] = $country;
+			} else {
+				$errors['operator_country'] = __( 'Please choose your country from the list.', 'affiliate-captain' );
+				$out['operator_country']    = (string) $old( 'operator_country' );
+			}
+		}
+		// Credit notes: at least the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years); 0 = forever.
+		if ( $out['statement_retention_years'] > 0 ) {
+			$minimum = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $out['operator_country'] );
+			if ( $out['statement_retention_years'] < $minimum ) {
+				if ( isset( $in['statement_retention_years'] ) ) {
+					/* translators: %d: years */
+					$notices['statement_retention_years'] = sprintf( __( 'Raised to the legal minimum of %d years for your country.', 'affiliate-captain' ), $minimum );
+				}
+				$out['statement_retention_years'] = $minimum;
+			}
+		}
+	}
+
+	/**
+	 * Sanitize: visit sample rate, cookie domain and trusted proxies.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_tracking_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['visit_log_percent'] = $d['visit_log_percent'];
 		if ( isset( $in['visit_log_percent'] ) ) {
 			$raw = trim( (string) $in['visit_log_percent'] );
@@ -580,7 +614,19 @@ final class Settings {
 				$out['trusted_proxies'] = implode( "\n", $proxies );
 			}
 		}
+	}
 
+	/**
+	 * Sanitize: review limit for large orders, blocked domains and minimum payout (amounts in
+	 * the program currency already sanitized in $out).
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_amount_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['fraud_max_order_minor'] = isset( $out['fraud_max_order_minor'] ) ? $out['fraud_max_order_minor'] : 0; // Converted above after a currency change.
 		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
 			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'] );
@@ -603,7 +649,19 @@ final class Settings {
 				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
 			}
 		}
+	}
 
+	/**
+	 * Sanitize: landing pages, disclosure, guidelines, terms version, e-mail addresses and the
+	 * monitor token.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_promotion_mail_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['landing_prefix'] = $d['landing_prefix'];
 		if ( isset( $in['landing_prefix'] ) ) {
 			$landing = sanitize_title( (string) $in['landing_prefix'] );
@@ -670,6 +728,18 @@ final class Settings {
 				$out['monitor_token'] = self::monitor_token_hash( $token );
 			}
 		}
+	}
+
+	/**
+	 * Sanitize: company details for credit notes, VAT rate, number prefixes and the SEPA account.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_billing_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['debtor_name'] = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
 		$out['vat_rate']    = $d['vat_rate'];
 		if ( isset( $in['vat_rate'] ) ) {
@@ -684,7 +754,7 @@ final class Settings {
 		$out['operator_address']    = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
 		$out['operator_vat_id']     = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
 		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
-		foreach ( array( 'credit_prefix', 'storno_prefix' ) as $k ) {
+		foreach ( array( 'credit_prefix', 'storno_prefix', 'correction_prefix' ) as $k ) {
 			$out[ $k ] = $d[ $k ];
 			if ( ! isset( $in[ $k ] ) ) {
 				continue;
@@ -716,8 +786,6 @@ final class Settings {
 				: __( 'This IBAN is not valid (check digits).', 'affiliate-captain' );
 			$out['debtor_iban']    = (string) self::get( 'debtor_iban' );
 		}
-
-		return $out;
 	}
 
 	/**

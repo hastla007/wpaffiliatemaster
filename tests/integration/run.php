@@ -1538,7 +1538,13 @@ require __DIR__ . '/r8-g10.php';
 require __DIR__ . '/r9-h1.php';
 require __DIR__ . '/r9-h2.php';
 require __DIR__ . '/r9-h3.php';
+require __DIR__ . '/r10-pu5.php';
+require __DIR__ . '/r10-cc5.php';
+require __DIR__ . '/r10-w10.php';
+require __DIR__ . '/r10-w55.php';
+require __DIR__ . '/r10-w55b.php';
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
+require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

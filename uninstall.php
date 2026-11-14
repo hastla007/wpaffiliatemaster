@@ -43,12 +43,17 @@ function wpac_uninstall_site() {
 		$wpac_minimum = isset( $wpac_minimum[ $wpac_country ] ) ? $wpac_minimum[ $wpac_country ] : 10;
 		$wpac_cutoff  = 0 === $wpac_years ? '1000-01-01 00:00:00' : gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( max( $wpac_minimum, $wpac_years ) + 1 ) . ' years' ) );
 		$wpac_keep    = ! empty( $wpac_settings['retention_hold'] ) || (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpac_payouts} WHERE created_at > %s OR storno_at > %s", $wpac_cutoff, $wpac_cutoff ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		// Correction credit notes start their own period too.
+		$wpac_corr = $wpdb->prefix . 'wpac_payout_corrections';
+		if ( ! $wpac_keep && $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_corr ) ) === $wpac_corr ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpac_keep = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpac_corr} WHERE created_at > %s", $wpac_cutoff ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		}
 	}
 	// The partners table stays with the booking records (pseudonymised below): its IDs are what
 	// the kept credit notes, balances and commissions refer to. Dropping it would let a new
 	// installation give a former partner's ID – and with it their documents and balance – to
 	// a new partner.
-	$wpac_financial = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements' );
+	$wpac_financial = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements', 'payout_corrections' );
 
 	// Statements / credit notes of THIS site (only when "delete all data" was explicitly enabled and
 	// no statement is within the retention period anymore). Only the files the site's payouts point
@@ -63,9 +68,15 @@ function wpac_uninstall_site() {
 				}
 			}
 		}
+		$wpac_corr = $wpdb->prefix . 'wpac_payout_corrections';
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_corr ) ) === $wpac_corr ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			foreach ( (array) $wpdb->get_col( "SELECT file FROM {$wpac_corr} WHERE file <> ''" ) as $wpac_file ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+				$wpac_files[] = basename( (string) $wpac_file );
+			}
+		}
 	}
 
-	$wpac_tables = array( 'affiliates', 'partner_groups', 'partner_codes', 'agreements', 'payout_profiles', 'visits', 'attributions', 'rules', 'commissions', 'commission_events', 'payouts', 'payout_items', 'jobs', 'audit', 'tiers', 'customer_links', 'creatives', 'payout_requests', 'sequences', 'balances', 'balance_entries', 'rate_limits' );
+	$wpac_tables = array( 'affiliates', 'partner_groups', 'partner_codes', 'agreements', 'payout_profiles', 'visits', 'attributions', 'rules', 'commissions', 'commission_events', 'payouts', 'payout_items', 'payout_corrections', 'jobs', 'audit', 'tiers', 'customer_links', 'creatives', 'payout_requests', 'sequences', 'balances', 'balance_entries', 'rate_limits' );
 	foreach ( $wpac_tables as $wpac_table ) {
 		if ( $wpac_keep && in_array( $wpac_table, $wpac_financial, true ) ) {
 			continue;
@@ -178,7 +189,7 @@ function wpac_uninstall_schedules() {
  */
 function wpac_uninstall_remove_empty_dir( $dir, $own_folder ) {
 	$entries = array_diff( (array) scandir( $dir ), array( '.', '..' ) );
-	if ( ! $own_folder || array_diff( $entries, array( '.htaccess', 'index.php' ) ) ) {
+	if ( ! $own_folder || array_diff( $entries, array( '.htaccess', 'index.php', '.wpac-sweep' ) ) ) {
 		return; // Shared, or other files are still there (other sites or installations): keep it.
 	}
 	foreach ( $entries as $entry ) {

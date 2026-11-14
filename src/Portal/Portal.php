@@ -362,6 +362,14 @@ final class Portal {
 		if ( ! $aff || ! $p || (int) $p->affiliate_id !== (int) $aff->id ) {
 			wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
 		}
+		if ( ! empty( $_GET['correction'] ) ) {
+			// Correction credit note of this (own) payout.
+			$kg = \WPAffiliateCaptain\Payouts\Corrections::find( absint( $_GET['correction'] ) );
+			if ( ! $kg || (int) $kg->payout_id !== (int) $p->id ) {
+				wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
+			}
+			\WPAffiliateCaptain\Payouts\Corrections::send( $kg );
+		}
 		if ( ! empty( $_GET['storno'] ) ) {
 			Statement::send_storno( $p );
 		}
@@ -426,38 +434,7 @@ final class Portal {
 			}
 			$msg   = 'pending' === $public ? 'change_review' : 'saved';
 			$email = isset( $_POST['wpac_acc_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_acc_email'] ) ) : '';
-			if ( '' !== $email && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
-				$other = AffiliateRepository::find_by_email( $email );
-				if ( ! is_email( $email ) ) {
-					$msg = 'wpac_email';
-				} elseif ( $other && (int) $other->id !== (int) $aff->id ) {
-					$msg = 'wpac_email_taken';
-				} elseif ( ! RateLimiter::allow_for( 'email_change', (int) $aff->id, 3, DAY_IN_SECONDS ) ) {
-					// Per partner (not per IP): changing the IP must not allow more confirmation mails.
-					$msg = 'email_change_limit';
-				} else {
-					$token = wp_generate_password( 32, false );
-					\WPAffiliateCaptain\Core\Pending::set(
-						'email_change_' . (int) $aff->id,
-						array(
-							'email'      => $email,
-							'token_hash' => self::email_token_hash( $token ),
-						),
-						DAY_IN_SECONDS
-					);
-					$link = add_query_arg( 'wpac_email_confirm', strtolower( $token ), add_query_arg( 'wpac_tab', 'account', wpac_return_url() ) );
-					\WPAffiliateCaptain\Affiliates\Notifications::send(
-						'email_confirm',
-						$email,
-						/* translators: %s: site name */
-						sprintf( __( '[%s] Please confirm your new e-mail address', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-						/* translators: %s: link */
-						sprintf( __( "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.", 'affiliate-captain' ), $link ),
-						array( 'affiliate_id' => (int) $aff->id )
-					);
-					$msg = 'email_confirm_sent';
-				}
-			}
+			$msg   = self::start_email_change( $aff, $email, $msg );
 			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $redirect ) );
 			exit;
 		}
@@ -536,29 +513,7 @@ final class Portal {
 			}
 			$msg = is_wp_error( $result ) ? $result->get_error_code() : ( \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id ) ? 'tax_pending' : 'saved' );
 			if ( is_wp_error( $result ) ) {
-				// Keep what the partner typed (never the IBAN or payment details) and mark the field with the error.
-				unset( $in['iban'], $in['payment_details'] );
-				$fields = array(
-					'wpac_iban'            => 'iban',
-					'wpac_iban_required'   => 'iban',
-					'wpac_payment_details' => 'payment_details',
-					'wpac_vat'        => 'vat_id',
-					'wpac_vat_format' => 'vat_id',
-					'wpac_tax_number' => 'tax_number',
-					'wpac_password'   => 'current_password',
-					'wpac_too_long_legal_name'     => 'legal_name',
-					'wpac_too_long_account_holder' => 'account_holder',
-					'wpac_too_long_vat_id'         => 'vat_id',
-					'wpac_method_disabled'         => 'iban',
-				);
-				set_transient(
-					'wpac_profile_form_' . get_current_user_id(),
-					array(
-						'values' => $in,
-						'field'  => isset( $fields[ $msg ] ) ? $fields[ $msg ] : '',
-					),
-					15 * MINUTE_IN_SECONDS
-				);
+				self::keep_profile_form( $in, $msg );
 			}
 			wp_safe_redirect( add_query_arg( 'wpac_msg', $msg, $redirect ) );
 			exit;
@@ -583,6 +538,84 @@ final class Portal {
 			wp_safe_redirect( add_query_arg( 'wpac_msg', 'terms', $redirect ) );
 			exit;
 		}
+	}
+
+	/**
+	 * Account form: start the confirmation of a new e-mail address (when it differs from the
+	 * current one).
+	 *
+	 * @param object $aff   Partner.
+	 * @param string $email New e-mail address (sanitized; may be empty).
+	 * @param string $msg   Message key so far.
+	 * @return string Message key.
+	 */
+	private static function start_email_change( $aff, $email, $msg ) {
+		if ( '' !== $email && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
+			$other = AffiliateRepository::find_by_email( $email );
+			if ( ! is_email( $email ) ) {
+				$msg = 'wpac_email';
+			} elseif ( $other && (int) $other->id !== (int) $aff->id ) {
+				$msg = 'wpac_email_taken';
+			} elseif ( ! RateLimiter::allow_for( 'email_change', (int) $aff->id, 3, DAY_IN_SECONDS ) ) {
+				// Per partner (not per IP): changing the IP must not allow more confirmation mails.
+				$msg = 'email_change_limit';
+			} else {
+				$token = wp_generate_password( 32, false );
+				\WPAffiliateCaptain\Core\Pending::set(
+					'email_change_' . (int) $aff->id,
+					array(
+						'email'      => $email,
+						'token_hash' => self::email_token_hash( $token ),
+					),
+					DAY_IN_SECONDS
+				);
+				$link = add_query_arg( 'wpac_email_confirm', strtolower( $token ), add_query_arg( 'wpac_tab', 'account', wpac_return_url() ) );
+				\WPAffiliateCaptain\Affiliates\Notifications::send(
+					'email_confirm',
+					$email,
+					/* translators: %s: site name */
+					sprintf( __( '[%s] Please confirm your new e-mail address', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+					/* translators: %s: link */
+					sprintf( __( "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.", 'affiliate-captain' ), $link ),
+					array( 'affiliate_id' => (int) $aff->id )
+				);
+				$msg = 'email_confirm_sent';
+			}
+		}
+		return $msg;
+	}
+
+	/**
+	 * Profile form rejected: keep what the partner typed (never the IBAN or payment details)
+	 * and mark the field with the error.
+	 *
+	 * @param array  $in  Submitted fields.
+	 * @param string $msg Error code.
+	 */
+	private static function keep_profile_form( array $in, $msg ) {
+		// Keep what the partner typed (never the IBAN or payment details) and mark the field with the error.
+		unset( $in['iban'], $in['payment_details'] );
+		$fields = array(
+			'wpac_iban'            => 'iban',
+			'wpac_iban_required'   => 'iban',
+			'wpac_payment_details' => 'payment_details',
+			'wpac_vat'        => 'vat_id',
+			'wpac_vat_format' => 'vat_id',
+			'wpac_tax_number' => 'tax_number',
+			'wpac_password'   => 'current_password',
+			'wpac_too_long_legal_name'     => 'legal_name',
+			'wpac_too_long_account_holder' => 'account_holder',
+			'wpac_too_long_vat_id'         => 'vat_id',
+			'wpac_method_disabled'         => 'iban',
+		);
+		set_transient(
+			'wpac_profile_form_' . get_current_user_id(),
+			array(
+				'values' => $in,
+				'field'  => isset( $fields[ $msg ] ) ? $fields[ $msg ] : '',
+			),
+			15 * MINUTE_IN_SECONDS
+		);
 	}
 
 	/**
@@ -1646,6 +1679,7 @@ final class Portal {
 		}
 		self::list_filter_form( 'payouts', $labels, $filters );
 		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your payouts', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Period until', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		$kgs = \WPAffiliateCaptain\Payouts\Corrections::for_payouts( wp_list_pluck( $rows, 'id' ) );
 		foreach ( $rows as $p ) {
 			if ( 'cancelled' === $p->status && ! $p->storno_file ) {
 				continue;
@@ -1656,6 +1690,12 @@ final class Portal {
 			$pdf = $p->statement_file ? '<a href="' . esc_url( $url( false ) ) . '">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</a>' : '—';
 			if ( $p->storno_file ) {
 				$pdf .= ' · <a href="' . esc_url( $url( true ) ) . '">' . esc_html__( 'Cancellation', 'affiliate-captain' ) . '</a>';
+			}
+			foreach ( isset( $kgs[ (int) $p->id ] ) ? $kgs[ (int) $p->id ] : array() as $kg ) {
+				if ( '' !== (string) $kg->file ) {
+					/* translators: %s: correction credit note number */
+					$pdf .= ' · <a href="' . esc_url( wp_nonce_url( add_query_arg( array( 'wpac_statement' => (int) $p->id, 'correction' => (int) $kg->id ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id ) ) . '">' . esc_html( sprintf( __( 'Correction %s', 'affiliate-captain' ), $kg->number ) ) . '</a>';
+				}
 			}
 			printf(
 				'<tr><td data-label="%6$s">%1$s</td><td data-label="%7$s">%2$s</td><td data-label="%8$s">%3$s</td><td data-label="%9$s">%4$s</td><td data-label="%10$s">%5$s</td></tr>',

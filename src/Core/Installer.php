@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 11;
+	const DB_VERSION = 12;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -285,7 +285,7 @@ final class Installer {
 	 * Tables with booking records that must be kept for the statutory retention period (the same
 	 * list as in uninstall.php; the partners table is kept too, see there).
 	 */
-	const FINANCIAL_TABLES = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements' );
+	const FINANCIAL_TABLES = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements', 'payout_corrections' );
 
 	/** Site option: deleted sites whose booking records are kept (site ID => retention data). */
 	const RETAINED_SITES = 'wpac_retained_sites';
@@ -315,7 +315,17 @@ final class Installer {
 			}
 			// Cancellations start their own period (storno_at).
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-			return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE created_at > %s OR storno_at > %s LIMIT 1", $cutoff, $cutoff ) );
+			if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE created_at > %s OR storno_at > %s LIMIT 1", $cutoff, $cutoff ) ) ) {
+				return true;
+			}
+			// So do correction credit notes (issued later than the credit note they correct).
+			$k = Db::table( 'payout_corrections' );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $k ) ) ) ) {
+				return false;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$k} WHERE created_at > %s LIMIT 1", $cutoff ) );
 		} finally {
 			if ( $switched ) {
 				restore_current_blog();
@@ -482,7 +492,17 @@ final class Installer {
 		}
 		$cutoff = gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
-		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM `' . esc_sql( $t ) . '` WHERE created_at > %s OR storno_at > %s LIMIT 1', $cutoff, $cutoff ) );
+		if ( $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM `' . esc_sql( $t ) . '` WHERE created_at > %s OR storno_at > %s LIMIT 1', $cutoff, $cutoff ) ) ) {
+			return true;
+		}
+		// Correction credit notes start their own period (as in site_must_retain()).
+		$k = $prefix . 'wpac_payout_corrections';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $k ) ) ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM `' . esc_sql( $k ) . '` WHERE created_at > %s LIMIT 1', $cutoff ) );
 	}
 
 	/**
@@ -689,6 +709,7 @@ final class Installer {
 			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at', 'operator_snapshot' ),
 			'payout_items'    => array( 'id', 'payout_id', 'commission_id', 'vat_mode', 'vat_rate', 'ref_payout_id' ),
 			'payout_profiles' => array( 'affiliate_id', 'tax_number' ),
+			'payout_corrections' => array( 'id', 'payout_id', 'number', 'request_key', 'commission_id', 'file', 'hash' ),
 			'balances'        => array( 'affiliate_id', 'last_hash', 'verified_id', 'verified_hash' ),
 			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
 			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
@@ -785,13 +806,80 @@ final class Installer {
 			return;
 		}
 		self::migrate_before( $previous );
-		$t = static function ( $name ) {
-			return Db::table( $name );
-		};
+		$sql = self::schema_statements( $c );
 
-		$sql = array();
+		self::keep_lock();
+		foreach ( $sql as $statement ) {
+			dbDelta( $statement );
+			self::keep_lock();
+		}
 
-		$sql[] = "CREATE TABLE {$t('affiliates')} (
+		self::migrate_after( $previous );
+		self::keep_lock();
+		if ( $previous > 0 && $previous < 5 ) {
+			// v5: opening balance entries for existing approved, unassigned commissions.
+			\WPAffiliateCaptain\Commissions\Balance::open_from_ledger();
+			self::keep_lock();
+		}
+		// Only a verified schema counts as migrated; otherwise the next request tries again.
+		$problems = self::verify_schema();
+		if ( $problems ) {
+			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
+				update_option( 'wpac_schema_problems_since', time(), false );
+			}
+			update_option( 'wpac_schema_problems', $problems, false );
+			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
+			Log::error( 'Database migration incomplete', array( 'problems' => $problems ) );
+			return;
+		}
+		delete_option( 'wpac_schema_problems' );
+		delete_option( 'wpac_schema_problems_since' );
+		update_option( self::DB_OPTION, self::db_version(), true );
+	}
+
+	/**
+	 * CREATE TABLE statements of all tables, in dbDelta order.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string[]
+	 */
+	private static function schema_statements( $c ) {
+		return array(
+			self::schema_affiliates( $c ),
+			self::schema_partner_groups( $c ),
+			self::schema_partner_codes( $c ),
+			self::schema_agreements( $c ),
+			self::schema_payout_profiles( $c ),
+			self::schema_visits( $c ),
+			self::schema_attributions( $c ),
+			self::schema_rules( $c ),
+			self::schema_commissions( $c ),
+			self::schema_commission_events( $c ),
+			self::schema_payouts( $c ),
+			self::schema_payout_items( $c ),
+			self::schema_payout_corrections( $c ),
+			self::schema_jobs( $c ),
+			self::schema_audit( $c ),
+			self::schema_tiers( $c ),
+			self::schema_customer_links( $c ),
+			self::schema_rate_limits( $c ),
+			self::schema_creatives( $c ),
+			self::schema_balances( $c ),
+			self::schema_balance_entries( $c ),
+			self::schema_sequences( $c ),
+			self::schema_payout_requests( $c ),
+		);
+	}
+
+	/**
+	 * CREATE TABLE statement of the affiliates table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_affiliates( $c ) {
+		$table = Db::table( 'affiliates' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			group_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -817,8 +905,17 @@ final class Installer {
 			KEY status (status),
 			KEY updated_at (updated_at)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('partner_groups')} (
+	/**
+	 * CREATE TABLE statement of the partner_groups table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_partner_groups( $c ) {
+		$table = Db::table( 'partner_groups' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			name varchar(190) NOT NULL,
 			description text NULL,
@@ -830,8 +927,17 @@ final class Installer {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('partner_codes')} (
+	/**
+	 * CREATE TABLE statement of the partner_codes table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_partner_codes( $c ) {
+		$table = Db::table( 'partner_codes' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
 			code varchar(64) NOT NULL,
@@ -848,8 +954,17 @@ final class Installer {
 			KEY coupon_code (coupon_code),
 			KEY batch (batch)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('agreements')} (
+	/**
+	 * CREATE TABLE statement of the agreements table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_agreements( $c ) {
+		$table = Db::table( 'agreements' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
 			version varchar(40) NOT NULL,
@@ -860,8 +975,17 @@ final class Installer {
 			PRIMARY KEY  (id),
 			KEY affiliate_id (affiliate_id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('payout_profiles')} (
+	/**
+	 * CREATE TABLE statement of the payout_profiles table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_payout_profiles( $c ) {
+		$table = Db::table( 'payout_profiles' );
+		return "CREATE TABLE {$table} (
 			affiliate_id bigint(20) unsigned NOT NULL,
 			tax_status varchar(30) NOT NULL DEFAULT '',
 			legal_name varchar(190) NOT NULL DEFAULT '',
@@ -878,8 +1002,17 @@ final class Installer {
 			PRIMARY KEY  (affiliate_id),
 			KEY updated_at (updated_at)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('visits')} (
+	/**
+	 * CREATE TABLE statement of the visits table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_visits( $c ) {
+		$table = Db::table( 'visits' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
 			code_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -897,8 +1030,17 @@ final class Installer {
 			KEY campaign_created (campaign,created_at,affiliate_id),
 			KEY content_created (content_id,created_at,affiliate_id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('attributions')} (
+	/**
+	 * CREATE TABLE statement of the attributions table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_attributions( $c ) {
+		$table = Db::table( 'attributions' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			source varchar(40) NOT NULL,
 			source_order_id varchar(64) NOT NULL,
@@ -921,8 +1063,17 @@ final class Installer {
 			KEY content_created (content_id,created_at),
 			KEY campaign_created (campaign,created_at)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('rules')} (
+	/**
+	 * CREATE TABLE statement of the rules table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_rules( $c ) {
+		$table = Db::table( 'rules' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			scope varchar(20) NOT NULL DEFAULT 'global',
 			scope_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -939,8 +1090,17 @@ final class Installer {
 			PRIMARY KEY  (id),
 			KEY scope (scope,scope_id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('commissions')} (
+	/**
+	 * CREATE TABLE statement of the commissions table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_commissions( $c ) {
+		$table = Db::table( 'commissions' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
 			source varchar(40) NOT NULL,
@@ -974,8 +1134,17 @@ final class Installer {
 			KEY created_at (created_at),
 			KEY updated_at (updated_at)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('commission_events')} (
+	/**
+	 * CREATE TABLE statement of the commission_events table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_commission_events( $c ) {
+		$table = Db::table( 'commission_events' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			commission_id bigint(20) unsigned NOT NULL,
 			event varchar(30) NOT NULL,
@@ -989,8 +1158,17 @@ final class Installer {
 			PRIMARY KEY  (id),
 			KEY commission_id (commission_id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('payouts')} (
+	/**
+	 * CREATE TABLE statement of the payouts table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_payouts( $c ) {
+		$table = Db::table( 'payouts' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			number varchar(40) NOT NULL DEFAULT '',
 			affiliate_id bigint(20) unsigned NOT NULL,
@@ -1023,8 +1201,17 @@ final class Installer {
 			KEY affiliate_id (affiliate_id),
 			KEY status (status)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('payout_items')} (
+	/**
+	 * CREATE TABLE statement of the payout_items table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_payout_items( $c ) {
+		$table = Db::table( 'payout_items' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			payout_id bigint(20) unsigned NOT NULL,
 			commission_id bigint(20) unsigned NOT NULL,
@@ -1039,8 +1226,59 @@ final class Installer {
 			KEY commission_id (commission_id),
 			KEY payout_id (payout_id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('jobs')} (
+	/**
+	 * CREATE TABLE statement of the payout_corrections table.
+	 *
+	 * v12: correction credit notes of paid payouts (R5-W55).
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_payout_corrections( $c ) {
+		$table = Db::table( 'payout_corrections' );
+		return "CREATE TABLE {$table} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			payout_id bigint(20) unsigned NOT NULL,
+			number varchar(40) NOT NULL,
+			affiliate_id bigint(20) unsigned NOT NULL,
+			currency char(3) NOT NULL,
+			base_number varchar(40) NOT NULL DEFAULT '',
+			prev_net_minor bigint(20) NOT NULL DEFAULT 0,
+			prev_vat_minor bigint(20) NOT NULL DEFAULT 0,
+			net_minor bigint(20) NOT NULL DEFAULT 0,
+			vat_minor bigint(20) NOT NULL DEFAULT 0,
+			vat_mode varchar(20) NOT NULL DEFAULT '',
+			vat_rate varchar(10) NOT NULL DEFAULT '0',
+			reason text NULL,
+			commission_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			request_key varchar(64) NOT NULL,
+			profile_snapshot text NULL,
+			operator_snapshot text NULL,
+			file varchar(255) NOT NULL DEFAULT '',
+			hash char(64) NOT NULL DEFAULT '',
+			file_deleted_at datetime NULL,
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY number (number),
+			UNIQUE KEY request_key (request_key),
+			KEY payout_id (payout_id),
+			KEY affiliate_id (affiliate_id),
+			KEY created_at (created_at)
+		) $c;";
+	}
+
+	/**
+	 * CREATE TABLE statement of the jobs table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_jobs( $c ) {
+		$table = Db::table( 'jobs' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			type varchar(40) NOT NULL,
 			idempotency_key varchar(191) NOT NULL,
@@ -1056,8 +1294,17 @@ final class Installer {
 			UNIQUE KEY idempotency_key (idempotency_key),
 			KEY status_next (status,next_attempt_at)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('audit')} (
+	/**
+	 * CREATE TABLE statement of the audit table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_audit( $c ) {
+		$table = Db::table( 'audit' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			actor_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			action varchar(60) NOT NULL,
@@ -1069,8 +1316,17 @@ final class Installer {
 			KEY object (object_type,object_id),
 			KEY created_at (created_at)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('tiers')} (
+	/**
+	 * CREATE TABLE statement of the tiers table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_tiers( $c ) {
+		$table = Db::table( 'tiers' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			scope varchar(20) NOT NULL DEFAULT 'global',
 			scope_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1085,8 +1341,17 @@ final class Installer {
 			PRIMARY KEY  (id),
 			KEY scope (scope,scope_id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('customer_links')} (
+	/**
+	 * CREATE TABLE statement of the customer_links table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_customer_links( $c ) {
+		$table = Db::table( 'customer_links' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
 			customer_hash char(64) NOT NULL,
@@ -1101,17 +1366,36 @@ final class Installer {
 			KEY source_order (source,source_order_id),
 			KEY expires_at (expires_at)
 		) $c;";
+	}
 
-		// Rate-limit counters (own table: millions of short-lived rows must not bloat wp_options).
-		$sql[] = "CREATE TABLE {$t('rate_limits')} (
+	/**
+	 * CREATE TABLE statement of the rate_limits table.
+	 *
+	 * Rate-limit counters (own table: millions of short-lived rows must not bloat wp_options).
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_rate_limits( $c ) {
+		$table = Db::table( 'rate_limits' );
+		return "CREATE TABLE {$table} (
 			rl_key binary(16) NOT NULL,
 			hits int(10) unsigned NOT NULL DEFAULT 0,
 			expires_at int(10) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (rl_key),
 			KEY expires_at (expires_at)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('creatives')} (
+	/**
+	 * CREATE TABLE statement of the creatives table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_creatives( $c ) {
+		$table = Db::table( 'creatives' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			family_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			version int(10) unsigned NOT NULL DEFAULT 1,
@@ -1132,8 +1416,17 @@ final class Installer {
 			KEY family_id (family_id),
 			KEY status (status)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('balances')} (
+	/**
+	 * CREATE TABLE statement of the balances table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_balances( $c ) {
+		$table = Db::table( 'balances' );
+		return "CREATE TABLE {$table} (
 			affiliate_id bigint(20) unsigned NOT NULL,
 			currency char(3) NOT NULL,
 			balance_minor bigint(20) NOT NULL DEFAULT 0,
@@ -1146,8 +1439,17 @@ final class Installer {
 			verified_at datetime NULL,
 			PRIMARY KEY  (affiliate_id,currency)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('balance_entries')} (
+	/**
+	 * CREATE TABLE statement of the balance_entries table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_balance_entries( $c ) {
+		$table = Db::table( 'balance_entries' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
 			currency char(3) NOT NULL,
@@ -1166,15 +1468,33 @@ final class Installer {
 			KEY commission_id (commission_id),
 			KEY payout_id (payout_id)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('sequences')} (
+	/**
+	 * CREATE TABLE statement of the sequences table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_sequences( $c ) {
+		$table = Db::table( 'sequences' );
+		return "CREATE TABLE {$table} (
 			name varchar(20) NOT NULL,
 			year smallint(5) unsigned NOT NULL,
 			value int(10) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (name,year)
 		) $c;";
+	}
 
-		$sql[] = "CREATE TABLE {$t('payout_requests')} (
+	/**
+	 * CREATE TABLE statement of the payout_requests table.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_payout_requests( $c ) {
+		$table = Db::table( 'payout_requests' );
+		return "CREATE TABLE {$table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
 			currency char(3) NOT NULL,
@@ -1188,34 +1508,6 @@ final class Installer {
 			PRIMARY KEY  (id),
 			KEY affiliate_status (affiliate_id,status)
 		) $c;";
-
-		self::keep_lock();
-		foreach ( $sql as $statement ) {
-			dbDelta( $statement );
-			self::keep_lock();
-		}
-
-		self::migrate_after( $previous );
-		self::keep_lock();
-		if ( $previous > 0 && $previous < 5 ) {
-			// v5: opening balance entries for existing approved, unassigned commissions.
-			\WPAffiliateCaptain\Commissions\Balance::open_from_ledger();
-			self::keep_lock();
-		}
-		// Only a verified schema counts as migrated; otherwise the next request tries again.
-		$problems = self::verify_schema();
-		if ( $problems ) {
-			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
-				update_option( 'wpac_schema_problems_since', time(), false );
-			}
-			update_option( 'wpac_schema_problems', $problems, false );
-			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
-			Log::error( 'Database migration incomplete', array( 'problems' => $problems ) );
-			return;
-		}
-		delete_option( 'wpac_schema_problems' );
-		delete_option( 'wpac_schema_problems_since' );
-		update_option( self::DB_OPTION, self::db_version(), true );
 	}
 
 	/**

@@ -19,7 +19,8 @@ final class ExportCommand {
 
 	/**
 	 * Export partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout
-	 * items and payout requests as a ZIP of CSV files (format: docs/IMPORT-EXPORT.md).
+	 * items, correction credit notes and payout requests as a ZIP of CSV files (format:
+	 * docs/IMPORT-EXPORT.md).
 	 *
 	 * ## OPTIONS
 	 *
@@ -27,7 +28,8 @@ final class ExportCommand {
 	 * : Target ZIP file.
 	 *
 	 * [--include-tax-data]
-	 * : Also export payout details with decrypted IBANs and the tax data of payouts. Needs
+	 * : Also export payout details with decrypted IBANs and the tax data of payouts and correction
+	 * credit notes. Needs
 	 * --user=<login> of a user with the capability wpac_view_tax_data.
 	 *
 	 * ## EXAMPLES

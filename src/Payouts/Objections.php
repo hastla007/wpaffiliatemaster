@@ -2,7 +2,8 @@
 /**
  * Objections against credit notes (§14 Abs. 2 S. 3 UStG): the partner can object to a
  * self-billed credit note at any time; it then loses its effect as an invoice. The operator
- * cancels the payout (cancellation document) and issues a corrected credit note.
+ * cancels an unpaid payout (cancellation document) and issues a corrected credit note, or issues
+ * a correction credit note for a paid one (Corrections), or explains why it is correct.
  *
  * @package WPAffiliateCaptain
  */
@@ -20,7 +21,8 @@ final class Objections {
 	const OPTION = 'wpac_objections';
 
 	/**
-	 * All objections: payout ID => [ affiliate_id, at, reason, status, resolution, resolved_at ].
+	 * All objections: payout ID => [ affiliate_id, at, reason, status, resolution, resolved_at,
+	 * correction_id (correction credit note that resolved it, if any) ].
 	 *
 	 * @return array
 	 */
@@ -163,7 +165,7 @@ final class Objections {
 				/* translators: %s: credit note number */
 				sprintf( __( 'Objection to credit note %s', 'affiliate-captain' ), $p->number ),
 				/* translators: 1: partner, 2: number, 3: reason, 4: URL */
-				sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4\$s", 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) ),
+				sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it: cancel an unpaid payout and create it again, issue a correction credit note for a paid one, or explain why it is correct:\n%4\$s", 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) ),
 				array(
 					'admin'        => true,
 					'affiliate_id' => (int) $affiliate_id,
@@ -177,14 +179,14 @@ final class Objections {
 
 	/**
 	 * What the operator can do about an objection, depending on the payout's state. A paid
-	 * payout cannot be cancelled (the money went out): the correction runs outside the payout.
+	 * payout cannot be cancelled (the money went out): it gets a correction credit note.
 	 *
 	 * @param object|null $payout Payout.
 	 * @return string
 	 */
 	public static function guidance( $payout ) {
 		if ( $payout && 'paid' === $payout->status ) {
-			return __( 'The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled here. If the objection is justified, agree the correction with the partner – the partner issues their own invoice for the correct amount, or you settle the difference by a separate transfer or repayment request – and keep the documents with the credit note. If the credit note is correct, explain why. Then describe below what was done; the partner receives this text.', 'affiliate-captain' );
+			return __( 'The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled. If the objection is justified, issue a correction credit note below with the correct net amount: the difference (VAT as on the credit note) is booked to the partner account – a shortfall is paid with the next payout, an overpayment is offset against the next commissions – and the objection is marked as handled. If the credit note is correct, explain why below; the partner receives this text.', 'affiliate-captain' );
 		}
 		if ( $payout && 'cancelled' === $payout->status ) {
 			return __( 'The payout was already cancelled (cancellation document issued); its commissions are paid with the next run and a new credit note. Describe below what was done; the partner receives this text.', 'affiliate-captain' );
@@ -207,16 +209,17 @@ final class Objections {
 	/**
 	 * Mark an objection as handled (e.g. payout cancelled and reissued, or explained).
 	 *
-	 * @param int    $payout_id  Payout.
-	 * @param string $resolution What was done (shown to the partner).
+	 * @param int    $payout_id     Payout.
+	 * @param string $resolution    What was done (shown to the partner).
+	 * @param int    $correction_id Correction credit note that resolves it (0 = none).
 	 * @return bool
 	 */
-	public static function resolve( $payout_id, $resolution ) {
+	public static function resolve( $payout_id, $resolution, $correction_id = 0 ) {
 		$resolution = self::cut( sanitize_textarea_field( (string) $resolution ), 1000 );
 		try {
 			$all = Db::with_lock(
 				self::LOCK,
-				static function () use ( $payout_id, $resolution ) {
+				static function () use ( $payout_id, $resolution, $correction_id ) {
 					$all = self::fresh();
 					if ( ! isset( $all[ (int) $payout_id ] ) || 'open' !== $all[ (int) $payout_id ]['status'] ) {
 						return null;
@@ -224,6 +227,9 @@ final class Objections {
 					$all[ (int) $payout_id ]['status']      = 'resolved';
 					$all[ (int) $payout_id ]['resolution']  = $resolution;
 					$all[ (int) $payout_id ]['resolved_at'] = Db::now();
+					if ( $correction_id ) {
+						$all[ (int) $payout_id ]['correction_id'] = (int) $correction_id;
+					}
 					// Not stored: the objection stays open and the partner is not told it was handled.
 					return update_option( self::OPTION, $all, false ) ? $all : null;
 				}
@@ -234,7 +240,7 @@ final class Objections {
 		if ( null === $all ) {
 			return false;
 		}
-		Audit::log( 'statement.objection_resolved', 'payout', (int) $payout_id );
+		Audit::log( 'statement.objection_resolved', 'payout', (int) $payout_id, $correction_id ? array( 'correction' => (int) $correction_id ) : array() );
 		$aff = AffiliateRepository::find( (int) $all[ (int) $payout_id ]['affiliate_id'] );
 		$p   = PayoutService::find( (int) $payout_id );
 		if ( $aff && $p ) {

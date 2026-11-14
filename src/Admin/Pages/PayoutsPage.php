@@ -8,11 +8,13 @@
 namespace WPAffiliateCaptain\Admin\Pages;
 
 use WPAffiliateCaptain\Admin\Admin;
+use WPAffiliateCaptain\Admin\Tables\PayoutsTable;
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Core\Capabilities;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Payouts\Corrections;
 use WPAffiliateCaptain\Payouts\PayoutRequests;
 use WPAffiliateCaptain\Payouts\PayoutService;
 use WPAffiliateCaptain\Payouts\Statement;
@@ -46,6 +48,38 @@ final class PayoutsPage {
 					Admin::back( __( 'This objection was already handled, no longer exists or could not be saved; nothing was sent.', 'affiliate-captain' ), 'error' );
 				}
 				Admin::back( __( 'Objection marked as handled; the partner was informed.', 'affiliate-captain' ) );
+				break;
+
+			case 'payout_correction':
+				// A correction credit note is a tax document with the partner's tax data.
+				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+					Admin::back( __( 'Correction credit notes are tax documents. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
+				}
+				$cp  = PayoutService::find( absint( Admin::post( 'payout_id' ) ) );
+				$raw = $cp ? Money::parse_amount( (string) Admin::post( 'net' ), (string) $cp->currency ) : null;
+				if ( ! $cp || null === $raw ) {
+					Admin::back( __( 'Please enter the correct net amount (0 or more).', 'affiliate-captain' ), 'error' );
+				}
+				if ( ! Admin::post( 'confirm' ) ) {
+					Admin::back( __( 'Please tick the confirmation box: the correction credit note gets a number and cannot be changed afterwards.', 'affiliate-captain' ), 'error' );
+				}
+				$cid = Corrections::create( (int) $cp->id, Money::to_minor( $raw, (string) $cp->currency ), (string) Admin::post( 'reason' ), sanitize_key( Admin::post( 'request_key' ) ), (int) Admin::post( 'base_net' ) );
+				if ( is_wp_error( $cid ) ) {
+					Admin::back( $cid->get_error_message(), 'error' );
+				}
+				$kg = Corrections::find( (int) $cid );
+				/* translators: 1: correction number, 2: credit note number */
+				Admin::back( sprintf( __( 'Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed.', 'affiliate-captain' ), $kg ? $kg->number : '#' . (int) $cid, $cp->number ), 'success', Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => (int) $cp->id ) ) );
+				break;
+
+			case 'correction_download':
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified in dispatch().
+				$kg = Corrections::find( isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0 );
+				if ( ! $kg || ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+					wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
+				}
+				\WPAffiliateCaptain\Core\Audit::log( 'statement.correction_downloaded', 'payout', (int) $kg->payout_id, array( 'correction' => (int) $kg->id ) );
+				Corrections::send( $kg );
 				break;
 
 			case 'payout_run':
@@ -90,139 +124,7 @@ final class PayoutsPage {
 				break;
 
 			case 'payout_bulk':
-				$ids    = self::selected();
-				$action = sanitize_key( Admin::post( 'bulk_action' ) );
-				$reason = sanitize_text_field( Admin::post( 'reason' ) );
-				// Keep the selection, action and reason when something is missing (no retyping).
-				$keep = static function () use ( $ids, $action, $reason ) {
-					Admin::keep_form(
-						'payout_bulk',
-						array(
-							'ids'    => $ids,
-							'action' => $action,
-							'reason' => $reason,
-						)
-					);
-				};
-				if ( ! $ids ) {
-					Admin::back( __( 'Please select at least one payout.', 'affiliate-captain' ), 'error' );
-				}
-				if ( ! in_array( $action, array( 'sepa', 'csv', 'paypal', 'paid', 'cancel' ), true ) ) {
-					$keep();
-					Admin::back( __( 'Please choose an action.', 'affiliate-captain' ), 'error' );
-				}
-				if ( 'cancel' === $action && '' === trim( $reason ) ) {
-					$keep();
-					Admin::back( __( 'Please enter a cancellation reason (it is printed on the cancellation document).', 'affiliate-captain' ), 'error' );
-				}
-				if ( in_array( $action, array( 'paid', 'cancel' ), true ) && ! Admin::post( 'confirm' ) ) {
-					$keep();
-					Admin::back(
-						sprintf(
-							/* translators: 1: number of payouts, 2: amount(s) */
-							_n( 'Please tick the confirmation box: this affects %1$d payout totalling %2$s. Your selection was kept.', 'Please tick the confirmation box: this affects %1$d payouts totalling %2$s. Your selection was kept.', count( $ids ), 'affiliate-captain' ),
-							count( $ids ),
-							html_entity_decode( self::totals_text( $ids ), ENT_QUOTES, 'UTF-8' )
-						),
-						'error'
-					);
-				}
-				if ( 'csv' === $action ) {
-					// Bank transfer list for any currency (foreign banks, payment providers); afterwards
-					// "Mark as paid" when the money went out.
-					if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
-						Admin::back( __( 'The transfer list contains bank details. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
-					}
-					$result = PayoutService::transfer_csv( $ids, (bool) Admin::post( 'reexport' ) );
-					if ( is_wp_error( $result ) ) {
-						$keep();
-						Admin::back( $result->get_error_message(), 'error' );
-					}
-					/**
-					 * Header of the transfer list; add-ons that append columns via wpac_transfer_rows
-					 * append their column names here.
-					 *
-					 * @since contract 1.2.0
-					 * @param string[] $header Column names.
-					 */
-					$header = (array) apply_filters( 'wpac_transfer_header', self::transfer_header() );
-					/* translators: 1: number of payouts, 2: file name */
-					self::download_notice( sprintf( _n( 'Transfer list with %1$d payout downloaded (%2$s). The payout is now marked as exported; once the money went out, select it and choose "Mark as paid".', 'Transfer list with %1$d payouts downloaded (%2$s). They are now marked as exported; once the money went out, select them and choose "Mark as paid".', count( $result[1] ), 'affiliate-captain' ), count( $result[1] ), $result[0] . '.csv' ) );
-					\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', $header, self::transfer_rows_for_excel( $result[1] ) );
-				}
-				if ( 'paypal' === $action ) {
-					// PayPal Payouts file (upload in the PayPal business account); afterwards "Mark as paid".
-					if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
-						Admin::back( __( 'The PayPal file contains payment details. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
-					}
-					$result = PayoutService::paypal_csv( $ids, (bool) Admin::post( 'reexport' ) );
-					if ( is_wp_error( $result ) ) {
-						$keep();
-						Admin::back( $result->get_error_message(), 'error' );
-					}
-					/* translators: 1: number of payouts, 2: file name */
-					$message = sprintf( _n( 'PayPal payouts file with %1$d payout downloaded (%2$s). Upload it in your PayPal business account (Pay & get paid → Payouts); once PayPal executed it, mark the payout as paid.', 'PayPal payouts file with %1$d payouts downloaded (%2$s). Upload it in your PayPal business account (Pay & get paid → Payouts); once PayPal executed them, mark the payouts as paid.', count( $result[1] ), 'affiliate-captain' ), count( $result[1] ), $result[0] . '.csv' );
-					if ( $result[2] ) {
-						/* translators: %d: number of payouts */
-						$message .= ' ' . sprintf( _n( '%d selected payout has no PayPal address and was left out (it stays as it is):', '%d selected payouts have no PayPal address and were left out (they stay as they are):', count( $result[2] ), 'affiliate-captain' ), count( $result[2] ) );
-					}
-					self::download_notice( $message, $result[2] ? 'warning' : 'success', $result[2] );
-					nocache_headers();
-					header( 'Content-Type: text/csv; charset=utf-8' );
-					header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $result[0] ) . '.csv"' );
-					echo PayoutService::paypal_csv_text( $result[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV download.
-					exit;
-				}
-				if ( 'sepa' === $action ) {
-					if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
-						Admin::back( __( 'The SEPA file contains bank details. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
-					}
-					$result = PayoutService::sepa_export( $ids, (bool) Admin::post( 'reexport' ) );
-					if ( is_wp_error( $result ) ) {
-						$keep();
-						Admin::back( $result->get_error_message(), 'error' );
-					}
-					/* translators: 1: number of payouts, 2: file name */
-					$message = sprintf( _n( 'SEPA file with %1$d payout downloaded (%2$s). Import it in your online banking; once the bank executed the transfer, mark the payout as paid.', 'SEPA file with %1$d payouts downloaded (%2$s). Import it in your online banking; once the bank executed the transfers, mark the payouts as paid.', count( $result[3] ), 'affiliate-captain' ), count( $result[3] ), $result[0] );
-					if ( $result[2] ) {
-						/* translators: %d: number of payouts */
-						$message .= ' ' . sprintf( _n( '%d selected payout uses another payment method (e.g. PayPal) and is not in the file: pay it by the transfer list or PayPal file and then mark it as paid.', '%d selected payouts use another payment method (e.g. PayPal) and are not in the file: pay them by the transfer list or PayPal file and then mark them as paid.', $result[2], 'affiliate-captain' ), $result[2] );
-					}
-					self::download_notice( $message, $result[2] ? 'warning' : 'success' );
-					nocache_headers();
-					header( 'Content-Type: application/xml; charset=utf-8' );
-					header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $result[0] ) . '"' );
-					echo $result[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					exit;
-				}
-				// Mark as paid / cancel: every payout on its own; report what worked and what did not.
-				$done   = 0;
-				$failed = array();
-				foreach ( $ids as $id ) {
-					$p = PayoutService::find( $id );
-					$r = 'paid' === $action ? PayoutService::mark_paid( $id ) : PayoutService::cancel( $id, $reason, (bool) Admin::post( 'confirm_not_sent' ) );
-					if ( is_wp_error( $r ) ) {
-						$failed[] = ( $p ? $p->number : '#' . (int) $id ) . ': ' . $r->get_error_message();
-					} else {
-						++$done;
-					}
-				}
-				if ( 'paid' === $action ) {
-					/* translators: %d: number of payouts */
-					$message = sprintf( _n( '%d payout marked as paid.', '%d payouts marked as paid.', $done, 'affiliate-captain' ), $done );
-					if ( $failed ) {
-						/* translators: %d: number of payouts */
-						$message .= ' ' . sprintf( _n( '%d payout could not be marked as paid:', '%d payouts could not be marked as paid:', count( $failed ), 'affiliate-captain' ), count( $failed ) );
-					}
-				} else {
-					/* translators: %d: number of payouts */
-					$message = sprintf( _n( '%d payout cancelled; its commissions are available for the next run.', '%d payouts cancelled; their commissions are available for the next run.', $done, 'affiliate-captain' ), $done );
-					if ( $failed ) {
-						/* translators: %d: number of payouts */
-						$message .= ' ' . sprintf( _n( '%d payout could not be cancelled:', '%d payouts could not be cancelled:', count( $failed ), 'affiliate-captain' ), count( $failed ) );
-					}
-				}
-				Admin::back( $message, $failed ? ( $done ? 'warning' : 'error' ) : 'success', '', $failed );
+				self::handle_bulk();
 				break;
 
 			case 'payout_request_process':
@@ -271,6 +173,145 @@ final class PayoutsPage {
 				Csv::stream( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $out );
 				break;
 		}
+	}
+
+	/**
+	 * Bulk action on the selected payouts: transfer list, PayPal or SEPA file, mark as paid, cancel.
+	 */
+	private static function handle_bulk() {
+		$ids    = self::selected();
+		$action = sanitize_key( Admin::post( 'bulk_action' ) );
+		$reason = sanitize_text_field( Admin::post( 'reason' ) );
+		// Keep the selection, action and reason when something is missing (no retyping).
+		$keep = static function () use ( $ids, $action, $reason ) {
+			Admin::keep_form(
+				'payout_bulk',
+				array(
+					'ids'    => $ids,
+					'action' => $action,
+					'reason' => $reason,
+				)
+			);
+		};
+		if ( ! $ids ) {
+			Admin::back( __( 'Please select at least one payout.', 'affiliate-captain' ), 'error' );
+		}
+		if ( ! in_array( $action, array( 'sepa', 'csv', 'paypal', 'paid', 'cancel' ), true ) ) {
+			$keep();
+			Admin::back( __( 'Please choose an action.', 'affiliate-captain' ), 'error' );
+		}
+		if ( 'cancel' === $action && '' === trim( $reason ) ) {
+			$keep();
+			Admin::back( __( 'Please enter a cancellation reason (it is printed on the cancellation document).', 'affiliate-captain' ), 'error' );
+		}
+		if ( in_array( $action, array( 'paid', 'cancel' ), true ) && ! Admin::post( 'confirm' ) ) {
+			$keep();
+			Admin::back(
+				sprintf(
+					/* translators: 1: number of payouts, 2: amount(s) */
+					_n( 'Please tick the confirmation box: this affects %1$d payout totalling %2$s. Your selection was kept.', 'Please tick the confirmation box: this affects %1$d payouts totalling %2$s. Your selection was kept.', count( $ids ), 'affiliate-captain' ),
+					count( $ids ),
+					html_entity_decode( self::totals_text( $ids ), ENT_QUOTES, 'UTF-8' )
+				),
+				'error'
+			);
+		}
+		if ( 'csv' === $action ) {
+			// Bank transfer list for any currency (foreign banks, payment providers); afterwards
+			// "Mark as paid" when the money went out.
+			if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+				Admin::back( __( 'The transfer list contains bank details. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
+			}
+			$result = PayoutService::transfer_csv( $ids, (bool) Admin::post( 'reexport' ) );
+			if ( is_wp_error( $result ) ) {
+				$keep();
+				Admin::back( $result->get_error_message(), 'error' );
+			}
+			/**
+			 * Header of the transfer list; add-ons that append columns via wpac_transfer_rows
+			 * append their column names here.
+			 *
+			 * @since contract 1.2.0
+			 * @param string[] $header Column names.
+			 */
+			$header = (array) apply_filters( 'wpac_transfer_header', self::transfer_header() );
+			/* translators: 1: number of payouts, 2: file name */
+			self::download_notice( sprintf( _n( 'Transfer list with %1$d payout downloaded (%2$s). The payout is now marked as exported; once the money went out, select it and choose "Mark as paid".', 'Transfer list with %1$d payouts downloaded (%2$s). They are now marked as exported; once the money went out, select them and choose "Mark as paid".', count( $result[1] ), 'affiliate-captain' ), count( $result[1] ), $result[0] . '.csv' ) );
+			\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', $header, self::transfer_rows_for_excel( $result[1] ) );
+		}
+		if ( 'paypal' === $action ) {
+			// PayPal Payouts file (upload in the PayPal business account); afterwards "Mark as paid".
+			if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+				Admin::back( __( 'The PayPal file contains payment details. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
+			}
+			$result = PayoutService::paypal_csv( $ids, (bool) Admin::post( 'reexport' ) );
+			if ( is_wp_error( $result ) ) {
+				$keep();
+				Admin::back( $result->get_error_message(), 'error' );
+			}
+			/* translators: 1: number of payouts, 2: file name */
+			$message = sprintf( _n( 'PayPal payouts file with %1$d payout downloaded (%2$s). Upload it in your PayPal business account (Pay & get paid → Payouts); once PayPal executed it, mark the payout as paid.', 'PayPal payouts file with %1$d payouts downloaded (%2$s). Upload it in your PayPal business account (Pay & get paid → Payouts); once PayPal executed them, mark the payouts as paid.', count( $result[1] ), 'affiliate-captain' ), count( $result[1] ), $result[0] . '.csv' );
+			if ( $result[2] ) {
+				/* translators: %d: number of payouts */
+				$message .= ' ' . sprintf( _n( '%d selected payout has no PayPal address and was left out (it stays as it is):', '%d selected payouts have no PayPal address and were left out (they stay as they are):', count( $result[2] ), 'affiliate-captain' ), count( $result[2] ) );
+			}
+			self::download_notice( $message, $result[2] ? 'warning' : 'success', $result[2] );
+			nocache_headers();
+			header( 'Content-Type: text/csv; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $result[0] ) . '.csv"' );
+			echo PayoutService::paypal_csv_text( $result[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV download.
+			exit;
+		}
+		if ( 'sepa' === $action ) {
+			if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+				Admin::back( __( 'The SEPA file contains bank details. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
+			}
+			$result = PayoutService::sepa_export( $ids, (bool) Admin::post( 'reexport' ) );
+			if ( is_wp_error( $result ) ) {
+				$keep();
+				Admin::back( $result->get_error_message(), 'error' );
+			}
+			/* translators: 1: number of payouts, 2: file name */
+			$message = sprintf( _n( 'SEPA file with %1$d payout downloaded (%2$s). Import it in your online banking; once the bank executed the transfer, mark the payout as paid.', 'SEPA file with %1$d payouts downloaded (%2$s). Import it in your online banking; once the bank executed the transfers, mark the payouts as paid.', count( $result[3] ), 'affiliate-captain' ), count( $result[3] ), $result[0] );
+			if ( $result[2] ) {
+				/* translators: %d: number of payouts */
+				$message .= ' ' . sprintf( _n( '%d selected payout uses another payment method (e.g. PayPal) and is not in the file: pay it by the transfer list or PayPal file and then mark it as paid.', '%d selected payouts use another payment method (e.g. PayPal) and are not in the file: pay them by the transfer list or PayPal file and then mark them as paid.', $result[2], 'affiliate-captain' ), $result[2] );
+			}
+			self::download_notice( $message, $result[2] ? 'warning' : 'success' );
+			nocache_headers();
+			header( 'Content-Type: application/xml; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $result[0] ) . '"' );
+			echo $result[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			exit;
+		}
+		// Mark as paid / cancel: every payout on its own; report what worked and what did not.
+		$done   = 0;
+		$failed = array();
+		foreach ( $ids as $id ) {
+			$p = PayoutService::find( $id );
+			$r = 'paid' === $action ? PayoutService::mark_paid( $id ) : PayoutService::cancel( $id, $reason, (bool) Admin::post( 'confirm_not_sent' ) );
+			if ( is_wp_error( $r ) ) {
+				$failed[] = ( $p ? $p->number : '#' . (int) $id ) . ': ' . $r->get_error_message();
+			} else {
+				++$done;
+			}
+		}
+		if ( 'paid' === $action ) {
+			/* translators: %d: number of payouts */
+			$message = sprintf( _n( '%d payout marked as paid.', '%d payouts marked as paid.', $done, 'affiliate-captain' ), $done );
+			if ( $failed ) {
+				/* translators: %d: number of payouts */
+				$message .= ' ' . sprintf( _n( '%d payout could not be marked as paid:', '%d payouts could not be marked as paid:', count( $failed ), 'affiliate-captain' ), count( $failed ) );
+			}
+		} else {
+			/* translators: %d: number of payouts */
+			$message = sprintf( _n( '%d payout cancelled; its commissions are available for the next run.', '%d payouts cancelled; their commissions are available for the next run.', $done, 'affiliate-captain' ), $done );
+			if ( $failed ) {
+				/* translators: %d: number of payouts */
+				$message .= ' ' . sprintf( _n( '%d payout could not be cancelled:', '%d payouts could not be cancelled:', count( $failed ), 'affiliate-captain' ), count( $failed ) );
+			}
+		}
+		Admin::back( $message, $failed ? ( $done ? 'warning' : 'error' ) : 'success', '', $failed );
 	}
 
 	/**
@@ -426,6 +467,13 @@ final class PayoutsPage {
 			}
 			echo '</ul><p class="description">' . esc_html__( 'The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on.', 'affiliate-captain' ) . '</p></div>';
 		}
+		foreach ( Corrections::failures() as $kid => $kfail ) {
+			$kc = Corrections::find( (int) $kid );
+			if ( $kc && '' === (string) $kc->file && ! $kc->file_deleted_at ) {
+				/* translators: %s: correction number */
+				echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'The correction credit note %s could not be stored yet. It is retried automatically; check that the statement folder is writable.', 'affiliate-captain' ), (string) $kc->number ) ) . '</p></div>';
+			}
+		}
 		foreach ( Statement::storno_failures() as $spid => $sfail ) {
 			$sp = PayoutService::find( (int) $spid );
 			if ( $sp && '' === (string) $sp->storno_file ) {
@@ -457,6 +505,9 @@ final class PayoutsPage {
 				}
 				/* translators: %s: payout number */
 				echo '<button class="button" data-wpac-confirm="' . esc_attr( sprintf( __( 'Cancel payout %s? A cancellation document is issued and the commissions are paid with the next run.', 'affiliate-captain' ), $op->number ) ) . '">' . esc_html__( 'Cancel this payout', 'affiliate-captain' ) . '</button></p></form>';
+			}
+			if ( $op && 'paid' === $op->status ) {
+				self::correction_form( $op );
 			}
 			Admin::form_open( 'objection_resolve' );
 			echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><p><label for="wpac-obj-resolution-' . (int) $pid . '">' . esc_html__( 'What was done (sent to the partner)', 'affiliate-captain' ) . '</label><br><textarea id="wpac-obj-resolution-' . (int) $pid . '" name="resolution" rows="2" class="large-text" required></textarea></p><p><button class="button">' . esc_html__( 'Mark as handled', 'affiliate-captain' ) . '</button></p></form></div>';
@@ -553,17 +604,9 @@ final class PayoutsPage {
 	 */
 	private static function render_list( $manage ) {
 		$status = Admin::get( 'status' );
-		$per    = 50;
-		list( $rows, $total ) = PayoutService::query(
-			array(
-				'status' => $status,
-				'limit'  => $per,
-				'offset' => ( Admin::paged() - 1 ) * $per,
-			)
-		);
 		$labels = PayoutService::status_labels();
-		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
-		$kept = wp_parse_args(
+		$status = isset( $labels[ $status ] ) ? $status : '';
+		$kept   = wp_parse_args(
 			Admin::kept_form( 'payout_bulk' ),
 			array(
 				'ids'    => array(),
@@ -580,6 +623,12 @@ final class PayoutsPage {
 			$links[] = (string) $status === (string) $key ? '<strong aria-current="page">' . esc_html( $label ) . '</strong>' : '<a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 		}
 		echo '<p class="subsubsub wpac-status-filter">' . implode( ' | ', $links ) . '</p><div class="clear"></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+		$table = new PayoutsTable( $manage, $status, (array) $kept['ids'] );
+		$table->prepare_items();
+		// Search in its own GET form: the bulk actions below post to admin-post.php (R5-O47).
+		echo '<form method="get" class="wpac-search-form"><input type="hidden" name="page" value="wpac-payouts">' . ( '' !== $status ? '<input type="hidden" name="status" value="' . esc_attr( $status ) . '">' : '' );
+		$table->search_box( __( 'Search payouts', 'affiliate-captain' ), 'wpac-payout' );
+		echo '</form>';
 		if ( $manage ) {
 			Admin::form_open( 'payout_export', 'wpac-inline' );
 			echo '<button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form>';
@@ -589,29 +638,8 @@ final class PayoutsPage {
 		}
 		// A download ends without a page change: admin.js reloads the list afterwards
 		// (data-wpac-reload-after), so the new status and the message about the download are shown.
-		echo '<table class="wp-list-table widefat striped"><thead><tr><td class="check-column">' . ( $manage ? '<input type="checkbox" class="wpac-cb-all" aria-label="' . esc_attr__( 'Select all', 'affiliate-captain' ) . '">' : '' ) . '</td><th>' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Period end', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Bank details', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
-		if ( ! $rows ) {
-			echo '<tr><td colspan="7">' . esc_html( '' !== (string) $status ? __( 'No payouts with this status.', 'affiliate-captain' ) : __( 'No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click "Preview".', 'affiliate-captain' ) ) . '</td></tr>';
-		}
-		foreach ( $rows as $p ) {
-			$aff  = AffiliateRepository::find( (int) $p->affiliate_id );
-			$snap = json_decode( (string) $p->profile_snapshot, true );
-			printf(
-				'<tr><th class="check-column">%s</th><td><a href="%s">%s</a></td><td>%s</td><td>%s</td><td><strong>%s</strong></td><td>%s</td><td>%s%s</td></tr>',
-				$manage && in_array( $p->status, array( 'pending', 'exported' ), true ) ? '<input type="checkbox" class="wpac-cb" name="ids[]" value="' . (int) $p->id . '"' . checked( in_array( (int) $p->id, array_map( 'intval', (array) $kept['ids'] ), true ), true, false ) . ' aria-label="' . esc_attr( sprintf( /* translators: %s: document number */ __( 'Select %s', 'affiliate-captain' ), $p->number ) ) . '">' : '',
-				esc_url( Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => $p->id ) ) ),
-				esc_html( $p->number ),
-				esc_html( $aff ? $aff->name : '#' . $p->affiliate_id ),
-				esc_html( mysql2date( get_option( 'date_format' ), $p->period_end ) ),
-				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
-				esc_html( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? __( 'Other payment method (paid manually)', 'affiliate-captain' ) : ( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) ),
-				Admin::badge( $p->status, $labels[ $p->status ] ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				$p->sepa_batch ? '<br><small>' . esc_html( $p->sepa_batch ) . '</small>' : ''
-			);
-		}
-		echo '</tbody></table>';
+		$table->display();
 		if ( ! $manage ) {
-			Admin::pager( $total, $per );
 			echo '</div>';
 			return;
 		}
@@ -637,8 +665,21 @@ final class PayoutsPage {
 		echo '<p data-wpac-depends="bulk_action=paid|cancel"><label><input type="checkbox" name="confirm" value="1"> ' . esc_html__( 'I confirm this action for the selected payouts (required for "Mark as paid" and "Cancel").', 'affiliate-captain' ) . '</label></p>';
 		echo '<p data-wpac-depends="bulk_action=sepa|csv|paypal"><label><input type="checkbox" name="reexport" value="1"> ' . esc_html__( 'Export again (only if the bank did not process the previous file)', 'affiliate-captain' ) . '</label></p>';
 		echo '<p data-wpac-depends="bulk_action=cancel"><label><input type="checkbox" name="confirm_not_sent" value="1"> ' . esc_html__( 'Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)', 'affiliate-captain' ) . '</label></p></fieldset></form>';
-		Admin::pager( $total, $per );
 		echo '</div>';
+	}
+
+	/**
+	 * Text of the empty payout list.
+	 *
+	 * @param string $status Status filter ('' = all).
+	 * @param string $search Search term ('' = none).
+	 * @return string
+	 */
+	public static function empty_text( $status, $search = '' ) {
+		if ( '' !== (string) $search ) {
+			return __( 'No payouts match this search.', 'affiliate-captain' );
+		}
+		return '' !== (string) $status ? __( 'No payouts with this status.', 'affiliate-captain' ) : __( 'No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click "Preview".', 'affiliate-captain' );
 	}
 
 	/**
@@ -672,6 +713,92 @@ final class PayoutsPage {
 			),
 			admin_url( 'admin-post.php' )
 		);
+	}
+
+	/**
+	 * Admin download URL of a correction credit note.
+	 *
+	 * @param int $id Correction.
+	 * @return string
+	 */
+	public static function correction_url( $id ) {
+		return add_query_arg(
+			array(
+				'action'      => 'wpac',
+				'do'          => 'correction_download',
+				'id'          => (int) $id,
+				'_wpac_nonce' => wp_create_nonce( 'wpac_correction_download' ),
+			),
+			admin_url( 'admin-post.php' )
+		);
+	}
+
+	/**
+	 * Form for a correction credit note of a paid payout (payout managers with tax-data access).
+	 *
+	 * @param object $p Payout.
+	 */
+	public static function correction_form( $p ) {
+		if ( ! current_user_can( Capabilities::MANAGE_PAYOUTS ) || ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+			return;
+		}
+		$blocked = Corrections::blocked( $p );
+		if ( '' !== $blocked ) {
+			echo '<p class="description">' . esc_html( $blocked ) . '</p>';
+			return;
+		}
+		list( $net, $vat, $gross, $doc ) = Corrections::base( $p );
+		$fid = 'wpac-kg-' . (int) $p->id;
+		Admin::form_open( 'payout_correction', 'wpac-correction' );
+		echo '<input type="hidden" name="payout_id" value="' . (int) $p->id . '"><input type="hidden" name="base_net" value="' . (int) $net . '"><input type="hidden" name="request_key" value="' . esc_attr( wp_generate_password( 32, false ) ) . '">';
+		echo '<fieldset><legend><strong>' . esc_html__( 'Issue correction credit note', 'affiliate-captain' ) . '</strong></legend>';
+		/* translators: 1: document number, 2: net, 3: VAT, 4: gross */
+		echo '<p class="description">' . esc_html( sprintf( __( 'Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions.', 'affiliate-captain' ), $doc, Money::format( $net, $p->currency ), Money::format( $vat, $p->currency ), Money::format( $gross, $p->currency ) ) ) . '</p>';
+		/* translators: %s: currency */
+		echo '<p><label for="' . esc_attr( $fid ) . '-net">' . esc_html( sprintf( __( 'Correct net amount (%s)', 'affiliate-captain' ), $p->currency ) ) . '</label><br><input type="text" inputmode="decimal" required size="12" id="' . esc_attr( $fid ) . '-net" name="net"></p>';
+		echo '<p><label for="' . esc_attr( $fid ) . '-reason">' . esc_html__( 'Reason (printed on the correction credit note and sent to the partner)', 'affiliate-captain' ) . '</label><br><textarea id="' . esc_attr( $fid ) . '-reason" name="reason" rows="2" class="large-text" required></textarea></p>';
+		echo '<p><label><input type="checkbox" name="confirm" value="1" required> ' . esc_html__( 'Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible).', 'affiliate-captain' ) . '</label></p>';
+		echo '<p><button class="button button-primary">' . esc_html__( 'Issue correction credit note', 'affiliate-captain' ) . '</button></p></fieldset></form>';
+	}
+
+	/**
+	 * Correction credit notes of a payout (receipt page).
+	 *
+	 * @param object $p Payout.
+	 */
+	private static function render_corrections( $p ) {
+		$list = Corrections::for_payout( (int) $p->id );
+		if ( ! $list && 'paid' !== $p->status ) {
+			return;
+		}
+		echo '<h2>' . esc_html__( 'Correction credit notes', 'affiliate-captain' ) . '</h2>';
+		if ( $list ) {
+			$tax = current_user_can( Capabilities::VIEW_TAX_DATA );
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Corrected net', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Difference (gross)', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Reason', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $list as $kg ) {
+				$diff = (int) $kg->net_minor + (int) $kg->vat_minor - (int) $kg->prev_net_minor - (int) $kg->prev_vat_minor;
+				$name = esc_html( $kg->number );
+				if ( $tax && '' !== (string) $kg->file ) {
+					$name = '<a href="' . esc_url( self::correction_url( (int) $kg->id ) ) . '">' . $name . '</a>';
+				} elseif ( $kg->file_deleted_at ) {
+					$name .= ' <small>(' . esc_html__( 'deleted after the retention period', 'affiliate-captain' ) . ')</small>';
+				}
+				printf(
+					'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+					$name, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+					esc_html( Admin::date( $kg->created_at ) ),
+					esc_html( Money::format( (int) $kg->net_minor, $kg->currency ) ),
+					esc_html( Money::format( $diff, $kg->currency ) ),
+					esc_html( (string) $kg->reason )
+				);
+			}
+			echo '</tbody></table>';
+		}
+		if ( 'paid' === $p->status ) {
+			echo '<div class="wpac-noprint">';
+			self::correction_form( $p );
+			echo '</div>';
+		}
 	}
 
 	/**
@@ -745,6 +872,7 @@ final class PayoutsPage {
 			// Payouts from before VAT handling: no treatment was stored.
 			echo '<p class="description">' . esc_html__( 'VAT treatment depends on the partner\'s tax status and must be confirmed by your tax advisor. This statement does not calculate VAT.', 'affiliate-captain' ) . '</p>';
 		}
+		self::render_corrections( $p );
 		echo '</div>';
 	}
 }

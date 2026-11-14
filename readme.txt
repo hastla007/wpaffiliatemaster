@@ -104,16 +104,25 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Screenshots ==
 
-1. Dashboard with the setup checklist and the key figures of the partner program.
-2. Partner list with status, partner codes and balances.
-3. Partner details: codes, payout details, account statement and status history.
-4. Commission rules and partner groups.
-5. Payout run with preview, credit notes and SEPA export.
-6. Partner area: partner link with copy button, statistics and commissions.
-7. Partner application form block.
+1. Dashboard with the key figures of the partner program and the report by partner, content and campaign.
+2. Partner list with status, partner codes, balances, payout details and terms acceptance.
+3. Partner details: key figures and the account statement with integrity check (further tabs: profile, codes, payout details, history).
+4. Commission rules for all partners, partner groups, products, categories and SKUs, including exclusions.
+5. Payout run: preview with minimum payout, then credit notes, SEPA export and the list of payouts.
+6. Partner area: partner link with copy button, key figures and commissions.
+7. Partner application form block with fields per partner group.
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= Unreleased =
+Database schema 12:
+* Payouts: correction credit notes for paid payouts (own gapless number series "KG-…", prefix configurable): corrected net amount with reason, before/after/difference with the VAT treatment frozen on the original credit note; the difference is booked to the partner account (shortfall paid in the next run, overpayment offset later); an open objection is resolved automatically; PDF by e-mail and in the partner area
+* Money: line items raised or added after payment are booked automatically ("Order increase", at the rate of the original commission; new lines with the current rules); refunds afterwards include the increase
+* Partners: "Create coupon for partner" creates a WooCommerce coupon and links it to a partner code in one step
+* Admin: audit log, payouts and creatives lists with sortable columns, search, paging and rows-per-page screen options
+* Privacy: credit notes deleted after the retention period are also removed on every other app server (per-server sweep, new command wp wpac statements sweep); deleted credit notes are never served or rebuilt
+* WordPress.org: icon, banner and screenshots
 
 = 0.11.0 =
 Renamed to "Affiliate Captain" (folder and text domain "affiliate-captain"); expert review rounds 5 to 7 (money, VAT, privacy, tracking, operations, partner area); database schema 11:

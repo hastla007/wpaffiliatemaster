@@ -33,6 +33,9 @@ final class Admin {
 		add_action( 'admin_init', array( __CLASS__, 'activation_redirect' ) );
 		add_filter( 'set_screen_option_wpac_partners_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
 		add_filter( 'set_screen_option_wpac_commissions_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set_screen_option_wpac_payouts_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set_screen_option_wpac_creatives_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set_screen_option_wpac_audit_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
 		add_filter( 'set-screen-option', array( __CLASS__, 'save_screen_option' ), 10, 3 ); // WordPress before 5.4.2.
 		add_filter( 'default_hidden_columns', array( __CLASS__, 'default_hidden_columns' ), 10, 2 );
 		add_action( 'admin_notices', array( __CLASS__, 'cron_notice' ) );
@@ -51,16 +54,19 @@ final class Admin {
 		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
 		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
 		$payouts = add_submenu_page( 'wpac', __( 'Payouts', 'affiliate-captain' ), __( 'Payouts', 'affiliate-captain' ), Capabilities::payouts_page_cap(), 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
+		$creatives = add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
 		// Daily work first, technical pages and settings last (R5-O46).
 		Pages\ImportExportPage::menu();
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
+		$audit = add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
 		$settings = add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
 		// Screen options (rows per page, columns) and help tabs (R5-O47).
 		add_action( 'load-' . $partners, array( __CLASS__, 'screen_partners' ) );
 		add_action( 'load-' . $ledger, array( __CLASS__, 'screen_commissions' ) );
+		add_action( 'load-' . $payouts, array( __CLASS__, 'screen_payouts' ) );
+		add_action( 'load-' . $creatives, array( __CLASS__, 'screen_creatives' ) );
+		add_action( 'load-' . $audit, array( __CLASS__, 'screen_audit' ) );
 		foreach ( array( $dashboard, $partners, $ledger, $payouts, $settings ) as $hook ) {
 			add_action( 'load-' . $hook, array( __CLASS__, 'help_tabs' ) );
 		}
@@ -142,6 +148,45 @@ final class Admin {
 	}
 
 	/**
+	 * Screen option of the payout list: rows per page.
+	 */
+	public static function screen_payouts() {
+		self::per_page_option( __( 'Payouts per page', 'affiliate-captain' ), 50, 'wpac_payouts_per_page' );
+	}
+
+	/**
+	 * Screen option of the creatives list: rows per page.
+	 */
+	public static function screen_creatives() {
+		self::per_page_option( __( 'Creatives per page', 'affiliate-captain' ), 50, 'wpac_creatives_per_page' );
+	}
+
+	/**
+	 * Screen option of the audit log: rows per page.
+	 */
+	public static function screen_audit() {
+		self::per_page_option( __( 'Entries per page', 'affiliate-captain' ), 100, 'wpac_audit_per_page' );
+	}
+
+	/**
+	 * Register a rows-per-page screen option.
+	 *
+	 * @param string $label   Label.
+	 * @param int    $default Default rows.
+	 * @param string $option  User option name.
+	 */
+	private static function per_page_option( $label, $default, $option ) {
+		add_screen_option(
+			'per_page',
+			array(
+				'label'   => $label,
+				'default' => $default,
+				'option'  => $option,
+			)
+		);
+	}
+
+	/**
 	 * Store a rows-per-page screen option of the plugin (1–500).
 	 *
 	 * @param mixed  $keep   Value to keep (false = do not store).
@@ -150,7 +195,7 @@ final class Admin {
 	 * @return mixed
 	 */
 	public static function save_screen_option( $keep, $option, $value ) {
-		if ( in_array( $option, array( 'wpac_partners_per_page', 'wpac_commissions_per_page' ), true ) ) {
+		if ( in_array( $option, array( 'wpac_partners_per_page', 'wpac_commissions_per_page', 'wpac_payouts_per_page', 'wpac_creatives_per_page', 'wpac_audit_per_page' ), true ) ) {
 			return max( 1, min( 500, (int) $value ) );
 		}
 		return $keep;
@@ -669,6 +714,7 @@ final class Admin {
 			'code_batch'        => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_status'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_coupon'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'code_coupon_create' => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
@@ -685,6 +731,8 @@ final class Admin {
 			'payout_request_process' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_request_reject'  => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statement_download'     => array( PayoutsPage::class, Capabilities::VIEW_TAX_DATA ),
+			'payout_correction'      => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'correction_download'    => array( PayoutsPage::class, Capabilities::VIEW_TAX_DATA ),
 			'rule_save'         => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'rule_delete'       => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'group_create'      => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),

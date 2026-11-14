@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Affiliate Captain banner</title>
+<!-- Source of banner-772x250.png and banner-1544x500.png (rendered by render.js; designed at 1544x500).
+     Fonts: Inter / Inter Display (installed locally), fallback system sans-serif. -->
+<style>
+  html, body { margin: 0; padding: 0; background: #0b2540; overflow: hidden; }
+  .stage {
+    position: relative; width: 1544px; height: 500px; overflow: hidden; transform-origin: 0 0;
+    background:
+      radial-gradient(circle at 1235px 230px, rgba(70, 170, 220, .38) 0, rgba(70, 170, 220, 0) 330px),
+      linear-gradient(115deg, #0b2540 0%, #10395f 55%, #165e86 100%);
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif; color: #fff;
+  }
+  .stage.half { transform: scale(.5); }
+  svg { position: absolute; left: 0; top: 0; }
+  .copy { position: absolute; left: 92px; top: 74px; width: 820px; }
+  .eyebrow { font-size: 22px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #ffc861; margin: 0 0 14px; }
+  h1 { font-family: "Inter Display", "Inter", sans-serif; font-weight: 800; font-size: 92px; line-height: 1; letter-spacing: -.02em; margin: 0; }
+  .tag { font-size: 31px; line-height: 1.35; color: #cfe6f5; margin: 22px 0 0; font-weight: 400; }
+  .pills { display: flex; gap: 14px; margin-top: 30px; }
+  .pill { font-size: 21px; font-weight: 600; color: #e9f4fb; padding: 9px 20px; border-radius: 999px; background: rgba(255, 255, 255, .1); border: 1.5px solid rgba(255, 255, 255, .22); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <svg width="1544" height="500" viewBox="0 0 1544 500" aria-hidden="true">
+    <defs>
+      <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffc861"/>
+        <stop offset="1" stop-color="#f29e38"/>
+      </linearGradient>
+    </defs>
+    <!-- Sea -->
+    <path d="M0 418 C 160 392, 300 446, 470 420 S 780 392, 940 420 S 1250 450, 1544 410 L1544 500 L0 500 Z" fill="#ffffff" opacity=".05"/>
+    <path d="M0 448 C 190 424, 330 470, 520 448 S 860 424, 1040 450 S 1360 474, 1544 444 L1544 500 L0 500 Z" fill="#ffffff" opacity=".06"/>
+    <path d="M0 476 C 220 458, 380 494, 600 476 S 960 458, 1150 478 S 1420 494, 1544 472 L1544 500 L0 500 Z" fill="#ffffff" opacity=".07"/>
+    <!-- Partner network: dotted links from the helm to partner nodes -->
+    <g stroke="#9fd3f0" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round" fill="none" opacity=".75">
+      <path d="M1124 166 L 1005 96"/>
+      <path d="M1111 262 L 960 300"/>
+      <path d="M1342 160 L 1462 82"/>
+      <path d="M1354 277 L 1488 330"/>
+      <path d="M1285 348 L 1330 452"/>
+    </g>
+    <g fill="#0f3a5e" stroke="#9fd3f0" stroke-width="3">
+      <circle cx="1005" cy="96" r="13"/>
+      <circle cx="960" cy="300" r="10"/>
+      <circle cx="1462" cy="82" r="11"/>
+      <circle cx="1488" cy="330" r="14"/>
+      <circle cx="1330" cy="452" r="9"/>
+    </g>
+    <g fill="#ffc861">
+      <circle cx="1005" cy="96" r="4.5"/>
+      <circle cx="1488" cy="330" r="5"/>
+    </g>
+    <!-- Helm emblem (same geometry as icon.svg, scale 1.75) -->
+    <g transform="translate(1235 230) scale(1.75)" stroke="#ffffff" stroke-linecap="round">
+      <g stroke-width="11">
+        <line x1="0" y1="-30" x2="0" y2="-92"/>
+        <line x1="0" y1="-30" x2="0" y2="-92" transform="rotate(45)"/>
+        <line x1="0" y1="-30" x2="0" y2="-92" transform="rotate(90)"/>
+        <line x1="0" y1="-30" x2="0" y2="-92" transform="rotate(135)"/>
+        <line x1="0" y1="-30" x2="0" y2="-92" transform="rotate(180)"/>
+        <line x1="0" y1="-30" x2="0" y2="-92" transform="rotate(225)"/>
+        <line x1="0" y1="-30" x2="0" y2="-92" transform="rotate(270)"/>
+        <line x1="0" y1="-30" x2="0" y2="-92" transform="rotate(315)"/>
+      </g>
+      <circle r="64" fill="none" stroke-width="13"/>
+      <circle r="34" fill="url(#gold)" stroke="none"/>
+      <g fill="none" stroke="#0b2540" stroke-width="6.5">
+        <rect x="-21" y="-8.5" width="24" height="17" rx="8.5" transform="rotate(-35)"/>
+        <rect x="-3" y="-8.5" width="24" height="17" rx="8.5" transform="rotate(-35)"/>
+      </g>
+    </g>
+  </svg>
+  <div class="copy">
+    <p class="eyebrow">Partner program for your shop</p>
+    <h1>Affiliate Captain</h1>
+    <p class="tag">Partner links &amp; codes, commission rules,<br>credit notes and payouts – all in one place.</p>
+  </div>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get('w') === '772') { document.getElementById('stage').classList.add('half'); }
+</script>
+</body>
+</html>

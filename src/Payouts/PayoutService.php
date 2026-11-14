@@ -163,7 +163,8 @@ final class PayoutService {
 
 	/**
 	 * VAT treatment per commission row:
-	 * - repayments and write-offs are no service (not taxable, Vat::NONE);
+	 * - repayments and write-offs are no service, differences of correction credit notes had their
+	 *   VAT shown there (not taxable, Vat::NONE);
 	 * - corrections whose original commission was settled in an earlier (not cancelled) credit
 	 *   note take over the treatment the original commission had there (§17 UStG);
 	 * - everything else gets the treatment valid at the time of the service ($resolver), or
@@ -975,6 +976,8 @@ final class PayoutService {
 		}
 		// Cancellation documents whose file could not be written (number already allocated).
 		$n += Statement::generate_missing_stornos();
+		// Correction credit notes whose file could not be written.
+		$n += Corrections::generate_missing();
 		return $n;
 	}
 
@@ -1513,7 +1516,7 @@ final class PayoutService {
 	/**
 	 * List payouts.
 	 *
-	 * @param array $args affiliate_id, status, limit, offset.
+	 * @param array $args affiliate_id, status, search, limit, offset, orderby (whitelisted), order.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -1528,6 +1531,13 @@ final class PayoutService {
 		if ( ! empty( $args['status'] ) ) {
 			$where   .= ' AND status = %s';
 			$params[] = $args['status'];
+		}
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			// Document number, SEPA batch, or the partner's name or e-mail (admin list search, R5-O47).
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( number LIKE %s OR storno_number LIKE %s OR sepa_batch LIKE %s OR affiliate_id IN ( SELECT id FROM ' . Db::table( 'affiliates' ) . ' WHERE name LIKE %s OR email LIKE %s ) )';
+			$params   = array_merge( $params, array( $like, $like, $like, $like, $like ) );
 		}
 		return \WPAffiliateCaptain\Core\Paged::fetch( $t, $where, $params, $args, array( 'id', 'created_at', 'amount_minor', 'status', 'period_end' ) );
 	}

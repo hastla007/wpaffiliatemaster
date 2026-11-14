@@ -176,6 +176,7 @@ final class Privacy {
 				'commissions'     => array( __CLASS__, 'commission_item' ),
 				'attributions'    => array( __CLASS__, 'attribution_item' ),
 				'payouts'         => array( __CLASS__, 'payout_item' ),
+				'payout_corrections' => array( __CLASS__, 'correction_item' ),
 				'balance_entries' => array( __CLASS__, 'balance_entry_item' ),
 			);
 			foreach ( $defs as $table => $item ) {
@@ -298,6 +299,29 @@ final class Privacy {
 	}
 
 	/**
+	 * Export item of a correction credit note.
+	 *
+	 * @param object $k Row.
+	 * @return array
+	 */
+	public static function correction_item( $k ) {
+		$p = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $k->payout_id );
+		return array(
+			'group_id'    => 'wpac-payout-corrections',
+			'group_label' => __( 'Correction credit notes', 'affiliate-captain' ),
+			'item_id'     => 'wpac-correction-' . $k->id,
+			'data'        => array(
+				array( 'name' => _x( 'Number', 'document number', 'affiliate-captain' ), 'value' => (string) $k->number ),
+				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => (string) $k->created_at ),
+				array( 'name' => __( 'Corrects credit note', 'affiliate-captain' ), 'value' => $p ? (string) $p->number : '' ),
+				array( 'name' => __( 'Corrected net', 'affiliate-captain' ), 'value' => Money::format( (int) $k->net_minor, $k->currency ) ),
+				array( 'name' => __( 'Difference (gross)', 'affiliate-captain' ), 'value' => Money::format( (int) $k->net_minor + (int) $k->vat_minor - (int) $k->prev_net_minor - (int) $k->prev_vat_minor, $k->currency ) ),
+				array( 'name' => __( 'Reason', 'affiliate-captain' ), 'value' => (string) $k->reason ),
+			),
+		);
+	}
+
+	/**
 	 * Export item of a partner account entry (credit, payout, repayment …).
 	 *
 	 * @param object $e Row.
@@ -329,7 +353,6 @@ final class Privacy {
 	 * @return array
 	 */
 	private static function export_base( $email, $user, $aff ) {
-		global $wpdb;
 		$items = array();
 		// Customers: every stored lifetime link (keyed hash), also one still waiting for a review.
 		foreach ( \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( $user ? (int) $user->ID : 0, $email ) as $link ) {
@@ -388,6 +411,33 @@ final class Privacy {
 				),
 			);
 		}
+		$items = array_merge( $items, self::export_tax_items( $id ) );
+		$items = array_merge( $items, self::export_account_items( $id ) );
+		$items = array_merge( $items, self::export_details_items( $aff, $id ) );
+		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', $id, 0 ) as $r ) {
+			$items[] = array(
+				'group_id'    => 'wpac-payout-requests',
+				'group_label' => __( 'Payout requests', 'affiliate-captain' ),
+				'item_id'     => 'wpac-request-' . $r->id,
+				'data'        => array(
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
+					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
+					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $r->note ),
+				),
+			);
+		}
+		return $items;
+	}
+
+	/**
+	 * Export: payout details and the VIES result of a partner.
+	 *
+	 * @param int $id Partner ID.
+	 * @return array
+	 */
+	private static function export_tax_items( $id ) {
+		$items = array();
 		$profile = ProfileRepository::get( $id );
 		if ( $profile ) {
 			$data = array();
@@ -439,6 +489,18 @@ final class Privacy {
 				'data'        => $vdata,
 			);
 		}
+		return $items;
+	}
+
+	/**
+	 * Export: objections, payment reminders, account balances and link visits of a partner.
+	 *
+	 * @param int $id Partner ID.
+	 * @return array
+	 */
+	private static function export_account_items( $id ) {
+		global $wpdb;
+		$items = array();
 		// Objections to credit notes.
 		foreach ( \WPAffiliateCaptain\Payouts\Objections::all() as $payout_id => $o ) {
 			if ( ! isset( $o['affiliate_id'] ) || (int) $o['affiliate_id'] !== $id ) {
@@ -506,6 +568,18 @@ final class Privacy {
 				),
 			);
 		}
+		return $items;
+	}
+
+	/**
+	 * Export: application and account details of a partner (pending changes, previous e-mail).
+	 *
+	 * @param object $aff Partner.
+	 * @param int    $id  Partner ID.
+	 * @return array
+	 */
+	private static function export_details_items( $aff, $id ) {
+		$items = array();
 		$app   = json_decode( (string) $aff->application_data, true );
 		$group = (int) $aff->group_id ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) : null;
 		$extra = array(
@@ -546,19 +620,6 @@ final class Privacy {
 			'item_id'     => 'wpac-affiliate-details-' . $id,
 			'data'        => $extra,
 		);
-		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', $id, 0 ) as $r ) {
-			$items[] = array(
-				'group_id'    => 'wpac-payout-requests',
-				'group_label' => __( 'Payout requests', 'affiliate-captain' ),
-				'item_id'     => 'wpac-request-' . $r->id,
-				'data'        => array(
-					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
-					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
-					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
-					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $r->note ),
-				),
-			);
-		}
 		return $items;
 	}
 

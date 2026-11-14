@@ -197,7 +197,8 @@ check( 'R6-QA9 Cyrillic coupon resolves; "müller" does not match the code "MLLE
 
 // R7-PU5: coupon links are checked (exists in WooCommerce, not linked twice).
 if ( ! function_exists( 'wc_get_coupon_id_by_code' ) ) {
-	function wc_get_coupon_id_by_code( $code ) { return in_array( $code, array( 'g2sommer', 'g2neu' ), true ) ? 77 : 0; }
+	// Coupons created through the WC_Coupon stub (r10-pu5) are found as well.
+	function wc_get_coupon_id_by_code( $code ) { return in_array( $code, array( 'g2sommer', 'g2neu' ), true ) ? 77 : (int) ( $GLOBALS['test_wc_coupons'][ strtolower( trim( $code ) ) ] ?? 0 ); }
 }
 $g2own = CodeRepository::find_by_coupon( 'g2sommer' );
 check(

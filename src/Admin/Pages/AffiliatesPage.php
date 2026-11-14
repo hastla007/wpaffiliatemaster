@@ -170,6 +170,35 @@ final class AffiliatesPage {
 				break;
 
 			case 'code_create':
+			case 'code_batch':
+			case 'code_status':
+			case 'code_coupon':
+			case 'code_coupon_create':
+			case 'code_export':
+				self::handle_code( $do, $id );
+				break;
+
+			case 'vies_check':
+			case 'dunning_send':
+			case 'repayment':
+			case 'balance_writeoff':
+			case 'tax_approve':
+			case 'tax_reject':
+			case 'profile_update':
+				self::handle_payout_data( $do, $id );
+				break;
+		}
+	}
+
+	/**
+	 * Handle the partner code actions (codes, batches, coupons, export).
+	 *
+	 * @param string $do Action.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function handle_code( $do, $id ) {
+		switch ( $do ) {
+			case 'code_create':
 				$wish   = sanitize_text_field( Admin::post( 'code' ) );
 				$check  = CodeRepository::check_coupon( (string) Admin::post( 'coupon_code' ) );
 				if ( is_wp_error( $check ) ) {
@@ -219,6 +248,25 @@ final class AffiliatesPage {
 				Admin::back( __( 'Coupon link updated.', 'affiliate-captain' ) );
 				break;
 
+			case 'code_coupon_create':
+				$input  = array(
+					'code_id'        => absint( Admin::post( 'code_id', 0 ) ),
+					'coupon_code'    => sanitize_text_field( (string) Admin::post( 'coupon_code' ) ),
+					'discount_type'  => sanitize_key( Admin::post( 'discount_type' ) ),
+					'amount'         => sanitize_text_field( (string) Admin::post( 'amount' ) ),
+					'expires'        => sanitize_text_field( (string) Admin::post( 'expires' ) ),
+					'usage_limit'    => absint( Admin::post( 'usage_limit', 0 ) ),
+					'individual_use' => (bool) Admin::post( 'individual_use' ),
+				);
+				$result = \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::create_for_partner( $id, $input );
+				if ( is_wp_error( $result ) ) {
+					Admin::keep_form( 'coupon_create_' . $id, $input );
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				/* translators: %s: coupon code */
+				Admin::back( sprintf( __( 'Coupon "%s" created in WooCommerce and linked to the partner.', 'affiliate-captain' ), $result['coupon'] ) );
+				break;
+
 			case 'code_export':
 				list( $rows ) = CodeRepository::query(
 					array(
@@ -234,7 +282,17 @@ final class AffiliatesPage {
 				Audit::log( 'code.exported', 'affiliate', $id, array( 'count' => count( $out ) ) );
 				Csv::download( 'partner-codes-' . $id . '.csv', array( 'code', 'coupon', 'batch', 'used', 'limit', 'expires_at', 'status' ), $out );
 				break;
+		}
+	}
 
+	/**
+	 * Handle the payout data actions (VIES, dunning, repayment, write-off, tax data, payout details).
+	 *
+	 * @param string $do Action.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function handle_payout_data( $do, $id ) {
+		switch ( $do ) {
 			case 'vies_check':
 				$r = \WPAffiliateCaptain\Payouts\Vies::check( $id );
 				if ( ! $r ) {
@@ -448,6 +506,37 @@ final class AffiliatesPage {
 		$parts = array();
 
 		ob_start();
+		self::render_status_box( $a, $id );
+		$parts['overview'][] = ob_get_clean();
+		ob_start();
+		self::render_profile_box( $a, $id );
+		$parts['profile'][] = ob_get_clean();
+		ob_start();
+		self::render_access_terms_boxes( $a, $id );
+		$parts['overview'][] = ob_get_clean();
+		ob_start();
+		self::render_codes_box( $id );
+		$parts['codes'][] = ob_get_clean();
+		ob_start();
+		self::render_payout_box( $id );
+		$parts['payout'][] = ob_get_clean();
+		ob_start();
+		self::render_history_box( $id );
+		$parts['history'][] = ob_get_clean();
+		ob_start();
+		self::render_balance( $id );
+		$parts['balance'][] = ob_get_clean();
+		self::render_tabs( $id, $parts );
+		echo '</div>';
+	}
+
+	/**
+	 * Detail view: status box (restriction, public change request, application, status actions).
+	 *
+	 * @param object $a  Affiliate.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function render_status_box( $a, $id ) {
 		// Status actions.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Status', 'affiliate-captain' ) . '</h2><div class="inside">';
 		$restriction = \WPAffiliateCaptain\Privacy\Restriction::get( $id );
@@ -517,8 +606,15 @@ final class AffiliatesPage {
 		}
 		echo '</div></div>';
 
-		$parts['overview'][] = ob_get_clean();
-		ob_start();
+	}
+
+	/**
+	 * Detail view: profile form.
+	 *
+	 * @param object $a  Affiliate.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function render_profile_box( $a, $id ) {
 		// Profile.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Profile', 'affiliate-captain' ) . '</h2><div class="inside">';
 		Admin::form_open( 'affiliate_update' );
@@ -548,8 +644,15 @@ final class AffiliatesPage {
 		submit_button( __( 'Save', 'affiliate-captain' ), 'secondary' );
 		echo '</form></div></div>';
 
-		$parts['profile'][] = ob_get_clean();
-		ob_start();
+	}
+
+	/**
+	 * Detail view: partner area access and terms acceptance.
+	 *
+	 * @param object $a  Affiliate.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function render_access_terms_boxes( $a, $id ) {
 		// Partner area access (no linked WordPress user).
 		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
 			self::user_link_box( $a );
@@ -591,8 +694,14 @@ final class AffiliatesPage {
 		}
 		echo '</div></div>';
 
-		$parts['overview'][] = ob_get_clean();
-		ob_start();
+	}
+
+	/**
+	 * Detail view: partner codes, coupons and code batches.
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_codes_box( $id ) {
 		// Codes.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner codes', 'affiliate-captain' ) . '</h2><div class="inside">';
 		$codes = CodeRepository::for_affiliate( $id );
@@ -631,14 +740,51 @@ final class AffiliatesPage {
 		echo '<p class="description">' . esc_html__( 'Empty = random code (recommended). Speaking codes like SAILING-NORTH are easy to guess and can be misused for own purchases.', 'affiliate-captain' ) . '</p>';
 		echo '<p><label>' . esc_html__( 'Usage limit', 'affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="0" class="small-text"></label> <label>' . esc_html__( 'Valid until', 'affiliate-captain' ) . ' <input type="date" name="expires_at"></label> <button class="button">' . esc_html__( 'Add', 'affiliate-captain' ) . '</button></p></form>';
 
+		if ( \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::can_create() ) {
+			// Create a WooCommerce coupon and link it to a partner code in one step.
+			$kept = Admin::kept_form( 'coupon_create_' . $id );
+			$kv   = static function ( $k, $d = '' ) use ( $kept ) {
+				return isset( $kept[ $k ] ) ? $kept[ $k ] : $d;
+			};
+			$main = CodeRepository::main_code( $id );
+			$sel  = (int) $kv( 'code_id', 0 );
+			echo '<h4>' . esc_html__( 'Create coupon for partner', 'affiliate-captain' ) . '</h4>';
+			Admin::form_open( 'code_coupon_create' );
+			echo '<input type="hidden" name="id" value="' . (int) $id . '">';
+			echo '<p><label for="wpac-cc-code">' . esc_html__( 'Partner code', 'affiliate-captain' ) . '</label><br><select name="code_id" id="wpac-cc-code">';
+			foreach ( $codes as $c ) {
+				if ( $c->batch ) {
+					continue;
+				}
+				$is_sel = $kept ? $sel === (int) $c->id : $main === $c->code;
+				printf( '<option value="%d" %s>%s</option>', (int) $c->id, selected( $is_sel, true, false ), esc_html( $c->code . ( $c->coupon_code ? ' (' . sprintf( /* translators: %s: coupon code */ __( 'replaces coupon %s', 'affiliate-captain' ), $c->coupon_code ) . ')' : '' ) ) );
+			}
+			echo '<option value="0" ' . selected( $kept && 0 === $sel, true, false ) . '>' . esc_html__( 'New partner code (derived from the coupon code)', 'affiliate-captain' ) . '</option></select> ';
+			echo '<label for="wpac-cc-coupon" class="screen-reader-text">' . esc_html__( 'Coupon code', 'affiliate-captain' ) . '</label><input type="text" name="coupon_code" id="wpac-cc-coupon" value="' . esc_attr( $kv( 'coupon_code' ) ) . '" placeholder="' . esc_attr__( 'Coupon code', 'affiliate-captain' ) . '"></p>';
+			echo '<p class="description">' . esc_html__( 'Empty coupon code = the selected partner code. The coupon must not exist in WooCommerce yet.', 'affiliate-captain' ) . '</p>';
+			echo '<p><label for="wpac-cc-type">' . esc_html__( 'Discount type', 'affiliate-captain' ) . '</label> <select name="discount_type" id="wpac-cc-type">';
+			foreach ( array( 'percent' => __( 'Percentage discount', 'affiliate-captain' ), 'fixed_cart' => __( 'Fixed cart discount', 'affiliate-captain' ) ) as $k => $l ) {
+				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $kv( 'discount_type', 'percent' ), $k, false ), esc_html( $l ) );
+			}
+			echo '</select> <label>' . esc_html__( 'Amount', 'affiliate-captain' ) . ' <input type="text" inputmode="decimal" name="amount" value="' . esc_attr( $kv( 'amount' ) ) . '" size="6" required></label></p>';
+			echo '<p><label>' . esc_html__( 'Valid until', 'affiliate-captain' ) . ' <input type="date" name="expires" value="' . esc_attr( $kv( 'expires' ) ) . '"></label> <label>' . esc_html__( 'Usage limit', 'affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="' . (int) $kv( 'usage_limit', 0 ) . '" class="small-text"></label> <label><input type="checkbox" name="individual_use" value="1" ' . checked( (bool) $kv( 'individual_use', false ), true, false ) . '> ' . esc_html__( 'Individual use only', 'affiliate-captain' ) . '</label></p>';
+			echo '<p><button class="button">' . esc_html__( 'Create coupon and link', 'affiliate-captain' ) . '</button></p></form>';
+		}
+
 		echo '<h4>' . esc_html__( 'Generate code batch', 'affiliate-captain' ) . '</h4>';
 		Admin::form_open( 'code_batch' );
 		echo '<input type="hidden" name="id" value="' . (int) $id . '">';
 		echo '<p><label>' . esc_html_x( 'Number', 'count', 'affiliate-captain' ) . ' <input type="number" name="count" min="1" max="1000" value="10" class="small-text"></label> <label>' . esc_html__( 'Prefix', 'affiliate-captain' ) . ' <input type="text" name="prefix" size="8"></label> <label>' . esc_html__( 'Uses per code', 'affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="1" class="small-text"></label> <label>' . esc_html__( 'Valid until', 'affiliate-captain' ) . ' <input type="date" name="expires_at"></label> <button class="button">' . esc_html__( 'Generate', 'affiliate-captain' ) . '</button></p></form>';
 		echo '</div></div>';
 
-		$parts['codes'][] = ob_get_clean();
-		ob_start();
+	}
+
+	/**
+	 * Detail view: payout details (tax data, VIES, payout method).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_payout_box( $id ) {
 		// Payout details.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Payout details', 'affiliate-captain' ) . '</h2><div class="inside">';
 		$p = ProfileRepository::get( $id );
@@ -742,8 +888,14 @@ final class AffiliatesPage {
 		}
 		echo '</div></div>';
 
-		$parts['payout'][] = ob_get_clean();
-		ob_start();
+	}
+
+	/**
+	 * Detail view: audit history (20 newest entries).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_history_box( $id ) {
 		// Audit.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'History', 'affiliate-captain' ) . '</h2><div class="inside"><ul class="wpac-history">';
 		$history = Audit::query( array( 'object_type' => 'affiliate', 'object_id' => $id, 'limit' => 21 ) );
@@ -762,12 +914,6 @@ final class AffiliatesPage {
 		}
 		echo '</div></div>';
 
-		$parts['history'][] = ob_get_clean();
-		ob_start();
-		self::render_balance( $id );
-		$parts['balance'][] = ob_get_clean();
-		self::render_tabs( $id, $parts );
-		echo '</div>';
 	}
 
 	/**

@@ -82,6 +82,7 @@ final class Notifications {
 		add_action( 'init', array( __CLASS__, 'handle_unsubscribe' ) );
 		add_action( 'wpac_statement_generated', array( __CLASS__, 'credit_note_issued' ), 10, 2 );
 		add_action( 'wpac_storno_generated', array( __CLASS__, 'credit_note_cancelled' ), 10, 2 );
+		add_action( 'wpac_correction_generated', array( __CLASS__, 'credit_note_corrected' ), 10, 2 );
 		add_action( self::BROADCAST_HOOK, array( __CLASS__, 'broadcast_batch' ), 10, 0 );
 	}
 
@@ -275,6 +276,51 @@ final class Notifications {
 			Locale::restore( $switched );
 		}
 		\WPAffiliateCaptain\Core\Audit::log( $sent ? 'statement.storno_sent' : 'statement.send_failed', 'payout', (int) $payout_id );
+	}
+
+	/**
+	 * A correction credit note was issued for a paid payout: send it to the partner (like the
+	 * credit note, it only takes effect once the partner received it).
+	 *
+	 * @param int    $correction_id Correction.
+	 * @param string $path          Stored PDF.
+	 */
+	public static function credit_note_corrected( $correction_id, $path = '' ) {
+		$c = \WPAffiliateCaptain\Payouts\Corrections::find( (int) $correction_id );
+		/** This filter is documented in Notifications::credit_note_issued(). */
+		if ( ! $c || ! apply_filters( 'wpac_notify_credit_note', true, (int) $c->payout_id ) ) {
+			return;
+		}
+		$p   = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $c->payout_id );
+		$aff = AffiliateRepository::find( (int) $c->affiliate_id );
+		if ( ! $p || ! $aff || ! is_email( (string) $aff->email ) || 0 === strpos( (string) $aff->email, 'deleted-' ) ) {
+			return;
+		}
+		$diff     = (int) $c->net_minor + (int) $c->vat_minor - (int) $c->prev_net_minor - (int) $c->prev_vat_minor;
+		$amount   = html_entity_decode( \WPAffiliateCaptain\Core\Money::format( abs( $diff ), (string) $c->currency ), ENT_QUOTES, 'UTF-8' );
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			$effect = $diff > 0
+				/* translators: %s: amount */
+				? sprintf( __( 'The difference of %s is paid with your next payout.', 'affiliate-captain' ), $amount )
+				/* translators: %s: amount */
+				: sprintf( __( 'The overpayment of %s is offset against your next commissions.', 'affiliate-captain' ), $amount );
+			$sent = self::send(
+				'credit_note_corrected',
+				$aff->email,
+				/* translators: 1: site name, 2: correction number, 3: credit note number */
+				sprintf( __( '[%1$s] Correction credit note %2$s for credit note %3$s', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), (string) $c->number, $p->number ),
+				/* translators: 1: name, 2: credit note number, 3: correction number, 4: what happens with the difference, 5: portal URL */
+				sprintf( __( "Hello %1\$s,\n\nwe have corrected credit note %2\$s with the attached correction credit note %3\$s. %4\$s\n\nPartner area: %5\$s", 'affiliate-captain' ), $aff->name, $p->number, (string) $c->number, $effect, add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				array(
+					'affiliate_id' => (int) $aff->id,
+					'attachments'  => '' !== (string) $path && is_readable( (string) $path ) ? array( (string) $path ) : array(),
+				)
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+		\WPAffiliateCaptain\Core\Audit::log( $sent ? 'statement.correction_sent' : 'statement.send_failed', 'payout', (int) $c->payout_id, array( 'correction' => (int) $c->id ) );
 	}
 
 	/**

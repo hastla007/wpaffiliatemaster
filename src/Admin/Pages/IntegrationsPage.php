@@ -329,7 +329,7 @@ final class IntegrationsPage {
 					$edit = $wc ? (string) $wc->get_edit_order_url() : '';
 				}
 				$cell = ( '' !== $edit ? '<a href="' . esc_url( $edit ) . '">#' . esc_html( $order[1] ) . '</a>' : '#' . esc_html( $order[1] ) )
-					. ' <small>(<a href="' . esc_url( Admin::url( 'wpac-audit', array( 'order' => $order[1] ) ) ) . '">' . esc_html__( 'log', 'affiliate-captain' ) . '</a>)</small><br>' . $cell;
+					. ' <small>(<a href="' . esc_url( Admin::url( 'wpac-audit', array( 'order_no' => $order[1] ) ) ) . '">' . esc_html__( 'log', 'affiliate-captain' ) . '</a>)</small><br>' . $cell;
 			}
 			printf(
 				'<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s<br><small><code>%s</code> %s</small></td><td>%s</td><td>',
