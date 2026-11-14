@@ -1,0 +1,6 @@
+{
+ "Order increase": "Erhöhung der Bestellung",
+ "Order items increased after payment": "Bestellpositionen nach der Zahlung erhöht",
+ "Affiliate Captain: the order items were increased after payment; an additional partner commission of %s was booked (released after the hold period of the order).": "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; eine zusätzliche Partnerprovision von %s wurde gebucht (Freigabe nach der Haltefrist der Bestellung).",
+ "Affiliate Captain: the order items were increased after payment, but the additional partner commission could not be booked. Please save the order items again later.": "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht, die zusätzliche Partnerprovision konnte jedoch nicht gebucht werden. Bitte speichern Sie die Bestellpositionen später erneut."
+}

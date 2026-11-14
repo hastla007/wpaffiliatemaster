@@ -961,9 +961,9 @@ final class OrderSync {
 	}
 
 	/**
-	 * Line items of a paid, attributed order were changed in the admin (quantity lowered, line
-	 * removed or price changed): the commission follows lower amounts with a correction. Higher
-	 * amounts are not booked automatically (order note: reassign the order to book it again).
+	 * Line items of a paid, attributed order were changed in the admin (quantity changed, line
+	 * added or removed, price changed): the commission follows lower amounts with a correction
+	 * and higher amounts with an additional booking (Ledger::record_increase()).
 	 *
 	 * @param int $order_id Order.
 	 */
@@ -976,8 +976,9 @@ final class OrderSync {
 		if ( ! $attr || Jobs::refunds_pending( WooCommerce::SOURCE, (string) $order_id ) ) {
 			return; // Waiting refunds would be deducted twice; the next save catches up.
 		}
+		$payload = self::payload( $order );
 		$targets = array();
-		foreach ( self::payload( $order )['items'] as $item ) {
+		foreach ( $payload['items'] as $item ) {
 			$targets[ $item['item_id'] ] = (int) $item['net_minor'];
 		}
 		$rows = array();
@@ -986,8 +987,8 @@ final class OrderSync {
 				$rows[ (string) $c->source_item_id ] = $c;
 			}
 		}
-		$lines    = array();
-		$increase = false;
+		$lines  = array();
+		$booked = array();
 		foreach ( $rows as $item_id => $c ) {
 			$base     = (int) $c->base_minor;
 			$snap     = $c->rule_snapshot ? json_decode( (string) $c->rule_snapshot, true ) : null;
@@ -995,15 +996,15 @@ final class OrderSync {
 			if ( $base <= 0 || $line_net <= 0 ) {
 				continue;
 			}
-			$remaining = $base - Ledger::refunded_base( (int) $c->id );
-			$target    = isset( $targets[ $item_id ] ) ? Money::prorate( $targets[ $item_id ], $base, $line_net ) : 0;
+			// Booked for the line: the original base plus later increases, minus refunds.
+			$remaining          = $base + Ledger::increased( (int) $c->id )['base'] - Ledger::refunded_base( (int) $c->id );
+			$booked[ $item_id ] = $remaining;
+			$target             = isset( $targets[ $item_id ] ) ? Money::prorate( $targets[ $item_id ], $base, $line_net ) : 0;
 			if ( $remaining > $target ) {
 				$lines[] = array(
 					'item_id'   => (string) $item_id,
 					'net_minor' => Money::prorate( $remaining - $target, $line_net, $base ),
 				);
-			} elseif ( $target > $remaining + 1 ) {
-				$increase = true;
 			}
 		}
 		if ( $lines ) {
@@ -1012,7 +1013,9 @@ final class OrderSync {
 					'contract'  => WPAC_CONTRACT_VERSION,
 					'source'    => WooCommerce::SOURCE,
 					'order_id'  => (string) $order_id,
-					'refund_id' => 'edit-' . substr( md5( (string) wp_json_encode( $targets ) ), 0, 12 ),
+					// The booked state is part of the ID: lowering to the same amounts again after an
+					// increase is a new correction, saving twice is not.
+					'refund_id' => 'edit-' . substr( md5( (string) wp_json_encode( array( $targets, $booked ) ) ), 0, 12 ),
 					'type'      => 'refund',
 					'items'     => $lines,
 					'reason'    => __( 'Order items changed after payment', 'affiliate-captain' ),
@@ -1024,7 +1027,52 @@ final class OrderSync {
 				$order->add_order_note( __( 'Affiliate Captain: the partner commission was reduced because the order items were changed.', 'affiliate-captain' ) );
 			}
 		}
-		if ( $increase ) {
+		self::book_increase( $order, $payload );
+	}
+
+	/**
+	 * Book raised and added lines of a paid order (Ledger::record_increase()) and say in an
+	 * order note what was booked, or why nothing was.
+	 *
+	 * @param \WC_Order $order   Order.
+	 * @param array     $payload Sale payload of the order as it is now (payload()).
+	 */
+	private static function book_increase( $order, array $payload ) {
+		if ( ! $payload['items'] ) {
+			return;
+		}
+		try {
+			$sale   = ContractApi::normalize_sale( $payload );
+			$result = Ledger::record_increase(
+				array(
+					'contract' => $sale['contract'],
+					'source'   => WooCommerce::SOURCE,
+					'order_id' => (string) $order->get_id(),
+					'currency' => $sale['currency'],
+					'items'    => $sale['items'],
+					'reason'   => __( 'Order items increased after payment', 'affiliate-captain' ),
+				)
+			);
+		} catch ( \Throwable $e ) {
+			Log::error(
+				'WooCommerce increase not booked',
+				array(
+					'order'   => (int) $order->get_id(),
+					'message' => \WPAffiliateCaptain\Core\Db::cut( $e->getMessage(), 300 ),
+				)
+			);
+			$order->add_order_note( __( 'Affiliate Captain: the order items were increased after payment, but the additional partner commission could not be booked. Please save the order items again later.', 'affiliate-captain' ) );
+			return;
+		}
+		if ( 'booked' === $result['status'] ) {
+			$order->add_order_note(
+				sprintf(
+					/* translators: %s: commission amount */
+					__( 'Affiliate Captain: the order items were increased after payment; an additional partner commission of %s was booked (released after the hold period of the order).', 'affiliate-captain' ),
+					Money::format( (int) $result['amount_minor'], (string) $payload['currency'] )
+				)
+			);
+		} elseif ( 'skipped' === $result['status'] ) {
 			$order->add_order_note( __( 'Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically. If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction).', 'affiliate-captain' ) );
 		}
 	}
