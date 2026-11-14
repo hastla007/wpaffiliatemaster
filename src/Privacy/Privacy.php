@@ -329,8 +329,40 @@ final class Privacy {
 	 * @return array
 	 */
 	private static function export_base( $email, $user, $aff ) {
-		global $wpdb;
 		$items = array();
+		self::export_customer_links( $items, $email, $user );
+		if ( ! $aff ) {
+			return $items;
+		}
+		$id = (int) $aff->id;
+		self::export_account( $items, $aff, $id );
+		self::export_payout_details( $items, $id );
+		self::export_activity( $items, $id );
+		self::export_account_details( $items, $aff, $id );
+		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', $id, 0 ) as $r ) {
+			$items[] = array(
+				'group_id'    => 'wpac-payout-requests',
+				'group_label' => __( 'Payout requests', 'affiliate-captain' ),
+				'item_id'     => 'wpac-request-' . $r->id,
+				'data'        => array(
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
+					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
+					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $r->note ),
+				),
+			);
+		}
+		return $items;
+	}
+
+	/**
+	 * Export: lifetime customer links of the e-mail address or user.
+	 *
+	 * @param array         $items In/out: export items.
+	 * @param string        $email E-mail.
+	 * @param \WP_User|bool $user  User.
+	 */
+	private static function export_customer_links( array &$items, $email, $user ) {
 		// Customers: every stored lifetime link (keyed hash), also one still waiting for a review.
 		foreach ( \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( $user ? (int) $user->ID : 0, $email ) as $link ) {
 			$items[] = array(
@@ -346,10 +378,16 @@ final class Privacy {
 				),
 			);
 		}
-		if ( ! $aff ) {
-			return $items;
-		}
-		$id      = (int) $aff->id;
+	}
+
+	/**
+	 * Export: partner account, codes and terms acceptances.
+	 *
+	 * @param array  $items In/out: export items.
+	 * @param object $aff   Partner.
+	 * @param int    $id    Partner ID.
+	 */
+	private static function export_account( array &$items, $aff, $id ) {
 		$items[] = array(
 			'group_id'    => 'wpac-affiliate',
 			'group_label' => __( 'Partner account', 'affiliate-captain' ),
@@ -388,6 +426,15 @@ final class Privacy {
 				),
 			);
 		}
+	}
+
+	/**
+	 * Export: payout details (incl. payment details) and the VIES result.
+	 *
+	 * @param array $items In/out: export items.
+	 * @param int   $id    Partner ID.
+	 */
+	private static function export_payout_details( array &$items, $id ) {
 		$profile = ProfileRepository::get( $id );
 		if ( $profile ) {
 			$data = array();
@@ -439,6 +486,16 @@ final class Privacy {
 				'data'        => $vdata,
 			);
 		}
+	}
+
+	/**
+	 * Export: objections, payment reminders, balances and the visit summary.
+	 *
+	 * @param array $items In/out: export items.
+	 * @param int   $id    Partner ID.
+	 */
+	private static function export_activity( array &$items, $id ) {
+		global $wpdb;
 		// Objections to credit notes.
 		foreach ( \WPAffiliateCaptain\Payouts\Objections::all() as $payout_id => $o ) {
 			if ( ! isset( $o['affiliate_id'] ) || (int) $o['affiliate_id'] !== $id ) {
@@ -506,6 +563,16 @@ final class Privacy {
 				),
 			);
 		}
+	}
+
+	/**
+	 * Export: application and account details (slug, group, pending changes, application fields).
+	 *
+	 * @param array  $items In/out: export items.
+	 * @param object $aff   Partner.
+	 * @param int    $id    Partner ID.
+	 */
+	private static function export_account_details( array &$items, $aff, $id ) {
 		$app   = json_decode( (string) $aff->application_data, true );
 		$group = (int) $aff->group_id ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) : null;
 		$extra = array(
@@ -546,20 +613,6 @@ final class Privacy {
 			'item_id'     => 'wpac-affiliate-details-' . $id,
 			'data'        => $extra,
 		);
-		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', $id, 0 ) as $r ) {
-			$items[] = array(
-				'group_id'    => 'wpac-payout-requests',
-				'group_label' => __( 'Payout requests', 'affiliate-captain' ),
-				'item_id'     => 'wpac-request-' . $r->id,
-				'data'        => array(
-					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
-					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
-					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
-					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $r->note ),
-				),
-			);
-		}
-		return $items;
 	}
 
 	/**

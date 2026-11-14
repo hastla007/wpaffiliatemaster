@@ -789,6 +789,53 @@ final class Installer {
 			return Db::table( $name );
 		};
 
+		$sql = array_merge(
+			self::schema_partner_tables( $t, $c ),
+			self::schema_tracking_tables( $t, $c ),
+			self::schema_commission_tables( $t, $c ),
+			self::schema_payout_tables( $t, $c ),
+			self::schema_system_tables( $t, $c ),
+			self::schema_feature_tables( $t, $c ),
+			self::schema_balance_tables( $t, $c )
+		);
+
+		self::keep_lock();
+		foreach ( $sql as $statement ) {
+			dbDelta( $statement );
+			self::keep_lock();
+		}
+
+		self::migrate_after( $previous );
+		self::keep_lock();
+		if ( $previous > 0 && $previous < 5 ) {
+			// v5: opening balance entries for existing approved, unassigned commissions.
+			\WPAffiliateCaptain\Commissions\Balance::open_from_ledger();
+			self::keep_lock();
+		}
+		// Only a verified schema counts as migrated; otherwise the next request tries again.
+		$problems = self::verify_schema();
+		if ( $problems ) {
+			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
+				update_option( 'wpac_schema_problems_since', time(), false );
+			}
+			update_option( 'wpac_schema_problems', $problems, false );
+			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
+			Log::error( 'Database migration incomplete', array( 'problems' => $problems ) );
+			return;
+		}
+		delete_option( 'wpac_schema_problems' );
+		delete_option( 'wpac_schema_problems_since' );
+		update_option( self::DB_OPTION, self::db_version(), true );
+	}
+
+	/**
+	 * CREATE TABLE statements for partners, partner groups, codes, agreements and payout profiles.
+	 *
+	 * @param callable $t Resolves a table name to the prefixed table.
+	 * @param string   $c Charset and collation clause.
+	 * @return string[]
+	 */
+	private static function schema_partner_tables( $t, $c ) {
 		$sql = array();
 
 		$sql[] = "CREATE TABLE {$t('affiliates')} (
@@ -879,6 +926,19 @@ final class Installer {
 			KEY updated_at (updated_at)
 		) $c;";
 
+		return $sql;
+	}
+
+	/**
+	 * CREATE TABLE statements for visits and attributions.
+	 *
+	 * @param callable $t Resolves a table name to the prefixed table.
+	 * @param string   $c Charset and collation clause.
+	 * @return string[]
+	 */
+	private static function schema_tracking_tables( $t, $c ) {
+		$sql = array();
+
 		$sql[] = "CREATE TABLE {$t('visits')} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			affiliate_id bigint(20) unsigned NOT NULL,
@@ -921,6 +981,19 @@ final class Installer {
 			KEY content_created (content_id,created_at),
 			KEY campaign_created (campaign,created_at)
 		) $c;";
+
+		return $sql;
+	}
+
+	/**
+	 * CREATE TABLE statements for commission rules, commissions and their events.
+	 *
+	 * @param callable $t Resolves a table name to the prefixed table.
+	 * @param string   $c Charset and collation clause.
+	 * @return string[]
+	 */
+	private static function schema_commission_tables( $t, $c ) {
+		$sql = array();
 
 		$sql[] = "CREATE TABLE {$t('rules')} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -990,6 +1063,19 @@ final class Installer {
 			KEY commission_id (commission_id)
 		) $c;";
 
+		return $sql;
+	}
+
+	/**
+	 * CREATE TABLE statements for payouts and payout items.
+	 *
+	 * @param callable $t Resolves a table name to the prefixed table.
+	 * @param string   $c Charset and collation clause.
+	 * @return string[]
+	 */
+	private static function schema_payout_tables( $t, $c ) {
+		$sql = array();
+
 		$sql[] = "CREATE TABLE {$t('payouts')} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			number varchar(40) NOT NULL DEFAULT '',
@@ -1040,6 +1126,19 @@ final class Installer {
 			KEY payout_id (payout_id)
 		) $c;";
 
+		return $sql;
+	}
+
+	/**
+	 * CREATE TABLE statements for job queue and audit log.
+	 *
+	 * @param callable $t Resolves a table name to the prefixed table.
+	 * @param string   $c Charset and collation clause.
+	 * @return string[]
+	 */
+	private static function schema_system_tables( $t, $c ) {
+		$sql = array();
+
 		$sql[] = "CREATE TABLE {$t('jobs')} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			type varchar(40) NOT NULL,
@@ -1069,6 +1168,19 @@ final class Installer {
 			KEY object (object_type,object_id),
 			KEY created_at (created_at)
 		) $c;";
+
+		return $sql;
+	}
+
+	/**
+	 * CREATE TABLE statements for tiers, customer links, rate limits and creatives.
+	 *
+	 * @param callable $t Resolves a table name to the prefixed table.
+	 * @param string   $c Charset and collation clause.
+	 * @return string[]
+	 */
+	private static function schema_feature_tables( $t, $c ) {
+		$sql = array();
 
 		$sql[] = "CREATE TABLE {$t('tiers')} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -1133,6 +1245,19 @@ final class Installer {
 			KEY status (status)
 		) $c;";
 
+		return $sql;
+	}
+
+	/**
+	 * CREATE TABLE statements for balances, balance entries, number sequences and payout requests.
+	 *
+	 * @param callable $t Resolves a table name to the prefixed table.
+	 * @param string   $c Charset and collation clause.
+	 * @return string[]
+	 */
+	private static function schema_balance_tables( $t, $c ) {
+		$sql = array();
+
 		$sql[] = "CREATE TABLE {$t('balances')} (
 			affiliate_id bigint(20) unsigned NOT NULL,
 			currency char(3) NOT NULL,
@@ -1189,33 +1314,7 @@ final class Installer {
 			KEY affiliate_status (affiliate_id,status)
 		) $c;";
 
-		self::keep_lock();
-		foreach ( $sql as $statement ) {
-			dbDelta( $statement );
-			self::keep_lock();
-		}
-
-		self::migrate_after( $previous );
-		self::keep_lock();
-		if ( $previous > 0 && $previous < 5 ) {
-			// v5: opening balance entries for existing approved, unassigned commissions.
-			\WPAffiliateCaptain\Commissions\Balance::open_from_ledger();
-			self::keep_lock();
-		}
-		// Only a verified schema counts as migrated; otherwise the next request tries again.
-		$problems = self::verify_schema();
-		if ( $problems ) {
-			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
-				update_option( 'wpac_schema_problems_since', time(), false );
-			}
-			update_option( 'wpac_schema_problems', $problems, false );
-			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
-			Log::error( 'Database migration incomplete', array( 'problems' => $problems ) );
-			return;
-		}
-		delete_option( 'wpac_schema_problems' );
-		delete_option( 'wpac_schema_problems_since' );
-		update_option( self::DB_OPTION, self::db_version(), true );
+		return $sql;
 	}
 
 	/**

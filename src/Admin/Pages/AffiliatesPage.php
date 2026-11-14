@@ -37,6 +37,54 @@ final class AffiliatesPage {
 		$id = absint( Admin::post( 'id', 0 ) );
 		switch ( $do ) {
 			case 'affiliate_create':
+			case 'user_link_resend':
+			case 'user_link_manual':
+			case 'user_unlink':
+				self::handle_account( $do, $id );
+				break;
+
+			case 'terms_remind':
+			case 'broadcast_send':
+				self::handle_messages( $do, $id );
+				break;
+
+			case 'affiliate_update':
+			case 'affiliate_status':
+			case 'restriction':
+			case 'public_change':
+				self::handle_partner( $do, $id );
+				break;
+
+			case 'code_create':
+			case 'code_batch':
+			case 'code_status':
+			case 'code_coupon':
+			case 'partner_coupon_create':
+			case 'code_export':
+				self::handle_codes( $do, $id );
+				break;
+
+			case 'vies_check':
+			case 'dunning_send':
+			case 'repayment':
+			case 'balance_writeoff':
+			case 'tax_approve':
+			case 'tax_reject':
+			case 'profile_update':
+				self::handle_money( $do, $id );
+				break;
+		}
+	}
+
+	/**
+	 * Actions: create a partner, link or unlink the WordPress user.
+	 *
+	 * @param string $do Action.
+	 * @param int    $id Affiliate ID (posted).
+	 */
+	private static function handle_account( $do, $id ) {
+		switch ( $do ) {
+			case 'affiliate_create':
 				$input  = array(
 					'name'     => sanitize_text_field( (string) Admin::post( 'name' ) ),
 					'email'    => sanitize_text_field( (string) Admin::post( 'email' ) ),
@@ -76,7 +124,17 @@ final class AffiliatesPage {
 				}
 				Admin::back( __( 'The WordPress user was disconnected. The partner keeps all data; a new account can be linked.', 'affiliate-captain' ) );
 				break;
+		}
+	}
 
+	/**
+	 * Actions: terms reminder and announcement to all partners.
+	 *
+	 * @param string $do Action.
+	 * @param int    $id Affiliate ID (posted).
+	 */
+	private static function handle_messages( $do, $id ) {
+		switch ( $do ) {
 			case 'terms_remind':
 				$result = Agreements::start_reminders();
 				if ( is_wp_error( $result ) ) {
@@ -94,7 +152,17 @@ final class AffiliatesPage {
 				/* translators: %d: number of partners */
 				Admin::back( sprintf( _n( 'The e-mail is being sent to %d active partner in the background (partners who unsubscribed from announcements are skipped).', 'The e-mail is being sent to %d active partners in the background (partners who unsubscribed from announcements are skipped).', $result, 'affiliate-captain' ), $result ) );
 				break;
+		}
+	}
 
+	/**
+	 * Actions: partner data, status, restriction and public change.
+	 *
+	 * @param string $do Action.
+	 * @param int    $id Affiliate ID (posted).
+	 */
+	private static function handle_partner( $do, $id ) {
+		switch ( $do ) {
 			case 'affiliate_update':
 				$saved = AffiliateRepository::update(
 					$id,
@@ -169,7 +237,17 @@ final class AffiliatesPage {
 				}
 				Admin::back( __( 'Decision saved; the partner was informed.', 'affiliate-captain' ) );
 				break;
+		}
+	}
 
+	/**
+	 * Actions: partner codes, code batches and partner coupons.
+	 *
+	 * @param string $do Action.
+	 * @param int    $id Affiliate ID (posted).
+	 */
+	private static function handle_codes( $do, $id ) {
+		switch ( $do ) {
 			case 'code_create':
 				$wish   = sanitize_text_field( Admin::post( 'code' ) );
 				$check  = CodeRepository::check_coupon( (string) Admin::post( 'coupon_code' ) );
@@ -257,7 +335,17 @@ final class AffiliatesPage {
 				Audit::log( 'code.exported', 'affiliate', $id, array( 'count' => count( $out ) ) );
 				Csv::download( 'partner-codes-' . $id . '.csv', array( 'code', 'coupon', 'batch', 'used', 'limit', 'expires_at', 'status' ), $out );
 				break;
+		}
+	}
 
+	/**
+	 * Actions: VIES check, dunning, repayment, write-off, tax change and payout details.
+	 *
+	 * @param string $do Action.
+	 * @param int    $id Affiliate ID (posted).
+	 */
+	private static function handle_money( $do, $id ) {
+		switch ( $do ) {
 			case 'vies_check':
 				$r = \WPAffiliateCaptain\Payouts\Vies::check( $id );
 				if ( ! $r ) {
@@ -511,6 +599,42 @@ final class AffiliatesPage {
 		echo '<p><a href="' . esc_url( Admin::url( 'wpac-affiliates' ) ) . '">&larr; ' . esc_html__( 'All partners', 'affiliate-captain' ) . '</a></p>';
 		Admin::notice();
 
+		self::render_kpis( $id, $currency );
+
+		$parts = array();
+
+		ob_start();
+		self::render_status_box( $a, $id );
+		$parts['overview'][] = ob_get_clean();
+		ob_start();
+		self::render_profile_box( $a, $id );
+		$parts['profile'][] = ob_get_clean();
+		ob_start();
+		self::render_access_and_terms_boxes( $a, $id );
+		$parts['overview'][] = ob_get_clean();
+		ob_start();
+		self::render_codes_box( $a, $id );
+		$parts['codes'][] = ob_get_clean();
+		ob_start();
+		self::render_payout_box( $id );
+		$parts['payout'][] = ob_get_clean();
+		ob_start();
+		self::render_history_box( $id );
+		$parts['history'][] = ob_get_clean();
+		ob_start();
+		self::render_balance( $id );
+		$parts['balance'][] = ob_get_clean();
+		self::render_tabs( $id, $parts );
+		echo '</div>';
+	}
+
+	/**
+	 * Detail view: key figures and the link to the partner's commissions.
+	 *
+	 * @param int    $id       Affiliate ID.
+	 * @param string $currency Program currency.
+	 */
+	private static function render_kpis( $id, $currency ) {
 		// KPIs.
 		$totals = Ledger::totals( array( 'affiliate_id' => $id ) );
 		$sum    = static function ( $s ) use ( $totals, $currency ) {
@@ -529,10 +653,15 @@ final class AffiliatesPage {
 		}
 		echo '</div>';
 		echo '<p><a class="button" href="' . esc_url( Admin::url( 'wpac-commissions', array( 'affiliate_id' => $id ) ) ) . '">' . esc_html__( 'Commissions of this partner', 'affiliate-captain' ) . '</a></p>';
+	}
 
-		$parts = array();
-
-		ob_start();
+	/**
+	 * Detail view: status box (restriction, public change, application, status actions).
+	 *
+	 * @param object $a  Affiliate.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function render_status_box( $a, $id ) {
 		// Status actions.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Status', 'affiliate-captain' ) . '</h2><div class="inside">';
 		$restriction = \WPAffiliateCaptain\Privacy\Restriction::get( $id );
@@ -601,9 +730,15 @@ final class AffiliatesPage {
 			echo '<input type="hidden" name="id" value="' . (int) $id . '"><p><label for="wpac-restrict-note">' . esc_html__( 'Restrict processing on the partner\'s request (Art. 18 GDPR) – reason', 'affiliate-captain' ) . '</label><br><input type="text" id="wpac-restrict-note" name="note" class="regular-text"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Restrict processing? Codes stop attributing sales and no report mails are sent until you lift it.', 'affiliate-captain' ) . '">' . esc_html__( 'Restrict processing', 'affiliate-captain' ) . '</button></p></form>';
 		}
 		echo '</div></div>';
+	}
 
-		$parts['overview'][] = ob_get_clean();
-		ob_start();
+	/**
+	 * Detail view: profile form.
+	 *
+	 * @param object $a  Affiliate.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function render_profile_box( $a, $id ) {
 		// Profile.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Profile', 'affiliate-captain' ) . '</h2><div class="inside">';
 		Admin::form_open( 'affiliate_update' );
@@ -632,9 +767,15 @@ final class AffiliatesPage {
 		echo '</table>';
 		submit_button( __( 'Save', 'affiliate-captain' ), 'secondary' );
 		echo '</form></div></div>';
+	}
 
-		$parts['profile'][] = ob_get_clean();
-		ob_start();
+	/**
+	 * Detail view: partner area access and terms acceptance.
+	 *
+	 * @param object $a  Affiliate.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function render_access_and_terms_boxes( $a, $id ) {
 		// Partner area access (no linked WordPress user).
 		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
 			self::user_link_box( $a );
@@ -675,9 +816,15 @@ final class AffiliatesPage {
 			echo '</tbody></table>';
 		}
 		echo '</div></div>';
+	}
 
-		$parts['overview'][] = ob_get_clean();
-		ob_start();
+	/**
+	 * Detail view: partner codes, partner coupon and code batches.
+	 *
+	 * @param object $a  Affiliate.
+	 * @param int    $id Affiliate ID.
+	 */
+	private static function render_codes_box( $a, $id ) {
 		// Codes.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner codes', 'affiliate-captain' ) . '</h2><div class="inside">';
 		$codes = CodeRepository::for_affiliate( $id );
@@ -723,9 +870,14 @@ final class AffiliatesPage {
 		echo '<input type="hidden" name="id" value="' . (int) $id . '">';
 		echo '<p><label>' . esc_html_x( 'Number', 'count', 'affiliate-captain' ) . ' <input type="number" name="count" min="1" max="1000" value="10" class="small-text"></label> <label>' . esc_html__( 'Prefix', 'affiliate-captain' ) . ' <input type="text" name="prefix" size="8"></label> <label>' . esc_html__( 'Uses per code', 'affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="1" class="small-text"></label> <label>' . esc_html__( 'Valid until', 'affiliate-captain' ) . ' <input type="date" name="expires_at"></label> <button class="button">' . esc_html__( 'Generate', 'affiliate-captain' ) . '</button></p></form>';
 		echo '</div></div>';
+	}
 
-		$parts['codes'][] = ob_get_clean();
-		ob_start();
+	/**
+	 * Detail view: payout details (tax and bank data, VIES, pending tax change).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_payout_box( $id ) {
 		// Payout details.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Payout details', 'affiliate-captain' ) . '</h2><div class="inside">';
 		$p = ProfileRepository::get( $id );
@@ -828,9 +980,14 @@ final class AffiliatesPage {
 			}
 		}
 		echo '</div></div>';
+	}
 
-		$parts['payout'][] = ob_get_clean();
-		ob_start();
+	/**
+	 * Detail view: the newest audit entries of the partner.
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_history_box( $id ) {
 		// Audit.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'History', 'affiliate-captain' ) . '</h2><div class="inside"><ul class="wpac-history">';
 		$history = Audit::query( array( 'object_type' => 'affiliate', 'object_id' => $id, 'limit' => 21 ) );
@@ -848,13 +1005,6 @@ final class AffiliatesPage {
 			echo '<p><a href="' . esc_url( Admin::url( 'wpac-audit', array( 'object_type' => 'affiliate', 'object_id' => $id ) ) ) . '">' . esc_html__( 'Show the full history in the audit log', 'affiliate-captain' ) . '</a></p>';
 		}
 		echo '</div></div>';
-
-		$parts['history'][] = ob_get_clean();
-		ob_start();
-		self::render_balance( $id );
-		$parts['balance'][] = ob_get_clean();
-		self::render_tabs( $id, $parts );
-		echo '</div>';
 	}
 
 	/**

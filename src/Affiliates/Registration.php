@@ -700,17 +700,7 @@ final class Registration {
 			}
 		}
 
-		$errors = array(
-			'nonce'   => __( 'The form expired. Please try again.', 'affiliate-captain' ),
-			'spam'    => __( 'Your submission could not be processed.', 'affiliate-captain' ),
-			'rate'    => __( 'Too many attempts. Please try again later.', 'affiliate-captain' ),
-			'terms'   => __( 'Please accept the partner program terms.', 'affiliate-captain' ),
-			'exists'  => __( 'An affiliate account with this e-mail address already exists.', 'affiliate-captain' ),
-			'required' => __( 'Please fill in all required fields.', 'affiliate-captain' ),
-			'expired'  => __( 'The confirmation link is invalid or has expired. Please apply again.', 'affiliate-captain' ),
-			'invalid' => __( 'Please check your entries.', 'affiliate-captain' ),
-			'error'   => __( 'Your application could not be saved. Please try again later.', 'affiliate-captain' ),
-		);
+		$errors = self::error_messages();
 		$group_id = absint( $atts['group'] );
 		$fixed    = (bool) $group_id;
 		$post_id  = $post_id ? (int) $post_id : (int) get_the_ID();
@@ -739,14 +729,9 @@ final class Registration {
 			$group    = null;
 			$group_id = 0;
 		}
-		$public = Groups::public_groups();
-		if ( ! $group && $public ) {
-			// Step 1: choose the partner type.
-			$out = '<div class="wpac-form"><p>' . esc_html__( 'Which kind of partner are you?', 'affiliate-captain' ) . '</p><ul class="wpac-group-choice">';
-			foreach ( $public as $g ) {
-				$out .= '<li><a class="wpac-button" href="' . esc_url( add_query_arg( 'wpac_group', (int) $g->id ) ) . '">' . esc_html( $g->name ) . '</a>' . ( $g->description ? '<br><span class="wpac-muted">' . esc_html( $g->description ) . '</span>' : '' ) . '</li>';
-			}
-			return $out . '</ul></div>';
+		$choice = self::group_choice( $group );
+		if ( null !== $choice ) {
+			return $choice;
 		}
 		$terms = Agreements::current( $group_id );
 		++self::$instances;
@@ -796,6 +781,64 @@ final class Registration {
 				<label for="wpac_note<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'How do you want to promote us?', 'affiliate-captain' ); ?></label>
 				<textarea id="wpac_note<?php echo esc_attr( $sfx ); ?>" name="wpac_note" rows="4"><?php echo esc_textarea( $kept( 'wpac_note' ) ); ?></textarea>
 			</p>
+<?php self::render_group_fields( $group, $form, $kept, $sfx ); ?>
+<?php self::render_terms_and_privacy( $terms, $form ); ?>
+			<p><button type="submit" class="wpac-button"><?php esc_html_e( 'Apply now', 'affiliate-captain' ); ?></button></p>
+		</form>
+		<?php
+		self::$suffix = '';
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Messages for the error codes of a sent application form.
+	 *
+	 * @return array code => message
+	 */
+	private static function error_messages() {
+		$errors = array(
+			'nonce'   => __( 'The form expired. Please try again.', 'affiliate-captain' ),
+			'spam'    => __( 'Your submission could not be processed.', 'affiliate-captain' ),
+			'rate'    => __( 'Too many attempts. Please try again later.', 'affiliate-captain' ),
+			'terms'   => __( 'Please accept the partner program terms.', 'affiliate-captain' ),
+			'exists'  => __( 'An affiliate account with this e-mail address already exists.', 'affiliate-captain' ),
+			'required' => __( 'Please fill in all required fields.', 'affiliate-captain' ),
+			'expired'  => __( 'The confirmation link is invalid or has expired. Please apply again.', 'affiliate-captain' ),
+			'invalid' => __( 'Please check your entries.', 'affiliate-captain' ),
+			'error'   => __( 'Your application could not be saved. Please try again later.', 'affiliate-captain' ),
+		);
+		return $errors;
+	}
+
+	/**
+	 * Step 1 without a chosen group: the choice of the public partner groups (null when there is nothing to choose).
+	 *
+	 * @param object|null $group Chosen group.
+	 * @return string|null
+	 */
+	private static function group_choice( $group ) {
+		$public = Groups::public_groups();
+		if ( ! $group && $public ) {
+			// Step 1: choose the partner type.
+			$out = '<div class="wpac-form"><p>' . esc_html__( 'Which kind of partner are you?', 'affiliate-captain' ) . '</p><ul class="wpac-group-choice">';
+			foreach ( $public as $g ) {
+				$out .= '<li><a class="wpac-button" href="' . esc_url( add_query_arg( 'wpac_group', (int) $g->id ) ) . '">' . esc_html( $g->name ) . '</a>' . ( $g->description ? '<br><span class="wpac-muted">' . esc_html( $g->description ) . '</span>' : '' ) . '</li>';
+			}
+			return $out . '</ul></div>';
+		}
+		return null;
+	}
+
+	/**
+	 * Application form: the additional fields of the partner group.
+	 *
+	 * @param object|null $group Partner group.
+	 * @param array       $form  Kept form (values, errors).
+	 * @param callable    $kept  Kept value of a field.
+	 * @param string      $sfx   ID suffix of this form instance.
+	 */
+	private static function render_group_fields( $group, array $form, callable $kept, $sfx ) {
+		?>
 			<?php foreach ( Groups::fields( $group ) as $field ) : ?>
 				<?php
 				$fid      = 'wpac_f_' . $field['key'];
@@ -814,6 +857,17 @@ final class Registration {
 				<?php endif; ?>
 				</p>
 			<?php endforeach; ?>
+<?php
+	}
+
+	/**
+	 * Application form: terms acceptance and the privacy information (Art. 13 GDPR).
+	 *
+	 * @param array $terms Current terms (Agreements::current()).
+	 * @param array $form  Kept form (values, errors).
+	 */
+	private static function render_terms_and_privacy( array $terms, array $form ) {
+		?>
 			<?php if ( $terms['page_id'] ) : ?>
 			<p class="wpac-check">
 				<label>
@@ -839,10 +893,6 @@ final class Registration {
 				}
 				?>
 			</p>
-			<p><button type="submit" class="wpac-button"><?php esc_html_e( 'Apply now', 'affiliate-captain' ); ?></button></p>
-		</form>
-		<?php
-		self::$suffix = '';
-		return (string) ob_get_clean();
+<?php
 	}
 }

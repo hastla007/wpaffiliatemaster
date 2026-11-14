@@ -159,28 +159,7 @@ final class Ledger {
 		}
 		$attr  = $resolved['attribution'];
 		$aff   = AffiliateRepository::find( (int) $attr['affiliate_id'] );
-		$flags = \WPAffiliateCaptain\Tracking\FraudCheck::flags( $sale, $attr );
-		if ( $attr['review'] ) {
-			array_unshift( $flags, 'self_referral' );
-		}
-		if ( ! empty( $sale['review'] ) ) {
-			// The source asks for a review (e.g. renewal of a subscription whose first order is under review).
-			$flags[] = 'source_review';
-		}
-		if ( $flags ) {
-			$attr['review'] = true;
-			$attr['note']   = Db::cut( implode( ',', array_unique( $flags ) ), 255 );
-			Audit::log(
-				'attribution.flagged',
-				'affiliate',
-				(int) $attr['affiliate_id'],
-				array(
-					'source'   => $sale['source'],
-					'order_id' => $sale['order_id'],
-					'flags'    => $flags,
-				)
-			);
-		}
+		self::flag_attribution( $sale, $attr );
 
 		list( $rules, $default, $precedence ) = self::rules_for( $aff, $sale['currency'], (string) $attr['method'] );
 		$hold    = self::hold_until( $sale );
@@ -250,57 +229,7 @@ final class Ledger {
 					throw new IntegrationException( 'db_attribution', esc_html( $wpdb->last_error ) );
 				}
 				$attribution_id = $round && $existing ? (int) $existing->id : (int) $wpdb->insert_id;
-				$ids            = array();
-
-				foreach ( $sale['items'] as $item ) {
-					list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $rules, $default, $precedence );
-					if ( $calc['amount_minor'] <= 0 ) {
-						continue;
-					}
-
-					$snapshot = array(
-						'rule'          => $calc['rule'],
-						'default'       => $calc['rule'] ? null : $default,
-						'touch_model'   => $attr['touch_model'],
-						'method'        => $attr['method'],
-						'contract'      => $sale['contract'],
-						'calculated_at' => Db::now(),
-						// Unfiltered line net: refunds arrive as line net and are scaled to the base.
-						'line_net'      => $line_net,
-					);
-					$key      = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item['item_id'] . ( $round ? ':r' . $round : '' );
-					$ok       = $wpdb->insert(
-						Db::table( 'commissions' ),
-						array(
-							'affiliate_id'    => (int) $aff->id,
-							'source'          => $sale['source'],
-							'source_order_id' => $sale['order_id'],
-							'source_item_id'  => $item['item_id'],
-							'kind'            => 'sale',
-							'parent_id'       => 0,
-							'product_ref'     => Db::cut( (string) ( $item['sku'] ? $item['sku'] : $item['product_id'] ), 190 ),
-							'description'     => Db::cut( (string) $item['name'], 255 ),
-							'currency'        => $sale['currency'],
-							'base_minor'      => $calc['base_minor'],
-							'amount_minor'    => $calc['amount_minor'],
-							'rate_type'       => $calc['rate_type'],
-							'rate'            => $calc['rate'],
-							'rule_id'         => $calc['rule_id'],
-							'rule_snapshot'   => wp_json_encode( $snapshot ),
-							'status'          => $status,
-							'hold_until'      => Db::now( $hold ),
-							'idempotency_key' => self::key( $key ),
-							'created_at'      => Db::now(),
-							'updated_at'      => Db::now(),
-						)
-					);
-					if ( ! $ok ) {
-						throw new IntegrationException( 'db_commission', esc_html( $wpdb->last_error ) );
-					}
-					$cid   = (int) $wpdb->insert_id;
-					$ids[] = $cid;
-					self::event( $cid, 'created', '', $status, $calc['amount_minor'], $attr['review'] ? 'review: ' . $attr['note'] : '', $sale['idempotency_key'] );
-				}
+				$ids            = self::insert_sale_commissions( $sale, $attr, $aff, $rules, $default, $precedence, $hold, $status, $round );
 
 				return array(
 					'status'         => 'created',
@@ -311,6 +240,120 @@ final class Ledger {
 			}
 		);
 
+		self::sale_recorded( $sale, $aff, $attr, $result );
+		return $result;
+	}
+
+	/**
+	 * Fraud check and review requests of a sale: flags the attribution for review (with the reasons as note).
+	 *
+	 * @param array $sale Normalized sale.
+	 * @param array $attr In/out: resolved attribution.
+	 */
+	private static function flag_attribution( array $sale, array &$attr ) {
+		$flags = \WPAffiliateCaptain\Tracking\FraudCheck::flags( $sale, $attr );
+		if ( $attr['review'] ) {
+			array_unshift( $flags, 'self_referral' );
+		}
+		if ( ! empty( $sale['review'] ) ) {
+			// The source asks for a review (e.g. renewal of a subscription whose first order is under review).
+			$flags[] = 'source_review';
+		}
+		if ( $flags ) {
+			$attr['review'] = true;
+			$attr['note']   = Db::cut( implode( ',', array_unique( $flags ) ), 255 );
+			Audit::log(
+				'attribution.flagged',
+				'affiliate',
+				(int) $attr['affiliate_id'],
+				array(
+					'source'   => $sale['source'],
+					'order_id' => $sale['order_id'],
+					'flags'    => $flags,
+				)
+			);
+		}
+	}
+
+	/**
+	 * Insert the commissions of the order lines of a sale (inside the transaction of record_sale()).
+	 *
+	 * @param array       $sale       Normalized sale.
+	 * @param array       $attr       Attribution.
+	 * @param object      $aff        Partner.
+	 * @param array       $rules      Rules that apply.
+	 * @param array       $default    Program default rate.
+	 * @param string      $precedence Rule precedence.
+	 * @param int         $hold       Hold-until timestamp.
+	 * @param string      $status     Initial status (pending|review).
+	 * @param int         $round      Re-attribution round (0 = first booking).
+	 * @return int[] Commission IDs.
+	 * @throws IntegrationException On DB errors.
+	 */
+	private static function insert_sale_commissions( array $sale, array $attr, $aff, $rules, $default, $precedence, $hold, $status, $round ) {
+		global $wpdb;
+		$ids = array();
+		foreach ( $sale['items'] as $item ) {
+			list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $rules, $default, $precedence );
+			if ( $calc['amount_minor'] <= 0 ) {
+				continue;
+			}
+
+			$snapshot = array(
+				'rule'          => $calc['rule'],
+				'default'       => $calc['rule'] ? null : $default,
+				'touch_model'   => $attr['touch_model'],
+				'method'        => $attr['method'],
+				'contract'      => $sale['contract'],
+				'calculated_at' => Db::now(),
+				// Unfiltered line net: refunds arrive as line net and are scaled to the base.
+				'line_net'      => $line_net,
+			);
+			$key      = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item['item_id'] . ( $round ? ':r' . $round : '' );
+			$ok       = $wpdb->insert(
+				Db::table( 'commissions' ),
+				array(
+					'affiliate_id'    => (int) $aff->id,
+					'source'          => $sale['source'],
+					'source_order_id' => $sale['order_id'],
+					'source_item_id'  => $item['item_id'],
+					'kind'            => 'sale',
+					'parent_id'       => 0,
+					'product_ref'     => Db::cut( (string) ( $item['sku'] ? $item['sku'] : $item['product_id'] ), 190 ),
+					'description'     => Db::cut( (string) $item['name'], 255 ),
+					'currency'        => $sale['currency'],
+					'base_minor'      => $calc['base_minor'],
+					'amount_minor'    => $calc['amount_minor'],
+					'rate_type'       => $calc['rate_type'],
+					'rate'            => $calc['rate'],
+					'rule_id'         => $calc['rule_id'],
+					'rule_snapshot'   => wp_json_encode( $snapshot ),
+					'status'          => $status,
+					'hold_until'      => Db::now( $hold ),
+					'idempotency_key' => self::key( $key ),
+					'created_at'      => Db::now(),
+					'updated_at'      => Db::now(),
+				)
+			);
+			if ( ! $ok ) {
+				throw new IntegrationException( 'db_commission', esc_html( $wpdb->last_error ) );
+			}
+			$cid   = (int) $wpdb->insert_id;
+			$ids[] = $cid;
+			self::event( $cid, 'created', '', $status, $calc['amount_minor'], $attr['review'] ? 'review: ' . $attr['note'] : '', $sale['idempotency_key'] );
+		}
+		return $ids;
+	}
+
+	/**
+	 * After a recorded sale: lifetime link and the hooks (after COMMIT).
+	 *
+	 * @param array  $sale   Normalized sale.
+	 * @param object $aff    Partner.
+	 * @param array  $attr   Attribution.
+	 * @param array  $result Result of the booking.
+	 */
+	private static function sale_recorded( array $sale, $aff, array $attr, array $result ) {
 		// Notify listeners only after COMMIT.
 		if ( 'created' === $result['status'] ) {
 			// Lifetime link only for an order that earned a commission, and only for the verified
@@ -337,7 +380,6 @@ final class Ledger {
 				}
 			);
 		}
-		return $result;
 	}
 
 	/**
@@ -521,51 +563,11 @@ final class Ledger {
 				$ids   = array();
 				$sum   = 0;
 				foreach ( $sale['items'] as $item ) {
-					$item_id      = (string) $item['item_id'];
-					$line         = isset( $lines[ $item_id ] ) ? $lines[ $item_id ] : null;
-					$until        = $hold;
-					$line_default = $default;
-					if ( $line ) {
-						$o = $line['original'];
-						if ( 'rejected' === $o->status || $line['reversed'] ) {
-							continue; // Rejected (e.g. fraud) or reversed lines never earn more.
-						}
-						// The rule stored with the line (snapshot), not the rules of today.
-						$snap       = $o->rule_snapshot ? json_decode( (string) $o->rule_snapshot, true ) : null;
-						$line_rules = is_array( $snap ) && ! empty( $snap['rule'] ) && is_array( $snap['rule'] ) ? array( $snap['rule'] ) : array();
-						if ( is_array( $snap ) && ! empty( $snap['default'] ) && is_array( $snap['default'] ) && isset( $snap['default']['rate_type'], $snap['default']['rate'] ) ) {
-							$line_default = $snap['default'];
-						}
-						list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $line_rules, $line_default, $precedence );
-						$delta_base              = (int) $calc['base_minor'] - (int) $line['remaining'];
-						$delta_amount            = (int) $calc['amount_minor'] - (int) $line['standing'];
-						// One minor unit per line is rounding of the shop totals, not an increase.
-						if ( $calc['excluded'] || $delta_base <= 1 || $delta_amount <= 0 ) {
-							continue;
-						}
-						$status = $review || 'review' === $o->status ? 'review' : 'pending';
-						if ( in_array( $o->status, array( 'pending', 'review' ), true ) ) {
-							$until = max( $until, (int) strtotime( $o->hold_until . ' UTC' ) ); // Never released before the original.
-						}
-						$key      = self::INCREASE_KEY . $sale['source'] . ':' . $sale['order_id'] . ':' . $item_id . ':' . (int) $o->id . ':' . (int) $line['remaining'] . ':' . (int) $calc['base_minor'];
-						$of       = (int) $o->id;
-						$line_net = (int) $calc['base_minor'] > 0 ? Money::prorate( $delta_base, $line_net, (int) $calc['base_minor'] ) : $delta_base;
-					} else {
-						// A new line (or a line that earned nothing so far): booked like a line of the sale.
-						list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $rules, $default, $precedence );
-						if ( $calc['excluded'] || (int) $calc['amount_minor'] <= 0 ) {
-							continue;
-						}
-						$delta_base   = (int) $calc['base_minor'];
-						$delta_amount = (int) $calc['amount_minor'];
-						$status       = $review ? 'review' : 'pending';
-						$key          = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item_id . ( $round ? ':r' . $round : '' );
-						$of           = 0;
+					$line = self::increase_line( $item, $sale, $aff, $lines, $rules, $default, $precedence, $round, $hold, $review );
+					if ( null === $line ) {
+						continue;
 					}
-					$key = self::key( $key );
-					if ( self::find_by_key( $key ) ) {
-						continue; // Booked already (idempotent).
-					}
+					list( 'item_id' => $item_id, 'calc' => $calc, 'line_net' => $line_net, 'delta_base' => $delta_base, 'delta_amount' => $delta_amount, 'status' => $status, 'key' => $key, 'until' => $until, 'of' => $of, 'line_default' => $line_default ) = $line;
 					$snapshot = array(
 						'rule'          => $calc['rule'],
 						'default'       => $calc['rule'] ? null : $line_default,
@@ -624,6 +626,94 @@ final class Ledger {
 				);
 			}
 		);
+		self::increase_recorded( $sale, $aff, $result );
+		return $result;
+	}
+
+	/**
+	 * The additional commission of one order line (record_increase()): what is booked, or null
+	 * when the line earns nothing more or is booked already.
+	 *
+	 * @param array  $item       Order line.
+	 * @param array  $sale       Normalized sale.
+	 * @param object $aff        Partner.
+	 * @param array  $lines      Booked lines of the order (sale_lines()).
+	 * @param array  $rules      Rules that apply to new lines.
+	 * @param array  $default    Program default rate.
+	 * @param string $precedence Rule precedence.
+	 * @param int    $round      Re-attribution round.
+	 * @param int    $hold       Hold-until timestamp for new bookings.
+	 * @param bool   $review     Attribution under review.
+	 * @return array|null
+	 */
+	private static function increase_line( array $item, array $sale, $aff, array $lines, $rules, $default, $precedence, $round, $hold, $review ) {
+		$item_id      = (string) $item['item_id'];
+		$line         = isset( $lines[ $item_id ] ) ? $lines[ $item_id ] : null;
+		$until        = $hold;
+		$line_default = $default;
+		if ( $line ) {
+			$o = $line['original'];
+			if ( 'rejected' === $o->status || $line['reversed'] ) {
+				return null; // Rejected (e.g. fraud) or reversed lines never earn more.
+			}
+			// The rule stored with the line (snapshot), not the rules of today.
+			$snap       = $o->rule_snapshot ? json_decode( (string) $o->rule_snapshot, true ) : null;
+			$line_rules = is_array( $snap ) && ! empty( $snap['rule'] ) && is_array( $snap['rule'] ) ? array( $snap['rule'] ) : array();
+			if ( is_array( $snap ) && ! empty( $snap['default'] ) && is_array( $snap['default'] ) && isset( $snap['default']['rate_type'], $snap['default']['rate'] ) ) {
+				$line_default = $snap['default'];
+			}
+			list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $line_rules, $line_default, $precedence );
+			$delta_base              = (int) $calc['base_minor'] - (int) $line['remaining'];
+			$delta_amount            = (int) $calc['amount_minor'] - (int) $line['standing'];
+			// One minor unit per line is rounding of the shop totals, not an increase.
+			if ( $calc['excluded'] || $delta_base <= 1 || $delta_amount <= 0 ) {
+				return null;
+			}
+			$status = $review || 'review' === $o->status ? 'review' : 'pending';
+			if ( in_array( $o->status, array( 'pending', 'review' ), true ) ) {
+				$until = max( $until, (int) strtotime( $o->hold_until . ' UTC' ) ); // Never released before the original.
+			}
+			$key      = self::INCREASE_KEY . $sale['source'] . ':' . $sale['order_id'] . ':' . $item_id . ':' . (int) $o->id . ':' . (int) $line['remaining'] . ':' . (int) $calc['base_minor'];
+			$of       = (int) $o->id;
+			$line_net = (int) $calc['base_minor'] > 0 ? Money::prorate( $delta_base, $line_net, (int) $calc['base_minor'] ) : $delta_base;
+		} else {
+			// A new line (or a line that earned nothing so far): booked like a line of the sale.
+			list( $calc, $line_net ) = self::line_commission( $item, $sale, $aff, $rules, $default, $precedence );
+			if ( $calc['excluded'] || (int) $calc['amount_minor'] <= 0 ) {
+				return null;
+			}
+			$delta_base   = (int) $calc['base_minor'];
+			$delta_amount = (int) $calc['amount_minor'];
+			$status       = $review ? 'review' : 'pending';
+			$key          = 'sale:' . $sale['source'] . ':' . $sale['order_id'] . ':' . $item_id . ( $round ? ':r' . $round : '' );
+			$of           = 0;
+		}
+		$key = self::key( $key );
+		if ( self::find_by_key( $key ) ) {
+			return null; // Booked already (idempotent).
+		}
+		return array(
+			'item_id'      => $item_id,
+			'calc'         => $calc,
+			'line_net'     => $line_net,
+			'delta_base'   => $delta_base,
+			'delta_amount' => $delta_amount,
+			'status'       => $status,
+			'key'          => $key,
+			'until'        => $until,
+			'of'           => $of,
+			'line_default' => $line_default,
+		);
+	}
+
+	/**
+	 * After a booked increase: audit entry and hooks (after COMMIT).
+	 *
+	 * @param array  $sale   Normalized sale.
+	 * @param object $aff    Partner.
+	 * @param array  $result Result of the booking.
+	 */
+	private static function increase_recorded( array $sale, $aff, array $result ) {
 		if ( $result['commission_ids'] ) {
 			// Inside an outer transaction only once it is committed.
 			Db::after_commit(
@@ -654,7 +744,6 @@ final class Ledger {
 				}
 			);
 		}
-		return $result;
 	}
 
 	/**
