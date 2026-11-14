@@ -150,6 +150,14 @@ foreach ( array( '', 'pending', 'approved', 'rejected', 'paid' ) as $r_status ) 
 	check( "R8-RENDER commissions list (status '{$r_status}') without PHP problems", array( true, array(), '' ), array( false !== strpos( $r[0], '<div class="wrap' ), $r[1], $r[2] ) );
 }
 
+// Audit log: unfiltered, filtered by object type and by an order without entries.
+foreach ( array( array(), array( 'object_type' => 'affiliate' ), array( 'order' => '#999999' ) ) as $r_q ) {
+	$_GET = array( 'page' => 'wpac-audit' ) + $r_q;
+	$r    = r_render( array( WPAffiliateCaptain\Admin\Pages\AuditPage::class, 'render' ) );
+	check( 'R8-RENDER audit log ' . wp_json_encode( $r_q ) . ' without PHP problems', array( true, array(), '' ), array( false !== strpos( $r[0], 'name="audit_action"' ), $r[1], $r[2] ) );
+}
+check( 'R8-RENDER audit log: an order without entries shows the filter notice', true, false !== strpos( $r[0], 'No entries match this filter.' ) );
+
 // Payouts page: overview and the payout detail of every existing run.
 $_GET = array( 'page' => 'wpac-payouts' );
 $r    = r_render( array( PayoutsPage::class, 'render' ) );

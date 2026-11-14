@@ -355,7 +355,7 @@ final class AuditPage {
 		echo '<p class="description">' . esc_html__( 'Order: everything about one order (attribution, commissions, refunds, manual changes). Dates are UTC.', 'affiliate-captain' ) . '</p>';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'User', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Action', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Object', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Details', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 		if ( ! $rows ) {
-			echo '<tr><td colspan="5">' . esc_html( '' !== $type || absint( Admin::get( 'object_id' ) ) ? __( 'No entries match this filter.', 'affiliate-captain' ) : __( 'No entries yet. Changes to partners, commissions, payouts and settings are recorded here.', 'affiliate-captain' ) ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html( array_filter( $filters ) ? __( 'No entries match this filter.', 'affiliate-captain' ) : __( 'No entries yet. Changes to partners, commissions, payouts and settings are recorded here.', 'affiliate-captain' ) ) . '</td></tr>';
 		}
 		$types = self::object_types();
 		foreach ( $rows as $r ) {
