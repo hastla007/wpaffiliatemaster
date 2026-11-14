@@ -259,16 +259,16 @@ final class PayoutsPage {
 				break;
 
 			case 'payout_export':
-				list( $rows ) = PayoutService::query( array( 'limit' => 100000 ) );
-				$out          = array();
-				AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
-				foreach ( $rows as $p ) {
-					$aff   = AffiliateRepository::find( (int) $p->affiliate_id );
-					$snap  = json_decode( (string) $p->profile_snapshot, true );
-					$tax   = current_user_can( Capabilities::VIEW_TAX_DATA );
-					$out[] = array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, $tax && isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', $tax && isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
-				}
-				Csv::download( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $out );
+				// Streamed in ID batches: all payouts, never cut off and never all in memory.
+				$tax = current_user_can( Capabilities::VIEW_TAX_DATA );
+				$out = ( static function () use ( $tax ) {
+					foreach ( \WPAffiliateCaptain\Core\Paged::each( array( PayoutService::class, 'query' ) ) as $p ) {
+						$aff  = AffiliateRepository::find( (int) $p->affiliate_id );
+						$snap = $tax ? json_decode( (string) $p->profile_snapshot, true ) : null;
+						yield array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, $tax && isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', $tax && isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
+					}
+				} )();
+				Csv::stream( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $out );
 				break;
 		}
 	}

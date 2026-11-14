@@ -19,6 +19,7 @@ function wpac_uninstall_site() {
 	delete_option( 'wpac_report_retry_lock' );
 	delete_option( 'wpac_restricted_lock' );
 	delete_option( 'wpac_objections_lock' );
+	delete_option( 'wpac_import_lock' );
 	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_stmt\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Per-site hidden notices of the admins (user options carry the site's table prefix).
 	delete_metadata( 'user', 0, $wpdb->get_blog_prefix() . 'wpac_hidden_notices', '', true );

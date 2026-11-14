@@ -197,6 +197,7 @@ final class Cron {
 			'rejected_applications' => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_rejected_applications' ), false ),
 			'expired_options'       => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_expired_options' ), false ),
 			'erased'                => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_erased' ), false ),
+			'ended_partners'        => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_ended' ), false ),
 			'agreements'            => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_agreements' ), false ),
 			'restrictions'          => array( array( '\WPAffiliateCaptain\Privacy\Restriction', 'purge' ), false ),
 			'objections'            => array( array( '\WPAffiliateCaptain\Payouts\Objections', 'purge' ), false ),

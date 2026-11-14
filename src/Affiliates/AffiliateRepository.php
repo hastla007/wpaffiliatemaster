@@ -420,10 +420,13 @@ final class AffiliateRepository {
 	 * @param int    $id     ID.
 	 * @param string $status New status.
 	 * @param string $reason Reason (required for pause/terminate/reject).
+	 * @param array  $args   notify (bool, default true): send the approval, rejection and status
+	 *                       mails (false e.g. for imported partners: their status is history).
 	 * @return true|\WP_Error
 	 */
-	public static function set_status( $id, $status, $reason = '' ) {
+	public static function set_status( $id, $status, $reason = '', array $args = array() ) {
 		global $wpdb;
+		$notify = ! isset( $args['notify'] ) || (bool) $args['notify'];
 		$aff = self::find( $id );
 		if ( ! $aff ) {
 			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'affiliate-captain' ) );
@@ -472,10 +475,10 @@ final class AffiliateRepository {
 
 		if ( 'active' === $status ) {
 			self::on_activated( (int) $id );
-			if ( in_array( $aff->status, array( 'pending', 'rejected' ), true ) ) {
+			if ( $notify && in_array( $aff->status, array( 'pending', 'rejected' ), true ) ) {
 				Notifications::application_approved( (int) $id );
 			}
-		} elseif ( 'rejected' === $status && 'pending' === $aff->status ) {
+		} elseif ( $notify && 'rejected' === $status && 'pending' === $aff->status ) {
 			Notifications::application_rejected( (int) $id, $reason );
 		}
 		if ( 'terminated' === $status && 'reject' === Settings::get( 'terminated_open' ) ) {
@@ -484,7 +487,7 @@ final class AffiliateRepository {
 			\WPAffiliateCaptain\Payouts\PayoutService::cancel_open_for_affiliate( (int) $id, __( 'Partnership terminated', 'affiliate-captain' ) . ': ' . $reason );
 			Ledger::reject_open_for_affiliate( (int) $id, __( 'Partnership terminated', 'affiliate-captain' ) . ': ' . $reason );
 		}
-		if ( in_array( $status, array( 'paused', 'terminated' ), true ) || ( 'active' === $status && in_array( $aff->status, array( 'paused', 'terminated' ), true ) ) ) {
+		if ( $notify && ( in_array( $status, array( 'paused', 'terminated' ), true ) || ( 'active' === $status && in_array( $aff->status, array( 'paused', 'terminated' ), true ) ) ) ) {
 			Notifications::status_changed( (int) $id, $status, $aff->status, $reason );
 		}
 
@@ -582,6 +585,19 @@ final class AffiliateRepository {
 	}
 
 	/**
+	 * Do not send WordPress' login details mail for the account created for this partner in
+	 * this request (e.g. a CSV import without e-mails).
+	 *
+	 * @param int $id Affiliate ID.
+	 * @return bool Whether an account was created in this request.
+	 */
+	public static function forget_new_user( $id ) {
+		$had = ! empty( self::$new_users[ (int) $id ] );
+		unset( self::$new_users[ (int) $id ] );
+		return $had;
+	}
+
+	/**
 	 * End of request: accounts created without a welcome mail get WordPress' login details mail.
 	 */
 	public static function notify_new_users() {
@@ -648,7 +664,9 @@ final class AffiliateRepository {
 		if ( is_array( $pending ) && ! empty( $pending['sent'] ) && (int) $pending['sent'] > time() - 10 * MINUTE_IN_SECONDS ) {
 			return new \WP_Error( 'wpac_rate_limited', __( 'The link was sent a few minutes ago. Please wait 10 minutes before sending it again.', 'affiliate-captain' ) );
 		}
-		self::request_user_link( (int) $id, $aff );
+		if ( ! self::request_user_link( (int) $id, $aff ) ) {
+			return new \WP_Error( 'wpac_mail_failed', __( 'The link could not be sent (e-mail error). Please check the e-mail delivery of your site and try again.', 'affiliate-captain' ) );
+		}
 		return true;
 	}
 
@@ -852,6 +870,7 @@ final class AffiliateRepository {
 	 *
 	 * @param int    $id  Affiliate ID.
 	 * @param object $aff Affiliate row.
+	 * @return bool Whether the mail was sent.
 	 */
 	private static function request_user_link( $id, $aff ) {
 		$token = strtolower( wp_generate_password( 32, false ) );
@@ -867,7 +886,7 @@ final class AffiliateRepository {
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		$base        = \WPAffiliateCaptain\Core\Locale::page_url( (int) Settings::get( 'portal_page_id' ), \WPAffiliateCaptain\Core\Locale::for_affiliate( $aff ) );
 		$link        = add_query_arg( array( 'wpac_link_account' => $token, 'wpac_aff' => $id ), $base );
-		Notifications::send(
+		$sent = Notifications::send(
 			'link_account',
 			$aff->email,
 			/* translators: %s: site name */
@@ -877,7 +896,15 @@ final class AffiliateRepository {
 			array( 'affiliate_id' => (int) $id )
 		);
 		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		if ( ! $sent ) {
+			// Suppressed (import without e-mails) or failed: nobody got the token, so nothing is
+			// pending and the link can be sent right away (no 10-minute lock, no "link sent").
+			delete_option( 'wpac_user_link_' . $id );
+			Audit::log( 'affiliate.user_link_not_sent', 'affiliate', $id, array( 'reason' => Notifications::suppressed() ? 'suppressed' : 'mail_failed' ) );
+			return false;
+		}
 		Audit::log( 'affiliate.user_link_requested', 'affiliate', $id );
+		return true;
 	}
 
 	/**

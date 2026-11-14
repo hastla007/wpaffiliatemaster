@@ -25,9 +25,19 @@ final class Paged {
 		global $wpdb;
 		$orderby = isset( $args['orderby'] ) && in_array( $args['orderby'], $sortable, true ) ? $args['orderby'] : 'id';
 		$order   = isset( $args['order'] ) && 'asc' === strtolower( (string) $args['order'] ) ? 'ASC' : 'DESC';
-		$count   = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$total = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count, $params ) ) : $wpdb->get_var( $count ) );
+		if ( ! empty( $args['before_id'] ) ) {
+			// Keyset paging (each()): next batch below the last ID, no OFFSET scan.
+			$where   .= ' AND id < %d';
+			$params[] = (int) $args['before_id'];
+			$orderby  = 'id';
+			$order    = 'DESC';
+		}
+		$total = -1;
+		if ( ! isset( $args['count'] ) || false !== $args['count'] ) {
+			$count = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$total = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count, $params ) ) : $wpdb->get_var( $count ) );
+		}
 		$limit = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
 		$sql   = "SELECT * FROM {$table} WHERE {$where} ORDER BY {$orderby} {$order}" . ( 'id' !== $orderby ? ', id DESC' : '' );
 		if ( $limit > 0 ) {
@@ -38,5 +48,39 @@ final class Paged {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
 		return array( $rows, $total );
+	}
+
+	/**
+	 * All rows of a list query in ID batches (newest first), for streamed exports: only one
+	 * batch is in memory, no COUNT and no OFFSET per batch.
+	 *
+	 * @param callable $query Repository query (e.g. Ledger::query): args => [ rows, total ].
+	 * @param array    $args  Filters of that query.
+	 * @param int      $batch Rows per batch.
+	 * @return \Generator Rows.
+	 */
+	public static function each( callable $query, array $args = array(), $batch = 500 ) {
+		$before = 0;
+		do {
+			list( $rows ) = call_user_func(
+				$query,
+				array_merge(
+					$args,
+					array(
+						'limit'     => max( 1, (int) $batch ),
+						'offset'    => 0,
+						'before_id' => $before,
+						'count'     => false,
+						'orderby'   => 'id',
+						'order'     => 'desc',
+					)
+				)
+			);
+			$rows = (array) $rows;
+			foreach ( $rows as $row ) {
+				$before = (int) $row->id;
+				yield $row;
+			}
+		} while ( count( $rows ) >= $batch && $before > 1 );
 	}
 }

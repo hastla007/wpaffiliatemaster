@@ -463,10 +463,37 @@ final class Jobs {
 	}
 
 	/**
-	 * Jobs list for the admin.
+	 * Number of jobs with a status (the list itself is limited).
 	 *
-	 * @param string $status Optional status filter.
-	 * @param int    $limit  Limit.
+	 * @param string $status Status.
+	 * @return int
+	 */
+	public static function count( $status ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE status = %s", (string) $status ) );
+	}
+
+	/**
+	 * Order a job is about ([ source, order ID ]) from its key type:source:order[:refund].
+	 *
+	 * @param object $job Job row.
+	 * @return array|null
+	 */
+	public static function order_of( $job ) {
+		$parts = explode( ':', (string) $job->idempotency_key );
+		if ( count( $parts ) < 3 || '' === $parts[1] || '' === $parts[2] || ! in_array( (string) $job->type, array( 'sale', 'refund', 'reinstate', 'woo_reinstate' ), true ) ) {
+			return null;
+		}
+		return array( $parts[1], $parts[2] );
+	}
+
+	/**
+	 * Jobs (newest first).
+	 *
+	 * @param string $status Status ('' = all open and failed).
+	 * @param int    $limit  Maximum.
 	 * @return array
 	 */
 	public static function query( $status = '', $limit = 100 ) {

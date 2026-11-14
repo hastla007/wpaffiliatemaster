@@ -10,7 +10,9 @@ wp wpac import partners partners.csv             # import
 wp wpac import partners partners.csv --notify    # also send the usual e-mails
 ```
 
-On the admin page the file is always checked first (dry run): every row is listed with the result or the reasons why it would be skipped. Nothing is saved until you click "Import N partners". Rows with errors are skipped, all others are imported. The admin page accepts up to 2,000 partners and 5 MB per file; WP-CLI has no limit.
+On the admin page the file is always checked first (dry run): every row is listed with the result or the reasons why it would be skipped. Nothing is saved until you click "Import N partners". Rows with errors are skipped, all others are imported. Side issues do not drop a partner: a code that is too short or already in use is left out and a `user_id` that cannot be used is ignored – both are listed as notes with a hint, and the partner is imported. Partners whose e-mail address exists already are listed as "skipped" (not as an error), so a file can be imported again. The admin page accepts up to 2,000 partners and 5 MB per file; WP-CLI has no limit.
+
+The import runs in batches of about 15 seconds; the page continues by itself ("Import running: X of Y rows"). If it stops (closed tab, timeout), continue it with the button: a partner that was created by an interrupted batch is completed (codes, rule, status) instead of being reported as existing, and nothing is imported twice. Only one import runs at a time per site. The checked file is kept encrypted in the protected statement folder (not in the database) until the next import or for at most one day.
 
 ### File format
 
@@ -26,7 +28,7 @@ On the admin page the file is always checked first (dry run): every row is liste
 | `website` | no | URL | `https://` is added when missing. |
 | `status` | no | `active` (default), `pending`, `paused`, `terminated`, `rejected`; also `approved` → active, `inactive` → paused | Status changes are logged with the reason "CSV import". |
 | `codes` | no | one or more partner codes, separated by spaces, `,`, `;` or `\|` | At least 3 characters; letters, digits, `-` and `_`; must be unused. The first code is the main code. Active partners without codes get a random code. |
-| `rate` | no | `12.5`, `12,5 %` or an amount such as `5,00 €` | Creates a partner rule for all products. Percent 0–100. An amount (currency sign, currency code or `rate_type` `fixed`) is a fixed commission per unit in the program currency. Needs `wpac_manage_program`. |
+| `rate` | no | `12.5`, `12,5 %` or an amount such as `5,00 €`, `15 Euro`, `15 EUR`, `1.500 JPY` | Creates a partner rule for all products. Percent 0–100. An amount (currency sign, currency code or `rate_type` `fixed`) is a fixed commission per unit in the program currency (an amount in another currency is an error; thousands separators as in the settings, no decimals for JPY). Needs `wpac_manage_program`. |
 | `rate_type` | no | `percent` (default), `percentage`, `fixed`, `flat` | |
 | `group` | no | name or ID of a partner group | An unknown name creates the group (needs `wpac_manage_program`); an unknown ID is an error. |
 | `user_id` | no | ID of an existing WordPress user | Checked only: the account must have the same e-mail address, no editing rights and no other partner. It is not linked directly (WordPress does not verify account e-mail addresses): on approval the partner receives the one-time link to confirm the account, as for every existing account. |
@@ -42,7 +44,7 @@ Segelblog GmbH;info@segelblog.example;segelblog.example;pending;;5.00;fixed;;;Bl
 
 ### E-mails
 
-By default no e-mail is sent during the import (approval mails, new account mails and account link requests are suppressed). Partners therefore do not receive a password link: tell them to use "Lost your password?" with their e-mail address, or import with "Send the usual e-mails". Partners whose e-mail address belongs to an existing WordPress account are only linked to it after they confirm the account-link e-mail. With e-mails off it is not sent: use "Resend account link" on the partner page later.
+Approval, rejection, pause and termination e-mails are never sent for imported partners (their status is history, not a decision). By default no e-mail is sent at all, and nothing is recorded as sent: tell the partners to use "Lost your password?" with their e-mail address (the result page shows the link). Partners whose e-mail address belongs to an existing WordPress account are only linked to it after they confirm the account-link e-mail; with e-mails off it is not sent and can be sent right away with "Resend account link" on the partner page. With "Send a welcome e-mail" (`--notify`) active partners get the welcome mail of a partner created in the admin (partner area, set-password link or account link).
 
 ### Moving from AffiliateWP
 
@@ -90,6 +92,8 @@ The ZIP contains one CSV file per list (UTF-8 with BOM, separator `;`, all datab
 | `payout_requests.csv` | payout requests of partners |
 | `payout_details.csv` | **only with tax data:** payout details of partners with the **decrypted IBAN** |
 
-Without "include tax and bank data" the tax snapshot of payouts (`profile_snapshot`: legal name, address, VAT ID) is emptied and `payout_details.csv` is missing. Tax and bank data can only be exported by users with `wpac_view_tax_data`, and only when explicitly requested; every export is written to the audit log. Cells starting with `=`, `+`, `-` or `@` are prefixed with `'` so spreadsheets do not run them as formulas.
+Without "include tax and bank data" the tax snapshot of payouts (`profile_snapshot`: legal name, address, VAT ID) and `vat_mode` are emptied, `statement_file`/`storno_file` only say `yes` instead of the stored (random) file names of the credit notes, and `payout_details.csv` is missing. Tax and bank data can only be exported by users with `wpac_view_tax_data`, and only when explicitly requested; every export is written to the audit log. Cells starting with `=`, `+`, `-` or `@` are prefixed with `'` so spreadsheets do not run them as formulas.
+
+The tables are read in primary-key batches without a time limit. While the ZIP is built, its parts are kept in private temporary files (readable only by the web server user, outside the WordPress folder where possible – constant `WPAC_TEMP_DIR`, `WP_TEMP_DIR` or the system temp folder, otherwise the protected statement folder) and deleted at the end of the request, also when it is aborted. Cells are written without an escape character (RFC 4180), so a `\"` in a cell cannot end it early. The CSV downloads of the commission and payout lists are streamed in batches as well (no row limit).
 
 The export contains personal data of your partners: store it encrypted, do not send it by e-mail, delete it when you no longer need it. Credit note PDFs are not part of the ZIP – back up the statement folder (`WPAC_STATEMENT_DIR`) separately.

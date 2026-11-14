@@ -40,6 +40,28 @@ final class Notifications {
 	/** @var array Commission events of this request: affiliate ID => event => commission IDs. */
 	private static $commission_events = array();
 
+	/** @var int Nesting depth of suppress(true). */
+	private static $suppressed = 0;
+
+	/**
+	 * Suppress (true) or allow again (false) every mail of the plugin in this request, nestable.
+	 * send() returns false meanwhile, so nothing is recorded as sent.
+	 *
+	 * @param bool $on Suppress.
+	 */
+	public static function suppress( $on ) {
+		self::$suppressed = max( 0, self::$suppressed + ( $on ? 1 : -1 ) );
+	}
+
+	/**
+	 * Whether mails are suppressed right now.
+	 *
+	 * @return bool
+	 */
+	public static function suppressed() {
+		return self::$suppressed > 0;
+	}
+
 	/**
 	 * Hooks for partner notifications about money.
 	 */
@@ -204,7 +226,8 @@ final class Notifications {
 	 * @param array           $args    Optional: admin (bool, mail to the operator: no Reply-To),
 	 *                                 reply_to (string; false = none), headers (array),
 	 *                                 attachments (array), affiliate_id (int).
-	 * @return bool Whether the mail was handed over (also true if a filter skipped it on purpose).
+	 * @return bool Whether the mail was handed over (also true if a filter skipped it on purpose;
+	 *              false while mails are suppressed, see suppress()).
 	 */
 	public static function send( $type, $to, $subject, $message, array $args = array() ) {
 		$args += array(
@@ -214,6 +237,12 @@ final class Notifications {
 			'attachments'  => array(),
 			'affiliate_id' => 0,
 		);
+		if ( self::$suppressed > 0 ) {
+			// E.g. a CSV import without e-mails: nothing leaves the server, and the caller must not
+			// record the mail as sent (a link "sent" that nobody got, a 10-minute resend lock).
+			Log::debug( 'E-mail suppressed', array( 'type' => (string) $type, 'affiliate_id' => (int) $args['affiliate_id'] ) );
+			return false;
+		}
 		$headers = (array) $args['headers'];
 		$from    = (string) Settings::get( 'mail_from_email' );
 		$name    = trim( (string) Settings::get( 'mail_from_name' ) );

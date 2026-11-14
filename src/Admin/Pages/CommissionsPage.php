@@ -89,39 +89,39 @@ final class CommissionsPage {
 
 		if ( 'commission_export' === $do ) {
 			$args = self::filters_from( 'post' );
-			$args['limit'] = 0;
-			list( $rows ) = Ledger::query( $args );
-			$names = array();
-			$out   = array();
-			AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
-			foreach ( $rows as $r ) {
-				if ( ! isset( $names[ $r->affiliate_id ] ) ) {
-					$a                         = AffiliateRepository::find( (int) $r->affiliate_id );
-					$names[ $r->affiliate_id ] = $a ? $a->name : '';
+			// Streamed in ID batches (large shops: no list of all rows in memory).
+			list( , $total ) = Ledger::query( array_merge( $args, array( 'limit' => 1 ) ) );
+			Audit::log( 'commission.exported', 'commission', 0, array( 'count' => (int) $total ) );
+			$out = ( static function () use ( $args ) {
+				$names = array();
+				foreach ( \WPAffiliateCaptain\Core\Paged::each( array( Ledger::class, 'query' ), $args ) as $r ) {
+					if ( ! isset( $names[ $r->affiliate_id ] ) ) {
+						$a                         = AffiliateRepository::find( (int) $r->affiliate_id );
+						$names[ $r->affiliate_id ] = $a ? $a->name : '';
+					}
+					yield array(
+						$r->id,
+						$r->created_at,
+						$r->affiliate_id,
+						$names[ $r->affiliate_id ],
+						$r->source,
+						$r->source_order_id,
+						$r->source_item_id,
+						$r->kind,
+						$r->parent_id,
+						$r->description,
+						$r->currency,
+						Money::to_decimal( (int) $r->base_minor, $r->currency ),
+						$r->rate_type,
+						$r->rate,
+						Money::to_decimal( (int) $r->amount_minor, $r->currency ),
+						$r->status,
+						$r->hold_until,
+						$r->payout_id,
+					);
 				}
-				$out[] = array(
-					$r->id,
-					$r->created_at,
-					$r->affiliate_id,
-					$names[ $r->affiliate_id ],
-					$r->source,
-					$r->source_order_id,
-					$r->source_item_id,
-					$r->kind,
-					$r->parent_id,
-					$r->description,
-					$r->currency,
-					Money::to_decimal( (int) $r->base_minor, $r->currency ),
-					$r->rate_type,
-					$r->rate,
-					Money::to_decimal( (int) $r->amount_minor, $r->currency ),
-					$r->status,
-					$r->hold_until,
-					$r->payout_id,
-				);
-			}
-			Audit::log( 'commission.exported', 'commission', 0, array( 'count' => count( $out ) ) );
-			Csv::download(
+			} )();
+			Csv::stream(
 				'commissions-' . gmdate( 'Y-m-d' ) . '.csv',
 				array( 'id', 'created_at_utc', 'affiliate_id', 'affiliate', 'source', 'order_id', 'item_id', 'kind', 'parent_id', 'description', 'currency', 'base', 'rate_type', 'rate', 'amount', 'status', 'hold_until_utc', 'payout_id' ),
 				$out

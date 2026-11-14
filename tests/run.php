@@ -521,5 +521,18 @@ check( 'R7-AD12 a partner rule overrides a global exclusion only with precedence
 check( 'R7-AD12 with "target" an exclusion still wins at the same rank', true, Calculator::calculate( $g3_var, array( $g3_rule( 1, 'affiliate', 7, 'category', '4', 'percent', '15' ), $g3_rule( 2, 'affiliate', 7, 'category', '4', 'exclude', '0' ) ), 7, 0, $g3_def, true, 'target' )['excluded'] );
 check( 'R5-O3 filter_amount without WordPress leaves the amount', 300, Calculator::filter_amount( 300, $g3_var, 1, null, 10000 ) );
 
+/* R8 G7: CSV formula protection and import rates ------------------------------------------- */
+$g7_csv   = Csv::build( array( 'a', 'b' ), array( array( 'x\\";=HYPERLINK("http://evil")', 'ok' ) ) );
+$g7_lines = explode( "\n", trim( substr( $g7_csv, 3 ) ) );
+$g7_cells = str_getcsv( $g7_lines[1], ';', '"', '' );
+check( 'R6-QA10 backslash before a quote cannot end the cell (no formula cell)', array( 'x\\";=HYPERLINK("http://evil")', 'ok' ), $g7_cells );
+$g7_rate = static function ( $r, $t = '', $c = '' ) {
+	return \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( $r, $t, $c );
+};
+check( 'R6-QA11 "15 Euro", "15 eur", "15 Dollar" are fixed amounts', array( array( 'fixed', '15' ), array( 'fixed', '15' ), array( 'fixed', '15' ) ), array( $g7_rate( '15 Euro' ), $g7_rate( '15 eur' ), $g7_rate( '15 Dollar' ) ) );
+check( 'R6-QA11 "1.500 JPY" is 1500 yen (no decimals), "1.234,50 €" thousands', array( array( 'fixed', '1500' ), array( 'fixed', '1234.50' ) ), array( $g7_rate( '1.500 JPY', '', 'JPY' ), $g7_rate( '1.234,50 €', '', 'EUR' ) ) );
+check( 'R6-QA11 amount in another currency than the shop and unknown words are refused', array( null, null ), array( $g7_rate( '15 USD', '', 'EUR' ), $g7_rate( '15 Punkte' ) ) );
+check( 'R6-QA11 percentages unchanged', array( array( 'percent', '15' ), array( 'percent', '12.5' ) ), array( $g7_rate( '15' ), $g7_rate( '12,5 %' ) ) );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );
