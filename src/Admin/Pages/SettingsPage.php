@@ -110,9 +110,11 @@ final class SettingsPage {
 	 */
 	private static function currency_leftovers() {
 		global $wpdb;
+		$rules_t = \WPAffiliateCaptain\Core\Db::table( 'rules' );
+		$tiers_t = \WPAffiliateCaptain\Core\Db::table( 'tiers' );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table names.
-		$rules = (int) $wpdb->get_var( "SELECT COUNT(*) FROM " . \WPAffiliateCaptain\Core\Db::table( 'rules' ) . " WHERE rate_type = 'fixed' AND active = 1" );
-		$tiers = (int) $wpdb->get_var( "SELECT COUNT(*) FROM " . \WPAffiliateCaptain\Core\Db::table( 'tiers' ) . " WHERE basis = 'revenue' AND active = 1" );
+		$rules = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$rules_t} WHERE rate_type = 'fixed' AND active = 1" );
+		$tiers = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tiers_t} WHERE basis = 'revenue' AND active = 1" );
 		// phpcs:enable
 		if ( ! $rules && ! $tiers ) {
 			return '';
