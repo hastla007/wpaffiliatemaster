@@ -308,7 +308,7 @@ final class ContractApi {
 			throw new IntegrationException( 'invalid_amount', 'net_minor must be an integer (minor units)' );
 		}
 		if ( abs( $n ) > self::MAX_MINOR ) {
-			throw new IntegrationException( 'invalid_amount', 'net_minor is out of range (max. ' . self::MAX_MINOR . ' minor units per line)' );
+			throw new IntegrationException( 'invalid_amount', esc_html( 'net_minor is out of range (max. ' . self::MAX_MINOR . ' minor units per line)' ) );
 		}
 		return $n;
 	}
@@ -344,7 +344,7 @@ final class ContractApi {
 			throw new IntegrationException( 'missing_items', 'items are required' );
 		}
 		if ( count( $p['items'] ) > self::MAX_ITEMS ) {
-			throw new IntegrationException( 'too_many_items', 'at most ' . self::MAX_ITEMS . ' items per sale' );
+			throw new IntegrationException( 'too_many_items', esc_html( 'at most ' . self::MAX_ITEMS . ' items per sale' ) );
 		}
 
 		$items = array();
@@ -364,7 +364,7 @@ final class ContractApi {
 			}
 			// item_id is the key for refunds and part of the booking key: it must be unique.
 			if ( isset( $seen[ $item_id ] ) ) {
-				throw new IntegrationException( 'duplicate_item', 'item_id ' . $item_id . ' occurs more than once' );
+				throw new IntegrationException( 'duplicate_item', esc_html( 'item_id ' . $item_id . ' occurs more than once' ) );
 			}
 			$seen[ $item_id ] = true;
 			$meta             = isset( $raw['meta'] ) && is_array( $raw['meta'] ) ? $raw['meta'] : array();
@@ -483,7 +483,7 @@ final class ContractApi {
 		if ( ! $full ) {
 			$raw_items = isset( $p['items'] ) ? (array) $p['items'] : array();
 			if ( count( $raw_items ) > self::MAX_ITEMS ) {
-				throw new IntegrationException( 'too_many_items', 'at most ' . self::MAX_ITEMS . ' items per refund' );
+				throw new IntegrationException( 'too_many_items', esc_html( 'at most ' . self::MAX_ITEMS . ' items per refund' ) );
 			}
 			foreach ( $raw_items as $raw ) {
 				if ( ! is_array( $raw ) && ! is_object( $raw ) ) {
@@ -525,7 +525,7 @@ final class ContractApi {
 	public static function normalize_reinstatement( array $p ) {
 		$contract = isset( $p['contract'] ) && is_scalar( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
 		if ( ! self::is_compatible( $contract ) ) {
-			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
+			throw new IntegrationException( 'incompatible_contract', esc_html( 'Unsupported contract version ' . $contract ) );
 		}
 		$source   = isset( $p['source'] ) && is_scalar( $p['source'] ) ? substr( sanitize_key( (string) $p['source'] ), 0, 40 ) : '';
 		$order_id = self::reference( isset( $p['order_id'] ) ? $p['order_id'] : null );

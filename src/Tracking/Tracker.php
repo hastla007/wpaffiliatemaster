@@ -76,11 +76,11 @@ final class Tracker {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		self::capture_code(
 			sanitize_text_field( wp_unslash( $_GET[ $param ] ) ),
-			isset( $_GET['utm_campaign'] ) ? self::clean_utm( wp_unslash( $_GET['utm_campaign'] ) ) : '',
+			isset( $_GET['utm_campaign'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ) ) : '',
 			is_singular() ? (int) get_queried_object_id() : 0,
 			array(
-				'utm_source' => isset( $_GET['utm_source'] ) ? self::clean_utm( wp_unslash( $_GET['utm_source'] ) ) : '',
-				'utm_medium' => isset( $_GET['utm_medium'] ) ? self::clean_utm( wp_unslash( $_GET['utm_medium'] ) ) : '',
+				'utm_source' => isset( $_GET['utm_source'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_source'] ) ) ) : '',
+				'utm_medium' => isset( $_GET['utm_medium'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_medium'] ) ) ) : '',
 			)
 		);
 		// phpcs:enable
@@ -407,11 +407,11 @@ final class Tracker {
 			if ( ! self::is_speculative( $_SERVER ) ) {
 				self::capture_code(
 					sanitize_text_field( wp_unslash( $_GET[ $param ] ) ),
-					isset( $_GET['utm_campaign'] ) ? self::clean_utm( wp_unslash( $_GET['utm_campaign'] ) ) : '',
+					isset( $_GET['utm_campaign'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ) ) : '',
 					0,
 					array(
-						'utm_source' => isset( $_GET['utm_source'] ) ? self::clean_utm( wp_unslash( $_GET['utm_source'] ) ) : '',
-						'utm_medium' => isset( $_GET['utm_medium'] ) ? self::clean_utm( wp_unslash( $_GET['utm_medium'] ) ) : '',
+						'utm_source' => isset( $_GET['utm_source'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_source'] ) ) ) : '',
+						'utm_medium' => isset( $_GET['utm_medium'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_medium'] ) ) ) : '',
 						'cart'       => true,
 					)
 				);

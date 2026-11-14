@@ -28,7 +28,7 @@ if [ ! -f "$PLUGIN_SRC/affiliate-captain.php" ] && [ -f "$PLUGIN_SRC/wp-affiliat
 ln -sfn "$PLUGIN_SRC" "$WP_DIR/wp-content/plugins/$SLUG"
 if [ -n "$SIBLINGS" ]; then
   ln -sfn "$SIBLINGS/wp-couponmaster" "$WP_DIR/wp-content/plugins/voucher-captain"
-  ln -sfn "$SIBLINGS/wp-passmaster" "$WP_DIR/wp-content/plugins/wp-pass-captain"
+  ln -sfn "$SIBLINGS/wp-passmaster" "$WP_DIR/wp-content/plugins/pass-captain"
 fi
 cat > "$WP_DIR/wp-config.php" <<CFG
 <?php

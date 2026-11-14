@@ -295,7 +295,7 @@ function untrailingslashit( $p ) { return rtrim( $p, '/\\' ); }
 function wp_list_pluck( $l, $f ) { return array_map( function ( $r ) use ( $f ) { return is_object( $r ) ? $r->$f : $r[ $f ]; }, $l ); }
 $GLOBALS['test_scheduled'] = array();
 function wp_schedule_single_event( $ts, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
-function get_permalink( $id ) { return 'http://example.test/?p=' . (int) ( is_object( $id ) ? $id->ID : $id ); }
+function get_permalink( $id = 0 ) { return 'http://example.test/?p=' . (int) ( is_object( $id ) ? $id->ID : $id ); }
 function wp_unslash( $v ) { return is_array( $v ) ? array_map( "wp_unslash", $v ) : stripslashes( (string) $v ); }
 if ( ! function_exists( 'wp_using_ext_object_cache' ) ) { function wp_using_ext_object_cache() { return false; } }
 if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $hook ) { return in_array( $hook, $GLOBALS['test_scheduled'] ?? array(), true ) ? time() + 60 : false; } }

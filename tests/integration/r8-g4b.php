@@ -196,9 +196,10 @@ $g4b_q = g4b_partner( 'qa8' );
 $GLOBALS['test_mails'] = array();
 $g4b_e = ProfileRepository::save( $g4b_q, array( 'tax_status' => 'private', 'legal_name' => str_repeat( 'N', 191 ), 'address' => "Kai 4\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'G4b qa8', 'iban' => 'NL91ABNA0417164300' ) );
 check( 'R6-QA8 too long name refused, nothing changed, no warning mail', array( 'wpac_too_long_legal_name', 'DE89370400440532013000', array() ), array( g4b_code( $g4b_e ), ProfileRepository::iban( ProfileRepository::get( $g4b_q ) ), $GLOBALS['test_mails'] ) );
-$wpdb->query( 'CREATE TRIGGER g4b_block BEFORE UPDATE ON ' . t( 'payout_profiles' ) . " FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'blocked'" );
+// Failing UPDATE without a trigger: MySQL 8.4 refuses CREATE TRIGGER for a non-SUPER user while binary logging is on.
+$wpdb->query( 'ALTER TABLE ' . t( 'payout_profiles' ) . " CHANGE tax_number tax_number_blocked varchar(40) NOT NULL DEFAULT ''" );
 $g4b_e = ProfileRepository::save( $g4b_q, array( 'tax_status' => 'private', 'legal_name' => 'G4b qa8', 'address' => "Kai 4\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'G4b qa8', 'iban' => 'NL91ABNA0417164300' ) );
-$wpdb->query( 'DROP TRIGGER IF EXISTS g4b_block' );
+$wpdb->query( 'ALTER TABLE ' . t( 'payout_profiles' ) . " CHANGE tax_number_blocked tax_number varchar(40) NOT NULL DEFAULT ''" );
 check( 'R6-QA8 database error: error instead of success, no "bank details changed" mail', array( 'wpac_profile_db', 'DE89370400440532013000', array() ), array( g4b_code( $g4b_e ), ProfileRepository::iban( ProfileRepository::get( $g4b_q ) ), $GLOBALS['test_mails'] ) );
 
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'payout_method_manual' => 0 ) ) );

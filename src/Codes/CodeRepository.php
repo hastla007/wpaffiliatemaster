@@ -170,15 +170,15 @@ final class CodeRepository {
 	private static function first_valid( $affiliate_id, $main_only = false ) {
 		global $wpdb;
 		$t     = Db::table( 'partner_codes' );
-		$where = "affiliate_id = %d AND status = 'active' AND ( expires_at IS NULL OR expires_at > %s ) AND ( usage_limit = 0 OR usage_count < usage_limit )";
+		$extra = '';
 		$order = 'id ASC';
 		if ( $main_only ) {
-			$where .= " AND batch = ''";
-			$order  = "( coupon_code <> '' ) ASC, id ASC";
+			$extra = " AND batch = ''";
+			$order = "( coupon_code <> '' ) ASC, id ASC";
 		}
 		// A few rows only: validate() checks each again (and the partner's status).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY {$order} LIMIT 5", $affiliate_id, Db::now() ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d AND status = 'active' AND ( expires_at IS NULL OR expires_at > %s ) AND ( usage_limit = 0 OR usage_count < usage_limit ){$extra} ORDER BY {$order} LIMIT 5", $affiliate_id, Db::now() ) );
 		foreach ( (array) $rows as $row ) {
 			if ( self::validate( $row ) ) {
 				return $row;

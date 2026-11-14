@@ -627,7 +627,7 @@ final class PayoutService {
 			$p = self::find( $id );
 		}
 		if ( ! $p || '' === (string) $p->statement_file ) {
-			throw new IntegrationException( 'statement', 'The credit note of payout ' . $id . ' could not be written yet.' );
+			throw new IntegrationException( 'statement', esc_html( 'The credit note of payout ' . $id . ' could not be written yet.' ) );
 		}
 		/** This action is documented in create_for_affiliate(). */
 		do_action( 'wpac_payout_created', $id, (int) $p->affiliate_id );
@@ -1242,7 +1242,7 @@ final class PayoutService {
 					foreach ( $used as $id => $status ) {
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 						if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'exported', sepa_batch = %s, exported_at = %s WHERE id = %d AND status = %s", $batch, Db::now(), $id, $status ) ) ) {
-							throw new IntegrationException( 'state', 'Payout ' . $id . ' changed during export.' );
+							throw new IntegrationException( 'state', esc_html( 'Payout ' . $id . ' changed during export.' ) );
 						}
 					}
 					return array( $batch, $rows, array_keys( $used ), $skipped );

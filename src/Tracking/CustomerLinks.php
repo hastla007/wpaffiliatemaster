@@ -270,10 +270,9 @@ final class CustomerLinks {
 		if ( ! $hashes ) {
 			return array();
 		}
-		$t            = Db::table( 'customer_links' );
-		$placeholders = implode( ',', array_fill( 0, count( $hashes ), '%s' ) );
+		$t = Db::table( 'customer_links' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE customer_hash IN ({$placeholders}) ORDER BY id ASC", $hashes ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE customer_hash IN (" . implode( ',', array_fill( 0, count( $hashes ), '%s' ) ) . ') ORDER BY id ASC', $hashes ) );
 	}
 
 	/**
