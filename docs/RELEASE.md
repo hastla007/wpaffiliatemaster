@@ -28,7 +28,7 @@ Voraussetzungen:
 - Repository-Secrets (oder Secrets der Umgebung `wordpress-org`) **`SVN_USERNAME`** und **`SVN_PASSWORD`** (WordPress.org-Benutzer mit Commit-Recht auf das Plugin; das SVN-Passwort aus dem WordPress.org-Profil, nicht das Login-Passwort). Ohne beide Secrets tut der Workflow nichts außer einer Warnung.
 - Empfohlen: in den Repository-Einstellungen für die Umgebung `wordpress-org` „Required reviewers“ setzen, damit jeder Deploy freigegeben werden muss.
 
-Ablauf: Tag auschecken → `bin/build-zip.sh <tag>` (Versionen, Unit-Tests, Dateiauswahl) → `10up/action-wordpress-plugin-deploy` (auf Commit-SHA gepinnt, Version 2.3.0) kopiert alle Dateien außer `.distignore` nach `trunk/`, legt `tags/<version>/` an und spiegelt `.wordpress-org/` (ohne die README) nach `assets/`.
+Ablauf: Tag auschecken → `bin/build-zip.sh <tag>` (Versionen, Unit-Tests, Dateiauswahl) → `10up/action-wordpress-plugin-deploy` (auf Commit-SHA gepinnt, Version 2.3.0) kopiert alle Dateien außer `.distignore` nach `trunk/`, legt `tags/<version>/` an und spiegelt `.wordpress-org/` nach `assets/` (ohne die README und `banner.svg`, die nur Quelle der Banner-PNGs ist).
 
 Bilder für `assets/` (Banner, Icons, Screenshots): siehe `.wordpress-org/README.md`. Die Reihenfolge der Screenshots muss zum Abschnitt `== Screenshots ==` in `readme.txt` passen.
 

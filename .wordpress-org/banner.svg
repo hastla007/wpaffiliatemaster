@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1544" height="500" viewBox="0 0 1544 500">
+  <title>Affiliate Captain</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14406b"/>
+      <stop offset="1" stop-color="#0a2340"/>
+    </linearGradient>
+    <clipPath id="frame"><rect width="1544" height="500"/></clipPath>
+  </defs>
+  <rect width="1544" height="500" fill="url(#sky)"/>
+  <g clip-path="url(#frame)">
+    <!-- Waves. -->
+    <g fill="none" stroke="#1fb5a8" stroke-linecap="round" opacity="0.22" stroke-width="6">
+      <path d="M-20 420 C 80 380, 180 460, 280 420 S 480 380, 580 420 S 780 460, 880 420 S 1080 380, 1180 420 S 1380 460, 1480 420 S 1640 380, 1700 420"/>
+      <path d="M-20 470 C 80 430, 180 510, 280 470 S 480 430, 580 470 S 780 510, 880 470 S 1080 430, 1180 470 S 1380 510, 1480 470 S 1640 430, 1700 470"/>
+    </g>
+    <!-- Ship's wheel (same mark as the icon), large on the right. -->
+    <g transform="translate(1250 250) scale(1.75) translate(-128 -128)">
+      <g stroke="#f2b134" stroke-linecap="round" fill="none">
+        <g stroke-width="12">
+          <line x1="128" y1="22" x2="128" y2="234"/>
+          <line x1="22" y1="128" x2="234" y2="128"/>
+          <line x1="53" y1="53" x2="203" y2="203"/>
+          <line x1="203" y1="53" x2="53" y2="203"/>
+        </g>
+        <circle cx="128" cy="128" r="74" stroke-width="16"/>
+      </g>
+      <g fill="#f2b134">
+        <circle cx="128" cy="24" r="13"/>
+        <circle cx="128" cy="232" r="13"/>
+        <circle cx="24" cy="128" r="13"/>
+        <circle cx="232" cy="128" r="13"/>
+        <circle cx="54.5" cy="54.5" r="13"/>
+        <circle cx="201.5" cy="201.5" r="13"/>
+        <circle cx="201.5" cy="54.5" r="13"/>
+        <circle cx="54.5" cy="201.5" r="13"/>
+      </g>
+      <circle cx="128" cy="128" r="44" fill="#1fb5a8" stroke="#0a2340" stroke-width="6"/>
+      <g transform="rotate(-45 128 128)" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round">
+        <rect x="96" y="116" width="38" height="24" rx="12"/>
+        <rect x="122" y="116" width="38" height="24" rx="12"/>
+      </g>
+    </g>
+  </g>
+  <!-- Text in the upper half: WordPress.org lays the plugin name over the lower left corner. -->
+  <g font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+    <text x="96" y="176" font-size="104" font-weight="800" fill="#ffffff" letter-spacing="-1">Affiliate Captain</text>
+    <text x="100" y="246" font-size="38" font-weight="500" fill="#cfe3f5">Partner links, codes, commissions and payouts</text>
+    <text x="100" y="300" font-size="38" font-weight="500" fill="#cfe3f5">– steered from your own shop.</text>
+  </g>
+</svg>
