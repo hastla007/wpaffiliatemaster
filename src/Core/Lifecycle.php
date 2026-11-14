@@ -190,13 +190,6 @@ final class Lifecycle {
 	const SWEEP_BUDGET = 10;
 
 	/**
-	 * Hook callback for "init" (actions return nothing): see followup().
-	 */
-	public static function run_followup() {
-		self::followup();
-	}
-
-	/**
 	 * After a takeover (first request of the new copy on a site): what the activation hook would
 	 * have done, and on a network the "delete all data" switch of every site.
 	 */
@@ -270,6 +263,13 @@ final class Lifecycle {
 		$home = (string) get_option( 'home' );
 		$home = '' !== $home ? $home : (string) home_url();
 		return untrailingslashit( (string) preg_replace( '#^[a-z]+://#i', '', strtolower( $home ) ) );
+	}
+
+	/**
+	 * Hook callback for "admin_init" (actions return nothing): see check_clone().
+	 */
+	public static function run_check_clone() {
+		self::check_clone();
 	}
 
 	/**

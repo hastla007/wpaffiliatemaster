@@ -44,8 +44,8 @@ final class Plugin {
 		\WPAffiliateCaptain\Core\Lifecycle::switch_main_file( WPAC_FILE );
 		Installer::maybe_upgrade();
 		Installer::register_multisite_hooks();
-		add_action( 'init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'run_followup' ), 5 );
-		add_action( 'admin_init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'check_clone' ), 5 );
+		add_action( 'init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'followup' ), 5 );
+		add_action( 'admin_init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'run_check_clone' ), 5 );
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::register_user_hooks();
 
 		CodeRepository::register_hooks();
