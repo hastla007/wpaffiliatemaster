@@ -115,6 +115,15 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
+= Unreleased =
+Database schema 12:
+* Payouts: correction credit notes for paid payouts (own gapless number series "KG-…", prefix configurable): corrected net amount with reason, before/after/difference with the VAT treatment frozen on the original credit note; the difference is booked to the partner account (shortfall paid in the next run, overpayment offset later); an open objection is resolved automatically; PDF by e-mail and in the partner area
+* Money: line items raised or added after payment are booked automatically ("Order increase", at the rate of the original commission; new lines with the current rules); refunds afterwards include the increase
+* Partners: "Create coupon for partner" creates a WooCommerce coupon and links it to a partner code in one step
+* Admin: audit log, payouts and creatives lists with sortable columns, search, paging and rows-per-page screen options
+* Privacy: credit notes deleted after the retention period are also removed on every other app server (per-server sweep, new command wp wpac statements sweep); deleted credit notes are never served or rebuilt
+* WordPress.org: icon, banner and screenshots
+
 = 0.11.0 =
 Renamed to "Affiliate Captain" (folder and text domain "affiliate-captain"); expert review rounds 5 to 7 (money, VAT, privacy, tracking, operations, partner area); database schema 11:
 * Fixed: saving a partner, a public name/website change, a creative draft or a commission event now reports an error (and rolls the booking back) instead of claiming success when a value is too long or the database refuses it
