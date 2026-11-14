@@ -336,7 +336,7 @@ final class Portal {
 			wp_die( esc_html__( 'The link has expired.', 'affiliate-captain' ), 403 );
 		}
 		$aff = self::current();
-		if ( ! $aff || $year < 2000 || $year > (int) gmdate( 'Y' ) ) {
+		if ( ! $aff || $year < 2000 || $year > (int) wp_date( 'Y' ) ) {
 			wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
 		}
 		nocache_headers();
@@ -1028,7 +1028,7 @@ final class Portal {
 		$link   = '<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'Partner program terms', 'affiliate-captain' ) . '</a>';
 		if ( $latest ) {
 			/* translators: 1: link, 2: version, 3: date */
-			return sprintf( esc_html__( '%1$s – accepted version %2$s on %3$s.', 'affiliate-captain' ), $link, esc_html( (string) $latest->version ), esc_html( date_i18n( get_option( 'date_format' ), strtotime( $latest->created_at . ' UTC' ) ) ) );
+			return sprintf( esc_html__( '%1$s – accepted version %2$s on %3$s.', 'affiliate-captain' ), $link, esc_html( (string) $latest->version ), esc_html( wp_date( get_option( 'date_format' ), strtotime( $latest->created_at . ' UTC' ) ) ) );
 		}
 		/* translators: 1: link, 2: version */
 		return sprintf( esc_html__( '%1$s – current version %2$s (not accepted yet).', 'affiliate-captain' ), $link, esc_html( (string) $terms['version'] ) );
@@ -1384,7 +1384,7 @@ final class Portal {
 				esc_html( $c->code ),
 				esc_html( $c->coupon_code ? strtoupper( $c->coupon_code ) : '—' ),
 				esc_html( (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) ),
-				esc_html( $c->expires_at ? date_i18n( get_option( 'date_format' ), strtotime( $c->expires_at . ' UTC' ) ) : '—' ),
+				esc_html( $c->expires_at ? wp_date( get_option( 'date_format' ), strtotime( $c->expires_at . ' UTC' ) ) : '—' ),
 				esc_html( $valid ? __( 'Active', 'affiliate-captain' ) : __( 'Inactive', 'affiliate-captain' ) ),
 				esc_attr( $labels[0] ),
 				esc_attr( $labels[1] ),
@@ -1546,14 +1546,14 @@ final class Portal {
 			}
 			// "Available from" only while the hold period runs; a commission under review has no date yet.
 			if ( 'pending' === $r->status && $r->hold_until ) {
-				$available = date_i18n( get_option( 'date_format' ), strtotime( $r->hold_until . ' UTC' ) );
+				$available = wp_date( get_option( 'date_format' ), strtotime( $r->hold_until . ' UTC' ) );
 			} elseif ( 'review' === $r->status ) {
 				$available = __( 'after our review', 'affiliate-captain' );
 			} else {
 				$available = '—';
 			}
 			$cells = array(
-				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $r->created_at . ' UTC' ) ) ),
+				esc_html( wp_date( get_option( 'date_format' ), strtotime( $r->created_at . ' UTC' ) ) ),
 				esc_html( 'wpac' === $r->source ? '—' : '#' . $r->source_order_id ),
 				esc_html( $product ),
 				esc_html( 'sale' === $r->kind && (int) $r->base_minor ? Money::format( (int) $r->base_minor, $r->currency ) : '—' ),
@@ -1602,12 +1602,12 @@ final class Portal {
 			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['gross'] : 0;
 			if ( $open ) {
 				/* translators: %s: date */
-				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
+				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
 			} else {
 				$last = PayoutRequests::last_rejected( (int) $aff->id );
 				if ( $last ) {
 					/* translators: 1: date, 2: reason */
-					echo '<div class="wpac-notice wpac-notice--error">' . esc_html( sprintf( __( 'Your payout request of %1$s was not processed: %2$s', 'affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $last->created_at . ' UTC' ) ), $last->note ) ) . '</div>';
+					echo '<div class="wpac-notice wpac-notice--error">' . esc_html( sprintf( __( 'Your payout request of %1$s was not processed: %2$s', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $last->created_at . ' UTC' ) ), $last->note ) ) . '</div>';
 				}
 				$can = PayoutRequests::can_request( $aff );
 				if ( true === $can ) {
@@ -1955,7 +1955,7 @@ final class Portal {
 	 */
 	private static function payout_status( $p, array $labels ) {
 		if ( 'paid' === $p->status && $p->paid_at ) {
-			$date = date_i18n( get_option( 'date_format' ), strtotime( $p->paid_at . ' UTC' ) );
+			$date = wp_date( get_option( 'date_format' ), strtotime( $p->paid_at . ' UTC' ) );
 			if ( ProfileRepository::METHOD_MANUAL === PayoutService::snapshot_method( $p ) ) {
 				// PayPal, Wise …: no bank transfer.
 				/* translators: %s: date */

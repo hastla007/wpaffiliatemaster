@@ -576,7 +576,9 @@ q( 'ALTER TABLE ' . t( 'payout_profiles' ) . ' DROP COLUMN tax_number' );
 check( 'U5 missing column reported', true, in_array( 'missing column ' . t( 'payout_profiles' ) . '.tax_number', WPAffiliateCaptain\Core\Installer::verify_schema(), true ) );
 $before_version = (int) get_option( 'wpac_db_version' );
 update_option( 'wpac_db_version', 6 );
-WPAffiliateCaptain\Core\Installer::install_schema(); // Test dbDelta stub cannot add columns → migration stays incomplete.
+$GLOBALS['test_dbdelta_create_only'] = true; // dbDelta leaves the existing table unchanged → migration stays incomplete.
+WPAffiliateCaptain\Core\Installer::install_schema();
+unset( $GLOBALS['test_dbdelta_create_only'] );
 check( 'U5 incomplete migration does not set the schema version', 6, (int) get_option( 'wpac_db_version' ) );
 check( 'U5 problems stored for the admin notice', true, (bool) get_option( 'wpac_schema_problems' ) );
 q( 'ALTER TABLE ' . t( 'payout_profiles' ) . " ADD COLUMN tax_number varchar(40) NOT NULL DEFAULT ''" );
@@ -1531,6 +1533,7 @@ require __DIR__ . '/r8-g3.php';
 require __DIR__ . '/r8-render.php';
 require __DIR__ . '/r8-g11.php';
 require __DIR__ . '/r8-g9.php';
+require __DIR__ . '/r8-g8.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

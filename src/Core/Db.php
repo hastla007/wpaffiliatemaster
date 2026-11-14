@@ -58,6 +58,49 @@ final class Db {
 	}
 
 	/**
+	 * UTC range of local calendar days (site time zone): stored times are UTC, but months and
+	 * days in reports, bonuses and mails are the site's.
+	 *
+	 * @param string $from First local day (Y-m-d).
+	 * @param string $to   Last local day (Y-m-d).
+	 * @return string[] [ start, end ] as UTC "Y-m-d H:i:s" (inclusive).
+	 */
+	public static function local_range( $from, $to ) {
+		$tz = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		try {
+			$start = new \DateTimeImmutable( $from . ' 00:00:00', $tz );
+			$end   = ( new \DateTimeImmutable( $to . ' 00:00:00', $tz ) )->modify( '+1 day' );
+		} catch ( \Exception $e ) {
+			return array( $from . ' 00:00:00', $to . ' 23:59:59' );
+		}
+		return array( gmdate( 'Y-m-d H:i:s', $start->getTimestamp() ), gmdate( 'Y-m-d H:i:s', $end->getTimestamp() - 1 ) );
+	}
+
+	/**
+	 * UTC range of a local calendar month (site time zone).
+	 *
+	 * @param string $month Month (Y-m).
+	 * @return string[] [ start, end ] as UTC "Y-m-d H:i:s" (inclusive).
+	 */
+	public static function month_range( $month ) {
+		$first = $month . '-01';
+		return self::local_range( $first, gmdate( 'Y-m-t', (int) strtotime( $first . ' 12:00:00 UTC' ) ) );
+	}
+
+	/**
+	 * A local month relative to the current one (site time zone).
+	 *
+	 * @param int $offset Months from now (-1 = previous month).
+	 * @param int $ts     Reference time (default now).
+	 * @return string Y-m.
+	 */
+	public static function local_month( $offset = 0, $ts = null ) {
+		$tz  = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		$now = ( new \DateTimeImmutable( '@' . ( null === $ts ? time() : (int) $ts ) ) )->setTimezone( $tz );
+		return $now->modify( 'first day of this month' )->modify( ( (int) $offset >= 0 ? '+' : '' ) . (int) $offset . ' month' )->format( 'Y-m' );
+	}
+
+	/**
 	 * Take a named lock (a row in the options table) atomically. add_option() is NOT atomic
 	 * in WordPress (it is an upsert after a cached read), so INSERT IGNORE decides: only the
 	 * request that inserted the row owns the lock. An expired lock is taken over with a

@@ -27,7 +27,7 @@ final class MonthlyMail {
 		if ( ! Settings::get( 'report_admin' ) && ! Settings::get( 'report_partners' ) ) {
 			return;
 		}
-		$month = gmdate( 'Y-m', strtotime( 'first day of previous month' ) );
+		$month = \WPAffiliateCaptain\Core\Db::local_month( -1 ); // The site's calendar month, not UTC.
 		if ( get_option( self::OPTION ) === $month || ! self::claim( $month ) ) {
 			return;
 		}
@@ -38,7 +38,7 @@ final class MonthlyMail {
 				self::PROGRESS,
 				array(
 					'month'   => $month,
-					'offset'  => 0,
+					'after'   => 0,
 					'touched' => time(),
 				),
 				false
@@ -106,15 +106,39 @@ final class MonthlyMail {
 			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, HOUR_IN_SECONDS );
 			return;
 		}
-		$sent = self::send( $progress['month'], false, (int) $progress['offset'], self::batch_size() );
-		if ( $sent['remaining'] > 0 ) {
-			$progress['offset']  += self::batch_size();
-			$progress['touched']  = time();
+		list( $from, $to ) = self::period( (string) $progress['month'] );
+		if ( ! isset( $progress['after'] ) ) {
+			// Progress of an older version (position by offset): continue after the partner there.
+			$done              = (int) ( isset( $progress['offset'] ) ? $progress['offset'] : 0 );
+			$before            = $done > 0 ? Reports::active_partners( $from, $to, 0, $done ) : array();
+			$progress['after'] = $before ? (int) end( $before ) : 0;
+			unset( $progress['offset'] );
+		}
+		// Only the partners of this batch (by ID, a stable order) are reported and mailed – not the
+		// whole month's report again for every batch.
+		$ids = Reports::active_partners( $from, $to, (int) $progress['after'], self::batch_size() );
+		if ( $ids ) {
+			self::send( $progress['month'], false, 0, 0, $ids );
+		}
+		if ( count( $ids ) === self::batch_size() ) {
+			$progress['after']   = (int) end( $ids );
+			$progress['touched'] = time();
 			update_option( self::PROGRESS, $progress, false );
 			\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, 60 );
 		} else {
 			delete_option( self::PROGRESS );
 		}
+	}
+
+	/**
+	 * First and last day of a report month (local days of the site).
+	 *
+	 * @param string $month Y-m.
+	 * @return string[] [ from, to ] (Y-m-d).
+	 */
+	private static function period( $month ) {
+		$from = $month . '-01';
+		return array( $from, gmdate( 'Y-m-t', (int) strtotime( $from . ' 12:00:00 UTC' ) ) );
 	}
 
 	/**
@@ -128,11 +152,11 @@ final class MonthlyMail {
 	 * @return array|int Number of e-mails (admin) or [ sent, remaining ] (partners).
 	 */
 	public static function send( $month, $admin_only = false, $offset = 0, $limit = 0, array $only = array() ) {
-		$from     = $month . '-01';
-		$to       = gmdate( 'Y-m-t', strtotime( $from ) );
+		list( $from, $to ) = self::period( (string) $month );
 		$currency = (string) Settings::get( 'currency' );
 		$site     = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-		$rows     = Reports::partners( $from, $to );
+		// Mails to given partners (batch, retry): only their rows are computed.
+		$rows     = Reports::partners( $from, $to, $only && ! $admin_only ? array_map( 'intval', $only ) : 0 );
 		$unconv   = array_keys( Reports::$unconverted );
 		$sent     = 0;
 		$fmt      = static function ( $minor ) use ( $currency ) {
@@ -267,7 +291,7 @@ final class MonthlyMail {
 		}
 		$counts  = AffiliateRepository::count_by_status();
 		$lines[] = __( 'Applications waiting', 'affiliate-captain' ) . ': ' . (int) $counts['pending'];
-		$lines[] = __( 'Open payout requests', 'affiliate-captain' ) . ': ' . count( PayoutRequests::query( 'requested' ) );
+		$lines[] = __( 'Open payout requests', 'affiliate-captain' ) . ': ' . PayoutRequests::count( 'requested' );
 		if ( $unconv ) {
 			$lines[] = __( 'Not converted (no reference rate)', 'affiliate-captain' ) . ': ' . implode( ', ', $unconv );
 		}
@@ -413,7 +437,7 @@ final class MonthlyMail {
 			$touched = isset( $progress['touched'] ) ? (int) $progress['touched'] : 0;
 			if ( $touched < time() - 10 * MINUTE_IN_SECONDS ) {
 				\WPAffiliateCaptain\Core\Scheduler::once( self::BATCH_HOOK, 30 );
-				Audit::log( 'report.batch_restarted', 'report', 0, array( 'month' => $progress['month'], 'offset' => (int) $progress['offset'] ) );
+				Audit::log( 'report.batch_restarted', 'report', 0, array( 'month' => $progress['month'], 'after' => isset( $progress['after'] ) ? (int) $progress['after'] : 0 ) );
 			}
 		}
 		if ( self::failures() ) {

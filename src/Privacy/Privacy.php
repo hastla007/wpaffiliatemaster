@@ -282,7 +282,7 @@ final class Privacy {
 				),
 			);
 		}
-		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', (int) $aff->id ) as $r ) {
+		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', (int) $aff->id, 0 ) as $r ) {
 			$items[] = array(
 				'group_id'    => 'wpac-payout-requests',
 				'group_label' => __( 'Payout requests', 'affiliate-captain' ),

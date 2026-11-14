@@ -685,7 +685,7 @@ final class Installer {
 			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at', 'operator_snapshot' ),
 			'payout_items'    => array( 'id', 'payout_id', 'commission_id', 'vat_mode', 'vat_rate', 'ref_payout_id' ),
 			'payout_profiles' => array( 'affiliate_id', 'tax_number' ),
-			'balances'        => array( 'affiliate_id', 'last_hash' ),
+			'balances'        => array( 'affiliate_id', 'last_hash', 'verified_id', 'verified_hash' ),
 			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
 			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
 			'attributions'    => array( 'id', 'content_id', 'campaign', 'sub_id', 'visit_id' ),
@@ -810,7 +810,8 @@ final class Installer {
 			UNIQUE KEY slug (slug),
 			KEY user_id (user_id),
 			KEY email (email),
-			KEY status (status)
+			KEY status (status),
+			KEY updated_at (updated_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('partner_groups')} (
@@ -870,7 +871,8 @@ final class Installer {
 			iban_last4 varchar(4) NOT NULL DEFAULT '',
 			bic varchar(11) NOT NULL DEFAULT '',
 			updated_at datetime NOT NULL,
-			PRIMARY KEY  (affiliate_id)
+			PRIMARY KEY  (affiliate_id),
+			KEY updated_at (updated_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('visits')} (
@@ -887,8 +889,7 @@ final class Installer {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY affiliate_created (affiliate_id,created_at),
-			KEY created_at (created_at),
-			KEY content_id (content_id),
+			KEY created_affiliate (created_at,affiliate_id),
 			KEY campaign_created (campaign,created_at,affiliate_id),
 			KEY content_created (content_id,created_at,affiliate_id)
 		) $c;";
@@ -911,7 +912,6 @@ final class Installer {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY source_order (source,source_order_id),
-			KEY affiliate_id (affiliate_id),
 			KEY affiliate_created (affiliate_id,created_at),
 			KEY created_at (created_at),
 			KEY content_created (content_id,created_at),
@@ -1136,6 +1136,10 @@ final class Installer {
 			entries int(10) unsigned NOT NULL DEFAULT 0,
 			last_hash char(64) NOT NULL DEFAULT '',
 			updated_at datetime NOT NULL,
+			verified_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			verified_hash char(64) NOT NULL DEFAULT '',
+			verified_balance bigint(20) NOT NULL DEFAULT 0,
+			verified_at datetime NULL,
 			PRIMARY KEY  (affiliate_id,currency)
 		) $c;";
 
@@ -1396,12 +1400,58 @@ final class Installer {
 	}
 
 	/**
+	 * v11: indexes that are a prefix of another one only cost writes (visits.content_id is the
+	 * start of content_created, attributions.affiliate_id of affiliate_created); visits.created_at
+	 * is replaced by created_affiliate (created_at, affiliate_id), which dbDelta has added by now,
+	 * so retention and reports never run without an index on created_at.
+	 */
+	private static function migrate_v11_indexes() {
+		global $wpdb;
+		$drop = array(
+			Db::table( 'visits' )       => array(
+				'content_id' => 'content_created',
+				'created_at' => 'created_affiliate',
+			),
+			Db::table( 'attributions' ) => array(
+				'affiliate_id' => 'affiliate_created',
+			),
+		);
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery
+		foreach ( $drop as $table => $indexes ) {
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+				continue;
+			}
+			$parts = array();
+			foreach ( $indexes as $index => $replacement ) {
+				// Only when the covering index exists (never leave a column without any index).
+				if ( $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", $index ) ) && $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", $replacement ) ) ) {
+					$parts[] = 'DROP INDEX ' . $index;
+				}
+			}
+			if ( $parts ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Own table and index names only.
+				$wpdb->query( "ALTER TABLE {$table} " . implode( ', ', $parts ) );
+			}
+			self::keep_lock();
+		}
+		// phpcs:enable
+	}
+
+	/**
 	 * Data migrations after dbDelta.
 	 *
 	 * @param int $previous Previous schema version.
 	 */
 	private static function migrate_after( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 11 ) {
+			self::migrate_v11_indexes();
+			// v11: bonus months follow the site's time zone; months closed before keep UTC.
+			$closed = Settings::state( 'tier_month_closed' );
+			if ( '' !== $closed && false === get_option( \WPAffiliateCaptain\Commissions\TierService::LOCAL_FROM ) ) {
+				update_option( \WPAffiliateCaptain\Commissions\TierService::LOCAL_FROM, gmdate( 'Y-m', strtotime( $closed . '-01 +1 month' ) ), false );
+			}
+		}
 		if ( $previous > 0 && $previous < 9 ) {
 			self::migrate_v9_settings();
 			self::migrate_v9_statement_files();

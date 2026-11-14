@@ -1540,12 +1540,26 @@ final class Ledger {
 		global $wpdb;
 		$t                      = Db::table( 'commissions' );
 		list( $where, $params ) = self::where( $args );
+		$cache                  = '';
+		if ( '1=1' === $where ) {
+			// Without a filter the sums cover the whole table: cached until a commission is added or
+			// changed (MAX(id) and MAX(updated_at) are index lookups).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$cache = 'wpac_commission_totals_' . md5( wp_json_encode( $wpdb->get_row( "SELECT MAX(id), MAX(updated_at) FROM {$t}" ) ) );
+			$hit   = get_transient( $cache );
+			if ( is_array( $hit ) ) {
+				return $hit;
+			}
+		}
 		$sql                    = "SELECT status, currency, SUM(amount_minor) total FROM {$t} WHERE {$where} GROUP BY status, currency";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
 		$out  = array();
 		foreach ( $rows as $r ) {
 			$out[ $r->status ][ $r->currency ] = (int) $r->total;
+		}
+		if ( '' !== $cache ) {
+			set_transient( $cache, $out, 5 * MINUTE_IN_SECONDS ); // Short: several changes within one second keep MAX(updated_at).
 		}
 		return $out;
 	}
@@ -1575,13 +1589,14 @@ final class Ledger {
 			$where   .= ' AND source_order_id = %s';
 			$params[] = (string) $args['order_id'];
 		}
+		// Dates of the filter are local days (site time zone); stored times are UTC.
 		if ( ! empty( $args['from'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $args['from'] ) ) {
 			$where   .= ' AND created_at >= %s';
-			$params[] = $args['from'] . ' 00:00:00';
+			$params[] = Db::local_range( $args['from'], $args['from'] )[0];
 		}
 		if ( ! empty( $args['to'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $args['to'] ) ) {
 			$where   .= ' AND created_at <= %s';
-			$params[] = $args['to'] . ' 23:59:59';
+			$params[] = Db::local_range( $args['to'], $args['to'] )[1];
 		}
 		return array( $where, $params );
 	}

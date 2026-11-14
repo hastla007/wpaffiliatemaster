@@ -916,12 +916,101 @@ final class AffiliateRepository {
 	public static function unique_slug( $base ) {
 		$slug = sanitize_title( $base );
 		$slug = Db::cut( '' !== $slug ? $slug : 'partner', 50 );
-		$try  = $slug;
-		$i    = 2;
-		while ( self::find_by_slug( $try ) ) {
+		// One query for the slug and all its numbered variants (an import with many info@/office@
+		// addresses would otherwise check the candidates one by one).
+		global $wpdb;
+		$t     = Db::table( 'affiliates' );
+		$taken = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT slug FROM {$t} WHERE slug = %s OR slug LIKE %s", $slug, $wpdb->esc_like( $slug ) . '-%' ) ) as $used ) {
+			$taken[ strtolower( (string) $used ) ] = true;
+		}
+		$try = $slug;
+		$i   = 2;
+		while ( isset( $taken[ strtolower( $try ) ] ) ) {
 			$try = $slug . '-' . $i++;
 		}
 		return $try;
+	}
+
+	/**
+	 * Partners for a selection field: only id, name and slug (no full rows).
+	 *
+	 * @param string $search Search in name, slug and e-mail ('' = all).
+	 * @param string $status Status ('' = all).
+	 * @param int    $limit  Max rows.
+	 * @return array Rows with id, name, slug, status.
+	 */
+	public static function options( $search = '', $status = '', $limit = 20 ) {
+		global $wpdb;
+		$t      = Db::table( 'affiliates' );
+		$where  = '1=1';
+		$params = array();
+		if ( '' !== (string) $status ) {
+			$where   .= ' AND status = %s';
+			$params[] = (string) $status;
+		}
+		$search = trim( (string) $search );
+		if ( '' !== $search ) {
+			$like = '%' . $wpdb->esc_like( $search ) . '%';
+			if ( ctype_digit( $search ) ) {
+				$where  .= ' AND ( id = %d OR name LIKE %s OR slug LIKE %s )';
+				$params  = array_merge( $params, array( (int) $search, $like, $like ) );
+			} else {
+				$where  .= ' AND ( name LIKE %s OR slug LIKE %s OR email LIKE %s )';
+				$params  = array_merge( $params, array( $like, $like, $like ) );
+			}
+		}
+		$params[] = max( 1, (int) $limit );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, name, slug, status FROM {$t} WHERE {$where} ORDER BY name ASC, id ASC LIMIT %d", $params ) );
+	}
+
+	/**
+	 * Number of partners (optionally of one status).
+	 *
+	 * @param string $status Status ('' = all).
+	 * @return int
+	 */
+	public static function count( $status = '' ) {
+		global $wpdb;
+		$t = Db::table( 'affiliates' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) ( '' === (string) $status ? $wpdb->get_var( "SELECT COUNT(*) FROM {$t}" ) : $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t} WHERE status = %s", (string) $status ) ) );
+	}
+
+	/**
+	 * Label of a partner in a selection field ("Name (slug) #ID"); the ID at the end lets the
+	 * entry be resolved again (resolve_input()).
+	 *
+	 * @param object $aff Row with id, name, slug.
+	 * @return string
+	 */
+	public static function option_label( $aff ) {
+		return $aff->name . ' (' . $aff->slug . ') #' . (int) $aff->id;
+	}
+
+	/**
+	 * Partner ID from a selection field: an ID, "… #ID", a slug or an e-mail address.
+	 *
+	 * @param string $raw Input.
+	 * @return int 0 = not found.
+	 */
+	public static function resolve_input( $raw ) {
+		$raw = trim( (string) $raw );
+		if ( '' === $raw ) {
+			return 0;
+		}
+		if ( ctype_digit( $raw ) ) {
+			$aff = self::find( (int) $raw );
+		} elseif ( preg_match( '/#(\d+)\s*$/', $raw, $m ) ) {
+			$aff = self::find( (int) $m[1] );
+		} elseif ( is_email( $raw ) ) {
+			$aff = self::find_by_email( $raw );
+		} else {
+			$aff = self::find_by_slug( $raw );
+		}
+		return $aff ? (int) $aff->id : 0;
 	}
 
 	/**

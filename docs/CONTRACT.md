@@ -201,7 +201,10 @@ Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempo
 |---|---|---|
 | `wpac_run_job` ( `$handled`, `$type`, `$payload` ) | Filter | Handler der Wiederholungs-Warteschlange (`true` = verarbeitet, bei Fehler Exception werfen; idempotent). Ohne Handler (z. B. WooCommerce kurz deaktiviert) wird der Job um eine Stunde zurückgestellt, ohne Versuche zu verbrauchen. |
 | `wpac_job_max_attempts` ( `$attempts` ) | Filter | Versuche, bevor ein Job endgültig fehlschlägt (Standard 8, mindestens 4). |
-| `wpac_daily_budget` ( `$seconds` ) | Filter | Laufzeit der täglichen Wartung pro Anfrage (Standard 60 s, 0 = ohne Grenze); der Rest läuft in einem eigenen Lauf weiter. |
+| `wpac_daily_budget` ( `$seconds` ) | Filter | Laufzeit der täglichen Wartung pro Anfrage (Standard 60 s, 0 = ohne Grenze); der Rest läuft in einem eigenen Lauf weiter – auch ein Löschschritt, der mitten im Rückstand aufhören musste (er folgt nach den übrigen Schritten). |
+| `wpac_visit_purge_budget` ( `$seconds` ) / `wpac_visit_purge_batch` ( `$rows` ) | Filter | Löschung alter Besuche: Laufzeit pro Lauf (Standard 20 s, 0 = bis fertig) und Zeilen pro DELETE (Standard 5000). Solange ein Rückstand bleibt, folgt alle 3 Minuten ein weiterer Lauf (`wpac_purge_visits`) – keine feste Tagesobergrenze. |
+| `wpac_balance_check_budget` ( `$seconds` ) / `wpac_balance_full_check_days` ( `$days` ) | Filter | Täglicher Saldenabgleich: Laufzeit pro Lauf (Standard 30 s; der Durchgang läuft über `wpac_balance_check` weiter) und Abstand der vollständigen Neuberechnung je Konto (Standard 30 Tage; dazwischen nur die Buchungen seit dem letzten geprüften Stand). |
+| `wpac_tier_budget` ( `$seconds` ) | Filter | Laufzeit von Monatsabschluss und Neuberechnung der Staffelboni pro Lauf (Standard 20 s); der Rest folgt nach etwa 2 Minuten (`wpac_tier_continue`), nicht erst am Folgetag. |
 | `wpac_approve_due_budget` ( `$seconds` ) | Filter | Laufzeit der Freigabe fälliger Provisionen pro Lauf (Standard 20 s). |
 | `wpac_use_action_scheduler` ( `$use` ) | Filter | Einmalige Hintergrundaufgaben über den Action Scheduler von WooCommerce (Standard, wenn vorhanden) oder WP-Cron. |
 | `wpac_monthly_mail_batch_size` ( `$size` ) | Filter | Partner-Monatsmails pro Durchlauf (Standard 50, ein Durchlauf pro Minute) – für Mail-Dienste mit Sendelimit. |
