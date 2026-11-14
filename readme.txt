@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.10.0
+Stable tag: 0.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,6 +115,39 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
+= 0.11.0 =
+Renamed to "Affiliate Captain" (folder and text domain "affiliate-captain"); expert review rounds 5 to 7 (money, VAT, privacy, tracking, operations, partner area); database schema 11:
+* Money: a partial refund before booking a previously failed sale is no longer deducted twice; tax-only refunds no longer cause a fatal error; a fully refunded order that is completed later no longer restores the full commission
+* Money: trashing or deleting an order reverses its commission, restoring it reinstates it; line items lowered after payment are corrected; commissions of orders on hold or in a chargeback dispute are not released
+* Money: amount refunds are spread net over the line items; negative fees and redeemed gift cards reduce the base, gift card purchases earn no commission, bundles count as one line; the commission base is capped at the order total
+* Money: amounts in currencies with three decimals (KWD, BHD …) are no longer multiplied by 1000 when settings are saved; changing the programme currency converts minimum payout, review limit, fixed default rate and exchange rates
+* VAT: clawbacks, dunning, repayments and write-offs include the VAT of the original credit note; a settled balance gets a correction document automatically; repayments and write-offs are shown as not taxable
+* VAT: the treatment follows tax status and rate at the time of the commission, not the payout date; no payouts with a negative or too small gross amount; tax changes by partners apply only after admin approval (mail with old and new values); VAT ID format and country check; domestic businesses can enter a tax number; an invalid VIES result also blocks credit notes with German VAT; warning when small-business limits are exceeded
+* Security: lifetime customer links are only created by orders with a customer account and a commission, never by guest orders; links are visible and removable in the order box and via `wp wpac customer-link`
+* Security: changing IBAN or payment details in the partner area requires the password; early approval and order (re)attribution need the payout capability; new read-only role "Tax advisor"; tax data is hidden in the audit log and export without the tax capability
+* Security: private partner groups only open on pages whose form a partner manager approved; only partner managers can promote content as partner targets; `CF-Connecting-IP`/`X-Real-IP` are only trusted when enabled by filter; a disabled checkout code field can no longer be bypassed; all exception messages are escaped
+* Data integrity: terminations, Art. 18 restrictions, rejections and settings with umlauts at the length limit are stored reliably (character-safe truncation); follow-up actions only run after a successful save
+* Lifecycle: after an uninstall that keeps records, partner IDs stay reserved and are never reused; taking over the old "WP Affiliate Captain" copy no longer switches off a multisite network and disables "delete all data" of the old copy; an update into the old folder switches to the new main file; site clones and staging copies are detected and switch to maintenance mode
+* Tracking: consent given in the banner after landing (WP Consent API or `wpacConsentGranted()`) still stores the partner link; the attribution survives an aborted payment; expired or inactive first touches no longer block valid partner links
+* Tracking: prefetch/prerender, link previews, monitors, canonical redirects, reloads and own clicks of partners and admins no longer count as visits; `?add-to-cart=…&partner=…` is fully tracked; the beacon no longer loses touches behind CDNs
+* Caching: with JavaScript tracking, landing pages stay cacheable for guests; partner area, `/partner/slug/` and `/codes/{code}` are never cached; UTM placeholders such as "*_STRIPPED" are dropped; new setting "Cookie domain" for landing and shop on different subdomains; referral cookie per site in multisite
+* Fraud: self-referral detection compares billing name and address with the payout profile; the same IBAN at several partners is reported; new rule "coupon replaced another partner's referral"; new installs start with sensible thresholds; usage limits of partner codes hold under parallel orders
+* Privacy: the GDPR export is complete and paged (objections, VIES result, dunning, balances, all lifetime links and orders); data of ended partnerships is anonymised after the retention period; the referrer host is only stored with consent; temporary export files are private and deleted on abort
+* Contract: `wpac_record_reinstatement()` and `POST /reinstatements`; refunds that arrive before the sale are parked; stricter payload validation (duplicate item IDs, dates, amounts, limits); REST 503 with `Retry-After`; errors from the contract leave an order note
+* Payouts: credit note PDFs are created in the background queue (no timeouts with many partners); "available for payout" shows the real gross amount; payout requests and the minimum work in every currency; failed cancellation documents are retried automatically; credit notes and cancellations are mailed to the partner with the PDF
+* Payouts: new PayPal payout file, transfer list for German Excel, feedback after SEPA/CSV/PayPal download, status filter; SEPA names are transliterated; terminating with "forfeit" cancels payouts not yet exported; the "payout schedule" setting was removed (it had no effect)
+* Credit notes: one note per VAT treatment, no German legal references outside DACH, always in the site language; long order numbers and product names wrap; characters outside CP1252 are transliterated; a statement missing on one app server is rebuilt on download
+* Partner area: new "Statistics" tab (period filter, conversion, earnings per month, campaigns and sub-IDs); partner links accept a sub-ID (`&sub=`); amounts in all booking currencies; own conditions and the accepted terms version are shown; filters, CSV export and paging for commissions and payouts
+* Partner area: the link generator accepts www and case variants and paths and creates a QR code; creatives with embed code, dimensions and sub-ID; mail preferences and broadcast mails to all partners or a group; partners land in the partner area after login and get a "Partner area" entry in WooCommerce "My account"
+* Rules: rules on parent categories apply to subcategories; finer rule selection (variation, exact SKU); new settings "Rule precedence", "Hold period starts" (payment/completion) and "Commission on renewals for (months)"; manual bookings and corrections, rejected commissions can be reopened
+* Admin: settings reorganised (new tabs "E-mails & reports" and "Data & maintenance"); integrations page in tabs; partner list with code, balance, payout data, terms and login columns, screen options and bulk rejection; help tabs; product search and category picker in rules; partner picker without the 500/1000 limit; setup checklist after activation with a draft of the partner terms
+* E-mails: central sending with filter `wpac_mail` and logging of failures; configurable sender and Reply-To; unsubscribe link and `List-Unsubscribe` for the monthly mail; confirmation for applicants; optional commission mails; visitor-triggered admin mails in the operator's language
+* Operations: the balance reconciliation checks all accounts incrementally within a time budget; old visits are purged even at very high click volumes; daily maintenance and tier bonuses continue after minutes instead of the next day; reports, monthly mails and tiers follow the site time zone; new indexes, redundant ones removed
+* Operations: failed sales stay in the queue with a new "Dismiss" button; a missing integration uses no attempts; `wp wpac support`, `wp wpac jobs list` and `--network` for WP-CLI; failing cron steps show in Site Health; the monitoring token survives a salt rotation; unreadable bank details are detected and block payouts
+* Blocks: CSS classes, anchors, alignment and spacing; several application forms per page have unique IDs and their own errors; the application form prevents page caching in builder templates, patterns and widgets
+* Accessibility and i18n: contrast in dark mode, stronger focus ring, labelled copy buttons, screen-reader friendly code table and QR code; admin dates, percentages and country names localised; RTL support; complete German translation
+* CI: plugin check and coverage jobs fail again on errors (pipefail); release notes are taken from the changelog section only
+
 = 0.10.0 =
 Second five-expert review (money, legal, operations, business flows, CI); database schema 8:
 * Money: VAT mode and rate are stored per payout item; corrections keep the treatment of the original credit note, are printed in their own section with a reference to it, and VAT is shown per rate; operator data is frozen per payout; payouts are blocked with a clear reason for reverse charge without the operator's VAT ID, self-billing without a terms page, or a VAT ID that VIES reports as invalid
@@ -200,7 +233,7 @@ Review of all modules (security, money, legal, operations, usability):
 == Upgrade Notice ==
 
 = 0.11.0 =
-Renamed to "Affiliate Captain" (folder "affiliate-captain"). Make a backup first. Install it next to "WP Affiliate Captain" and activate it: the old copy is switched off, all data stays. Then delete the old copy without "delete all data". Needs WordPress 6.3+; schema 9 update runs automatically.
+Renamed to "Affiliate Captain" (folder "affiliate-captain"). Make a backup first; the database update to schema 11 runs automatically. Install it next to "WP Affiliate Captain" and activate it: the old copy is switched off, all data stays. Then delete the old copy. Needs WordPress 6.3+.
 
 = 0.10.0 =
 Database update to schema 8 (new columns on payouts and payout items) – make a backup before updating. Payouts are now blocked with a clear reason when your own VAT ID, the terms page or a valid partner VAT ID is missing; check the payout preview after the update.

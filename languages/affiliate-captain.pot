@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.10.0\n"
+"Project-Id-Version: Affiliate Captain 0.11.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
