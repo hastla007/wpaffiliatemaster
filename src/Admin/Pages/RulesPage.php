@@ -156,11 +156,13 @@ final class RulesPage {
 		// Names only of the partners that rules and tier plans refer to (no fixed partner limit:
 		// the selection fields search all partners, see Admin::partner_picker()).
 		global $wpdb;
-		$ids = array_merge(
+		$rules_t = \WPAffiliateCaptain\Core\Db::table( 'rules' );
+		$tiers_t = \WPAffiliateCaptain\Core\Db::table( 'tiers' );
+		$ids     = array_merge(
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			(array) $wpdb->get_col( 'SELECT DISTINCT scope_id FROM ' . \WPAffiliateCaptain\Core\Db::table( 'rules' ) . " WHERE scope = 'affiliate'" ),
+			(array) $wpdb->get_col( "SELECT DISTINCT scope_id FROM {$rules_t} WHERE scope = 'affiliate'" ),
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			(array) $wpdb->get_col( 'SELECT DISTINCT scope_id FROM ' . \WPAffiliateCaptain\Core\Db::table( 'tiers' ) . " WHERE scope = 'affiliate'" )
+			(array) $wpdb->get_col( "SELECT DISTINCT scope_id FROM {$tiers_t} WHERE scope = 'affiliate'" )
 		);
 		$aff_names = array();
 		foreach ( AffiliateRepository::find_many( $ids ) as $aid => $a ) {
@@ -268,7 +270,7 @@ final class RulesPage {
 			printf( '<option value="%d" %s>%s</option>', (int) $gid, selected( 'group' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $gid, false ), esc_html( $name ) );
 		}
 		echo '</select> ';
-		echo Admin::partner_picker( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		$picker = Admin::partner_picker(
 			'affiliate_id',
 			'affiliate' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0,
 			'',
@@ -277,6 +279,7 @@ final class RulesPage {
 				'data-wpac-depends' => 'scope=affiliate',
 			)
 		);
+		echo $picker; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
 		echo '</td></tr>';
 		echo '<tr><th><label for="wpac-rule-target">' . esc_html__( 'Products', 'affiliate-captain' ) . '</label></th><td><select name="target" id="wpac-rule-target">';
 		foreach ( $targets as $k => $l ) {

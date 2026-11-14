@@ -1340,7 +1340,7 @@ final class Portal {
 			$raw      = isset( $_GET['target'] ) ? sanitize_text_field( wp_unslash( $_GET['target'] ) ) : '';
 			$campaign = isset( $_GET['campaign'] ) ? sanitize_title( wp_unslash( $_GET['campaign'] ) ) : '';
 			$source   = isset( $_GET['source'] ) ? sanitize_title( wp_unslash( $_GET['source'] ) ) : '';
-			$sub      = isset( $_GET['sub'] ) ? Tracker::clean_sub( wp_unslash( $_GET['sub'] ) ) : '';
+			$sub      = isset( $_GET['sub'] ) ? Tracker::clean_sub( sanitize_text_field( wp_unslash( $_GET['sub'] ) ) ) : '';
 			// phpcs:enable
 			echo '<h3>' . esc_html__( 'Link generator', 'affiliate-captain' ) . '</h3>';
 			echo '<form method="get" class="wpac-form wpac-form--inline">';
@@ -1436,7 +1436,7 @@ final class Portal {
 			return;
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$sub = isset( $_GET['wpac_sub'] ) ? Tracker::clean_sub( wp_unslash( $_GET['wpac_sub'] ) ) : '';
+		$sub = isset( $_GET['wpac_sub'] ) ? Tracker::clean_sub( sanitize_text_field( wp_unslash( $_GET['wpac_sub'] ) ) ) : '';
 		echo '<form method="get" class="wpac-form wpac-form--inline">';
 		self::hidden_args( array( 'wpac_sub' ) );
 		echo '<input type="hidden" name="wpac_tab" value="promotion"><label>' . esc_html__( 'Sub-ID for the links below (optional, e.g. the placement)', 'affiliate-captain' ) . ' <input type="text" name="wpac_sub" maxlength="100" value="' . esc_attr( $sub ) . '"></label> <button type="submit" class="wpac-button">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form>';

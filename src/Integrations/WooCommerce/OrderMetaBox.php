@@ -74,7 +74,7 @@ final class OrderMetaBox {
 				// Re-attribution: the current partner's commission is reversed, the order is booked for the new one.
 				// Every active partner can be chosen (search field in large programs), only id/name/slug loaded.
 				echo '<details><summary>' . esc_html__( 'Attribute to another partner', 'affiliate-captain' ) . '</summary><p><label for="wpac_reassign">' . esc_html__( 'New partner', 'affiliate-captain' ) . '</label>';
-				echo \WPAffiliateCaptain\Admin\Admin::partner_picker( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+				$picker = \WPAffiliateCaptain\Admin\Admin::partner_picker(
 					'wpac_reassign',
 					0,
 					'active',
@@ -85,6 +85,7 @@ final class OrderMetaBox {
 					),
 					array( (int) $attr->affiliate_id )
 				);
+				echo $picker; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
 				echo '</p><p><label for="wpac_reassign_reason">' . esc_html__( 'Reason (required, kept in the history)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_reassign_reason" id="wpac_reassign_reason" style="width:100%"></p><p class="description">' . esc_html__( 'The current partner gets a cancellation correction; the order is booked for the new partner with the current rules.', 'affiliate-captain' ) . '</p></details>';
 				// Ask before the order form is saved with a new partner selected (the reversal cannot be undone).
 				// (assets/js/admin.js: data-wpac-confirm-select on the select; no inline script.)

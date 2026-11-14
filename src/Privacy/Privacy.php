@@ -125,7 +125,7 @@ final class Privacy {
 		$params   = $list['params'];
 		$params[] = (int) $limit;
 		$params[] = (int) $offset;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table and WHERE with placeholders built in export_lists().
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table and WHERE with placeholders built in export_lists(); $params holds one value per placeholder.
 		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $list['table'] . ' WHERE ' . $list['where'] . ' ORDER BY id ASC LIMIT %d OFFSET %d', $params ) );
 	}
 
@@ -199,7 +199,7 @@ final class Privacy {
 			);
 		}
 		foreach ( $lists as $i => $list ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- See export_rows().
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- See export_rows(): the placeholders are in $list['where'].
 			$lists[ $i ]['count'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $list['table'] . ' WHERE ' . $list['where'], $list['params'] ) );
 		}
 		return $lists;
