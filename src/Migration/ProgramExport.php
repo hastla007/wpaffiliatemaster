@@ -15,6 +15,7 @@ namespace WPAffiliateCaptain\Migration;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\PrivateFile;
 use WPAffiliateCaptain\Payouts\ProfileRepository;
 
 defined( 'ABSPATH' ) || exit;
@@ -59,8 +60,8 @@ final class ProgramExport {
 		if ( ! self::available() ) {
 			return new \WP_Error( 'wpac_export_zip', __( 'The program export needs the PHP extension "zip". Ask your hosting provider to enable it, or use the CSV exports of the individual lists.', 'affiliate-captain' ) );
 		}
-		if ( ! function_exists( 'wp_tempnam' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Large programs; disabled on some hosts.
 		}
 		$zip = new \ZipArchive();
 		if ( true !== $zip->open( $zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE ) ) {
@@ -73,9 +74,14 @@ final class ProgramExport {
 			$tables['payout_details.csv'] = 'payout_profiles';
 		}
 		foreach ( $tables as $file => $table ) {
-			$tmp = wp_tempnam( 'wpac-export-' . $table );
+			// Private (0600, outside the web root where possible) and deleted at the end of the
+			// request even if it is aborted: payout_details.csv holds decrypted IBANs.
+			$tmp = PrivateFile::create( 'wpac-export-' . $table );
 			if ( ! $tmp ) {
 				$zip->close();
+				foreach ( $temps as $done ) {
+					PrivateFile::release( $done );
+				}
 				return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'affiliate-captain' ) );
 			}
 			$temps[]         = $tmp;
@@ -101,7 +107,7 @@ final class ProgramExport {
 		$zip->addFromString( 'README.txt', self::readme( $include_tax_data ) );
 		$ok = $zip->close(); // Reads the temporary files, so they are deleted afterwards.
 		foreach ( $temps as $tmp ) {
-			wp_delete_file( $tmp );
+			PrivateFile::release( $tmp );
 		}
 		if ( ! $ok ) {
 			return new \WP_Error( 'wpac_export_zip', __( 'The export file could not be created.', 'affiliate-captain' ) );
@@ -133,18 +139,22 @@ final class ProgramExport {
 		$count  = 0;
 		$header = null;
 		fwrite( $fh, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
-		for ( $offset = 0; ; $offset += self::BATCH ) {
+		// Keyset paging on the primary key (OFFSET re-reads all earlier rows on every batch).
+		$key  = 'payout_profiles' === $table ? 'affiliate_id' : 'id';
+		$last = 0;
+		while ( true ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} ORDER BY 1 LIMIT %d OFFSET %d", self::BATCH, $offset ), ARRAY_A );
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$key} > %d ORDER BY {$key} ASC LIMIT %d", $last, self::BATCH ), ARRAY_A );
 			if ( null === $header ) {
 				$header = $rows ? array_keys( self::row( $table, $rows[0], $include_tax_data ) ) : self::columns( $t );
-				fputcsv( $fh, $header, ';', '"', '\\' );
+				Csv::put( $fh, $header, ';' );
 			}
-			foreach ( (array) $rows as $row ) {
-				fputcsv( $fh, array_map( array( Csv::class, 'safe_cell' ), array_values( self::row( $table, $row, $include_tax_data ) ) ), ';', '"', '\\' );
+			foreach ( $rows as $row ) {
+				$last = (int) $row[ $key ];
+				Csv::put( $fh, self::row( $table, $row, $include_tax_data ), ';' );
 				++$count;
 			}
-			if ( count( (array) $rows ) < self::BATCH ) {
+			if ( count( $rows ) < self::BATCH ) {
 				break;
 			}
 		}
@@ -176,6 +186,13 @@ final class ProgramExport {
 	private static function row( $table, array $row, $include_tax_data ) {
 		if ( 'payouts' === $table && ! $include_tax_data ) {
 			$row['profile_snapshot'] = ''; // Legal name, address, VAT ID of the partner.
+			// The random file names are the only protection of a credit note folder that is
+			// reachable from the web: never part of an export without tax data.
+			foreach ( array( 'statement_file', 'storno_file' ) as $col ) {
+				if ( isset( $row[ $col ] ) ) {
+					$row[ $col ] = '' !== (string) $row[ $col ] ? 'yes' : '';
+				}
+			}
 		}
 		if ( in_array( $table, array( 'payouts', 'payout_items' ), true ) && ! $include_tax_data && isset( $row['vat_mode'] ) ) {
 			$row['vat_mode'] = ''; // Reveals the partner's tax status (small business, reverse charge …).
@@ -209,7 +226,7 @@ final class ProgramExport {
 		$lines[] = '';
 		$lines[] = $include_tax_data
 			? 'CONTAINS TAX AND BANK DATA (payout_details.csv with decrypted IBANs or – column payout_method "manual" – the decrypted payment details of another payment method such as PayPal; tax snapshots in payouts.csv). Store and transfer it encrypted, delete it when no longer needed.'
-			: 'Tax and bank data are not included (payout details, IBANs, payment details, the tax snapshots and the VAT treatment (vat_mode) of payouts).';
+			: 'Tax and bank data are not included (payout details, IBANs, payment details, the tax snapshots and the VAT treatment (vat_mode) of payouts; statement_file/storno_file only say "yes" instead of the stored file names).';
 		$lines[] = 'The export contains personal data of partners: handle it according to your privacy policy.';
 		return implode( "\n", $lines ) . "\n";
 	}

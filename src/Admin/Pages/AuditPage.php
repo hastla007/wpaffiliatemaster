@@ -28,6 +28,16 @@ final class AuditPage {
 	 * @return string
 	 */
 	public static function action_label( $action ) {
+		$labels = self::labels();
+		return isset( $labels[ $action ] ) ? $labels[ $action ] : (string) $action;
+	}
+
+	/**
+	 * Readable names of the audit actions.
+	 *
+	 * @return array action => label
+	 */
+	private static function labels() {
 		static $labels = null;
 		if ( null === $labels ) {
 			$labels = array(
@@ -41,6 +51,12 @@ final class AuditPage {
 				'affiliate.user_linked'             => __( 'WordPress user linked', 'affiliate-captain' ),
 				'affiliate.user_link_requested'     => __( 'Link to connect the customer account sent', 'affiliate-captain' ),
 				'affiliate.user_link_skipped'       => __( 'Account not linked (account with backend rights)', 'affiliate-captain' ),
+				'affiliate.user_link_not_sent'      => __( 'Link to connect the customer account not sent', 'affiliate-captain' ),
+				'affiliate.imported'                => __( 'Partners imported', 'affiliate-captain' ),
+				'program.exported'                  => __( 'Program exported', 'affiliate-captain' ),
+				'privacy.retention_anonymised'      => __( 'Data of an ended partnership deleted after the retention period', 'affiliate-captain' ),
+				'refund.unknown_items'              => __( 'Refund with unknown items', 'affiliate-captain' ),
+				'commission.reopened'               => __( 'Commission reopened', 'affiliate-captain' ),
 				'affiliate.user_failed'             => __( 'WordPress user could not be created', 'affiliate-captain' ),
 				'agreement.accepted'                => __( 'Terms accepted', 'affiliate-captain' ),
 				'agreement.declined'                => __( 'Terms declined', 'affiliate-captain' ),
@@ -123,7 +139,7 @@ final class AuditPage {
 				'tier.month_recalculated'           => __( 'Bonus month recalculated', 'affiliate-captain' ),
 			);
 		}
-		return isset( $labels[ $action ] ) ? $labels[ $action ] : (string) $action;
+		return $labels;
 	}
 
 	/**
@@ -160,6 +176,7 @@ final class AuditPage {
 			'skipped'      => __( 'Skipped', 'affiliate-captain' ),
 			'period_end'   => __( 'Period end', 'affiliate-captain' ),
 			'currency'     => __( 'Currency', 'affiliate-captain' ),
+			'order'        => __( 'Order', 'affiliate-captain' ),
 		);
 		$status = \WPAffiliateCaptain\Affiliates\AffiliateRepository::status_labels();
 		$parts  = array();
@@ -187,20 +204,81 @@ final class AuditPage {
 	}
 
 	/**
+	 * Filters of the list from the request.
+	 *
+	 * @return array object_type, object_id, action, from, to, order.
+	 */
+	public static function filters() {
+		$date   = static function ( $v ) {
+			return preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $v ) ? (string) $v : '';
+		};
+		$action = (string) Admin::get( 'audit_action' );
+		return array(
+			'object_type' => sanitize_key( Admin::get( 'object_type' ) ),
+			'object_id'   => absint( Admin::get( 'object_id' ) ),
+			'action'      => preg_match( '/^[a-z_]+\.([a-z_]+)?$/', $action ) ? $action : '',
+			'from'        => $date( Admin::get( 'from' ) ),
+			'to'          => $date( Admin::get( 'to' ) ),
+			'order'       => ltrim( trim( sanitize_text_field( (string) Admin::get( 'order' ) ) ), '#' ),
+		);
+	}
+
+	/**
+	 * Choices of the action filter: each area ("commission.") and each known action.
+	 *
+	 * @return array value => label
+	 */
+	private static function action_choices() {
+		$out = array();
+		foreach ( self::known_actions() as $action ) {
+			$area = strstr( $action, '.', true ) . '.';
+			if ( ! isset( $out[ $area ] ) ) {
+				/* translators: %s: area key, e.g. commission */
+				$out[ $area ] = sprintf( __( 'All of "%s"', 'affiliate-captain' ), rtrim( $area, '.' ) );
+			}
+			$out[ $action ] = '— ' . self::action_label( $action );
+		}
+		return $out;
+	}
+
+	/**
+	 * Known action keys, sorted.
+	 *
+	 * @return string[]
+	 */
+	private static function known_actions() {
+		$keys = array();
+		foreach ( array_keys( self::labels() ) as $k ) {
+			$keys[] = (string) $k;
+		}
+		sort( $keys );
+		return $keys;
+	}
+
+	/**
 	 * Render.
 	 */
 	public static function render() {
-		$per  = 100;
-		$rows = Audit::query(
-			array(
-				'object_type' => sanitize_key( Admin::get( 'object_type' ) ),
-				'object_id'   => absint( Admin::get( 'object_id' ) ),
-				'limit'       => $per,
-				'offset'      => ( Admin::paged() - 1 ) * $per,
+		$per     = 100;
+		$filters = self::filters();
+		$rows    = Audit::query(
+			$filters + array(
+				'limit'  => $per,
+				'offset' => ( Admin::paged() - 1 ) * $per,
 			)
 		);
 		echo '<div class="wrap"><h1>' . esc_html__( 'Audit log', 'affiliate-captain' ) . '</h1>';
-		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac-audit"><label for="wpac-audit-type" class="screen-reader-text">' . esc_html__( 'Object type', 'affiliate-captain' ) . '</label><input type="text" id="wpac-audit-type" name="object_type" placeholder="' . esc_attr__( 'Object type', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'object_type' ) ) . '"> <label for="wpac-audit-id" class="screen-reader-text">ID</label><input type="number" id="wpac-audit-id" name="object_id" placeholder="ID" value="' . esc_attr( Admin::get( 'object_id' ) ) . '" class="small-text"> <button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button></form>';
+		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac-audit">';
+		echo '<label for="wpac-audit-order">' . esc_html__( 'Order', 'affiliate-captain' ) . '</label> <input type="text" id="wpac-audit-order" name="order" inputmode="numeric" class="small-text" value="' . esc_attr( $filters['order'] ) . '"> ';
+		echo '<label for="wpac-audit-action" class="screen-reader-text">' . esc_html__( 'Action', 'affiliate-captain' ) . '</label><select id="wpac-audit-action" name="audit_action"><option value="">' . esc_html__( 'All actions', 'affiliate-captain' ) . '</option>';
+		foreach ( self::action_choices() as $value => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $filters['action'], $value, false ), esc_html( $label ) );
+		}
+		echo '</select> ';
+		echo '<label for="wpac-audit-from">' . esc_html__( 'From', 'affiliate-captain' ) . '</label> <input type="date" id="wpac-audit-from" name="from" value="' . esc_attr( $filters['from'] ) . '"> ';
+		echo '<label for="wpac-audit-to">' . esc_html__( 'To', 'affiliate-captain' ) . '</label> <input type="date" id="wpac-audit-to" name="to" value="' . esc_attr( $filters['to'] ) . '"> ';
+		echo '<label for="wpac-audit-type" class="screen-reader-text">' . esc_html__( 'Object type', 'affiliate-captain' ) . '</label><input type="text" id="wpac-audit-type" name="object_type" placeholder="' . esc_attr__( 'Object type', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['object_type'] ) . '"> <label for="wpac-audit-id" class="screen-reader-text">ID</label><input type="number" id="wpac-audit-id" name="object_id" placeholder="ID" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" class="small-text"> <button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button></form>';
+		echo '<p class="description">' . esc_html__( 'Order: everything about one order (attribution, commissions, refunds, manual changes). Dates are UTC.', 'affiliate-captain' ) . '</p>';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'User', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Action', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Object', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Details', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $r ) {
 			$user = $r->actor_id ? get_userdata( (int) $r->actor_id ) : null;
@@ -216,6 +294,9 @@ final class AuditPage {
 			);
 		}
 		echo '</tbody></table>';
+		if ( ! $rows ) {
+			echo '<p>' . esc_html__( 'No entries match the filter.', 'affiliate-captain' ) . '</p>';
+		}
 		if ( count( $rows ) === $per ) {
 			echo '<p><a class="button" href="' . esc_url( add_query_arg( 'paged', Admin::paged() + 1 ) ) . '">' . esc_html__( 'Older entries', 'affiliate-captain' ) . '</a></p>';
 		}

@@ -1265,7 +1265,7 @@ final class PayoutService {
 	public static function paypal_csv_text( array $rows ) {
 		$fh = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Memory stream.
 		foreach ( $rows as $row ) {
-			fputcsv( $fh, array_map( array( \WPAffiliateCaptain\Core\Csv::class, 'safe_cell' ), array_values( (array) $row ) ), ',', '"', '\\' );
+			fputcsv( $fh, array_map( array( \WPAffiliateCaptain\Core\Csv::class, 'safe_cell' ), array_values( (array) $row ) ), ',', '"', '' );
 		}
 		rewind( $fh );
 		$csv = (string) stream_get_contents( $fh );

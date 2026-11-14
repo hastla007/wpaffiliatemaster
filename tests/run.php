@@ -526,5 +526,18 @@ $g9_svg = Qr::svg( 'https://example.test/?partner=A&b=1', 4, 4, 'QR "partner"' )
 check( 'R5-O39 QR SVG has role="img", aria-label and title (escaped)', array( true, true ), array( false !== strpos( $g9_svg, 'role="img" aria-label="QR &quot;partner&quot;"' ), false !== strpos( $g9_svg, '<title>QR &quot;partner&quot;</title>' ) ) );
 check( 'R5-O39 QR label defaults to the encoded text', true, false !== strpos( Qr::svg( 'AB&C' ), 'aria-label="AB&amp;C"' ) );
 
+/* R8 G7: CSV formula protection and import rates ------------------------------------------- */
+$g7_csv   = Csv::build( array( 'a', 'b' ), array( array( 'x\\";=HYPERLINK("http://evil")', 'ok' ) ) );
+$g7_lines = explode( "\n", trim( substr( $g7_csv, 3 ) ) );
+$g7_cells = str_getcsv( $g7_lines[1], ';', '"', '' );
+check( 'R6-QA10 backslash before a quote cannot end the cell (no formula cell)', array( 'x\\";=HYPERLINK("http://evil")', 'ok' ), $g7_cells );
+$g7_rate = static function ( $r, $t = '', $c = '' ) {
+	return \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( $r, $t, $c );
+};
+check( 'R6-QA11 "15 Euro", "15 eur", "15 Dollar" are fixed amounts', array( array( 'fixed', '15' ), array( 'fixed', '15' ), array( 'fixed', '15' ) ), array( $g7_rate( '15 Euro' ), $g7_rate( '15 eur' ), $g7_rate( '15 Dollar' ) ) );
+check( 'R6-QA11 "1.500 JPY" is 1500 yen (no decimals), "1.234,50 €" thousands', array( array( 'fixed', '1500' ), array( 'fixed', '1234.50' ) ), array( $g7_rate( '1.500 JPY', '', 'JPY' ), $g7_rate( '1.234,50 €', '', 'EUR' ) ) );
+check( 'R6-QA11 amount in another currency than the shop and unknown words are refused', array( null, null ), array( $g7_rate( '15 USD', '', 'EUR' ), $g7_rate( '15 Punkte' ) ) );
+check( 'R6-QA11 percentages unchanged', array( array( 'percent', '15' ), array( 'percent', '12.5' ) ), array( $g7_rate( '15' ), $g7_rate( '12,5 %' ) ) );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

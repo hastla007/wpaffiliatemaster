@@ -275,20 +275,32 @@ final class IntegrationsPage {
 			echo '<p>' . esc_html__( 'No open or failed jobs.', 'affiliate-captain' ) . '</p></div>';
 			return;
 		}
-		$failed = count( Jobs::query( 'failed' ) );
+		$failed = Jobs::count( 'failed' ); // All of them, not only the 100 listed.
 		if ( $failed ) {
 			Admin::form_open( 'job_retry_all' );
 			/* translators: %d: number */
 			echo '<p><button class="button button-primary">' . esc_html( sprintf( __( 'Retry all failed jobs (%d)', 'affiliate-captain' ), $failed ) ) . '</button></p></form>';
 		}
-		echo '<table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Type', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Key', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Attempts', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Error', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Next attempt', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Type', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Created', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Attempts', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Error', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Next attempt', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $jobs as $j ) {
 			$explain = self::job_error_label( (string) $j->last_error_code );
+			$order   = Jobs::order_of( $j );
+			$cell    = '<code>' . esc_html( $j->idempotency_key ) . '</code>';
+			if ( $order ) {
+				$edit = '';
+				if ( \WPAffiliateCaptain\Integrations\WooCommerce::SOURCE === $order[0] && ctype_digit( $order[1] ) && function_exists( 'wc_get_order' ) ) {
+					$wc   = wc_get_order( (int) $order[1] );
+					$edit = $wc ? (string) $wc->get_edit_order_url() : '';
+				}
+				$cell = ( '' !== $edit ? '<a href="' . esc_url( $edit ) . '">#' . esc_html( $order[1] ) . '</a>' : '#' . esc_html( $order[1] ) )
+					. ' <small>(<a href="' . esc_url( Admin::url( 'wpac-audit', array( 'order' => $order[1] ) ) ) . '">' . esc_html__( 'log', 'affiliate-captain' ) . '</a>)</small><br>' . $cell;
+			}
 			printf(
-				'<tr><td>%d</td><td>%s</td><td><code>%s</code></td><td>%s</td><td>%d</td><td>%s<br><small><code>%s</code> %s</small></td><td>%s</td><td>',
+				'<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s<br><small><code>%s</code> %s</small></td><td>%s</td><td>',
 				(int) $j->id,
 				esc_html( self::job_type_label( (string) $j->type ) ),
-				esc_html( $j->idempotency_key ),
+				$cell, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+				esc_html( Admin::date( $j->created_at, true ) ),
 				esc_html( self::job_status_label( (string) $j->status ) ),
 				(int) $j->attempts,
 				esc_html( '' !== $explain ? $explain : ( '' !== (string) $j->last_error_code ? __( 'Error while booking.', 'affiliate-captain' ) : '—' ) ),

@@ -69,34 +69,41 @@ final class ImportCommand {
 		}
 		$items = array();
 		foreach ( $report['rows'] as $line => $r ) {
-			if ( $r['errors'] ) {
+			$notes = array_merge( $r['notes'], isset( $r['warnings'] ) ? $r['warnings'] : array() );
+			if ( 'error' === $r['result'] ) {
 				$result = 'error: ' . implode( '; ', $r['errors'] );
+			} elseif ( 'skipped' === $r['result'] ) {
+				$result = 'skipped: ' . $r['skip'];
 			} elseif ( isset( $r['id'] ) ) {
 				$result = 'created #' . $r['id'];
 			} else {
-				$result = 'ok' . ( $r['notes'] ? ' (' . implode( '; ', $r['notes'] ) . ')' : '' );
+				$result = 'ok';
 			}
 			$items[] = array(
 				'line'   => $line,
 				'email'  => $r['data']['email'],
 				'status' => $r['data']['status'],
 				'codes'  => implode( ' ', $r['data']['codes'] ),
-				'result' => $result,
+				'result' => $result . ( $notes ? ' (' . implode( '; ', $notes ) . ')' : '' ),
 			);
 		}
 		\WP_CLI\Utils\format_items( isset( $assoc['format'] ) ? $assoc['format'] : 'table', $items, array( 'line', 'email', 'status', 'codes', 'result' ) );
 		if ( $report['unknown'] ) {
 			\WP_CLI::warning( 'Ignored columns: ' . implode( ', ', $report['unknown'] ) );
 		}
-		$ok = count( $report['rows'] ) - $report['failed'];
 		if ( $dry ) {
-			\WP_CLI::success( sprintf( 'Dry run: %d partners can be imported, %d rows have errors. Nothing was saved.', $ok, $report['failed'] ) );
+			$ok = count( $report['rows'] ) - $report['failed'] - $report['skipped'];
+			\WP_CLI::success( sprintf( 'Dry run: %d partners can be imported, %d already exist, %d rows have errors. Nothing was saved.', $ok, $report['skipped'], $report['failed'] ) );
 			return;
 		}
-		if ( $report['failed'] ) {
-			\WP_CLI::warning( sprintf( '%d partners created, %d rows skipped.', $report['created'], $report['failed'] ) );
+		$summary = sprintf( '%d partners created (%d with warnings), %d already existed, %d rows with errors.', $report['created'], $report['warnings'], $report['skipped'], $report['failed'] );
+		if ( ! $report['created'] && $report['failed'] ) {
+			\WP_CLI::error( $summary );
+		}
+		if ( $report['failed'] || $report['warnings'] ) {
+			\WP_CLI::warning( $summary );
 			return;
 		}
-		\WP_CLI::success( sprintf( '%d partners created.', $report['created'] ) );
+		\WP_CLI::success( $summary );
 	}
 }
