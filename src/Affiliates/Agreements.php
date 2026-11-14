@@ -214,9 +214,17 @@ final class Agreements {
 		if ( is_array( $state ) && (int) $state['started'] > time() - DAY_IN_SECONDS ) {
 			return new \WP_Error( 'wpac_rate_limited', __( 'Reminders were already sent in the last 24 hours. Please wait a day before asking again.', 'affiliate-captain' ) );
 		}
+		if ( Settings::get( 'maintenance_mode' ) ) {
+			// Would wait silently until maintenance ends (R5-O9).
+			return new \WP_Error( 'wpac_maintenance', __( 'Maintenance mode is on: no reminders are sent. Switch it off first (Settings → Data & maintenance).', 'affiliate-captain' ) );
+		}
 		list( $missing ) = self::missing_current();
 		if ( ! $missing ) {
 			return new \WP_Error( 'wpac_none', __( 'All active partners have accepted the current terms.', 'affiliate-captain' ) );
+		}
+		$missing = self::reminder_recipients( $missing );
+		if ( ! $missing ) {
+			return new \WP_Error( 'wpac_none', __( 'All partners without the current acceptance were reminded in the last 7 days, have restricted processing or no valid e-mail address – nobody is asked now.', 'affiliate-captain' ) );
 		}
 		update_option(
 			self::REMIND_OPTION,
@@ -235,6 +243,25 @@ final class Agreements {
 	}
 
 	/**
+	 * Partners of a list who really get a reminder now: not restricted, not reminded in the last
+	 * 7 days and with a valid e-mail address (the count shown before and after sending).
+	 *
+	 * @param int[] $ids Partners without the current acceptance.
+	 * @return int[]
+	 */
+	public static function reminder_recipients( array $ids ) {
+		$out = array();
+		AffiliateRepository::find_many( $ids );
+		foreach ( $ids as $id ) {
+			$aff = AffiliateRepository::find( (int) $id );
+			if ( $aff && is_email( $aff->email ) && ! \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $id ) && ! get_transient( 'wpac_terms_reminded_' . (int) $id ) ) {
+				$out[] = (int) $id;
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Send one batch of reminders and schedule the next.
 	 *
 	 * @param int $size Partners per batch.
@@ -245,9 +272,12 @@ final class Agreements {
 			return;
 		}
 		if ( Settings::get( 'maintenance_mode' ) ) {
-			Scheduler::once( self::REMIND_HOOK, HOUR_IN_SECONDS ); // Wait until maintenance ends.
+			Scheduler::once( self::REMIND_HOOK, HOUR_IN_SECONDS ); // Wait until maintenance ends (shown in the partner list).
+			$state['paused'] = time();
+			update_option( self::REMIND_OPTION, $state, false );
 			return;
 		}
+		unset( $state['paused'] );
 		list( $missing, $last ) = self::missing_current( (int) $state['cursor'], $size );
 		foreach ( $missing as $id ) {
 			if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( $id ) || get_transient( 'wpac_terms_reminded_' . $id ) ) {

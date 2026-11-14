@@ -271,7 +271,7 @@ final class Admin {
 					/* translators: 1: number, 2: partner IDs */
 					? sprintf( __( 'Affiliate Captain: the bank details of %1$d partners cannot be decrypted (partner IDs %2$s). They get no payouts until they enter them again.', 'affiliate-captain' ), (int) $migration['broken'], implode( ', ', array_map( 'intval', (array) $migration['broken_ids'] ) ) )
 					: __( 'Affiliate Captain: bank details or credit notes still need to be migrated (re-encryption or moving files).', 'affiliate-captain' );
-				echo '<div class="notice ' . ( ! empty( $migration['broken'] ) ? 'notice-error' : 'notice-warning' ) . '"><p>' . esc_html( $text ) . ' <a href="' . esc_url( self::url( 'wpac-integrations' ) ) . '">' . esc_html__( 'Open the integrations page', 'affiliate-captain' ) . '</a>' . ( empty( $migration['broken'] ) ? self::hide_link( 'migration', $state ) : '' ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hide_link() is escaped.
+				echo '<div class="notice ' . ( ! empty( $migration['broken'] ) ? 'notice-error' : 'notice-warning' ) . '"><p>' . esc_html( $text ) . ' <a href="' . esc_url( self::url( 'wpac-integrations', array( 'tab' => 'status' ) ) ) . '">' . esc_html__( 'Open the integrations page', 'affiliate-captain' ) . '</a>' . ( empty( $migration['broken'] ) ? self::hide_link( 'migration', $state ) : '' ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hide_link() is escaped.
 			}
 		}
 		\WPAffiliateCaptain\Core\Cron::schedule(); // Cheap; restores events lost e.g. after a migration.

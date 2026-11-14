@@ -256,7 +256,7 @@ final class DashboardPage {
 		}
 		if ( $failed ) {
 			/* translators: %d: count */
-			echo '<div class="notice notice-error inline"><p><a href="' . esc_url( Admin::url( 'wpac-integrations' ) ) . '">' . esc_html( sprintf( _n( '%d integration job failed', '%d integration jobs failed', $failed, 'affiliate-captain' ), $failed ) ) . '</a></p></div>';
+			echo '<div class="notice notice-error inline"><p><a href="' . esc_url( Admin::url( 'wpac-integrations', array( 'tab' => 'queue' ) ) ) . '">' . esc_html( sprintf( _n( '%d integration job failed', '%d integration jobs failed', $failed, 'affiliate-captain' ), $failed ) ) . '</a></p></div>';
 		}
 
 		if ( $unconverted ) {

@@ -670,12 +670,21 @@ final class AffiliateRepository {
 		}
 		$user = trim( (string) $user );
 		$wp   = ctype_digit( $user ) ? get_userdata( (int) $user ) : get_user_by( 'email', $user );
+		// Who may not see the user list gets one message for every reason: different messages would
+		// tell whether an account exists, which rights it has and which e-mail it uses (R5-O16).
+		// The error codes stay (callers, tests); only the text shown is the same.
+		$generic = ! current_user_can( 'list_users' );
+		$refuse  = static function ( $code, $message ) use ( $generic ) {
+			return $generic
+				? new \WP_Error( $code, __( 'This account cannot be linked. Only existing accounts without backend rights that are not linked to another partner (and, for partner managers, with the partner\'s e-mail address) can be linked. Ask an administrator if you are unsure.', 'affiliate-captain' ) )
+				: new \WP_Error( $code, $message );
+		};
 		if ( ! $wp ) {
-			return new \WP_Error( 'wpac_no_user', __( 'No WordPress user with this ID or e-mail address was found.', 'affiliate-captain' ) );
+			return $refuse( 'wpac_no_user', __( 'No WordPress user with this ID or e-mail address was found.', 'affiliate-captain' ) );
 		}
 		$problem = self::link_problem( $aff, $wp );
 		if ( '' !== $problem ) {
-			return new \WP_Error( 'wpac_link', $problem );
+			return $refuse( 'wpac_link', $problem );
 		}
 		// Whoever controls the linked account sees the partner area and can enter bank details:
 		// never one's own account, and an account with another e-mail address only with the
@@ -685,7 +694,7 @@ final class AffiliateRepository {
 		}
 		$same_email = strtolower( (string) $wp->user_email ) === strtolower( (string) $aff->email );
 		if ( ! $same_email && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
-			return new \WP_Error( 'wpac_link_email', __( 'The account\'s e-mail address differs from the partner\'s. Only program managers can link such an account; otherwise change the partner\'s e-mail address first.', 'affiliate-captain' ) );
+			return $refuse( 'wpac_link_email', __( 'The account\'s e-mail address differs from the partner\'s. Only program managers can link such an account; otherwise change the partner\'s e-mail address first.', 'affiliate-captain' ) );
 		}
 		$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'affiliates' ) . ' SET user_id = %d WHERE id = %d AND user_id = 0', (int) $wp->ID, (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		self::clear_cache( (int) $id );

@@ -79,7 +79,7 @@ final class AffiliatesPage {
 			case 'terms_remind':
 				$result = Agreements::start_reminders();
 				if ( is_wp_error( $result ) ) {
-					Admin::back( $result->get_error_message(), 'wpac_none' === $result->get_error_code() ? 'info' : 'error' );
+					Admin::back( $result->get_error_message(), in_array( $result->get_error_code(), array( 'wpac_none', 'wpac_maintenance' ), true ) ? 'info' : 'error' );
 				}
 				/* translators: %d: number of partners */
 				Admin::back( sprintf( _n( '%d partner without the current acceptance is asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', '%d partners without the current acceptance are asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', $result, 'affiliate-captain' ), $result ) );
@@ -801,14 +801,23 @@ final class AffiliatesPage {
 		echo '</p>';
 		if ( $state && empty( $state['done'] ) ) {
 			/* translators: 1: sent, 2: total */
-			echo '<p>' . esc_html( sprintf( __( 'Reminders are being sent: %1$d of %2$d.', 'affiliate-captain' ), (int) $state['sent'], (int) $state['total'] ) ) . '</p>';
+			echo '<p>' . esc_html( sprintf( __( 'Reminders are being sent: %1$d of %2$d.', 'affiliate-captain' ), (int) $state['sent'], (int) $state['total'] ) ) . ( ! empty( $state['paused'] ) ? ' ' . esc_html__( 'Paused while maintenance mode is on.', 'affiliate-captain' ) : '' ) . '</p>';
 		} else {
 			if ( $state && ! empty( $state['done'] ) ) {
 				/* translators: 1: date, 2: number */
-				echo '<p class="description">' . esc_html( sprintf( __( 'Last reminder on %1$s: %2$d e-mails sent.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), (int) $state['started'] ), (int) $state['sent'] ) ) . '</p>';
+				echo '<p class="description">' . esc_html( sprintf( _n( 'Last reminder on %1$s: %2$d e-mail sent.', 'Last reminder on %1$s: %2$d e-mails sent.', (int) $state['sent'], 'affiliate-captain' ), wp_date( get_option( 'date_format' ), (int) $state['started'] ), (int) $state['sent'] ) ) . '</p>';
 			}
-			Admin::form_open( 'terms_remind' );
-			echo '<p><button class="button" data-wpac-confirm="' . esc_attr__( 'Send an e-mail to every active partner without the current acceptance?', 'affiliate-captain' ) . '">' . esc_html__( 'Ask partners to accept the current terms', 'affiliate-captain' ) . '</button></p></form>';
+			$recipients = count( Agreements::reminder_recipients( $missing ) );
+			if ( $recipients ) {
+				Admin::form_open( 'terms_remind' );
+				/* translators: %d: number of partners */
+				echo '<p><button class="button" data-wpac-confirm="' . esc_attr( sprintf( _n( 'Send an e-mail to %d active partner without the current acceptance?', 'Send an e-mail to %d active partners without the current acceptance?', $recipients, 'affiliate-captain' ), $recipients ) ) . '">' . esc_html__( 'Ask partners to accept the current terms', 'affiliate-captain' ) . '</button>';
+				if ( $recipients < count( $missing ) ) {
+					/* translators: %d: number of partners */
+					echo ' <span class="description">' . esc_html( sprintf( _n( '%d partner is left out (reminded in the last 7 days, restricted or without a valid e-mail address).', '%d partners are left out (reminded in the last 7 days, restricted or without a valid e-mail address).', count( $missing ) - $recipients, 'affiliate-captain' ), count( $missing ) - $recipients ) ) . '</span>';
+				}
+				echo '</p></form>';
+			}
 		}
 		echo '</div>';
 	}
