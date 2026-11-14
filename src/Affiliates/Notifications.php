@@ -502,16 +502,10 @@ final class Notifications {
 	 * @return bool Whether switched (pass to Locale::restore()).
 	 */
 	public static function switch_for_admin() {
-		$locale = '';
-		$user   = function_exists( 'get_user_by' ) ? get_user_by( 'email', self::admin_email() ) : false;
-		if ( $user && function_exists( 'get_user_locale' ) ) {
-			$locale = (string) get_user_locale( $user );
-		}
-		if ( '' === $locale ) {
-			$locale = (string) get_option( 'WPLANG' );
-			$locale = '' !== $locale ? $locale : 'en_US';
-		}
-		return Locale::switch_to( $locale );
+		$user = function_exists( 'get_user_by' ) ? get_user_by( 'email', self::admin_email() ) : false;
+		// An account without its own language follows the site language (get_user_locale() would
+		// return the language of the current request with WPML/Polylang).
+		return Locale::switch_to( $user && ! empty( $user->locale ) ? (string) $user->locale : Locale::site() );
 	}
 
 	/**

@@ -311,7 +311,7 @@ final class PayoutService {
 		$name = (string) Settings::get( 'debtor_name' );
 		// Language and date format of the document are frozen too: a credit note is always
 		// written in the site language, whoever triggers it (and can be built again identically).
-		$locale = function_exists( 'get_locale' ) ? (string) get_locale() : 'en_US';
+		$locale = \WPAffiliateCaptain\Core\Locale::site();
 		return array(
 			'name'       => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'address'    => (string) Settings::get( 'operator_address' ),

@@ -33,7 +33,7 @@ Kostenlos und vollständig: Das Plugin enthält keine Lizenzprüfung und keine g
    ```
    Ohne diesen Schlüssel wird er aus den WordPress-Salts abgeleitet – ein Salt-Wechsel macht gespeicherte Bankdaten dann unlesbar.
 8. Seiten-Caches: Seiten mit Bewerbungsformular oder Partner-Begrüßung (Shortcode oder Block im Seiteninhalt) und Links mit Partnerparameter werden vor der Ausgabe als nicht cachebar markiert (`DONOTCACHEPAGE` + `Cache-Control: no-cache`; mit „Partnerlinks per JavaScript erfassen“ bleiben Partnerlink-Seiten für Gäste cachebar, der Beacon erfasst sie). Steht ein Formular oder die Begrüßung nur in einem Widget/Theme-Template oder ignoriert der Cache/CDN diese Header, die Seiten im Cache-Plugin bzw. CDN ausschließen. „JavaScript verzögern/kombinieren“: das Skript-Handle `wpac-beacon` (Partnerlinks per JavaScript) vom Verzögern ausnehmen; das Skript ist auf allen Seiten gleich, seitenbezogene Werte stehen in `<script type="application/json" id="wpac-beacon-data">`.
-9. Mehrsprachig (WPML/Polylang): Landingpage-, Partnerbereich- und Bewerbungslinks werden auf die Übersetzung der Seite umgestellt; E-Mails an Partner gehen in der Sprache ihres WordPress-Kontos, sonst in der Website-Sprache.
+9. Mehrsprachig (WPML/Polylang): Landingpage-, Partnerbereich- und Bewerbungslinks werden auf die Übersetzung der Seite umgestellt; E-Mails an Partner gehen in der Sprache ihres WordPress-Kontos, sonst in der Website-Sprache (mit WPML/Polylang die Standardsprache, nicht die Sprache der gerade aufgerufenen Seite); Gutschriften ebenso in der Standardsprache.
 
 ## Ablauf
 

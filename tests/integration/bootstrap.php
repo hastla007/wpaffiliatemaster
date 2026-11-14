@@ -325,8 +325,12 @@ if ( ! function_exists( 'get_the_ID' ) ) {
 	function get_the_ID() { return $GLOBALS['test_the_id'] ?? 0; }
 }
 
-// Partner terms page (self-billing needs one); everything else has no posts.
+// Partner terms page (self-billing needs one); everything else has no posts unless a test puts
+// some into $GLOBALS['test_posts'] (ID => object).
 function get_post( $id ) {
+	if ( isset( $GLOBALS['test_posts'][ (int) $id ] ) ) {
+		return $GLOBALS['test_posts'][ (int) $id ];
+	}
 	if ( 900 === (int) $id ) {
 		return (object) array( 'ID' => 900, 'post_title' => 'Partner-AGB', 'post_content' => 'Gutschriftverfahren vereinbart.', 'post_status' => 'publish', 'post_password' => '', 'post_author' => 1 );
 	}
