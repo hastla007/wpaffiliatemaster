@@ -214,10 +214,15 @@ final class Reports {
 	/**
 	 * Report by a visit/attribution dimension.
 	 *
+	 * Campaign names are chosen by each partner (utm_campaign), so campaigns are reported per
+	 * partner: "summer" of partner A and "summer" of partner B are two rows. Content (the post
+	 * or page where the link landed) belongs to the shop and is summed over all partners.
+	 *
 	 * @param string $dimension content_id|campaign.
 	 * @param string $from      Y-m-d.
 	 * @param string $to        Y-m-d.
-	 * @return array
+	 * @return array Rows with key, label, affiliate_id and partner (campaign only; 0/'' for
+	 *               content), visits, partners, orders, revenue, commission, conversion.
 	 */
 	public static function by_dimension( $dimension, $from, $to ) {
 		global $wpdb;
@@ -227,44 +232,60 @@ final class Reports {
 		$at                = Db::table( 'attributions' );
 		$c                 = Db::table( 'commissions' );
 		list( $start, $end ) = Db::local_range( $from, $to );
+		// Per partner for campaigns (constant fragments, no input).
+		$aid_v = 'campaign' === $dim ? 'affiliate_id' : '0';
+		$aid_a = 'campaign' === $dim ? 'a.affiliate_id' : '0';
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT {$dim} k, COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE created_at BETWEEN %s AND %s GROUP BY k", $start, $end ), OBJECT_K );
+		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT {$aid_v} aid, {$dim} k, COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE created_at BETWEEN %s AND %s GROUP BY aid, k", $start, $end ) );
 		$sales  = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT a.{$dim} k, c.currency, COUNT(DISTINCT a.id) orders,
+				"SELECT {$aid_a} aid, a.{$dim} k, c.currency, COUNT(DISTINCT a.id) orders,
 					SUM(CASE WHEN c.kind = 'sale' THEN c.base_minor ELSE 0 END) revenue,
 					SUM(COALESCE(c.amount_minor,0)) commission
-				FROM {$at} a LEFT JOIN {$c} c ON c.source = a.source AND c.source_order_id = a.source_order_id AND c.status <> 'rejected' AND c.kind <> 'bonus'
-				WHERE a.created_at BETWEEN %s AND %s GROUP BY k, c.currency",
+				FROM {$at} a LEFT JOIN {$c} c ON c.source = a.source AND c.source_order_id = a.source_order_id AND c.affiliate_id = a.affiliate_id AND c.status <> 'rejected' AND c.kind <> 'bonus'
+				WHERE a.created_at BETWEEN %s AND %s GROUP BY aid, k, c.currency",
 				$start,
 				$end
 			)
 		);
 		// phpcs:enable
 		$rows = array();
-		$init = static function ( $k ) {
+		$init = static function ( $aid, $k ) {
 			return array(
-				'key'        => (string) $k,
-				'visits'     => 0,
-				'partners'   => 0,
-				'orders'     => 0,
-				'revenue'    => 0,
-				'commission' => 0,
+				'key'          => (string) $k,
+				'affiliate_id' => (int) $aid,
+				'partner'      => '',
+				'visits'       => 0,
+				'partners'     => 0,
+				'orders'       => 0,
+				'revenue'      => 0,
+				'commission'   => 0,
 			);
 		};
-		foreach ( $visits as $k => $r ) {
-			$rows[ $k ]             = $init( $k );
-			$rows[ $k ]['visits']   = (int) $r->n;
-			$rows[ $k ]['partners'] = (int) $r->partners;
+		foreach ( (array) $visits as $r ) {
+			$id                     = (int) $r->aid . "\n" . $r->k;
+			$rows[ $id ]             = $init( $r->aid, $r->k );
+			$rows[ $id ]['visits']   = (int) $r->n;
+			$rows[ $id ]['partners'] = (int) $r->partners;
 		}
-		foreach ( $sales as $s ) {
-			$k = (string) $s->k;
-			if ( ! isset( $rows[ $k ] ) ) {
-				$rows[ $k ] = $init( $k );
+		foreach ( (array) $sales as $s ) {
+			$id = (int) $s->aid . "\n" . $s->k;
+			if ( ! isset( $rows[ $id ] ) ) {
+				$rows[ $id ] = $init( $s->aid, $s->k );
 			}
-			$rows[ $k ]['orders'] += (int) $s->orders;
-			self::add( $rows[ $k ], 'revenue', (int) $s->revenue, $s->currency );
-			self::add( $rows[ $k ], 'commission', (int) $s->commission, $s->currency );
+			$rows[ $id ]['orders'] += (int) $s->orders;
+			self::add( $rows[ $id ], 'revenue', (int) $s->revenue, $s->currency );
+			self::add( $rows[ $id ], 'commission', (int) $s->commission, $s->currency );
+		}
+		if ( 'campaign' === $dim ) {
+			// One query for all partner names.
+			AffiliateRepository::find_many( array_column( $rows, 'affiliate_id' ) );
+			foreach ( $rows as &$r ) {
+				$aff           = AffiliateRepository::find( $r['affiliate_id'] );
+				$r['partner']  = $aff ? (string) $aff->name : '#' . $r['affiliate_id'];
+				$r['partners'] = 1;
+			}
+			unset( $r );
 		}
 		if ( 'content_id' === $dim && function_exists( '_prime_post_caches' ) ) {
 			// One query for all titles instead of one per row.

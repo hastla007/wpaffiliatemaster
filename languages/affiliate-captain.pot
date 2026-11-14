@@ -237,6 +237,11 @@ msgstr ""
 msgid "Unknown action."
 msgstr ""
 
+#. translators: %s: technical reason
+#: src/Admin/Admin.php
+msgid "A change could not be saved because of a database error and was not applied. Please check and try again. (%s)"
+msgstr ""
+
 #: src/Admin/Admin.php
 msgid "Done."
 msgstr ""
@@ -448,7 +453,7 @@ msgstr ""
 msgid "Search partners"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Payouts/ProfileRepository.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Name / company"
 msgstr ""
 
@@ -456,11 +461,11 @@ msgstr ""
 msgid "E-mail"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Website"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Privacy/Privacy.php
 msgid "Channel"
 msgstr ""
 
@@ -618,7 +623,7 @@ msgstr ""
 msgid "— default —"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Privacy/Privacy.php
 msgid "Welcome message on landing page"
 msgstr ""
 
@@ -2027,11 +2032,11 @@ msgstr ""
 msgid "Add creative"
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php
+#: src/Admin/Pages/CreativesPage.php src/Promotion/Creatives.php
 msgid "Title"
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php src/Portal/Portal.php
+#: src/Admin/Pages/CreativesPage.php src/Portal/Portal.php src/Promotion/Creatives.php
 msgid "Text"
 msgstr ""
 
@@ -2059,11 +2064,11 @@ msgstr ""
 msgid "Remove image"
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php
+#: src/Admin/Pages/CreativesPage.php src/Promotion/Creatives.php
 msgid "Target page"
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php
+#: src/Admin/Pages/CreativesPage.php src/Promotion/Creatives.php
 msgid "Disclosure note"
 msgstr ""
 
@@ -2308,6 +2313,10 @@ msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
 msgid "Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Campaign names are set by each partner, so the campaigns of each partner are listed separately."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php src/Reports/MonthlyMail.php
@@ -4495,6 +4504,15 @@ msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
 msgid "The affiliate could not be saved."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "The partner data could not be saved. Please try again; the previous data are unchanged."
+msgstr ""
+
+#. translators: 1: field, 2: number of characters
+#: src/Affiliates/AffiliateRepository.php src/Promotion/Creatives.php
+msgid "%1$s is too long (at most %2$d characters). Nothing was changed."
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
@@ -7167,6 +7185,10 @@ msgid "The payout request could not be created."
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Your details could not be saved."
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Thank you for accepting the terms."
 msgstr ""
 
@@ -8184,6 +8206,10 @@ msgstr ""
 
 #: src/Promotion/Creatives.php
 msgid "The target page must be on this website."
+msgstr ""
+
+#: src/Promotion/Creatives.php
+msgid "The draft could not be saved. Please try again; nothing was changed."
 msgstr ""
 
 #: src/Promotion/Creatives.php

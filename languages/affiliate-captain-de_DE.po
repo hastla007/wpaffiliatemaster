@@ -176,6 +176,9 @@ msgstr "Sie dürfen diese Aktion nicht ausführen."
 msgid "Unknown action."
 msgstr "Unbekannte Aktion."
 
+msgid "A change could not be saved because of a database error and was not applied. Please check and try again. (%s)"
+msgstr "Eine Änderung konnte wegen eines Datenbankfehlers nicht gespeichert werden und wurde nicht übernommen. Bitte prüfen Sie es und versuchen Sie es erneut. (%s)"
+
 msgid "Done."
 msgstr "Erledigt."
 
@@ -1706,6 +1709,9 @@ msgstr "Keine Aktivität in diesem Zeitraum."
 
 msgid "Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution."
 msgstr "Inhalt = der Beitrag bzw. die Seite, auf der der Partnerlink gelandet ist. Bestellungen werden dem Inhalt bzw. der Kampagne ihrer Zuordnung zugerechnet."
+
+msgid "Campaign names are set by each partner, so the campaigns of each partner are listed separately."
+msgstr "Kampagnennamen legt jeder Partner selbst fest, daher werden die Kampagnen jedes Partners getrennt aufgeführt."
 
 msgid "Monthly bonuses"
 msgstr "Monatsboni"
@@ -3312,6 +3318,12 @@ msgstr "Mit dieser E-Mail-Adresse existiert bereits ein Partnerkonto."
 
 msgid "The affiliate could not be saved."
 msgstr "Der Partner konnte nicht gespeichert werden."
+
+msgid "The partner data could not be saved. Please try again; the previous data are unchanged."
+msgstr "Die Partnerdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut; die bisherigen Daten sind unverändert."
+
+msgid "%1$s is too long (at most %2$d characters). Nothing was changed."
+msgstr "%1$s ist zu lang (höchstens %2$d Zeichen). Es wurde nichts geändert."
 
 msgid "This e-mail address is already used by another partner account."
 msgstr "Diese E-Mail-Adresse wird bereits von einem anderen Partnerkonto verwendet."
@@ -5187,6 +5199,9 @@ msgstr "Ihr Auszahlungsantrag wurde gesendet."
 msgid "The payout request could not be created."
 msgstr "Der Auszahlungsantrag konnte nicht erstellt werden."
 
+msgid "Your details could not be saved."
+msgstr "Ihre Angaben konnten nicht gespeichert werden."
+
 msgid "Thank you for accepting the terms."
 msgstr "Vielen Dank für die Annahme der Bedingungen."
 
@@ -5933,6 +5948,9 @@ msgstr "Bitte geben Sie den Text ein."
 
 msgid "The target page must be on this website."
 msgstr "Die Zielseite muss auf dieser Website liegen."
+
+msgid "The draft could not be saved. Please try again; nothing was changed."
+msgstr "Der Entwurf konnte nicht gespeichert werden. Bitte versuchen Sie es erneut; es wurde nichts geändert."
 
 msgid "Only drafts can be approved."
 msgstr "Nur Entwürfe können freigegeben werden."

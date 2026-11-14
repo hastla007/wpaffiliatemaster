@@ -226,6 +226,18 @@ final class Db {
 	}
 
 	/**
+	 * Whether a text is longer than a column holds (in characters, as Db::cut() counts). wpdb
+	 * refuses the whole INSERT/UPDATE for such a value, so check user input before writing.
+	 *
+	 * @param string $value Text.
+	 * @param int    $max   Max characters.
+	 * @return bool
+	 */
+	public static function too_long( $value, $max ) {
+		return self::cut( (string) $value, $max ) !== (string) $value;
+	}
+
+	/**
 	 * Run a callback after the current transaction was committed (right away outside a
 	 * transaction). Dropped when the transaction is rolled back. For notifications and other
 	 * side effects that must not happen for a booking that is rolled back.

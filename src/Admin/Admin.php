@@ -711,7 +711,13 @@ final class Admin {
 		if ( ! current_user_can( $cap ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'affiliate-captain' ), 403 );
 		}
-		call_user_func( array( $class, 'handle' ), $do );
+		try {
+			call_user_func( array( $class, 'handle' ), $do );
+		} catch ( \WPAffiliateCaptain\Core\IntegrationException $e ) {
+			// A booking the database refused was rolled back: an error notice, never "saved".
+			/* translators: %s: technical reason */
+			self::back( sprintf( __( 'A change could not be saved because of a database error and was not applied. Please check and try again. (%s)', 'affiliate-captain' ), wp_specialchars_decode( $e->getMessage(), ENT_QUOTES ) ), 'error' );
+		}
 		self::back( __( 'Done.', 'affiliate-captain' ) );
 	}
 

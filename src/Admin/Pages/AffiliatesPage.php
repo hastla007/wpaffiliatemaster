@@ -95,7 +95,7 @@ final class AffiliatesPage {
 				break;
 
 			case 'affiliate_update':
-				AffiliateRepository::update(
+				$saved = AffiliateRepository::update(
 					$id,
 					array(
 						'name'     => Admin::post( 'name' ),
@@ -107,6 +107,9 @@ final class AffiliatesPage {
 						'landing_message' => (string) Admin::post( 'landing_message' ),
 					)
 				);
+				if ( is_wp_error( $saved ) ) {
+					Admin::back( $saved->get_error_message(), 'error' );
+				}
 				$email = sanitize_email( (string) Admin::post( 'email' ) );
 				$cur   = AffiliateRepository::find( $id );
 				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) ) {
@@ -159,7 +162,10 @@ final class AffiliatesPage {
 				break;
 
 			case 'public_change':
-				AffiliateRepository::resolve_public_change( $id, 'approve' === sanitize_key( Admin::post( 'decision' ) ) );
+				$resolved = AffiliateRepository::resolve_public_change( $id, 'approve' === sanitize_key( Admin::post( 'decision' ) ) );
+				if ( is_wp_error( $resolved ) ) {
+					Admin::back( $resolved->get_error_message(), 'error' );
+				}
 				Admin::back( __( 'Decision saved; the partner was informed.', 'affiliate-captain' ) );
 				break;
 
@@ -517,14 +523,14 @@ final class AffiliatesPage {
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Profile', 'affiliate-captain' ) . '</h2><div class="inside">';
 		Admin::form_open( 'affiliate_update' );
 		echo '<input type="hidden" name="id" value="' . (int) $id . '"><table class="form-table">';
-		self::row_input( 'name', __( 'Name / company', 'affiliate-captain' ), $a->name );
+		self::row_input( 'name', __( 'Name / company', 'affiliate-captain' ), $a->name, 'maxlength="190"' );
 		echo '<tr><th><label for="wpac-email">' . esc_html__( 'E-mail', 'affiliate-captain' ) . '</label></th><td><input type="email" id="wpac-email" name="email" class="regular-text" value="' . esc_attr( $a->email ) . '">' . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'affiliate-captain' ) . '</a>' : '' ) . '</td></tr>';
 		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
 			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html__( 'No WordPress user is linked: the partner cannot log in to the partner area yet. See "Partner area access" on the overview tab.', 'affiliate-captain' ) . '</p></div></td></tr>';
 		}
 		self::row_input( 'slug', __( 'Vanity slug', 'affiliate-captain' ), $a->slug );
-		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $a->website, 'type="url"' );
-		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $a->channel );
+		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $a->website, 'type="url" maxlength="255"' );
+		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $a->channel, 'maxlength="255"' );
 		self::row_group( (int) $a->group_id );
 		echo '<tr><th><label for="wpac-landing_page_id">' . esc_html__( 'Landing page', 'affiliate-captain' ) . '</label></th><td>';
 		wp_dropdown_pages(
@@ -537,7 +543,7 @@ final class AffiliatesPage {
 			)
 		);
 		echo '<p class="description">' . esc_html( \WPAffiliateCaptain\Promotion\Landing::url( $a ) ) . '</p></td></tr>';
-		echo '<tr><th><label for="wpac-landing_message">' . esc_html__( 'Welcome message on landing page', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-landing_message" name="landing_message" rows="3" class="large-text">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'affiliate-captain' ) . '</p></td></tr>';
+		echo '<tr><th><label for="wpac-landing_message">' . esc_html__( 'Welcome message on landing page', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-landing_message" name="landing_message" rows="3" class="large-text" maxlength="' . (int) AffiliateRepository::LANDING_MESSAGE_MAX . '">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'affiliate-captain' ) . '</p></td></tr>';
 		echo '</table>';
 		submit_button( __( 'Save', 'affiliate-captain' ), 'secondary' );
 		echo '</form></div></div>';
