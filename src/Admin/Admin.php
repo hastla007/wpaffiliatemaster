@@ -42,10 +42,11 @@ final class Admin {
 	}
 
 	public static function menu() {
-		add_menu_page( __( 'Affiliate Captain', 'affiliate-captain' ), __( 'Affiliate Captain', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ), 'dashicons-groups', 56 );
+		$bubble = self::review_bubble( \WPAffiliateCaptain\Commissions\ReviewAlert::count_for_user() );
+		add_menu_page( __( 'Affiliate Captain', 'affiliate-captain' ), __( 'Affiliate Captain', 'affiliate-captain' ) . $bubble, Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ), 'dashicons-groups', 56 );
 		$dashboard = add_submenu_page( 'wpac', __( 'Dashboard', 'affiliate-captain' ), __( 'Dashboard', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ) );
 		$partners = add_submenu_page( 'wpac', __( 'Partners', 'affiliate-captain' ), __( 'Partners', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-affiliates', array( AffiliatesPage::class, 'render' ) );
-		$ledger   = add_submenu_page( 'wpac', __( 'Commissions', 'affiliate-captain' ), __( 'Commissions', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
+		$ledger   = add_submenu_page( 'wpac', __( 'Commissions', 'affiliate-captain' ), __( 'Commissions', 'affiliate-captain' ) . $bubble, Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
 		// List table bulk actions are processed before any output (then redirected).
 		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
 		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
@@ -69,6 +70,22 @@ final class Admin {
 		 * @param string $parent Parent menu slug.
 		 */
 		do_action( 'wpac_admin_menu', 'wpac' );
+	}
+
+	/**
+	 * Count bubble (WordPress "awaiting-mod" markup) for commissions that need review (R5-W58).
+	 *
+	 * @param int $count Commissions waiting for review.
+	 * @return string HTML ('' when there are none).
+	 */
+	public static function review_bubble( $count ) {
+		$count = (int) $count;
+		if ( $count < 1 ) {
+			return '';
+		}
+		/* translators: %d: number of commissions */
+		$label = sprintf( _n( '%d commission needs review', '%d commissions need review', $count, 'affiliate-captain' ), $count );
+		return ' <span class="awaiting-mod count-' . $count . '"><span class="pending-count" aria-hidden="true">' . esc_html( number_format_i18n( $count ) ) . '</span><span class="screen-reader-text">' . esc_html( $label ) . '</span></span>';
 	}
 
 	/**

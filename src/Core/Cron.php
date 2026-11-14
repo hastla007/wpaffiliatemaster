@@ -110,6 +110,7 @@ final class Cron {
 			'jobs'       => array( Jobs::class, 'run_due' ),
 			'approve'    => array( Ledger::class, 'approve_due' ),
 			'statements' => array( '\WPAffiliateCaptain\Payouts\PayoutService', 'generate_missing_statements' ),
+			'review'     => array( '\WPAffiliateCaptain\Commissions\ReviewAlert', 'digest' ),
 		) as $key => $step ) {
 			self::run_step( 'hourly.' . $key, $step );
 		}

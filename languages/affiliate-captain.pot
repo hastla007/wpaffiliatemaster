@@ -9,6 +9,13 @@ msgstr ""
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 "X-Domain: affiliate-captain\n"
 
+#. translators: %d: number of commissions
+#: src/Admin/Admin.php
+msgid "%d commission needs review"
+msgid_plural "%d commissions need review"
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: number
 #: src/Admin/Admin.php
 msgid "Affiliate Captain: %d credit note could not be written (statement folder not writable?). It is tried again with increasing pauses."
@@ -2085,6 +2092,13 @@ msgstr[1] ""
 
 #. translators: %d: count
 #: src/Admin/Pages/DashboardPage.php
+msgid "%d commission needs review. It is not approved automatically."
+msgid_plural "%d commissions need review. They are not approved automatically."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: count
+#: src/Admin/Pages/DashboardPage.php
 msgid "%d integration job failed"
 msgid_plural "%d integration jobs failed"
 msgstr[0] ""
@@ -2217,6 +2231,10 @@ msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
 msgid "Creates \"Become a partner\", \"Partner area\" and a landing page with the matching blocks, and a draft of the partner terms from a template (review it with your legal advisor, then publish it)."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Review commissions"
 msgstr ""
 
 #. translators: %s: currencies
@@ -3884,6 +3902,10 @@ msgid "E-mail to partners about new, approved and rejected commissions"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "E-mail to the operator when commissions need review"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Show partner code field at checkout (classic + blocks)"
 msgstr ""
 
@@ -4094,6 +4116,14 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Notices to the operator"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5301,6 +5331,35 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "The booking could not be saved (database error). Please try again."
+msgstr ""
+
+#. translators: 1: site name, 2: number of commissions
+#: src/Commissions/ReviewAlert.php
+msgid "[%1$s] %2$d commission needs review"
+msgid_plural "[%1$s] %2$d commissions need review"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of commissions
+#: src/Commissions/ReviewAlert.php
+msgid "%d commission entered \"Needs review\" since the last notice."
+msgid_plural "%d commissions entered \"Needs review\" since the last notice."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of commissions
+#: src/Commissions/ReviewAlert.php
+msgid "In total %d commission is waiting for your decision. It is not approved automatically."
+msgid_plural "In total %d commissions are waiting for your decision. They are not approved automatically."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Commissions/ReviewAlert.php
+msgid "Review now:"
+msgstr ""
+
+#: src/Commissions/ReviewAlert.php
+msgid "You receive at most one such e-mail per hour. Switch it off under Settings > E-mails."
 msgstr ""
 
 #: src/Commissions/RuleRepository.php
