@@ -117,6 +117,11 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 = 0.11.0 =
 Renamed to "Affiliate Captain" (folder and text domain "affiliate-captain"); expert review rounds 5 to 7 (money, VAT, privacy, tracking, operations, partner area); database schema 11:
+* Fixed: saving a partner, a public name/website change, a creative draft or a commission event now reports an error (and rolls the booking back) instead of claiming success when a value is too long or the database refuses it
+* Admin: count bubble and dashboard notice for commissions that need review; optional hourly digest e-mail to the operator (off by default)
+* Reports: the admin campaign report lists each partner's campaigns separately instead of adding up same-named campaigns
+* Fixed: with WPML/Polylang, mails to partners without their own language, mails to the operator and credit notes use the site's default language instead of the current request's language
+* New filter wpac_uninstall_time_budget for network uninstalls
 * Money: a partial refund before booking a previously failed sale is no longer deducted twice; tax-only refunds no longer cause a fatal error; a fully refunded order that is completed later no longer restores the full commission
 * Money: trashing or deleting an order reverses its commission, restoring it reinstates it; line items lowered after payment are corrected; commissions of orders on hold or in a chargeback dispute are not released
 * Money: amount refunds are spread net over the line items; negative fees and redeemed gift cards reduce the base, gift card purchases earn no commission, bundles count as one line; the commission base is capped at the order total
