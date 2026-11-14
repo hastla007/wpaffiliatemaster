@@ -311,12 +311,16 @@ final class CodeRepository {
 	 *
 	 * @param int    $id     Code.
 	 * @param string $coupon Coupon code.
+	 * @return bool Whether the link was saved.
 	 */
 	public static function set_coupon( $id, $coupon ) {
 		global $wpdb;
 		$coupon = self::normalize_coupon( sanitize_text_field( $coupon ) );
-		$wpdb->update( Db::table( 'partner_codes' ), array( 'coupon_code' => $coupon ), array( 'id' => (int) $id ) );
+		if ( false === $wpdb->update( Db::table( 'partner_codes' ), array( 'coupon_code' => $coupon ), array( 'id' => (int) $id ) ) ) {
+			return false;
+		}
 		Audit::log( 'code.coupon_linked', 'code', (int) $id, array( 'coupon' => $coupon ) );
+		return true;
 	}
 
 	/**

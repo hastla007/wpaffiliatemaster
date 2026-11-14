@@ -286,6 +286,12 @@ msgstr "Code aktualisiert."
 msgid "Coupon link updated."
 msgstr "Gutschein-Verknüpfung aktualisiert."
 
+msgid "Coupon \"%s\" created in WooCommerce and linked to the partner."
+msgstr "Gutschein „%s“ wurde in WooCommerce angelegt und mit dem Partner verknüpft."
+
+msgid "Edit coupon"
+msgstr "Gutschein bearbeiten"
+
 msgid "The VAT ID could not be checked (the VIES check may be switched off in the settings)."
 msgstr "Die USt-IdNr. konnte nicht geprüft werden (die VIES-Prüfung ist möglicherweise in den Einstellungen abgeschaltet)."
 
@@ -327,6 +333,75 @@ msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
 
 msgid "Payout details saved."
 msgstr "Auszahlungsdaten gespeichert."
+
+msgid "Create coupon for partner"
+msgstr "Gutschein für Partner anlegen"
+
+msgid "WooCommerce is not active, so no coupon can be created here. You can still link an existing coupon code to a partner code above."
+msgstr "WooCommerce ist nicht aktiv, daher kann hier kein Gutschein angelegt werden. Sie können oben weiterhin einen vorhandenen Gutscheincode mit einem Partnercode verknüpfen."
+
+msgid "You are not allowed to create WooCommerce coupons."
+msgstr "Sie dürfen keine WooCommerce-Gutscheine anlegen."
+
+msgid "Coupons can only be created for active partners (not paused, terminated or restricted)."
+msgstr "Gutscheine können nur für aktive Partner angelegt werden (nicht pausiert, gekündigt oder eingeschränkt)."
+
+msgid "Create coupon"
+msgstr "Gutschein anlegen"
+
+msgid "Creates a new WooCommerce coupon with the values of the partner coupon template (Settings → Promotion) and links it to a partner code: orders with the coupon are credited to this partner. You can change every value for this coupon."
+msgstr "Legt einen neuen WooCommerce-Gutschein mit den Werten der Partnergutschein-Vorlage (Einstellungen → Werbung) an und verknüpft ihn mit einem Partnercode: Bestellungen mit dem Gutschein werden diesem Partner gutgeschrieben. Sie können jeden Wert für diesen Gutschein ändern."
+
+msgid "Coupon code"
+msgstr "Gutscheincode"
+
+msgid "Suggested: the partner code. Must not be used by another coupon yet."
+msgstr "Vorschlag: der Partnercode. Darf noch von keinem anderen Gutschein verwendet werden."
+
+msgid "Link to partner code"
+msgstr "Mit Partnercode verknüpfen"
+
+msgid "New partner code (from the coupon code)"
+msgstr "Neuer Partnercode (aus dem Gutscheincode)"
+
+msgid "Discount type"
+msgstr "Rabattart"
+
+msgid "Percent or %s, depending on the discount type"
+msgstr "Prozent oder %s, je nach Rabattart"
+
+msgid "Discount"
+msgstr "Rabatt"
+
+msgid "Minimum spend"
+msgstr "Mindestbestellwert"
+
+msgid "Empty = no minimum."
+msgstr "Leer = kein Mindestbestellwert."
+
+msgid "Uses per customer"
+msgstr "Nutzungen pro Kunde"
+
+msgid "0 = unlimited"
+msgstr "0 = unbegrenzt"
+
+msgid "Valid for (days)"
+msgstr "Gültig für (Tage)"
+
+msgid "0 = no expiry date"
+msgstr "0 = kein Ablaufdatum"
+
+msgid "Restrictions"
+msgstr "Einschränkungen"
+
+msgid "Individual use only (not combinable with other coupons)"
+msgstr "Nur einzeln verwendbar (nicht mit anderen Gutscheinen kombinierbar)"
+
+msgid "Free shipping"
+msgstr "Kostenloser Versand"
+
+msgid "Exclude sale items"
+msgstr "Reduzierte Artikel ausschließen"
 
 msgid "Add partner"
 msgstr "Partner hinzufügen"
@@ -522,9 +597,6 @@ msgstr "Gutschein"
 
 msgid "Used"
 msgstr "Verwendet"
-
-msgid "Coupon code"
-msgstr "Gutscheincode"
 
 msgid "Link"
 msgstr "Link"
@@ -2857,6 +2929,21 @@ msgstr "BIC Firmenkonto (optional)"
 msgid "Company IBAN (SEPA)"
 msgstr "IBAN Firmenkonto (SEPA)"
 
+msgid "Partner coupon: discount type"
+msgstr "Partnergutschein: Rabattart"
+
+msgid "Partner coupon: discount"
+msgstr "Partnergutschein: Rabatt"
+
+msgid "Partner coupon: uses per customer (0 = unlimited)"
+msgstr "Partnergutschein: Nutzungen pro Kunde (0 = unbegrenzt)"
+
+msgid "Partner coupon: valid for (days, 0 = no expiry)"
+msgstr "Partnergutschein: gültig für (Tage, 0 = kein Ablauf)"
+
+msgid "Partner coupon: minimum spend"
+msgstr "Partnergutschein: Mindestbestellwert"
+
 msgid "Application page"
 msgstr "Bewerbungsseite"
 
@@ -2970,6 +3057,15 @@ msgstr "Wartungsmodus"
 
 msgid "Delete all data when the plugin is deleted"
 msgstr "Alle Daten löschen, wenn das Plugin gelöscht wird"
+
+msgid "Partner coupon: individual use only"
+msgstr "Partnergutschein: nur einzeln verwendbar"
+
+msgid "Partner coupon: free shipping"
+msgstr "Partnergutschein: kostenloser Versand"
+
+msgid "Partner coupon: exclude sale items"
+msgstr "Partnergutschein: reduzierte Artikel ausschließen"
 
 msgid "Changing it converts the minimum payout, the review limit and a fixed default rate (with an exchange rate between the two currencies if one is entered, otherwise keeping the value); fixed rules and bonus tiers must be checked by you."
 msgstr "Eine Änderung rechnet Mindestauszahlung, Prüfgrenze und einen festen Standardsatz um (mit einem eingetragenen Wechselkurs zwischen beiden Währungen, sonst bleibt der Wert gleich); feste Regeln und Stufenpläne müssen Sie selbst prüfen."
@@ -3159,6 +3255,18 @@ msgstr "Fügen Sie [wpac_partner_welcome] ein, um „Empfohlen von …“ anzuze
 
 msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
 msgstr "Erlaubte Aussagen, Kennzeichnungspflicht, verbotene Kanäle, Meldeweg bei Problemen. Wird im Partnerbereich angezeigt."
+
+msgid "Partner coupon template"
+msgstr "Partnergutschein-Vorlage"
+
+msgid "Default values for coupons created on the partner page (Partners → partner → Partner codes → Create coupon for partner). Each value can be changed per coupon there. Amounts are in the shop currency."
+msgstr "Standardwerte für Gutscheine, die auf der Partnerseite angelegt werden (Partner → Partner → Partnercodes → Gutschein für Partner anlegen). Jeder Wert lässt sich dort je Gutschein ändern. Beträge gelten in der Shopwährung."
+
+msgid "Percent (e.g. 10) or amount (e.g. 5,00), depending on the discount type. 0 only together with free shipping."
+msgstr "Prozent (z. B. 10) oder Betrag (z. B. 5,00), je nach Rabattart. 0 nur zusammen mit kostenlosem Versand."
+
+msgid "The coupon cannot be combined with other coupons."
+msgstr "Der Gutschein kann nicht mit anderen Gutscheinen kombiniert werden."
 
 msgid "Payment details are stored encrypted like the IBAN. You pay these payouts yourself (transfer list or PayPal payouts file) and then mark them as paid; the payment provider is a further recipient of the partner's data (privacy policy). Off: new partners can only enter an IBAN; partners who already use another method keep it until they change it."
 msgstr "Zahlungsangaben werden wie die IBAN verschlüsselt gespeichert. Diese Auszahlungen leisten Sie selbst (Überweisungsliste oder PayPal-Auszahlungsdatei) und markieren sie dann als bezahlt; der Zahlungsdienst ist ein weiterer Empfänger der Partnerdaten (Datenschutzerklärung). Aus: Neue Partner können nur eine IBAN eingeben; Partner, die bereits eine andere Art nutzen, behalten sie, bis sie sie ändern."
@@ -3736,6 +3844,63 @@ msgstr "Es gibt keinen WooCommerce-Gutschein „%s“. Bitte legen Sie den Gutsc
 msgid "The coupon \"%1$s\" is already linked to partner \"%2$s\". Remove that link first."
 msgstr "Der Gutschein „%1$s“ ist bereits mit dem Partner „%2$s“ verknüpft. Entfernen Sie zuerst diese Verknüpfung."
 
+msgid "Percentage discount"
+msgstr "Prozentualer Rabatt"
+
+msgid "Fixed cart discount"
+msgstr "Fester Warenkorbrabatt"
+
+msgid "Please choose a discount type."
+msgstr "Bitte wählen Sie eine Rabattart."
+
+msgid "Please enter a whole number between 0 and %d."
+msgstr "Bitte geben Sie eine ganze Zahl zwischen 0 und %d ein."
+
+msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
+msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein (z. B. 10 oder 12,5)."
+
+msgid "Please enter an amount (e.g. 10 or 10,00)."
+msgstr "Bitte geben Sie einen Betrag ein (z. B. 10 oder 10,00)."
+
+msgid "A coupon without a discount needs free shipping, otherwise it does nothing."
+msgstr "Ein Gutschein ohne Rabatt braucht kostenlosen Versand, sonst bewirkt er nichts."
+
+msgid "Please enter an amount (e.g. 50 or 50,00) or leave the field empty."
+msgstr "Bitte geben Sie einen Betrag ein (z. B. 50 oder 50,00) oder lassen Sie das Feld leer."
+
+msgid "Coupons can only be created while WooCommerce is active."
+msgstr "Gutscheine können nur angelegt werden, solange WooCommerce aktiv ist."
+
+msgid "You are not allowed to create coupons."
+msgstr "Sie dürfen keine Gutscheine anlegen."
+
+msgid "The coupon code needs 3 to 100 characters."
+msgstr "Der Gutscheincode muss 3 bis 100 Zeichen lang sein."
+
+msgid "A WooCommerce coupon \"%s\" already exists. Choose another code, or link the existing coupon to a partner code."
+msgstr "Ein WooCommerce-Gutschein „%s“ existiert bereits. Wählen Sie einen anderen Code oder verknüpfen Sie den vorhandenen Gutschein mit einem Partnercode."
+
+msgid "The coupon code \"%s\" is already linked to a partner code. Please choose another code."
+msgstr "Der Gutscheincode „%s“ ist bereits mit einem Partnercode verknüpft. Bitte wählen Sie einen anderen Code."
+
+msgid "Please choose an active partner code of this partner without a linked coupon, or \"new partner code\"."
+msgstr "Bitte wählen Sie einen aktiven Partnercode dieses Partners ohne verknüpften Gutschein oder „Neuer Partnercode“."
+
+msgid "Partner coupon of %s (Affiliate Captain)"
+msgstr "Partnergutschein von %s (Affiliate Captain)"
+
+msgid "WooCommerce could not create the coupon: %s"
+msgstr "WooCommerce konnte den Gutschein nicht anlegen: %s"
+
+msgid "WooCommerce could not create the coupon. Nothing was changed."
+msgstr "WooCommerce konnte den Gutschein nicht anlegen. Es wurde nichts geändert."
+
+msgid "The new coupon was moved to the trash."
+msgstr "Der neue Gutschein wurde in den Papierkorb verschoben."
+
+msgid "The coupon could not be linked to the partner code and was moved to the trash. Please try again."
+msgstr "Der Gutschein konnte nicht mit dem Partnercode verknüpft werden und wurde in den Papierkorb verschoben. Bitte versuchen Sie es erneut."
+
 msgid "Booking #%d: chain broken (a booking was removed or reordered)."
 msgstr "Buchung #%d: Kette unterbrochen (eine Buchung wurde entfernt oder umsortiert)."
 
@@ -4211,9 +4376,6 @@ msgstr "Erlaubt sind nur Kleinbuchstaben, Ziffern, „-“ und „_“."
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty."
 msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein (z. B. 10 oder 12,5) oder lassen Sie das Feld leer."
 
-msgid "Please enter a whole number between 0 and %d."
-msgstr "Bitte geben Sie eine ganze Zahl zwischen 0 und %d ein."
-
 msgid "Please enter a whole number (0 or more)."
 msgstr "Bitte geben Sie eine ganze Zahl ein (0 oder mehr)."
 
@@ -4243,9 +4405,6 @@ msgstr "Beträge wurden von %1$s in %2$s umgerechnet. Bitte prüfen Sie feste Pr
 
 msgid "Please enter an amount (e.g. 25 or 25,50)."
 msgstr "Bitte geben Sie einen Betrag ein (z. B. 25 oder 25,50)."
-
-msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
-msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein (z. B. 10 oder 12,5)."
 
 msgid "Not changed, because the default rate entered with it is not valid."
 msgstr "Nicht geändert, da der zusammen eingegebene Standardsatz ungültig ist."

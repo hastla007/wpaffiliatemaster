@@ -388,6 +388,15 @@ msgstr ""
 msgid "Coupon link updated."
 msgstr ""
 
+#. translators: %s: coupon code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Coupon \"%s\" created in WooCommerce and linked to the partner."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Edit coupon"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "The VAT ID could not be checked (the VIES check may be switched off in the settings)."
 msgstr ""
@@ -445,6 +454,99 @@ msgstr ""
 msgid "Payout details saved."
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Create coupon for partner"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "WooCommerce is not active, so no coupon can be created here. You can still link an existing coupon code to a partner code above."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "You are not allowed to create WooCommerce coupons."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Codes/PartnerCoupon.php
+msgid "Coupons can only be created for active partners (not paused, terminated or restricted)."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Create coupon"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Creates a new WooCommerce coupon with the values of the partner coupon template (Settings → Promotion) and links it to a partner code: orders with the coupon are credited to this partner. You can change every value for this coupon."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Coupon code"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Suggested: the partner code. Must not be used by another coupon yet."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Link to partner code"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "New partner code (from the coupon code)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Discount type"
+msgstr ""
+
+#. translators: %s: currency code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Percent or %s, depending on the discount type"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Discount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Minimum spend"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/SettingsPage.php
+msgid "Empty = no minimum."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Uses per customer"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "0 = unlimited"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Valid for (days)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "0 = no expiry date"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Restrictions"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Individual use only (not combinable with other coupons)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Free shipping"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Exclude sale items"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Tables/AffiliatesTable.php
 msgid "Add partner"
 msgstr ""
@@ -477,7 +579,7 @@ msgstr ""
 msgid "Create partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Codes/PartnerCoupon.php
 msgid "Partner not found."
 msgstr ""
 
@@ -708,10 +810,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Used"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Coupon code"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
@@ -3883,6 +3981,26 @@ msgid "Company IBAN (SEPA)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: discount type"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: discount"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: uses per customer (0 = unlimited)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: valid for (days, 0 = no expiry)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: minimum spend"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Application page"
 msgstr ""
 
@@ -4032,6 +4150,18 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Delete all data when the plugin is deleted"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: individual use only"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: free shipping"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon: exclude sale items"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4290,6 +4420,22 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner coupon template"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Default values for coupons created on the partner page (Partners → partner → Partner codes → Create coupon for partner). Each value can be changed per coupon there. Amounts are in the shop currency."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Percent (e.g. 10) or amount (e.g. 5,00), depending on the discount type. 0 only together with free shipping."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "The coupon cannot be combined with other coupons."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5127,6 +5273,87 @@ msgstr ""
 msgid "The coupon \"%1$s\" is already linked to partner \"%2$s\". Remove that link first."
 msgstr ""
 
+#: src/Codes/PartnerCoupon.php
+msgid "Percentage discount"
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "Fixed cart discount"
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "Please choose a discount type."
+msgstr ""
+
+#. translators: %d: largest allowed number
+#: src/Codes/PartnerCoupon.php src/Core/Settings.php
+msgid "Please enter a whole number between 0 and %d."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php src/Core/Settings.php
+msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "Please enter an amount (e.g. 10 or 10,00)."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "A coupon without a discount needs free shipping, otherwise it does nothing."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "Please enter an amount (e.g. 50 or 50,00) or leave the field empty."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "Coupons can only be created while WooCommerce is active."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "You are not allowed to create coupons."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "The coupon code needs 3 to 100 characters."
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Codes/PartnerCoupon.php
+msgid "A WooCommerce coupon \"%s\" already exists. Choose another code, or link the existing coupon to a partner code."
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Codes/PartnerCoupon.php
+msgid "The coupon code \"%s\" is already linked to a partner code. Please choose another code."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "Please choose an active partner code of this partner without a linked coupon, or \"new partner code\"."
+msgstr ""
+
+#. translators: %s: partner name
+#: src/Codes/PartnerCoupon.php
+msgid "Partner coupon of %s (Affiliate Captain)"
+msgstr ""
+
+#. translators: %s: technical reason
+#: src/Codes/PartnerCoupon.php
+msgid "WooCommerce could not create the coupon: %s"
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "WooCommerce could not create the coupon. Nothing was changed."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "The new coupon was moved to the trash."
+msgstr ""
+
+#: src/Codes/PartnerCoupon.php
+msgid "The coupon could not be linked to the partner code and was moved to the trash. Please try again."
+msgstr ""
+
 #. translators: %d: booking ID
 #: src/Commissions/Balance.php
 msgid "Booking #%d: chain broken (a booking was removed or reordered)."
@@ -5797,11 +6024,6 @@ msgstr ""
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty."
 msgstr ""
 
-#. translators: %d: largest allowed number
-#: src/Core/Settings.php
-msgid "Please enter a whole number between 0 and %d."
-msgstr ""
-
 #: src/Core/Settings.php
 msgid "Please enter a whole number (0 or more)."
 msgstr ""
@@ -5845,10 +6067,6 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "Please enter an amount (e.g. 25 or 25,50)."
-msgstr ""
-
-#: src/Core/Settings.php
-msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
 msgstr ""
 
 #: src/Core/Settings.php

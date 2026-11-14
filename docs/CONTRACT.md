@@ -160,6 +160,7 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_hold_until` | `int $timestamp, array $sale` | Spätestes Garantie-/Widerrufsende; nur spätere Daten verlängern. |
 | `wpac_resolve_partner_code` | `?array $resolved, string $code, array $context` | Eigene Code-Auflösung vorschalten. |
 | `wpac_coupon_affiliate` | `?array $resolved, string $coupon` | Coupon → Partner (Voucher Captain). |
+| `wpac_partner_coupon_args` | `array $args, object $affiliate, string $coupon` | Eigenschaften eines im Admin angelegten Partnergutscheins (Partnerseite → „Gutschein für Partner anlegen“) vor dem Anlegen ändern. Schlüssel sind `WC_Coupon`-Eigenschaften (`set_{key}()`), z. B. `product_ids`, `email_restrictions`, `description`; `expiry_days` wird zu `date_expires`. |
 | `wpac_attribution_candidates` | `array $candidates, array $sale` | Prioritätsliste anpassen. |
 | `wpac_is_self_referral` | `bool, int $affiliate_id, array $sale` | Zusätzliche Self-Referral-Prüfung. |
 | `wpac_has_marketing_consent` | `bool` | Consent-Banner anbinden (Cookie nur bei `true`). |
