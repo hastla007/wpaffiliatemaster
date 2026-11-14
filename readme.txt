@@ -104,14 +104,14 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Screenshots ==
 
-1. Dashboard with the setup checklist and the key figures of the partner program.
-2. Partner list with status, partner codes and balances.
-3. Partner details: codes, payout details, account statement and status history.
-4. Commission rules and partner groups.
-5. Payout run with preview, credit notes and SEPA export.
-6. Partner area: partner link with copy button, statistics and commissions.
-7. Partner application form block.
-8. CSV import of partners with the check result before the import.
+1. Dashboard with the key figures of the partner program and the results per partner.
+2. Partner list with status, partner code, payout details, terms acceptance and login.
+3. Partner details: payout details with tax status and IBAN, next to codes, account statement and history.
+4. Commissions with order, rate used, hold period and status, plus filters and CSV export.
+5. Payouts: payout run with preview, credit notes, SEPA export and payment status.
+6. Settings: application and partner area pages, partner terms and application handling.
+7. Partner area: partner link with copy button, key figures and the partner's conditions.
+8. Partner area: short link, QR code and link generator with campaign tracking.
 
 == Changelog ==
 

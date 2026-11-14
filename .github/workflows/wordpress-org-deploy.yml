@@ -72,9 +72,10 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-          # .wordpress-org/ is copied to the SVN assets folder, which only takes images.
-          rm -f .wordpress-org/README.md
-          # The plugin page needs icon, banner and screenshots (list in .wordpress-org/README.md).
+          # .wordpress-org/ is copied to the SVN assets folder, which only takes the plugin page's
+          # images (icon.svg is one of them; the banner SVG is only the source of the banner PNGs).
+          rm -f .wordpress-org/README.md .wordpress-org/banner.svg
+          # Safety net: the plugin page needs icon, banner and screenshots (list in .wordpress-org/README.md).
           for f in icon-128x128.png icon-256x256.png banner-772x250.png banner-1544x500.png screenshot-1.png; do
             [ -e ".wordpress-org/$f" ] || echo "::warning::.wordpress-org/$f is missing – the plugin page on WordPress.org will be shown without it."
           done

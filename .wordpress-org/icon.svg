@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Affiliate Captain</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14406b"/>
+      <stop offset="1" stop-color="#0b2744"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <!-- Ship's wheel: eight spokes with handles, rim and hub. -->
+  <g stroke="#f2b134" stroke-linecap="round" fill="none">
+    <g stroke-width="12">
+      <line x1="128" y1="22" x2="128" y2="234"/>
+      <line x1="22" y1="128" x2="234" y2="128"/>
+      <line x1="53" y1="53" x2="203" y2="203"/>
+      <line x1="203" y1="53" x2="53" y2="203"/>
+    </g>
+    <circle cx="128" cy="128" r="74" stroke-width="16"/>
+  </g>
+  <g fill="#f2b134">
+    <circle cx="128" cy="24" r="13"/>
+    <circle cx="128" cy="232" r="13"/>
+    <circle cx="24" cy="128" r="13"/>
+    <circle cx="232" cy="128" r="13"/>
+    <circle cx="54.5" cy="54.5" r="13"/>
+    <circle cx="201.5" cy="201.5" r="13"/>
+    <circle cx="201.5" cy="54.5" r="13"/>
+    <circle cx="54.5" cy="201.5" r="13"/>
+  </g>
+  <circle cx="128" cy="128" r="44" fill="#1fb5a8" stroke="#0b2744" stroke-width="6"/>
+  <!-- Chain link in the hub. -->
+  <g transform="rotate(-45 128 128)" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round">
+    <rect x="96" y="116" width="38" height="24" rx="12"/>
+    <rect x="122" y="116" width="38" height="24" rx="12"/>
+  </g>
+</svg>
