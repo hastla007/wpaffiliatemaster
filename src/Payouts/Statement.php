@@ -30,10 +30,11 @@ final class Statement {
 	 *
 	 * Define WPAC_STATEMENT_DIR in wp-config.php to store statements outside the
 	 * web root (recommended, required on nginx where .htaccess is ignored). With several app
-	 * servers the folder must be shared storage (NFS, EFS …) mounted on every node – otherwise a
+	 * servers the folder should be shared storage (NFS, EFS …) mounted on every node – otherwise a
 	 * download on another node finds no file (it is then built again from the stored data, see
-	 * send()) and the deletion after the retention period only reaches the local copy. The filter
-	 * wpac_statement_dir can point the folder elsewhere (e.g. a mounted bucket).
+	 * send()) and the deletion after the retention period first only reaches the local copy; the
+	 * other nodes remove theirs in their own sweep (StatementSweep). The filter wpac_statement_dir
+	 * can point the folder elsewhere (e.g. a mounted bucket).
 	 *
 	 * @return string
 	 */
@@ -54,7 +55,7 @@ final class Statement {
 	 *
 	 * @return string
 	 */
-	private static function configured_dir() {
+	public static function configured_dir() {
 		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
 			$dir = untrailingslashit( (string) WPAC_STATEMENT_DIR );
 			if ( is_multisite() ) {
@@ -747,7 +748,8 @@ final class Statement {
 		}
 		try {
 			$p = PayoutService::find( $payout_id );
-			if ( ! $p || '' !== (string) $p->statement_file ) {
+			// Deleted after the retention period: never issued again (statement_file is empty then).
+			if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at ) {
 				return false;
 			}
 			$bytes = self::build( $p );
@@ -769,7 +771,7 @@ final class Statement {
 			}
 			// Only if still without a file (compare-and-set).
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = ''", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
+			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = '' AND statement_deleted_at IS NULL", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
 			if ( 1 !== $done ) {
 				wp_delete_file( $path );
 				return false;
@@ -904,7 +906,8 @@ final class Statement {
 	 * Bytes of a stored document. A file that is missing on this server (several app servers
 	 * without shared storage, lost file) is built again from the stored data: if the result
 	 * matches the stored hash it is the original and is stored again; otherwise a copy marked
-	 * as duplicate is returned. Documents deleted after the retention period are not rebuilt.
+	 * as duplicate is returned. Documents deleted after the retention period (on any server: the
+	 * database decides) are neither served nor rebuilt, and a copy left on this server is deleted.
 	 *
 	 * @param object $p      Payout (statement_file/statement_hash of the document to send).
 	 * @param bool   $storno Cancellation document.
@@ -915,17 +918,25 @@ final class Statement {
 			return null;
 		}
 		$path = self::path( (string) $p->statement_file );
+		$orig = PayoutService::find( (int) $p->id );
+		if ( ! $orig || $orig->statement_deleted_at ) {
+			StatementSweep::forget( $path, (string) $p->statement_hash );
+			return null;
+		}
 		if ( is_readable( $path ) ) {
 			$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 			return hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ? $bytes : false;
 		}
-		$orig = PayoutService::find( (int) $p->id );
-		if ( ! $orig || $orig->statement_deleted_at ) {
-			return null;
-		}
 		$bytes = self::build( $orig, $storno );
 		if ( hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ) {
-			@file_put_contents( self::dir() . '/' . basename( (string) $p->statement_file ), $bytes ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			$target = self::dir() . '/' . basename( (string) $p->statement_file );
+			@file_put_contents( $target, $bytes ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			// The retention deletion may have run meanwhile (on another server): no copy outlives it.
+			$now = PayoutService::find( (int) $p->id );
+			if ( ! $now || $now->statement_deleted_at ) {
+				StatementSweep::forget( $target, (string) $p->statement_hash );
+				return null;
+			}
 			Audit::log( 'statement.restored', 'payout', (int) $p->id, array( 'storno' => (bool) $storno ) );
 			return $bytes;
 		}
@@ -1090,7 +1101,7 @@ final class Statement {
 			}
 			// Only if still without a file (compare-and-set).
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET storno_file = %s, storno_hash = %s WHERE id = %d AND storno_file = ''", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
+			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET storno_file = %s, storno_hash = %s WHERE id = %d AND storno_file = '' AND statement_deleted_at IS NULL", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
 			if ( 1 !== $done ) {
 				wp_delete_file( $path );
 				return false;

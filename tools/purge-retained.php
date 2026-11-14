@@ -11,6 +11,12 @@
  * and delete the plugin again. It runs the normal uninstall, which deletes everything that is
  * past the retention period and keeps the rest (the run can be repeated later).
  *
+ * Several app servers without shared statement storage: the files are deleted on the server this
+ * runs on. While the plugin is active each server removes its own copies of deleted credit notes
+ * (`wp wpac statements sweep`); once the plugin is deleted nothing runs on the other servers any
+ * more, so remove the statement folder there yourself after this reported success (it only holds
+ * copies of the deleted documents).
+ *
  * @package WPAffiliateCaptain
  */
 

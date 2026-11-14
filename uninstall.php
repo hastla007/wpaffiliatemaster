@@ -178,7 +178,7 @@ function wpac_uninstall_schedules() {
  */
 function wpac_uninstall_remove_empty_dir( $dir, $own_folder ) {
 	$entries = array_diff( (array) scandir( $dir ), array( '.', '..' ) );
-	if ( ! $own_folder || array_diff( $entries, array( '.htaccess', 'index.php' ) ) ) {
+	if ( ! $own_folder || array_diff( $entries, array( '.htaccess', 'index.php', '.wpac-sweep' ) ) ) {
 		return; // Shared, or other files are still there (other sites or installations): keep it.
 	}
 	foreach ( $entries as $entry ) {

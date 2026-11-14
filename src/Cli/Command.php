@@ -423,6 +423,63 @@ final class Command {
 	}
 
 	/**
+	 * Credit note files on this app server.
+	 *
+	 * `sweep` deletes the local copies of credit notes and cancellations that were deleted after
+	 * the retention period (the database decides; the daily cron only reaches the server it runs
+	 * on). Each server also sweeps by itself every 6 hours on its own requests (filter
+	 * wpac_statement_sweep_interval); without shared storage run this on every app server, e.g.
+	 * from its system cron. Only files whose SHA-256 belongs to a deleted document are removed;
+	 * other unreferenced files are listed as unknown and kept.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <action>
+	 * : sweep
+	 *
+	 * [--budget=<seconds>]
+	 * : Stop after this many seconds (default 0 = until done).
+	 *
+	 * [--full]
+	 * : Hash files remembered as unknown again.
+	 *
+	 * [--network]
+	 * : On every site of the network where the plugin is active.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp wpac statements sweep
+	 *     wp wpac statements sweep --network
+	 *
+	 * @param array $args  Positional.
+	 * @param array $assoc Options.
+	 */
+	public function statements( $args, $assoc ) {
+		if ( ! isset( $args[0] ) || 'sweep' !== $args[0] ) {
+			\WP_CLI::error( 'Use: wp wpac statements sweep' );
+		}
+		self::each_site(
+			$assoc,
+			static function () use ( $assoc ) {
+				$stats = \WPAffiliateCaptain\Payouts\StatementSweep::run( isset( $assoc['budget'] ) ? max( 0, (float) $assoc['budget'] ) : 0.0, ! empty( $assoc['full'] ) );
+				if ( $stats['locked'] ) {
+					return array( 'a sweep is already running on this server' );
+				}
+				foreach ( $stats['unknown'] as $path ) {
+					\WP_CLI::log( 'Unknown file kept: ' . $path );
+				}
+				$msg = sprintf( '%s (%s): %d files, %d deleted after the retention period, %d unknown kept.', gethostname(), \WPAffiliateCaptain\Payouts\Statement::configured_dir(), $stats['files'], $stats['deleted'], count( $stats['unknown'] ) );
+				if ( ! $stats['complete'] ) {
+					\WP_CLI::warning( $msg . ' Time budget used up; run it again.' );
+					return array();
+				}
+				\WP_CLI::success( $msg );
+				return array();
+			}
+		);
+	}
+
+	/**
 	 * Check that every partner account matches its bookings (hash chain and sums) – all accounts,
 	 * in pages of 500.
 	 *

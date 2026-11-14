@@ -38,7 +38,7 @@ define( 'WPAC_ENCRYPTION_KEY', '…' );
 define( 'WPAC_STATEMENT_DIR', '/var/www/private/wpac-statements' );
 ```
 
-**Several app servers** (load balancer): the statement folder must be shared storage mounted at the same path on every server (NFS, EFS …), set with `WPAC_STATEMENT_DIR` or the filter `wpac_statement_dir`. Without it a download on another server finds no file – the plugin then builds the document again from the stored data (identical when nothing relevant changed, otherwise marked as *duplicate*), and the deletion after the retention period only reaches the copy on the server that runs the cron.
+**Several app servers** (load balancer): the statement folder must be shared storage mounted at the same path on every server (NFS, EFS …), set with `WPAC_STATEMENT_DIR` or the filter `wpac_statement_dir`. Without it a download on another server finds no file – the plugin then builds the document again from the stored data (identical when nothing relevant changed, otherwise marked as *duplicate*). The deletion after the retention period is decided in the database: the daily cron deletes the files on its own server and marks the documents as deleted; every other server removes its copies of deleted documents by itself – on its own requests at most every 6 hours (filter `wpac_statement_sweep_interval`, seconds; 0 = only by command, `wpac_statement_sweep_budget` limits the seconds per request, default 2) and whenever a deleted document is requested (it is never served or rebuilt again). To delete them right away, or on servers without regular traffic, run `wp wpac statements sweep` (add `--network` on a multisite) on **every** app server, e.g. from its system cron. Only files whose SHA-256 belongs to a deleted credit note or cancellation are removed; other files in the folder are listed and kept. Each server keeps the time of its last sweep in the file `.wpac-sweep` in its statement folder.
 
 Set both **before** the first partner enters bank details and the first credit note is written. Without `WPAC_ENCRYPTION_KEY` the key is derived from the WordPress salts – changing the salts later makes stored IBANs unreadable. Keep a copy of the key in your password manager: without it, bank details cannot be decrypted after a server move.
 
@@ -235,7 +235,8 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 | `wp wpac verify [--limit=<n>]` | check every partner account against its bookings (all accounts) |
 | `wp wpac customer-link <e-mail\|user-id> [--remove] [--reason=<text>]` | show or remove a customer's lifetime partner binding |
 | `wp wpac maintenance on\|off` | maintenance mode |
-| `… --network` | `status`, `health`, `upgrade`, `jobs`, `cron` and `verify` on every site of the network |
+| `wp wpac statements sweep [--budget=<seconds>] [--full]` | delete this server's local copies of credit notes deleted after the retention period (run it on every app server without shared storage, section 1) |
+| `… --network` | `status`, `health`, `upgrade`, `jobs`, `cron`, `verify` and `statements sweep` on every site of the network |
 | `wp wpac import partners <file.csv> [--dry-run] [--notify]` | import partners |
 | `wp wpac export <file.zip> [--include-tax-data --user=<login>]` | export the program |
 
