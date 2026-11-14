@@ -437,7 +437,7 @@ final class ImportExportPage {
 	 * Export form.
 	 */
 	private static function render_export() {
-		echo '<p>' . esc_html__( 'Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items and payout requests. Use it as a backup, for your tax advisor or to move to another system.', 'affiliate-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items, correction credit notes and payout requests. Use it as a backup, for your tax advisor or to move to another system.', 'affiliate-captain' ) . '</p>';
 		if ( ! ProgramExport::available() ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The program export needs the PHP extension "zip". Ask your hosting provider to enable it, or use the CSV exports of the individual lists.', 'affiliate-captain' ) . '</p></div>';
 			return;
