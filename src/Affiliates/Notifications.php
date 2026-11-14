@@ -223,13 +223,19 @@ final class Notifications {
 		}
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			$mail = \WPAffiliateCaptain\Payouts\CorrectionNote::is_note( $p )
+				? \WPAffiliateCaptain\Payouts\CorrectionNote::mail( $p, $aff, add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) )
+				: array(
+					/* translators: 1: site name, 2: document number */
+					sprintf( __( '[%1$s] Credit note %2$s', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
+					/* translators: 1: name, 2: document number, 3: amount, 4: portal URL */
+					sprintf( __( "Hello %1\$s,\n\nwe have issued credit note %2\$s for your commissions (total %3\$s). It is attached to this e-mail and can be downloaded in your partner area: %4\$s\n\nPlease check it. If something is wrong, you can object to it in the partner area.", 'affiliate-captain' ), $aff->name, $p->number, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				);
 			$sent = self::send(
 				'credit_note',
 				$aff->email,
-				/* translators: 1: site name, 2: document number */
-				sprintf( __( '[%1$s] Credit note %2$s', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
-				/* translators: 1: name, 2: document number, 3: amount, 4: portal URL */
-				sprintf( __( "Hello %1\$s,\n\nwe have issued credit note %2\$s for your commissions (total %3\$s). It is attached to this e-mail and can be downloaded in your partner area: %4\$s\n\nPlease check it. If something is wrong, you can object to it in the partner area.", 'affiliate-captain' ), $aff->name, $p->number, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				$mail[0],
+				$mail[1],
 				array(
 					'affiliate_id' => (int) $aff->id,
 					'attachments'  => '' !== (string) $path && is_readable( (string) $path ) ? array( (string) $path ) : array(),

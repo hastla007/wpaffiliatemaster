@@ -245,7 +245,7 @@ msgstr ""
 msgid "The link has expired. Please go back and try again."
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/ImportExportPage.php
+#: src/Admin/Admin.php src/Admin/Pages/ImportExportPage.php src/Payouts/CorrectionNote.php
 msgid "You are not allowed to do this."
 msgstr ""
 
@@ -2580,7 +2580,7 @@ msgstr ""
 msgid "Ignored columns:"
 msgstr ""
 
-#: src/Admin/Pages/ImportExportPage.php
+#: src/Admin/Pages/ImportExportPage.php src/Admin/Pages/PayoutsPage.php
 msgid "Line"
 msgstr ""
 
@@ -3075,6 +3075,15 @@ msgid "Objection marked as handled; the partner was informed."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Please enter positive net amounts (e.g. 25 or 12,50); the direction is chosen separately."
+msgstr ""
+
+#. translators: 1: correction credit note number, 2: original credit note number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correction credit note %1$s for credit note %2$s issued; the objection was marked as handled and the partner receives the document by e-mail."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Please choose a period end and currency."
 msgstr ""
 
@@ -3318,6 +3327,76 @@ msgstr ""
 msgid "Confirm: the bank did NOT execute the exported transfer (required to cancel exported payouts)"
 msgstr ""
 
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "reverse charge"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "small business, no VAT"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "private individual, no VAT"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Issue a correction credit note"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Lines of the credit note"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
+msgid "VAT"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "On the credit note (net)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "After corrections (net)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correction (net)"
+msgstr ""
+
+#. translators: %s: line
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correction (net) of %s"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Direction"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Additional payment: the partner gets more (transferred like a payout)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Overpayment: the partner was paid too much (deducted from the next credit notes or requested back, never a negative transfer)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Reason (printed on the document and sent to the partner)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Amounts are net. VAT treatment and rate of each line are taken from the original credit note. Have the tax treatment confirmed by your tax advisor."
+msgstr ""
+
+#. translators: %s: credit note number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Issue a correction credit note for %s? It gets its own number and is sent to the partner; it cannot be undone."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Issue correction credit note"
+msgstr ""
+
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Payout not found."
 msgstr ""
@@ -3379,10 +3458,6 @@ msgstr ""
 #. translators: %s: rate
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
 msgid "plus VAT %s %%"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
-msgid "VAT"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
@@ -3884,6 +3959,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Prefix cancellation numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Prefix correction credit note numbers"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4390,6 +4469,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Numbers are gapless per year, e.g. GS-2026-000001."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Correction credit notes for paid credit notes (after an objection) have their own gapless range, e.g. KG-2026-000001."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php src/Privacy/Privacy.php
@@ -5551,6 +5634,10 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "Repayment by the partner"
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Claim from an overpayment (correction credit note)"
 msgstr ""
 
 #: src/Commissions/Ledger.php
@@ -6764,6 +6851,125 @@ msgstr ""
 msgid "the status \"%1$s\" could not be set: %2$s – the partner is pending; change the status on the partner page"
 msgstr ""
 
+#: src/Payouts/CorrectionNote.php
+msgid "The form has expired. Please reload the page and try again."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "The correction credit note could not be saved. Nothing was booked; please try again."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "A correction credit note can only be issued for a paid credit note."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "This credit note has no open objection (already handled?)."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Please choose whether the partner gets an additional payment or was paid too much."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Please enter the reason of the correction (it is printed on the document)."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "The partner data of this credit note are no longer available."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "A selected line is not part of this credit note."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Please enter positive net amounts; the direction is chosen separately."
+msgstr ""
+
+#. translators: 1: line, 2: amount
+#: src/Payouts/CorrectionNote.php
+msgid "The correction of \"%1$s\" is larger than what remains of the line on the credit note (%2$s)."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Please enter the net amount to correct for at least one line."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "The correction is larger than the net amount of the credit note."
+msgstr ""
+
+#. translators: 1: correction credit note number, 2: original credit note number
+#: src/Payouts/CorrectionNote.php
+msgid "Correction credit note %1$s (corrects %2$s)"
+msgstr ""
+
+#. translators: 1: correction credit note number, 2: gross amount, 3: reason
+#: src/Payouts/CorrectionNote.php
+msgid "We have issued correction credit note %1$s. You were paid %2$s too much; the amount is offset against your next credit notes.\n\nReason: %3$s"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "We have issued correction credit note %1$s. The additional amount of %2$s is transferred to you.\n\nReason: %3$s"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Corrected commission statement"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Correction credit note (Korrekturgutschrift)"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Correction credit note (self-billing)"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Corrects credit note"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Reason of the correction"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Amount owed by the partner (offset, no transfer)"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "Additional payment"
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "This correction credit note corrects the credit note named above after an objection of the partner; it reduces its net amount and VAT. The partner was paid too much: the amount is offset against future credit notes or is to be repaid. Nothing is transferred."
+msgstr ""
+
+#: src/Payouts/CorrectionNote.php
+msgid "This correction credit note corrects the credit note named above after an objection of the partner; it increases its net amount and VAT. The additional amount is transferred to the partner."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Payouts/CorrectionNote.php
+msgid "You were paid %s too much; the amount is offset against your next credit notes."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Payouts/CorrectionNote.php
+msgid "The additional amount of %s is transferred to you."
+msgstr ""
+
+#. translators: 1: site name, 2: document number
+#: src/Payouts/CorrectionNote.php
+msgid "[%1$s] Correction credit note %2$s"
+msgstr ""
+
+#. translators: 1: name, 2: correction credit note number, 3: original credit note number, 4: what happens with the amount, 5: portal URL
+#: src/Payouts/CorrectionNote.php
+msgid "Hello %1$s,\n\nafter your objection we have issued correction credit note %2$s for credit note %3$s. %4$s\n\nThe document is attached to this e-mail and can be downloaded in your partner area: %5$s"
+msgstr ""
+
 #: src/Payouts/Objections.php
 msgid "This credit note cannot be objected to."
 msgstr ""
@@ -6791,7 +6997,7 @@ msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer c
 msgstr ""
 
 #: src/Payouts/Objections.php
-msgid "The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled here. If the objection is justified, agree the correction with the partner – the partner issues their own invoice for the correct amount, or you settle the difference by a separate transfer or repayment request – and keep the documents with the credit note. If the credit note is correct, explain why. Then describe below what was done; the partner receives this text."
+msgid "The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled. If the objection is justified, issue a correction credit note below: choose the lines and the net amounts to correct and whether the partner gets an additional payment (transferred like a payout) or was paid too much (deducted from the next credit notes or requested back – never a negative transfer). The VAT treatment of the original credit note is kept; the partner receives the document by e-mail and the objection is marked as handled. If the credit note is correct, explain why and mark the objection as handled."
 msgstr ""
 
 #: src/Payouts/Objections.php
@@ -7261,18 +7467,6 @@ msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "Net"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "reverse charge"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "small business, no VAT"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "private individual, no VAT"
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -7996,6 +8190,15 @@ msgstr ""
 
 #: src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Credit note"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Correction credit note"
+msgstr ""
+
+#. translators: %s: original credit note number
+#: src/Portal/Portal.php
+msgid "(corrects %s)"
 msgstr ""
 
 #: src/Portal/Portal.php

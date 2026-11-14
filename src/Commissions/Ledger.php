@@ -63,6 +63,7 @@ final class Ledger {
 			'reinstatement' => __( 'Reinstatement', 'affiliate-captain' ),
 			'adjustment'   => __( 'Manual booking', 'affiliate-captain' ),
 			'repayment'    => __( 'Repayment by the partner', 'affiliate-captain' ),
+			'claim'        => __( 'Claim from an overpayment (correction credit note)', 'affiliate-captain' ),
 		);
 	}
 

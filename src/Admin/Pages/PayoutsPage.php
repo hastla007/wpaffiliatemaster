@@ -17,6 +17,7 @@ use WPAffiliateCaptain\Payouts\PayoutRequests;
 use WPAffiliateCaptain\Payouts\PayoutService;
 use WPAffiliateCaptain\Payouts\Statement;
 use WPAffiliateCaptain\Payouts\ProfileRepository;
+use WPAffiliateCaptain\Payouts\Vat;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -46,6 +47,36 @@ final class PayoutsPage {
 					Admin::back( __( 'This objection was already handled, no longer exists or could not be saved; nothing was sent.', 'affiliate-captain' ), 'error' );
 				}
 				Admin::back( __( 'Objection marked as handled; the partner was informed.', 'affiliate-captain' ) );
+				break;
+
+			case 'correction_note':
+				$pid     = absint( Admin::post( 'payout_id' ) );
+				$orig    = PayoutService::find( $pid );
+				$amounts = array();
+				foreach ( (array) Admin::post( 'amounts', array() ) as $cid => $raw ) {
+					$raw = trim( sanitize_text_field( (string) $raw ) );
+					if ( '' === $raw ) {
+						continue;
+					}
+					$decimal = Money::parse_amount( $raw, $orig ? (string) $orig->currency : '' );
+					if ( null === $decimal || 0 === strpos( $decimal, '-' ) ) {
+						Admin::back( __( 'Please enter positive net amounts (e.g. 25 or 12,50); the direction is chosen separately.', 'affiliate-captain' ), 'error' );
+					}
+					$amounts[ absint( $cid ) ] = Money::to_minor( $decimal, $orig ? (string) $orig->currency : '' );
+				}
+				$result = \WPAffiliateCaptain\Payouts\CorrectionNote::issue( $pid, $amounts, sanitize_key( Admin::post( 'direction' ) ), sanitize_textarea_field( Admin::post( 'reason' ) ), sanitize_text_field( Admin::post( 'token' ) ) );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				$doc = PayoutService::find( (int) $result );
+				Admin::back(
+					sprintf(
+						/* translators: 1: correction credit note number, 2: original credit note number */
+						__( 'Correction credit note %1$s for credit note %2$s issued; the objection was marked as handled and the partner receives the document by e-mail.', 'affiliate-captain' ),
+						$doc ? $doc->number : '#' . (int) $result,
+						$orig ? $orig->number : '#' . $pid
+					)
+				);
 				break;
 
 			case 'payout_run':
@@ -458,6 +489,9 @@ final class PayoutsPage {
 				/* translators: %s: payout number */
 				echo '<button class="button" data-wpac-confirm="' . esc_attr( sprintf( __( 'Cancel payout %s? A cancellation document is issued and the commissions are paid with the next run.', 'affiliate-captain' ), $op->number ) ) . '">' . esc_html__( 'Cancel this payout', 'affiliate-captain' ) . '</button></p></form>';
 			}
+			if ( $op && 'paid' === $op->status ) {
+				self::render_correction_form( $op );
+			}
 			Admin::form_open( 'objection_resolve' );
 			echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><p><label for="wpac-obj-resolution-' . (int) $pid . '">' . esc_html__( 'What was done (sent to the partner)', 'affiliate-captain' ) . '</label><br><textarea id="wpac-obj-resolution-' . (int) $pid . '" name="resolution" rows="2" class="large-text" required></textarea></p><p><button class="button">' . esc_html__( 'Mark as handled', 'affiliate-captain' ) . '</button></p></form></div>';
 		}
@@ -630,6 +664,43 @@ final class PayoutsPage {
 		}
 		$fix = Admin::blocked_fix( (int) $row['affiliate']->id, (string) $row['code'] );
 		return ' – <a href="' . esc_url( $fix[0] ) . '">' . esc_html( $fix[1] ) . '</a>';
+	}
+
+	/**
+	 * Form of a correction credit note for a paid credit note with an objection (R5-W55):
+	 * lines with the net amount to correct, direction and reason.
+	 *
+	 * @param object $op Paid payout.
+	 */
+	private static function render_correction_form( $op ) {
+		$lines = \WPAffiliateCaptain\Payouts\CorrectionNote::lines( (int) $op->id );
+		if ( ! $lines ) {
+			return;
+		}
+		$pid   = (int) $op->id;
+		$modes = array(
+			Vat::REVERSE_CHARGE => __( 'reverse charge', 'affiliate-captain' ),
+			Vat::SMALL_BUSINESS => __( 'small business, no VAT', 'affiliate-captain' ),
+			Vat::PRIVATE_PERSON => __( 'private individual, no VAT', 'affiliate-captain' ),
+		);
+		echo '<details class="wpac-correction-note"><summary>' . esc_html__( 'Issue a correction credit note', 'affiliate-captain' ) . '</summary>';
+		Admin::form_open( 'correction_note' );
+		// One token per form: a double click or a reload issues the document only once.
+		echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><input type="hidden" name="token" value="' . esc_attr( wp_generate_password( 24, false ) ) . '">';
+		echo '<table class="widefat striped"><caption class="screen-reader-text">' . esc_html__( 'Lines of the credit note', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html__( 'Line', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'VAT', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'On the credit note (net)', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'After corrections (net)', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Correction (net)', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $lines as $cid => $line ) {
+			$label = trim( ( 'wpac' === $line->source ? '' : '#' . $line->source_order_id . ' ' ) . (string) $line->description );
+			echo '<tr><td>' . esc_html( '' !== $label ? $label : '#' . (int) $cid ) . '</td><td>' . esc_html( Vat::STANDARD === (string) $line->vat_mode ? \WPAffiliateCaptain\Core\Locale::number( (string) $line->vat_rate ) . ' %' : ( isset( $modes[ $line->vat_mode ] ) ? $modes[ $line->vat_mode ] : (string) $line->vat_mode ) ) . '</td><td>' . esc_html( Money::format( (int) $line->amount, $op->currency ) ) . '</td><td>' . esc_html( Money::format( (int) $line->remaining, $op->currency ) ) . '</td>';
+			echo '<td><input type="text" inputmode="decimal" size="8" name="amounts[' . (int) $cid . ']" aria-label="' . esc_attr( sprintf( /* translators: %s: line */ __( 'Correction (net) of %s', 'affiliate-captain' ), $label ) ) . '" placeholder="0,00"></td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Direction', 'affiliate-captain' ) . '</legend>';
+		echo '<p><label><input type="radio" name="direction" value="positive" required> ' . esc_html__( 'Additional payment: the partner gets more (transferred like a payout)', 'affiliate-captain' ) . '</label><br>';
+		echo '<label><input type="radio" name="direction" value="negative" required> ' . esc_html__( 'Overpayment: the partner was paid too much (deducted from the next credit notes or requested back, never a negative transfer)', 'affiliate-captain' ) . '</label></p></fieldset>';
+		echo '<p><label for="wpac-kg-reason-' . (int) $pid . '">' . esc_html__( 'Reason (printed on the document and sent to the partner)', 'affiliate-captain' ) . '</label><br><textarea id="wpac-kg-reason-' . (int) $pid . '" name="reason" rows="2" class="large-text" required></textarea></p>';
+		echo '<p class="description">' . esc_html__( 'Amounts are net. VAT treatment and rate of each line are taken from the original credit note. Have the tax treatment confirmed by your tax advisor.', 'affiliate-captain' ) . '</p>';
+		/* translators: %s: credit note number */
+		echo '<p><button class="button button-primary" data-wpac-confirm="' . esc_attr( sprintf( __( 'Issue a correction credit note for %s? It gets its own number and is sent to the partner; it cannot be undone.', 'affiliate-captain' ), $op->number ) ) . '">' . esc_html__( 'Issue correction credit note', 'affiliate-captain' ) . '</button></p></form></details>';
 	}
 
 	/**

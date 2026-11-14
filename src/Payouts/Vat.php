@@ -24,7 +24,7 @@ final class Vat {
 	const NONE           = 'none';            // Not a service (repayment received, claim written off): outside the scope of VAT.
 
 	/** Booking kinds that are no service of the partner (never taxed on a credit note). */
-	const NON_TAXABLE_KINDS = array( 'repayment', 'writeoff' );
+	const NON_TAXABLE_KINDS = array( 'repayment', 'writeoff', 'claim' ); // claim: overpayment owed after a correction credit note (its VAT is corrected by that document).
 
 	/**
 	 * VAT ID formats of the EU member states (VIES country code => pattern of the number part).
