@@ -55,7 +55,7 @@ final class PayoutRequests {
 		$out = array();
 		foreach ( $currencies as $currency ) {
 			$amounts = PayoutService::payable( (int) $affiliate_id, (string) $currency );
-			if ( $amounts['net'] > 0 ) {
+			if ( $amounts['net'] > 0 && $amounts['gross'] > 0 ) {
 				$out[ strtoupper( (string) $currency ) ] = $amounts;
 			}
 		}
@@ -72,7 +72,7 @@ final class PayoutRequests {
 	public static function request_currency( $affiliate_id ) {
 		foreach ( self::available_all( (int) $affiliate_id ) as $currency => $amounts ) {
 			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-			if ( null !== $min && $amounts['net'] >= max( 1, (int) $min ) ) {
+			if ( null !== $min && $amounts['gross'] >= max( 1, (int) $min ) ) {
 				return (string) $currency;
 			}
 		}

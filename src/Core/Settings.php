@@ -243,6 +243,10 @@ final class Settings {
 			}
 		}
 		$merged = array_diff_key( array_merge( self::all(), $values ), self::RUNTIME );
+		if ( array_key_exists( 'vat_rate', $values ) ) {
+			// The VAT of a credit note follows the rate valid at the time of the service: keep the old rate.
+			\WPAffiliateCaptain\Payouts\TaxHistory::record_rate( (string) self::get( 'vat_rate' ), (string) $values['vat_rate'] );
+		}
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 	}

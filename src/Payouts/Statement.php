@@ -29,22 +29,16 @@ final class Statement {
 	 * Storage directory (created on demand).
 	 *
 	 * Define WPAC_STATEMENT_DIR in wp-config.php to store statements outside the
-	 * web root (recommended, required on nginx where .htaccess is ignored).
+	 * web root (recommended, required on nginx where .htaccess is ignored). With several app
+	 * servers the folder must be shared storage (NFS, EFS …) mounted on every node – otherwise a
+	 * download on another node finds no file (it is then built again from the stored data, see
+	 * send()) and the deletion after the retention period only reaches the local copy. The filter
+	 * wpac_statement_dir can point the folder elsewhere (e.g. a mounted bucket).
 	 *
 	 * @return string
 	 */
 	public static function dir() {
-		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
-			$dir = untrailingslashit( (string) WPAC_STATEMENT_DIR );
-			if ( is_multisite() ) {
-				// All sites of a network share the constant: one subfolder per site, so the documents
-				// (and their deletion on uninstall) stay apart. Older files are moved by the v9 migration.
-				$dir .= '/site-' . (int) get_current_blog_id();
-			}
-		} else {
-			$upload = wp_upload_dir( null, false );
-			$dir    = trailingslashit( $upload['basedir'] ) . 'wpac-statements';
-		}
+		$dir = self::configured_dir();
 		if ( ! is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
 		}
@@ -56,13 +50,50 @@ final class Statement {
 	}
 
 	/**
+	 * Configured storage folder (constant, filter or uploads), without creating it.
+	 *
+	 * @return string
+	 */
+	private static function configured_dir() {
+		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
+			$dir = untrailingslashit( (string) WPAC_STATEMENT_DIR );
+			if ( is_multisite() ) {
+				// All sites of a network share the constant: one subfolder per site, so the documents
+				// (and their deletion on uninstall) stay apart. Older files are moved by the v9 migration.
+				$dir .= '/site-' . (int) get_current_blog_id();
+			}
+		} else {
+			$upload = wp_upload_dir( null, false );
+			$dir    = trailingslashit( $upload['basedir'] ) . 'wpac-statements';
+		}
+		/**
+		 * Folder of the credit notes (e.g. shared storage for several app servers). Use an absolute
+		 * path outside the web root; it must be the same on every server.
+		 *
+		 * @param string $dir Folder.
+		 */
+		$filtered = (string) apply_filters( 'wpac_statement_dir', $dir );
+		return '' !== $filtered ? untrailingslashit( $filtered ) : $dir;
+	}
+
+	/**
+	 * Whether the folder is a custom one (constant or filter) and not the uploads folder.
+	 *
+	 * @return bool
+	 */
+	public static function custom_dir() {
+		$upload = wp_upload_dir( null, false );
+		return untrailingslashit( self::configured_dir() ) !== trailingslashit( $upload['basedir'] ) . 'wpac-statements';
+	}
+
+	/**
 	 * Whether the storage directory is publicly reachable over HTTP (checked
 	 * with a probe file; cached for a day). Only relevant inside the uploads dir.
 	 *
 	 * @return bool|null True = exposed, false = protected, null = unknown/outside web root.
 	 */
 	public static function publicly_accessible() {
-		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
+		if ( self::custom_dir() ) {
 			return null;
 		}
 		static $memo = false;
@@ -88,14 +119,64 @@ final class Statement {
 			$memo = null;
 			return null;
 		}
-		$exposed = 200 === (int) wp_remote_retrieve_response_code( $res ) && 'wpac' === trim( (string) wp_remote_retrieve_body( $res ) );
+		$code    = (int) wp_remote_retrieve_response_code( $res );
+		$body    = (string) wp_remote_retrieve_body( $res );
+		$exposed = self::probe_verdict( $code, $body, true );
+		if ( true !== $exposed ) {
+			$exposed = self::probe_verdict( $code, $body, self::control_reachable( $upload ) );
+		}
+		if ( null === $exposed ) {
+			set_transient( 'wpac_statement_probe', 'unknown', HOUR_IN_SECONDS );
+			$memo = null;
+			return null;
+		}
 		set_transient( 'wpac_statement_probe', $exposed ? 'exposed' : 'protected', DAY_IN_SECONDS );
 		$memo = $exposed;
 		return $exposed;
 	}
 
 	/**
-	 * Note text for the VAT treatment.
+	 * Verdict of the probe request: exposed only when the probe file was served; protected only
+	 * when it was refused (401/403/404) while a control file outside the protected folder was
+	 * reachable - a refusal of every loopback request (firewall, basic auth) or a server error
+	 * (5xx) proves nothing.
+	 *
+	 * @param int    $code    HTTP status of the probe.
+	 * @param string $body    Body of the probe.
+	 * @param bool   $control Whether the control file was reachable.
+	 * @return bool|null True = exposed, false = protected, null = unknown.
+	 */
+	public static function probe_verdict( $code, $body, $control ) {
+		if ( 200 === (int) $code && 'wpac' === trim( (string) $body ) ) {
+			return true;
+		}
+		if ( $control && in_array( (int) $code, array( 401, 403, 404, 410 ), true ) ) {
+			return false;
+		}
+		return null;
+	}
+
+	/**
+	 * Whether a control file directly in the uploads folder (not protected) is reachable: only
+	 * then a refused probe in the statements folder means "protected".
+	 *
+	 * @param array $upload wp_upload_dir().
+	 * @return bool
+	 */
+	private static function control_reachable( array $upload ) {
+		$name = 'wpac-probe-' . wp_generate_password( 12, false ) . '.txt';
+		$path = trailingslashit( $upload['basedir'] ) . $name;
+		if ( false === @file_put_contents( $path, 'wpac' ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			return false;
+		}
+		$res = wp_remote_get( trailingslashit( $upload['baseurl'] ) . $name, array( 'timeout' => 5 ) );
+		wp_delete_file( $path );
+		return ! is_wp_error( $res ) && 200 === (int) wp_remote_retrieve_response_code( $res ) && 'wpac' === trim( (string) wp_remote_retrieve_body( $res ) );
+	}
+
+	/**
+	 * Note text for the VAT treatment. Legal references follow the operator country: German,
+	 * Austrian and Swiss law for DE/AT/CH, the EU VAT Directive for everyone else.
 	 *
 	 * @param string $mode    Mode.
 	 * @param string $country Operator country (legal references follow it).
@@ -103,29 +184,85 @@ final class Statement {
 	 */
 	public static function vat_note( $mode, $country = '' ) {
 		$country = strtoupper( '' !== (string) $country ? (string) $country : (string) Settings::get( 'operator_country' ) );
+		$country = '' !== $country ? $country : 'DE';
 		switch ( $mode ) {
 			case Vat::STANDARD:
 				return __( 'The commission rates are net amounts; VAT is added at the statutory rate.', 'affiliate-captain' );
 			case Vat::REVERSE_CHARGE:
+				if ( 'DE' === $country ) {
+					return __( 'Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive).', 'affiliate-captain' );
+				}
 				if ( 'AT' === $country ) {
 					return __( 'Reverse charge: the recipient of the service is liable for VAT (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 VAT Directive).', 'affiliate-captain' );
 				}
 				if ( 'CH' === $country ) {
 					return __( 'Reverse charge: the recipient of the service is liable for VAT (Bezugsteuer, Art. 45 MWSTG).', 'affiliate-captain' );
 				}
-				return __( 'Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive).', 'affiliate-captain' );
+				return __( 'Reverse charge: the recipient of the service is liable for VAT (Art. 196 VAT Directive).', 'affiliate-captain' );
 			case Vat::SMALL_BUSINESS:
+				if ( 'DE' === $country ) {
+					return __( 'No VAT is shown because the partner is a small business (§19 UStG).', 'affiliate-captain' );
+				}
 				if ( 'AT' === $country ) {
 					return __( 'No VAT is shown because the partner is a small business (§6 Abs. 1 Z 27 UStG (AT)).', 'affiliate-captain' );
 				}
 				if ( 'CH' === $country ) {
 					return __( 'No VAT is shown because the partner is not registered for VAT (Art. 10 MWSTG).', 'affiliate-captain' );
 				}
-				return __( 'No VAT is shown because the partner is a small business (§19 UStG).', 'affiliate-captain' );
+				return __( 'No VAT is shown because the partner applies the small business scheme (VAT exemption for small enterprises).', 'affiliate-captain' );
 			case Vat::PRIVATE_PERSON:
 				return __( 'No VAT: the partner is a private individual and not an entrepreneur.', 'affiliate-captain' );
+			case Vat::NONE:
+				return __( 'Repayments by the partner and claims written off are no service and not subject to VAT.', 'affiliate-captain' );
 		}
 		return '';
+	}
+
+	/**
+	 * VAT notes of a document: one per treatment that occurs on it (the main treatment first),
+	 * so a correction block with another treatment (e.g. reverse charge or VAT of an earlier
+	 * credit note after a change of the tax status) carries its own note (§14a UStG).
+	 *
+	 * @param string   $main    Main treatment of the document.
+	 * @param string[] $modes   Treatments of the lines.
+	 * @param string   $country Operator country.
+	 * @return string[]
+	 */
+	public static function vat_notes( $main, array $modes, $country ) {
+		$modes = array_values( array_unique( array_filter( array_merge( array( (string) $main ), array_map( 'strval', $modes ) ) ) ) );
+		$notes = array();
+		foreach ( $modes as $mode ) {
+			$note = self::vat_note( $mode, $country );
+			if ( '' !== $note ) {
+				$notes[] = $note;
+			}
+		}
+		$taxable = array_diff( $modes, array( Vat::NONE ) );
+		if ( count( $taxable ) > 1 ) {
+			$notes[] = __( 'Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service.', 'affiliate-captain' );
+		}
+		return $notes;
+	}
+
+	/**
+	 * Language of the documents: the site language. Languages the PDF fonts cannot show
+	 * (Cyrillic, Greek, Arabic, Asian scripts …) fall back to English (filter wpac_statement_locale).
+	 *
+	 * @param string $locale Site language.
+	 * @return string
+	 */
+	public static function document_locale( $locale ) {
+		$locale    = '' !== (string) $locale ? (string) $locale : 'en_US';
+		$lang      = strtolower( (string) strtok( $locale, '_' ) );
+		$non_latin = array( 'ru', 'uk', 'be', 'bg', 'mk', 'sr', 'el', 'ar', 'ary', 'he', 'fa', 'ur', 'zh', 'ja', 'ko', 'th', 'hi', 'bn', 'ka', 'hy', 'kk', 'ky', 'mn', 'ta', 'te', 'ml', 'kn', 'mr', 'gu', 'pa', 'ne', 'si', 'km', 'lo', 'my', 'am', 'ps', 'ug', 'tg', 'bo', 'dv', 'yi', 'tt', 'ckb', 'azb', 'haz', 'sah', 'os' );
+		$doc       = in_array( $lang, $non_latin, true ) ? 'en_US' : $locale;
+		/**
+		 * Language of credit notes and cancellations (frozen with each document).
+		 *
+		 * @param string $doc    Document language.
+		 * @param string $locale Site language.
+		 */
+		return (string) apply_filters( 'wpac_statement_locale', $doc, $locale );
 	}
 
 	/**
@@ -135,33 +272,66 @@ final class Statement {
 	 * names/addresses, tax number or VAT ID, date, unique number, service and
 	 * period, net amount, rate and VAT amount, and the word "Gutschrift".
 	 *
-	 * @param object $p      Payout.
-	 * @param bool   $storno Build the cancellation document.
+	 * Everything printed comes from the payout and its frozen snapshots (language and date
+	 * format included), so the same document can be built again byte for byte.
+	 *
+	 * @param object $p         Payout.
+	 * @param bool   $storno    Build the cancellation document.
+	 * @param bool   $duplicate Mark as a duplicate built again from the stored data.
 	 * @return string
 	 */
-	public static function build( $p, $storno = false ) {
+	public static function build( $p, $storno = false, $duplicate = false ) {
+		// Operator data as frozen with the payout (older payouts: current settings).
+		$op       = json_decode( (string) ( isset( $p->operator_snapshot ) ? $p->operator_snapshot : '' ), true );
+		$op       = is_array( $op ) ? $op : PayoutService::operator_snapshot();
+		$switched = ! empty( $op['locale'] ) ? \WPAffiliateCaptain\Core\Locale::switch_to( (string) $op['locale'] ) : false;
+		try {
+			return self::render( $p, $op, $storno, $duplicate );
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
+	}
+
+	/**
+	 * Lay out the document (in the document language).
+	 *
+	 * @param object $p         Payout.
+	 * @param array  $op        Operator snapshot.
+	 * @param bool   $storno    Cancellation document.
+	 * @param bool   $duplicate Duplicate.
+	 * @return string
+	 */
+	private static function render( $p, array $op, $storno, $duplicate ) {
 		$aff    = AffiliateRepository::find( (int) $p->affiliate_id );
 		$snap   = json_decode( (string) $p->profile_snapshot, true );
 		$snap   = is_array( $snap ) ? $snap : array();
 		$labels = ProfileRepository::tax_status_labels();
-		// Operator data as frozen with the payout (older payouts: current settings).
-		$op     = json_decode( (string) ( isset( $p->operator_snapshot ) ? $p->operator_snapshot : '' ), true );
-		$op     = is_array( $op ) ? $op : PayoutService::operator_snapshot();
 		$issuer = (string) $op['name'];
 		$self   = ! empty( $op['self_billing'] );
+		$country = strtoupper( isset( $op['country'] ) && '' !== (string) $op['country'] ? (string) $op['country'] : 'DE' );
+		$german  = in_array( $country, array( 'DE', 'AT', 'CH' ), true );
+		$correct = isset( $op['document'] ) && 'correction' === $op['document'];
 		$sign   = $storno ? -1 : 1;
 		$net    = (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor;
-		$date   = static function ( $mysql ) {
-			return mysql2date( get_option( 'date_format' ), $mysql );
+		$format = ! empty( $op['date_format'] ) ? (string) $op['date_format'] : get_option( 'date_format' );
+		$date   = static function ( $mysql ) use ( $format ) {
+			return mysql2date( $format, $mysql );
 		};
 
 		if ( $storno ) {
 			/* translators: %s: original document number */
 			$title = sprintf( __( 'Cancellation of credit note %s', 'affiliate-captain' ), $p->number );
 			$doc   = (string) $p->storno_number;
-		} else {
-			$title = $self ? __( 'Credit note (Gutschrift)', 'affiliate-captain' ) : __( 'Commission statement', 'affiliate-captain' );
+		} elseif ( $correct ) {
+			$title = $self && $german ? __( 'Correction of credit notes (Gutschrift)', 'affiliate-captain' ) : __( 'Correction of credit notes', 'affiliate-captain' );
 			$doc   = (string) $p->number;
+		} else {
+			if ( $self ) {
+				$title = $german ? __( 'Credit note (Gutschrift)', 'affiliate-captain' ) : __( 'Credit note (self-billing)', 'affiliate-captain' );
+			} else {
+				$title = __( 'Commission statement', 'affiliate-captain' );
+			}
+			$doc = (string) $p->number;
 		}
 
 		$pdf = new Pdf(
@@ -173,6 +343,9 @@ final class Statement {
 		);
 		$y = 60;
 		$pdf->text( 50, $y, $title, 15, true );
+		if ( $duplicate ) {
+			$pdf->text( 545, $y, __( 'DUPLICATE', 'affiliate-captain' ), 11, true, 'right' );
+		}
 		$y += 30;
 		$pdf->text( 50, $y, $self ? __( 'Issued by (recipient of the service)', 'affiliate-captain' ) : __( 'Issued by', 'affiliate-captain' ), 9, true );
 		$pdf->text( 310, $y, $self ? __( 'Partner (provider of the service)', 'affiliate-captain' ) : __( 'Partner', 'affiliate-captain' ), 9, true );
@@ -192,8 +365,16 @@ final class Statement {
 			preg_split( '/\r\n|\r|\n/', isset( $snap['address'] ) ? (string) $snap['address'] : '' ),
 			array( isset( $snap['country'] ) ? $snap['country'] : '' )
 		);
-		$left    = array_values( array_filter( array_map( 'trim', $left ), 'strlen' ) );
-		$partner = array_values( array_filter( array_map( 'trim', $partner ), 'strlen' ) );
+		// Each column wraps within its width (long names never run into the other column).
+		$column = static function ( array $lines ) {
+			$out = array();
+			foreach ( array_filter( array_map( 'trim', $lines ), 'strlen' ) as $line ) {
+				$out = array_merge( $out, Pdf::wrap( $line, 245, 10 ) );
+			}
+			return $out;
+		};
+		$left    = $column( $left );
+		$partner = $column( $partner );
 		$rows    = max( count( $left ), count( $partner ) );
 		for ( $i = 0; $i < $rows; $i++ ) {
 			if ( isset( $left[ $i ] ) ) {
@@ -227,9 +408,12 @@ final class Statement {
 			$facts[ __( 'Bank account', 'affiliate-captain' ) ] = ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—';
 		}
 		foreach ( $facts as $k => $v ) {
+			$values = Pdf::wrap( (string) $v, 355, 9 );
 			$pdf->text( 50, $y, $k . ':', 9, true );
-			$pdf->text( 190, $y, (string) $v, 9 );
-			$y += 13;
+			foreach ( $values as $line ) {
+				$pdf->text( 190, $y, $line, 9 );
+				$y += 13;
+			}
 		}
 
 		$y   += 14;
@@ -242,55 +426,98 @@ final class Statement {
 			return $y + 16;
 		};
 		// Regular items first, then corrections of earlier credit notes, each block with a
-		// reference to the original document and its VAT treatment (§17 UStG).
+		// reference to the original document and its VAT treatment (§17 UStG), then repayments
+		// and write-offs (not taxable).
 		$items  = PayoutService::items( (int) $p->id );
 		$blocks = array( 0 => array() );
+		$modes  = array();
 		foreach ( $items as $item ) {
-			$ref              = isset( $item->ref_payout_id ) ? (int) $item->ref_payout_id : 0;
+			$mode = isset( $item->vat_mode ) ? (string) $item->vat_mode : '';
+			$ref  = Vat::NONE === $mode ? 'none' : ( isset( $item->ref_payout_id ) ? (int) $item->ref_payout_id : 0 );
 			$blocks[ $ref ][] = $item;
+			if ( '' !== $mode ) {
+				$modes[] = $mode;
+			}
+		}
+		if ( isset( $blocks['none'] ) ) {
+			$none = $blocks['none'];
+			unset( $blocks['none'] );
+			$blocks['none'] = $none; // Last.
 		}
 		$rate_of = static function ( $item ) use ( $p ) {
 			return isset( $item->vat_rate ) && '' !== (string) $item->vat_rate ? (string) $item->vat_rate : (string) $p->vat_rate;
 		};
+		$mode_labels = array(
+			Vat::REVERSE_CHARGE => __( 'reverse charge', 'affiliate-captain' ),
+			Vat::SMALL_BUSINESS => __( 'small business, no VAT', 'affiliate-captain' ),
+			Vat::PRIVATE_PERSON => __( 'private individual, no VAT', 'affiliate-captain' ),
+		);
 		$groups = array();
 		foreach ( $blocks as $ref => $list ) {
 			if ( ! $list ) {
 				continue;
 			}
+			$orig = null;
 			if ( $ref ) {
-				$orig = PayoutService::find( $ref );
-				$y   += 8;
+				$y += 8;
 				if ( $y > 740 ) {
 					$pdf->add_page();
 					$y = 60;
 				}
-				/* translators: 1: credit note number, 2: date */
-				$pdf->text( 50, $y, sprintf( __( 'Correction of credit note %1$s of %2$s', 'affiliate-captain' ), $orig ? $orig->number : '#' . $ref, $orig ? $date( get_date_from_gmt( $orig->created_at ) ) : '—' ), 10, true );
+				if ( 'none' === $ref ) {
+					$pdf->text( 50, $y, __( 'Repayments and write-offs (not taxable)', 'affiliate-captain' ), 10, true );
+				} else {
+					$orig = PayoutService::find( (int) $ref );
+					/* translators: 1: credit note number, 2: date */
+					$pdf->text( 50, $y, sprintf( __( 'Correction of credit note %1$s of %2$s', 'affiliate-captain' ), $orig ? $orig->number : '#' . $ref, $orig ? $date( get_date_from_gmt( $orig->created_at ) ) : '—' ), 10, true );
+				}
 				$y += 16;
 			}
 			$y   = $head( $pdf, $y );
 			$sum = 0;
 			foreach ( $list as $item ) {
-				if ( $y > 760 ) {
+				if ( in_array( $item->kind, array( 'sale', 'bonus' ), true ) ) {
+					$desc = (string) $item->description;
+				} elseif ( in_array( $item->kind, Vat::NON_TAXABLE_KINDS, true ) ) {
+					$desc = \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ( '' !== (string) $item->description ? ': ' . $item->description : '' );
+				} else {
+					$desc = __( 'Correction', 'affiliate-captain' ) . ' (' . \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ')';
+				}
+				// Every column wraps within its own width: nothing runs into the next column.
+				$cells = array(
+					array( 50, Pdf::wrap( $date( get_date_from_gmt( (string) $item->commission_date ) ), 66, 9 ) ),
+					array( 120, Pdf::wrap( ( 'wpac' === $item->source ? '' : '#' . $item->source_order_id ), 106, 9 ) ),
+					array( 230, Pdf::wrap( $desc, 236, 9 ) ),
+				);
+				$height = max( count( $cells[0][1] ), count( $cells[1][1] ), count( $cells[2][1] ) );
+				if ( $y + 13 * ( $height - 1 ) > 760 ) {
 					$pdf->add_page();
 					$y = $head( $pdf, 60 );
 				}
-				$desc = in_array( $item->kind, array( 'sale', 'bonus' ), true ) ? (string) $item->description : __( 'Correction', 'affiliate-captain' ) . ' (' . \WPAffiliateCaptain\Commissions\Ledger::kind_label( (string) $item->kind ) . ')';
-				$desc = Pdf::wrap( $desc, 230, 9 );
-				$pdf->text( 50, $y, $date( get_date_from_gmt( (string) $item->commission_date ) ), 9 );
-				$pdf->text( 120, $y, ( 'wpac' === $item->source ? '' : '#' . $item->source_order_id ), 9 );
-				$pdf->text( 230, $y, $desc[0], 9 );
+				foreach ( $cells as $cell ) {
+					foreach ( $cell[1] as $n => $line ) {
+						if ( '' !== $line ) {
+							$pdf->text( $cell[0], $y + 13 * $n, $line, 9 );
+						}
+					}
+				}
 				$pdf->text( 545, $y, Money::format( $sign * (int) $item->amount_minor, $p->currency ), 9, false, 'right' );
-				$y   += 13;
+				$y   += 13 * $height;
 				$sum += (int) $item->amount_minor;
 				$rate = $rate_of( $item );
 				$groups[ $rate ] = ( isset( $groups[ $rate ] ) ? $groups[ $rate ] : 0 ) + (int) $item->amount_minor;
 			}
-			if ( $ref ) {
-				$orig_rate = $orig ? (string) $orig->vat_rate : '0';
+			if ( $ref && 'none' !== $ref ) {
+				$first = reset( $list );
+				$imode = isset( $first->vat_mode ) && '' !== (string) $first->vat_mode ? (string) $first->vat_mode : ( $orig ? (string) $orig->vat_mode : '' );
 				$pdf->line( 50, $y - 6, 545, $y - 6 );
-				/* translators: %s: VAT rate */
-				$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (VAT %s %%)', 'affiliate-captain' ), $orig_rate ), 9 );
+				if ( isset( $mode_labels[ $imode ] ) ) {
+					/* translators: %s: VAT treatment */
+					$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (%s)', 'affiliate-captain' ), $mode_labels[ $imode ] ), 9 );
+				} else {
+					/* translators: %s: VAT rate */
+					$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (VAT %s %%)', 'affiliate-captain' ), $rate_of( $first ) ), 9 );
+				}
 				$pdf->text( 545, $y + 4, Money::format( $sign * $sum, $p->currency ), 9, false, 'right' );
 				$y += 18;
 			}
@@ -320,23 +547,48 @@ final class Statement {
 				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), $rate, Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
 			}
 		}
-		$totals[] = array( $storno ? __( 'Total cancelled', 'affiliate-captain' ) : __( 'Total payout', 'affiliate-captain' ), $sign * (int) $p->amount_minor, true );
+		if ( $storno ) {
+			$total_label = __( 'Total cancelled', 'affiliate-captain' );
+		} elseif ( $correct ) {
+			$total_label = __( 'Balance (settled, no transfer)', 'affiliate-captain' );
+		} else {
+			$total_label = __( 'Total payout', 'affiliate-captain' );
+		}
+		$totals[] = array( $total_label, $sign * (int) $p->amount_minor, true );
 		foreach ( $totals as $t ) {
 			$pdf->text( 330, $y, $t[0], 10, $t[2] );
 			$pdf->text( 545, $y, Money::format( $t[1], $p->currency ), 10, $t[2], 'right' );
 			$y += 15;
 		}
 		$y += 15;
-		$notes = array_filter(
-			array(
-				self::vat_note( (string) $p->vat_mode, (string) $op['country'] ),
-				$self && ! $storno ? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' ) : '',
-				$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'affiliate-captain' ) : '',
+		if ( $self && ! $storno ) {
+			$self_note = 'DE' === $country
+				? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' )
+				: __( 'This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
+		} else {
+			$self_note = '';
+		}
+		$notes = array_merge(
+			self::vat_notes( (string) $p->vat_mode, $modes, $country ),
+			array_filter(
+				array(
+					$correct ? __( 'This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred.', 'affiliate-captain' ) : '',
+					$self_note,
+					$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'affiliate-captain' ) : '',
+					$duplicate ? __( 'Duplicate: built again from the stored data because the original file was not available on this server.', 'affiliate-captain' ) : '',
+				)
 			)
 		);
 		/** This filter is documented in docs/CONTRACT.md. */
-		$note = (string) apply_filters( 'wpac_statement_note', implode( "\n", $notes ), $p );
-		foreach ( Pdf::wrap( $note, 495, 8 ) as $line ) {
+		$note  = (string) apply_filters( 'wpac_statement_note', implode( "\n", $notes ), $p );
+		$lines = Pdf::wrap( $note, 495, 8 );
+		$orig  = $pdf->transliterated();
+		if ( $orig ) {
+			// The fonts cannot show some characters: say so and keep the original spelling.
+			/* translators: %s: original texts */
+			$lines = array_merge( $lines, Pdf::wrap( sprintf( __( 'Some characters cannot be shown in this document and were transliterated. Original spelling: %s', 'affiliate-captain' ), implode( ' | ', $orig ) ), 495, 8 ) );
+		}
+		foreach ( $lines as $line ) {
 			if ( $y > 800 ) {
 				$pdf->add_page();
 				$y = 60;
@@ -524,10 +776,18 @@ final class Statement {
 			}
 			self::clear_backoff( (int) $payout_id );
 			Audit::log( 'statement.generated', 'payout', (int) $payout_id, array( 'hash' => hash( 'sha256', $bytes ) ) );
-			return true;
 		} finally {
 			Db::unlock( 'wpac_stmt_' . (int) $payout_id, $owner );
 		}
+		/**
+		 * A credit note (or correction document) was issued and stored – e.g. to send it to the
+		 * partner (a credit note only takes effect once the partner received it, §14 Abs. 2 UStG).
+		 *
+		 * @param int    $payout_id Payout.
+		 * @param string $path      Stored PDF.
+		 */
+		do_action( 'wpac_statement_generated', (int) $payout_id, $path );
+		return true;
 	}
 
 	const RETRY_OPTION = 'wpac_statement_retry';
@@ -535,29 +795,31 @@ final class Statement {
 	/**
 	 * Remember a failed write and wait longer each time (1, 2, 4 … 24 hours).
 	 *
-	 * @param int $payout_id Payout.
+	 * @param int    $payout_id Payout.
+	 * @param string $option    Retry option.
 	 */
-	private static function backoff( $payout_id ) {
-		$all              = get_option( self::RETRY_OPTION, array() );
+	private static function backoff( $payout_id, $option = self::RETRY_OPTION ) {
+		$all              = get_option( $option, array() );
 		$all              = is_array( $all ) ? $all : array();
 		$n                = isset( $all[ $payout_id ] ) ? (int) $all[ $payout_id ]['n'] + 1 : 1;
 		$all[ $payout_id ] = array(
 			'n'    => $n,
 			'next' => time() + min( DAY_IN_SECONDS, HOUR_IN_SECONDS * ( 2 ** ( $n - 1 ) ) ),
 		);
-		update_option( self::RETRY_OPTION, $all, false );
+		update_option( $option, $all, false );
 	}
 
 	/**
 	 * Forget the failures of a payout.
 	 *
-	 * @param int $payout_id Payout.
+	 * @param int    $payout_id Payout.
+	 * @param string $option    Retry option.
 	 */
-	private static function clear_backoff( $payout_id ) {
-		$all = get_option( self::RETRY_OPTION, array() );
+	private static function clear_backoff( $payout_id, $option = self::RETRY_OPTION ) {
+		$all = get_option( $option, array() );
 		if ( is_array( $all ) && isset( $all[ $payout_id ] ) ) {
 			unset( $all[ $payout_id ] );
-			update_option( self::RETRY_OPTION, $all, false );
+			update_option( $option, $all, false );
 		}
 	}
 
@@ -615,17 +877,18 @@ final class Statement {
 	}
 
 	/**
-	 * Stream the stored PDF (caller checks permissions) and exit.
+	 * Stream the stored PDF (caller checks permissions) and exit. A file missing on this server
+	 * is built again from the stored data (stored_bytes()).
 	 *
-	 * @param object $p Payout.
+	 * @param object $p      Payout.
+	 * @param bool   $storno Cancellation document.
 	 */
-	public static function send( $p ) {
-		$path = self::path( (string) $p->statement_file );
-		if ( '' === (string) $p->statement_file || ! is_readable( $path ) ) {
+	public static function send( $p, $storno = false ) {
+		$bytes = self::stored_bytes( $p, $storno );
+		if ( null === $bytes ) {
 			wp_die( esc_html__( 'The statement is not available (anymore).', 'affiliate-captain' ), 404 );
 		}
-		$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		if ( ! hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ) {
+		if ( false === $bytes ) {
 			Audit::log( 'statement.hash_mismatch', 'payout', (int) $p->id );
 			wp_die( esc_html__( 'The stored statement failed the integrity check.', 'affiliate-captain' ), 500 );
 		}
@@ -635,6 +898,39 @@ final class Statement {
 		header( 'Content-Length: ' . strlen( $bytes ) );
 		echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		exit;
+	}
+
+	/**
+	 * Bytes of a stored document. A file that is missing on this server (several app servers
+	 * without shared storage, lost file) is built again from the stored data: if the result
+	 * matches the stored hash it is the original and is stored again; otherwise a copy marked
+	 * as duplicate is returned. Documents deleted after the retention period are not rebuilt.
+	 *
+	 * @param object $p      Payout (statement_file/statement_hash of the document to send).
+	 * @param bool   $storno Cancellation document.
+	 * @return string|null|false Bytes, null = not available, false = integrity check failed.
+	 */
+	public static function stored_bytes( $p, $storno = false ) {
+		if ( '' === (string) $p->statement_file ) {
+			return null;
+		}
+		$path = self::path( (string) $p->statement_file );
+		if ( is_readable( $path ) ) {
+			$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			return hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ? $bytes : false;
+		}
+		$orig = PayoutService::find( (int) $p->id );
+		if ( ! $orig || $orig->statement_deleted_at ) {
+			return null;
+		}
+		$bytes = self::build( $orig, $storno );
+		if ( hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ) {
+			@file_put_contents( self::dir() . '/' . basename( (string) $p->statement_file ), $bytes ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			Audit::log( 'statement.restored', 'payout', (int) $p->id, array( 'storno' => (bool) $storno ) );
+			return $bytes;
+		}
+		Audit::log( 'statement.duplicate', 'payout', (int) $p->id, array( 'storno' => (bool) $storno ) );
+		return self::build( $orig, $storno, true );
 	}
 
 	/**
@@ -753,35 +1049,87 @@ final class Statement {
 	 */
 	public static function generate_storno( $payout_id ) {
 		global $wpdb;
-		$p = PayoutService::find( $payout_id );
-		if ( ! $p || '' === (string) $p->storno_number || '' !== (string) $p->storno_file ) {
+		$owner = Db::lock( 'wpac_storno_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
+		if ( '' === $owner ) {
 			return false;
 		}
-		$bytes = self::build( $p, true );
-		$name  = sanitize_file_name( $p->storno_number . '-' . wp_generate_password( 16, false ) . '.pdf' );
-		if ( false === file_put_contents( self::dir() . '/' . $name, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-			Audit::log( 'statement.storno_write_failed', 'payout', (int) $payout_id );
-			$last = error_get_last();
-			\WPAffiliateCaptain\Core\Log::error(
-				'Cancellation document could not be written',
-				array(
-					'payout'       => (int) $payout_id,
-					'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-					'cause'        => is_array( $last ) ? substr( (string) $last['message'], 0, 300 ) : '',
-				)
-			);
-			return false;
+		try {
+			$p = PayoutService::find( $payout_id );
+			if ( ! $p || '' === (string) $p->storno_number || '' !== (string) $p->storno_file || $p->statement_deleted_at ) {
+				return false;
+			}
+			$bytes = self::build( $p, true );
+			$name  = sanitize_file_name( $p->storno_number . '-' . wp_generate_password( 16, false ) . '.pdf' );
+			$path  = self::dir() . '/' . $name;
+			if ( false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+				Audit::log( 'statement.storno_write_failed', 'payout', (int) $payout_id );
+				$last = error_get_last(); // The cause (disk full, permissions, open_basedir …), hidden by @.
+				\WPAffiliateCaptain\Core\Log::error(
+					'Cancellation document could not be written',
+					array(
+						'payout'       => (int) $payout_id,
+						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+						'cause'        => is_array( $last ) ? substr( (string) $last['message'], 0, 300 ) : '',
+					)
+				);
+				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
+				return false;
+			}
+			// Only if still without a file (compare-and-set).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET storno_file = %s, storno_hash = %s WHERE id = %d AND storno_file = ''", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
+			if ( 1 !== $done ) {
+				wp_delete_file( $path );
+				return false;
+			}
+			self::clear_backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
+			Audit::log( 'statement.storno_generated', 'payout', (int) $payout_id, array( 'number' => $p->storno_number ) );
+		} finally {
+			Db::unlock( 'wpac_storno_' . (int) $payout_id, $owner );
 		}
-		$wpdb->update(
-			Db::table( 'payouts' ),
-			array(
-				'storno_file' => $name,
-				'storno_hash' => hash( 'sha256', $bytes ),
-			),
-			array( 'id' => (int) $payout_id )
-		);
-		Audit::log( 'statement.storno_generated', 'payout', (int) $payout_id, array( 'number' => $p->storno_number ) );
+		/**
+		 * A cancellation document was issued and stored (e.g. to send it to the partner).
+		 *
+		 * @param int    $payout_id Payout.
+		 * @param string $path      Stored PDF.
+		 */
+		do_action( 'wpac_storno_generated', (int) $payout_id, $path );
 		return true;
+	}
+
+	const STORNO_RETRY_OPTION = 'wpac_storno_retry';
+
+	/**
+	 * Cancellation documents that are still missing (number allocated, file not written, e.g.
+	 * the folder was not writable): generated again by the hourly cron with growing pauses.
+	 *
+	 * @param int $limit Max. documents per run.
+	 * @return int Number generated.
+	 */
+	public static function generate_missing_stornos( $limit = 20 ) {
+		global $wpdb;
+		$t   = Db::table( 'payouts' );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE storno_number <> '' AND storno_number IS NOT NULL AND storno_file = '' AND statement_deleted_at IS NULL ORDER BY id ASC LIMIT %d", (int) $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$all = get_option( self::STORNO_RETRY_OPTION, array() );
+		$all = is_array( $all ) ? $all : array();
+		$n   = 0;
+		foreach ( (array) $ids as $id ) {
+			if ( isset( $all[ (int) $id ] ) && (int) $all[ (int) $id ]['next'] > time() ) {
+				continue;
+			}
+			$n += self::generate_storno( (int) $id ) ? 1 : 0;
+		}
+		return $n;
+	}
+
+	/**
+	 * Cancellations whose document is still missing (for the admin notice): payout ID => tries.
+	 *
+	 * @return array
+	 */
+	public static function storno_failures() {
+		$all = get_option( self::STORNO_RETRY_OPTION, array() );
+		return is_array( $all ) ? $all : array();
 	}
 
 	/**
@@ -794,7 +1142,7 @@ final class Statement {
 		$clone->statement_file = $p->storno_file;
 		$clone->statement_hash = $p->storno_hash;
 		$clone->number         = (string) $p->storno_number;
-		self::send( $clone );
+		self::send( $clone, true );
 	}
 
 	/**

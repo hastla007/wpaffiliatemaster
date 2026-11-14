@@ -870,9 +870,12 @@ final class Ledger {
 		try {
 			$written = Db::transaction(
 				static function () use ( $wpdb, $t, $affiliate_id, $currency, $reason ) {
-					// The open (approved, unpaid) rows define the balance; lock them.
+					// The open (approved, unpaid) rows define the balance; lock them. The claim includes
+					// the VAT of refunded commissions that were paid out with VAT (the write-off itself
+					// is not taxable, so it covers the gross amount).
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
+					$wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) );
+					$open = Dunning::open( (int) $affiliate_id, $currency );
 					if ( $open >= 0 ) {
 						throw new IntegrationException( 'not_negative', esc_html__( 'The balance is not negative.', 'affiliate-captain' ) );
 					}
@@ -926,6 +929,8 @@ final class Ledger {
 		}
 		// The debt is settled: a later new debt starts again with the first payment request.
 		Dunning::reset( (int) $affiliate_id, $currency );
+		// Correction document for the VAT corrections the settled balance contains.
+		\WPAffiliateCaptain\Payouts\PayoutService::settle( (int) $affiliate_id, $currency );
 		return $written;
 	}
 

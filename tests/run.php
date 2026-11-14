@@ -486,6 +486,25 @@ check( 'R5-W6 "1.000.000" KWD is still thousands grouping', '1000000', Money::pa
 check( 'R5-W6 English "1,000" EUR is one thousand, not 1,00', '1000', Money::parse_amount( '1,000', 'EUR' ) );
 check( 'R5-W6 German "1.000,00 €" and "50,00" unchanged', array( '1000.00', '50.00', '0.500' ), array( Money::parse_amount( '1.000,00 €', 'EUR' ), Money::parse_amount( '50,00', 'EUR' ), Money::parse_amount( '0,500', 'EUR' ) ) );
 check( 'R6-QA12 SEPA names are transliterated, not cut', array( 'Lukasz Zolc', 'Oyvind Aero', 'Ivan Petrov', 'Mueller GmbH', 'Jose Nunez' ), array( SepaXml::clean( 'Łukasz Żółć', 70 ), SepaXml::clean( 'Øyvind Ærø', 70 ), SepaXml::clean( 'Иван Петров', 70 ), SepaXml::clean( 'Müller GmbH', 70 ), SepaXml::clean( 'José Núñez', 70 ) ) );
+// R8 G4a: VAT treatment of repayments/write-offs, history by service date, VAT ID format, PDFs.
+check( 'R6-DD2 repayment and write-off are not taxable', array( array( 'mode' => 'none', 'rate' => '0' ), array( 'mode' => 'none', 'rate' => '0' ), array( 'mode' => 'standard', 'rate' => '19' ) ), array( Vat::for_kind( 'repayment', array( 'mode' => 'standard', 'rate' => '19' ) ), Vat::for_kind( 'writeoff', array( 'mode' => 'standard', 'rate' => '19' ) ), Vat::for_kind( 'refund', array( 'mode' => 'standard', 'rate' => '19' ) ) ) );
+$g4a_rows = array( (object) array( 'id' => 1, 'amount_minor' => -10000 ), (object) array( 'id' => 2, 'amount_minor' => 11900 ) );
+check( 'R6-DD1 gross repayment settles a refund with VAT correction', array( 1900, -1900, 0 ), Vat::totals( $g4a_rows, array( 1 => array( 'rate' => '19' ), 2 => array( 'rate' => '0' ) ) ) );
+$g4a_hist = array( array( 'until' => '2027-01-01 00:00:00', 'tax_status' => 'small_business', 'country' => 'DE', 'vat_id' => '' ) );
+$g4a_cur  = array( 'tax_status' => 'business', 'country' => 'DE', 'vat_id' => 'DE123456789' );
+check( 'R6-DD5 December service keeps the tax status valid then', 'small_business', Vat::state_at( $g4a_hist, '2026-12-15 10:00:00', $g4a_cur )['tax_status'] );
+check( 'R6-DD5 January service uses the new tax status', 'business', Vat::state_at( $g4a_hist, '2027-01-02 10:00:00', $g4a_cur )['tax_status'] );
+check( 'R6-DD5 rate history by service date', array( '16', '19' ), array( Vat::state_at( array( array( 'until' => '2021-01-01 00:00:00', 'rate' => '16' ) ), '2020-08-01 00:00:00', array( 'rate' => '19' ) )['rate'], Vat::state_at( array( array( 'until' => '2021-01-01 00:00:00', 'rate' => '16' ) ), '2021-02-01 00:00:00', array( 'rate' => '19' ) )['rate'] ) );
+check( 'R6-DD5 undeclared earlier status is skipped', 'business', Vat::state_at( array( array( 'until' => '2027-01-01 00:00:00', 'tax_status' => '' ) ), '2026-12-01 00:00:00', $g4a_cur )['tax_status'] );
+check( 'R6-DD6 VAT ID format and country prefix', array( '', '', 'prefix', 'format', '', 'format' ), array( Vat::vat_id_problem( 'DE123456789', 'DE' ), Vat::vat_id_problem( 'EL123456789', 'GR' ), Vat::vat_id_problem( 'ATU12345678', 'DE' ), Vat::vat_id_problem( 'DE12345', 'DE' ), Vat::vat_id_problem( 'CHE123456789', 'CH' ), Vat::vat_id_problem( 'X', 'US' ) ) );
+check( 'R7-AD17 small business limits', array( '', 'previous', 'current' ), array( Vat::small_business_exceeded( 2500000, 9000000, array( 2500000, 10000000 ) ), Vat::small_business_exceeded( 2500001, 0, array( 2500000, 10000000 ) ), Vat::small_business_exceeded( 0, 10000001, array( 2500000, 10000000 ) ) ) );
+check( 'R5-W45 PDF transliterates instead of "?"', "(L\xF3dz M\xFCller Dvor\xE1k Ellada)", Pdf::literal( 'Łódź Müller Dvořák Ελλάδα' ) );
+check( 'R5-W45 CP1252 characters stay', "(\xFC\x80)", Pdf::literal( 'ü€' ) );
+$g4a_pdf = new Pdf( array( 'title' => 'Gutschrift Łukasz' ) );
+$g4a_pdf->text( 50, 60, 'Łukasz Wiśniewski' );
+$g4a_out = $g4a_pdf->output();
+check( 'R5-W45 original spelling kept in the document properties', array( array( 'Łukasz Wiśniewski' ), true, false ), array( $g4a_pdf->transliterated(), false !== strpos( $g4a_out, '/Subject <FEFF' ), false !== strpos( $g4a_out, '?' ) && false !== strpos( $g4a_out, '(?' ) ) );
+check( 'R6-QA14 wrap breaks words longer than the column', true, max( array_map( static function ( $l ) { return Pdf::width( $l, 9 ); }, Pdf::wrap( 'a3f1c2d4-5b6e-4f70-8a9b-0c1d2e3f4a5b Kurs', 100, 9 ) ) ) <= 100 );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

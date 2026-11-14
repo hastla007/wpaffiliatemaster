@@ -3,6 +3,12 @@
  * Minimal PDF 1.4 writer for text documents (A4, Helvetica, WinAnsi encoding
  * so German umlauts/€ work). No WordPress dependency → unit tested.
  *
+ * Limitation: the standard fonts only cover Windows-1252 (Western European). Other characters
+ * (Ł, ś, ř, ő, Cyrillic, Greek …) are transliterated (Ł → L, ś → s, Ж → Zh) instead of being
+ * printed as "?"; the original spelling of every transliterated text is kept in the document
+ * properties (Subject, UTF-16) and listed in a note on the document. Embedding a Unicode font
+ * would make every document several hundred KB larger, so it is not done.
+ *
  * @package WPAffiliateCaptain
  */
 
@@ -18,6 +24,19 @@ final class Pdf {
 
 	/** @var array */
 	private $meta = array();
+
+	/** @var string[] Original (UTF-8) texts that had to be transliterated. */
+	private $originals = array();
+
+	/**
+	 * Fallback transliteration of letters outside Windows-1252 that do not decompose into a base
+	 * letter plus accent (used when neither intl nor iconv can transliterate).
+	 */
+	const FALLBACK = array(
+		'Ł' => 'L', 'ł' => 'l', 'Đ' => 'D', 'đ' => 'd', 'Ħ' => 'H', 'ħ' => 'h', 'ı' => 'i', 'İ' => 'I',
+		'Ŀ' => 'L', 'ŀ' => 'l', 'Ŋ' => 'N', 'ŋ' => 'n', 'Ŧ' => 'T', 'ŧ' => 't', 'ſ' => 's', 'Ə' => 'E', 'ə' => 'e',
+		'ș' => 's', 'Ș' => 'S', 'ț' => 't', 'Ț' => 'T', '–' => '-', '—' => '-', '„' => '"', '“' => '"', '”' => '"',
+	);
 
 	/**
 	 * Constructor.
@@ -35,18 +54,117 @@ final class Pdf {
 	}
 
 	/**
+	 * Number of pages.
+	 *
+	 * @return int
+	 */
+	public function page_count() {
+		return count( $this->pages );
+	}
+
+	/**
+	 * Convert UTF-8 to Windows-1252; characters outside it are transliterated.
+	 *
+	 * @param string    $text  Text (UTF-8).
+	 * @param bool|null $lossy Out: whether something had to be transliterated.
+	 * @return string
+	 */
+	public static function to_cp1252( $text, &$lossy = null ) {
+		$text  = (string) $text;
+		$lossy = false;
+		if ( ! preg_match( '/[\x80-\xFF]/', $text ) ) {
+			return $text; // ASCII.
+		}
+		$chars = preg_split( '//u', $text, -1, PREG_SPLIT_NO_EMPTY );
+		if ( false === $chars ) {
+			// Not valid UTF-8 (e.g. already Windows-1252): keep the bytes.
+			return $text;
+		}
+		$out = '';
+		foreach ( $chars as $ch ) {
+			if ( ord( $ch[0] ) < 0x80 ) {
+				$out .= $ch;
+				continue;
+			}
+			$c = function_exists( 'iconv' ) ? @iconv( 'UTF-8', 'Windows-1252', $ch ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( false === $c && function_exists( 'mb_convert_encoding' ) ) {
+				$c = @mb_convert_encoding( $ch, 'Windows-1252', 'UTF-8' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				$c = '?' === $c ? false : $c;
+			}
+			if ( false !== $c && '' !== $c ) {
+				$out .= $c;
+				continue;
+			}
+			$lossy = true;
+			$out  .= self::transliterate( $ch );
+		}
+		return $out;
+	}
+
+	/**
+	 * Transliterate one character into ASCII.
+	 *
+	 * @param string $ch Character (UTF-8).
+	 * @return string
+	 */
+	public static function transliterate( $ch ) {
+		if ( isset( self::FALLBACK[ $ch ] ) ) {
+			return self::FALLBACK[ $ch ];
+		}
+		if ( function_exists( 'transliterator_transliterate' ) ) {
+			$t = transliterator_transliterate( 'Any-Latin; Latin-ASCII', $ch );
+			if ( is_string( $t ) && '' !== $t && ! preg_match( '/[^\x20-\x7E]/', $t ) ) {
+				return $t;
+			}
+		}
+		if ( class_exists( 'Normalizer' ) ) {
+			$t = preg_replace( '/\p{Mn}+/u', '', (string) \Normalizer::normalize( $ch, \Normalizer::FORM_D ) );
+			if ( is_string( $t ) && '' !== $t && ! preg_match( '/[^\x20-\x7E]/', $t ) ) {
+				return $t;
+			}
+		}
+		if ( function_exists( 'iconv' ) ) {
+			$t = @iconv( 'UTF-8', 'ASCII//TRANSLIT', $ch ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( is_string( $t ) && '' !== $t && false === strpos( $t, '?' ) ) {
+				return $t;
+			}
+		}
+		return '?';
+	}
+
+	/**
 	 * Convert UTF-8 to a PDF literal string in WinAnsi (CP1252).
 	 *
 	 * @param string $text Text.
 	 * @return string
 	 */
 	public static function literal( $text ) {
-		$text = (string) $text;
-		$conv = function_exists( 'mb_convert_encoding' ) ? @mb_convert_encoding( $text, 'Windows-1252', 'UTF-8' ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		if ( false === $conv || '' === $conv && '' !== $text ) {
-			$conv = (string) @iconv( 'UTF-8', 'Windows-1252//TRANSLIT', $text ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		}
+		$conv = self::to_cp1252( (string) $text );
 		return '(' . strtr( $conv, array( '\\' => '\\\\', '(' => '\\(', ')' => '\\)', "\r" => '', "\n" => ' ' ) ) . ')';
+	}
+
+	/**
+	 * PDF text string in UTF-16BE (document properties keep every character).
+	 *
+	 * @param string $text Text (UTF-8).
+	 * @return string
+	 */
+	public static function utf16( $text ) {
+		$text = (string) $text;
+		if ( ! preg_match( '/[\x80-\xFF]/', $text ) ) {
+			return self::literal( $text );
+		}
+		$conv = function_exists( 'mb_convert_encoding' ) ? mb_convert_encoding( $text, 'UTF-16BE', 'UTF-8' ) : @iconv( 'UTF-8', 'UTF-16BE', $text ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		return '<FEFF' . strtoupper( bin2hex( (string) $conv ) ) . '>';
+	}
+
+	/**
+	 * Texts that had to be transliterated on this document (original spelling).
+	 *
+	 * @return string[]
+	 */
+	public function transliterated() {
+		return array_values( array_unique( $this->originals ) );
 	}
 
 	/**
@@ -57,8 +175,7 @@ final class Pdf {
 	 * @return float
 	 */
 	public static function width( $text, $size ) {
-		$len = function_exists( 'mb_strlen' ) ? mb_strlen( (string) $text, 'UTF-8' ) : strlen( (string) $text );
-		return $len * $size * 0.5;
+		return strlen( self::to_cp1252( (string) $text ) ) * $size * 0.5;
 	}
 
 	/**
@@ -74,6 +191,10 @@ final class Pdf {
 	public function text( $x, $y, $text, $size = 10, $bold = false, $align = 'left' ) {
 		if ( 'right' === $align ) {
 			$x -= self::width( $text, $size );
+		}
+		self::to_cp1252( (string) $text, $lossy );
+		if ( $lossy ) {
+			$this->originals[] = (string) $text;
 		}
 		$this->pages[ count( $this->pages ) - 1 ] .= sprintf( "BT /%s %.2F Tf %.2F %.2F Td %s Tj ET\n", $bold ? 'F2' : 'F1', $size, $x, self::HEIGHT - $y, self::literal( $text ) );
 	}
@@ -101,8 +222,28 @@ final class Pdf {
 	public static function wrap( $text, $width, $size ) {
 		$lines = array();
 		foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $paragraph ) {
-			$line = '';
+			$line  = '';
+			$words = array();
 			foreach ( preg_split( '/\s+/', trim( $paragraph ) ) as $word ) {
+				// A word wider than the column (order number, UUID, long product name) is broken.
+				while ( '' !== $word && self::width( $word, $size ) > $width ) {
+					$chars = preg_split( '//u', $word, -1, PREG_SPLIT_NO_EMPTY );
+					$chars = false === $chars ? str_split( $word ) : $chars;
+					$part  = '';
+					foreach ( $chars as $c ) {
+						if ( '' !== $part && self::width( $part . $c, $size ) > $width ) {
+							break;
+						}
+						$part .= $c;
+					}
+					$words[] = $part;
+					$word    = (string) substr( $word, strlen( $part ) );
+				}
+				if ( '' !== $word ) {
+					$words[] = $word;
+				}
+			}
+			foreach ( $words as $word ) {
 				$try = '' === $line ? $word : $line . ' ' . $word;
 				if ( '' !== $line && self::width( $try, $size ) > $width ) {
 					$lines[] = $line;
@@ -134,7 +275,12 @@ final class Pdf {
 		$objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
 		$objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
 		$created    = isset( $this->meta['created'] ) ? (int) $this->meta['created'] : time();
-		$objects[5] = '<< /Title ' . self::literal( isset( $this->meta['title'] ) ? $this->meta['title'] : '' ) . ' /Author ' . self::literal( isset( $this->meta['author'] ) ? $this->meta['author'] : '' ) . ' /Producer (Affiliate Captain) /CreationDate (D:' . gmdate( 'YmdHis', $created ) . "Z) >>";
+		$subject    = '';
+		if ( $this->originals ) {
+			// Original spelling of transliterated texts (the fonts cannot show them).
+			$subject = ' /Subject ' . self::utf16( 'Original spelling: ' . implode( ' | ', $this->transliterated() ) );
+		}
+		$objects[5] = '<< /Title ' . self::utf16( isset( $this->meta['title'] ) ? $this->meta['title'] : '' ) . ' /Author ' . self::utf16( isset( $this->meta['author'] ) ? $this->meta['author'] : '' ) . $subject . ' /Producer (Affiliate Captain) /CreationDate (D:' . gmdate( 'YmdHis', $created ) . "Z) >>";
 		foreach ( $this->pages as $i => $content ) {
 			$page_id             = 6 + 2 * $i;
 			$objects[ $page_id ] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' . self::WIDTH . ' ' . self::HEIGHT . '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' . ( $page_id + 1 ) . ' 0 R >>';

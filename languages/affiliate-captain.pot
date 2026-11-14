@@ -201,6 +201,10 @@ msgid "Partner saved."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "Status updated. Payouts that were not exported yet were cancelled. These payouts were already exported – if the bank did not execute them, cancel them under Payouts:"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Status updated."
 msgstr ""
 
@@ -249,7 +253,7 @@ msgid "VIES confirms the VAT ID as valid."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "According to VIES, the VAT ID is NOT valid. Reverse-charge payouts to this partner are blocked until the partner corrects it."
+msgid "According to VIES, the VAT ID is NOT valid. Credit notes with VAT or reverse charge to this partner are blocked until the partner corrects it."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -274,6 +278,18 @@ msgid "The negative balance was written off."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "You are not allowed to change payout details."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The new tax data apply from now on."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The change of the tax data was rejected; the previous data stay."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "You are not allowed to view tax and bank details."
 msgstr ""
 
@@ -289,7 +305,7 @@ msgstr ""
 msgid "Search partners"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Name / company"
 msgstr ""
 
@@ -626,7 +642,7 @@ msgstr ""
 msgid "Incomplete."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Statement.php src/Portal/Portal.php
 msgid "Tax status"
 msgstr ""
 
@@ -638,12 +654,16 @@ msgstr ""
 msgid "Address"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Notifications.php
 msgid "Country"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/ProfileRepository.php src/Payouts/Statement.php
 msgid "VAT ID"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Not checked yet for this VAT ID."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -662,9 +682,21 @@ msgstr ""
 msgid "not an EU VAT ID (no VIES check)"
 msgstr ""
 
-#. translators: 1: status, 2: date, 3: consultation number
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "%1$s (checked %2$s%3$s)"
+msgid "The VIES check is switched off, so this old result no longer blocks payouts."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Credit notes with VAT or reverse charge to this partner are blocked until the VAT ID is corrected."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "VIES refused your own VAT ID (Settings → Payouts): no consultation number until it is corrected."
+msgstr ""
+
+#. translators: 1: VAT ID, 2: status, 3: date, 4: consultation number
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "%1$s: %2$s (checked %3$s%4$s)"
 msgstr ""
 
 #. translators: %s: number
@@ -672,11 +704,11 @@ msgstr ""
 msgid "consultation number %s"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Statement.php
 msgid "Tax number"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
 msgid "Payout method"
 msgstr ""
 
@@ -684,11 +716,11 @@ msgstr ""
 msgid "Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Account holder"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Payouts/PayoutService.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Portal/Portal.php
 msgid "IBAN"
 msgstr ""
 
@@ -696,7 +728,7 @@ msgstr ""
 msgid "leave empty to keep"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php
 msgid "BIC"
 msgstr ""
 
@@ -704,7 +736,7 @@ msgstr ""
 msgid "Payment details (other method)"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Stored – leave empty to keep"
 msgstr ""
 
@@ -723,6 +755,19 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Only users who manage payouts can change payout details."
+msgstr ""
+
+#. translators: 1: date, 2: old data, 3: new data
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The partner changed the tax data on %1$s: %2$s → %3$s."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The change affects the VAT on credit notes. Until you approve it, the previous data apply; once approved it applies to commissions from now on."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Approve tax data"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -808,6 +853,11 @@ msgstr ""
 msgid "Account %1$s – balance %2$s"
 msgstr ""
 
+#. translators: %s: amount
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Including VAT (and VAT corrections of earlier credit notes): %s"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Reason for the write-off"
 msgstr ""
@@ -872,7 +922,7 @@ msgstr ""
 msgid "Booking"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php
 msgid "Reference"
 msgstr ""
 
@@ -1082,6 +1132,26 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "Transfer list exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "PayPal payouts file exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Exported payouts of a terminated partner to check"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout request open again (payout cancelled)"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Payout details could not be saved"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Change of bank details refused (password missing or wrong)"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -1336,6 +1406,10 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/Admin/Pages/CommissionsPage.php
+msgid "Approving before the end of the hold period needs the permission to manage payouts."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
 msgid "Approved manually"
 msgstr ""
 
@@ -1545,7 +1619,7 @@ msgstr ""
 msgid "No creatives yet."
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php src/Admin/Tables/AffiliatesTable.php
+#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php
 msgid "All"
 msgstr ""
 
@@ -2133,6 +2207,22 @@ msgstr ""
 msgid "Database error."
 msgstr ""
 
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements stored in their own folder (WPAC_STATEMENT_DIR / wpac_statement_dir) – make sure it is outside the web root"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Could not check whether the statements folder is publicly reachable (the test request from the server to itself was blocked). Check that /wp-content/uploads/wpac-statements/ cannot be opened in a browser, or define WPAC_STATEMENT_DIR outside the web root."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements folder is not publicly reachable"
+msgstr ""
+
 #. translators: %s: version
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Public contract version: %s. Integrations with a different major version are not called."
@@ -2188,18 +2278,6 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Company account for SEPA export configured"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Statements stored outside the web root (WPAC_STATEMENT_DIR)"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
-msgid "Statements folder is not publicly reachable"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -2275,10 +2353,45 @@ msgid_plural "%d payouts failed:"
 msgstr[0] ""
 msgstr[1] ""
 
-#. translators: 1: number of payouts, 2: amount
+#. translators: 1: number of payouts, 2: amount(s)
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Please tick the confirmation box: this affects %1$d payout totalling %2$s. Your selection was kept."
 msgid_plural "Please tick the confirmation box: this affects %1$d payouts totalling %2$s. Your selection was kept."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: number of payouts, 2: file name
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Transfer list with %1$d payout downloaded (%2$s). The payout is now marked as exported; once the money went out, select it and choose \"Mark as paid\"."
+msgid_plural "Transfer list with %1$d payouts downloaded (%2$s). They are now marked as exported; once the money went out, select them and choose \"Mark as paid\"."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: number of payouts, 2: file name
+#: src/Admin/Pages/PayoutsPage.php
+msgid "PayPal payouts file with %1$d payout downloaded (%2$s). Upload it in your PayPal business account (Pay & get paid → Payouts); once PayPal executed it, mark the payout as paid."
+msgid_plural "PayPal payouts file with %1$d payouts downloaded (%2$s). Upload it in your PayPal business account (Pay & get paid → Payouts); once PayPal executed them, mark the payouts as paid."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of payouts
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d selected payout has no PayPal address and was left out (it stays as it is):"
+msgid_plural "%d selected payouts have no PayPal address and were left out (they stay as they are):"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: number of payouts, 2: file name
+#: src/Admin/Pages/PayoutsPage.php
+msgid "SEPA file with %1$d payout downloaded (%2$s). Import it in your online banking; once the bank executed the transfer, mark the payout as paid."
+msgid_plural "SEPA file with %1$d payouts downloaded (%2$s). Import it in your online banking; once the bank executed the transfers, mark the payouts as paid."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of payouts
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%d selected payout uses another payment method (e.g. PayPal) and is not in the file: pay it by the transfer list or PayPal file and then mark it as paid."
+msgid_plural "%d selected payouts use another payment method (e.g. PayPal) and are not in the file: pay them by the transfer list or PayPal file and then mark them as paid."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2330,7 +2443,7 @@ msgid "Please describe what was done (the partner is informed)."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
-msgid "This objection was already handled (or no longer exists); nothing was sent."
+msgid "This objection was already handled, no longer exists or could not be saved; nothing was sent."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -2339,6 +2452,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Please choose a period end and currency."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The credit notes are written in the background within a few minutes (missing ones at the latest when you export or mark the payouts as paid)."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -2358,6 +2475,10 @@ msgid "The transfer list contains bank details. You need the permission to view 
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "The PayPal file contains payment details. You need the permission to view tax and bank data."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "The SEPA file contains bank details. You need the permission to view tax and bank data."
 msgstr ""
 
@@ -2373,6 +2494,18 @@ msgstr ""
 msgid "Not allowed."
 msgstr ""
 
+#: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Payment details"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Bank transfer"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Other payment method"
+msgstr ""
+
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Negative balances of ended partnerships (to claim back):"
 msgstr ""
@@ -2380,6 +2513,24 @@ msgstr ""
 #. translators: 1: partner, 2: amount, 3: reminders sent
 #: src/Admin/Pages/PayoutsPage.php
 msgid "%1$s (%2$d of 3 reminders sent)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Small business partners above the small business limit (§19 UStG: 25,000 € in the previous year or 100,000 € in the current year):"
+msgstr ""
+
+#. translators: 1: partner, 2: amount previous year, 3: amount current year
+#: src/Admin/Pages/PayoutsPage.php
+msgid "previous year %1$s, this year %2$s"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on."
+msgstr ""
+
+#. translators: %s: cancellation number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The cancellation document %s could not be stored yet. It is retried automatically; check that the statement folder is writable."
 msgstr ""
 
 #. translators: 1: payout number, 2: orders
@@ -2398,10 +2549,6 @@ msgstr ""
 #. translators: 1: partner, 2: number, 3: date
 #: src/Admin/Pages/PayoutsPage.php
 msgid "%1$s objected to credit note %2$s on %3$s:"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -2486,6 +2633,15 @@ msgstr ""
 msgid "Reject this payout request? The partner is notified with the reason."
 msgstr ""
 
+#. translators: %s: currency
+#: src/Admin/Pages/PayoutsPage.php
+msgid "cannot be checked (no exchange rate for %s)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Read-only view: you can open the payouts and download credit notes and cancellations, but not create, export or change payouts."
+msgstr ""
+
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Select all"
 msgstr ""
@@ -2525,6 +2681,10 @@ msgid "Download transfer list (CSV, any currency)"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Download PayPal payouts file (CSV)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Mark as paid"
 msgstr ""
 
@@ -2537,7 +2697,7 @@ msgid "Run this action for the selected payouts?"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
-msgid "Payouts of partners with another payment method (e.g. PayPal) are left out of the SEPA file. The transfer list contains their payment details; pay them manually and then mark them as paid."
+msgid "Payouts of partners with another payment method (e.g. PayPal) are left out of the SEPA file. The transfer list contains their payment details; the PayPal payouts file contains those with a PayPal address, for the upload in your PayPal business account. Pay them and then mark them as paid."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -2630,6 +2790,20 @@ msgstr ""
 #: src/Admin/Pages/PayoutsPage.php
 msgid "VAT treatment depends on the partner's tax status and must be confirmed by your tax advisor. This statement does not calculate VAT."
 msgstr ""
+
+#. translators: %d: number of rules
+#: src/Admin/Pages/RulesPage.php
+msgid "%d commission rule of the group was deactivated."
+msgid_plural "%d commission rules of the group were deactivated."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Admin/Pages/RulesPage.php
+msgid "%d partner now falls under the program terms and must accept them before the next credit note."
+msgid_plural "%d partners now fall under the program terms and must accept them before the next credit note."
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Please enter a reason for the change."
@@ -2854,7 +3028,7 @@ msgid "Save group"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
-msgid "Delete this group?"
+msgid "Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -3028,6 +3202,14 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Cookie lifetime (days)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Cookie domain"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Record link visits (%)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3232,7 +3414,7 @@ msgid "Keep the code from a partner link in the WooCommerce shop session"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Without marketing consent only if a shop session already exists (e.g. a cart) – a click alone never sets a cookie."
+msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
@@ -3256,11 +3438,19 @@ msgid "An affiliate cookie is not strictly necessary: in the EU it may only be s
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). A tiny script reports the parameter; a visit is never counted twice."
+msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3295,6 +3485,15 @@ msgstr ""
 msgid "Matches do not block a sale: its commissions get the status \"needs review\" with the reason. 0 = rule off."
 msgstr ""
 
+#. translators: 1: orders per day, 2: order value with currency, 3: seconds, 4: percent
+#: src/Admin/Pages/SettingsPage.php
+msgid "All fraud thresholds are off, so no order is ever flagged for review. Recommended starting values: %1$d orders per day, orders above %2$s, %3$d seconds between click and order, %4$d %% refund rate."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Orders in other currencies are compared after conversion with the reference exchange rates; without a rate for a currency this rule cannot check them (a warning is logged)."
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "Review orders with disposable or blocked e-mail domains"
 msgstr ""
@@ -3308,7 +3507,7 @@ msgid "Abuse protection"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy."
+msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3369,23 +3568,15 @@ msgid "Allowed claims, labelling duty, prohibited channels, how to report proble
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Payout period"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Monthly"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Quarterly"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Manual"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Partners can request payouts in the partner area"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Payment details are stored encrypted like the IBAN. You pay these payouts yourself (transfer list or PayPal payouts file) and then mark them as paid; the payment provider is a further recipient of the partner's data (privacy policy). Off: new partners can only enter an IBAN; partners who already use another method keep it until they change it."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3670,6 +3861,44 @@ msgstr ""
 msgid "Invalid field definition: %s"
 msgstr ""
 
+#. translators: 1: site name, 2: document number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Credit note %2$s"
+msgstr ""
+
+#. translators: 1: name, 2: document number, 3: amount, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have issued credit note %2$s for your commissions (total %3$s). It is attached to this e-mail and can be downloaded in your partner area: %4$s\n\nPlease check it. If something is wrong, you can object to it in the partner area."
+msgstr ""
+
+#. translators: 1: site name, 2: cancelled credit note number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Credit note %2$s cancelled"
+msgstr ""
+
+#. translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
+msgstr ""
+
+#. translators: 1: site name, 2: partner
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Tax data change of %2$s waits for your approval"
+msgstr ""
+
+#. translators: 1: site name, 2: partner
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Tax data of %2$s changed"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "The change applies to commissions earned from now on. Details:"
+msgstr ""
+
 #: src/Affiliates/Notifications.php
 msgid "This link is not valid."
 msgstr ""
@@ -3725,6 +3954,11 @@ msgstr ""
 #. translators: 1: name, 2: amount, 3: number, 4: portal URL
 #: src/Affiliates/Notifications.php
 msgid "Hello %1$s,\n\nwe have transferred %2$s to your bank account (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgstr ""
+
+#. translators: 1: site name, 2: payout number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Payout %2$s paid"
 msgstr ""
 
 #. translators: 1: site name, 2: payout number
@@ -4023,6 +4257,16 @@ msgstr ""
 msgid "The code could not be saved."
 msgstr ""
 
+#. translators: %s: coupon code
+#: src/Codes/CodeRepository.php
+msgid "There is no WooCommerce coupon \"%s\". Please create the coupon first (Marketing → Coupons) or check the spelling."
+msgstr ""
+
+#. translators: 1: coupon code, 2: partner name
+#: src/Codes/CodeRepository.php
+msgid "The coupon \"%1$s\" is already linked to partner \"%2$s\". Remove that link first."
+msgstr ""
+
 #. translators: %d: booking ID
 #: src/Commissions/Balance.php
 msgid "Booking #%d: chain broken (a booking was removed or reordered)."
@@ -4099,6 +4343,11 @@ msgstr ""
 #. translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days
 #: src/Commissions/Dunning.php
 msgid "Hello %1$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5$d days to:\n\n%3$s\nReference: %4$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail."
+msgstr ""
+
+#. translators: %s: VAT amount
+#: src/Commissions/Dunning.php
+msgid "The amount includes %s VAT that was paid out with earlier credit notes for the refunded commissions (correction of those credit notes). Once the balance is settled you receive a correction document."
 msgstr ""
 
 #: src/Commissions/Dunning.php
@@ -4303,6 +4552,10 @@ msgstr ""
 msgid "Recommended target pages"
 msgstr ""
 
+#: src/Core/Capabilities.php
+msgid "Tax advisor (Affiliate Captain, read only)"
+msgstr ""
+
 #. translators: %s: site name
 #: src/Core/Installer.php
 msgid "[%s] Partner program: database update is stuck"
@@ -4426,7 +4679,7 @@ msgstr ""
 msgid "The partner program is working"
 msgstr ""
 
-#: src/Core/Monitor.php
+#: src/Core/Monitor.php src/Tracking/Tracker.php
 msgid "Partner program"
 msgstr ""
 
@@ -4554,6 +4807,11 @@ msgstr ""
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
 msgstr ""
 
+#. translators: %s: host name
+#: src/Core/Settings.php
+msgid "Please enter this site's domain or a parent domain of %s (e.g. .example.com), or leave the field empty."
+msgstr ""
+
 #. translators: %s: entries
 #: src/Core/Settings.php
 msgid "Not an IP address or range: %s"
@@ -4631,6 +4889,11 @@ msgstr ""
 msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
 msgstr ""
 
+#. translators: %s: error message
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Affiliate Captain: the coupon was not linked to the partner: %s"
+msgstr ""
+
 #: src/Integrations/WooCommerce/OrderMetaBox.php src/Privacy/Privacy.php
 msgid "Method"
 msgstr ""
@@ -4669,6 +4932,10 @@ msgid "Not attributed."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Assigning orders to partners needs the permission to manage payouts."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Assign manually"
 msgstr ""
 
@@ -4678,6 +4945,31 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Commission is created once the order is paid."
+msgstr ""
+
+#. translators: 1: partner name, 2: order number that created the binding
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Lifetime customer of partner \"%1$s\" (since order %2$s)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Becomes active once the order's commission is approved."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Remove this customer's lifetime binding"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order was not attributed: assigning orders to partners needs the permission to manage payouts."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Affiliate Captain: lifetime partner binding of the customer removed."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The customer's lifetime partner binding was removed."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
@@ -4707,9 +4999,18 @@ msgstr ""
 msgid "The order is already attributed to a partner. Use \"Attribute to another partner\" instead."
 msgstr ""
 
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order was not assigned: the selected partner is not active or processing of the partner's data is restricted."
+msgstr ""
+
 #. translators: %s: partner name
 #: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Order assigned to partner \"%s\". The commission is created once the order is paid."
+msgstr ""
+
+#. translators: 1: chosen partner, 2: partner the order was attributed to
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The order could not be attributed to partner \"%1$s\" (e.g. the partner is the buyer). It was attributed to partner \"%2$s\" instead (referral link, coupon or lifetime customer); use \"Attribute to another partner\" to change this."
 msgstr ""
 
 #. translators: %s: partner name
@@ -4878,6 +5179,10 @@ msgstr ""
 msgid "Your objection to this credit note is already being reviewed."
 msgstr ""
 
+#: src/Payouts/Objections.php
+msgid "Your objection could not be saved. Please try again or send it to us by e-mail."
+msgstr ""
+
 #. translators: %s: credit note number
 #: src/Payouts/Objections.php
 msgid "Objection to credit note %s"
@@ -4886,6 +5191,18 @@ msgstr ""
 #. translators: 1: partner, 2: number, 3: reason, 4: URL
 #: src/Payouts/Objections.php
 msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4$s"
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled here. If the objection is justified, agree the correction with the partner – the partner issues their own invoice for the correct amount, or you settle the difference by a separate transfer or repayment request – and keep the documents with the credit note. If the credit note is correct, explain why. Then describe below what was done; the partner receives this text."
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "The payout was already cancelled (cancellation document issued); its commissions are paid with the next run and a new credit note. Describe below what was done; the partner receives this text."
+msgstr ""
+
+#: src/Payouts/Objections.php
+msgid "The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct."
 msgstr ""
 
 #. translators: %s: credit note number
@@ -4997,11 +5314,23 @@ msgid "Negative balance – carried forward"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "Balance including VAT corrections is not positive – carried forward"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "Below minimum – carried forward"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Maintenance mode is on (Settings → Reports & data)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Partnership terminated – open commissions are rejected (Settings → Program)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "The partner's tax data wait for your approval (partner page → Payout details)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -5050,7 +5379,7 @@ msgid "Reverse charge needs your VAT ID (Settings → Payouts & credit notes)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "The partner's VAT ID is not valid according to VIES (reverse charge not possible)"
+msgid "The partner's VAT ID is not valid according to VIES (no credit note with VAT or reverse charge possible)"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -5110,6 +5439,10 @@ msgstr ""
 msgid "The partner changed the payout details after payout %s was created. Please verify the change, cancel the payout and create it again."
 msgstr ""
 
+#: src/Payouts/PayoutService.php
+msgid "None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details)."
+msgstr ""
+
 #. translators: %s: payout number
 #: src/Payouts/PayoutService.php
 msgid "Payment details for payout %s are missing or cannot be decrypted."
@@ -5156,12 +5489,33 @@ msgstr ""
 msgid "Other payment method (e.g. PayPal), paid manually"
 msgstr ""
 
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "Please enter your VAT ID."
+#. translators: 1: field, 2: number of characters
+#: src/Payouts/ProfileRepository.php
+msgid "%1$s is too long (at most %2$d characters)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Please enter your VAT ID (required for reverse charge across borders)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Please enter your VAT ID or tax number (required on credit notes)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "The VAT ID does not start with the code of your country. Please check the VAT ID and the country."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "The VAT ID does not have a valid format. Please check it."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Please enter your tax number or VAT ID (required on credit notes)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
@@ -5176,12 +5530,28 @@ msgstr ""
 msgid "The IBAN is not valid."
 msgstr ""
 
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Your payout details could not be saved. Please try again; your previous details are unchanged."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "There is no pending change of the tax data."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "The payout details could not be saved. Please try again."
+msgstr ""
+
 #: src/Payouts/SepaXml.php
 msgid "The SEPA XML export needs the PHP extension \"dom\" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead."
 msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "The commission rates are net amounts; VAT is added at the statutory rate."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -5193,7 +5563,11 @@ msgid "Reverse charge: the recipient of the service is liable for VAT (Bezugsteu
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
+msgid "Reverse charge: the recipient of the service is liable for VAT (Art. 196 VAT Directive)."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "No VAT is shown because the partner is a small business (§19 UStG)."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -5205,11 +5579,19 @@ msgid "No VAT is shown because the partner is not registered for VAT (Art. 10 MW
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "No VAT is shown because the partner is a small business (§19 UStG)."
+msgid "No VAT is shown because the partner applies the small business scheme (VAT exemption for small enterprises)."
 msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "No VAT: the partner is a private individual and not an entrepreneur."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Repayments by the partner and claims written off are no service and not subject to VAT."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service."
 msgstr ""
 
 #. translators: %s: original document number
@@ -5218,7 +5600,23 @@ msgid "Cancellation of credit note %s"
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "Correction of credit notes (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Correction of credit notes"
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "Credit note (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Credit note (self-billing)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "DUPLICATE"
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -5273,9 +5671,30 @@ msgstr ""
 msgid "Net"
 msgstr ""
 
+#: src/Payouts/Statement.php
+msgid "reverse charge"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "small business, no VAT"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "private individual, no VAT"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Repayments and write-offs (not taxable)"
+msgstr ""
+
 #. translators: 1: credit note number, 2: date
 #: src/Payouts/Statement.php
 msgid "Correction of credit note %1$s of %2$s"
+msgstr ""
+
+#. translators: %s: VAT treatment
+#: src/Payouts/Statement.php
+msgid "Correction net (%s)"
 msgstr ""
 
 #. translators: %s: VAT rate
@@ -5293,11 +5712,32 @@ msgid "Total cancelled"
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "Balance (settled, no transfer)"
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Duplicate: built again from the stored data because the original file was not available on this server."
+msgstr ""
+
+#. translators: %s: original texts
+#: src/Payouts/Statement.php
+msgid "Some characters cannot be shown in this document and were transliterated. Original spelling: %s"
 msgstr ""
 
 #. translators: %d: year
@@ -5355,6 +5795,10 @@ msgstr ""
 #. translators: %s: link
 #: src/Portal/Portal.php
 msgid "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please confirm the change of your bank or payment details with your current password."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -5452,6 +5896,34 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "The terms were changed in the meantime. Please read the current version and accept it again."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please enter your VAT ID or tax number (required on credit notes; reverse charge across borders needs the VAT ID)."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The VAT ID does not have a valid format or does not start with the code of your country. Please check it."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your details have been saved. The change of your tax data is checked by us and applies once we have approved it; until then your previous tax data are used."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please confirm the change of your bank or payment details with your current password. Nothing was changed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The name is too long (at most 190 characters). Nothing was changed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The account holder is too long (at most 190 characters). Nothing was changed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The VAT ID is too long (at most 40 characters). Nothing was changed."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -5696,7 +6168,7 @@ msgstr ""
 msgid "Available from"
 msgstr ""
 
-#. translators: %s: amount
+#. translators: %s: amount(s)
 #: src/Portal/Portal.php
 msgid "Available for payout: %s"
 msgstr ""
@@ -5834,8 +6306,13 @@ msgstr ""
 msgid "VAT ID (businesses)"
 msgstr ""
 
+#. translators: 1: tax status, 2: VAT ID
 #: src/Portal/Portal.php
-msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot pay out commissions with reverse charge."
+msgid "Your change of the tax data (%1$s, VAT ID %2$s) waits for our approval. Until then your previous tax data are used."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot issue credit notes with VAT or reverse charge."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -5847,7 +6324,7 @@ msgid "The EU VIES database could not be reached to check your VAT ID; it is che
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Tax number (small businesses without VAT ID)"
+msgid "Tax number (if you have no VAT ID)"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -5863,11 +6340,11 @@ msgid "BIC (optional)"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Payment details"
+msgid "Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually."
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually."
+msgid "Current password (only needed to change your bank or payment details)"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -5894,6 +6371,11 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Pages"
+msgstr ""
+
+#. translators: %s: date
+#: src/Portal/Portal.php
+msgid "Paid on %s"
 msgstr ""
 
 #. translators: %s: date
@@ -6060,11 +6542,15 @@ msgid "When you visit our website through a partner link or enter a partner code
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout."
+msgid "If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout."
 msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "This link is only created for purchases with a customer account that earned the partner a commission (never for guest orders), and it is deleted at the latest when the partnership ends or the shop stops crediting later purchases."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -6105,6 +6591,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Partners who choose another payment method (e.g. PayPal or Wise) instead of a bank transfer: the amount, the payment reference and the payment details they entered (e.g. their PayPal address) go to that payment provider for the payout. The provider processes them under its own responsibility and may transfer them to third countries (e.g. the USA)."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -6259,6 +6749,55 @@ msgstr ""
 
 #: src/Tracking/FraudCheck.php
 msgid "Coupon of another partner used"
+msgstr ""
+
+#: src/Tracking/FraudCheck.php
+msgid "Coupon replaced the referral of another partner"
+msgstr ""
+
+#: src/Tracking/FraudCheck.php
+msgid "Payout IBAN also used by another partner"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Partner links (Affiliate Captain)"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Partner link tracking needs attention"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Partner link tracking is set up"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Client addresses, the referral cookie and the rate-limit counters work as expected."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Proxy or CDN not configured"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "This request came through a proxy/CDN (X-Forwarded-For) that is not listed under Settings → Security → Trusted proxies. All visitors then share the proxy address: code checks and registrations hit the limits early. Add the proxy addresses, or raise single limits with the filter wpac_rate_limit."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Referral cookie filtered by the host"
+msgstr ""
+
+#. translators: %s: cookie name
+#: src/Tracking/Tracker.php
+msgid "This host only passes allow-listed cookies to WordPress; \"%s\" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Object cache is local to each server"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Rate-limit counters use the database table instead (a per-server cache would multiply every limit)."
 msgstr ""
 
 #: assets/js/blocks.js

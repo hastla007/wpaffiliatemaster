@@ -305,9 +305,10 @@ final class Portal {
 				\WPAffiliateCaptain\Core\Audit::log( 'payout_profile.password_refused', 'affiliate', (int) $aff->id );
 				$result = new \WP_Error( 'wpac_password', __( 'Please confirm the change of your bank or payment details with your current password.', 'affiliate-captain' ) );
 			} else {
-				$result = ProfileRepository::save( (int) $aff->id, $in );
+				// Tax data that change the VAT on credit notes wait for the approval of an admin.
+				$result = ProfileRepository::save( (int) $aff->id, $in, 'partner' );
 			}
-			$msg = is_wp_error( $result ) ? $result->get_error_code() : 'saved';
+			$msg = is_wp_error( $result ) ? $result->get_error_code() : ( \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id ) ? 'tax_pending' : 'saved' );
 			if ( is_wp_error( $result ) ) {
 				// Keep what the partner typed (never the IBAN or payment details) and mark the field with the error.
 				unset( $in['iban'], $in['payment_details'] );
@@ -316,6 +317,7 @@ final class Portal {
 					'wpac_iban_required'   => 'iban',
 					'wpac_payment_details' => 'payment_details',
 					'wpac_vat'        => 'vat_id',
+					'wpac_vat_format' => 'vat_id',
 					'wpac_tax_number' => 'tax_number',
 					'wpac_password'   => 'current_password',
 					'wpac_too_long_legal_name'     => 'legal_name',
@@ -559,7 +561,9 @@ final class Portal {
 			'wpac_iban' => array( 'error', __( 'The IBAN is not valid.', 'affiliate-captain' ) ),
 			'wpac_iban_required'   => array( 'error', __( 'Please enter your IBAN for payouts by bank transfer.', 'affiliate-captain' ) ),
 			'wpac_payment_details' => array( 'error', __( 'Please enter your payment details (e.g. your PayPal address).', 'affiliate-captain' ) ),
-			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID.', 'affiliate-captain' ) ),
+			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID or tax number (required on credit notes; reverse charge across borders needs the VAT ID).', 'affiliate-captain' ) ),
+			'wpac_vat_format' => array( 'error', __( 'The VAT ID does not have a valid format or does not start with the code of your country. Please check it.', 'affiliate-captain' ) ),
+			'tax_pending'     => array( 'success', __( 'Your details have been saved. The change of your tax data is checked by us and applies once we have approved it; until then your previous tax data are used.', 'affiliate-captain' ) ),
 			'wpac_tax_number' => array( 'error', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) ),
 			'wpac_password'   => array( 'error', __( 'Please confirm the change of your bank or payment details with your current password. Nothing was changed.', 'affiliate-captain' ) ),
 			'wpac_too_long_legal_name'     => array( 'error', __( 'The name is too long (at most 190 characters). Nothing was changed.', 'affiliate-captain' ) ),
@@ -1071,17 +1075,23 @@ final class Portal {
 		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'affiliate-captain' ) . ' *</label><textarea id="wpac_address" name="wpac_address" rows="3" required>' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
 		self::input( 'country', __( 'Country (ISO code, e.g. DE)', 'affiliate-captain' ), $v( 'country' ), true, 'maxlength="2"' );
 		self::input( 'vat_id', __( 'VAT ID (businesses)', 'affiliate-captain' ), $v( 'vat_id' ) );
-		$vies = $p && '' !== (string) $p->vat_id ? \WPAffiliateCaptain\Payouts\Vies::result( (int) $aff->id ) : null;
-		if ( $vies && strtoupper( (string) $p->vat_id ) === (string) $vies['vat_id'] ) {
+		$tax_pending = \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id );
+		if ( $tax_pending ) {
+			$pending_status = isset( $tax_pending['new']['tax_status'], $labels[ $tax_pending['new']['tax_status'] ] ) ? $labels[ $tax_pending['new']['tax_status'] ] : '—';
+			/* translators: 1: tax status, 2: VAT ID */
+			echo '<div class="wpac-notice" role="status">' . esc_html( sprintf( __( 'Your change of the tax data (%1$s, VAT ID %2$s) waits for our approval. Until then your previous tax data are used.', 'affiliate-captain' ), $pending_status, '' !== (string) $tax_pending['new']['vat_id'] ? (string) $tax_pending['new']['vat_id'] : '—' ) ) . '</div>';
+		}
+		$vies = $p && '' !== (string) $p->vat_id ? \WPAffiliateCaptain\Payouts\Vies::result_for( (int) $aff->id, array( (string) $p->vat_id ) ) : null;
+		if ( $vies ) {
 			if ( 'invalid' === $vies['status'] ) {
-				echo '<div class="wpac-notice wpac-notice--error" role="alert">' . esc_html__( 'According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot pay out commissions with reverse charge.', 'affiliate-captain' ) . '</div>';
+				echo '<div class="wpac-notice wpac-notice--error" role="alert">' . esc_html__( 'According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot issue credit notes with VAT or reverse charge.', 'affiliate-captain' ) . '</div>';
 			} elseif ( 'valid' === $vies['status'] ) {
 				echo '<p class="wpac-muted">✔ ' . esc_html__( 'VAT ID confirmed by the EU VIES database.', 'affiliate-captain' ) . '</p>';
 			} elseif ( 'unavailable' === $vies['status'] ) {
 				echo '<p class="wpac-muted">' . esc_html__( 'The EU VIES database could not be reached to check your VAT ID; it is checked again automatically.', 'affiliate-captain' ) . '</p>';
 			}
 		}
-		self::input( 'tax_number', __( 'Tax number (small businesses without VAT ID)', 'affiliate-captain' ), $v( 'tax_number' ) );
+		self::input( 'tax_number', __( 'Tax number (if you have no VAT ID)', 'affiliate-captain' ), $v( 'tax_number' ) );
 		// Payout method: SEPA bank transfer (IBAN) or another method with free-text payment details.
 		$stored_method = ProfileRepository::method( $p );
 		$method        = is_array( $kept ) && isset( $kept['values']['payout_method'] ) && '' !== $kept['values']['payout_method'] ? (string) $kept['values']['payout_method'] : $stored_method;

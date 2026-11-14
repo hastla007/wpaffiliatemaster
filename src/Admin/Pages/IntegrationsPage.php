@@ -174,6 +174,26 @@ final class IntegrationsPage {
 	}
 
 	/**
+	 * Check of the statements folder: [ ok, text ]. A probe that could not be made (loopback
+	 * requests blocked, firewall) is no all-clear.
+	 *
+	 * @return array
+	 */
+	private static function statement_dir_check() {
+		if ( \WPAffiliateCaptain\Payouts\Statement::custom_dir() ) {
+			return array( true, __( 'Statements stored in their own folder (WPAC_STATEMENT_DIR / wpac_statement_dir) – make sure it is outside the web root', 'affiliate-captain' ) );
+		}
+		$public = \WPAffiliateCaptain\Payouts\Statement::publicly_accessible();
+		if ( true === $public ) {
+			return array( false, __( 'WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/.', 'affiliate-captain' ) );
+		}
+		if ( null === $public ) {
+			return array( false, __( 'Could not check whether the statements folder is publicly reachable (the test request from the server to itself was blocked). Check that /wp-content/uploads/wpac-statements/ cannot be opened in a browser, or define WPAC_STATEMENT_DIR outside the web root.', 'affiliate-captain' ) );
+		}
+		return array( true, __( 'Statements folder is not publicly reachable', 'affiliate-captain' ) );
+	}
+
+	/**
 	 * Render.
 	 */
 	public static function render() {
@@ -221,7 +241,7 @@ final class IntegrationsPage {
 			array( function_exists( 'wp_has_consent' ), __( 'WP Consent API detected (marketing consent for the affiliate cookie)', 'affiliate-captain' ) ),
 			array( Crypto::has_dedicated_key(), Crypto::has_dedicated_key() ? __( 'Dedicated encryption key WPAC_ENCRYPTION_KEY defined', 'affiliate-captain' ) : __( 'No dedicated encryption key: add define( \'WPAC_ENCRYPTION_KEY\', \'…64 hex characters…\' ); to wp-config.php (generate it e.g. with "openssl rand -hex 32"). Existing bank details stay readable and can then be re-encrypted here.', 'affiliate-captain' ) ),
 			array( '' !== (string) Settings::get( 'debtor_iban' ), __( 'Company account for SEPA export configured', 'affiliate-captain' ) ),
-			array( true !== \WPAffiliateCaptain\Payouts\Statement::publicly_accessible(), defined( 'WPAC_STATEMENT_DIR' ) ? __( 'Statements stored outside the web root (WPAC_STATEMENT_DIR)', 'affiliate-captain' ) : ( true === \WPAffiliateCaptain\Payouts\Statement::publicly_accessible() ? __( 'WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/.', 'affiliate-captain' ) : __( 'Statements folder is not publicly reachable', 'affiliate-captain' ) ) ),
+			self::statement_dir_check(),
 			array( '' !== (string) Settings::get( 'operator_address' ) && ( '' !== (string) Settings::get( 'operator_vat_id' ) || '' !== (string) Settings::get( 'operator_tax_number' ) ), __( 'Address and VAT ID / tax number for credit notes configured', 'affiliate-captain' ) ),
 			array( ! \WPAffiliateCaptain\Commissions\Balance::verify_all( 200 ), __( 'Partner accounts: booking chains intact and balances match the commission ledger', 'affiliate-captain' ) ),
 			array( (bool) wp_next_scheduled( \WPAffiliateCaptain\Core\Cron::HOURLY ), __( 'Scheduled tasks active (hold period release, retries)', 'affiliate-captain' ) ),

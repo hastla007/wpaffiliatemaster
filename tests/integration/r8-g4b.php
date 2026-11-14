@@ -144,7 +144,9 @@ AffiliateRepository::set_status( $g4b_t, 'terminated', 'Test G4b' );
 $g4b_code = '';
 PayoutService::blocked_reason( $g4b_t, null, $g4b_code );
 check( 'R7-PV5 termination cancels the unexported payout, rejects its commissions and blocks new payouts', array( 'cancelled', 'rejected', 'terminated' ), array( (string) PayoutService::find( $g4b_tp2 )->status, (string) $wpdb->get_var( 'SELECT status FROM ' . t( 'commissions' ) . " WHERE source_order_id = 'g4b-term-2'" ), $g4b_code ) );
-check( 'R5-W34 the write-off is not rejected on termination (the debt does not come back)', 'approved', (string) Ledger::find( (int) $g4b_wo )->status );
+// Since G4a the settled balance (refund + write-off = 0) gets a correction document right away
+// (PayoutService::settle()), so the write-off is 'paid' there; either way it must not be rejected.
+check( 'R5-W34 the write-off is not rejected on termination (the debt does not come back)', true, in_array( (string) Ledger::find( (int) $g4b_wo )->status, array( 'approved', 'paid' ), true ) );
 update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'terminated_open' => 'pay' ) ) );
 Settings::flush_cache();
 

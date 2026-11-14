@@ -185,8 +185,8 @@ msgstr "Keine USt-IdNr. hinterlegt."
 msgid "VIES confirms the VAT ID as valid."
 msgstr "VIES bestätigt die USt-IdNr. als gültig."
 
-msgid "According to VIES, the VAT ID is NOT valid. Reverse-charge payouts to this partner are blocked until the partner corrects it."
-msgstr "Laut VIES ist die USt-IdNr. NICHT gültig. Auszahlungen im Reverse-Charge-Verfahren an diesen Partner sind gesperrt, bis der Partner sie korrigiert."
+msgid "According to VIES, the VAT ID is NOT valid. Credit notes with VAT or reverse charge to this partner are blocked until the partner corrects it."
+msgstr "Laut VIES ist die USt-IdNr. NICHT gültig. Gutschriften mit USt oder Reverse Charge an diesen Partner sind gesperrt, bis der Partner sie korrigiert."
 
 msgid "VIES could not be reached (the service of the EU or of the member state is down). Nothing was changed; the check is repeated automatically."
 msgstr "VIES war nicht erreichbar (der Dienst der EU oder des Mitgliedstaats ist gestört). Es wurde nichts geändert; die Prüfung wird automatisch wiederholt."
@@ -202,6 +202,15 @@ msgstr "Rückzahlung gebucht."
 
 msgid "The negative balance was written off."
 msgstr "Der negative Saldo wurde ausgebucht."
+
+msgid "You are not allowed to change payout details."
+msgstr "Sie dürfen Auszahlungsdaten nicht ändern."
+
+msgid "The new tax data apply from now on."
+msgstr "Die neuen Steuerdaten gelten ab jetzt."
+
+msgid "The change of the tax data was rejected; the previous data stay."
+msgstr "Die Änderung der Steuerdaten wurde abgelehnt; die bisherigen Daten bleiben."
 
 msgid "You are not allowed to view tax and bank details."
 msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
@@ -479,6 +488,9 @@ msgstr "Land"
 msgid "VAT ID"
 msgstr "USt-IdNr."
 
+msgid "Not checked yet for this VAT ID."
+msgstr "Für diese USt-IdNr. noch nicht geprüft."
+
 msgid "valid"
 msgstr "gültig"
 
@@ -491,8 +503,17 @@ msgstr "VIES nicht erreichbar – wird automatisch erneut geprüft"
 msgid "not an EU VAT ID (no VIES check)"
 msgstr "keine EU-USt-IdNr. (keine VIES-Prüfung)"
 
-msgid "%1$s (checked %2$s%3$s)"
-msgstr "%1$s (geprüft %2$s%3$s)"
+msgid "The VIES check is switched off, so this old result no longer blocks payouts."
+msgstr "Die VIES-Prüfung ist ausgeschaltet; dieses alte Ergebnis sperrt keine Auszahlungen mehr."
+
+msgid "Credit notes with VAT or reverse charge to this partner are blocked until the VAT ID is corrected."
+msgstr "Gutschriften mit USt oder Reverse Charge an diesen Partner sind gesperrt, bis die USt-IdNr. korrigiert ist."
+
+msgid "VIES refused your own VAT ID (Settings → Payouts): no consultation number until it is corrected."
+msgstr "VIES hat Ihre eigene USt-IdNr. abgelehnt (Einstellungen → Auszahlungen): keine Bestätigungsnummer, bis sie korrigiert ist."
+
+msgid "%1$s: %2$s (checked %3$s%4$s)"
+msgstr "%1$s: %2$s (geprüft %3$s%4$s)"
 
 msgid "consultation number %s"
 msgstr "Abfragenummer %s"
@@ -535,6 +556,15 @@ msgstr "Auszahlungsdaten speichern"
 
 msgid "Only users who manage payouts can change payout details."
 msgstr "Nur wer Auszahlungen verwaltet, kann Auszahlungsdaten ändern."
+
+msgid "The partner changed the tax data on %1$s: %2$s → %3$s."
+msgstr "Der Partner hat am %1$s die Steuerdaten geändert: %2$s → %3$s."
+
+msgid "The change affects the VAT on credit notes. Until you approve it, the previous data apply; once approved it applies to commissions from now on."
+msgstr "Die Änderung wirkt sich auf die USt der Gutschriften aus. Bis zur Freigabe gelten die bisherigen Daten; nach der Freigabe gilt sie für Provisionen ab jetzt."
+
+msgid "Approve tax data"
+msgstr "Steuerdaten freigeben"
 
 msgid "Check VAT ID with VIES now"
 msgstr "USt-IdNr. jetzt über VIES prüfen"
@@ -595,6 +625,9 @@ msgstr "Noch keine Buchungen. Das Konto beginnt mit der ersten freigegebenen Pro
 
 msgid "Account %1$s – balance %2$s"
 msgstr "Konto %1$s – Saldo %2$s"
+
+msgid "Including VAT (and VAT corrections of earlier credit notes): %s"
+msgstr "Einschließlich USt (und USt-Korrekturen früherer Gutschriften): %s"
 
 msgid "Reason for the write-off"
 msgstr "Grund für die Ausbuchung"
@@ -1578,6 +1611,18 @@ msgstr "Eine Provision wurde gleichzeitig geändert."
 msgid "Database error."
 msgstr "Datenbankfehler."
 
+msgid "Statements stored in their own folder (WPAC_STATEMENT_DIR / wpac_statement_dir) – make sure it is outside the web root"
+msgstr "Belege liegen in einem eigenen Ordner (WPAC_STATEMENT_DIR / wpac_statement_dir) – achten Sie darauf, dass er außerhalb des Webverzeichnisses liegt"
+
+msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
+msgstr "WARNUNG: Der Belegordner ist öffentlich erreichbar (z. B. ignoriert nginx die .htaccess). Definieren Sie WPAC_STATEMENT_DIR außerhalb des Webroots oder sperren Sie /wp-content/uploads/wpac-statements/."
+
+msgid "Could not check whether the statements folder is publicly reachable (the test request from the server to itself was blocked). Check that /wp-content/uploads/wpac-statements/ cannot be opened in a browser, or define WPAC_STATEMENT_DIR outside the web root."
+msgstr "Es konnte nicht geprüft werden, ob der Belegordner öffentlich erreichbar ist (die Testanfrage des Servers an sich selbst wurde blockiert). Prüfen Sie, dass sich /wp-content/uploads/wpac-statements/ im Browser nicht öffnen lässt, oder definieren Sie WPAC_STATEMENT_DIR außerhalb des Webverzeichnisses."
+
+msgid "Statements folder is not publicly reachable"
+msgstr "Belegordner ist nicht öffentlich erreichbar"
+
 msgid "Public contract version: %s. Integrations with a different major version are not called."
 msgstr "Öffentliche Vertragsversion: %s. Integrationen mit einer anderen Hauptversion werden nicht aufgerufen."
 
@@ -1619,15 +1664,6 @@ msgstr "Kein eigener Verschlüsselungsschlüssel: Fügen Sie define( 'WPAC_ENCRY
 
 msgid "Company account for SEPA export configured"
 msgstr "Firmenkonto für SEPA-Export eingerichtet"
-
-msgid "Statements stored outside the web root (WPAC_STATEMENT_DIR)"
-msgstr "Belege werden außerhalb des Webroots gespeichert (WPAC_STATEMENT_DIR)"
-
-msgid "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/."
-msgstr "WARNUNG: Der Belegordner ist öffentlich erreichbar (z. B. ignoriert nginx die .htaccess). Definieren Sie WPAC_STATEMENT_DIR außerhalb des Webroots oder sperren Sie /wp-content/uploads/wpac-statements/."
-
-msgid "Statements folder is not publicly reachable"
-msgstr "Belegordner ist nicht öffentlich erreichbar"
 
 msgid "Address and VAT ID / tax number for credit notes configured"
 msgstr "Anschrift und USt-IdNr./Steuernummer für Gutschriften hinterlegt"
@@ -1721,9 +1757,6 @@ msgstr "Auszahlung storniert; nach der Erstattung ist nichts mehr auszuzahlen."
 msgid "Please describe what was done (the partner is informed)."
 msgstr "Bitte beschreiben Sie, was getan wurde (der Partner wird informiert)."
 
-msgid "This objection was already handled (or no longer exists); nothing was sent."
-msgstr "Dieser Widerspruch wurde bereits bearbeitet (oder existiert nicht mehr); es wurde nichts gesendet."
-
 msgid "Objection marked as handled; the partner was informed."
 msgstr "Widerspruch als erledigt markiert; der Partner wurde informiert."
 
@@ -1754,11 +1787,26 @@ msgstr "Antrag abgelehnt."
 msgid "Not allowed."
 msgstr "Nicht erlaubt."
 
+msgid "Payment details"
+msgstr "Zahlungsangaben"
+
 msgid "Negative balances of ended partnerships (to claim back):"
 msgstr "Negative Guthaben beendeter Partnerschaften (zurückzufordern):"
 
 msgid "%1$s (%2$d of 3 reminders sent)"
 msgstr "%1$s (%2$d von 3 Mahnungen gesendet)"
+
+msgid "Small business partners above the small business limit (§19 UStG: 25,000 € in the previous year or 100,000 € in the current year):"
+msgstr "Kleinunternehmer-Partner über der Kleinunternehmergrenze (§19 UStG: 25.000 € im Vorjahr oder 100.000 € im laufenden Jahr):"
+
+msgid "previous year %1$s, this year %2$s"
+msgstr "Vorjahr %1$s, dieses Jahr %2$s"
+
+msgid "The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on."
+msgstr "Für die Grenze zählt der gesamte Umsatz des Partners. Bitten Sie den Partner, den Steuerstatus zu prüfen; ein umsatzsteuerpflichtiger Partner erhält ab der Änderung Gutschriften mit USt."
+
+msgid "The cancellation document %s could not be stored yet. It is retried automatically; check that the statement folder is writable."
+msgstr "Der Stornobeleg %s konnte noch nicht gespeichert werden. Er wird automatisch erneut erzeugt; prüfen Sie, ob der Belegordner beschreibbar ist."
 
 msgid "Payout %1$s (not exported yet) contains commissions that were refunded afterwards (%2$s). It would pay too much now; the difference is only deducted in the next payout."
 msgstr "Auszahlung %1$s (noch nicht exportiert) enthält Provisionen, die danach erstattet wurden (%2$s). Sie würde jetzt zu viel auszahlen; die Differenz würde erst in der nächsten Auszahlung abgezogen."
@@ -1771,9 +1819,6 @@ msgstr "Stornieren und neu erstellen"
 
 msgid "%1$s objected to credit note %2$s on %3$s:"
 msgstr "%1$s hat am %3$s der Gutschrift %2$s widersprochen:"
-
-msgid "The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct."
-msgstr "Die Gutschrift gilt nicht mehr als Rechnung. Stornieren Sie die Auszahlung (Stornobeleg) und erstellen Sie eine korrigierte, oder erklären Sie, warum sie richtig ist."
 
 msgid "Cancellation reason"
 msgstr "Stornierungsgrund"
@@ -1871,9 +1916,6 @@ msgstr "Stornieren"
 msgid "Run this action for the selected payouts?"
 msgstr "Diese Aktion für die ausgewählten Auszahlungen ausführen?"
 
-msgid "Payouts of partners with another payment method (e.g. PayPal) are left out of the SEPA file. The transfer list contains their payment details; pay them manually and then mark them as paid."
-msgstr "Auszahlungen an Partner mit einer anderen Auszahlungsart (z. B. PayPal) sind nicht in der SEPA-Datei enthalten. Die Überweisungsliste enthält ihre Zahlungsangaben; zahlen Sie diese manuell und markieren Sie sie anschließend als bezahlt."
-
 msgid "Cancellation reason (required for \"Cancel\")"
 msgstr "Stornierungsgrund (Pflicht bei „Stornieren“)"
 
@@ -1939,6 +1981,16 @@ msgstr "Auszahlungsbetrag"
 
 msgid "VAT treatment depends on the partner's tax status and must be confirmed by your tax advisor. This statement does not calculate VAT."
 msgstr "Die umsatzsteuerliche Behandlung hängt vom Steuerstatus des Partners ab und ist mit Ihrer Steuerberatung abzustimmen. Dieser Beleg berechnet keine Umsatzsteuer."
+
+msgid "%d commission rule of the group was deactivated."
+msgid_plural "%d commission rules of the group were deactivated."
+msgstr[0] "%d Provisionsregel der Gruppe wurde deaktiviert."
+msgstr[1] "%d Provisionsregeln der Gruppe wurden deaktiviert."
+
+msgid "%d partner now falls under the program terms and must accept them before the next credit note."
+msgid_plural "%d partners now fall under the program terms and must accept them before the next credit note."
+msgstr[0] "%d Partner fällt jetzt unter die Programmbedingungen und muss sie vor der nächsten Gutschrift annehmen."
+msgstr[1] "%d Partner fallen jetzt unter die Programmbedingungen und müssen sie vor der nächsten Gutschrift annehmen."
 
 msgid "Please enter a reason for the change."
 msgstr "Bitte geben Sie einen Grund für die Änderung an."
@@ -2105,8 +2157,8 @@ msgstr "Ein Feld pro Zeile: schlüssel|Bezeichnung|Typ|required – Typen: text 
 msgid "Save group"
 msgstr "Gruppe speichern"
 
-msgid "Delete this group?"
-msgstr "Diese Gruppe löschen?"
+msgid "Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated."
+msgstr "Diese Gruppe löschen? Ihre Partner fallen auf die Regeln und Bedingungen des Programms zurück (bei eigenen Bedingungen müssen sie vor der nächsten Gutschrift die Programmbedingungen annehmen), und die Provisionsregeln der Gruppe werden deaktiviert."
 
 msgid "Delete group"
 msgstr "Gruppe löschen"
@@ -2383,9 +2435,6 @@ msgstr "Partnercode-Feld an der Kasse anzeigen (Classic + Blocks)"
 msgid "Keep the code from a partner link in the WooCommerce shop session"
 msgstr "Code aus einem Partnerlink in der WooCommerce-Shop-Sitzung halten"
 
-msgid "Without marketing consent only if a shop session already exists (e.g. a cart) – a click alone never sets a cookie."
-msgstr "Ohne Marketing-Einwilligung nur, wenn bereits eine Shop-Sitzung besteht (z. B. ein Warenkorb) – ein Klick allein setzt nie ein Cookie."
-
 msgid "Affiliate cookie"
 msgstr "Affiliate-Cookie"
 
@@ -2403,9 +2452,6 @@ msgstr "Ein Affiliate-Cookie ist nicht unbedingt erforderlich: In der EU darf es
 
 msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
 msgstr "Partnerlinks zusätzlich per JavaScript erfassen (für Seiten-Caches/CDNs)"
-
-msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). A tiny script reports the parameter; a visit is never counted twice."
-msgstr "Nur nötig, wenn Ihr Cache oder CDN Seiten mit ?partner=… aus dem Cache ausliefert (z. B. Cloudflare „Cache Everything“). Ein kleines Skript meldet den Parameter; ein Besuch wird nie doppelt gezählt."
 
 msgid "Link attribution"
 msgstr "Link-Zuordnung"
@@ -2439,9 +2485,6 @@ msgstr "Zusätzlich gesperrte Domains"
 
 msgid "Abuse protection"
 msgstr "Missbrauchsschutz"
-
-msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For / CF-Connecting-IP. Leave empty without a proxy."
-msgstr "IP-Adressen oder Bereiche (CIDR) Ihres Reverse-Proxys oder CDN (z. B. Cloudflare). Nur bei diesen wird die Besucher-IP aus X-Forwarded-For / CF-Connecting-IP gelesen. Ohne Proxy leer lassen."
 
 msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
 msgstr "Danach werden Name, E-Mail und Bewerbungsdaten abgelehnter Bewerber ohne Provisionen anonymisiert."
@@ -2484,18 +2527,6 @@ msgstr "Werberichtlinien für Partner"
 
 msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
 msgstr "Erlaubte Aussagen, Kennzeichnungspflicht, verbotene Kanäle, Meldeweg bei Problemen. Wird im Partnerbereich angezeigt."
-
-msgid "Payout period"
-msgstr "Auszahlungsrhythmus"
-
-msgid "Monthly"
-msgstr "Monatlich"
-
-msgid "Quarterly"
-msgstr "Quartalsweise"
-
-msgid "Manual"
-msgstr "Manuell"
 
 msgid "Partners can request payouts in the partner area"
 msgstr "Partner können Auszahlungen im Partnerbereich beantragen"
@@ -2703,6 +2734,30 @@ msgstr "Hallo %1$s,\n\nbitte lesen und akzeptieren Sie die aktuellen Bedingungen
 
 msgid "Invalid field definition: %s"
 msgstr "Ungültige Felddefinition: %s"
+
+msgid "[%1$s] Credit note %2$s"
+msgstr "[%1$s] Gutschrift %2$s"
+
+msgid "Hello %1$s,\n\nwe have issued credit note %2$s for your commissions (total %3$s). It is attached to this e-mail and can be downloaded in your partner area: %4$s\n\nPlease check it. If something is wrong, you can object to it in the partner area."
+msgstr "Hallo %1$s,\n\nwir haben für Ihre Provisionen die Gutschrift %2$s ausgestellt (Gesamtbetrag %3$s). Sie hängt an dieser E-Mail und steht in Ihrem Partnerbereich zum Download bereit: %4$s\n\nBitte prüfen Sie sie. Ist etwas falsch, können Sie im Partnerbereich widersprechen."
+
+msgid "[%1$s] Credit note %2$s cancelled"
+msgstr "[%1$s] Gutschrift %2$s storniert"
+
+msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
+msgstr "Hallo %1$s,\n\nwir haben die Gutschrift %2$s mit dem angehängten Stornobeleg %3$s storniert. Die Provisionen bleiben in Ihrem Konto und werden mit einer neuen Gutschrift ausgezahlt.\n\nPartnerbereich: %4$s"
+
+msgid "[%1$s] Tax data change of %2$s waits for your approval"
+msgstr "[%1$s] Änderung der Steuerdaten von %2$s wartet auf Ihre Freigabe"
+
+msgid "[%1$s] Tax data of %2$s changed"
+msgstr "[%1$s] Steuerdaten von %2$s geändert"
+
+msgid "The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgstr "Die Änderung wirkt sich auf die USt der Gutschriften aus. Sie gilt erst nach Ihrer Freigabe (vorher verdiente Provisionen behalten die bisherige Behandlung). Bitte prüfen Sie die Angaben (z. B. die USt-IdNr. per VIES):"
+
+msgid "The change applies to commissions earned from now on. Details:"
+msgstr "Die Änderung gilt für Provisionen ab jetzt. Details:"
 
 msgid "This link is not valid."
 msgstr "Dieser Link ist ungültig."
@@ -2991,6 +3046,9 @@ msgstr "[%s] Letzte Mahnung: Rückzahlung von Provisionen"
 
 msgid "Hello %1$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5$d days to:\n\n%3$s\nReference: %4$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail."
 msgstr "Hallo %1$s,\n\nnach Erstattungen und Stornierungen von Bestellungen, die Sie vermittelt haben, weist Ihr Partnerkonto einen Saldo von -%2$s aus. Da die Partnerschaft beendet ist, kann er nicht mehr mit neuen Provisionen verrechnet werden. Bitte überweisen Sie den Betrag innerhalb von %5$d Tagen an:\n\n%3$s\nVerwendungszweck: %4$s\n\nDie Buchungen sehen Sie im Partnerbereich. Wenn Sie das für falsch halten, antworten Sie bitte auf diese E-Mail."
+
+msgid "The amount includes %s VAT that was paid out with earlier credit notes for the refunded commissions (correction of those credit notes). Once the balance is settled you receive a correction document."
+msgstr "Der Betrag enthält %s USt, die mit früheren Gutschriften für die erstatteten Provisionen ausgezahlt wurde (Berichtigung dieser Gutschriften). Sobald der Saldo ausgeglichen ist, erhalten Sie einen Korrekturbeleg."
 
 msgid "The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again."
 msgstr "Die Zahlungsaufforderung konnte nicht gesendet werden (E-Mail-Fehler). Bitte prüfen Sie den E-Mail-Versand Ihrer Website und versuchen Sie es erneut."
@@ -3551,6 +3609,9 @@ msgstr "Widerspruch gegen Gutschrift %s"
 msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4$s"
 msgstr "%1$s hat der Gutschrift %2$s widersprochen:\n\n%3$s\n\nDie Gutschrift gilt nicht mehr als Rechnung. Bitte prüfen, die Auszahlung bei Bedarf stornieren und eine korrigierte Gutschrift ausstellen:\n%4$s"
 
+msgid "The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct."
+msgstr "Die Gutschrift gilt nicht mehr als Rechnung. Stornieren Sie die Auszahlung (Stornobeleg) und erstellen Sie eine korrigierte, oder erklären Sie, warum sie richtig ist."
+
 msgid "Your objection to credit note %s"
 msgstr "Ihr Widerspruch gegen Gutschrift %s"
 
@@ -3626,11 +3687,17 @@ msgstr "Kein Referenzkurs für %s – Mindestbetrag kann nicht geprüft werden"
 msgid "Negative balance – carried forward"
 msgstr "Negativer Saldo – vorgetragen"
 
+msgid "Balance including VAT corrections is not positive – carried forward"
+msgstr "Saldo einschließlich USt-Korrekturen nicht positiv – vorgetragen"
+
 msgid "Below minimum – carried forward"
 msgstr "Unter Mindestbetrag – vorgetragen"
 
 msgid "Maintenance mode is on (Settings → Reports & data)"
 msgstr "Der Wartungsmodus ist aktiv (Einstellungen → Berichte & Daten)"
+
+msgid "The partner's tax data wait for your approval (partner page → Payout details)"
+msgstr "Die Steuerdaten des Partners warten auf Ihre Freigabe (Partnerseite → Auszahlungsdaten)"
 
 msgid "tax status"
 msgstr "Steuerstatus"
@@ -3665,8 +3732,8 @@ msgstr "Hat die Partnerbedingungen noch nicht akzeptiert (für Gutschriften nöt
 msgid "Reverse charge needs your VAT ID (Settings → Payouts & credit notes)"
 msgstr "Reverse Charge braucht Ihre USt-IdNr. (Einstellungen → Auszahlungen & Gutschriften)"
 
-msgid "The partner's VAT ID is not valid according to VIES (reverse charge not possible)"
-msgstr "Die USt-IdNr. des Partners ist laut VIES nicht gültig (Reverse Charge nicht möglich)"
+msgid "The partner's VAT ID is not valid according to VIES (no credit note with VAT or reverse charge possible)"
+msgstr "Die USt-IdNr. des Partners ist laut VIES nicht gültig (keine Gutschrift mit USt oder Reverse Charge möglich)"
 
 msgid "Only payouts that were not exported yet can be rebuilt."
 msgstr "Nur noch nicht exportierte Auszahlungen können neu erstellt werden."
@@ -3740,8 +3807,17 @@ msgstr "Banküberweisung (SEPA, IBAN)"
 msgid "Other payment method (e.g. PayPal), paid manually"
 msgstr "Andere Auszahlungsart (z. B. PayPal), manuelle Zahlung"
 
-msgid "Please enter your VAT ID."
-msgstr "Bitte geben Sie Ihre USt-IdNr. ein."
+msgid "Please enter your VAT ID (required for reverse charge across borders)."
+msgstr "Bitte geben Sie Ihre USt-IdNr. ein (für Reverse Charge über die Grenze erforderlich)."
+
+msgid "Please enter your VAT ID or tax number (required on credit notes)."
+msgstr "Bitte geben Sie Ihre USt-IdNr. oder Steuernummer ein (Pflichtangabe auf Gutschriften)."
+
+msgid "The VAT ID does not start with the code of your country. Please check the VAT ID and the country."
+msgstr "Die USt-IdNr. beginnt nicht mit dem Kürzel Ihres Landes. Bitte prüfen Sie USt-IdNr. und Land."
+
+msgid "The VAT ID does not have a valid format. Please check it."
+msgstr "Die USt-IdNr. hat kein gültiges Format. Bitte prüfen Sie sie."
 
 msgid "Please enter your tax number or VAT ID (required on credit notes)."
 msgstr "Bitte geben Sie Ihre Steuernummer oder USt-IdNr. an (Pflichtangabe auf Gutschriften)."
@@ -3755,11 +3831,20 @@ msgstr "Bitte geben Sie Ihre IBAN für Auszahlungen per Banküberweisung ein."
 msgid "The IBAN is not valid."
 msgstr "Die IBAN ist ungültig."
 
+msgid "There is no pending change of the tax data."
+msgstr "Es gibt keine offene Änderung der Steuerdaten."
+
+msgid "The payout details could not be saved. Please try again."
+msgstr "Die Auszahlungsdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut."
+
 msgid "The SEPA XML export needs the PHP extension \"dom\" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead."
 msgstr "Der SEPA-XML-Export benötigt die PHP-Erweiterung „dom“ (DOMDocument), die auf diesem Server nicht installiert ist. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie stattdessen die Überweisungsliste (CSV)."
 
 msgid "The commission rates are net amounts; VAT is added at the statutory rate."
 msgstr "Die Provisionssätze sind Nettobeträge; die Umsatzsteuer wird in gesetzlicher Höhe hinzugerechnet."
+
+msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
+msgstr "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge, § 13b UStG / Art. 196 MwStSystRL)."
 
 msgid "Reverse charge: the recipient of the service is liable for VAT (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 VAT Directive)."
 msgstr "Reverse Charge: Die Steuer schuldet der Leistungsempfänger (Übergang der Steuerschuld, §19 Abs. 1 UStG (AT) / Art. 196 MwStSystRL)."
@@ -3767,8 +3852,11 @@ msgstr "Reverse Charge: Die Steuer schuldet der Leistungsempfänger (Übergang d
 msgid "Reverse charge: the recipient of the service is liable for VAT (Bezugsteuer, Art. 45 MWSTG)."
 msgstr "Reverse Charge: Die Steuer schuldet der Leistungsempfänger (Bezugsteuer, Art. 45 MWSTG)."
 
-msgid "Reverse charge: the recipient of the service is liable for VAT (Steuerschuldnerschaft des Leistungsempfängers, §13b UStG / Art. 196 VAT Directive)."
-msgstr "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge, § 13b UStG / Art. 196 MwStSystRL)."
+msgid "Reverse charge: the recipient of the service is liable for VAT (Art. 196 VAT Directive)."
+msgstr "Reverse Charge: Steuerschuldnerschaft des Leistungsempfängers (Art. 196 MwStSystRL)."
+
+msgid "No VAT is shown because the partner is a small business (§19 UStG)."
+msgstr "Kein Ausweis der Umsatzsteuer, da der Partner Kleinunternehmer ist (§ 19 UStG)."
 
 msgid "No VAT is shown because the partner is a small business (§6 Abs. 1 Z 27 UStG (AT))."
 msgstr "Keine USt ausgewiesen, da der Partner Kleinunternehmer ist (§6 Abs. 1 Z 27 UStG (AT))."
@@ -3776,17 +3864,35 @@ msgstr "Keine USt ausgewiesen, da der Partner Kleinunternehmer ist (§6 Abs. 1 Z
 msgid "No VAT is shown because the partner is not registered for VAT (Art. 10 MWSTG)."
 msgstr "Keine MWST ausgewiesen, da der Partner nicht mehrwertsteuerpflichtig ist (Art. 10 MWSTG)."
 
-msgid "No VAT is shown because the partner is a small business (§19 UStG)."
-msgstr "Kein Ausweis der Umsatzsteuer, da der Partner Kleinunternehmer ist (§ 19 UStG)."
+msgid "No VAT is shown because the partner applies the small business scheme (VAT exemption for small enterprises)."
+msgstr "Keine USt ausgewiesen, da der Partner die Kleinunternehmerregelung anwendet (Steuerbefreiung für Kleinunternehmen)."
 
 msgid "No VAT: the partner is a private individual and not an entrepreneur."
 msgstr "Keine Umsatzsteuer: Der Partner ist Privatperson und kein Unternehmer."
 
+msgid "Repayments by the partner and claims written off are no service and not subject to VAT."
+msgstr "Rückzahlungen des Partners und abgeschriebene Forderungen sind keine Leistung und nicht umsatzsteuerbar."
+
+msgid "Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service."
+msgstr "Positionen mit unterschiedlicher umsatzsteuerlicher Behandlung: Jede Behandlung gilt für die Positionen, bei denen sie angegeben ist. Berichtigungen früherer Gutschriften behalten die Behandlung der ursprünglichen Gutschrift; Provisionen die zum Leistungszeitpunkt gültige Behandlung."
+
 msgid "Cancellation of credit note %s"
 msgstr "Storno zur Gutschrift %s"
 
+msgid "Correction of credit notes (Gutschrift)"
+msgstr "Berichtigung von Gutschriften (Korrekturbeleg)"
+
+msgid "Correction of credit notes"
+msgstr "Berichtigung von Gutschriften"
+
 msgid "Credit note (Gutschrift)"
 msgstr "Gutschrift"
+
+msgid "Credit note (self-billing)"
+msgstr "Gutschrift (Self-Billing)"
+
+msgid "DUPLICATE"
+msgstr "DUPLIKAT"
 
 msgid "Issued by (recipient of the service)"
 msgstr "Aussteller (Leistungsempfänger)"
@@ -3827,8 +3933,23 @@ msgstr "Andere, mit dem Partner vereinbarte Zahlungsart"
 msgid "Net"
 msgstr "Netto"
 
+msgid "reverse charge"
+msgstr "Reverse Charge"
+
+msgid "small business, no VAT"
+msgstr "Kleinunternehmer, keine USt"
+
+msgid "private individual, no VAT"
+msgstr "Privatperson, keine USt"
+
+msgid "Repayments and write-offs (not taxable)"
+msgstr "Rückzahlungen und Abschreibungen (nicht steuerbar)"
+
 msgid "Correction of credit note %1$s of %2$s"
 msgstr "Korrektur zur Gutschrift %1$s vom %2$s"
+
+msgid "Correction net (%s)"
+msgstr "Korrektur netto (%s)"
 
 msgid "Correction net (VAT %s %%)"
 msgstr "Korrektur netto (USt %s %%)"
@@ -3839,11 +3960,26 @@ msgstr "USt %1$s %% auf %2$s"
 msgid "Total cancelled"
 msgstr "Storniert gesamt"
 
+msgid "Balance (settled, no transfer)"
+msgstr "Saldo (ausgeglichen, keine Überweisung)"
+
 msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
 msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung. Der Partner kann der Gutschrift widersprechen (§14 Abs. 2 S. 3 UStG) – sie gilt dann nicht mehr als Rechnung und wir stellen eine korrigierte Gutschrift aus. Widersprüche sind im Partnerbereich möglich."
 
+msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billing, Art. 224 MwStSystRL); der Partner stellt keine eigene Rechnung. Der Partner kann widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
+
+msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
+msgstr "Dieser Beleg rechnet Berichtigungen früherer Gutschriften (Erstattungen und Stornierungen vermittelter Bestellungen) mit der erhaltenen Rückzahlung bzw. der abgeschriebenen Forderung ab. Er mindert Nettobeträge und USt der oben genannten Gutschriften; es wird nichts überwiesen."
+
 msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
 msgstr "Dieses Dokument storniert die oben genannte Gutschrift vollständig. Die Provisionen stehen für eine spätere Auszahlung zur Verfügung."
+
+msgid "Duplicate: built again from the stored data because the original file was not available on this server."
+msgstr "Duplikat: aus den gespeicherten Daten neu erstellt, weil die Originaldatei auf diesem Server nicht verfügbar war."
+
+msgid "Some characters cannot be shown in this document and were transliterated. Original spelling: %s"
+msgstr "Einige Zeichen können in diesem Beleg nicht dargestellt werden und wurden umschrieben. Originalschreibweise: %s"
 
 msgid "Annual overview %d"
 msgstr "Jahresübersicht %d"
@@ -3955,6 +4091,15 @@ msgstr "Vielen Dank für die Annahme der Bedingungen."
 
 msgid "The terms were changed in the meantime. Please read the current version and accept it again."
 msgstr "Die Bedingungen wurden inzwischen geändert. Bitte lesen Sie die aktuelle Fassung und stimmen Sie erneut zu."
+
+msgid "Please enter your VAT ID or tax number (required on credit notes; reverse charge across borders needs the VAT ID)."
+msgstr "Bitte geben Sie Ihre USt-IdNr. oder Steuernummer ein (Pflichtangabe auf Gutschriften; Reverse Charge über die Grenze erfordert die USt-IdNr.)."
+
+msgid "The VAT ID does not have a valid format or does not start with the code of your country. Please check it."
+msgstr "Die USt-IdNr. hat kein gültiges Format oder beginnt nicht mit dem Kürzel Ihres Landes. Bitte prüfen Sie sie."
+
+msgid "Your details have been saved. The change of your tax data is checked by us and applies once we have approved it; until then your previous tax data are used."
+msgstr "Ihre Angaben wurden gespeichert. Die Änderung Ihrer Steuerdaten prüfen wir; sie gilt, sobald wir sie freigegeben haben. Bis dahin werden Ihre bisherigen Steuerdaten verwendet."
 
 msgid "Saved. We have sent a confirmation link to your new e-mail address; it is used once you confirm it."
 msgstr "Gespeichert. Wir haben einen Bestätigungslink an Ihre neue E-Mail-Adresse geschickt; sie gilt, sobald Sie bestätigen."
@@ -4235,8 +4380,11 @@ msgstr "Land (ISO-Code, z. B. DE)"
 msgid "VAT ID (businesses)"
 msgstr "USt-IdNr. (Unternehmen)"
 
-msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot pay out commissions with reverse charge."
-msgstr "Laut der EU-Datenbank VIES ist diese USt-IdNr. nicht gültig. Bitte prüfen Sie sie (Länderkürzel, Ziffern) und speichern Sie sie erneut. Bis sie bestätigt ist, können wir Provisionen nicht im Reverse-Charge-Verfahren auszahlen."
+msgid "Your change of the tax data (%1$s, VAT ID %2$s) waits for our approval. Until then your previous tax data are used."
+msgstr "Ihre Änderung der Steuerdaten (%1$s, USt-IdNr. %2$s) wartet auf unsere Freigabe. Bis dahin werden Ihre bisherigen Steuerdaten verwendet."
+
+msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot issue credit notes with VAT or reverse charge."
+msgstr "Laut der EU-Datenbank VIES ist diese USt-IdNr. nicht gültig. Bitte prüfen Sie sie (Länderkürzel, Ziffern) und speichern Sie sie erneut. Bis zur Bestätigung können wir keine Gutschriften mit USt oder Reverse Charge ausstellen."
 
 msgid "VAT ID confirmed by the EU VIES database."
 msgstr "USt-IdNr. von der EU-Datenbank VIES bestätigt."
@@ -4244,8 +4392,8 @@ msgstr "USt-IdNr. von der EU-Datenbank VIES bestätigt."
 msgid "The EU VIES database could not be reached to check your VAT ID; it is checked again automatically."
 msgstr "Die EU-Datenbank VIES war zur Prüfung Ihrer USt-IdNr. nicht erreichbar; sie wird automatisch erneut geprüft."
 
-msgid "Tax number (small businesses without VAT ID)"
-msgstr "Steuernummer (Kleinunternehmer ohne USt-IdNr.)"
+msgid "Tax number (if you have no VAT ID)"
+msgstr "Steuernummer (falls keine USt-IdNr.)"
 
 msgid "stored"
 msgstr "gespeichert"
@@ -4255,9 +4403,6 @@ msgstr "Leer lassen, um beizubehalten"
 
 msgid "BIC (optional)"
 msgstr "BIC (optional)"
-
-msgid "Payment details"
-msgstr "Zahlungsangaben"
 
 msgid "Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually."
 msgstr "Wohin und wie wir Ihre Provision senden sollen (z. B. PayPal-Adresse, Wise oder ausländisches Bankkonto). Diese Auszahlungen zahlen wir manuell."
@@ -4396,9 +4541,6 @@ msgstr "Angaben des Partners:\n\n%1$s\n\nBitte innerhalb eines Monats antworten 
 
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr "Wenn Sie unsere Website über einen Partnerlink besuchen oder einen Partnercode eingeben, speichern wir, welcher Partner Sie empfohlen hat, damit wir dem Partner eine Provision zahlen können. Ihre IP-Adresse speichern wir dafür nicht. Partner erhalten weder Ihren Namen noch Ihre Kontaktdaten."
-
-msgid "If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout."
-msgstr "Wenn Sie bereits einen Warenkorb (Shop-Sitzung) haben oder Marketing-Cookies zugestimmt haben, wird der Partnercode bis zur Bestellung in Ihrer Shop-Sitzung gehalten."
 
 msgid "After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
 msgstr "Nach einem Kauf über einen Partner werden auch spätere Käufe diesem Partner gutgeschrieben. Dafür speichern wir einen verschlüsselten Hash Ihres Kundenkontos und Ihrer E-Mail-Adresse, nicht die Adresse selbst."

@@ -20,6 +20,7 @@ use WPAffiliateCaptain\Core\Iban;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Payouts\ProfileRepository;
+use WPAffiliateCaptain\Payouts\TaxHistory;
 use WPAffiliateCaptain\Tracking\Tracker;
 
 defined( 'ABSPATH' ) || exit;
@@ -218,7 +219,7 @@ final class AffiliatesPage {
 				}
 				$vies = array(
 					'valid'          => array( 'success', __( 'VIES confirms the VAT ID as valid.', 'affiliate-captain' ) ),
-					'invalid'        => array( 'error', __( 'According to VIES, the VAT ID is NOT valid. Reverse-charge payouts to this partner are blocked until the partner corrects it.', 'affiliate-captain' ) ),
+					'invalid'        => array( 'error', __( 'According to VIES, the VAT ID is NOT valid. Credit notes with VAT or reverse charge to this partner are blocked until the partner corrects it.', 'affiliate-captain' ) ),
 					'unavailable'    => array( 'warning', __( 'VIES could not be reached (the service of the EU or of the member state is down). Nothing was changed; the check is repeated automatically.', 'affiliate-captain' ) ),
 					'not_applicable' => array( 'info', __( 'Not an EU VAT ID – VIES cannot check it.', 'affiliate-captain' ) ),
 				);
@@ -251,6 +252,18 @@ final class AffiliatesPage {
 					Admin::back( $result->get_error_message(), 'error' );
 				}
 				Admin::back( __( 'The negative balance was written off.', 'affiliate-captain' ) );
+				break;
+
+			case 'tax_approve':
+			case 'tax_reject':
+				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) || ! current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+					Admin::back( __( 'You are not allowed to change payout details.', 'affiliate-captain' ), 'error' );
+				}
+				$result = 'tax_approve' === $do ? ProfileRepository::approve_tax_change( $id ) : ProfileRepository::reject_tax_change( $id );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( 'tax_approve' === $do ? __( 'The new tax data apply from now on.', 'affiliate-captain' ) : __( 'The change of the tax data was rejected; the previous data stay.', 'affiliate-captain' ) );
 				break;
 
 			case 'profile_update':
@@ -605,7 +618,13 @@ final class AffiliatesPage {
 			echo '<tr><th><label for="wpac-address">' . esc_html__( 'Address', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-address" name="address" rows="3" class="regular-text">' . esc_textarea( $v( 'address' ) ) . '</textarea></td></tr>';
 			self::row_input( 'country', __( 'Country', 'affiliate-captain' ), $v( 'country' ), 'maxlength="2"' );
 			self::row_input( 'vat_id', __( 'VAT ID', 'affiliate-captain' ), $v( 'vat_id' ) );
-			$vies = \WPAffiliateCaptain\Payouts\Vies::result( $id );
+			$pending = TaxHistory::pending( $id );
+			// Only a result for the stored VAT ID (or the one waiting for approval) is meaningful.
+			$vies     = \WPAffiliateCaptain\Payouts\Vies::result_for( $id, array( $p ? (string) $p->vat_id : '', $pending ? (string) $pending['new']['vat_id'] : '' ) );
+			$vies_for = $vies ? (string) $vies['vat_id'] : '';
+			if ( ! $vies && \WPAffiliateCaptain\Payouts\Vies::result( $id ) && $p && '' !== (string) $p->vat_id ) {
+				echo '<tr><th scope="row">VIES</th><td>' . esc_html__( 'Not checked yet for this VAT ID.', 'affiliate-captain' ) . '</td></tr>';
+			}
 			if ( $vies ) {
 				$vies_labels = array(
 					'valid'          => __( 'valid', 'affiliate-captain' ),
@@ -614,7 +633,17 @@ final class AffiliatesPage {
 					'not_applicable' => __( 'not an EU VAT ID (no VIES check)', 'affiliate-captain' ),
 				);
 				/* translators: 1: status, 2: date, 3: consultation number */
-				echo '<tr><th scope="row">VIES</th><td>' . esc_html( sprintf( __( '%1$s (checked %2$s%3$s)', 'affiliate-captain' ), $vies_labels[ $vies['status'] ], Admin::date( $vies['checked_at'], true ), $vies['consultation'] ? ', ' . sprintf( /* translators: %s: number */ __( 'consultation number %s', 'affiliate-captain' ), $vies['consultation'] ) : '' ) ) . ( $vies['name'] ? '<br>' . esc_html( $vies['name'] ) : '' ) . '</td></tr>';
+				$vies_hint = '';
+				if ( 'invalid' === $vies['status'] && ! \WPAffiliateCaptain\Payouts\Vies::enabled() ) {
+					$vies_hint = __( 'The VIES check is switched off, so this old result no longer blocks payouts.', 'affiliate-captain' );
+				} elseif ( 'invalid' === $vies['status'] ) {
+					$vies_hint = __( 'Credit notes with VAT or reverse charge to this partner are blocked until the VAT ID is corrected.', 'affiliate-captain' );
+				}
+				if ( ! empty( $vies['requester_error'] ) ) {
+					$vies_hint .= ( '' !== $vies_hint ? ' ' : '' ) . __( 'VIES refused your own VAT ID (Settings → Payouts): no consultation number until it is corrected.', 'affiliate-captain' );
+				}
+				/* translators: 1: VAT ID, 2: status, 3: date, 4: consultation number */
+				echo '<tr><th scope="row">VIES</th><td>' . esc_html( sprintf( __( '%1$s: %2$s (checked %3$s%4$s)', 'affiliate-captain' ), $vies_for, $vies_labels[ $vies['status'] ], Admin::date( $vies['checked_at'], true ), $vies['consultation'] ? ', ' . sprintf( /* translators: %s: number */ __( 'consultation number %s', 'affiliate-captain' ), $vies['consultation'] ) : '' ) ) . ( $vies['name'] ? '<br>' . esc_html( $vies['name'] ) : '' ) . ( '' !== $vies_hint ? '<br><span class="description">' . esc_html( $vies_hint ) . '</span>' : '' ) . '</td></tr>';
 			}
 			self::row_input( 'tax_number', __( 'Tax number', 'affiliate-captain' ), $v( 'tax_number' ) );
 			// After a rejected save: the method and details that were entered, not the stored ones.
@@ -644,6 +673,22 @@ final class AffiliatesPage {
 				echo '<p class="description">' . esc_html__( 'Only users who manage payouts can change payout details.', 'affiliate-captain' ) . '</p>';
 			}
 			echo '</form>';
+			if ( $pending ) {
+				// A change of the tax data by the partner that changes the VAT: approve or reject.
+				$tax_labels = ProfileRepository::tax_status_labels();
+				$fmt        = static function ( array $f ) use ( $tax_labels ) {
+					return implode( ', ', array_filter( array( isset( $tax_labels[ $f['tax_status'] ] ) ? $tax_labels[ $f['tax_status'] ] : '—', $f['country'], $f['vat_id'] ? __( 'VAT ID', 'affiliate-captain' ) . ' ' . $f['vat_id'] : '', $f['tax_number'] ? __( 'Tax number', 'affiliate-captain' ) . ' ' . $f['tax_number'] : '' ) ) );
+				};
+				/* translators: 1: date, 2: old data, 3: new data */
+				echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( __( 'The partner changed the tax data on %1$s: %2$s → %3$s.', 'affiliate-captain' ), Admin::date( $pending['requested_at'], true ), $fmt( (array) $pending['old'] + TaxHistory::fields( null ) ), $fmt( (array) $pending['new'] + TaxHistory::fields( null ) ) ) ) . '</strong><br>' . esc_html__( 'The change affects the VAT on credit notes. Until you approve it, the previous data apply; once approved it applies to commissions from now on.', 'affiliate-captain' ) . '</p>';
+				if ( current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+					Admin::form_open( 'tax_approve', 'wpac-inline' );
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="button button-primary">' . esc_html__( 'Approve tax data', 'affiliate-captain' ) . '</button></form> ';
+					Admin::form_open( 'tax_reject', 'wpac-inline' );
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="button">' . esc_html__( 'Reject', 'affiliate-captain' ) . '</button></form>';
+				}
+				echo '</div>';
+			}
 			if ( $p && '' !== (string) $p->vat_id ) {
 				Admin::form_open( 'vies_check', 'wpac-inline' );
 				echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="button">' . esc_html__( 'Check VAT ID with VIES now', 'affiliate-captain' ) . '</button></form>';
@@ -746,6 +791,13 @@ final class AffiliatesPage {
 			$bal = \WPAffiliateCaptain\Commissions\Balance::get( $id, $cur );
 			/* translators: 1: currency, 2: balance */
 			echo '<h3>' . esc_html( sprintf( __( 'Account %1$s – balance %2$s', 'affiliate-captain' ), $cur, Money::format( $bal, $cur ) ) ) . '</h3>';
+			// The balance is net; refunds of commissions paid out with VAT also take that VAT back.
+			$gross = \WPAffiliateCaptain\Commissions\Dunning::open( $id, $cur );
+			if ( $gross !== $bal ) {
+				/* translators: %s: amount */
+				echo '<p class="description">' . esc_html( sprintf( __( 'Including VAT (and VAT corrections of earlier credit notes): %s', 'affiliate-captain' ), Money::format( $gross, $cur ) ) ) . '</p>';
+			}
+			$bal = $gross;
 			if ( $bal < 0 && current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
 				// Negative balance (clawbacks without new earnings): settle it.
 				Admin::form_open( 'balance_writeoff' );
