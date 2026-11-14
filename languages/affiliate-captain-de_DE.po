@@ -1978,6 +1978,9 @@ msgstr "WooCommerce-Bestellung"
 msgid "WooCommerce refund"
 msgstr "WooCommerce-Erstattung"
 
+msgid "WooCommerce order increase"
+msgstr "WooCommerce-Bestellerhöhung"
+
 msgid "Waiting for the next attempt"
 msgstr "Wartet auf den nächsten Versuch"
 
@@ -2917,6 +2920,9 @@ msgstr "Lifetime-Provision: Folgekäufe geworbener Kunden gehen an denselben Par
 msgid "Hold period starts"
 msgstr "Haltefrist beginnt"
 
+msgid "Book additional commission when a paid order is increased"
+msgstr "Zusätzliche Provision buchen, wenn eine bezahlte Bestellung erhöht wird"
+
 msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
 msgstr "Provision auf Abo-Verlängerungen (WooCommerce Subscriptions)"
 
@@ -3150,6 +3156,9 @@ msgstr "Bei Zahlung"
 
 msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
 msgstr "Wenn die WooCommerce-Bestellung abgeschlossen (versendet) ist – für Vorbestellung, Rechnung und Nachnahme"
+
+msgid "When the items of a paid WooCommerce order are increased later (higher quantity or price, new items), the difference earns commission with the rules of the sale, as a new commission with its own hold period. Lowered items are always corrected. Off: the order only gets a note."
+msgstr "Werden die Positionen einer bezahlten WooCommerce-Bestellung nachträglich erhöht (höhere Menge oder höherer Preis, neue Positionen), erhält der Partner für die Differenz Provision nach den Regeln des Verkaufs – als neue Provision mit eigener Haltefrist. Gesenkte Positionen werden immer korrigiert. Aus: Die Bestellung erhält nur eine Notiz."
 
 msgid "Partner landing URLs look like %s"
 msgstr "Partner-Landing-URLs sehen so aus: %s"
@@ -4577,8 +4586,26 @@ msgstr "Bestellpositionen nach der Zahlung geändert"
 msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
 msgstr "Affiliate Captain: Die Partnerprovision wurde verringert, weil die Bestellpositionen geändert wurden."
 
-msgid "Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically. If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction)."
-msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; die Partnerprovision wurde nicht automatisch erhöht. Soll der Partner mehr erhalten, eine Korrektur buchen (Affiliate Captain → Provisionen → Provision → Korrektur)."
+msgid "Affiliate Captain: the additional partner commission for the increased order could not be booked yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr "Affiliate Captain: Die zusätzliche Partnerprovision für die erhöhte Bestellung konnte noch nicht gebucht werden und wird automatisch wiederholt (Affiliate Captain → Integrationen)."
+
+msgid "Affiliate Captain: the additional partner commission for the increased order could not be booked. Please save the order again later."
+msgstr "Affiliate Captain: Die zusätzliche Partnerprovision für die erhöhte Bestellung konnte nicht gebucht werden. Bitte speichern Sie die Bestellung später erneut."
+
+msgid "Affiliate Captain: the order items were increased after payment; an additional partner commission of %s was booked (attribution unchanged)."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; eine zusätzliche Partnerprovision von %s wurde gebucht (Zuordnung unverändert)."
+
+msgid "Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically (automatic booking is switched off). If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction)."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; die Partnerprovision wurde nicht automatisch erhöht (automatische Buchung ist ausgeschaltet). Soll der Partner mehr erhalten, buchen Sie bitte eine Korrektur (Affiliate Captain → Provisionen → Provision → Korrektur)."
+
+msgid "Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because processing of the partner's data is restricted."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; es wurde keine zusätzliche Partnerprovision gebucht, weil die Verarbeitung der Daten des Partners eingeschränkt ist."
+
+msgid "Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because the partner is no longer active (paused, terminated or deleted)."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; es wurde keine zusätzliche Partnerprovision gebucht, weil der Partner nicht mehr aktiv ist (pausiert, gekündigt oder gelöscht)."
+
+msgid "Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because the commission of the order was rejected or reversed."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; es wurde keine zusätzliche Partnerprovision gebucht, weil die Provision der Bestellung abgelehnt oder storniert wurde."
 
 msgid "Affiliate Captain: the partner commission could not be reinstated yet and will be retried automatically (Affiliate Captain → Integrations)."
 msgstr "Affiliate Captain: Die Partnerprovision konnte noch nicht wiederhergestellt werden; es wird automatisch erneut versucht (Affiliate Captain → Integrationen)."

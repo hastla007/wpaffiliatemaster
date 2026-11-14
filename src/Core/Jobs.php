@@ -483,7 +483,7 @@ final class Jobs {
 	 */
 	public static function order_of( $job ) {
 		$parts = explode( ':', (string) $job->idempotency_key );
-		if ( count( $parts ) < 3 || '' === $parts[1] || '' === $parts[2] || ! in_array( (string) $job->type, array( 'sale', 'refund', 'reinstate', 'woo_reinstate' ), true ) ) {
+		if ( count( $parts ) < 3 || '' === $parts[1] || '' === $parts[2] || ! in_array( (string) $job->type, array( 'sale', 'refund', 'reinstate', 'woo_reinstate', 'woo_increase' ), true ) ) {
 			return null;
 		}
 		return array( $parts[1], $parts[2] );

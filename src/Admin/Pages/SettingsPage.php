@@ -198,6 +198,7 @@ final class SettingsPage {
 				'default_rate_type'     => __( 'Default commission type', 'affiliate-captain' ),
 				'lifetime_enabled'      => __( 'Lifetime commissions: repeat purchases of referred customers go to the same partner', 'affiliate-captain' ),
 				'hold_start'            => __( 'Hold period starts', 'affiliate-captain' ),
+				'book_order_increase'   => __( 'Book additional commission when a paid order is increased', 'affiliate-captain' ),
 				'renewal_commission'    => __( 'Commission on subscription renewals (WooCommerce Subscriptions)', 'affiliate-captain' ),
 				'rule_precedence'       => __( 'Rule precedence', 'affiliate-captain' ),
 				'landing_page_id'       => __( 'Default landing page', 'affiliate-captain' ),
@@ -265,7 +266,7 @@ final class SettingsPage {
 			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'report_admin', 'report_partners' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
-			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
+			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'book_order_increase', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
@@ -483,6 +484,7 @@ final class SettingsPage {
 				'completed' => __( 'When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery', 'affiliate-captain' ),
 			)
 		);
+		self::checkbox( 'book_order_increase', __( 'Book additional commission when a paid order is increased', 'affiliate-captain' ), $s, __( 'When the items of a paid WooCommerce order are increased later (higher quantity or price, new items), the difference earns commission with the rules of the sale, as a new commission with its own hold period. Lowered items are always corrected. Off: the order only gets a note.', 'affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'Promotion', 'affiliate-captain' ), 'promotion' );

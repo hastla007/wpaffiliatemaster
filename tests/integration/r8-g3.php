@@ -239,7 +239,7 @@ check( 'R5-W10 lowered line after payment reduces the commission (once)', 600, $
 $o->items[1]->total = '80.00';
 $o->total           = '80.00';
 OrderSync::items_changed( 83011 );
-check( 'R5-W10 a higher line is not booked automatically, the order gets a note', array( 600, true ), array( $g3_sum( 83011 ), false !== strpos( (string) end( $o->notes ), 'increased' ) ) );
+check( 'R5-W10 a higher line after payment books the difference, the order gets a note', array( 800, true ), array( $g3_sum( 83011 ), false !== strpos( (string) end( $o->notes ), 'additional partner commission' ) ) );
 OrderSync::order_deleted( 83011 );
 check( 'R5-W10 deleted order: commission reversed', 0, $g3_sum( 83011 ) );
 

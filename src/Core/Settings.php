@@ -67,6 +67,7 @@ final class Settings {
 			'lifetime_days'           => 365,
 			'lifetime_rate'           => '',
 			'hold_start'              => 'paid',     // paid|completed (WooCommerce: hold period starts when the order is completed).
+			'book_order_increase'     => 1,          // Book the additional commission when a paid order is increased later.
 			'renewal_limit_months'    => 0,          // Renewals earn commission for this many months after the first order (0 = no limit).
 			'rule_precedence'         => 'scope',    // scope|target, see Calculator.
 			// Program.
@@ -375,7 +376,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'book_order_increase', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 

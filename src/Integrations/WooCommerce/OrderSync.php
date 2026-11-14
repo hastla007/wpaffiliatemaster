@@ -961,9 +961,14 @@ final class OrderSync {
 	}
 
 	/**
-	 * Line items of a paid, attributed order were changed in the admin (quantity lowered, line
-	 * removed or price changed): the commission follows lower amounts with a correction. Higher
-	 * amounts are not booked automatically (order note: reassign the order to book it again).
+	 * Line items of a paid, attributed order were changed in the admin after payment.
+	 *
+	 * - Lower amounts (quantity lowered, line removed, price lowered): a correction of the line.
+	 * - Higher amounts and new lines: the additional commission is booked with the rules of the
+	 *   sale (Ledger::record_increase(); setting book_order_increase, filter
+	 *   wpac_book_order_increase). Not booked for a partner who is no longer active or whose
+	 *   processing is restricted – the order gets a note with the reason.
+	 * Both are idempotent: saving the order again books nothing.
 	 *
 	 * @param int $order_id Order.
 	 */
@@ -976,34 +981,35 @@ final class OrderSync {
 		if ( ! $attr || Jobs::refunds_pending( WooCommerce::SOURCE, (string) $order_id ) ) {
 			return; // Waiting refunds would be deducted twice; the next save catches up.
 		}
+		/** This filter is documented in sync_order(). */
+		$payload = apply_filters( 'wpac_wc_sale_payload', self::payload( $order ), $order );
 		$targets = array();
-		foreach ( self::payload( $order )['items'] as $item ) {
-			$targets[ $item['item_id'] ] = (int) $item['net_minor'];
-		}
-		$rows = array();
-		foreach ( Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) as $c ) {
-			if ( (int) $c->affiliate_id === (int) $attr->affiliate_id && 'rejected' !== $c->status && ( ! isset( $rows[ $c->source_item_id ] ) || (int) $c->id > (int) $rows[ $c->source_item_id ]->id ) ) {
-				$rows[ (string) $c->source_item_id ] = $c;
-			}
+		foreach ( (array) $payload['items'] as $item ) {
+			$targets[ (string) $item['item_id'] ] = (int) $item['net_minor'];
 		}
 		$lines    = array();
+		$state    = array();
 		$increase = false;
-		foreach ( $rows as $item_id => $c ) {
-			$base     = (int) $c->base_minor;
-			$snap     = $c->rule_snapshot ? json_decode( (string) $c->rule_snapshot, true ) : null;
-			$line_net = is_array( $snap ) && ! empty( $snap['line_net'] ) ? (int) $snap['line_net'] : $base;
-			if ( $base <= 0 || $line_net <= 0 ) {
+		$booked   = Ledger::sale_lines( WooCommerce::SOURCE, (string) $order_id, (int) $attr->affiliate_id );
+		foreach ( $booked as $item_id => $line ) {
+			if ( ! $line['rows'] || $line['base'] <= 0 || $line['line_net'] <= 0 ) {
 				continue;
 			}
-			$remaining = $base - Ledger::refunded_base( (int) $c->id );
-			$target    = isset( $targets[ $item_id ] ) ? Money::prorate( $targets[ $item_id ], $base, $line_net ) : 0;
+			$remaining         = (int) $line['remaining'];
+			$state[ $item_id ] = array( $remaining, (int) $line['base'], count( $line['rows'] ) );
+			$target            = isset( $targets[ $item_id ] ) ? Money::prorate( $targets[ $item_id ], $line['base'], $line['line_net'] ) : 0;
 			if ( $remaining > $target ) {
 				$lines[] = array(
 					'item_id'   => (string) $item_id,
-					'net_minor' => Money::prorate( $remaining - $target, $line_net, $base ),
+					'net_minor' => Money::prorate( $remaining - $target, $line['line_net'], $line['base'] ),
 				);
-			} elseif ( $target > $remaining + 1 ) {
+			} elseif ( $target > $remaining + 1 && ! $line['reversed'] ) {
 				$increase = true;
+			}
+		}
+		foreach ( $targets as $item_id => $net ) {
+			if ( $net > 0 && ! isset( $booked[ $item_id ] ) ) {
+				$increase = true; // A new line (booked when its rules give a commission).
 			}
 		}
 		if ( $lines ) {
@@ -1012,7 +1018,8 @@ final class OrderSync {
 					'contract'  => WPAC_CONTRACT_VERSION,
 					'source'    => WooCommerce::SOURCE,
 					'order_id'  => (string) $order_id,
-					'refund_id' => 'edit-' . substr( md5( (string) wp_json_encode( $targets ) ), 0, 12 ),
+					// The booked state is part of the key: lowering again after an increase is a new correction.
+					'refund_id' => 'edit-' . substr( md5( (string) wp_json_encode( array( $targets, $state ) ) ), 0, 12 ),
 					'type'      => 'refund',
 					'items'     => $lines,
 					'reason'    => __( 'Order items changed after payment', 'affiliate-captain' ),
@@ -1025,9 +1032,104 @@ final class OrderSync {
 			}
 		}
 		if ( $increase ) {
-			$order->add_order_note( __( 'Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically. If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction).', 'affiliate-captain' ) );
+			self::book_increase( $order, $payload );
 		}
 	}
+
+	/** Job type for an order increase that could not be booked yet (database error). */
+	const JOB_INCREASE = 'woo_increase';
+
+	/**
+	 * Book the additional commission of an increased order and leave an order note.
+	 *
+	 * @param \WC_Order $order   Order.
+	 * @param array     $payload Sale payload of the current order state.
+	 */
+	private static function book_increase( $order, array $payload ) {
+		try {
+			$result = self::increase_now( $order, $payload );
+		} catch ( \Throwable $e ) {
+			$code   = $e instanceof \WPAffiliateCaptain\Core\IntegrationException ? $e->error_code : 'exception';
+			$queued = Jobs::enqueue( self::JOB_INCREASE, WooCommerce::SOURCE . ':' . (int) $order->get_id(), array( 'order_id' => (int) $order->get_id() ), $code, $e->getMessage() );
+			Log::error(
+				'Commission of an increased WooCommerce order not booked',
+				array(
+					'order'  => (int) $order->get_id(),
+					'code'   => $code,
+					'queued' => $queued,
+				)
+			);
+			$order->add_order_note(
+				$queued
+					? __( 'Affiliate Captain: the additional partner commission for the increased order could not be booked yet and will be retried automatically (Affiliate Captain → Integrations).', 'affiliate-captain' )
+					: __( 'Affiliate Captain: the additional partner commission for the increased order could not be booked. Please save the order again later.', 'affiliate-captain' )
+			);
+			return;
+		}
+		self::increase_note( $order, $result );
+	}
+
+	/**
+	 * Book the increase now; database errors are thrown (job queue).
+	 *
+	 * @param \WC_Order $order   Order.
+	 * @param array     $payload Sale payload of the current order state.
+	 * @return array|\WP_Error Result of Ledger::record_increase().
+	 * @throws \Throwable On database errors.
+	 */
+	private static function increase_now( $order, array $payload ) {
+		try {
+			$sale = ContractApi::normalize_sale( $payload );
+		} catch ( \WPAffiliateCaptain\Core\IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
+		}
+		return Ledger::record_increase( $sale );
+	}
+
+	/**
+	 * Order note for the result of an increase (once per result, not on every save).
+	 *
+	 * @param \WC_Order       $order  Order.
+	 * @param array|\WP_Error $result Result of Ledger::record_increase().
+	 */
+	private static function increase_note( $order, $result ) {
+		if ( is_wp_error( $result ) ) {
+			self::report_error( $order, $result, 'sale' );
+			return;
+		}
+		if ( 'created' === $result['status'] ) {
+			$order->update_meta_data( self::META_INCREASE_NOTE, '' );
+			$order->save_meta_data();
+			$order->add_order_note(
+				sprintf(
+					/* translators: %s: commission amount */
+					__( 'Affiliate Captain: the order items were increased after payment; an additional partner commission of %s was booked (attribution unchanged).', 'affiliate-captain' ),
+					Money::format( (int) $result['amount_minor'], $order->get_currency() )
+				)
+			);
+			return;
+		}
+		$notes = array(
+			'disabled'   => __( 'Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically (automatic booking is switched off). If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction).', 'affiliate-captain' ),
+			'ineligible' => 'partner_restricted' === $result['reason']
+				? __( 'Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because processing of the partner\'s data is restricted.', 'affiliate-captain' )
+				: __( 'Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because the partner is no longer active (paused, terminated or deleted).', 'affiliate-captain' ),
+			'reversed'   => __( 'Affiliate Captain: the order items were increased after payment; no additional partner commission was booked because the commission of the order was rejected or reversed.', 'affiliate-captain' ),
+		);
+		if ( ! isset( $notes[ $result['status'] ] ) ) {
+			return; // Nothing to book (e.g. the new lines earn no commission).
+		}
+		$key = $result['status'] . ':' . $result['reason'];
+		if ( (string) $order->get_meta( self::META_INCREASE_NOTE ) === $key ) {
+			return;
+		}
+		$order->update_meta_data( self::META_INCREASE_NOTE, $key );
+		$order->save_meta_data();
+		$order->add_order_note( $notes[ $result['status'] ] );
+	}
+
+	/** Last note about an increase that was not booked (avoids the same note on every save). */
+	const META_INCREASE_NOTE = '_wpac_increase_note';
 
 	/**
 	 * Reinstate the commission after a reversal that turned out to be wrong.
@@ -1127,6 +1229,15 @@ final class OrderSync {
 			// must not deduct them a second time (after_booking()).
 			ContractApi::after_booking( $sale, Ledger::record_sale( $sale ) );
 			Jobs::supersede_refunds( WooCommerce::SOURCE, (string) $order->get_id(), (array) $sale['netted_refund_ids'] );
+			return true;
+		}
+		if ( self::JOB_INCREASE === $type && ! empty( $payload['order_id'] ) ) {
+			$order = wc_get_order( (int) $payload['order_id'] );
+			if ( ! $order || ! $order->is_paid() || ! Ledger::attribution_for( WooCommerce::SOURCE, (string) $order->get_id() ) ) {
+				return true; // Nothing (left) to do.
+			}
+			// Rebuilt from the current order; idempotent. Exceptions propagate to the job runner.
+			self::increase_note( $order, self::increase_now( $order, apply_filters( 'wpac_wc_sale_payload', self::payload( $order ), $order ) ) );
 			return true;
 		}
 		if ( 'woo_reinstate' === $type && ! empty( $payload['order_id'] ) ) {
