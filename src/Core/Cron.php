@@ -53,8 +53,23 @@ final class Cron {
 			0
 		);
 		add_action( \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, array( \WPAffiliateCaptain\Affiliates\Agreements::class, 'remind_batch' ), 10, 0 );
-		add_action( self::VISITS_HOOK, array( __CLASS__, 'purge_visits' ), 10, 0 );
-		add_action( \WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK, array( '\WPAffiliateCaptain\Commissions\Balance', 'scheduled_check' ), 10, 0 );
+		// Actions return nothing: the results of purge_visits() and scheduled_check() are for direct callers.
+		add_action(
+			self::VISITS_HOOK,
+			static function () {
+				self::purge_visits();
+			},
+			10,
+			0
+		);
+		add_action(
+			\WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK,
+			static function () {
+				\WPAffiliateCaptain\Commissions\Balance::scheduled_check();
+			},
+			10,
+			0
+		);
 		add_action( \WPAffiliateCaptain\Commissions\TierService::CONTINUE_HOOK, array( '\WPAffiliateCaptain\Commissions\TierService', 'continue_run' ), 10, 0 );
 	}
 
