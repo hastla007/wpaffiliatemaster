@@ -405,61 +405,7 @@ final class Portal {
 		$redirect = remove_query_arg( array( 'wpac_msg' ), wpac_return_url() );
 
 		if ( 'account' === $action ) {
-			// Name, website and channel directly; a new e-mail only after confirmation.
-			// The channel is internal; name and website are public and wait for the operator's review.
-			$acc = array(
-				'channel' => isset( $_POST['wpac_acc_channel'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_channel'] ) ) : $aff->channel,
-				'name'    => isset( $_POST['wpac_acc_name'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) : $aff->name,
-				'website' => isset( $_POST['wpac_acc_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_acc_website'] ) ) : $aff->website,
-			);
-			// All fields checked first: a too long name must not leave the channel half saved.
-			$saved = AffiliateRepository::length_problem( $acc );
-			if ( ! $saved ) {
-				$saved = AffiliateRepository::update( (int) $aff->id, array( 'channel' => $acc['channel'] ) );
-			}
-			$public = is_wp_error( $saved ) ? $saved : AffiliateRepository::request_public_change( (int) $aff->id, $acc['name'], $acc['website'] );
-			if ( is_wp_error( $public ) ) {
-				// Too long or not stored: an error instead of "saved" (and no e-mail change started).
-				set_transient( 'wpac_portal_error_' . get_current_user_id(), $public->get_error_message(), 5 * MINUTE_IN_SECONDS );
-				wp_safe_redirect( add_query_arg( array( 'wpac_msg' => 'account_failed', 'wpac_tab' => 'account' ), $redirect ) );
-				exit;
-			}
-			$msg   = 'pending' === $public ? 'change_review' : 'saved';
-			$email = isset( $_POST['wpac_acc_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_acc_email'] ) ) : '';
-			if ( '' !== $email && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
-				$other = AffiliateRepository::find_by_email( $email );
-				if ( ! is_email( $email ) ) {
-					$msg = 'wpac_email';
-				} elseif ( $other && (int) $other->id !== (int) $aff->id ) {
-					$msg = 'wpac_email_taken';
-				} elseif ( ! RateLimiter::allow_for( 'email_change', (int) $aff->id, 3, DAY_IN_SECONDS ) ) {
-					// Per partner (not per IP): changing the IP must not allow more confirmation mails.
-					$msg = 'email_change_limit';
-				} else {
-					$token = wp_generate_password( 32, false );
-					\WPAffiliateCaptain\Core\Pending::set(
-						'email_change_' . (int) $aff->id,
-						array(
-							'email'      => $email,
-							'token_hash' => self::email_token_hash( $token ),
-						),
-						DAY_IN_SECONDS
-					);
-					$link = add_query_arg( 'wpac_email_confirm', strtolower( $token ), add_query_arg( 'wpac_tab', 'account', wpac_return_url() ) );
-					\WPAffiliateCaptain\Affiliates\Notifications::send(
-						'email_confirm',
-						$email,
-						/* translators: %s: site name */
-						sprintf( __( '[%s] Please confirm your new e-mail address', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-						/* translators: %s: link */
-						sprintf( __( "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.", 'affiliate-captain' ), $link ),
-						array( 'affiliate_id' => (int) $aff->id )
-					);
-					$msg = 'email_confirm_sent';
-				}
-			}
-			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $redirect ) );
-			exit;
+			self::post_account( $aff, $redirect );
 		}
 
 		if ( 'notifications' === $action ) {
@@ -478,90 +424,15 @@ final class Portal {
 		}
 
 		if ( 'privacy' === $action ) {
-			$type = isset( $_POST['wpac_privacy_type'] ) ? sanitize_key( wp_unslash( $_POST['wpac_privacy_type'] ) ) : '';
-			$note = isset( $_POST['wpac_privacy_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_privacy_note'] ) ) : '';
-			$msg  = \WPAffiliateCaptain\Privacy\Privacy::partner_request( $aff, $type, $note );
-			if ( 'privacy_failed' === $msg ) {
-				// Say what is missing and keep what the partner wrote.
-				$msg = in_array( $type, array( 'restrict', 'object' ), true ) && '' === trim( $note ) ? 'privacy_note_missing' : $msg;
-				set_transient(
-					'wpac_privacy_form_' . get_current_user_id(),
-					array(
-						'type' => $type,
-						'note' => Db::cut( $note, 2000 ),
-					),
-					15 * MINUTE_IN_SECONDS
-				);
-			}
-			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'privacy' ), $redirect ) );
-			exit;
+			self::post_privacy( $aff, $redirect );
 		}
 
 		if ( 'objection' === $action ) {
-			$payout = isset( $_POST['wpac_obj_payout'] ) ? absint( $_POST['wpac_obj_payout'] ) : 0;
-			$reason = isset( $_POST['wpac_obj_reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_obj_reason'] ) ) : '';
-			$result = \WPAffiliateCaptain\Payouts\Objections::file( $payout, (int) $aff->id, $reason );
-			if ( is_wp_error( $result ) ) {
-				// The actual reason, and the text the partner wrote stays in the form.
-				set_transient( 'wpac_portal_error_' . get_current_user_id(), $result->get_error_message(), 5 * MINUTE_IN_SECONDS );
-				set_transient(
-					'wpac_objection_form_' . get_current_user_id(),
-					array(
-						'payout' => $payout,
-						'reason' => Db::cut( $reason, 2000 ),
-					),
-					15 * MINUTE_IN_SECONDS
-				);
-			}
-			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => is_wp_error( $result ) ? 'objection_failed' : 'objection_sent', 'wpac_tab' => 'payouts' ), $redirect ) . '#wpac-objection' );
-			exit;
+			self::post_objection( $aff, $redirect );
 		}
 
 		if ( 'profile' === $action ) {
-			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details' );
-			$in     = array();
-			foreach ( $fields as $f ) {
-				$in[ $f ] = isset( $_POST[ 'wpac_' . $f ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'wpac_' . $f ] ) ) : '';
-			}
-			// Changing where the money goes needs the account password: a taken-over session
-			// (open computer, stolen cookie) must not redirect the next payout.
-			$password = isset( $_POST['wpac_current_password'] ) ? (string) wp_unslash( $_POST['wpac_current_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password, compared with the hash only.
-			$user     = wp_get_current_user();
-			if ( ProfileRepository::changes_destination( ProfileRepository::get( (int) $aff->id ), $in ) && ( '' === $password || ! $user || ! wp_check_password( $password, $user->user_pass, $user->ID ) ) ) {
-				\WPAffiliateCaptain\Core\Audit::log( 'payout_profile.password_refused', 'affiliate', (int) $aff->id );
-				$result = new \WP_Error( 'wpac_password', __( 'Please confirm the change of your bank or payment details with your current password.', 'affiliate-captain' ) );
-			} else {
-				// Tax data that change the VAT on credit notes wait for the approval of an admin.
-				$result = ProfileRepository::save( (int) $aff->id, $in, 'partner' );
-			}
-			$msg = is_wp_error( $result ) ? $result->get_error_code() : ( \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id ) ? 'tax_pending' : 'saved' );
-			if ( is_wp_error( $result ) ) {
-				// Keep what the partner typed (never the IBAN or payment details) and mark the field with the error.
-				unset( $in['iban'], $in['payment_details'] );
-				$fields = array(
-					'wpac_iban'            => 'iban',
-					'wpac_iban_required'   => 'iban',
-					'wpac_payment_details' => 'payment_details',
-					'wpac_vat'        => 'vat_id',
-					'wpac_vat_format' => 'vat_id',
-					'wpac_tax_number' => 'tax_number',
-					'wpac_password'   => 'current_password',
-					'wpac_too_long_legal_name'     => 'legal_name',
-					'wpac_too_long_account_holder' => 'account_holder',
-					'wpac_too_long_vat_id'         => 'vat_id',
-					'wpac_method_disabled'         => 'iban',
-				);
-				set_transient(
-					'wpac_profile_form_' . get_current_user_id(),
-					array(
-						'values' => $in,
-						'field'  => isset( $fields[ $msg ] ) ? $fields[ $msg ] : '',
-					),
-					15 * MINUTE_IN_SECONDS
-				);
-			}
-			wp_safe_redirect( add_query_arg( 'wpac_msg', $msg, $redirect ) );
-			exit;
+			self::post_profile( $aff, $redirect );
 		}
 		if ( 'payout_request' === $action ) {
 			$result = PayoutRequests::request( $aff );
@@ -583,6 +454,183 @@ final class Portal {
 			wp_safe_redirect( add_query_arg( 'wpac_msg', 'terms', $redirect ) );
 			exit;
 		}
+	}
+
+	/**
+	 * Portal form "account": name, website, channel and a new e-mail address. Redirects and exits.
+	 *
+	 * @param object $aff      Partner.
+	 * @param string $redirect Return URL without message.
+	 */
+	private static function post_account( $aff, $redirect ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce verified in handle_post().
+		// Name, website and channel directly; a new e-mail only after confirmation.
+		// The channel is internal; name and website are public and wait for the operator's review.
+		$acc = array(
+			'channel' => isset( $_POST['wpac_acc_channel'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_channel'] ) ) : $aff->channel,
+			'name'    => isset( $_POST['wpac_acc_name'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_acc_name'] ) ) : $aff->name,
+			'website' => isset( $_POST['wpac_acc_website'] ) ? esc_url_raw( wp_unslash( $_POST['wpac_acc_website'] ) ) : $aff->website,
+		);
+		// All fields checked first: a too long name must not leave the channel half saved.
+		$saved = AffiliateRepository::length_problem( $acc );
+		if ( ! $saved ) {
+			$saved = AffiliateRepository::update( (int) $aff->id, array( 'channel' => $acc['channel'] ) );
+		}
+		$public = is_wp_error( $saved ) ? $saved : AffiliateRepository::request_public_change( (int) $aff->id, $acc['name'], $acc['website'] );
+		if ( is_wp_error( $public ) ) {
+			// Too long or not stored: an error instead of "saved" (and no e-mail change started).
+			set_transient( 'wpac_portal_error_' . get_current_user_id(), $public->get_error_message(), 5 * MINUTE_IN_SECONDS );
+			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => 'account_failed', 'wpac_tab' => 'account' ), $redirect ) );
+			exit;
+		}
+		$msg   = 'pending' === $public ? 'change_review' : 'saved';
+		$email = isset( $_POST['wpac_acc_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_acc_email'] ) ) : '';
+		if ( '' !== $email && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
+			$other = AffiliateRepository::find_by_email( $email );
+			if ( ! is_email( $email ) ) {
+				$msg = 'wpac_email';
+			} elseif ( $other && (int) $other->id !== (int) $aff->id ) {
+				$msg = 'wpac_email_taken';
+			} elseif ( ! RateLimiter::allow_for( 'email_change', (int) $aff->id, 3, DAY_IN_SECONDS ) ) {
+				// Per partner (not per IP): changing the IP must not allow more confirmation mails.
+				$msg = 'email_change_limit';
+			} else {
+				$token = wp_generate_password( 32, false );
+				\WPAffiliateCaptain\Core\Pending::set(
+					'email_change_' . (int) $aff->id,
+					array(
+						'email'      => $email,
+						'token_hash' => self::email_token_hash( $token ),
+					),
+					DAY_IN_SECONDS
+				);
+				$link = add_query_arg( 'wpac_email_confirm', strtolower( $token ), add_query_arg( 'wpac_tab', 'account', wpac_return_url() ) );
+				\WPAffiliateCaptain\Affiliates\Notifications::send(
+					'email_confirm',
+					$email,
+					/* translators: %s: site name */
+					sprintf( __( '[%s] Please confirm your new e-mail address', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+					/* translators: %s: link */
+					sprintf( __( "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.", 'affiliate-captain' ), $link ),
+					array( 'affiliate_id' => (int) $aff->id )
+				);
+				$msg = 'email_confirm_sent';
+			}
+		}
+		wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'account' ), $redirect ) );
+		exit;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Portal form "privacy": a data protection request. Redirects and exits.
+	 *
+	 * @param object $aff      Partner.
+	 * @param string $redirect Return URL without message.
+	 */
+	private static function post_privacy( $aff, $redirect ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce verified in handle_post().
+		$type = isset( $_POST['wpac_privacy_type'] ) ? sanitize_key( wp_unslash( $_POST['wpac_privacy_type'] ) ) : '';
+		$note = isset( $_POST['wpac_privacy_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_privacy_note'] ) ) : '';
+		$msg  = \WPAffiliateCaptain\Privacy\Privacy::partner_request( $aff, $type, $note );
+		if ( 'privacy_failed' === $msg ) {
+			// Say what is missing and keep what the partner wrote.
+			$msg = in_array( $type, array( 'restrict', 'object' ), true ) && '' === trim( $note ) ? 'privacy_note_missing' : $msg;
+			set_transient(
+				'wpac_privacy_form_' . get_current_user_id(),
+				array(
+					'type' => $type,
+					'note' => Db::cut( $note, 2000 ),
+				),
+				15 * MINUTE_IN_SECONDS
+			);
+		}
+		wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $msg, 'wpac_tab' => 'privacy' ), $redirect ) );
+		exit;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Portal form "objection": objection to a credit note. Redirects and exits.
+	 *
+	 * @param object $aff      Partner.
+	 * @param string $redirect Return URL without message.
+	 */
+	private static function post_objection( $aff, $redirect ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce verified in handle_post().
+		$payout = isset( $_POST['wpac_obj_payout'] ) ? absint( $_POST['wpac_obj_payout'] ) : 0;
+		$reason = isset( $_POST['wpac_obj_reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wpac_obj_reason'] ) ) : '';
+		$result = \WPAffiliateCaptain\Payouts\Objections::file( $payout, (int) $aff->id, $reason );
+		if ( is_wp_error( $result ) ) {
+			// The actual reason, and the text the partner wrote stays in the form.
+			set_transient( 'wpac_portal_error_' . get_current_user_id(), $result->get_error_message(), 5 * MINUTE_IN_SECONDS );
+			set_transient(
+				'wpac_objection_form_' . get_current_user_id(),
+				array(
+					'payout' => $payout,
+					'reason' => Db::cut( $reason, 2000 ),
+				),
+				15 * MINUTE_IN_SECONDS
+			);
+		}
+		wp_safe_redirect( add_query_arg( array( 'wpac_msg' => is_wp_error( $result ) ? 'objection_failed' : 'objection_sent', 'wpac_tab' => 'payouts' ), $redirect ) . '#wpac-objection' );
+		exit;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Portal form "profile": payout and tax details. Redirects and exits.
+	 *
+	 * @param object $aff      Partner.
+	 * @param string $redirect Return URL without message.
+	 */
+	private static function post_profile( $aff, $redirect ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce verified in handle_post().
+		$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details' );
+		$in     = array();
+		foreach ( $fields as $f ) {
+			$in[ $f ] = isset( $_POST[ 'wpac_' . $f ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'wpac_' . $f ] ) ) : '';
+		}
+		// Changing where the money goes needs the account password: a taken-over session
+		// (open computer, stolen cookie) must not redirect the next payout.
+		$password = isset( $_POST['wpac_current_password'] ) ? (string) wp_unslash( $_POST['wpac_current_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password, compared with the hash only.
+		$user     = wp_get_current_user();
+		if ( ProfileRepository::changes_destination( ProfileRepository::get( (int) $aff->id ), $in ) && ( '' === $password || ! $user || ! wp_check_password( $password, $user->user_pass, $user->ID ) ) ) {
+			\WPAffiliateCaptain\Core\Audit::log( 'payout_profile.password_refused', 'affiliate', (int) $aff->id );
+			$result = new \WP_Error( 'wpac_password', __( 'Please confirm the change of your bank or payment details with your current password.', 'affiliate-captain' ) );
+		} else {
+			// Tax data that change the VAT on credit notes wait for the approval of an admin.
+			$result = ProfileRepository::save( (int) $aff->id, $in, 'partner' );
+		}
+		$msg = is_wp_error( $result ) ? $result->get_error_code() : ( \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id ) ? 'tax_pending' : 'saved' );
+		if ( is_wp_error( $result ) ) {
+			// Keep what the partner typed (never the IBAN or payment details) and mark the field with the error.
+			unset( $in['iban'], $in['payment_details'] );
+			$fields = array(
+				'wpac_iban'            => 'iban',
+				'wpac_iban_required'   => 'iban',
+				'wpac_payment_details' => 'payment_details',
+				'wpac_vat'        => 'vat_id',
+				'wpac_vat_format' => 'vat_id',
+				'wpac_tax_number' => 'tax_number',
+				'wpac_password'   => 'current_password',
+				'wpac_too_long_legal_name'     => 'legal_name',
+				'wpac_too_long_account_holder' => 'account_holder',
+				'wpac_too_long_vat_id'         => 'vat_id',
+				'wpac_method_disabled'         => 'iban',
+			);
+			set_transient(
+				'wpac_profile_form_' . get_current_user_id(),
+				array(
+					'values' => $in,
+					'field'  => isset( $fields[ $msg ] ) ? $fields[ $msg ] : '',
+				),
+				15 * MINUTE_IN_SECONDS
+			);
+		}
+		wp_safe_redirect( add_query_arg( 'wpac_msg', $msg, $redirect ) );
+		exit;
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
