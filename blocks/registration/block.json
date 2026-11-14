@@ -29,5 +29,6 @@
 			"full"
 		]
 	},
-	"editorScript": "wpac-blocks"
+	"editorScript": "wpac-blocks",
+	"style": "wpac-portal"
 }

@@ -65,9 +65,10 @@ final class Qr {
 	 * @param string $text  Text.
 	 * @param int    $scale Pixel per module.
 	 * @param int    $quiet Quiet zone in modules.
+	 * @param string $label Text alternative (role="img" with aria-label and <title>); '' = the encoded text.
 	 * @return string
 	 */
-	public static function svg( $text, $scale = 6, $quiet = 4 ) {
+	public static function svg( $text, $scale = 6, $quiet = 4, $label = '' ) {
 		$m    = self::matrix( $text );
 		$n    = count( $m );
 		$dim  = ( $n + 2 * $quiet ) * $scale;
@@ -79,8 +80,9 @@ final class Qr {
 				}
 			}
 		}
-		$v = $n + 2 * $quiet;
-		return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $dim . '" height="' . $dim . '" viewBox="0 0 ' . $v . ' ' . $v . '" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path fill="#000" d="' . $path . '"/></svg>';
+		$v     = $n + 2 * $quiet;
+		$label = htmlspecialchars( '' !== (string) $label ? (string) $label : (string) $text, ENT_QUOTES | ENT_XML1, 'UTF-8' );
+		return '<svg xmlns="http://www.w3.org/2000/svg" width="' . $dim . '" height="' . $dim . '" viewBox="0 0 ' . $v . ' ' . $v . '" shape-rendering="crispEdges" role="img" aria-label="' . $label . '"><title>' . $label . '</title><rect width="100%" height="100%" fill="#fff"/><path fill="#000" d="' . $path . '"/></svg>';
 	}
 
 	/**

@@ -63,7 +63,7 @@ $g5_res = WPAffiliateCaptain\Payouts\PayoutRequests::reject( $g5_req, str_repeat
 check( 'R6-QA7 rejection with a long umlaut reason is saved', array( true, 'rejected' ), array( $g5_res, (string) $wpdb->get_var( 'SELECT status FROM ' . t( 'payout_requests' ) . " WHERE id = {$g5_req}" ) ) );
 
 // R6-LC2: the schema version is part of the code; an old main file cannot lower it.
-check( 'R6-LC2 schema version from the class constant', array( 10, 10 ), array( Installer::DB_VERSION, Installer::db_version() ) );
+check( 'R6-LC2 schema version from the class constant', array( 11, 11 ), array( Installer::DB_VERSION, Installer::db_version() ) );
 $g5_dir = sys_get_temp_dir() . '/g5-plugins/wp-affiliate-captain';
 @mkdir( $g5_dir, 0777, true );
 file_put_contents( $g5_dir . '/wp-affiliate-captain.php', '<?php' );

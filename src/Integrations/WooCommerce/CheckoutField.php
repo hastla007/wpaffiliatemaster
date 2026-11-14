@@ -160,6 +160,8 @@ final class CheckoutField {
 					'campaign'   => isset( $touch['campaign'] ) ? (string) $touch['campaign'] : '',
 					'content_id' => isset( $touch['content_id'] ) ? (int) $touch['content_id'] : 0,
 					'ts'         => isset( $touch['ts'] ) ? (int) $touch['ts'] : 0,
+					'sub_id'     => isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '',
+					'visit_id'   => isset( $touch['visit_id'] ) ? (int) $touch['visit_id'] : 0,
 				)
 			);
 		}

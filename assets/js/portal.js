@@ -19,9 +19,13 @@
 		}
 		field.select();
 		var done = function () {
-			var label = btn.textContent;
+			// The original label is kept once, so a second click within 1.5 s does not keep "✔".
+			if ( ! btn.hasAttribute( 'data-wpac-label' ) ) {
+				btn.setAttribute( 'data-wpac-label', btn.textContent );
+			}
+			window.clearTimeout( btn.wpacTimer );
 			btn.textContent = '✔';
-			window.setTimeout( function () { btn.textContent = label; }, 1500 );
+			btn.wpacTimer = window.setTimeout( function () { btn.textContent = btn.getAttribute( 'data-wpac-label' ); }, 1500 );
 			announce( i18n.copied );
 		};
 		if ( navigator.clipboard && window.isSecureContext ) {

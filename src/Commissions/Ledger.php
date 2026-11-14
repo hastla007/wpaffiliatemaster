@@ -262,6 +262,8 @@ final class Ledger {
 					'method'          => Db::cut( (string) $attr['method'], 20 ),
 					'campaign'        => Db::cut( (string) $attr['campaign'], 100 ),
 					'content_id'      => (int) $attr['content_id'],
+					'sub_id'          => Db::cut( isset( $attr['sub_id'] ) ? (string) $attr['sub_id'] : '', 100 ),
+					'visit_id'        => isset( $attr['visit_id'] ) ? (int) $attr['visit_id'] : 0,
 					'consent'         => (int) $attr['consent'],
 					'touch_model'     => (string) $attr['touch_model'],
 					'status'          => $attr['review'] ? 'review' : 'attributed',

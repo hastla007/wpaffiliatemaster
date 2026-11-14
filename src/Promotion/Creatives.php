@@ -47,6 +47,20 @@ final class Creatives {
 	}
 
 	/**
+	 * Version of a creative family.
+	 *
+	 * @param int $family_id Family.
+	 * @param int $version   Version.
+	 * @return object|null
+	 */
+	public static function find_version( $family_id, $version ) {
+		global $wpdb;
+		$t = Db::table( 'creatives' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE family_id = %d AND version = %d", $family_id, $version ) );
+	}
+
+	/**
 	 * All versions, newest first.
 	 *
 	 * @return array
@@ -202,13 +216,14 @@ final class Creatives {
 	 * @param object $creative Creative.
 	 * @param string $code     Partner code.
 	 * @param string $partner  Partner name.
+	 * @param string $sub      Sub-ID of the partner (optional).
 	 * @return string
 	 */
-	public static function personalize( $creative, $code, $partner ) {
+	public static function personalize( $creative, $code, $partner, $sub = '' ) {
 		return strtr(
 			(string) $creative->content,
 			array(
-				'{link}'    => self::link( $creative, $code ),
+				'{link}'    => self::link( $creative, $code, $sub ),
 				'{code}'    => $code,
 				'{partner}' => $partner,
 			)
@@ -220,18 +235,21 @@ final class Creatives {
 	 *
 	 * @param object $creative Creative.
 	 * @param string $code     Partner code.
+	 * @param string $sub      Sub-ID of the partner (optional; e.g. the placement).
 	 * @return string
 	 */
-	public static function link( $creative, $code ) {
+	public static function link( $creative, $code, $sub = '' ) {
 		$target = $creative->landing_url ? $creative->landing_url : home_url( '/' );
-		return add_query_arg(
-			array(
-				(string) Settings::get( 'referral_param' ) => $code,
-				'utm_source'                              => 'partner',
-				'utm_medium'                              => 'affiliate',
-				'utm_campaign'                            => 'creative-' . (int) $creative->family_id . '-v' . (int) $creative->version,
-			),
-			$target
+		$args   = array(
+			(string) Settings::get( 'referral_param' ) => $code,
+			'utm_source'                              => 'partner',
+			'utm_medium'                              => 'affiliate',
+			'utm_campaign'                            => 'creative-' . (int) $creative->family_id . '-v' . (int) $creative->version,
 		);
+		$sub = \WPAffiliateCaptain\Tracking\Tracker::clean_sub( $sub );
+		if ( '' !== $sub ) {
+			$args[ \WPAffiliateCaptain\Tracking\Tracker::sub_param() ] = $sub;
+		}
+		return add_query_arg( $args, $target );
 	}
 }

@@ -22,5 +22,6 @@
 		],
 		"multiple": false
 	},
-	"editorScript": "wpac-blocks"
+	"editorScript": "wpac-blocks",
+	"style": "wpac-portal"
 }

@@ -212,6 +212,213 @@ final class Reports {
 	}
 
 	/**
+	 * Orders of a partner in a period that count as sales: a sale commission created in the
+	 * period that is not rejected and not completely reversed (full refund, cancellation).
+	 * Orders without any commission amount (0 % rule) still count.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $start        From (Y-m-d H:i:s, UTC).
+	 * @param string $end          To (Y-m-d H:i:s, UTC).
+	 * @return array[] source, source_order_id, created_at
+	 */
+	private static function partner_sales( $affiliate_id, $start, $end ) {
+		global $wpdb;
+		$c = Db::table( 'commissions' );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT c.source, c.source_order_id, MIN(s.created_at) created_at,
+					SUM(c.amount_minor) net, SUM(CASE WHEN c.kind = 'sale' THEN c.amount_minor ELSE 0 END) gross
+				FROM {$c} c JOIN (
+					SELECT source, source_order_id, MIN(created_at) created_at FROM {$c}
+					WHERE affiliate_id = %d AND kind = 'sale' AND status <> 'rejected' AND created_at BETWEEN %s AND %s
+					GROUP BY source, source_order_id
+				) s ON s.source = c.source AND s.source_order_id = c.source_order_id
+				WHERE c.affiliate_id = %d AND c.status <> 'rejected' AND c.kind <> 'bonus'
+				GROUP BY c.source, c.source_order_id",
+				$affiliate_id,
+				$start,
+				$end,
+				$affiliate_id
+			)
+		);
+		// phpcs:enable
+		$out = array();
+		foreach ( (array) $rows as $r ) {
+			if ( (int) $r->net > 0 || (int) $r->gross <= 0 ) {
+				$out[] = array(
+					'source'          => (string) $r->source,
+					'source_order_id' => (string) $r->source_order_id,
+					'created_at'      => (string) $r->created_at,
+				);
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Statistics of one partner for the partner area: visits, sales, conversion rate and the
+	 * commissions earned in the period per currency (amounts in the booking currency, no conversion).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $from         Y-m-d.
+	 * @param string $to           Y-m-d.
+	 * @return array visits, sales, conversion, earned (currency => minor)
+	 */
+	public static function partner_summary( $affiliate_id, $from, $to ) {
+		global $wpdb;
+		$start = $from . ' 00:00:00';
+		$end   = $to . ' 23:59:59';
+		$v     = Db::table( 'visits' );
+		$c     = Db::table( 'commissions' );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$visits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s", $affiliate_id, $start, $end ) );
+		$earned = $wpdb->get_results( $wpdb->prepare( "SELECT currency, SUM(amount_minor) total FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at BETWEEN %s AND %s GROUP BY currency", $affiliate_id, $start, $end ) );
+		// phpcs:enable
+		$sales = count( self::partner_sales( (int) $affiliate_id, $start, $end ) );
+		$money = array();
+		foreach ( (array) $earned as $e ) {
+			$money[ (string) $e->currency ] = (int) $e->total;
+		}
+		return array(
+			'visits'     => $visits,
+			'sales'      => $sales,
+			'conversion' => $visits > 0 ? round( $sales * 100 / $visits, 1 ) : 0,
+			'earned'     => $money,
+		);
+	}
+
+	/**
+	 * Monthly figures of one partner (newest first): sales and commissions earned per currency.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @param int $months       Number of months including the current one.
+	 * @return array Y-m => [ sales, earned => [ currency => minor ] ]
+	 */
+	public static function partner_months( $affiliate_id, $months = 12 ) {
+		global $wpdb;
+		$months = max( 1, min( 36, (int) $months ) );
+		$first  = gmdate( 'Y-m-01', (int) strtotime( gmdate( 'Y-m-01' ) . ' -' . ( $months - 1 ) . ' months' ) );
+		$start  = $first . ' 00:00:00';
+		$end    = gmdate( 'Y-m-d' ) . ' 23:59:59';
+		$out    = array();
+		for ( $i = 0; $i < $months; $i++ ) {
+			$out[ gmdate( 'Y-m', (int) strtotime( gmdate( 'Y-m-01' ) . ' -' . $i . ' months' ) ) ] = array(
+				'sales'  => 0,
+				'earned' => array(),
+			);
+		}
+		$c = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT LEFT(created_at, 7) m, currency, SUM(amount_minor) total FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at BETWEEN %s AND %s GROUP BY m, currency", $affiliate_id, $start, $end ) );
+		foreach ( (array) $rows as $r ) {
+			if ( isset( $out[ $r->m ] ) ) {
+				$out[ $r->m ]['earned'][ (string) $r->currency ] = (int) $r->total;
+			}
+		}
+		foreach ( self::partner_sales( (int) $affiliate_id, $start, $end ) as $s ) {
+			$m = substr( $s['created_at'], 0, 7 );
+			if ( isset( $out[ $m ] ) ) {
+				++$out[ $m ]['sales'];
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Report of one partner by campaign (utm_campaign) and sub-ID: visits, orders, conversion
+	 * and commission per currency. Only the partner's own visits and orders are counted, so
+	 * campaigns with the same name of other partners never mix.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $from         Y-m-d.
+	 * @param string $to           Y-m-d.
+	 * @return array[] campaign, sub_id, label, visits, orders, conversion, commission (currency => minor)
+	 */
+	public static function partner_campaigns( $affiliate_id, $from, $to ) {
+		global $wpdb;
+		$start = $from . ' 00:00:00';
+		$end   = $to . ' 23:59:59';
+		$v     = Db::table( 'visits' );
+		$at    = Db::table( 'attributions' );
+		$c     = Db::table( 'commissions' );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT campaign, sub_id, COUNT(*) n FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s GROUP BY campaign, sub_id", $affiliate_id, $start, $end ) );
+		$sales  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT a.campaign, a.sub_id, c.currency, COUNT(DISTINCT a.id) orders, SUM(COALESCE(c.amount_minor,0)) commission
+				FROM {$at} a LEFT JOIN {$c} c ON c.source = a.source AND c.source_order_id = a.source_order_id AND c.affiliate_id = a.affiliate_id AND c.status <> 'rejected' AND c.kind <> 'bonus'
+				WHERE a.affiliate_id = %d AND a.created_at BETWEEN %s AND %s GROUP BY a.campaign, a.sub_id, c.currency",
+				$affiliate_id,
+				$start,
+				$end
+			)
+		);
+		// phpcs:enable
+		$rows = array();
+		$init = static function ( $campaign, $sub ) {
+			return array(
+				'campaign'   => (string) $campaign,
+				'sub_id'     => (string) $sub,
+				'label'      => self::campaign_label( (string) $campaign ),
+				'visits'     => 0,
+				'orders'     => 0,
+				'conversion' => 0,
+				'commission' => array(),
+			);
+		};
+		foreach ( (array) $visits as $r ) {
+			$k                    = $r->campaign . "
+" . $r->sub_id;
+			$rows[ $k ]           = $init( $r->campaign, $r->sub_id );
+			$rows[ $k ]['visits'] = (int) $r->n;
+		}
+		foreach ( (array) $sales as $s ) {
+			$k = $s->campaign . "
+" . $s->sub_id;
+			if ( ! isset( $rows[ $k ] ) ) {
+				$rows[ $k ] = $init( $s->campaign, $s->sub_id );
+			}
+			$rows[ $k ]['orders'] += (int) $s->orders;
+			if ( null !== $s->currency && '' !== (string) $s->currency ) {
+				$cur                                = (string) $s->currency;
+				$rows[ $k ]['commission'][ $cur ]   = ( isset( $rows[ $k ]['commission'][ $cur ] ) ? $rows[ $k ]['commission'][ $cur ] : 0 ) + (int) $s->commission;
+			}
+		}
+		foreach ( $rows as &$r ) {
+			$r['conversion'] = $r['visits'] > 0 ? round( $r['orders'] * 100 / $r['visits'], 1 ) : 0;
+		}
+		unset( $r );
+		usort(
+			$rows,
+			static function ( $a, $b ) {
+				return array( $b['orders'], $b['visits'] ) <=> array( $a['orders'], $a['visits'] );
+			}
+		);
+		return array_values( $rows );
+	}
+
+	/**
+	 * Readable label of a campaign: creative links ("creative-12-v3") show the creative's title.
+	 *
+	 * @param string $campaign Campaign.
+	 * @return string
+	 */
+	public static function campaign_label( $campaign ) {
+		if ( '' === $campaign ) {
+			return __( '(no campaign)', 'affiliate-captain' );
+		}
+		if ( preg_match( '/^creative-(\d+)-v(\d+)$/', $campaign, $m ) ) {
+			$creative = \WPAffiliateCaptain\Promotion\Creatives::find_version( (int) $m[1], (int) $m[2] );
+			if ( $creative ) {
+				/* translators: 1: creative title, 2: version */
+				return sprintf( __( 'Creative "%1$s" (v%2$d)', 'affiliate-captain' ), $creative->title, (int) $m[2] );
+			}
+		}
+		return $campaign;
+	}
+
+	/**
 	 * Stats of one content item (editor panel) – targeted queries for this ID only.
 	 *
 	 * @param int $post_id Post.

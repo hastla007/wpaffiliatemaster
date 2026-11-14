@@ -85,6 +85,15 @@ final class AffiliatesPage {
 				Admin::back( sprintf( _n( '%d partner without the current acceptance is asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', '%d partners without the current acceptance are asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', $result, 'affiliate-captain' ), $result ) );
 				break;
 
+			case 'broadcast_send':
+				$result = \WPAffiliateCaptain\Affiliates\Notifications::start_broadcast( (string) Admin::post( 'broadcast_subject' ), sanitize_textarea_field( (string) Admin::post( 'broadcast_message' ) ), absint( Admin::post( 'broadcast_group', 0 ) ) );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				/* translators: %d: number of partners */
+				Admin::back( sprintf( _n( 'The e-mail is being sent to %d active partner in the background (partners who unsubscribed from announcements are skipped).', 'The e-mail is being sent to %d active partners in the background (partners who unsubscribed from announcements are skipped).', $result, 'affiliate-captain' ), $result ) );
+				break;
+
 			case 'affiliate_update':
 				AffiliateRepository::update(
 					$id,
@@ -343,6 +352,7 @@ final class AffiliatesPage {
 		echo '<a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Add partner', 'affiliate-captain' ) . '</a><hr class="wp-header-end">';
 		Admin::notice();
 		self::terms_reminder_box();
+		self::broadcast_box();
 		$table->views();
 		echo '<form method="get"><input type="hidden" name="page" value="wpac-affiliates">';
 		if ( Admin::get( 'status' ) ) {
@@ -759,6 +769,31 @@ final class AffiliatesPage {
 		echo '<input type="hidden" name="id" value="' . (int) $id . '"><p><label for="wpac-link-user">' . esc_html__( 'Link WordPress user manually (user ID or e-mail address)', 'affiliate-captain' ) . '</label><br><input type="text" id="wpac-link-user" name="user" class="regular-text" required> <button class="button" data-wpac-confirm="' . esc_attr__( 'Link this WordPress user to the partner? Whoever can log in to the account then sees the partner area including payouts.', 'affiliate-captain' ) . '">' . esc_html__( 'Link user', 'affiliate-captain' ) . '</button></p>';
 		echo '<p class="description">' . esc_html__( 'Only accounts without backend rights (customers, subscribers) that are not linked to another partner. Make sure the account belongs to the partner.', 'affiliate-captain' ) . '</p></form>';
 		echo '</div></div>';
+	}
+
+	/**
+	 * Broadcast mail to all active partners (or one group), sent in batches.
+	 */
+	private static function broadcast_box() {
+		$state = \WPAffiliateCaptain\Affiliates\Notifications::broadcast_state();
+		echo '<details class="wpac-broadcast"><summary>' . esc_html__( 'Write to all active partners', 'affiliate-captain' ) . '</summary>';
+		if ( $state ) {
+			echo '<p class="description">' . esc_html(
+				empty( $state['done'] )
+					/* translators: 1: sent, 2: total */
+					? sprintf( __( 'Broadcast mail is being sent: %1$d of %2$d.', 'affiliate-captain' ), (int) $state['sent'] + (int) $state['skipped'], (int) $state['total'] )
+					/* translators: 1: date, 2: sent, 3: skipped */
+					: sprintf( __( 'Last broadcast mail on %1$s: %2$d sent, %3$d skipped (unsubscribed or restricted).', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), (int) $state['started'] ), (int) $state['sent'], (int) $state['skipped'] )
+			) . '</p>';
+		}
+		Admin::form_open( 'broadcast_send' );
+		echo '<p><label for="wpac_broadcast_subject">' . esc_html__( 'Subject', 'affiliate-captain' ) . '</label><br><input type="text" class="regular-text" id="wpac_broadcast_subject" name="broadcast_subject" required maxlength="190"></p>';
+		echo '<p><label for="wpac_broadcast_message">' . esc_html__( 'Text (plain text; an unsubscribe link is added)', 'affiliate-captain' ) . '</label><br><textarea class="large-text" rows="6" id="wpac_broadcast_message" name="broadcast_message" required></textarea></p>';
+		echo '<p><label for="wpac_broadcast_group">' . esc_html__( 'Recipients', 'affiliate-captain' ) . '</label><br><select id="wpac_broadcast_group" name="broadcast_group"><option value="0">' . esc_html__( 'All active partners', 'affiliate-captain' ) . '</option>';
+		foreach ( \WPAffiliateCaptain\Affiliates\Groups::options() as $gid => $gname ) {
+			echo '<option value="' . (int) $gid . '">' . esc_html( $gname ) . '</option>';
+		}
+		echo '</select></p><p><button class="button" data-wpac-confirm="' . esc_attr__( 'Send this e-mail to the selected partners now?', 'affiliate-captain' ) . '">' . esc_html__( 'Send', 'affiliate-captain' ) . '</button></p></form></details>';
 	}
 
 	/**
