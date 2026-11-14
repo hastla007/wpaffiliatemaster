@@ -126,7 +126,7 @@ final class Portal {
 			wp_die( esc_html__( 'The link has expired.', 'affiliate-captain' ), 403 );
 		}
 		$aff = self::current();
-		if ( ! $aff || $year < 2000 || $year > (int) gmdate( 'Y' ) ) {
+		if ( ! $aff || $year < 2000 || $year > (int) wp_date( 'Y' ) ) {
 			wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
 		}
 		nocache_headers();
@@ -760,7 +760,7 @@ final class Portal {
 				esc_html( $c->code ),
 				esc_html( $c->coupon_code ? strtoupper( $c->coupon_code ) : '—' ),
 				esc_html( (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) ),
-				esc_html( $c->expires_at ? date_i18n( get_option( 'date_format' ), strtotime( $c->expires_at . ' UTC' ) ) : '—' ),
+				esc_html( $c->expires_at ? wp_date( get_option( 'date_format' ), strtotime( $c->expires_at . ' UTC' ) ) : '—' ),
 				esc_html( $valid ? __( 'Active', 'affiliate-captain' ) : __( 'Inactive', 'affiliate-captain' ) )
 			);
 		}
@@ -852,7 +852,7 @@ final class Portal {
 			}
 			printf(
 				'<tr><td data-label="%7$s">%1$s</td><td data-label="%8$s">%2$s</td><td data-label="%9$s">%3$s</td><td data-label="%10$s" class="%4$s">%5$s</td><td data-label="%11$s">%6$s</td><td data-label="%12$s">%13$s</td></tr>',
-				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $r->created_at . ' UTC' ) ) ),
+				esc_html( wp_date( get_option( 'date_format' ), strtotime( $r->created_at . ' UTC' ) ) ),
 				esc_html( 'wpac' === $r->source ? '—' : '#' . $r->source_order_id ),
 				esc_html( $product ),
 				(int) $r->amount_minor < 0 ? 'wpac-negative' : '',
@@ -864,7 +864,7 @@ final class Portal {
 				esc_attr__( 'Amount', 'affiliate-captain' ),
 				esc_attr__( 'Status', 'affiliate-captain' ),
 				esc_attr__( 'Available from', 'affiliate-captain' ),
-				esc_html( in_array( $r->status, array( 'pending', 'review' ), true ) && $r->hold_until ? date_i18n( get_option( 'date_format' ), strtotime( $r->hold_until . ' UTC' ) ) : '—' )
+				esc_html( in_array( $r->status, array( 'pending', 'review' ), true ) && $r->hold_until ? wp_date( get_option( 'date_format' ), strtotime( $r->hold_until . ' UTC' ) ) : '—' )
 			);
 		}
 		echo '</tbody></table>';
@@ -901,12 +901,12 @@ final class Portal {
 			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['gross'] : 0;
 			if ( $open ) {
 				/* translators: %s: date */
-				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
+				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
 			} else {
 				$last = PayoutRequests::last_rejected( (int) $aff->id );
 				if ( $last ) {
 					/* translators: 1: date, 2: reason */
-					echo '<div class="wpac-notice wpac-notice--error">' . esc_html( sprintf( __( 'Your payout request of %1$s was not processed: %2$s', 'affiliate-captain' ), date_i18n( get_option( 'date_format' ), strtotime( $last->created_at . ' UTC' ) ), $last->note ) ) . '</div>';
+					echo '<div class="wpac-notice wpac-notice--error">' . esc_html( sprintf( __( 'Your payout request of %1$s was not processed: %2$s', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $last->created_at . ' UTC' ) ), $last->note ) ) . '</div>';
 				}
 				$can = PayoutRequests::can_request( $aff );
 				if ( true === $can ) {
@@ -1211,7 +1211,7 @@ final class Portal {
 	 */
 	private static function payout_status( $p, array $labels ) {
 		if ( 'paid' === $p->status && $p->paid_at ) {
-			$date = date_i18n( get_option( 'date_format' ), strtotime( $p->paid_at . ' UTC' ) );
+			$date = wp_date( get_option( 'date_format' ), strtotime( $p->paid_at . ' UTC' ) );
 			if ( ProfileRepository::METHOD_MANUAL === PayoutService::snapshot_method( $p ) ) {
 				// PayPal, Wise …: no bank transfer.
 				/* translators: %s: date */

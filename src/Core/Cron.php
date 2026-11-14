@@ -53,6 +53,9 @@ final class Cron {
 			0
 		);
 		add_action( \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, array( \WPAffiliateCaptain\Affiliates\Agreements::class, 'remind_batch' ), 10, 0 );
+		add_action( self::VISITS_HOOK, array( __CLASS__, 'purge_visits' ), 10, 0 );
+		add_action( \WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK, array( '\WPAffiliateCaptain\Commissions\Balance', 'scheduled_check' ), 10, 0 );
+		add_action( \WPAffiliateCaptain\Commissions\TierService::CONTINUE_HOOK, array( '\WPAffiliateCaptain\Commissions\TierService', 'continue_run' ), 10, 0 );
 	}
 
 	public static function schedule() {
@@ -67,7 +70,7 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
-		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST, Crypto::REENCRYPT_HOOK, \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK ) as $hook ) {
+		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST, Crypto::REENCRYPT_HOOK, \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, self::VISITS_HOOK, \WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK, \WPAffiliateCaptain\Commissions\TierService::CONTINUE_HOOK ) as $hook ) {
 			Scheduler::clear( $hook );
 		}
 		Scheduler::clear_group(); // Anything else of this plugin still waiting in the Action Scheduler.
@@ -155,25 +158,63 @@ final class Cron {
 		return is_array( $all ) ? $all : array();
 	}
 
+	/** @var float Time (microtime) at which the running daily run's budget ends (0 = none). */
+	private static $deadline = 0.0;
+
+	/** @var bool Whether a step of the running daily run stopped before it was done. */
+	private static $unfinished = false;
+
+	/**
+	 * Whether the running daily run has used up its time budget (steps check it between batches).
+	 *
+	 * @return bool
+	 */
+	public static function over_budget() {
+		return self::$deadline > 0 && microtime( true ) > self::$deadline;
+	}
+
+	/**
+	 * Mark the running daily step as not finished: it continues in the next run of the rest.
+	 */
+	public static function mark_unfinished() {
+		self::$unfinished = true;
+	}
+
 	/**
 	 * Run a retention DELETE in small transactions (LIMIT batches) so millions of old rows never become
-	 * one huge transaction with long locks and a large undo log.
+	 * one huge transaction with long locks and a large undo log. Inside a daily run the batches stop
+	 * when its time budget is used up (or the batch bound is reached); the step then continues in
+	 * the next run of the rest, so a backlog is worked off over several runs instead of the next day.
 	 *
-	 * @param string $delete_sql Prepared DELETE statement without LIMIT.
-	 * @param int    $batch      Rows per batch.
-	 * @param int    $max        Upper bound of batches per run (the rest follows next day).
+	 * @param string    $delete_sql Prepared DELETE statement without LIMIT.
+	 * @param int       $batch      Rows per batch.
+	 * @param int       $max        Upper bound of batches per call (0 = until done or out of time).
+	 * @param float     $deadline   Own time limit (microtime, 0 = only the daily run's budget).
+	 * @param bool|null $finished   Out: whether nothing is left to delete.
 	 * @return int Deleted rows.
 	 */
-	public static function delete_in_batches( $delete_sql, $batch = 5000, $max = 400 ) {
+	public static function delete_in_batches( $delete_sql, $batch = 5000, $max = 400, $deadline = 0.0, &$finished = null ) {
 		global $wpdb;
-		$total = 0;
-		for ( $i = 0; $i < $max; $i++ ) {
+		$total    = 0;
+		$finished = false;
+		$limit    = (float) $deadline;
+		if ( self::$deadline > 0 && ( $limit <= 0 || self::$deadline < $limit ) ) {
+			$limit = self::$deadline;
+		}
+		for ( $i = 0; 0 === (int) $max || $i < (int) $max; $i++ ) {
+			if ( $i > 0 && $limit > 0 && microtime( true ) > $limit ) {
+				break; // Out of time: the rest follows in the next run.
+			}
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared by the caller.
 			$n = (int) $wpdb->query( $delete_sql . ' LIMIT ' . (int) $batch );
 			$total += max( 0, $n );
 			if ( $n < $batch ) {
+				$finished = true;
 				break;
 			}
+		}
+		if ( ! $finished && self::$deadline > 0 ) {
+			self::$unfinished = true;
 		}
 		return $total;
 	}
@@ -252,34 +293,82 @@ final class Cron {
 		 *
 		 * @param float $budget Seconds (0 = no limit).
 		 */
-		$budget = (float) apply_filters( 'wpac_daily_budget', 60 );
-		$start  = microtime( true );
-		$keys   = array_values( array_intersect( $keys, array_keys( $steps ) ) );
-		foreach ( $keys as $i => $key ) {
-			if ( $budget > 0 && $i > 0 && microtime( true ) - $start > $budget ) {
-				update_option( self::DAILY_REST_OPTION, array_slice( $keys, $i ), false );
-				Scheduler::once( self::DAILY_REST, 120 );
-				return;
+		$budget         = (float) apply_filters( 'wpac_daily_budget', 60 );
+		$start          = microtime( true );
+		$queue          = array_values( array_intersect( $keys, array_keys( $steps ) ) );
+		$ran            = 0;
+		$again          = array();
+		self::$deadline = $budget > 0 ? $start + $budget : 0.0;
+		try {
+			while ( $queue ) {
+				if ( $budget > 0 && $ran > 0 && microtime( true ) - $start > $budget ) {
+					break;
+				}
+				$key                           = array_shift( $queue );
+				list( $step, $needs_bookings ) = $steps[ $key ];
+				if ( $needs_bookings && ! $bookings ) {
+					continue; // Bookings, documents and mails only on the current schema and outside maintenance.
+				}
+				self::$unfinished = false;
+				self::run_step( 'daily.' . $key, $step );
+				++$ran;
+				if ( self::$unfinished && ! in_array( $key, $again, true ) ) {
+					// Stopped within the step (time budget, e.g. a deletion backlog): it continues
+					// after the other steps, which must not wait for it.
+					$again[] = $key;
+				}
 			}
-			list( $step, $needs_bookings ) = $steps[ $key ];
-			if ( $needs_bookings && ! $bookings ) {
-				continue; // Bookings, documents and mails only on the current schema and outside maintenance.
-			}
-			self::run_step( 'daily.' . $key, $step );
+		} finally {
+			self::$deadline   = 0.0;
+			self::$unfinished = false;
+		}
+		$rest = array_values( array_unique( array_merge( $queue, $again ) ) );
+		if ( $rest ) {
+			update_option( self::DAILY_REST_OPTION, $rest, false );
+			Scheduler::once( self::DAILY_REST, 120 );
 		}
 	}
 
+	/** Single event that continues deleting old visits while a backlog is left. */
+	const VISITS_HOOK = 'wpac_purge_visits';
+
 	/**
-	 * Delete link visits after their retention.
+	 * Delete link visits after their retention – driven by the backlog, not by a fixed number of
+	 * rows per day: each run deletes within its time budget and, while old visits are left, the
+	 * next run follows a few minutes later (also with viral traffic of millions of clicks a day,
+	 * visits are not kept longer than the retention promised in the privacy policy).
+	 *
+	 * @return bool Whether no visit past its retention is left.
 	 */
 	public static function purge_visits() {
 		global $wpdb;
 		$days = (int) Settings::get( 'visit_retention_days' );
-		if ( $days > 0 ) {
-			$table = Db::table( 'visits' );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
+		if ( $days <= 0 ) {
+			return true;
 		}
+		/**
+		 * Seconds one run of the visit retention may delete before it continues separately.
+		 *
+		 * @param float $budget Seconds (default 20, 0 = until done).
+		 */
+		$budget = (float) apply_filters( 'wpac_visit_purge_budget', 20 );
+		/**
+		 * Visits deleted per statement (one short transaction each).
+		 *
+		 * @param int $batch Rows (default 5000).
+		 */
+		$batch = max( 1, (int) apply_filters( 'wpac_visit_purge_batch', 5000 ) );
+		$table = Db::table( 'visits' );
+		$done  = false;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ), $batch, 0, $budget > 0 ? microtime( true ) + $budget : 0.0, $done );
+		if ( $done ) {
+			Scheduler::clear( self::VISITS_HOOK );
+		} else {
+			Scheduler::once( self::VISITS_HOOK, 3 * MINUTE_IN_SECONDS ); // The backlog continues on its own.
+		}
+		self::$unfinished = false; // Not repeated in the daily rest: it has its own continuation.
+		return $done;
 	}
 
 	/**
@@ -298,10 +387,31 @@ final class Cron {
 		// legal hold. "Keep forever" keeps it forever.
 		$cutoff    = \WPAffiliateCaptain\Privacy\Retention::cutoff();
 		$financial = null === $cutoff ? '1970-01-01 00:00:00' : $cutoff;
-		// Table name and the LIKE patterns are constants; the dates are placeholders.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
-		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$audit} WHERE created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' AND action NOT LIKE 'commission.%%' AND action NOT LIKE 'balance.%%' AND action NOT LIKE 'tier.%%' ) OR created_at < %s )", Db::now( time() - $audit_days * DAY_IN_SECONDS ), $financial ) );
+		$before    = Db::now( time() - $audit_days * DAY_IN_SECONDS );
+		// Walk the old entries once by ID range instead of repeating "DELETE … LIMIT": each LIMIT
+		// batch would scan all kept (booking-relevant) rows again before it finds deletable ones.
+		// The position is kept for the rest of a daily run that ran out of time.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
+		$state = get_option( self::AUDIT_CURSOR );
+		$from  = is_array( $state ) && isset( $state['day'], $state['id'] ) && gmdate( 'Y-m-d' ) === $state['day'] ? (int) $state['id'] : (int) $wpdb->get_var( "SELECT COALESCE(MIN(id),0) FROM {$audit}" );
+		$upto  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$audit} WHERE created_at < %s ORDER BY created_at DESC, id DESC LIMIT 1", $before ) );
+		$step  = 5000;
+		while ( $upto && $from <= $upto ) {
+			if ( self::over_budget() ) {
+				update_option( self::AUDIT_CURSOR, array( 'day' => gmdate( 'Y-m-d' ), 'id' => $from ), false );
+				self::mark_unfinished();
+				return;
+			}
+			// Table name and the LIKE patterns are constants; the dates and IDs are placeholders.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$audit} WHERE id >= %d AND id < %d AND created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' AND action NOT LIKE 'commission.%%' AND action NOT LIKE 'balance.%%' AND action NOT LIKE 'tier.%%' ) OR created_at < %s )", $from, $from + $step, $before, $financial ) );
+			$from += $step;
+		}
+		// phpcs:enable
+		delete_option( self::AUDIT_CURSOR );
 	}
+
+	/** Option: position of an audit clean-up that continues in the rest of the daily run. */
+	const AUDIT_CURSOR = 'wpac_audit_purge_cursor';
 
 	/**
 	 * Delete finished jobs (failed after 180 days for analysis, done after 30; payloads may contain order data).

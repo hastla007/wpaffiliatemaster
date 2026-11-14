@@ -433,6 +433,15 @@ final class ProfileRepository {
 			Audit::log( 'payout_profile.save_failed', 'affiliate', (int) $affiliate_id, array( 'error' => Db::cut( (string) $wpdb->last_error, 190 ) ) );
 			return new \WP_Error( 'wpac_profile_db', __( 'Your payout details could not be saved. Please try again; your previous details are unchanged.', 'affiliate-captain' ) );
 		}
+		if ( isset( $data['iban_encrypted'] ) ) {
+			// New bank details: the cached migration check (unreadable/old-key details) is due again
+			// on the next view of the integrations page.
+			$migration = get_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS );
+			if ( is_array( $migration ) && ( ! empty( $migration['broken'] ) || ! empty( $migration['legacy'] ) ) ) {
+				$migration['checked_at'] = 0;
+				update_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS, $migration, false );
+			}
+		}
 		if ( $tax_old !== $tax_new ) {
 			Audit::log(
 				$pending ? 'payout_profile.tax_change_requested' : 'payout_profile.tax_changed',

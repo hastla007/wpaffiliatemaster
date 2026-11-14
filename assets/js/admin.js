@@ -56,7 +56,7 @@ document.addEventListener( 'change', function ( e ) {
 /* Ask before a form is sent with a value in a select that has data-wpac-confirm-select
    (e.g. re-attribution of an order in the WooCommerce order screen). */
 document.addEventListener( 'submit', function ( e ) {
-	Array.prototype.forEach.call( e.target.querySelectorAll ? e.target.querySelectorAll( 'select[data-wpac-confirm-select]' ) : [], function ( s ) {
+	Array.prototype.forEach.call( e.target.querySelectorAll ? e.target.querySelectorAll( '[data-wpac-confirm-select]' ) : [], function ( s ) {
 		if ( ! e.defaultPrevented && s.value && ! window.confirm( s.getAttribute( 'data-wpac-confirm-select' ) ) ) {
 			e.preventDefault();
 			e.stopImmediatePropagation();
@@ -75,3 +75,35 @@ document.addEventListener( 'click', function ( e ) {
 	} );
 	frame.open();
 } );
+/* Partner search field (Admin::partner_picker() in large programs): suggestions while typing. */
+( function () {
+	var timer = null;
+	document.addEventListener( 'input', function ( e ) {
+		var input = e.target;
+		if ( ! input.getAttribute || ! input.getAttribute( 'data-wpac-partner-search' ) || ! window.fetch ) {
+			return;
+		}
+		var list = document.getElementById( input.getAttribute( 'list' ) );
+		var q = input.value.trim();
+		if ( ! list || q.length < 2 || /#\d+$/.test( q ) ) {
+			return;
+		}
+		clearTimeout( timer );
+		timer = setTimeout( function () {
+			var url = input.getAttribute( 'data-wpac-ajax' ) + '?action=wpac_partner_search&nonce=' + encodeURIComponent( input.getAttribute( 'data-wpac-partner-search' ) ) + '&status=' + encodeURIComponent( input.getAttribute( 'data-wpac-status' ) || '' ) + '&q=' + encodeURIComponent( q );
+			window.fetch( url, { credentials: 'same-origin' } ).then( function ( r ) {
+				return r.json();
+			} ).then( function ( res ) {
+				if ( ! res || ! res.success ) {
+					return;
+				}
+				list.innerHTML = '';
+				res.data.forEach( function ( label ) {
+					var o = document.createElement( 'option' );
+					o.value = label;
+					list.appendChild( o );
+				} );
+			} ).catch( function () {} );
+		}, 250 );
+	} );
+} )();

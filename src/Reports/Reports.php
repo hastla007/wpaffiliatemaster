@@ -45,9 +45,11 @@ final class Reports {
 	/**
 	 * Per-partner report.
 	 *
-	 * @param string $from Y-m-d.
-	 * @param string $to   Y-m-d.
-	 * @param int    $affiliate_id Optional single partner.
+	 * Days are the site's local days (time zone in the WordPress settings); stored times are UTC.
+	 *
+	 * @param string    $from         Y-m-d (local).
+	 * @param string    $to           Y-m-d (local).
+	 * @param int|int[] $affiliate_id Optional single partner, or a list of partners (e.g. one mail batch).
 	 * @return array
 	 */
 	public static function partners( $from, $to, $affiliate_id = 0 ) {
@@ -56,9 +58,8 @@ final class Reports {
 		$c                 = Db::table( 'commissions' );
 		$v                 = Db::table( 'visits' );
 		$at                = Db::table( 'attributions' );
-		$start             = $from . ' 00:00:00';
-		$end               = $to . ' 23:59:59';
-		$aff_sql           = $affiliate_id ? $wpdb->prepare( ' AND affiliate_id = %d', $affiliate_id ) : '';
+		list( $start, $end ) = Db::local_range( $from, $to );
+		$aff_sql           = self::affiliate_sql( $affiliate_id );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$money = $wpdb->get_results(
 			$wpdb->prepare(
@@ -129,8 +130,85 @@ final class Reports {
 		 * @param string $to           To (Y-m-d).
 		 * @param int    $affiliate_id Only this partner (0 = all).
 		 */
-		$rows = apply_filters( 'wpac_report_partners', array_values( $rows ), $from, $to, (int) $affiliate_id );
+		$rows = apply_filters( 'wpac_report_partners', array_values( $rows ), $from, $to, is_array( $affiliate_id ) ? 0 : (int) $affiliate_id );
 		return is_array( $rows ) ? array_values( $rows ) : array();
+	}
+
+	/**
+	 * Report for admin screens, cached until the data changes: the dashboard shows the same
+	 * report on every visit (KPIs and table), and the aggregates scan the whole period. The cache
+	 * key contains a fingerprint of the newest commission, visit and attribution (indexed MAX()
+	 * lookups) and of the currency settings, so a new sale or refund shows at once.
+	 *
+	 * @param string $kind partners|content_id|campaign.
+	 * @param string $from Y-m-d (local).
+	 * @param string $to   Y-m-d (local).
+	 * @return array Rows (self::$unconverted is set as by the uncached call).
+	 */
+	public static function cached( $kind, $from, $to ) {
+		global $wpdb;
+		$state = array( $kind, $from, $to, (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ), wp_json_encode( Fx::rates() ), function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '', function_exists( 'determine_locale' ) ? determine_locale() : '' ); // Labels such as "(no campaign)" are translated.
+		foreach ( array( 'commissions' => 'MAX(id), MAX(updated_at)', 'visits' => 'MAX(id)', 'attributions' => 'MAX(id)' ) as $table => $expr ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- constants only.
+			$state[] = wp_json_encode( $wpdb->get_row( "SELECT {$expr} FROM " . Db::table( $table ) ) );
+		}
+		$key = 'wpac_report_' . md5( implode( '|', $state ) );
+		$hit = get_transient( $key );
+		if ( is_array( $hit ) && isset( $hit['rows'], $hit['unconverted'] ) ) {
+			self::$unconverted = (array) $hit['unconverted'];
+			return (array) $hit['rows'];
+		}
+		$rows = 'partners' === $kind ? self::partners( $from, $to ) : self::by_dimension( $kind, $from, $to );
+		set_transient(
+			$key,
+			array(
+				'rows'        => $rows,
+				'unconverted' => self::$unconverted,
+			),
+			10 * MINUTE_IN_SECONDS
+		);
+		return $rows;
+	}
+
+	/**
+	 * Condition on the partner (one ID or a list).
+	 *
+	 * @param int|int[] $affiliate_id Partner(s), 0/empty = all.
+	 * @return string SQL (prepared/escaped).
+	 */
+	private static function affiliate_sql( $affiliate_id ) {
+		global $wpdb;
+		if ( is_array( $affiliate_id ) ) {
+			$ids = array_values( array_unique( array_filter( array_map( 'intval', $affiliate_id ) ) ) );
+			return $ids ? ' AND affiliate_id IN (' . implode( ',', $ids ) . ')' : ' AND 1=0';
+		}
+		return $affiliate_id ? $wpdb->prepare( ' AND affiliate_id = %d', $affiliate_id ) : '';
+	}
+
+	/**
+	 * Partners with activity (commission, visit or attributed order) in a period, in ID order –
+	 * for cutting batches by partner (monthly mails) without computing the whole report.
+	 *
+	 * @param string $from  Y-m-d (local).
+	 * @param string $to    Y-m-d (local).
+	 * @param int    $after Only IDs above this one.
+	 * @param int    $limit Max IDs.
+	 * @return int[]
+	 */
+	public static function active_partners( $from, $to, $after = 0, $limit = 50 ) {
+		global $wpdb;
+		list( $start, $end ) = Db::local_range( $from, $to );
+		$ids = array();
+		foreach ( array( 'commissions', 'visits', 'attributions' ) as $table ) {
+			$t = Db::table( $table );
+			// Index (created_at, affiliate_id) resp. (affiliate_id, created_at).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$t} WHERE created_at BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC LIMIT %d", $start, $end, (int) $after, (int) $limit ) ) as $id ) {
+				$ids[ (int) $id ] = (int) $id;
+			}
+		}
+		ksort( $ids );
+		return array_slice( array_values( $ids ), 0, (int) $limit );
 	}
 
 	/**
@@ -148,8 +226,7 @@ final class Reports {
 		$v                 = Db::table( 'visits' );
 		$at                = Db::table( 'attributions' );
 		$c                 = Db::table( 'commissions' );
-		$start             = $from . ' 00:00:00';
-		$end               = $to . ' 23:59:59';
+		list( $start, $end ) = Db::local_range( $from, $to );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT {$dim} k, COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE created_at BETWEEN %s AND %s GROUP BY k", $start, $end ), OBJECT_K );
 		$sales  = $wpdb->get_results(

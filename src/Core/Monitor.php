@@ -140,12 +140,24 @@ final class Monitor {
 			'misplaced'  => count( \WPAffiliateCaptain\Payouts\Statement::misplaced() ),
 			'checked_at' => time(),
 		);
-		if ( $status['legacy'] || $status['broken'] || $status['misplaced'] ) {
-			update_option( self::MIGRATION_STATUS, $status, false );
-		} else {
-			delete_option( self::MIGRATION_STATUS );
-		}
+		// Kept also when nothing is pending: pages read this result instead of decrypting every
+		// IBAN and checking every document on each view (see migration_status()).
+		update_option( self::MIGRATION_STATUS, $status, false );
 		return $status;
+	}
+
+	/**
+	 * Result of the last migration check; checked now when there is none yet or it is older than
+	 * a day (normally the daily step keeps it current).
+	 *
+	 * @return array legacy, broken, broken_ids, misplaced, checked_at.
+	 */
+	public static function migration_status() {
+		$status = get_option( self::MIGRATION_STATUS );
+		if ( ! is_array( $status ) || ! isset( $status['checked_at'], $status['legacy'], $status['broken'], $status['misplaced'] ) || (int) $status['checked_at'] < time() - DAY_IN_SECONDS ) {
+			$status = self::check_migrations();
+		}
+		return $status + array( 'broken_ids' => array() );
 	}
 
 	/**

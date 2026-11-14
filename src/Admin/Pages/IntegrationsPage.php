@@ -105,9 +105,11 @@ final class IntegrationsPage {
 		if ( ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
 			return;
 		}
-		$status = Crypto::status();
-		$legacy = $status['legacy'];
-		$broken = $status['broken'];
+		// The daily check's result (Monitor::check_migrations(), refreshed after every action here):
+		// decrypting every IBAN and checking every credit note file on each page view is too slow.
+		$status = \WPAffiliateCaptain\Core\Monitor::migration_status();
+		$legacy = (int) $status['legacy'];
+		$broken = (int) $status['broken'];
 		if ( $legacy ) {
 			/* translators: %d: number of partners */
 			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( 'The bank details of %d partner are still encrypted with the old key (derived from the WordPress salts).', 'The bank details of %d partners are still encrypted with the old key (derived from the WordPress salts).', $legacy, 'affiliate-captain' ), $legacy ) ) . '</strong> ' . esc_html__( 'They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them.', 'affiliate-captain' ) . '</p>';
@@ -118,10 +120,10 @@ final class IntegrationsPage {
 			/* translators: %d: number of partners */
 			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( _n( 'The bank details of %d partner cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', 'The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', $broken, 'affiliate-captain' ), $broken ) ) . '</p><p>' . esc_html__( 'Partner IDs:', 'affiliate-captain' ) . ' ' . esc_html( implode( ', ', array_map( 'intval', $status['broken_ids'] ) ) . ( $broken > count( $status['broken_ids'] ) ? ', …' : '' ) ) . '</p></div>';
 		}
-		$misplaced = \WPAffiliateCaptain\Payouts\Statement::misplaced();
+		$misplaced = (int) $status['misplaced'];
 		if ( $misplaced ) {
 			/* translators: %d: number of files */
-			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( '%d credit note file is still in the previous statement folder.', '%d credit note files are still in the previous statement folder.', count( $misplaced ), 'affiliate-captain' ), count( $misplaced ) ) ) . '</strong> ' . esc_html__( 'The statement folder was changed (e.g. WPAC_STATEMENT_DIR defined later). The files are still found and downloadable, but they stay in the old, possibly public folder until you move them.', 'affiliate-captain' ) . '</p>';
+			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( '%d credit note file is still in the previous statement folder.', '%d credit note files are still in the previous statement folder.', $misplaced, 'affiliate-captain' ), $misplaced ) ) . '</strong> ' . esc_html__( 'The statement folder was changed (e.g. WPAC_STATEMENT_DIR defined later). The files are still found and downloadable, but they stay in the old, possibly public folder until you move them.', 'affiliate-captain' ) . '</p>';
 			Admin::form_open( 'statements_move' );
 			echo '<p><button class="button button-primary">' . esc_html__( 'Move credit notes to the new folder', 'affiliate-captain' ) . '</button></p></form></div>';
 		}

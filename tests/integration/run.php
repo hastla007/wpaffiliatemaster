@@ -1528,6 +1528,7 @@ require __DIR__ . '/r8-g4b.php';
 require __DIR__ . '/r8-g4a.php';
 require __DIR__ . '/r8-g5.php';
 require __DIR__ . '/r8-g3.php';
+require __DIR__ . '/r8-g8.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

@@ -38,8 +38,8 @@ final class DashboardPage {
 		if ( 'report_export' !== $do ) {
 			return;
 		}
-		$from     = self::date_or( Admin::post( 'from' ), gmdate( 'Y-m-01' ) );
-		$to       = self::date_or( Admin::post( 'to' ), gmdate( 'Y-m-d' ) );
+		$from     = self::date_or( Admin::post( 'from' ), wp_date( 'Y-m-01' ) );
+		$to       = self::date_or( Admin::post( 'to' ), wp_date( 'Y-m-d' ) );
 		$view     = sanitize_key( Admin::post( 'view' ) );
 		$currency = (string) Settings::get( 'currency' );
 		$out      = array();
@@ -161,10 +161,11 @@ final class DashboardPage {
 	 */
 	public static function render() {
 		$currency = (string) Settings::get( 'currency' );
-		$from     = self::date_or( Admin::get( 'from' ), gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) );
-		$to       = self::date_or( Admin::get( 'to' ), gmdate( 'Y-m-d' ) );
+		// Local days (site time zone), like the report itself.
+		$from     = self::date_or( Admin::get( 'from' ), wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) );
+		$to       = self::date_or( Admin::get( 'to' ), wp_date( 'Y-m-d' ) );
 		$counts   = AffiliateRepository::count_by_status();
-		$rows     = Reports::partners( $from, $to );
+		$rows     = Reports::cached( 'partners', $from, $to ); // Same report for KPIs and table, cached until the data changes.
 		$view     = in_array( Admin::get( 'view' ), array( 'content', 'campaign' ), true ) ? Admin::get( 'view' ) : 'partners';
 		$failed   = count( Jobs::query( 'failed' ) );
 
@@ -234,7 +235,7 @@ final class DashboardPage {
 		echo '<input type="hidden" name="from" value="' . esc_attr( $from ) . '"><input type="hidden" name="to" value="' . esc_attr( $to ) . '"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form></p>';
 
 		if ( 'partners' !== $view ) {
-			$dim = Reports::by_dimension( 'content' === $view ? 'content_id' : 'campaign', $from, $to );
+			$dim = Reports::cached( 'content' === $view ? 'content_id' : 'campaign', $from, $to );
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 			if ( ! $dim ) {
 				echo '<tr><td colspan="7">' . esc_html__( 'No activity in this period.', 'affiliate-captain' ) . '</td></tr>';

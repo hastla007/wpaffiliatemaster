@@ -979,32 +979,45 @@ final class Statement {
 	/**
 	 * Statements (and cancellations) that are still in an earlier folder.
 	 *
-	 * @param int $limit Max. payouts to look at.
+	 * All payouts are looked at, in pages by ID (no fixed limit: documents of later payouts were
+	 * never found before). It touches the file system for every document, so pages call
+	 * Monitor's daily result (Monitor::check_migrations()) instead of this.
+	 *
+	 * @param int $limit Max. results (0 = all).
 	 * @return array List of [ payout ID, file name, old path ].
 	 */
-	public static function misplaced( $limit = 5000 ) {
+	public static function misplaced( $limit = 0 ) {
 		global $wpdb;
 		$legacy = self::legacy_dirs();
 		if ( ! $legacy ) {
 			return array();
 		}
-		$t   = Db::table( 'payouts' );
-		$out = array();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE statement_file <> '' OR storno_file <> '' ORDER BY id ASC LIMIT %d", (int) $limit ) ) as $r ) {
-			foreach ( array( $r->statement_file, $r->storno_file ) as $file ) {
-				$name = basename( (string) $file );
-				if ( '' === $name || file_exists( self::dir() . '/' . $name ) ) {
-					continue;
-				}
-				foreach ( $legacy as $dir ) {
-					if ( is_readable( $dir . '/' . $name ) ) {
-						$out[] = array( (int) $r->id, $name, $dir . '/' . $name );
-						break;
+		$t       = Db::table( 'payouts' );
+		$current = self::dir();
+		$out     = array();
+		$last    = 0;
+		do {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE id > %d AND ( statement_file <> '' OR storno_file <> '' ) ORDER BY id ASC LIMIT 500", $last ) );
+			foreach ( $rows as $r ) {
+				$last = (int) $r->id;
+				foreach ( array( $r->statement_file, $r->storno_file ) as $file ) {
+					$name = basename( (string) $file );
+					if ( '' === $name || file_exists( $current . '/' . $name ) ) {
+						continue;
+					}
+					foreach ( $legacy as $dir ) {
+						if ( is_readable( $dir . '/' . $name ) ) {
+							$out[] = array( (int) $r->id, $name, $dir . '/' . $name );
+							break;
+						}
+					}
+					if ( $limit > 0 && count( $out ) >= $limit ) {
+						return $out;
 					}
 				}
 			}
-		}
+		} while ( 500 === count( $rows ) );
 		return $out;
 	}
 

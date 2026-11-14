@@ -31,6 +31,7 @@ final class Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'setup_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'cron_notice' ) );
+		add_action( 'wp_ajax_wpac_partner_search', array( __CLASS__, 'ajax_partner_search' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WPAC_FILE ), array( __CLASS__, 'action_links' ) );
 		Pages\ImportExportPage::register_hooks(); // Own menu entry and admin-post actions.
 	}
@@ -193,28 +194,11 @@ final class Admin {
 	 * settings, payout details, acceptances or payouts change, and can be hidden until it changes.
 	 */
 	private static function blocked_payouts_notice() {
-		$state = self::blocked_state();
-		$cache = get_transient( 'wpac_blocked_payouts' );
-		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['list'] ) || $cache['state'] !== $state ) {
-			$blocked  = array();
-			$currency = (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' );
-			$min      = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
-				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
-					$blocked[] = array( (int) $row['affiliate']->id, (string) $row['affiliate']->name, (string) $row['reason'], isset( $row['code'] ) ? (string) $row['code'] : '' );
-				}
-			}
-			$cache = array(
-				'state' => $state,
-				'list'  => $blocked,
-			);
-			set_transient( 'wpac_blocked_payouts', $cache, HOUR_IN_SECONDS );
-		}
-		$blocked = $cache['list'];
+		$blocked = self::blocked_payouts();
 		if ( ! $blocked ) {
 			return;
 		}
-		$hide = md5( wp_json_encode( $blocked ) );
+		$hide = md5( wp_json_encode( array_map( null, wp_list_pluck( $blocked, 0 ), wp_list_pluck( $blocked, 3 ) ) ) ); // IDs and codes, not the language.
 		if ( self::notice_hidden( 'blocked', $hide ) ) {
 			return;
 		}
@@ -225,6 +209,72 @@ final class Admin {
 			echo '<li><a href="' . esc_url( self::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $b[0] ) ) ) . '">' . esc_html( $b[1] ) . '</a>: ' . esc_html( $b[2] ) . ' – <a href="' . esc_url( $fix[0] ) . '">' . esc_html( $fix[1] ) . '</a></li>';
 		}
 		echo '</ul></div>';
+	}
+
+	/** Transient: partners who cannot be paid out, language-neutral (IDs and reason codes). */
+	const BLOCKED_CACHE = 'wpac_blocked_payouts';
+
+	/**
+	 * Partners with a payable balance who cannot be paid out: [ id, name, reason, code ].
+	 *
+	 * The cache keeps only IDs and reason codes (no translated text: admins with another language
+	 * would otherwise see the reasons in the language of whoever built it); the reasons of the
+	 * listed partners are put into words for the current user. It is rebuilt when the
+	 * fingerprint (blocked_state(), indexed MAX() lookups only) changes.
+	 *
+	 * @return array
+	 */
+	public static function blocked_payouts() {
+		$state    = self::blocked_state();
+		$cache    = get_transient( self::BLOCKED_CACHE );
+		$currency = (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' );
+		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['ids'] ) || $cache['state'] !== $state ) {
+			$ids = array();
+			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
+				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
+					$ids[] = array( (int) $row['affiliate']->id, isset( $row['code'] ) ? (string) $row['code'] : '' );
+				}
+			}
+			$cache = array(
+				'state' => $state,
+				'ids'   => $ids,
+			);
+			set_transient( self::BLOCKED_CACHE, $cache, HOUR_IN_SECONDS );
+		}
+		$out = array();
+		\WPAffiliateCaptain\Affiliates\AffiliateRepository::find_many( wp_list_pluck( $cache['ids'], 0 ) );
+		foreach ( $cache['ids'] as $i => $entry ) {
+			$aff  = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( (int) $entry[0] );
+			$code = (string) $entry[1];
+			// Reasons only for the entries shown (10), the rest only count.
+			$out[] = array( (int) $entry[0], $aff ? (string) $aff->name : '#' . (int) $entry[0], $i < 10 ? self::blocked_text( (int) $entry[0], $code, $currency ) : '', $code );
+		}
+		return $out;
+	}
+
+	/**
+	 * Reason text of a blocked payout in the current user's language.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $code         Reason code (PayoutService::preview()).
+	 * @param string $currency     Currency.
+	 * @return string
+	 */
+	private static function blocked_text( $affiliate_id, $code, $currency ) {
+		switch ( $code ) {
+			case 'operator':
+				return (string) \WPAffiliateCaptain\Payouts\PayoutService::operator_missing();
+			case 'negative':
+				return __( 'Balance including VAT corrections is not positive – carried forward', 'affiliate-captain' );
+			case 'below_minimum':
+				return __( 'Below minimum – carried forward', 'affiliate-captain' );
+			case 'no_rate':
+				/* translators: %s: currency */
+				return sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'affiliate-captain' ), $currency );
+		}
+		$text = \WPAffiliateCaptain\Payouts\PayoutService::blocked_reason( $affiliate_id );
+		return '' !== $text ? $text : __( 'Cannot be paid out right now', 'affiliate-captain' );
 	}
 
 	/**
@@ -563,5 +613,71 @@ final class Admin {
 		}
 		$format = get_option( 'date_format' ) . ( $time ? ' ' . get_option( 'time_format' ) : '' );
 		return get_date_from_gmt( $utc, $format );
+	}
+
+	/** Up to this many partners a selection field is a plain list; above it, a search field. */
+	const PICKER_MAX = 200;
+
+	/**
+	 * Partner selection field without a fixed limit: a list for small programs, a search field
+	 * (with suggestions from wpac_partner_search) for large ones, so every partner can be chosen.
+	 * The value is resolved with AffiliateRepository::resolve_input().
+	 *
+	 * @param string $name    Field name.
+	 * @param int    $current Selected partner (0 = none).
+	 * @param string $status  Only partners of this status ('' = all).
+	 * @param array  $attrs   Extra attributes (id, aria-label, style, data-*).
+	 * @param int[]  $exclude Partners not offered.
+	 * @return string HTML.
+	 */
+	public static function partner_picker( $name, $current = 0, $status = '', array $attrs = array(), array $exclude = array() ) {
+		$html = '';
+		foreach ( $attrs as $k => $v ) {
+			$html .= ' ' . esc_attr( $k ) . '="' . esc_attr( $v ) . '"';
+		}
+		$current = (int) $current;
+		wp_enqueue_script( 'wpac-admin', WPAC_URL . 'assets/js/admin.js', array(), WPAC_VERSION, true );
+		$rows = \WPAffiliateCaptain\Affiliates\AffiliateRepository::options( '', $status, self::PICKER_MAX + 1 );
+		if ( count( $rows ) <= self::PICKER_MAX ) {
+			$out   = '<select name="' . esc_attr( $name ) . '"' . $html . '><option value="">—</option>';
+			$found = false;
+			foreach ( $rows as $a ) {
+				if ( in_array( (int) $a->id, $exclude, true ) ) {
+					continue;
+				}
+				$found = $found || (int) $a->id === $current;
+				$out  .= '<option value="' . (int) $a->id . '"' . selected( $current, (int) $a->id, false ) . '>' . esc_html( $a->name . ' (' . $a->slug . ')' ) . '</option>';
+			}
+			if ( $current && ! $found ) {
+				// Keep the current partner (e.g. paused) selectable, so saving never drops it by accident.
+				$aff  = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( $current );
+				$out .= '<option value="' . $current . '" selected>' . esc_html( $aff ? $aff->name . ' (' . $aff->slug . ') – ' . $aff->status : '#' . $current ) . '</option>';
+			}
+			return $out . '</select>';
+		}
+		$value = '';
+		if ( $current ) {
+			$aff   = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( $current );
+			$value = $aff ? \WPAffiliateCaptain\Affiliates\AffiliateRepository::option_label( $aff ) : (string) $current;
+		}
+		$list = 'wpac-pl-' . substr( md5( $name . wp_rand() ), 0, 8 );
+		return '<input type="text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" list="' . esc_attr( $list ) . '" autocomplete="off" placeholder="' . esc_attr__( 'Search: name, slug, e-mail or ID', 'affiliate-captain' ) . '" data-wpac-partner-search="' . esc_attr( wp_create_nonce( 'wpac_partner_search' ) ) . '" data-wpac-status="' . esc_attr( $status ) . '" data-wpac-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '"' . $html . '><datalist id="' . esc_attr( $list ) . '"></datalist>';
+	}
+
+	/**
+	 * admin-ajax: partner suggestions for partner_picker() (id, name, slug only).
+	 */
+	public static function ajax_partner_search() {
+		check_ajax_referer( 'wpac_partner_search', 'nonce' );
+		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) && ! current_user_can( Capabilities::MANAGE_PROGRAM ) ) {
+			wp_send_json_error( null, 403 );
+		}
+		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		$search = isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '';
+		$out    = array();
+		foreach ( \WPAffiliateCaptain\Affiliates\AffiliateRepository::options( $search, $status, 20 ) as $a ) {
+			$out[] = \WPAffiliateCaptain\Affiliates\AffiliateRepository::option_label( $a );
+		}
+		wp_send_json_success( $out );
 	}
 }

@@ -72,19 +72,20 @@ final class OrderMetaBox {
 			echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wpac-commissions&order_id=' . $order->get_id() . '&source=' . WooCommerce::SOURCE ) ) . '">' . esc_html__( 'View commissions', 'affiliate-captain' ) . '</a></p>';
 			if ( $order->is_paid() && current_user_can( Capabilities::MANAGE_PAYOUTS ) ) { // Separation of duties (see save_meta_box()).
 				// Re-attribution: the current partner's commission is reversed, the order is booked for the new one.
-				list( $others ) = AffiliateRepository::query(
+				// Every active partner can be chosen (search field in large programs), only id/name/slug loaded.
+				echo '<details><summary>' . esc_html__( 'Attribute to another partner', 'affiliate-captain' ) . '</summary><p><label for="wpac_reassign">' . esc_html__( 'New partner', 'affiliate-captain' ) . '</label>';
+				echo \WPAffiliateCaptain\Admin\Admin::partner_picker( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+					'wpac_reassign',
+					0,
+					'active',
 					array(
-						'status' => 'active',
-						'limit'  => 500,
-					)
+						'id'                        => 'wpac_reassign',
+						'style'                     => 'width:100%',
+						'data-wpac-confirm-select' => __( 'Attribute this order to the selected partner? The current partner\'s commission will be reversed. This cannot be undone.', 'affiliate-captain' ),
+					),
+					array( (int) $attr->affiliate_id )
 				);
-				echo '<details><summary>' . esc_html__( 'Attribute to another partner', 'affiliate-captain' ) . '</summary><p><label for="wpac_reassign">' . esc_html__( 'New partner', 'affiliate-captain' ) . '</label><select name="wpac_reassign" id="wpac_reassign" style="width:100%" data-wpac-confirm-select="' . esc_attr__( 'Attribute this order to the selected partner? The current partner\'s commission will be reversed. This cannot be undone.', 'affiliate-captain' ) . '"><option value="">—</option>';
-				foreach ( $others as $a ) {
-					if ( (int) $a->id !== (int) $attr->affiliate_id ) {
-						echo '<option value="' . (int) $a->id . '">' . esc_html( $a->name . ' (' . $a->slug . ')' ) . '</option>';
-					}
-				}
-				echo '</select></p><p><label for="wpac_reassign_reason">' . esc_html__( 'Reason (required, kept in the history)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_reassign_reason" id="wpac_reassign_reason" style="width:100%"></p><p class="description">' . esc_html__( 'The current partner gets a cancellation correction; the order is booked for the new partner with the current rules.', 'affiliate-captain' ) . '</p></details>';
+				echo '</p><p><label for="wpac_reassign_reason">' . esc_html__( 'Reason (required, kept in the history)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_reassign_reason" id="wpac_reassign_reason" style="width:100%"></p><p class="description">' . esc_html__( 'The current partner gets a cancellation correction; the order is booked for the new partner with the current rules.', 'affiliate-captain' ) . '</p></details>';
 				// Ask before the order form is saved with a new partner selected (the reversal cannot be undone).
 				// (assets/js/admin.js: data-wpac-confirm-select on the select; no inline script.)
 				wp_enqueue_script( 'wpac-admin', WPAC_URL . 'assets/js/admin.js', array(), WPAC_VERSION, true );
@@ -118,17 +119,17 @@ final class OrderMetaBox {
 			echo '<p class="description">' . esc_html__( 'Assigning orders to partners needs the permission to manage payouts.', 'affiliate-captain' ) . '</p>';
 			return;
 		}
-		list( $affiliates ) = AffiliateRepository::query(
+		echo '<p><label for="wpac_assign">' . esc_html__( 'Assign manually', 'affiliate-captain' ) . '</label>';
+		echo \WPAffiliateCaptain\Admin\Admin::partner_picker( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+			'wpac_assign',
+			0,
+			'active',
 			array(
-				'status' => 'active',
-				'limit'  => 500,
+				'id'    => 'wpac_assign',
+				'style' => 'width:100%',
 			)
 		);
-		echo '<p><label for="wpac_assign">' . esc_html__( 'Assign manually', 'affiliate-captain' ) . '</label><select name="wpac_assign" id="wpac_assign" style="width:100%"><option value="">—</option>';
-		foreach ( $affiliates as $a ) {
-			echo '<option value="' . (int) $a->id . '">' . esc_html( $a->name . ' (' . $a->slug . ')' ) . '</option>';
-		}
-		echo '</select></p><p><label for="wpac_assign_reason">' . esc_html__( 'Reason (required)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_assign_reason" id="wpac_assign_reason" style="width:100%"></p>';
+		echo '</p><p><label for="wpac_assign_reason">' . esc_html__( 'Reason (required)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_assign_reason" id="wpac_assign_reason" style="width:100%"></p>';
 		echo '<p class="description">' . esc_html__( 'Commission is created once the order is paid.', 'affiliate-captain' ) . '</p>';
 	}
 
@@ -185,7 +186,13 @@ final class OrderMetaBox {
 			if ( ! $order || ! $order->is_paid() ) {
 				return;
 			}
-			$to = AffiliateRepository::find( absint( $_POST['wpac_reassign'] ) );
+			// A list value (ID) or a search field entry ("Name (slug) #ID", slug, e-mail).
+			$to_id = AffiliateRepository::resolve_input( sanitize_text_field( wp_unslash( $_POST['wpac_reassign'] ) ) );
+			if ( ! $to_id ) {
+				self::notice( 'error', __( 'The order was not attributed to another partner: no partner matches the entry.', 'affiliate-captain' ) );
+				return;
+			}
+			$to = AffiliateRepository::find( $to_id );
 			try {
 				$sale = ContractApi::normalize_sale( OrderSync::payload( $order ) );
 			} catch ( \WPAffiliateCaptain\Core\IntegrationException $e ) {
@@ -193,7 +200,7 @@ final class OrderMetaBox {
 			}
 			$result = $sale ? Ledger::reassign(
 				$sale,
-				absint( $_POST['wpac_reassign'] ),
+				$to_id,
 				isset( $_POST['wpac_reassign_reason'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_reassign_reason'] ) ) : ''
 			) : new \WP_Error( 'wpac_invalid_order', __( 'The order has no line items that can be booked.', 'affiliate-captain' ) );
 			if ( is_wp_error( $result ) ) {
@@ -203,7 +210,7 @@ final class OrderMetaBox {
 				self::notice( 'error', sprintf( __( 'The order was not attributed to another partner: %s', 'affiliate-captain' ), $result->get_error_message() ) );
 				return;
 			}
-			$name = $to ? $to->name : '#' . absint( $_POST['wpac_reassign'] );
+			$name = $to ? $to->name : '#' . $to_id;
 			/* translators: %s: partner name */
 			$msg = sprintf( __( 'Order attributed to partner "%s"; the previous partner\'s commission was reversed.', 'affiliate-captain' ), $name );
 			$order->add_order_note( $msg );
@@ -213,7 +220,7 @@ final class OrderMetaBox {
 		if ( empty( $_POST['wpac_assign'] ) ) {
 			return;
 		}
-		$aff_id = absint( $_POST['wpac_assign'] );
+		$aff_id = AffiliateRepository::resolve_input( sanitize_text_field( wp_unslash( $_POST['wpac_assign'] ) ) );
 		$reason = isset( $_POST['wpac_assign_reason'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_assign_reason'] ) ) : '';
 		$order  = wc_get_order( $order_id );
 		if ( ! $order ) {

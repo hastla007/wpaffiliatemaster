@@ -352,11 +352,47 @@ final class PayoutRequests {
 	 *
 	 * @param string $status Status ('' = all).
 	 * @param int    $affiliate_id Optional partner.
+	 * @param int    $limit        Max rows (0 = all).
+	 * @param int    $offset       Rows to skip (pages).
 	 * @return array
 	 */
-	public static function query( $status = 'requested', $affiliate_id = 0 ) {
+	public static function query( $status = 'requested', $affiliate_id = 0, $limit = 200, $offset = 0 ) {
 		global $wpdb;
-		$t      = Db::table( 'payout_requests' );
+		list( $where, $params ) = self::where( $status, $affiliate_id );
+		$t   = Db::table( 'payout_requests' );
+		$sql = "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC";
+		if ( (int) $limit > 0 ) {
+			$sql     .= ' LIMIT %d OFFSET %d';
+			$params[] = (int) $limit;
+			$params[] = max( 0, (int) $offset );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
+	}
+
+	/**
+	 * Number of requests by status (no limit).
+	 *
+	 * @param string $status       Status ('' = all).
+	 * @param int    $affiliate_id Optional partner.
+	 * @return int
+	 */
+	public static function count( $status = 'requested', $affiliate_id = 0 ) {
+		global $wpdb;
+		list( $where, $params ) = self::where( $status, $affiliate_id );
+		$sql = 'SELECT COUNT(*) FROM ' . Db::table( 'payout_requests' ) . " WHERE {$where}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_var( $sql ) );
+	}
+
+	/**
+	 * WHERE clause of query()/count().
+	 *
+	 * @param string $status       Status.
+	 * @param int    $affiliate_id Partner.
+	 * @return array [ where, params ]
+	 */
+	private static function where( $status, $affiliate_id ) {
 		$where  = '1=1';
 		$params = array();
 		if ( $status ) {
@@ -367,8 +403,6 @@ final class PayoutRequests {
 			$where   .= ' AND affiliate_id = %d';
 			$params[] = (int) $affiliate_id;
 		}
-		$sql = "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC LIMIT 200";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
+		return array( $where, $params );
 	}
 }

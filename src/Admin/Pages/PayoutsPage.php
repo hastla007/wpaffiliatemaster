@@ -498,10 +498,27 @@ final class PayoutsPage {
 		}
 
 		// Requests.
-		$requests = PayoutRequests::query( 'requested' );
+		// All open requests in pages of 100 (no fixed limit: older requests stay reachable).
+		$req_per   = 100;
+		$req_total = PayoutRequests::count( 'requested' );
+		$req_page  = min( max( 1, absint( Admin::get( 'req_paged' ) ) ), max( 1, (int) ceil( $req_total / $req_per ) ) );
+		$requests  = $req_total ? PayoutRequests::query( 'requested', 0, $req_per, ( $req_page - 1 ) * $req_per ) : array();
 		AffiliateRepository::find_many( wp_list_pluck( $requests, 'affiliate_id' ) );
 		if ( $requests ) {
-			echo '<h2>' . esc_html__( 'Open payout requests', 'affiliate-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Requested', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Available now', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
+			echo '<h2>' . esc_html__( 'Open payout requests', 'affiliate-captain' ) . ' (' . (int) $req_total . ')</h2>';
+			if ( $req_total > $req_per ) {
+				echo '<div class="tablenav"><div class="tablenav-pages">' . wp_kses_post(
+					paginate_links(
+						array(
+							'base'    => add_query_arg( 'req_paged', '%#%' ),
+							'format'  => '',
+							'current' => $req_page,
+							'total'   => (int) ceil( $req_total / $req_per ),
+						)
+					)
+				) . '</div></div>';
+			}
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Requested', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Available now', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
 			foreach ( $requests as $r ) {
 				$aff = AffiliateRepository::find( (int) $r->affiliate_id );
 				printf( '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>', esc_html( Admin::date( $r->created_at, true ) ), esc_html( $aff ? $aff->name : '#' . $r->affiliate_id ), esc_html( Money::format( (int) $r->amount_minor, $r->currency ) ), esc_html( Money::format( PayoutRequests::available( (int) $r->affiliate_id, (string) $r->currency ), $r->currency ) ) );

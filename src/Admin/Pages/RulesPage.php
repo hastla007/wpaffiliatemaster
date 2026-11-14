@@ -37,7 +37,7 @@ final class RulesPage {
 				$data = RuleRepository::sanitize(
 					array(
 						'scope'        => sanitize_key( Admin::post( 'scope' ) ),
-						'scope_id'     => absint( Admin::post( 'scope' ) === 'group' ? Admin::post( 'group_id' ) : Admin::post( 'affiliate_id' ) ),
+						'scope_id'     => Admin::post( 'scope' ) === 'group' ? absint( Admin::post( 'group_id' ) ) : AffiliateRepository::resolve_input( sanitize_text_field( (string) Admin::post( 'affiliate_id' ) ) ),
 						'target'       => sanitize_key( Admin::post( 'target' ) ),
 						'target_value' => Admin::post( 'target_value' ),
 						'rate_type'    => sanitize_key( Admin::post( 'rate_type' ) ),
@@ -82,7 +82,7 @@ final class RulesPage {
 				TierService::create(
 					array(
 						'scope'    => $scope,
-						'scope_id' => absint( 'group' === $scope ? Admin::post( 'group_id' ) : Admin::post( 'affiliate_id' ) ),
+						'scope_id' => 'group' === $scope ? absint( Admin::post( 'group_id' ) ) : AffiliateRepository::resolve_input( sanitize_text_field( (string) Admin::post( 'affiliate_id' ) ) ),
 						'basis'    => $basis,
 						'mode'     => sanitize_key( Admin::post( 'mode' ) ),
 						'steps'    => $steps,
@@ -152,12 +152,22 @@ final class RulesPage {
 	public static function render() {
 		$groups   = Groups::options();
 		$currency = (string) Settings::get( 'currency' );
-		list( $affs ) = AffiliateRepository::query( array( 'limit' => 1000 ) );
-		$aff_names    = array();
-		foreach ( $affs as $a ) {
-			$aff_names[ (int) $a->id ] = $a->name;
-		}
 		$edit = absint( Admin::get( 'edit' ) ) ? RuleRepository::find( absint( Admin::get( 'edit' ) ) ) : null;
+		// Names only of the partners that rules and tier plans refer to (no fixed partner limit:
+		// the selection fields search all partners, see Admin::partner_picker()).
+		global $wpdb;
+		$ids = array_merge(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			(array) $wpdb->get_col( 'SELECT DISTINCT scope_id FROM ' . \WPAffiliateCaptain\Core\Db::table( 'rules' ) . " WHERE scope = 'affiliate'" ),
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			(array) $wpdb->get_col( 'SELECT DISTINCT scope_id FROM ' . \WPAffiliateCaptain\Core\Db::table( 'tiers' ) . " WHERE scope = 'affiliate'" )
+		);
+		$aff_names = array();
+		foreach ( AffiliateRepository::find_many( $ids ) as $aid => $a ) {
+			if ( $a ) {
+				$aff_names[ (int) $aid ] = $a->name;
+			}
+		}
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Rules & groups', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
@@ -257,11 +267,17 @@ final class RulesPage {
 		foreach ( $groups as $gid => $name ) {
 			printf( '<option value="%d" %s>%s</option>', (int) $gid, selected( 'group' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $gid, false ), esc_html( $name ) );
 		}
-		echo '</select> <select name="affiliate_id" aria-label="' . esc_attr__( 'Partner', 'affiliate-captain' ) . '" data-wpac-depends="scope=affiliate"><option value="">' . esc_html__( '– partner –', 'affiliate-captain' ) . '</option>';
-		foreach ( $aff_names as $aid => $name ) {
-			printf( '<option value="%d" %s>%s</option>', (int) $aid, selected( 'affiliate' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $aid, false ), esc_html( $name ) );
-		}
-		echo '</select></td></tr>';
+		echo '</select> ';
+		echo Admin::partner_picker( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+			'affiliate_id',
+			'affiliate' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0,
+			'',
+			array(
+				'aria-label'        => __( 'Partner', 'affiliate-captain' ),
+				'data-wpac-depends' => 'scope=affiliate',
+			)
+		);
+		echo '</td></tr>';
 		echo '<tr><th><label for="wpac-rule-target">' . esc_html__( 'Products', 'affiliate-captain' ) . '</label></th><td><select name="target" id="wpac-rule-target">';
 		foreach ( $targets as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'target', 'all' ), $k, false ), esc_html( $l ) );
@@ -355,11 +371,8 @@ final class RulesPage {
 		foreach ( $groups as $gid => $name ) {
 			printf( '<option value="%d">%s</option>', (int) $gid, esc_html( $name ) );
 		}
-		echo '</select> <select name="affiliate_id"><option value="">' . esc_html__( '– partner –', 'affiliate-captain' ) . '</option>';
-		foreach ( $aff_names as $aid => $name ) {
-			printf( '<option value="%d">%s</option>', (int) $aid, esc_html( $name ) );
-		}
-		echo '</select></p><p><select name="basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select> ';
+		echo '</select> ' . Admin::partner_picker( 'affiliate_id', 0, '', array( 'aria-label' => __( 'Partner', 'affiliate-captain' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		echo '</p><p><select name="basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select> ';
 		echo '<select name="mode"><option value="marginal">' . esc_html__( 'Marginal (only above the threshold)', 'affiliate-captain' ) . '</option><option value="retroactive">' . esc_html__( 'Retroactive (whole month)', 'affiliate-captain' ) . '</option></select></p>';
 		/* translators: %s: currency */
 		echo '<p><textarea name="steps" rows="3" cols="40" placeholder="' . esc_attr( sprintf( __( "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)", 'affiliate-captain' ), $currency ) ) . '"></textarea></p>';
@@ -367,7 +380,7 @@ final class RulesPage {
 
 		Admin::form_open( 'tier_close_month' );
 		/* translators: %s: last closed month */
-		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'affiliate-captain' ), Settings::get( 'tier_month_closed' ) ? Settings::get( 'tier_month_closed' ) : '—' ) ) . ' <input type="month" name="month" value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of previous month' ) ) ) . '"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'affiliate-captain' ) . '">' . esc_html__( 'Close month now', 'affiliate-captain' ) . '</button></p></form>';
+		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'affiliate-captain' ), Settings::get( 'tier_month_closed' ) ? Settings::get( 'tier_month_closed' ) : '—' ) ) . ' <input type="month" name="month" value="' . esc_attr( \WPAffiliateCaptain\Core\Db::local_month( -1 ) ) . '"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'affiliate-captain' ) . '">' . esc_html__( 'Close month now', 'affiliate-captain' ) . '</button></p></form>';
 	}
 
 	/**
@@ -379,11 +392,7 @@ final class RulesPage {
 	private static function render_preview( array $aff_names, $currency ) {
 		echo '<h2>' . esc_html__( 'Rule preview', 'affiliate-captain' ) . '</h2>';
 		echo '<form method="get"><input type="hidden" name="page" value="wpac-rules"><input type="hidden" name="tab" value="preview"><input type="hidden" name="preview" value="1">';
-		echo '<select name="p_affiliate">';
-		foreach ( $aff_names as $aid => $name ) {
-			printf( '<option value="%d" %s>%s</option>', (int) $aid, selected( absint( Admin::get( 'p_affiliate' ) ), $aid, false ), esc_html( $name ) );
-		}
-		echo '</select> ';
+		echo Admin::partner_picker( 'p_affiliate', AffiliateRepository::resolve_input( Admin::get( 'p_affiliate' ) ), '', array( 'aria-label' => __( 'Partner', 'affiliate-captain' ) ) ) . ' '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
 		echo '<input type="number" name="p_product" aria-label="' . esc_attr__( 'Product ID', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Product ID', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_product' ) ) . '" class="small-text"> ';
 		echo '<input type="text" name="p_sku" aria-label="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_sku' ) ) . '" size="10"> ';
 		echo '<input type="text" name="p_cats" aria-label="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8"> ';
@@ -394,7 +403,7 @@ final class RulesPage {
 		if ( ! Admin::get( 'preview' ) ) {
 			return;
 		}
-		$aff = AffiliateRepository::find( absint( Admin::get( 'p_affiliate' ) ) );
+		$aff = AffiliateRepository::find( AffiliateRepository::resolve_input( Admin::get( 'p_affiliate' ) ) );
 		if ( ! $aff ) {
 			return;
 		}
