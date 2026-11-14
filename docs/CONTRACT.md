@@ -2,7 +2,7 @@
 
 Öffentliche Schnittstelle von Affiliate Captain für Verkaufsquellen (Pass Captain, Voucher Captain, WooCommerce-Adapter, Connector-Add-ons wie LearnBoating). Kompatibel ist jede Version mit gleicher Major-Version; andere Versionen werden abgelehnt (`incompatible_contract`) und im Integrationsstatus angezeigt.
 
-Änderungen: **1.3.0** – Auszahlung über Zahlungsdienste für Add-ons: `wpac_get_payout()`, `wpac_get_payouts()`, `wpac_claim_payout()`, `wpac_complete_payout()`, `wpac_release_payout()` (Abschnitt „Auszahlung über Zahlungsdienste“; abwärtskompatibel). **Ergänzungen ohne Versionswechsel (abwärtskompatibel, Plugin 0.11.0)** – `wpac_record_reinstatement()` und `POST /reinstatements`; optionale Felder `netted_refund_ids`, `review`, `category_ancestor_ids`; Erstattungen zu unbekannten Bestellungen werden geparkt (`parked`) statt verworfen; strengere Prüfung der Payloads (siehe „Grenzen und Prüfungen“). **1.2.0** – Erweiterungspunkte für Add-ons (Abschnitt „Add-ons“: `wpac_admin_menu`, `wpac_portal_tabs`/`wpac_portal_tab_{key}`, `wpac_commission_amount`, `wpac_payout_created`, `wpac_transfer_rows`/`wpac_transfer_header`, `wpac_report_partners`, `wpac_program_export_files`; abwärtskompatibel). **1.1.0** – neue Funktion `wpac_current_touch()` (abwärtskompatibel; Payloads mit `contract => '1.0.0'` bleiben gültig).
+Änderungen: **1.3.0** – Auszahlung über Zahlungsdienste für Add-ons: `wpac_get_payout()`, `wpac_get_payouts()`, `wpac_claim_payout()`, `wpac_complete_payout()`, `wpac_release_payout()` (Abschnitt „Auszahlung über Zahlungsdienste“; abwärtskompatibel); dazu Lese- und Schreib-API für Partner und Provisionen (`wpac_get_affiliate()`, `wpac_get_affiliates()`, `wpac_get_commission()`, `wpac_get_commissions()`, `wpac_update_affiliate()`, `wpac_set_affiliate_status()`, `wpac_set_commission_status()`, `wpac_create_adjustment()`; Abschnitt „Lese- und Schreib-API (1.3.0)“), Portal-Hooks für eigenes Branding (`wpac_portal_before`/`_after`, `wpac_portal_classes`, `wpac_portal_labels`), Filter `wpac_mail_from_name` und Ereignisse: `wpac_commission_created` feuert jetzt für jede Buchung im Provisionskonto (auch Korrekturgutschrift, Abschreibung, Rückzahlung, Wiederherstellung, Bonuskorrektur; immer nach dem Commit), neu `wpac_payout_cancelled`. **Ergänzungen ohne Versionswechsel (abwärtskompatibel, Plugin 0.11.0)** – `wpac_record_reinstatement()` und `POST /reinstatements`; optionale Felder `netted_refund_ids`, `review`, `category_ancestor_ids`; Erstattungen zu unbekannten Bestellungen werden geparkt (`parked`) statt verworfen; strengere Prüfung der Payloads (siehe „Grenzen und Prüfungen“). **1.2.0** – Erweiterungspunkte für Add-ons (Abschnitt „Add-ons“: `wpac_admin_menu`, `wpac_portal_tabs`/`wpac_portal_tab_{key}`, `wpac_commission_amount`, `wpac_payout_created`, `wpac_transfer_rows`/`wpac_transfer_header`, `wpac_report_partners`, `wpac_program_export_files`; abwärtskompatibel). **1.1.0** – neue Funktion `wpac_current_touch()` (abwärtskompatibel; Payloads mit `contract => '1.0.0'` bleiben gültig).
 
 Grundregeln:
 
@@ -185,15 +185,19 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_loaded` | `string $contract_version` |
 | `wpac_referral_captured` | `array $resolved, array $touch` |
 | `wpac_affiliate_attributed` | `string $order_id, int $affiliate_id, string $method, string $source` |
-| `wpac_commission_created` | `int $commission_id` |
-| `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` |
+| `wpac_commission_created` | `int $commission_id` – jede neue Buchung im Provisionskonto außer Erstattungs-Korrekturen: Verkauf, Bestellerhöhung, manuelle Buchung, Monatsbonus und Bonuskorrektur, Abschreibung (`writeoff`), Rückzahlung (`repayment`), Wiederherstellung (`reinstatement`), Korrekturgutschrift (`correction`; seit 1.3.0 für alle). Art über `wpac_get_commission( $id )['kind']`. |
+| `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` – Erstattung, Storno, Chargeback (Buchungsarten `refund`, `cancellation`, `chargeback`; dafür kein `wpac_commission_created`). |
 | `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` | `int $commission_id` |
-| `wpac_payout_paid` | `int $payout_id` |
+| `wpac_payout_created` | `int $payout_id, int $affiliate_id` (siehe „Add-ons“) |
+| `wpac_payout_paid` | `int $payout_id` (auch nach `wpac_complete_payout()`) |
+| `wpac_payout_cancelled` | `int $payout_id` – nicht bezahlte Auszahlung storniert (auch eine reservierte und die alte Auszahlung beim Neuerstellen; seit 1.3.0). |
+| `wpac_correction_generated` | `int $correction_id, string $path` – Korrekturgutschrift erzeugt (siehe „Add-ons“). |
+| `wpac_affiliate_created` | `int $affiliate_id, string $status` |
 | `wpac_affiliate_status_changed` | `int $affiliate_id, string $new, string $old` |
 
 | `wpac_contract_not_queued` | `string $what` (`sale`/`refund`), `array $data` – Verkauf/Erstattung konnte weder verbucht noch für die Wiederholung gespeichert werden (z. B. Datenbank weg); die Quelle muss selbst erneut senden. Steht zusätzlich im Plugin-Log. |
 
-Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempotenten Funktionen oben.
+Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempotenten Funktionen oben. Alle Buchungs- und Auszahlungsereignisse feuern erst nach dem Commit der Datenbanktransaktion; wird eine Buchung zurückgerollt, feuert nichts.
 
 ## Betrieb und Anpassung (Filter/Actions)
 
@@ -214,6 +218,7 @@ Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempo
 | `wpac_vies_enabled` ( `$enabled` ) | Filter | VIES-Prüfung der USt-IdNr. (Standard: Einstellung „VIES-Prüfung“, ab Werk aus). |
 | `wpac_log_debug` ( `$enabled` ) | Filter | Debug-Einträge ins Plugin-Log schreiben (Standard: `WP_DEBUG`). |
 | `wpac_mail` ( `$mail`, `$type`, `$context` ) | Filter | Jede E-Mail des Plugins vor dem Versand: `to`, `subject`, `message`, `headers`, `attachments` ändern (HTML: Header `Content-Type: text/html; charset=UTF-8` ergänzen) oder `false` zurückgeben, um sie nicht zu senden. `$type` z. B. `payout_paid`, `application_received`, `application_confirmed`, `monthly_partner`, `commission`, `dunning`, `credit_note`, `credit_note_cancelled`, `credit_note_corrected`, `tax_data_changed`, `tax_data_pending`; `$context`: `type`, `admin` (Mail an den Betreiber), `affiliate_id`. |
+| `wpac_mail_from_name` ( `$name`, `$type`, `$context` ) | Filter | Absendername der E-Mails (Standard: Einstellung „Absendername“, leer = Seitenname bzw. WordPress-/SMTP-Standard); z. B. für die eigene Marke eines White-Label-Add-ons. Zeilenumbrüche und spitze Klammern werden entfernt. Seit 1.3.0. |
 | `wpac_mail_sent` ( `$type`, `$mail`, `$sent`, `$context` ) | Action | Nach der Übergabe an `wp_mail()`. |
 | `wpac_mail_failed` ( `$type`, `$mail`, `$error`, `$context` ) | Action | E-Mail konnte nicht gesendet werden (Grund aus `wp_mail_failed`); steht auch im Plugin-Log. |
 | `wpac_notify_payout_paid` ( `$send` ) | Filter | Mail „Auszahlung überwiesen“ (Standard: Einstellung „E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde“). |
@@ -231,6 +236,9 @@ Erweiterungen sind **eigene Plugins** (eigener Slug, eigene Textdomain, bei Vert
 | `wpac_admin_menu` ( `$parent` ) | Action | Eigene Verwaltungsseiten unter dem Plugin-Menü (`add_submenu_page( $parent, … )`, Parent-Slug `wpac`). Eigene Einstellungen speichert das Add-on in eigenen Optionen. |
 | `wpac_portal_tabs` ( `$tabs`, `$aff` ) | Filter | Weitere Tabs im Partnerbereich (`key => Label`); bestehende Tabs lassen sich nicht ersetzen. Ein Tab erscheint nur, wenn `wpac_portal_tab_{key}` belegt ist. |
 | `wpac_portal_tab_{key}` ( `$aff` ) | Action | Ausgabe des Add-on-Tabs (vollständig escapen). |
+| `wpac_portal_before` / `wpac_portal_after` ( `$aff`, `$tab` ) | Action | Anfang bzw. Ende des Partnerbereichs innerhalb des Wrappers `div.wpac-portal` (vor den Hinweisen und Tabs bzw. nach dem Tab-Inhalt), z. B. Logo, Kopf- oder Fußzeile eines White-Label-Add-ons. Nur für eingeloggte Partner mit Zugang (nicht für die Anmeldung, Bewerbung in Prüfung oder abgelehnte Bewerbung). Ausgabe vollständig escapen. Seit 1.3.0. |
+| `wpac_portal_classes` ( `$classes`, `$aff`, `$tab` ) | Filter | CSS-Klassen des Wrappers (z. B. eigenes Farbschema); `wpac-portal` bleibt immer, jede Klasse läuft durch `sanitize_html_class()`. Eigene Styles registriert das Add-on mit Abhängigkeit vom Stylesheet-Handle `wpac-portal` (`wp_enqueue_style( 'mein-brand', $url, array( 'wpac-portal' ) )`, z. B. in `wpac_portal_before`). Seit 1.3.0. |
+| `wpac_portal_labels` ( `$labels`, `$aff` ) | Filter | Beschriftungen ersetzen: `tab_{key}` für die Kern-Tabs (`tab_overview`, `tab_statistics`, `tab_links`, `tab_promotion`, `tab_commissions`, `tab_payouts`, `tab_profile`, `tab_account`, `tab_privacy`) und `nav` für den zugänglichen Namen der Tab-Navigation. Nur Text (HTML wird entfernt), leere Werte zählen nicht. Seit 1.3.0. |
 | `wpac_commission_amount` ( `$amount`, `$item`, `$affiliate_id`, `$rule` ) | Filter | Provision einer Position nach Anwendung der Regel (Cent, nie negativ; ausgeschlossene Positionen werden nicht gefiltert) – z. B. zusätzliche Provisionsregeln eines Add-ons. |
 | `wpac_payout_created` ( `$payout_id`, `$affiliate_id` ) | Action | Auszahlung angelegt (nach dem Commit, Gutschrift erzeugt) – z. B. Auszahlung über einen anderen Zahlungsdienst und danach `PayoutService::mark_paid()`. Bei Auszahlungsläufen werden die Gutschriften in der Job-Warteschlange geschrieben; die Action feuert dann erst, wenn die Gutschrift vorliegt (Minuten später, aus dem Cron). |
 | `wpac_statement_generated` ( `$payout_id`, `$path` ) / `wpac_storno_generated` ( `$payout_id`, `$path` ) | Action | Gutschrift bzw. Korrekturbeleg / Stornobeleg erzeugt und gespeichert (auch beim späteren Nachholen) – der Kern schickt den Beleg damit an den Partner (abschaltbar mit `wpac_notify_credit_note`). |
@@ -249,6 +257,8 @@ Erweiterungen sind **eigene Plugins** (eigener Slug, eigene Textdomain, bei Vert
 Eine abgelaufene oder fehlende Lizenz eines Add-ons darf nur dessen eigene Zusatzfunktionen betreffen – nie Buchungen, Gutschriften, Aufbewahrung oder Datenschutz-Löschungen des Kernplugins.
 
 Alle Erweiterungspunkte sind öffentliche API dieses Vertrags (Änderungen nur abwärtskompatibel innerhalb von Version 1) und durch Integrationstests abgesichert (`tests/integration/run.php`, Abschnitt ZF). Ein Test in `tests/run.php` (A2) schlägt fehl, sobald Lizenzclient, Rechteprüfung oder ein eigener Updater ins Kernplugin gelangen; ein weiterer (ZF6) stellt sicher, dass Buchungen, Auszahlungen, Gutschriften, Exporte und die tägliche Wartung ohne Add-on und ohne Netzwerkzugriff laufen.
+
+**White-Label:** Der Partnerbereich und die Partner-E-Mails zeigen den Plugin-Namen nicht; die Mails tragen Seitenname bzw. Absendername (`wpac_mail_from_name`, `wpac_mail`). Die Belege (Gutschrift, Korrektur, Storno) tragen im Kopf die Betreiberdaten aus der Einstellung (beim Erstellen eingefroren); einen Branding-Filter für Belege gibt es bewusst nicht, weil Belege aus den gespeicherten Daten byteweise gleich neu erzeugt werden müssen (Prüfsumme). In den PDF-Metadaten steht als „Producer“ weiterhin `Affiliate Captain`.
 
 **Hinweise auf das Add-on im Kernplugin** (WordPress.org-Richtlinie 11): derzeit keine. Falls künftig gewünscht, nur dezent, wegklickbar und nur auf den eigenen Plugin-Seiten; keine Menüpunkte, Schalter oder Felder, die sichtbar sind, aber erst nach einem Kauf funktionieren.
 
@@ -270,6 +280,25 @@ Regeln:
 - Die Reservierungsnummer beim Dienst als Idempotenz-Schlüssel verwenden (z. B. `sender_batch_id` bei PayPal), damit eine Wiederholung nach einem Abbruch nicht doppelt zahlt.
 - Im Admin lässt sich eine reservierte Auszahlung in den ersten 7 Tagen nach der Reservierung nicht stornieren; danach nur mit der Bestätigung, dass der Dienst nicht gezahlt hat. Das Add-on gibt Auszahlungen, die der Dienst ablehnt, selbst mit `wpac_release_payout()` frei.
 - Jeder Schritt steht im Audit-Log (`payout.claimed`, `payout.provider_paid`, `payout.claim_released`).
+
+## Lese- und Schreib-API (1.3.0)
+
+Öffentliche PHP-Funktionen für Add-ons (z. B. erweiterte REST-API, Webhooks, Dashboards), damit niemand die Tabellen lesen muss. Dünne Hüllen über die vorhandenen Repositories und Dienste – dieselben Regeln, E-Mails und Audit-Einträge wie im Admin. Rückgabe: Arrays mit den unten genannten Feldern (stabil innerhalb von Version 1, neue Felder kommen höchstens hinzu) oder `WP_Error`. Nie IBAN, Steuer-, Bewerbungs- oder Kundendaten; vom Partner nur die E-Mail-Adresse. Zeiten in UTC (`Y-m-d H:i:s`), Beträge in Cent.
+
+**Rechte:** Die Funktionen prüfen den aktuellen Benutzer **nicht** (PHP-API für vertrauenswürdigen Code). REST-, AJAX- oder Admin-Hüllen eines Add-ons müssen selbst prüfen: `wpac_manage_affiliates` für Partner und Provisionen; `wpac_manage_payouts`, wenn eine Provision vor Ende der Sperrfrist freigegeben wird (wie im Admin). Jede Schreibfunktion steht im Audit-Log mit dem aktuellen Benutzer als Akteur.
+
+| Funktion | Rückgabe / Zweck |
+|---|---|
+| `wpac_get_affiliate( $id )` | Partner: `id`, `user_id`, `group_id`, `status` (`pending`, `active`, `paused`, `terminated`, `rejected`), `status_reason`, `slug`, `name`, `email`, `website`, `channel`, `created_at`, `updated_at`, `approved_at` (oder `null`). Unbekannt: `wpac_not_found`. |
+| `wpac_get_affiliates( $args )` | `{ items, total, page, per_page }`, `items` wie oben. Argumente: `status`, `group` (Gruppen-ID, `0` = ohne Gruppe), `search` (Name, E-Mail, Slug, Website), `per_page` (1–100, Standard 20), `page` (ab 1), `orderby` (`id`, `name`, `status`, `created_at`), `order` (`asc`/`desc`, Standard `desc`). |
+| `wpac_get_commission( $id )` | Buchung im Provisionskonto: `id`, `affiliate_id`, `kind` (`sale`, `refund`, `cancellation`, `chargeback`, `bonus`, `writeoff`, `reinstatement`, `increase`, `adjustment`, `repayment`, `correction`), `parent_id`, `status` (`pending`, `review`, `approved`, `paid`, `rejected`), `currency`, `amount_minor`, `base_minor`, `rate_type`, `rate`, `rule_id`, `source`, `order_id`, `item_id`, `product_ref`, `description`, `hold_until`, `payout_id`, `created_at`, `updated_at`. Unbekannt: `wpac_not_found`. |
+| `wpac_get_commissions( $args )` | `{ items, total, page, per_page }`. Argumente: `affiliate_id`, `status`, `kind`, `from`/`to` (`Y-m-d`, Tage der Website-Zeitzone), `per_page`, `page`, `orderby` (`id`, `created_at`, `amount_minor`, `status`), `order`. |
+| `wpac_update_affiliate( $id, $data )` | Ändert `name`, `website`, `channel`, `group` (Gruppen-ID, `0` = keine) mit der Prüfung des Admin-Formulars (Längen, URL, Gruppe vorhanden); andere Schlüssel → `wpac_invalid_field`. Rückgabe: der Partner. Audit `affiliate.updated`. |
+| `wpac_set_affiliate_status( $id, $status, $reason )` | Statuswechsel wie im Admin (Freischalten inkl. Benutzerkonto und Code, Pausieren, Beenden inkl. Regel für offene Provisionen, Ablehnen; E-Mails; `wpac_affiliate_status_changed`). Grund Pflicht für `paused`, `terminated`, `rejected`. Rückgabe: der Partner. Audit `affiliate.status`. |
+| `wpac_set_commission_status( $id, $status, $reason )` | `approved` oder `rejected` über die Regeln des Kontos (Sperrfrist, Prüfung, Korrekturen, Auszahlungen; Ablehnen nur mit Grund). Eine Provision „Prüfung nötig“ in der Sperrfrist wird – wie im Admin – erst „ausstehend“. Rückgabe: die Provision. Audit `commission.status` (`from`, `to`, `reason`, `via: api`). |
+| `wpac_create_adjustment( $affiliate_id, $amount_minor, $currency, $reason )` | Manuelle Buchung (Cent als Ganzzahl, ≠ 0, negativ = Abzug), sofort freigegeben und mit der nächsten Auszahlung fällig; `wpac_commission_created` feuert nach dem Commit. Rückgabe: die Buchung. Audit `commission.manual`. |
+
+Fehlercodes: `wpac_not_found`, `wpac_invalid_<argument>` (z. B. `wpac_invalid_status`, `wpac_invalid_per_page`, `wpac_invalid_orderby`, `wpac_invalid_group`, `wpac_invalid_website`), `wpac_invalid_field`, `wpac_invalid_name`, `wpac_too_long_<feld>`, `wpac_reason_required`, `wpac_amount`, `wpac_state`, `wpac_parent_open`, `wpac_conflict`, `wpac_restricted`, `wpac_db_error`. Auszahlungen liest `wpac_get_payout()`/`wpac_get_payouts()` (Abschnitt „Auszahlung über Zahlungsdienste“).
 
 ## Mitgelieferte Adapter
 

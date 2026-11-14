@@ -416,6 +416,25 @@ final class Notifications {
 		$headers = (array) $args['headers'];
 		$from    = (string) Settings::get( 'mail_from_email' );
 		$name    = trim( (string) Settings::get( 'mail_from_name' ) );
+		/**
+		 * Sender name of an e-mail of the plugin (e.g. the brand of a white-label add-on). Empty:
+		 * the site name (with a sender address set) or the WordPress/SMTP default. Since 1.3.0.
+		 *
+		 * @param string $name    Sender name from the settings ('' = not set).
+		 * @param string $type    Mail type.
+		 * @param array  $context type, admin (mail to the operator), affiliate_id.
+		 */
+		$name = apply_filters(
+			'wpac_mail_from_name',
+			$name,
+			(string) $type,
+			array(
+				'type'         => (string) $type,
+				'admin'        => (bool) $args['admin'],
+				'affiliate_id' => (int) $args['affiliate_id'],
+			)
+		);
+		$name = is_string( $name ) ? self::header_text( $name ) : '';
 		if ( '' !== $from && is_email( $from ) ) {
 			$headers[] = 'From: ' . self::header_text( '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ) . ' <' . $from . '>';
 			$name      = '';
@@ -725,6 +744,11 @@ final class Notifications {
 		}
 		$c = \WPAffiliateCaptain\Commissions\Ledger::find( $id );
 		if ( ! $c ) {
+			return;
+		}
+		if ( 'created' === $event && ( in_array( (string) $c->kind, array( 'writeoff', 'repayment', 'correction', 'reinstatement' ), true ) || ( 'bonus' === (string) $c->kind && (int) $c->parent_id ) ) ) {
+			// Settlements, correction credit notes (own mail), reinstatements and bonus corrections
+			// are no "new commission" for the partner (wpac_commission_created fires for them since 1.3.0).
 			return;
 		}
 		if ( ! self::$commission_events ) {
