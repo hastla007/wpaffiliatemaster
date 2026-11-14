@@ -25,6 +25,16 @@ defined( 'ABSPATH' ) || exit;
 
 final class Admin {
 
+	/**
+	 * Rows-per-page screen options of the other list tables (R5-O47): option => [ page, default ].
+	 */
+	const LIST_PER_PAGE = array(
+		'wpac_payouts_per_page'   => array( 'wpac-payouts', 50 ),
+		'wpac_creatives_per_page' => array( 'wpac-creatives', 50 ),
+		'wpac_rules_per_page'     => array( 'wpac-rules', 50 ),
+		'wpac_audit_per_page'     => array( 'wpac-audit', 100 ),
+	);
+
 	public static function register_hooks() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_post_wpac', array( __CLASS__, 'dispatch' ) );
@@ -33,6 +43,9 @@ final class Admin {
 		add_action( 'admin_init', array( __CLASS__, 'activation_redirect' ) );
 		add_filter( 'set_screen_option_wpac_partners_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
 		add_filter( 'set_screen_option_wpac_commissions_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		foreach ( array_keys( self::LIST_PER_PAGE ) as $option ) {
+			add_filter( 'set_screen_option_' . $option, array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		}
 		add_filter( 'set-screen-option', array( __CLASS__, 'save_screen_option' ), 10, 3 ); // WordPress before 5.4.2.
 		add_filter( 'default_hidden_columns', array( __CLASS__, 'default_hidden_columns' ), 10, 2 );
 		add_action( 'admin_notices', array( __CLASS__, 'cron_notice' ) );
@@ -51,16 +64,21 @@ final class Admin {
 		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
 		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
 		$payouts = add_submenu_page( 'wpac', __( 'Payouts', 'affiliate-captain' ), __( 'Payouts', 'affiliate-captain' ), Capabilities::payouts_page_cap(), 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
+		$creatives = add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
+		$rules     = add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
 		// Daily work first, technical pages and settings last (R5-O46).
 		Pages\ImportExportPage::menu();
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
+		$audit    = add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
 		$settings = add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
 		// Screen options (rows per page, columns) and help tabs (R5-O47).
 		add_action( 'load-' . $partners, array( __CLASS__, 'screen_partners' ) );
 		add_action( 'load-' . $ledger, array( __CLASS__, 'screen_commissions' ) );
+		foreach ( array( $payouts, $creatives, $rules, $audit ) as $hook ) {
+			if ( $hook ) {
+				add_action( 'load-' . $hook, array( __CLASS__, 'screen_list' ) );
+			}
+		}
 		foreach ( array( $dashboard, $partners, $ledger, $payouts, $settings ) as $hook ) {
 			add_action( 'load-' . $hook, array( __CLASS__, 'help_tabs' ) );
 		}
@@ -142,6 +160,32 @@ final class Admin {
 	}
 
 	/**
+	 * Screen option "rows per page" of the payout, creative, rule and audit lists (R5-O47).
+	 */
+	public static function screen_list() {
+		$page   = self::get( 'page' );
+		$labels = array(
+			'wpac_payouts_per_page'   => __( 'Payouts per page', 'affiliate-captain' ),
+			'wpac_creatives_per_page' => __( 'Creatives per page', 'affiliate-captain' ),
+			'wpac_rules_per_page'     => __( 'Rules per page', 'affiliate-captain' ),
+			'wpac_audit_per_page'     => __( 'Entries per page', 'affiliate-captain' ),
+		);
+		foreach ( self::LIST_PER_PAGE as $option => $def ) {
+			if ( $def[0] === $page ) {
+				add_screen_option(
+					'per_page',
+					array(
+						'label'   => $labels[ $option ],
+						'default' => $def[1],
+						'option'  => $option,
+					)
+				);
+				return;
+			}
+		}
+	}
+
+	/**
 	 * Store a rows-per-page screen option of the plugin (1–500).
 	 *
 	 * @param mixed  $keep   Value to keep (false = do not store).
@@ -150,7 +194,7 @@ final class Admin {
 	 * @return mixed
 	 */
 	public static function save_screen_option( $keep, $option, $value ) {
-		if ( in_array( $option, array( 'wpac_partners_per_page', 'wpac_commissions_per_page' ), true ) ) {
+		if ( in_array( $option, array_merge( array( 'wpac_partners_per_page', 'wpac_commissions_per_page' ), array_keys( self::LIST_PER_PAGE ) ), true ) ) {
 			return max( 1, min( 500, (int) $value ) );
 		}
 		return $keep;

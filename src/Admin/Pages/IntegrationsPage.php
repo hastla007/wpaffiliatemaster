@@ -135,7 +135,7 @@ final class IntegrationsPage {
 	 * @param string $type Type.
 	 * @return string
 	 */
-	private static function job_type_label( $type ) {
+	public static function job_type_label( $type ) {
 		$labels = array(
 			'sale'       => __( 'Sale', 'affiliate-captain' ),
 			'refund'     => __( 'Refund', 'affiliate-captain' ),
@@ -151,7 +151,7 @@ final class IntegrationsPage {
 	 * @param string $status Status.
 	 * @return string
 	 */
-	private static function job_status_label( $status ) {
+	public static function job_status_label( $status ) {
 		$labels = array(
 			'queued'  => __( 'Waiting for the next attempt', 'affiliate-captain' ),
 			'parked'  => __( 'Waiting for its sale', 'affiliate-captain' ),
@@ -168,7 +168,7 @@ final class IntegrationsPage {
 	 * @param string $code Error code.
 	 * @return string
 	 */
-	private static function job_error_label( $code ) {
+	public static function job_error_label( $code ) {
 		$labels = array(
 			'aborted'            => __( 'The previous attempt did not finish (timeout or fatal error).', 'affiliate-captain' ),
 			'sale_pending'       => __( 'Waiting for the sale of this order to be booked first.', 'affiliate-captain' ),
@@ -306,54 +306,27 @@ final class IntegrationsPage {
 	 */
 	private static function render_queue() {
 		echo '<h2>' . esc_html__( 'Retry queue', 'affiliate-captain' ) . '</h2>';
-		$jobs = Jobs::query();
-		if ( ! $jobs ) {
-			echo '<p>' . esc_html__( 'No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically.', 'affiliate-captain' ) . '</p>';
-			return;
-		}
-		$failed = Jobs::count( 'failed' ); // All of them, not only the 100 listed.
+		$failed = Jobs::count( 'failed' ); // All of them, not only the listed page.
 		if ( $failed ) {
 			Admin::form_open( 'job_retry_all' );
 			/* translators: %d: number */
 			echo '<p><button class="button button-primary">' . esc_html( sprintf( __( 'Retry all failed jobs (%d)', 'affiliate-captain' ), $failed ) ) . '</button></p></form>';
 		}
-		echo '<table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Type', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Order', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Created', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Attempts', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Error', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Next attempt', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
-		foreach ( $jobs as $j ) {
-			$explain = self::job_error_label( (string) $j->last_error_code );
-			$order   = Jobs::order_of( $j );
-			$cell    = '<code>' . esc_html( $j->idempotency_key ) . '</code>';
-			if ( $order ) {
-				$edit = '';
-				if ( \WPAffiliateCaptain\Integrations\WooCommerce::SOURCE === $order[0] && ctype_digit( $order[1] ) && function_exists( 'wc_get_order' ) ) {
-					$wc   = wc_get_order( (int) $order[1] );
-					$edit = $wc ? (string) $wc->get_edit_order_url() : '';
-				}
-				$cell = ( '' !== $edit ? '<a href="' . esc_url( $edit ) . '">#' . esc_html( $order[1] ) . '</a>' : '#' . esc_html( $order[1] ) )
-					. ' <small>(<a href="' . esc_url( Admin::url( 'wpac-audit', array( 'order' => $order[1] ) ) ) . '">' . esc_html__( 'log', 'affiliate-captain' ) . '</a>)</small><br>' . $cell;
-			}
-			printf(
-				'<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s<br><small><code>%s</code> %s</small></td><td>%s</td><td>',
-				(int) $j->id,
-				esc_html( self::job_type_label( (string) $j->type ) ),
-				$cell, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
-				esc_html( Admin::date( $j->created_at, true ) ),
-				esc_html( self::job_status_label( (string) $j->status ) ),
-				(int) $j->attempts,
-				esc_html( '' !== $explain ? $explain : ( '' !== (string) $j->last_error_code ? __( 'Error while booking.', 'affiliate-captain' ) : '—' ) ),
-				esc_html( $j->last_error_code ),
-				esc_html( $j->last_error ),
-				esc_html( 'queued' === $j->status ? Admin::date( $j->next_attempt_at, true ) : '—' )
-			);
-			if ( 'running' !== $j->status ) {
-				Admin::form_open( 'job_retry', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $j->id . '"><button class="button button-small">' . esc_html__( 'Retry now', 'affiliate-captain' ) . '</button></form>';
-			}
-			if ( in_array( $j->status, array( 'failed', 'parked' ), true ) ) {
-				Admin::form_open( 'job_dismiss', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $j->id . '"><button class="button button-small button-link-delete" data-wpac-confirm="' . esc_attr__( 'Dismiss this job? It will not be retried; a sale in it stays without commission.', 'affiliate-captain' ) . '">' . esc_html__( 'Dismiss', 'affiliate-captain' ) . '</button></form>';
-			}
-			echo '</td></tr>';
-		}
-		echo '</tbody></table>';
+		// List table (R5-O47): status filter, search, sorting, paging; row forms outside any form.
+		$table = new \WPAffiliateCaptain\Admin\Tables\JobsTable( Admin::get( 'job_status' ) );
+		$table->prepare_items();
+		$table->views();
+		echo '<form method="get" class="wpac-list-search">';
+		\WPAffiliateCaptain\Admin\Tables\ListTable::hidden_fields(
+			'wpac-integrations',
+			array(
+				'tab'        => 'queue',
+				'job_status' => in_array( Admin::get( 'job_status' ), \WPAffiliateCaptain\Admin\Tables\JobsTable::statuses(), true ) ? Admin::get( 'job_status' ) : '',
+			),
+			false
+		);
+		$table->search_box( __( 'Search jobs', 'affiliate-captain' ), 'wpac-job' );
+		echo '</form><div class="clear"></div>';
+		$table->display();
 	}
 }

@@ -36,6 +36,9 @@ $r_stubs = array(
 	'get_submit_button'   => static function ( $t = null ) { return '<button type="submit">' . esc_html( (string) $t ) . '</button>'; },
 	'wp_enqueue_style'    => static function () {},
 	'wp_enqueue_script'   => static function () {},
+	'wp_enqueue_media'    => static function () {},
+	'wp_get_attachment_image' => static function () { return ''; },
+	'wp_trim_words'       => static function ( $t, $n = 55 ) { return implode( ' ', array_slice( preg_split( '/\s+/', trim( (string) $t ) ), 0, (int) $n ) ); },
 	'wp_localize_script'  => static function () { return true; },
 	'wp_add_inline_script' => static function () { return true; },
 	'is_user_logged_in'   => static function () { return get_current_user_id() > 0; },
@@ -170,6 +173,26 @@ foreach ( array_slice( array_map( 'intval', (array) $wpdb->get_col( 'SELECT id F
 	}
 }
 check( 'R8-RENDER payout details rendered', true, true );
+
+// R5-O47: the remaining admin lists render as list tables with sort links and a search box.
+$r_o47 = array(
+	'payouts'   => array( array( PayoutsPage::class, 'render' ), array( 'page' => 'wpac-payouts', 'orderby' => 'amount_minor', 'order' => 'asc', 's' => 'x' ), array( 'orderby=number', 'orderby=amount_minor&amp;order=desc', 'name="s" value="x"', 'name="bulk_action"' ) ),
+	'audit'     => array( array( WPAffiliateCaptain\Admin\Pages\AuditPage::class, 'render' ), array( 'page' => 'wpac-audit', 'order_ref' => '42', 'orderby' => 'action' ), array( 'orderby=created_at', 'orderby=object_type', 'name="order_ref" value="42"', 'name="s"', 'displaying-num' ) ),
+	'creatives' => array( array( WPAffiliateCaptain\Admin\Pages\CreativesPage::class, 'render' ), array( 'page' => 'wpac-creatives' ), array( 'orderby=title', 'orderby=status', 'name="s"' ) ),
+	'rules'     => array( array( WPAffiliateCaptain\Admin\Pages\RulesPage::class, 'render' ), array( 'page' => 'wpac-rules', 'tab' => 'rules' ), array( 'orderby=priority', 'orderby=scope', 'name="s"', 'name="tab" value="rules"' ) ),
+	'queue'     => array( array( WPAffiliateCaptain\Admin\Pages\IntegrationsPage::class, 'render' ), array( 'page' => 'wpac-integrations', 'tab' => 'queue' ), array( 'orderby=attempts', 'orderby=next_attempt_at', 'name="s"', 'job_status=failed' ) ),
+);
+foreach ( $r_o47 as $r_name => $r_case ) {
+	$_GET     = $r_case[1];
+	$_REQUEST = $r_case[1];
+	$r        = r_render( $r_case[0] );
+	$r_found  = array();
+	foreach ( $r_case[2] as $r_needle ) {
+		$r_found[ $r_needle ] = false !== strpos( $r[0], $r_needle );
+	}
+	check( "R5-O47 {$r_name} list: sortable column links and search box, without PHP problems", array( array_fill_keys( $r_case[2], true ), array(), '' ), array( $r_found, $r[1], $r[2] ) );
+}
+$_REQUEST = array();
 
 // Partner portal: logged out, then as every partner with a user account.
 $GLOBALS['test_user'] = 0;

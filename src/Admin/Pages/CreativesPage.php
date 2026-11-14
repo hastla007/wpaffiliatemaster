@@ -64,7 +64,6 @@ final class CreativesPage {
 	 */
 	public static function render() {
 		$groups = Groups::options();
-		$labels = Creatives::status_labels();
 		$edit   = absint( Admin::get( 'edit' ) ) ? Creatives::find( absint( Admin::get( 'edit' ) ) ) : null;
 		wp_enqueue_media();
 
@@ -72,38 +71,14 @@ final class CreativesPage {
 		Admin::notice();
 		echo '<p class="description">' . esc_html__( 'Only approved versions are shown to partners. Every change creates a new version that needs approval. Placeholders in texts: {link}, {code}, {partner}.', 'affiliate-captain' ) . '</p>';
 
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Creative', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Version', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Group', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Disclosure', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
-		$rows = Creatives::all();
-		if ( ! $rows ) {
-			echo '<tr><td colspan="6">' . esc_html__( 'No creatives yet.', 'affiliate-captain' ) . '</td></tr>';
-		}
-		foreach ( $rows as $c ) {
-			$preview = 'image' === $c->type ? wp_get_attachment_image( (int) $c->attachment_id, array( 80, 80 ) ) : '<small>' . esc_html( wp_trim_words( $c->content, 20 ) ) . '</small>';
-			$user    = $c->approved_by ? get_userdata( (int) $c->approved_by ) : null;
-			printf(
-				'<tr class="%s"><td><strong>%s</strong><br>%s</td><td>v%d%s</td><td>%s</td><td>%s</td><td>%s%s</td><td>',
-				'archived' === $c->status ? 'wpac-inactive' : '',
-				esc_html( $c->title ),
-				$preview, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				(int) $c->version,
-				$c->change_note ? '<br><small>' . esc_html( $c->change_note ) . '</small>' : '',
-				esc_html( $c->group_id && isset( $groups[ (int) $c->group_id ] ) ? $groups[ (int) $c->group_id ] : __( 'All', 'affiliate-captain' ) ),
-				esc_html( $c->disclosure ),
-				Admin::badge( 'draft' === $c->status ? 'pending' : ( 'approved' === $c->status ? 'active' : 'paused' ), $labels[ $c->status ] ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				$user ? '<br><small>' . esc_html( $user->display_name . ', ' . Admin::date( $c->approved_at ) ) . '</small>' : ''
-			);
-			echo '<a href="' . esc_url( Admin::url( 'wpac-creatives', array( 'edit' => $c->id ) ) ) . '">' . esc_html__( 'New version', 'affiliate-captain' ) . '</a> ';
-			if ( 'draft' === $c->status ) {
-				Admin::form_open( 'creative_approve', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $c->id . '"><button class="button button-small button-primary">' . esc_html__( 'Approve', 'affiliate-captain' ) . '</button></form> ';
-			}
-			if ( 'archived' !== $c->status ) {
-				Admin::form_open( 'creative_archive', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $c->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Archive this creative? Partners will no longer see it.', 'affiliate-captain' ) . '">' . esc_html__( 'Archive', 'affiliate-captain' ) . '</button></form>';
-			}
-			echo '</td></tr>';
-		}
-		echo '</tbody></table>';
+		// List table (R5-O47): search, sorting, paging; the row forms stay outside any form.
+		$table = new \WPAffiliateCaptain\Admin\Tables\CreativesTable();
+		$table->prepare_items();
+		echo '<form method="get" class="wpac-list-search">';
+		\WPAffiliateCaptain\Admin\Tables\ListTable::hidden_fields( 'wpac-creatives', array(), false );
+		$table->search_box( __( 'Search creatives', 'affiliate-captain' ), 'wpac-creative' );
+		echo '</form>';
+		$table->display();
 
 		$v = static function ( $k, $d = '' ) use ( $edit ) {
 			return $edit ? (string) $edit->$k : $d;

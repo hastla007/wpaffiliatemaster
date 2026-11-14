@@ -62,7 +62,28 @@ final class RuleRepository {
 	}
 
 	/**
-	 * All rules.
+	 * Rules for the admin list.
+	 *
+	 * @param array $args search (note, products/SKU), limit, offset, orderby (id, scope, target,
+	 *                    rate_type, priority, updated_at), order. Default: resolution order as all().
+	 * @return array [ rows, total ]
+	 */
+	public static function query( array $args = array() ) {
+		global $wpdb;
+		$where  = '1=1';
+		$params = array();
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( note LIKE %s OR target_value LIKE %s )';
+			$params[] = $like;
+			$params[] = $like;
+		}
+		return \WPAffiliateCaptain\Core\Paged::fetch( Db::table( 'rules' ), $where, $params, $args, array( 'id', 'scope', 'target', 'rate_type', 'priority', 'updated_at' ), 'scope, scope_id, target, priority DESC, id DESC' );
+	}
+
+	/**
+	 * All rules (resolution order).
 	 *
 	 * @return array
 	 */

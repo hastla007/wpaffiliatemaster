@@ -56,10 +56,22 @@ final class Audit {
 	 * Latest entries.
 	 *
 	 * @param array $args object_type, object_id, action (exact, or an area ending in "."),
-	 *                    from/to (Y-m-d, UTC), order (order number), limit, offset.
+	 *                    from/to (Y-m-d, UTC), order (order number), search, limit, offset.
 	 * @return array
 	 */
 	public static function query( array $args = array() ) {
+		list( $rows ) = self::query_paged( array( 'count' => false ) + $args );
+		return $rows;
+	}
+
+	/**
+	 * Entries with the total, for the list table.
+	 *
+	 * @param array $args Filters as query(), plus search (action or details), orderby (id, created_at,
+	 *                    action, object_type) and sort_order (asc|desc; "order" is the order number filter).
+	 * @return array [ rows, total ]
+	 */
+	public static function query_paged( array $args = array() ) {
 		global $wpdb;
 		$table  = Db::table( 'audit' );
 		$where  = '1=1';
@@ -101,10 +113,27 @@ final class Audit {
 			$params[] = $older;
 			$params[] = $order;
 		}
-		$params[] = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
-		$params[] = isset( $args['offset'] ) ? (int) $args['offset'] : 0;
-		// $where holds only placeholders (built above); all values are in $params.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", $params ) );
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( action LIKE %s OR details LIKE %s )';
+			$params[] = $like;
+			$params[] = $like;
+		}
+		// $where holds only placeholders (built above); all values are in $params. The sort column
+		// is checked against the list in Paged::fetch().
+		return Paged::fetch(
+			$table,
+			$where,
+			$params,
+			array(
+				'limit'   => isset( $args['limit'] ) ? (int) $args['limit'] : 50,
+				'offset'  => isset( $args['offset'] ) ? (int) $args['offset'] : 0,
+				'orderby' => isset( $args['orderby'] ) ? (string) $args['orderby'] : 'id',
+				'order'   => isset( $args['sort_order'] ) ? (string) $args['sort_order'] : 'desc',
+				'count'   => isset( $args['count'] ) ? (bool) $args['count'] : true,
+			),
+			array( 'id', 'created_at', 'action', 'object_type' )
+		);
 	}
 }

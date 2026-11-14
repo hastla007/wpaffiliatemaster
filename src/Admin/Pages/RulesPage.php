@@ -211,47 +211,15 @@ final class RulesPage {
 		echo '<p>' . esc_html( sprintf( __( 'Program default: %s. Basis is the net line amount after discount, excluding tax and shipping.', 'affiliate-captain' ), RuleRepository::format_rate( Settings::get( 'default_rate_type' ), Settings::get( 'default_rate' ), $currency ) ) ) . ' ';
 		echo esc_html__( 'Resolution: an exclusion always wins; otherwise the most specific rule applies (partner > group > global, product/SKU > category > all, then priority).', 'affiliate-captain' ) . '</p>';
 
-		$scope_label = static function ( $r ) use ( $groups, $aff_names ) {
-			if ( 'group' === $r->scope ) {
-				return __( 'Group', 'affiliate-captain' ) . ': ' . ( isset( $groups[ (int) $r->scope_id ] ) ? $groups[ (int) $r->scope_id ] : '#' . $r->scope_id );
-			}
-			if ( 'affiliate' === $r->scope ) {
-				return __( 'Partner', 'affiliate-captain' ) . ': ' . ( isset( $aff_names[ (int) $r->scope_id ] ) ? $aff_names[ (int) $r->scope_id ] : '#' . $r->scope_id );
-			}
-			return __( 'Global', 'affiliate-captain' );
-		};
-		$targets = array(
-			'all'      => __( 'All products', 'affiliate-captain' ),
-			'product'  => __( 'Product IDs', 'affiliate-captain' ),
-			'category' => __( 'Category IDs', 'affiliate-captain' ),
-			'tag'      => __( 'Product tag IDs', 'affiliate-captain' ),
-			'sku'      => __( 'SKU / course code', 'affiliate-captain' ),
-		);
-
-		echo '<table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Products', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Rate', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Priority', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Note', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
-		$rules = RuleRepository::all();
-		if ( ! $rules ) {
-			echo '<tr><td colspan="7">' . esc_html__( 'No rules yet – the program default applies to all sales.', 'affiliate-captain' ) . '</td></tr>';
-		}
-		foreach ( $rules as $r ) {
-			printf(
-				'<tr class="%s"><td>%d <small>v%d</small></td><td>%s</td><td>%s%s</td><td><strong>%s</strong></td><td>%d</td><td>%s</td><td><a href="%s">%s</a> ',
-				$r->active ? '' : 'wpac-inactive',
-				(int) $r->id,
-				(int) $r->version,
-				esc_html( $scope_label( $r ) ),
-				esc_html( $targets[ $r->target ] ),
-				'' !== $r->target_value ? ': <code>' . esc_html( $r->target_value ) . '</code>' : '',
-				esc_html( RuleRepository::format_rate( $r->rate_type, $r->rate, $currency ) ),
-				(int) $r->priority,
-				esc_html( $r->note ),
-				esc_url( Admin::url( 'wpac-rules', array( 'edit' => $r->id ) ) ),
-				esc_html__( 'Edit', 'affiliate-captain' )
-			);
-			Admin::form_open( 'rule_delete', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" aria-label="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" size="10"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this rule? Existing commissions are not changed.', 'affiliate-captain' ) . '">' . esc_html__( 'Delete', 'affiliate-captain' ) . '</button></form></td></tr>';
-		}
-		echo '</tbody></table>';
+		// List table (R5-O47): search, sorting, paging; the row forms stay outside any form.
+		$table = new \WPAffiliateCaptain\Admin\Tables\RulesTable( $groups, $aff_names, $currency );
+		$table->prepare_items();
+		echo '<form method="get" class="wpac-list-search">';
+		\WPAffiliateCaptain\Admin\Tables\ListTable::hidden_fields( 'wpac-rules', array( 'tab' => Admin::get( 'tab' ) ), false );
+		$table->search_box( __( 'Search rules', 'affiliate-captain' ), 'wpac-rule' );
+		echo '</form>';
+		$table->display();
+		$targets = \WPAffiliateCaptain\Admin\Tables\RulesTable::targets();
 
 		// Rule form.
 		$v = static function ( $k, $d = '' ) use ( $edit ) {

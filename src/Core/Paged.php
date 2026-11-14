@@ -19,11 +19,14 @@ final class Paged {
 	 * @param array    $params   Placeholder values.
 	 * @param array    $args     limit (0 = all), offset, orderby, order.
 	 * @param string[] $sortable Columns allowed for orderby (whitelist).
+	 * @param string   $default  ORDER BY used when no allowed orderby is requested (fixed SQL from the
+	 *                           calling code, never from the request); '' = id DESC.
 	 * @return array [ rows, total ]
 	 */
-	public static function fetch( $table, $where, array $params, array $args, array $sortable = array( 'id' ) ) {
+	public static function fetch( $table, $where, array $params, array $args, array $sortable = array( 'id' ), $default = '' ) {
 		global $wpdb;
-		$orderby = isset( $args['orderby'] ) && in_array( $args['orderby'], $sortable, true ) ? $args['orderby'] : 'id';
+		$allowed = isset( $args['orderby'] ) && in_array( $args['orderby'], $sortable, true );
+		$orderby = $allowed ? $args['orderby'] : 'id';
 		$order   = isset( $args['order'] ) && 'asc' === strtolower( (string) $args['order'] ) ? 'ASC' : 'DESC';
 		if ( ! empty( $args['before_id'] ) ) {
 			// Keyset paging (each()): next batch below the last ID, no OFFSET scan.
@@ -39,7 +42,11 @@ final class Paged {
 			$total = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count, $params ) ) : $wpdb->get_var( $count ) );
 		}
 		$limit = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
-		$sql   = "SELECT * FROM {$table} WHERE {$where} ORDER BY {$orderby} {$order}" . ( 'id' !== $orderby ? ', id DESC' : '' );
+		$sort  = "{$orderby} {$order}" . ( 'id' !== $orderby ? ", id {$order}" : '' ); // Ties in the same direction.
+		if ( ! $allowed && '' !== (string) $default && empty( $args['before_id'] ) ) {
+			$sort = (string) $default;
+		}
+		$sql   = "SELECT * FROM {$table} WHERE {$where} ORDER BY {$sort}";
 		if ( $limit > 0 ) {
 			$sql     .= ' LIMIT %d OFFSET %d';
 			$params[] = $limit;
