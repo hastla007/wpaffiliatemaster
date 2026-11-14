@@ -308,17 +308,20 @@ final class AffiliateRepository {
 			// and keep sending security alerts there for 30 days.
 			update_option( 'wpac_prev_email_' . (int) $id, array( 'email' => $before->email, 'until' => time() + 30 * DAY_IN_SECONDS ), false );
 			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $before );
-			$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-			Notifications::send(
-				'email_changed',
-				$before->email,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] The e-mail address of your partner account was changed', 'affiliate-captain' ), $site ),
-				/* translators: %s: new address, partly hidden */
-				sprintf( __( "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), self::mask_email( $email ) ),
-				array( 'affiliate_id' => (int) $id )
-			);
-			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			try {
+				$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+				Notifications::send(
+					'email_changed',
+					$before->email,
+					/* translators: %s: site name */
+					sprintf( __( '[%s] The e-mail address of your partner account was changed', 'affiliate-captain' ), $site ),
+					/* translators: %s: new address, partly hidden */
+					sprintf( __( "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), self::mask_email( $email ) ),
+					array( 'affiliate_id' => (int) $id )
+				);
+			} finally {
+				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			}
 		}
 		return true;
 	}
@@ -685,12 +688,21 @@ final class AffiliateRepository {
 		}
 		$user = trim( (string) $user );
 		$wp   = ctype_digit( $user ) ? get_userdata( (int) $user ) : get_user_by( 'email', $user );
+		// Who may not see the user list gets one message for every reason: different messages would
+		// tell whether an account exists, which rights it has and which e-mail it uses (R5-O16).
+		// The error codes stay (callers, tests); only the text shown is the same.
+		$generic = ! current_user_can( 'list_users' );
+		$refuse  = static function ( $code, $message ) use ( $generic ) {
+			return $generic
+				? new \WP_Error( $code, __( 'This account cannot be linked. Only existing accounts without backend rights that are not linked to another partner (and, for partner managers, with the partner\'s e-mail address) can be linked. Ask an administrator if you are unsure.', 'affiliate-captain' ) )
+				: new \WP_Error( $code, $message );
+		};
 		if ( ! $wp ) {
-			return new \WP_Error( 'wpac_no_user', __( 'No WordPress user with this ID or e-mail address was found.', 'affiliate-captain' ) );
+			return $refuse( 'wpac_no_user', __( 'No WordPress user with this ID or e-mail address was found.', 'affiliate-captain' ) );
 		}
 		$problem = self::link_problem( $aff, $wp );
 		if ( '' !== $problem ) {
-			return new \WP_Error( 'wpac_link', $problem );
+			return $refuse( 'wpac_link', $problem );
 		}
 		// Whoever controls the linked account sees the partner area and can enter bank details:
 		// never one's own account, and an account with another e-mail address only with the
@@ -700,7 +712,7 @@ final class AffiliateRepository {
 		}
 		$same_email = strtolower( (string) $wp->user_email ) === strtolower( (string) $aff->email );
 		if ( ! $same_email && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
-			return new \WP_Error( 'wpac_link_email', __( 'The account\'s e-mail address differs from the partner\'s. Only program managers can link such an account; otherwise change the partner\'s e-mail address first.', 'affiliate-captain' ) );
+			return $refuse( 'wpac_link_email', __( 'The account\'s e-mail address differs from the partner\'s. Only program managers can link such an account; otherwise change the partner\'s e-mail address first.', 'affiliate-captain' ) );
 		}
 		$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'affiliates' ) . ' SET user_id = %d WHERE id = %d AND user_id = 0', (int) $wp->ID, (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		self::clear_cache( (int) $id );
@@ -884,18 +896,21 @@ final class AffiliateRepository {
 			false
 		);
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-		$base        = \WPAffiliateCaptain\Core\Locale::page_url( (int) Settings::get( 'portal_page_id' ), \WPAffiliateCaptain\Core\Locale::for_affiliate( $aff ) );
-		$link        = add_query_arg( array( 'wpac_link_account' => $token, 'wpac_aff' => $id ), $base );
-		$sent = Notifications::send(
-			'link_account',
-			$aff->email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Connect your partner account', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: %s: link */
-			sprintf( __( "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.", 'affiliate-captain' ), $link ),
-			array( 'affiliate_id' => (int) $id )
-		);
-		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		try {
+			$base = \WPAffiliateCaptain\Core\Locale::page_url( (int) Settings::get( 'portal_page_id' ), \WPAffiliateCaptain\Core\Locale::for_affiliate( $aff ) );
+			$link = add_query_arg( array( 'wpac_link_account' => $token, 'wpac_aff' => $id ), $base );
+			$sent = Notifications::send(
+				'link_account',
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Connect your partner account', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: %s: link */
+				sprintf( __( "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.", 'affiliate-captain' ), $link ),
+				array( 'affiliate_id' => (int) $id )
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
 		if ( ! $sent ) {
 			// Suppressed (import without e-mails) or failed: nobody got the token, so nothing is
 			// pending and the link can be sent right away (no 10-minute lock, no "link sent").
@@ -935,14 +950,43 @@ final class AffiliateRepository {
 	}
 
 	/**
+	 * Shorten a slug to $max bytes. Non-Latin names are stored URL-encoded ("%d0%b0…"): the cut
+	 * never ends inside an escape or a multi-byte character (a slug ending in "%d" or in half a
+	 * character is never found again, and the next partner collides with it).
+	 *
+	 * @param string $slug Sanitized slug.
+	 * @param int    $max  Bytes.
+	 * @return string
+	 */
+	public static function cut_slug( $slug, $max ) {
+		$slug = (string) $slug;
+		if ( strlen( $slug ) <= $max ) {
+			return $slug;
+		}
+		$cut = (string) preg_replace( '/%[0-9a-f]?$/i', '', substr( $slug, 0, $max ) );
+		if ( preg_match( '/(?:%[0-9a-f]{2})+$/i', $cut, $m ) ) {
+			$bytes = rawurldecode( $m[0] );
+			while ( '' !== $bytes && ! mb_check_encoding( $bytes, 'UTF-8' ) ) {
+				$bytes = substr( $bytes, 0, -1 );
+			}
+			$encoded = '';
+			foreach ( '' !== $bytes ? str_split( $bytes ) : array() as $byte ) {
+				$encoded .= '%' . bin2hex( $byte );
+			}
+			$cut = substr( $cut, 0, strlen( $cut ) - strlen( $m[0] ) ) . $encoded;
+		}
+		return trim( $cut, '-' );
+	}
+
+	/**
 	 * Unique vanity slug.
 	 *
 	 * @param string $base Base.
 	 * @return string
 	 */
 	public static function unique_slug( $base ) {
-		$slug = sanitize_title( $base );
-		$slug = Db::cut( '' !== $slug ? $slug : 'partner', 50 );
+		$slug = self::cut_slug( sanitize_title( $base ), 50 );
+		$slug = '' !== $slug ? $slug : 'partner';
 		// One query for the slug and all its numbered variants (an import with many info@/office@
 		// addresses would otherwise check the candidates one by one).
 		global $wpdb;

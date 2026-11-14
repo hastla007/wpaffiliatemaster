@@ -201,10 +201,6 @@ final class RuleRepository {
 		if ( 'fixed' === $rate_type ) {
 			return Money::format( (int) $rate, $currency ? $currency : Settings::get( 'currency' ) );
 		}
-		$rate = (string) $rate;
-		if ( false !== strpos( $rate, '.' ) ) {
-			$rate = rtrim( rtrim( $rate, '0' ), '.' );
-		}
-		return $rate . ' %';
+		return \WPAffiliateCaptain\Core\Locale::percent( (string) $rate ); // Localized: "12,5 %" (R6-MS13).
 	}
 }

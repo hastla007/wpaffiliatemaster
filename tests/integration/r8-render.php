@@ -197,9 +197,11 @@ foreach ( array( array(), array( 'wpac_reg' => 'confirm' ), array( 'wpac_reg' =>
 	$r    = r_render( array( WPAffiliateCaptain\Affiliates\Registration::class, 'render' ) );
 	check( 'R8-RENDER registration ' . wp_json_encode( $r_q ) . ' without PHP problems', array( true, array(), '' ), array( '' !== trim( $r[0] ), $r[1], $r[2] ) );
 }
-$_GET = array();
-$r    = r_render( array( WPAffiliateCaptain\Affiliates\Registration::class, 'render' ) );
-check( 'R8-RENDER registration form has the e-mail field', true, false !== strpos( $r[0], 'type="email"' ) );
+// With public partner groups the form first asks for the group (?wpac_group=…), then shows the fields.
+$r_public = WPAffiliateCaptain\Affiliates\Groups::public_groups();
+$_GET     = $r_public ? array( 'wpac_group' => (string) (int) reset( $r_public )->id ) : array();
+$r        = r_render( array( WPAffiliateCaptain\Affiliates\Registration::class, 'render' ) );
+check( 'R8-RENDER registration form has the e-mail field', array( true, array(), '' ), array( false !== strpos( $r[0], 'type="email"' ), $r[1], $r[2] ) );
 
 $_GET                 = $r_get_backup;
 $GLOBALS['test_user'] = $r_user;

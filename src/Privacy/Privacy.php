@@ -694,23 +694,26 @@ final class Privacy {
 			return 'privacy_failed';
 		}
 		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
-		$sent     = \WPAffiliateCaptain\Affiliates\Notifications::send(
-			'privacy_request',
-			\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
-			'restrict' === $type
-				/* translators: %s: partner */
-				? sprintf( __( 'Data protection: %s asks to restrict processing', 'affiliate-captain' ), $aff->name )
-				/* translators: %s: partner */
-				: sprintf( __( 'Data protection: %s objects to processing', 'affiliate-captain' ), $aff->name ),
-			/* translators: 1: details, 2: URL */
-			sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) ),
-			array(
-				'admin'        => true,
-				'reply_to'     => is_email( $aff->email ) ? (string) $aff->email : '',
-				'affiliate_id' => (int) $aff->id,
-			)
-		);
-		\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		try {
+			$sent     = \WPAffiliateCaptain\Affiliates\Notifications::send(
+				'privacy_request',
+				\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
+				'restrict' === $type
+					/* translators: %s: partner */
+					? sprintf( __( 'Data protection: %s asks to restrict processing', 'affiliate-captain' ), $aff->name )
+					/* translators: %s: partner */
+					: sprintf( __( 'Data protection: %s objects to processing', 'affiliate-captain' ), $aff->name ),
+				/* translators: 1: details, 2: URL */
+				sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) ),
+				array(
+					'admin'        => true,
+					'reply_to'     => is_email( $aff->email ) ? (string) $aff->email : '',
+					'affiliate_id' => (int) $aff->id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
 		Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type, 'mail' => $sent ? 'sent' : 'failed' ) );
 		// Only claim "sent" when the operator really got the request (the mail is its only record).
 		return $sent ? 'privacy_sent' : 'privacy_failed';

@@ -39,7 +39,7 @@ final class RulesPage {
 						'scope'        => sanitize_key( Admin::post( 'scope' ) ),
 						'scope_id'     => Admin::post( 'scope' ) === 'group' ? absint( Admin::post( 'group_id' ) ) : AffiliateRepository::resolve_input( sanitize_text_field( (string) Admin::post( 'affiliate_id' ) ) ),
 						'target'       => sanitize_key( Admin::post( 'target' ) ),
-						'target_value' => Admin::post( 'target_value' ),
+						'target_value' => self::posted_target_value( sanitize_key( Admin::post( 'target' ) ) ),
 						'rate_type'    => sanitize_key( Admin::post( 'rate_type' ) ),
 						'rate'         => Admin::post( 'rate' ),
 						'priority'     => (int) Admin::post( 'priority', 0 ),
@@ -285,7 +285,11 @@ final class RulesPage {
 		foreach ( $targets as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'target', 'all' ), $k, false ), esc_html( $l ) );
 		}
-		echo '</select> <span data-wpac-depends="target=product|category|tag|sku"><input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'IDs or SKUs', 'affiliate-captain' ) . '" aria-describedby="wpac-target-hint"><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'affiliate-captain' ) . '</span></span></td></tr>';
+		echo '</select>';
+		// With WooCommerce: products by search and categories from a list instead of typed IDs (R5-O51).
+		$pickers = self::target_pickers( $v( 'target' ), $v( 'target_value' ) );
+		echo $pickers; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped in target_pickers().
+		echo ' <span data-wpac-depends="target=' . ( '' !== $pickers ? 'tag|sku' : 'product|category|tag|sku' ) . '"><input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'IDs or SKUs', 'affiliate-captain' ) . '" aria-describedby="wpac-target-hint"><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'affiliate-captain' ) . '</span></span></td></tr>';
 		echo '<tr><th><label for="wpac-rule-type">' . esc_html__( 'Commission', 'affiliate-captain' ) . '</label></th><td><select name="rate_type" id="wpac-rule-type">';
 		foreach ( array( 'percent' => __( 'Percent of net', 'affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ), 'exclude' => __( 'Exclude (no commission)', 'affiliate-captain' ) ) as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'rate_type', 'percent' ), $k, false ), esc_html( $l ) );
@@ -298,6 +302,62 @@ final class RulesPage {
 		submit_button( $edit ? __( 'Save rule', 'affiliate-captain' ) : __( 'Add rule', 'affiliate-captain' ) );
 		echo '</form>';
 
+	}
+
+	/**
+	 * Product search and category list for a rule (WooCommerce): '' without WooCommerce.
+	 *
+	 * @param string $target Current target.
+	 * @param string $value  Current IDs (comma separated).
+	 * @return string HTML.
+	 */
+	private static function target_pickers( $target, $value ) {
+		if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'wc_get_product' ) ) {
+			return '';
+		}
+		wp_enqueue_script( 'wc-enhanced-select' );
+		wp_enqueue_style( 'woocommerce_admin_styles' );
+		$ids = array_filter( array_map( 'absint', explode( ',', (string) $value ) ) );
+		$out = ' <span data-wpac-depends="target=product"><label class="screen-reader-text" for="wpac-rule-products">' . esc_html__( 'Products', 'affiliate-captain' ) . '</label><select class="wc-product-search" multiple="multiple" style="min-width:320px" id="wpac-rule-products" name="target_products[]" data-placeholder="' . esc_attr__( 'Search for a product…', 'affiliate-captain' ) . '" data-action="woocommerce_json_search_products_and_variations">';
+		if ( 'product' === $target ) {
+			foreach ( $ids as $id ) {
+				$product = wc_get_product( $id );
+				$out    .= '<option value="' . (int) $id . '" selected="selected">' . esc_html( $product ? wp_strip_all_tags( $product->get_formatted_name() ) : '#' . $id ) . '</option>';
+			}
+		}
+		$out .= '</select></span>';
+		$terms = get_terms(
+			array(
+				'taxonomy'   => 'product_cat',
+				'hide_empty' => false,
+				'number'     => 500,
+			)
+		);
+		$out .= ' <span data-wpac-depends="target=category"><label class="screen-reader-text" for="wpac-rule-categories">' . esc_html__( 'Categories', 'affiliate-captain' ) . '</label><select class="wc-enhanced-select" multiple="multiple" style="min-width:320px" id="wpac-rule-categories" name="target_categories[]" data-placeholder="' . esc_attr__( 'Choose categories…', 'affiliate-captain' ) . '">';
+		foreach ( is_array( $terms ) ? $terms : array() as $term ) {
+			$out .= '<option value="' . (int) $term->term_id . '"' . ( 'category' === $target && in_array( (int) $term->term_id, $ids, true ) ? ' selected="selected"' : '' ) . '>' . esc_html( $term->name ) . '</option>';
+		}
+		return $out . '</select></span>';
+	}
+
+	/**
+	 * Target value of the rule form: chosen products/categories, else the typed value.
+	 *
+	 * @param string $target Target.
+	 * @return string
+	 */
+	private static function posted_target_value( $target ) {
+		$lists = array(
+			'product'  => 'target_products',
+			'category' => 'target_categories',
+		);
+		if ( isset( $lists[ $target ] ) ) {
+			$ids = array_filter( array_map( 'absint', (array) Admin::post( $lists[ $target ], array() ) ) );
+			if ( $ids ) {
+				return implode( ',', $ids );
+			}
+		}
+		return (string) Admin::post( 'target_value' );
 	}
 
 	/**

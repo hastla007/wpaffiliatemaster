@@ -10,6 +10,7 @@
 
 class WP_List_Table {
 	public $items = array();
+	public $screen = null;
 	protected $_args = array();
 	protected $_pagination_args = array();
 	protected $_column_headers;

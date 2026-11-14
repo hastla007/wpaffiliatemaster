@@ -163,6 +163,30 @@ final class CommissionsPage {
 	}
 
 	/**
+	 * Partner filter: a partner number, or a name, e-mail or slug that matches exactly one
+	 * partner (R5-O51). -1 = no or several matches (the list is then empty).
+	 *
+	 * @param string $raw Input.
+	 * @return int
+	 */
+	public static function partner_filter( $raw ) {
+		$raw = trim( (string) $raw );
+		if ( '' === $raw ) {
+			return 0;
+		}
+		if ( ctype_digit( ltrim( $raw, '#' ) ) ) {
+			return absint( ltrim( $raw, '#' ) );
+		}
+		list( $rows, $total ) = AffiliateRepository::query(
+			array(
+				'search' => $raw,
+				'limit'  => 2,
+			)
+		);
+		return 1 === (int) $total && $rows ? (int) $rows[0]->id : -1;
+	}
+
+	/**
 	 * Read filters from GET or POST.
 	 *
 	 * @param string $from get|post.
@@ -173,7 +197,7 @@ final class CommissionsPage {
 			return 'post' === $from ? sanitize_text_field( (string) Admin::post( $k ) ) : Admin::get( $k );
 		};
 		return array(
-			'affiliate_id' => absint( $read( 'affiliate_id' ) ),
+			'affiliate_id' => self::partner_filter( $read( 'affiliate_id' ) ),
 			'status'       => sanitize_key( $read( 'status' ) ),
 			'source'       => sanitize_key( $read( 'source' ) ),
 			'order_id'     => $read( 'order_id' ),
@@ -196,6 +220,9 @@ final class CommissionsPage {
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Commissions', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
+		if ( -1 === $filters['affiliate_id'] ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'No single partner matches this name. Enter more of the name, the e-mail address or the partner number.', 'affiliate-captain' ) . '</p></div>';
+		}
 
 		// Filters.
 		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac-commissions">';
@@ -204,11 +231,11 @@ final class CommissionsPage {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $filters['status'], $k, false ), esc_html( $l ) );
 		}
 		echo '</select> ';
-		echo '<input type="number" name="affiliate_id" placeholder="' . esc_attr__( 'Partner ID', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['affiliate_id'] ? $filters['affiliate_id'] : '' ) . '" class="small-text"> ';
+		echo '<label class="screen-reader-text" for="wpac-filter-partner">' . esc_html__( 'Partner', 'affiliate-captain' ) . '</label><input type="search" id="wpac-filter-partner" name="affiliate_id" placeholder="' . esc_attr__( 'Partner (name, e-mail or number)', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'affiliate_id' ) ) . '" size="24"> ';
 		echo '<input type="text" name="source" placeholder="' . esc_attr__( 'Source', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['source'] ) . '" size="12"> ';
 		echo '<input type="text" name="order_id" placeholder="' . esc_attr__( 'Order', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['order_id'] ) . '" size="8"> ';
-		echo '<label>' . esc_html__( 'from', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $filters['from'] ) . '"></label> ';
-		echo '<label>' . esc_html__( 'to', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $filters['to'] ) . '"></label> ';
+		echo '<label>' . esc_html_x( 'From', 'date range start', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $filters['from'] ) . '"></label> ';
+		echo '<label>' . esc_html_x( 'To', 'date range end', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $filters['to'] ) . '"></label> ';
 		echo '<button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button></form>';
 
 		Admin::form_open( 'commission_export', 'wpac-inline' );

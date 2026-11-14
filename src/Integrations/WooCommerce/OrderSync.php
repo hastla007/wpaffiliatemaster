@@ -533,8 +533,15 @@ final class OrderSync {
 				? __( 'Affiliate Captain: the partner commission could not be booked yet and will be retried automatically (Affiliate Captain → Integrations).', 'affiliate-captain' )
 				: __( 'Affiliate Captain: the refund could not be deducted from the partner commission yet and will be retried automatically (Affiliate Captain → Integrations).', 'affiliate-captain' );
 		} else {
-			/* translators: 1: error message, 2: error code */
-			$note = sprintf( 'sale' === $what ? __( 'Affiliate Captain: the sale could not be booked: %1$s (%2$s)', 'affiliate-captain' ) : __( 'Affiliate Captain: the refund could not be booked: %1$s (%2$s)', 'affiliate-captain' ), $error->get_error_message(), $code );
+			$note = sprintf(
+				'sale' === $what
+					/* translators: 1: error message, 2: error code */
+					? __( 'Affiliate Captain: the sale could not be booked: %1$s (%2$s)', 'affiliate-captain' )
+					/* translators: 1: error message, 2: error code */
+					: __( 'Affiliate Captain: the refund could not be booked: %1$s (%2$s)', 'affiliate-captain' ),
+				$error->get_error_message(),
+				$code
+			);
 		}
 		$order->add_order_note( $note );
 	}

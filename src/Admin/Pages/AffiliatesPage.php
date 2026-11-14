@@ -79,7 +79,7 @@ final class AffiliatesPage {
 			case 'terms_remind':
 				$result = Agreements::start_reminders();
 				if ( is_wp_error( $result ) ) {
-					Admin::back( $result->get_error_message(), 'wpac_none' === $result->get_error_code() ? 'info' : 'error' );
+					Admin::back( $result->get_error_message(), in_array( $result->get_error_code(), array( 'wpac_none', 'wpac_maintenance' ), true ) ? 'info' : 'error' );
 				}
 				/* translators: %d: number of partners */
 				Admin::back( sprintf( _n( '%d partner without the current acceptance is asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', '%d partners without the current acceptance are asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week).', $result, 'affiliate-captain' ), $result ) );
@@ -325,21 +325,32 @@ final class AffiliatesPage {
 	public static function process_bulk() {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- verified below.
 		$action = isset( $_REQUEST['action'] ) && '-1' !== $_REQUEST['action'] ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : ( isset( $_REQUEST['action2'] ) ? sanitize_key( wp_unslash( $_REQUEST['action2'] ) ) : '' );
-		if ( 'approve' !== $action || empty( $_REQUEST['ids'] ) ) {
+		if ( ! in_array( $action, array( 'approve', 'reject' ), true ) || empty( $_REQUEST['ids'] ) ) {
 			return;
 		}
 		check_admin_referer( 'bulk-partners' );
 		$ids = array_map( 'absint', (array) wp_unslash( $_REQUEST['ids'] ) );
 		// phpcs:enable
-		$done = 0;
+		$done    = 0;
+		$skipped = 0;
 		foreach ( $ids as $id ) {
 			$aff = AffiliateRepository::find( $id );
-			if ( $aff && 'pending' === $aff->status && true === AffiliateRepository::set_status( $id, 'active' ) ) {
+			if ( $aff && 'pending' === $aff->status && true === AffiliateRepository::set_status( $id, 'approve' === $action ? 'active' : 'rejected' ) ) {
 				++$done;
+			} else {
+				++$skipped; // Not an application (any more).
 			}
 		}
-		/* translators: %d: number */
-		Admin::back( sprintf( _n( '%d application approved.', '%d applications approved.', $done, 'affiliate-captain' ), $done ), 'success', remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer' ) ) );
+		$message = 'approve' === $action
+			/* translators: %d: number */
+			? sprintf( _n( '%d application approved.', '%d applications approved.', $done, 'affiliate-captain' ), $done )
+			/* translators: %d: number */
+			: sprintf( _n( '%d application rejected.', '%d applications rejected.', $done, 'affiliate-captain' ), $done );
+		if ( $skipped ) {
+			/* translators: %d: number */
+			$message .= ' ' . sprintf( _n( '%d selected partner was skipped because it is not a pending application.', '%d selected partners were skipped because they are not pending applications.', $skipped, 'affiliate-captain' ), $skipped );
+		}
+		Admin::back( $message, $skipped ? 'warning' : 'success', remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer' ) ) );
 	}
 
 	/**
@@ -593,7 +604,7 @@ final class AffiliatesPage {
 				echo '<tr><td><code>' . esc_html( $c->code ) . '</code><br><small>' . esc_html( add_query_arg( $param, $c->code, home_url( '/' ) ) ) . '</small></td><td>';
 				Admin::form_open( 'code_coupon', 'wpac-inline' );
 				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="text" name="coupon_code" value="' . esc_attr( $c->coupon_code ) . '" size="10" aria-label="' . esc_attr__( 'Coupon code', 'affiliate-captain' ) . '"> <button class="button button-small">' . esc_html__( 'Link', 'affiliate-captain' ) . '</button></form>';
-				echo '</td><td>' . (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) . '</td><td>' . esc_html( 'active' === $c->status ? __( 'Active', 'affiliate-captain' ) : __( 'Blocked', 'affiliate-captain' ) ) . ( $c->expires_at ? '<br><small>' . esc_html__( 'until', 'affiliate-captain' ) . ' ' . esc_html( Admin::date( $c->expires_at ) ) . '</small>' : '' ) . '</td><td>';
+				echo '</td><td>' . (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) . '</td><td>' . esc_html( 'active' === $c->status ? __( 'Active', 'affiliate-captain' ) : __( 'Blocked', 'affiliate-captain' ) ) . ( $c->expires_at ? '<br><small>' . esc_html( sprintf( /* translators: %s: date */ __( 'until %s', 'affiliate-captain' ), Admin::date( $c->expires_at ) ) ) . '</small>' : '' ) . '</td><td>';
 				Admin::form_open( 'code_status', 'wpac-inline' );
 				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="hidden" name="status" value="' . ( 'active' === $c->status ? 'blocked' : 'active' ) . '"><button class="button button-small"' . ( 'active' === $c->status ? ' data-wpac-confirm="' . esc_attr__( 'Block this code? Links and coupons with it no longer credit the partner.', 'affiliate-captain' ) . '"' : '' ) . '>' . esc_html( 'active' === $c->status ? __( 'Block', 'affiliate-captain' ) : __( 'Unblock', 'affiliate-captain' ) ) . '</button></form></td></tr>';
 			}
@@ -644,8 +655,8 @@ final class AffiliatesPage {
 			echo '</select></td></tr>';
 			self::row_input( 'legal_name', __( 'Legal name', 'affiliate-captain' ), $v( 'legal_name' ) );
 			echo '<tr><th><label for="wpac-address">' . esc_html__( 'Address', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-address" name="address" rows="3" class="regular-text">' . esc_textarea( $v( 'address' ) ) . '</textarea></td></tr>';
-			self::row_input( 'country', __( 'Country', 'affiliate-captain' ), $v( 'country' ), 'maxlength="2"' );
-			self::row_input( 'vat_id', __( 'VAT ID', 'affiliate-captain' ), $v( 'vat_id' ) );
+			self::row_input( 'country', __( 'Country', 'affiliate-captain' ), $v( 'country' ), 'maxlength="2" dir="ltr"' );
+			self::row_input( 'vat_id', __( 'VAT ID', 'affiliate-captain' ), $v( 'vat_id' ), 'dir="ltr"' );
 			$pending = TaxHistory::pending( $id );
 			// Only a result for the stored VAT ID (or the one waiting for approval) is meaningful.
 			$vies     = \WPAffiliateCaptain\Payouts\Vies::result_for( $id, array( $p ? (string) $p->vat_id : '', $pending ? (string) $pending['new']['vat_id'] : '' ) );
@@ -683,12 +694,13 @@ final class AffiliatesPage {
 				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $method, $k, false ), esc_html( $l ) );
 			}
 			echo '</select><p class="description">' . esc_html__( 'Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.', 'affiliate-captain' ) . '</p></td></tr>';
-			self::row_input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ) );
+			// Fields of the chosen method only (admin.js; all visible without JavaScript) – R5-O48.
+			self::row_input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), '', 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '"' );
 			$masked = $p && ProfileRepository::METHOD_SEPA === ProfileRepository::method( $p ) ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
-			self::row_input( 'iban', __( 'IBAN', 'affiliate-captain' ), '', 'autocomplete="off" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'affiliate-captain' ) : '' ) . '"' );
-			self::row_input( 'bic', __( 'BIC', 'affiliate-captain' ), $v( 'bic' ) );
+			self::row_input( 'iban', __( 'IBAN', 'affiliate-captain' ), '', 'autocomplete="off" dir="ltr" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'affiliate-captain' ) : '' ) . '"', 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '"' );
+			self::row_input( 'bic', __( 'BIC', 'affiliate-captain' ), $v( 'bic' ), 'dir="ltr"', 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '"' );
 			$details = ProfileRepository::payment_details( $p );
-			echo '<tr><th><label for="wpac-payment-details">' . esc_html__( 'Payment details (other method)', 'affiliate-captain' ) . '</label></th><td><textarea name="payment_details" id="wpac-payment-details" rows="3" class="regular-text" autocomplete="off" placeholder="' . esc_attr( null !== $details ? __( 'Stored – leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '">' . esc_textarea( $typed ) . '</textarea>';
+			echo '<tr data-wpac-depends="payout_method=' . esc_attr( ProfileRepository::METHOD_MANUAL ) . '"><th><label for="wpac-payment-details">' . esc_html__( 'Payment details (other method)', 'affiliate-captain' ) . '</label></th><td><textarea name="payment_details" id="wpac-payment-details" rows="3" class="regular-text" autocomplete="off" placeholder="' . esc_attr( null !== $details ? __( 'Stored – leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '">' . esc_textarea( $typed ) . '</textarea>';
 			if ( null !== $details ) {
 				/* translators: %s: stored payment details */
 				echo '<p class="description">' . esc_html( sprintf( __( 'Stored: %s', 'affiliate-captain' ), $details ) ) . '</p>';
@@ -728,12 +740,21 @@ final class AffiliatesPage {
 		ob_start();
 		// Audit.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'History', 'affiliate-captain' ) . '</h2><div class="inside"><ul class="wpac-history">';
-		foreach ( Audit::query( array( 'object_type' => 'affiliate', 'object_id' => $id, 'limit' => 20 ) ) as $log ) {
+		$history = Audit::query( array( 'object_type' => 'affiliate', 'object_id' => $id, 'limit' => 21 ) );
+		if ( ! $history ) {
+			echo '<li>' . esc_html__( 'No entries yet.', 'affiliate-captain' ) . '</li>';
+		}
+		foreach ( array_slice( $history, 0, 20 ) as $log ) {
 			$user    = $log->actor_id ? get_userdata( (int) $log->actor_id ) : null;
 			$details = AuditPage::details_text( (string) $log->details );
 			echo '<li><strong>' . esc_html( AuditPage::action_label( $log->action ) ) . '</strong> · ' . esc_html( Admin::date( $log->created_at, true ) ) . ' · ' . esc_html( $user ? $user->display_name : __( 'System', 'affiliate-captain' ) ) . ( '' !== $details ? '<br><span class="description">' . esc_html( $details ) . '</span>' : '' ) . '</li>';
 		}
-		echo '</ul></div></div>';
+		echo '</ul>';
+		if ( count( $history ) > 20 ) {
+			// The 20 newest entries; the full history is in the audit log (R5-O51).
+			echo '<p><a href="' . esc_url( Admin::url( 'wpac-audit', array( 'object_type' => 'affiliate', 'object_id' => $id ) ) ) . '">' . esc_html__( 'Show the full history in the audit log', 'affiliate-captain' ) . '</a></p>';
+		}
+		echo '</div></div>';
 
 		$parts['history'][] = ob_get_clean();
 		ob_start();
@@ -815,14 +836,23 @@ final class AffiliatesPage {
 		echo '</p>';
 		if ( $state && empty( $state['done'] ) ) {
 			/* translators: 1: sent, 2: total */
-			echo '<p>' . esc_html( sprintf( __( 'Reminders are being sent: %1$d of %2$d.', 'affiliate-captain' ), (int) $state['sent'], (int) $state['total'] ) ) . '</p>';
+			echo '<p>' . esc_html( sprintf( __( 'Reminders are being sent: %1$d of %2$d.', 'affiliate-captain' ), (int) $state['sent'], (int) $state['total'] ) ) . ( ! empty( $state['paused'] ) ? ' ' . esc_html__( 'Paused while maintenance mode is on.', 'affiliate-captain' ) : '' ) . '</p>';
 		} else {
 			if ( $state && ! empty( $state['done'] ) ) {
 				/* translators: 1: date, 2: number */
-				echo '<p class="description">' . esc_html( sprintf( __( 'Last reminder on %1$s: %2$d e-mails sent.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), (int) $state['started'] ), (int) $state['sent'] ) ) . '</p>';
+				echo '<p class="description">' . esc_html( sprintf( _n( 'Last reminder on %1$s: %2$d e-mail sent.', 'Last reminder on %1$s: %2$d e-mails sent.', (int) $state['sent'], 'affiliate-captain' ), wp_date( get_option( 'date_format' ), (int) $state['started'] ), (int) $state['sent'] ) ) . '</p>';
 			}
-			Admin::form_open( 'terms_remind' );
-			echo '<p><button class="button" data-wpac-confirm="' . esc_attr__( 'Send an e-mail to every active partner without the current acceptance?', 'affiliate-captain' ) . '">' . esc_html__( 'Ask partners to accept the current terms', 'affiliate-captain' ) . '</button></p></form>';
+			$recipients = count( Agreements::reminder_recipients( $missing ) );
+			if ( $recipients ) {
+				Admin::form_open( 'terms_remind' );
+				/* translators: %d: number of partners */
+				echo '<p><button class="button" data-wpac-confirm="' . esc_attr( sprintf( _n( 'Send an e-mail to %d active partner without the current acceptance?', 'Send an e-mail to %d active partners without the current acceptance?', $recipients, 'affiliate-captain' ), $recipients ) ) . '">' . esc_html__( 'Ask partners to accept the current terms', 'affiliate-captain' ) . '</button>';
+				if ( $recipients < count( $missing ) ) {
+					/* translators: %d: number of partners */
+					echo ' <span class="description">' . esc_html( sprintf( _n( '%d partner is left out (reminded in the last 7 days, restricted or without a valid e-mail address).', '%d partners are left out (reminded in the last 7 days, restricted or without a valid e-mail address).', count( $missing ) - $recipients, 'affiliate-captain' ), count( $missing ) - $recipients ) ) . '</span>';
+				}
+				echo '</p></form>';
+			}
 		}
 		echo '</div>';
 	}
@@ -946,15 +976,16 @@ final class AffiliatesPage {
 	 * @param string $value Value.
 	 * @param string $extra Extra attributes (escaped).
 	 */
-	private static function row_input( $name, $label, $value, $extra = '' ) {
+	private static function row_input( $name, $label, $value, $extra = '', $row = '' ) {
 		$type = false !== strpos( $extra, 'type=' ) ? '' : 'type="text"';
 		printf(
-			'<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input %5$s id="wpac-%1$s" name="%1$s" value="%3$s" class="regular-text" %4$s></td></tr>',
+			'<tr%6$s><th><label for="wpac-%1$s">%2$s</label></th><td><input %5$s id="wpac-%1$s" name="%1$s" value="%3$s" class="regular-text" %4$s></td></tr>',
 			esc_attr( $name ),
 			esc_html( $label ),
 			esc_attr( $value ),
 			$extra, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			$type // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			$type, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			'' !== $row ? ' ' . $row : '' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute strings of the callers.
 		);
 	}
 

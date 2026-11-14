@@ -871,7 +871,7 @@ final class Tracker {
 		if ( RateLimiter::behind_untrusted_proxy() ) {
 			$out[] = array(
 				__( 'Proxy or CDN not configured', 'affiliate-captain' ),
-				__( 'This request came through a proxy/CDN (X-Forwarded-For) that is not listed under Settings → Security → Trusted proxies. All visitors then share the proxy address: code checks and registrations hit the limits early. Add the proxy addresses, or raise single limits with the filter wpac_rate_limit.', 'affiliate-captain' ),
+				__( 'This request came through a proxy/CDN (X-Forwarded-For) that is not listed under Settings → Fraud & abuse → Trusted proxies / CDN. All visitors then share the proxy address: code checks and registrations hit the limits early. Add the proxy addresses, or raise single limits with the filter wpac_rate_limit.', 'affiliate-captain' ),
 			);
 		}
 		$name = self::cookie_name();

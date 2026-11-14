@@ -1141,7 +1141,7 @@ final class Notifications {
 				$body    = __( 'Your partner account has been reactivated. Your links and codes work again.', 'affiliate-captain' );
 		}
 		/* translators: 1: name, 2: message, 3: reason */
-		$message = sprintf( __( "Hello %1\$s,\n\n%2\$s\n\n%3\$s", 'affiliate-captain' ), $aff->name, $body, $reason ? __( 'Reason', 'affiliate-captain' ) . ': ' . $reason : '' );
+		$message = sprintf( __( "Hello %1\$s,\n\n%2\$s\n\n%3\$s", 'affiliate-captain' ), $aff->name, $body, $reason ? sprintf( /* translators: %s: reason entered by the shop team */ __( 'Reason: %s', 'affiliate-captain' ), $reason ) : '' );
 		self::send( 'status_changed', $aff->email, $subject, $message, array( 'affiliate_id' => (int) $aff->id ) );
 	}
 

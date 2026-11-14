@@ -84,7 +84,9 @@ final class Locale {
 		if ( ! function_exists( 'unload_textdomain' ) || ! function_exists( 'load_textdomain' ) ) {
 			return;
 		}
-		unload_textdomain( self::DOMAIN );
+		// Reloadable: without it WordPress (6.1+) marks the domain as unloaded for good and the
+		// just-in-time loader no longer finds translations for later strings of the request.
+		unload_textdomain( self::DOMAIN, true );
 		$files = array(
 			WP_LANG_DIR . '/plugins/' . self::DOMAIN . '-' . $locale . '.mo',
 			WPAC_DIR . 'languages/' . self::DOMAIN . '-' . $locale . '.mo',
@@ -94,6 +96,46 @@ final class Locale {
 				load_textdomain( self::DOMAIN, $file, $locale );
 			}
 		}
+	}
+
+	/**
+	 * Right-to-left overrides of a plugin stylesheet (assets/css/<name>-rtl.css), loaded after it
+	 * for right-to-left languages.
+	 *
+	 * @param string $handle Handle of the main stylesheet.
+	 * @param string $name   File name without extension.
+	 */
+	public static function enqueue_rtl( $handle, $name ) {
+		if ( function_exists( 'is_rtl' ) && is_rtl() && function_exists( 'wp_enqueue_style' ) ) {
+			wp_enqueue_style( $handle . '-rtl', WPAC_URL . 'assets/css/' . $name . '-rtl.css', array( $handle ), WPAC_VERSION );
+		}
+	}
+
+	/**
+	 * A stored decimal ("12.5", "19.00") for display in the current language ("12,5", "19"):
+	 * as many decimals as it has (without trailing zeros), at most 4.
+	 *
+	 * @param string|float|int $value Decimal.
+	 * @return string
+	 */
+	public static function number( $value ) {
+		$text = (string) $value;
+		if ( ! is_numeric( $text ) ) {
+			return $text;
+		}
+		$text = false !== strpos( $text, '.' ) ? rtrim( rtrim( $text, '0' ), '.' ) : $text;
+		$dec  = false !== strpos( $text, '.' ) ? min( 4, strlen( substr( strrchr( $text, '.' ), 1 ) ) ) : 0;
+		return function_exists( 'number_format_i18n' ) ? (string) number_format_i18n( (float) $text, $dec ) : number_format( (float) $text, $dec, '.', ',' );
+	}
+
+	/**
+	 * A percentage for display ("12,5 %" in German, with a non-breaking space).
+	 *
+	 * @param string|float|int $value Decimal percent.
+	 * @return string
+	 */
+	public static function percent( $value ) {
+		return self::number( $value ) . "\u{00A0}%";
 	}
 
 	/**

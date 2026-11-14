@@ -677,6 +677,7 @@ final class Registration {
 		// output cannot see it (builder templates, template parts, synced patterns, widgets).
 		\WPAffiliateCaptain\Promotion\Landing::no_cache();
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
+		\WPAffiliateCaptain\Core\Locale::enqueue_rtl( 'wpac-portal', 'portal' ); // R6-MS11.
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		if ( ! empty( $_GET['wpac_confirm'] ) && is_string( $_GET['wpac_confirm'] ) ) {

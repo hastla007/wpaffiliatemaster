@@ -29,7 +29,7 @@ final class ImportExportPage {
 	const MAX_BYTES = 5242880;
 
 	public static function register_hooks() {
-		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 20 );
+		// The menu entry is added by Admin::menu() (before the technical pages and the settings).
 		add_action( 'admin_post_wpac_import', array( __CLASS__, 'handle_import' ) );
 		add_action( 'admin_post_wpac_import_template', array( __CLASS__, 'handle_template' ) );
 		add_action( 'admin_post_wpac_export', array( __CLASS__, 'handle_export' ) );
@@ -392,7 +392,7 @@ final class ImportExportPage {
 		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Line', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Name', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'E-mail', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Codes', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Rate', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Result', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $report['rows'] as $line => $r ) {
 			$d     = $r['data'];
-			$rate  = $d['rate'] ? ( 'fixed' === $d['rate'][0] ? $d['rate'][1] . ' ' . \WPAffiliateCaptain\Core\Settings::get( 'currency' ) : $d['rate'][1] . ' %' ) : '—';
+			$rate  = $d['rate'] ? ( 'fixed' === $d['rate'][0] ? $d['rate'][1] . ' ' . \WPAffiliateCaptain\Core\Settings::get( 'currency' ) : \WPAffiliateCaptain\Core\Locale::percent( $d['rate'][1] ) ) : '—';
 			$notes = array_merge( $r['notes'], isset( $r['warnings'] ) ? (array) $r['warnings'] : array() );
 			$extra = $notes ? ' – ' . esc_html( implode( '; ', $notes ) ) : '';
 			if ( 'error' === $r['result'] ) {

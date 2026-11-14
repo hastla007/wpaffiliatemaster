@@ -46,13 +46,14 @@ Set both **before** the first partner enters bank details and the first credit n
 
 | Tab | What to set |
 |---|---|
-| Program | application and partner area pages, terms page and version, automatic approval, notification e-mail, e-mail sender and optional partner e-mails |
+| Program | application and partner area pages, terms page and version, automatic approval, open commissions on termination |
+| E-mails & reports | notification e-mail, e-mail sender, optional partner e-mails, monthly summary mails |
 | Tracking | link parameter (default `partner`), checkout field, shop session, cookie mode, attribution (first/last touch), JavaScript tracking for caches |
-| Fraud & abuse | fraud rules, rate limit, trusted proxies (Cloudflare/reverse proxy IP ranges), retention of visits and rejected applications |
-| Commissions | program currency, exchange rates for reports, default rate, hold period, lifetime commissions, subscription renewals |
+| Fraud & abuse | fraud rules, rate limit, trusted proxies (Cloudflare/reverse proxy IP ranges) |
+| Commissions | program currency (changing it converts the minimum payout, review limit and a fixed default rate – with an exchange rate between the two currencies if one is entered; fixed rules and bonus tiers must be adjusted by hand), exchange rates for reports, default rate, rule precedence, lifetime commissions, subscription renewals, hold period |
 | Promotion | landing page path, disclosure note, promotion guidelines |
-| Payouts & credit notes | minimum payout, payout requests, other payment method (on/off), statement retention, self-billing, VAT rate, your country, address, VAT ID/tax number, number prefixes, company bank account for SEPA, VIES check |
-| Reports & data | monthly summary mails, audit log retention, maintenance mode, monitoring token, data deletion on uninstall, record of processing activities |
+| Payouts & credit notes | minimum payout, payout requests, other payment method (on/off); your country, address, VAT ID/tax number; self-billing, VAT rate, number prefixes; VIES check; company bank account for SEPA |
+| Data & maintenance | all retention periods (visits, rejected applications, audit log, statements, legal hold), maintenance mode, monitoring token, data deletion on uninstall, record of processing activities |
 
 **Server cron.** Commissions are released, retries run and old data is deleted by scheduled tasks (hourly and daily). On sites with few visits or with `DISABLE_WP_CRON`, set up a system cron:
 
@@ -68,7 +69,7 @@ On a multisite network `wp cron event run` only reaches the main site. Run it fo
 
 (or `wp wpac cron hourly --network` hourly and `wp wpac cron daily --network` daily).
 
-**Copies of the site.** When the site address changes (staging copy, clone, backup restored on another domain), maintenance mode is switched on automatically and a notice explains it: the copy sends no report mails, alarms, VIES requests or payouts to real partners. After a real move of the site, switch maintenance mode off under Settings → Reports & data. The filter `wpac_clone_protection` (return `false`) turns the detection off.
+**Copies of the site.** When the site address changes (staging copy, clone, backup restored on another domain), maintenance mode is switched on automatically and a notice explains it: the copy sends no report mails, alarms, VIES requests or payouts to real partners. After a real move of the site, switch maintenance mode off under Settings → Data & maintenance. The filter `wpac_clone_protection` (return `false`) turns the detection off.
 
 **Updating by FTP/rsync.** Since 0.10 the main file is `affiliate-captain.php` (folder `affiliate-captain`). If you copy a new version over an old folder `wp-affiliate-captain/`, the old main file `wp-affiliate-captain.php` may stay active: the plugin then switches the activation to the new main file in the same folder by itself (from the next request on; the schema version is part of the code, so nothing runs with old version numbers meanwhile). An old copy in another folder is taken over the same way; "Delete all data on uninstall" is then switched off, so deleting the old copy cannot remove the shared data. A deployment that deletes the old main file (e.g. git) deactivates the plugin – activate "Affiliate Captain" again; nothing is lost.
 
@@ -198,7 +199,7 @@ Settings → Fraud & abuse: maximum orders per partner in 24 hours, maximum orde
 - Lifetime links store a keyed hash of the customer, not the e-mail address.
 - Bank details are encrypted; tax and bank data are only visible with `wpac_view_tax_data`.
 - WordPress privacy tools: personal data export and erasure for partners and customers. Records that must be retained are restricted (Art. 18 GDPR) instead of deleted and erased when the retention period ends.
-- Settings → Privacy → Policy Guide contains a suggested text based on your settings (including the VIES recipient); Settings → Reports & data offers a record of processing activities.
+- Settings → Privacy → Policy Guide contains a suggested text based on your settings (including the VIES recipient); Settings → Data & maintenance offers a record of processing activities.
 - External services: only the VIES check (European Commission) and a loopback request to your own site, see readme.txt → External services.
 
 ## 9. Multisite
@@ -242,7 +243,7 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 
 - **Site Health** (Tools → Site Health) shows the checks: schema, scheduled tasks, failed sales/refunds, account consistency, unwritten credit notes, publicly reachable statement folder, own encryption key, maintenance mode.
 - **Alarm mail:** a daily check e-mails the notification address when a critical check fails.
-- **HTTP endpoint** for uptime monitors: set a monitoring token (at least 20 characters) under Settings → Reports & data, then call
+- **HTTP endpoint** for uptime monitors: set a monitoring token (at least 20 characters) under Settings → Data & maintenance, then call
 
   ```
   curl -fsS -H 'X-WPAC-Monitor-Token: <token>' https://example.com/wp-json/wpac/v1/health

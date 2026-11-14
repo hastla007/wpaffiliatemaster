@@ -1530,11 +1530,12 @@ require __DIR__ . '/r8-g4b.php';
 require __DIR__ . '/r8-g4a.php';
 require __DIR__ . '/r8-g5.php';
 require __DIR__ . '/r8-g3.php';
-require __DIR__ . '/r8-render.php';
 require __DIR__ . '/r8-g11.php';
 require __DIR__ . '/r8-g9.php';
 require __DIR__ . '/r8-g8.php';
 require __DIR__ . '/r8-g7.php';
+require __DIR__ . '/r8-g10.php';
+require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

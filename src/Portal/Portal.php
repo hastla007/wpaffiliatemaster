@@ -606,6 +606,7 @@ final class Portal {
 			self::register_assets();
 		}
 		wp_enqueue_style( 'wpac-portal' );
+		\WPAffiliateCaptain\Core\Locale::enqueue_rtl( 'wpac-portal', 'portal' ); // R6-MS11.
 		wp_enqueue_script( 'wpac-portal' );
 		wp_localize_script(
 			'wpac-portal',
@@ -652,7 +653,7 @@ final class Portal {
 		$admin  = (string) Settings::get( 'admin_email' );
 		$admin  = is_email( $admin ) ? $admin : (string) get_option( 'admin_email' );
 		if ( 'rejected' === $aff->status ) {
-			return '<div class="wpac-notice">' . esc_html__( 'Your application was not accepted.', 'affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html__( 'Reason:', 'affiliate-captain' ) . ' ' . esc_html( $reason ) : '' ) . ' ' . sprintf( /* translators: %s: e-mail link */ esc_html__( 'Questions? Contact us at %s.', 'affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' ) . '</div>';
+			return '<div class="wpac-notice">' . esc_html__( 'Your application was not accepted.', 'affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html( sprintf( /* translators: %s: reason entered by the shop team */ __( 'Reason: %s', 'affiliate-captain' ), $reason ) ) : '' ) . ' ' . sprintf( /* translators: %s: e-mail link */ esc_html__( 'Questions? Contact us at %s.', 'affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' ) . '</div>';
 		}
 
 		$tabs = array(
@@ -706,10 +707,10 @@ final class Portal {
 			echo '<div class="wpac-notice">' . esc_html__( 'The partner area is being maintained. You can look at everything, but changes are possible again shortly.', 'affiliate-captain' ) . '</div>';
 		}
 		if ( 'paused' === $aff->status ) {
-			echo '<div class="wpac-notice">' . esc_html__( 'Your partner account is paused. New sales are currently not attributed.', 'affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html__( 'Reason:', 'affiliate-captain' ) . ' ' . esc_html( $reason ) : '' ) . '</div>';
+			echo '<div class="wpac-notice">' . esc_html__( 'Your partner account is paused. New sales are currently not attributed.', 'affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html( sprintf( /* translators: %s: reason entered by the shop team */ __( 'Reason: %s', 'affiliate-captain' ), $reason ) ) : '' ) . '</div>';
 		}
 		if ( $closed ) {
-			echo '<div class="wpac-notice">' . esc_html__( 'Your partnership has ended. You can still see your commissions and payouts and download your credit notes.', 'affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html__( 'Reason:', 'affiliate-captain' ) . ' ' . esc_html( $reason ) : '' ) . ' ' . sprintf( /* translators: %s: e-mail link */ esc_html__( 'Questions? Contact us at %s.', 'affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' ) . '</div>';
+			echo '<div class="wpac-notice">' . esc_html__( 'Your partnership has ended. You can still see your commissions and payouts and download your credit notes.', 'affiliate-captain' ) . ( '' !== $reason ? ' ' . esc_html( sprintf( /* translators: %s: reason entered by the shop team */ __( 'Reason: %s', 'affiliate-captain' ), $reason ) ) : '' ) . ' ' . sprintf( /* translators: %s: e-mail link */ esc_html__( 'Questions? Contact us at %s.', 'affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' ) . '</div>';
 		}
 		$terms = Agreements::current( (int) $aff->group_id );
 		if ( ! $closed && $terms['page_id'] && ! Agreements::has_current( (int) $aff->id ) ) {

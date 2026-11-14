@@ -122,7 +122,7 @@ check( 'R7-PU8 conditions show rate, cookie duration and hold period', array( tr
 $wpdb->insert( t( 'rules' ), array( 'scope' => 'affiliate', 'scope_id' => $g9_aff, 'target' => 'all', 'rate_type' => 'percent', 'rate' => '15', 'active' => 1, 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
 $wpdb->insert( t( 'rules' ), array( 'scope' => 'global', 'scope_id' => 0, 'target' => 'product', 'target_value' => '77', 'rate_type' => 'percent', 'rate' => '5', 'active' => 1, 'created_at' => Db::now(), 'updated_at' => Db::now() ) );
 $g9_cond = Portal::conditions( $g9_a );
-check( 'R7-PU8 own partner rule is shown, product rules as a hint', array( 0, true ), array( strpos( (string) $g9_cond['Your commission'], '15 %' ), isset( $g9_cond['Special rates'] ) ) );
+check( 'R7-PU8 own partner rule is shown, product rules as a hint', array( 0, true ), array( strpos( str_replace( "\u{00A0}", ' ', (string) $g9_cond['Your commission'] ), '15 %' ), isset( $g9_cond['Special rates'] ) ) );
 $wpdb->query( "DELETE FROM " . t( 'rules' ) . " WHERE scope_id = " . (int) $g9_aff . " OR target_value = '77'" );
 
 // R7-PU13: link generator accepts www/upper case/path variants, rejects other sites; sub-ID; no forced source.

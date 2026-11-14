@@ -351,11 +351,16 @@ final class Editor {
 			return '';
 		}
 		$code = $partner ? CodeRepository::main_code( (int) $aff->id ) : '';
-		if ( $code && function_exists( 'wp_enqueue_script' ) ) {
-			// Selects the link on focus (no inline JavaScript).
-			wp_enqueue_script( 'wpac-portal', WPAC_URL . 'assets/js/portal.js', array(), WPAC_VERSION, true );
+		// Styled like the partner area, copy field with a label and button (no inline script; R5-O36).
+		if ( function_exists( 'wp_enqueue_style' ) ) {
+			wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
+			\WPAffiliateCaptain\Core\Locale::enqueue_rtl( 'wpac-portal', 'portal' );
+			if ( $code ) {
+				wp_enqueue_script( 'wpac-portal', WPAC_URL . 'assets/js/portal.js', array(), WPAC_VERSION, true );
+			}
 		}
-		$out = '<div class="wpac-targets"><h3>' . esc_html__( 'Recommended target pages', 'affiliate-captain' ) . '</h3><ul>';
+		$out = '<div class="wpac-portal wpac-targets"><h3>' . esc_html__( 'Recommended target pages', 'affiliate-captain' ) . '</h3><ul>';
+		$i   = 0;
 		foreach ( $targets as $p ) {
 			$url  = get_permalink( $p );
 			$link = $code ? add_query_arg( (string) Settings::get( 'referral_param' ), $code, $url ) : $url;
@@ -365,7 +370,9 @@ final class Editor {
 				$out .= '<br><span class="wpac-muted">' . esc_html( $note ) . '</span>';
 			}
 			if ( $code ) {
-				$out .= '<input type="text" readonly class="wpac-copy" value="' . esc_attr( $link ) . '" aria-label="' . esc_attr__( 'Your partner link', 'affiliate-captain' ) . '">';
+				$id   = 'wpac-target-' . (int) $p->ID . '-' . ( ++$i );
+				/* translators: %s: page title */
+				$out .= '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( sprintf( __( 'Your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '</label><div class="wpac-copy-row"><input type="text" readonly dir="ltr" class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $link ) . '"><button type="button" class="wpac-copy-btn" data-wpac-copy="' . esc_attr( $id ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
 			}
 			$out .= '</li>';
 		}

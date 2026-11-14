@@ -67,7 +67,7 @@ $g6_san = Settings::sanitize( array( 'mail_from_email' => 'no address', 'mail_fr
 check( 'R7-AD13 invalid sender address is rejected with a message', true, isset( $g6_err['mail_from_email'] ) );
 $g6_set( array( 'mail_from_name' => '', 'mail_from_email' => '' ) );
 // Dunning ("please reply") goes through the central function with Reply-To.
-check( 'R7-AD13 dunning uses the central mail function', true, false !== strpos( (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Commissions/Dunning.php' ), "Notifications::send(\n\t\t\t'dunning'" ) );
+check( 'R7-AD13 dunning uses the central mail function', true, (bool) preg_match( "/Notifications::send\\(\\s*'dunning'/", (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Commissions/Dunning.php' ) ) ); // Indentation-independent (G10 wrapped the mail in try/finally).
 
 // R5-W48: filter changes or skips a mail; a failed mail fires wpac_mail_failed and returns false.
 add_filter(

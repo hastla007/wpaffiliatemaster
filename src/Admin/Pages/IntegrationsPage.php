@@ -214,29 +214,55 @@ final class IntegrationsPage {
 	/**
 	 * Render.
 	 */
+	/**
+	 * Tabs of the page: [ key => label ] (R5-O46: connections, system status, queue).
+	 *
+	 * @return array
+	 */
+	public static function tabs() {
+		return array(
+			'connections' => __( 'Connections', 'affiliate-captain' ),
+			'status'      => __( 'System status', 'affiliate-captain' ),
+			'queue'       => __( 'Retry queue', 'affiliate-captain' ),
+		);
+	}
+
 	public static function render() {
+		$tabs = self::tabs();
+		$tab  = Admin::get( 'tab' );
+		$tab  = isset( $tabs[ $tab ] ) ? $tab : 'connections';
 		echo '<div class="wrap"><h1>' . esc_html__( 'Integrations', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
-		self::migration_notices();
+		$failed = count( Jobs::query( 'failed' ) );
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Integration sections', 'affiliate-captain' ) . '">';
+		foreach ( $tabs as $key => $label ) {
+			$count = 'queue' === $key && $failed ? ' <span class="count">(' . (int) $failed . ')</span>' : '';
+			printf( '<a class="nav-tab %s" href="%s"%s>%s%s</a>', $key === $tab ? 'nav-tab-active' : '', esc_url( Admin::url( 'wpac-integrations', array( 'tab' => $key ) ) ), $key === $tab ? ' aria-current="page"' : '', esc_html( $label ), $count ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $count is built from an integer.
+		}
+		echo '</nav>';
+		if ( 'status' === $tab ) {
+			self::migration_notices();
+			self::render_status();
+		} elseif ( 'queue' === $tab ) {
+			self::render_queue();
+		} else {
+			self::render_connections();
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Registered shop integrations (only those that registered; no fixed rows for add-ons that are not installed).
+	 */
+	private static function render_connections() {
 		/* translators: %s: version */
 		echo '<p>' . esc_html( sprintf( __( 'Public contract version: %s. Integrations with a different major version are not called.', 'affiliate-captain' ), WPAC_CONTRACT_VERSION ) ) . '</p>';
-
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Integration', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Version', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Contract', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
-		$known = array(
-			'pass-captain'    => 'Pass Captain',
-			'voucher-captain' => 'Voucher Captain',
-		);
-		$list  = ContractApi::integrations();
-		foreach ( $known as $slug => $name ) {
-			if ( ! isset( $list[ $slug ] ) ) {
-				$list[ $slug ] = array(
-					'name'     => $name,
-					'version'  => '',
-					'contract' => '',
-					'active'   => false,
-				);
-			}
+		$list = ContractApi::integrations();
+		if ( ! $list ) {
+			echo '<p>' . esc_html( class_exists( 'WooCommerce' ) ? __( 'WooCommerce orders are recorded directly. No further shop or booking system has registered through the integration contract.', 'affiliate-captain' ) : __( 'No sales source is connected yet: activate WooCommerce or an integration that reports sales through the integration contract (see CONTRACT.md).', 'affiliate-captain' ) ) . '</p>';
+			return;
 		}
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Integration', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Version', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Contract', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $list as $slug => $info ) {
 			$info   = wp_parse_args( (array) $info, array( 'name' => $slug, 'version' => '', 'contract' => '', 'active' => false ) );
 			$compat = $info['contract'] && ContractApi::is_compatible( $info['contract'] );
@@ -250,7 +276,12 @@ final class IntegrationsPage {
 			printf( '<tr><td><strong>%s</strong> <code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>', esc_html( $info['name'] ), esc_html( $slug ), esc_html( $info['version'] ? $info['version'] : '—' ), esc_html( $info['contract'] ? $info['contract'] : '—' ), $status ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		echo '</tbody></table>';
+	}
 
+	/**
+	 * Environment checks.
+	 */
+	private static function render_status() {
 		echo '<h2>' . esc_html__( 'Environment', 'affiliate-captain' ) . '</h2><ul class="wpac-checks">';
 		$hpos = class_exists( \Automattic\WooCommerce\Utilities\OrderUtil::class ) && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
 		$checks = array(
@@ -265,14 +296,19 @@ final class IntegrationsPage {
 			array( \WPAffiliateCaptain\Core\Monitor::cron_running(), __( 'Scheduled tasks active (hold period release, retries)', 'affiliate-captain' ) ),
 		);
 		foreach ( $checks as $c ) {
-			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '">' . ( $c[0] ? '✔' : '✖' ) . ' ' . esc_html( $c[1] ) . '</li>';
+			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '"><span aria-hidden="true">' . ( $c[0] ? '✔' : '!' ) . '</span> ' . esc_html( $c[1] ) . '<span class="screen-reader-text"> – ' . esc_html( $c[0] ? __( 'OK', 'affiliate-captain' ) : __( 'check', 'affiliate-captain' ) ) . '</span></li>';
 		}
 		echo '</ul>';
+	}
 
+	/**
+	 * Retry queue.
+	 */
+	private static function render_queue() {
 		echo '<h2>' . esc_html__( 'Retry queue', 'affiliate-captain' ) . '</h2>';
 		$jobs = Jobs::query();
 		if ( ! $jobs ) {
-			echo '<p>' . esc_html__( 'No open or failed jobs.', 'affiliate-captain' ) . '</p></div>';
+			echo '<p>' . esc_html__( 'No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically.', 'affiliate-captain' ) . '</p>';
 			return;
 		}
 		$failed = Jobs::count( 'failed' ); // All of them, not only the 100 listed.
@@ -318,6 +354,6 @@ final class IntegrationsPage {
 			}
 			echo '</td></tr>';
 		}
-		echo '</tbody></table></div>';
+		echo '</tbody></table>';
 	}
 }

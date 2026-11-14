@@ -87,7 +87,8 @@ final class Settings {
 			// Promotion.
 			'landing_prefix'          => 'partner',
 			'landing_page_id'         => 0,
-			'default_disclosure'      => 'Werbung',
+			// Translated once translations can load (before "init" WordPress warns about early loading).
+			'default_disclosure'      => function_exists( 'did_action' ) && did_action( 'init' ) ? __( 'Advertisement', 'affiliate-captain' ) : 'Advertisement',
 			'promotion_guidelines'    => '',
 			// Payouts.
 			'min_payout_minor'        => 5000,
@@ -403,7 +404,8 @@ final class Settings {
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
 		}
 
-		$out['operator_country'] = $d['operator_country'];
+		// Not posted (another tab): the stored country, which also sets the retention minimum below.
+		$out['operator_country'] = (string) $old( 'operator_country' );
 		if ( isset( $in['operator_country'] ) ) {
 			$country = strtoupper( trim( (string) $in['operator_country'] ) );
 			if ( isset( self::countries()[ $country ] ) ) {
@@ -457,14 +459,56 @@ final class Settings {
 			}
 		}
 
+		// A new program currency: amounts stored in minor units of the old currency are converted
+		// (with an exchange rate between the two currencies if one is known, otherwise the shown
+		// value is kept, e.g. 50.00 EUR → 50 JPY – reported so it can be checked).
+		$old_currency = self::get( 'currency' ) ? strtoupper( (string) self::get( 'currency' ) ) : $d['currency'];
+		$fx_change    = $old_currency !== $out['currency'];
+		$old_rates    = Fx::parse( (string) $old( 'exchange_rates' ) );
+		$new_rates    = Fx::parse( $out['exchange_rates'] );
+		if ( $fx_change ) {
+			$rebased = self::rebase_rates( $old_rates, $old_currency, $out['currency'] );
+			if ( null !== $rebased && Fx::parse( $out['exchange_rates'] ) === $old_rates && ! isset( $errors['exchange_rates'] ) ) {
+				$lines = array();
+				foreach ( $rebased as $cur => $rate ) {
+					$lines[] = $cur . '=' . $rate;
+				}
+				$out['exchange_rates']     = implode( "\n", $lines );
+				$new_rates                 = $rebased;
+				/* translators: %s: currency code */
+				$notices['exchange_rates'] = sprintf( __( 'Converted to the new program currency %s.', 'affiliate-captain' ), $out['currency'] );
+			}
+			$converted = array();
+			$scaled    = array();
+			foreach ( array( 'min_payout_minor' => 'min_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $key => $field ) {
+				if ( isset( $in[ $field ] ) ) {
+					continue; // Entered together with the currency: parsed in the new currency.
+				}
+				list( $out[ $key ], $how ) = self::convert_minor( (int) $old( $key ), $old_currency, $out['currency'], $old_rates, $new_rates );
+				if ( 'rate' === $how ) {
+					$converted[] = $key;
+				} elseif ( 'scaled' === $how && (int) $old( $key ) ) {
+					$scaled[] = $key;
+				}
+			}
+			$notices['currency'] = $scaled
+				/* translators: 1: old currency, 2: new currency */
+				? sprintf( __( 'No exchange rate between %1$s and %2$s is known, so amounts keep their value (e.g. 50.00 %1$s becomes 50 %2$s). Please check the minimum payout, the review limit for large orders, fixed commission rules, bonus tiers and the exchange rates.', 'affiliate-captain' ), $old_currency, $out['currency'] )
+				/* translators: 1: old currency, 2: new currency */
+				: sprintf( __( 'Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency.', 'affiliate-captain' ), $old_currency, $out['currency'] );
+		}
+
 		$out['default_rate'] = $d['default_rate'];
 		if ( isset( $in['default_rate'] ) ) {
 			if ( 'fixed' === $out['default_rate_type'] ) {
-				// Fixed default rate is entered as a decimal amount, stored as minor units.
-				$rate = self::parse_amount( $in['default_rate'], $out['currency'] );
-				$ok   = null !== $rate && (float) $rate >= 0;
+				// Fixed default rate is entered as a decimal amount, stored as minor units. The form
+				// showed it in the stored currency: after a currency change it is converted.
+				$shown_in = $fx_change && 'fixed' === (string) $old( 'default_rate_type' ) ? $old_currency : $out['currency'];
+				$rate     = self::parse_amount( $in['default_rate'], $shown_in );
+				$ok       = null !== $rate && (float) $rate >= 0;
 				if ( $ok ) {
-					$out['default_rate'] = (string) Money::to_minor( $rate, $out['currency'] );
+					$minor               = Money::to_minor( $rate, $shown_in );
+					$out['default_rate'] = (string) ( $shown_in !== $out['currency'] ? self::convert_minor( $minor, $shown_in, $out['currency'], $old_rates, $new_rates )[0] : $minor );
 				} else {
 					$errors['default_rate'] = __( 'Please enter an amount (e.g. 25 or 25,50).', 'affiliate-captain' );
 				}
@@ -478,7 +522,11 @@ final class Settings {
 				}
 			}
 			if ( ! $ok ) {
-				// Rate and type belong together: keep both as stored.
+				// Rate and type belong together: keep both as stored – and say so for the type too
+				// (the form shows both entered values again with the messages).
+				if ( $out['default_rate_type'] !== (string) $old( 'default_rate_type' ) ) {
+					$errors['default_rate_type'] = __( 'Not changed, because the default rate entered with it is not valid.', 'affiliate-captain' );
+				}
 				$out['default_rate']      = (string) $old( 'default_rate' );
 				$out['default_rate_type'] = (string) $old( 'default_rate_type' );
 			}
@@ -532,7 +580,7 @@ final class Settings {
 			}
 		}
 
-		$out['fraud_max_order_minor'] = 0;
+		$out['fraud_max_order_minor'] = isset( $out['fraud_max_order_minor'] ) ? $out['fraud_max_order_minor'] : 0; // Converted above after a currency change.
 		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
 			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'] );
 			if ( null === $max_order || (float) $max_order < 0 ) {
@@ -544,7 +592,7 @@ final class Settings {
 		}
 		$out['fraud_blocked_domains'] = isset( $in['fraud_blocked_domains'] ) ? implode( "\n", array_filter( array_map( 'sanitize_text_field', preg_split( '/[\s,]+/', strtolower( (string) $in['fraud_blocked_domains'] ) ) ) ) ) : '';
 
-		$out['min_payout_minor'] = $d['min_payout_minor'];
+		$out['min_payout_minor'] = isset( $out['min_payout_minor'] ) ? $out['min_payout_minor'] : $d['min_payout_minor'];
 		if ( isset( $in['min_payout'] ) ) {
 			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'], $out['currency'] );
 			if ( null === $min || (float) $min < 0 ) {
@@ -672,6 +720,62 @@ final class Settings {
 	}
 
 	/**
+	 * Convert an amount in minor units to another currency (program currency change): with the
+	 * rate of the old currency in the new rates (1 OLD = x NEW), or of the new currency in the old
+	 * rates (1 NEW = x OLD); without a rate the shown value is kept (50.00 EUR → 50 JPY).
+	 *
+	 * @param int    $minor     Amount in minor units of $from.
+	 * @param string $from      Old currency.
+	 * @param string $to        New currency.
+	 * @param array  $old_rates Rates relative to $from (Fx::parse()).
+	 * @param array  $new_rates Rates relative to $to.
+	 * @return array [ minor units of $to, 'same'|'rate'|'scaled' ]
+	 */
+	public static function convert_minor( $minor, $from, $to, array $old_rates, array $new_rates ) {
+		$from = strtoupper( (string) $from );
+		$to   = strtoupper( (string) $to );
+		if ( $from === $to ) {
+			return array( (int) $minor, 'same' );
+		}
+		if ( isset( $new_rates[ $from ] ) ) {
+			return array( (int) Fx::to_program( (int) $minor, $from, $to, $new_rates ), 'rate' );
+		}
+		if ( isset( $old_rates[ $to ] ) ) {
+			return array( (int) Fx::from_program( (int) $minor, $to, $from, $old_rates ), 'rate' );
+		}
+		return array( Money::to_minor( Money::to_decimal( (int) $minor, $from ), $to ), 'scaled' );
+	}
+
+	/**
+	 * Exchange rates relative to a new program currency, from rates relative to the old one
+	 * (possible when they contain the new currency): 1 X = r_X / r_NEW NEW, 1 OLD = 1 / r_NEW NEW.
+	 *
+	 * @param array  $rates Rates relative to $old (currency => decimal string).
+	 * @param string $old   Old program currency.
+	 * @param string $new   New program currency.
+	 * @return array|null Null when the new currency has no rate.
+	 */
+	public static function rebase_rates( array $rates, $old, $new ) {
+		$old = strtoupper( (string) $old );
+		$new = strtoupper( (string) $new );
+		if ( empty( $rates[ $new ] ) || (float) $rates[ $new ] <= 0 ) {
+			return null;
+		}
+		$base = (float) $rates[ $new ];
+		$fmt  = static function ( $value ) {
+			$text = rtrim( rtrim( sprintf( '%.6F', $value ), '0' ), '.' );
+			return '0' === $text || '' === $text ? '0.000001' : $text;
+		};
+		$out = array( $old => $fmt( 1 / $base ) );
+		foreach ( $rates as $cur => $rate ) {
+			if ( $cur !== $new && $cur !== $old ) {
+				$out[ $cur ] = $fmt( (float) $rate / $base );
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Parse a percentage as typed by people: "15", "15 %", "15,5", "15.5%".
 	 *
 	 * @param mixed $raw Input.
@@ -697,27 +801,158 @@ final class Settings {
 
 	/**
 	 * Countries the operator can choose (ISO 3166-1 alpha-2 => name): the EU, the EEA,
-	 * Switzerland, the United Kingdom and other common shop countries.
+	 * Switzerland, the United Kingdom and other common shop countries. Names come from
+	 * WooCommerce, else from PHP intl, else from the plugin's own (translated) list; sorted by
+	 * the reader's language ("Österreich" before "Polen", not after "Zypern").
 	 *
 	 * @return array
 	 */
 	public static function countries() {
-		$codes = array( 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'CH', 'LI', 'NO', 'IS', 'GB', 'US', 'CA', 'AU', 'NZ' );
+		$own   = self::country_names();
 		$names = array();
 		if ( function_exists( 'WC' ) && WC() && isset( WC()->countries ) && is_object( WC()->countries ) ) {
 			$names = (array) WC()->countries->get_countries();
 		}
 		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : 'en_US';
 		$out    = array();
-		foreach ( $codes as $code ) {
+		foreach ( $own as $code => $fallback ) {
 			$name = isset( $names[ $code ] ) ? html_entity_decode( (string) $names[ $code ], ENT_QUOTES, 'UTF-8' ) : '';
 			if ( '' === $name && class_exists( '\Locale' ) ) {
 				$name = (string) \Locale::getDisplayRegion( 'und-' . $code, $locale );
 			}
-			$out[ $code ] = '' !== $name && $name !== $code ? $name : $code;
+			$out[ $code ] = '' !== $name && $name !== $code ? $name : $fallback;
 		}
-		asort( $out, SORT_NATURAL | SORT_FLAG_CASE );
-		return $out;
+		return self::sort_names( $out, $locale );
+	}
+
+	/**
+	 * Sort names for display in a language: with intl's Collator, else by the name without
+	 * accents (byte order would put every "Ö…" after "Z…").
+	 *
+	 * @param array  $names  Key => name.
+	 * @param string $locale Locale.
+	 * @return array
+	 */
+	public static function sort_names( array $names, $locale = 'en_US' ) {
+		if ( class_exists( '\Collator' ) ) {
+			$collator = new \Collator( (string) $locale );
+			if ( $collator->asort( $names ) ) {
+				return $names;
+			}
+		}
+		$keys = array();
+		foreach ( $names as $key => $name ) {
+			$plain        = function_exists( 'remove_accents' ) ? remove_accents( (string) $name ) : strtr(
+				(string) $name,
+				array(
+					'Ä' => 'A',
+					'Ö' => 'O',
+					'Ü' => 'U',
+					'ä' => 'a',
+					'ö' => 'o',
+					'ü' => 'u',
+					'ß' => 'ss',
+					'É' => 'E',
+					'é' => 'e',
+					'È' => 'E',
+					'è' => 'e',
+					'Í' => 'I',
+					'í' => 'i',
+					'Č' => 'C',
+					'č' => 'c',
+					'Š' => 'S',
+					'š' => 's',
+					'Ž' => 'Z',
+					'ž' => 'z',
+					'Å' => 'A',
+					'å' => 'a',
+					'Ø' => 'O',
+					'ø' => 'o',
+					'Ñ' => 'N',
+					'ñ' => 'n',
+					'Ç' => 'C',
+					'ç' => 'c',
+				)
+			);
+			$keys[ $key ] = strtolower( $plain );
+		}
+		uksort(
+			$names,
+			static function ( $a, $b ) use ( $keys ) {
+				return strnatcmp( $keys[ $a ], $keys[ $b ] );
+			}
+		);
+		return $names;
+	}
+
+	/**
+	 * Own country names (used without WooCommerce and PHP intl).
+	 *
+	 * @return array
+	 */
+	private static function country_names() {
+		return array(
+			'AT' => __( 'Austria', 'affiliate-captain' ),
+			'BE' => __( 'Belgium', 'affiliate-captain' ),
+			'BG' => __( 'Bulgaria', 'affiliate-captain' ),
+			'HR' => __( 'Croatia', 'affiliate-captain' ),
+			'CY' => __( 'Cyprus', 'affiliate-captain' ),
+			'CZ' => __( 'Czechia', 'affiliate-captain' ),
+			'DK' => __( 'Denmark', 'affiliate-captain' ),
+			'EE' => __( 'Estonia', 'affiliate-captain' ),
+			'FI' => __( 'Finland', 'affiliate-captain' ),
+			'FR' => __( 'France', 'affiliate-captain' ),
+			'DE' => __( 'Germany', 'affiliate-captain' ),
+			'GR' => __( 'Greece', 'affiliate-captain' ),
+			'HU' => __( 'Hungary', 'affiliate-captain' ),
+			'IE' => __( 'Ireland', 'affiliate-captain' ),
+			'IT' => __( 'Italy', 'affiliate-captain' ),
+			'LV' => __( 'Latvia', 'affiliate-captain' ),
+			'LT' => __( 'Lithuania', 'affiliate-captain' ),
+			'LU' => __( 'Luxembourg', 'affiliate-captain' ),
+			'MT' => __( 'Malta', 'affiliate-captain' ),
+			'NL' => __( 'Netherlands', 'affiliate-captain' ),
+			'PL' => __( 'Poland', 'affiliate-captain' ),
+			'PT' => __( 'Portugal', 'affiliate-captain' ),
+			'RO' => __( 'Romania', 'affiliate-captain' ),
+			'SK' => __( 'Slovakia', 'affiliate-captain' ),
+			'SI' => __( 'Slovenia', 'affiliate-captain' ),
+			'ES' => __( 'Spain', 'affiliate-captain' ),
+			'SE' => __( 'Sweden', 'affiliate-captain' ),
+			'CH' => __( 'Switzerland', 'affiliate-captain' ),
+			'LI' => __( 'Liechtenstein', 'affiliate-captain' ),
+			'NO' => __( 'Norway', 'affiliate-captain' ),
+			'IS' => __( 'Iceland', 'affiliate-captain' ),
+			'GB' => __( 'United Kingdom', 'affiliate-captain' ),
+			'US' => __( 'United States', 'affiliate-captain' ),
+			'CA' => __( 'Canada', 'affiliate-captain' ),
+			'AU' => __( 'Australia', 'affiliate-captain' ),
+			'NZ' => __( 'New Zealand', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Settings of a new installation: the defaults with the shop's currency and country from
+	 * WooCommerce, the disclosure note in the site language and the recommended fraud thresholds.
+	 *
+	 * @return array
+	 */
+	public static function initial() {
+		$values = self::defaults();
+		if ( function_exists( 'get_woocommerce_currency' ) ) {
+			$currency = strtoupper( (string) get_woocommerce_currency() );
+			if ( preg_match( '/^[A-Z]{3}$/', $currency ) ) {
+				$values['currency'] = $currency;
+			}
+		}
+		if ( function_exists( 'WC' ) && WC() && isset( WC()->countries ) && is_object( WC()->countries ) && method_exists( WC()->countries, 'get_base_country' ) ) {
+			$country = strtoupper( (string) WC()->countries->get_base_country() );
+			if ( isset( self::country_names()[ $country ] ) ) {
+				$values['operator_country'] = $country;
+			}
+		}
+		$values['default_disclosure'] = __( 'Advertisement', 'affiliate-captain' );
+		return array_merge( $values, self::recommended_fraud( (string) $values['currency'] ) );
 	}
 
 	/**
