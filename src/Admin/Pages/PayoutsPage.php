@@ -704,7 +704,7 @@ final class PayoutsPage {
 		echo '</tbody><tfoot>';
 		echo '<tr><th colspan="3">' . esc_html__( 'Net amount', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( $net, $p->currency ) ) . '</th></tr>';
 		/* translators: %s: VAT rate */
-		echo '<tr><th colspan="3">' . esc_html( (int) $p->vat_minor ? sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), $p->vat_rate ) : __( 'VAT', 'affiliate-captain' ) ) . '</th><th>' . esc_html( Money::format( (int) $p->vat_minor, $p->currency ) ) . '</th></tr>';
+		echo '<tr><th colspan="3">' . esc_html( (int) $p->vat_minor ? sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $p->vat_rate ) ) : __( 'VAT', 'affiliate-captain' ) ) . '</th><th>' . esc_html( Money::format( (int) $p->vat_minor, $p->currency ) ) . '</th></tr>';
 		echo '<tr><th colspan="3">' . esc_html__( 'Total payout', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ) . '</th></tr>';
 		echo '</tfoot></table>';
 		if ( $p->vat_mode ) {

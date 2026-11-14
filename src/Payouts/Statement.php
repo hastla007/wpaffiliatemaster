@@ -516,7 +516,7 @@ final class Statement {
 					$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (%s)', 'affiliate-captain' ), $mode_labels[ $imode ] ), 9 );
 				} else {
 					/* translators: %s: VAT rate */
-					$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (VAT %s %%)', 'affiliate-captain' ), $rate_of( $first ) ), 9 );
+					$pdf->text( 330, $y + 4, sprintf( __( 'Correction net (VAT %s %%)', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $rate_of( $first ) ) ), 9 );
 				}
 				$pdf->text( 545, $y + 4, Money::format( $sign * $sum, $p->currency ), 9, false, 'right' );
 				$y += 18;
@@ -536,7 +536,7 @@ final class Statement {
 		if ( $legacy || count( $groups ) <= 1 ) {
 			if ( (int) $p->vat_minor ) {
 				/* translators: %s: rate */
-				$totals[] = array( sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), $legacy || ! $groups ? $p->vat_rate : (string) key( $groups ) ), $sign * (int) $p->vat_minor, false );
+				$totals[] = array( sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $legacy || ! $groups ? $p->vat_rate : (string) key( $groups ) ) ), $sign * (int) $p->vat_minor, false );
 			} else {
 				$totals[] = array( __( 'VAT', 'affiliate-captain' ), 0, false );
 			}
@@ -544,7 +544,7 @@ final class Statement {
 			ksort( $groups );
 			foreach ( $groups as $rate => $group_net ) {
 				/* translators: 1: rate, 2: net amount */
-				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), $rate, Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
+				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $rate ), Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
 			}
 		}
 		if ( $storno ) {

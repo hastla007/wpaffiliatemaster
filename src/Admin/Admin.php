@@ -562,6 +562,12 @@ final class Admin {
 			return '—';
 		}
 		$format = get_option( 'date_format' ) . ( $time ? ' ' . get_option( 'time_format' ) : '' );
-		return get_date_from_gmt( $utc, $format );
+		$ts     = strtotime( $utc . ' UTC' );
+		if ( false === $ts ) {
+			return '—';
+		}
+		// wp_date() translates month and day names (get_date_from_gmt() prints "3. March 2026")
+		// and converts to the site time zone.
+		return (string) wp_date( $format, $ts );
 	}
 }

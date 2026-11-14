@@ -90,8 +90,8 @@ final class Installer {
 		Cron::schedule();
 		if ( false === get_option( Settings::OPTION ) ) {
 			// New installation: fraud rules start with sensible thresholds instead of switched off.
-			$defaults = Settings::defaults();
-			add_option( Settings::OPTION, array_merge( $defaults, Settings::recommended_fraud( (string) $defaults['currency'] ) ), '', true );
+			// Currency and country follow WooCommerce (R5-O54).
+			add_option( Settings::OPTION, Settings::initial(), '', true );
 		}
 		self::adopt_retained();
 		Lifecycle::check_clone();

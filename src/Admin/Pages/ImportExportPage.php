@@ -244,7 +244,7 @@ final class ImportExportPage {
 		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Line', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Name', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'E-mail', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Codes', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Rate', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Result', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $report['rows'] as $line => $r ) {
 			$d    = $r['data'];
-			$rate = $d['rate'] ? ( 'fixed' === $d['rate'][0] ? $d['rate'][1] . ' ' . \WPAffiliateCaptain\Core\Settings::get( 'currency' ) : $d['rate'][1] . ' %' ) : '—';
+			$rate = $d['rate'] ? ( 'fixed' === $d['rate'][0] ? $d['rate'][1] . ' ' . \WPAffiliateCaptain\Core\Settings::get( 'currency' ) : \WPAffiliateCaptain\Core\Locale::percent( $d['rate'][1] ) ) : '—';
 			if ( $r['errors'] ) {
 				$result = '<span class="wpac-badge wpac-badge--rejected">' . esc_html__( 'Error', 'affiliate-captain' ) . '</span> ' . esc_html( implode( '; ', $r['errors'] ) );
 			} elseif ( $done && ! empty( $r['id'] ) ) {

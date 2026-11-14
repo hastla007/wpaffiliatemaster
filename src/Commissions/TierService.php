@@ -497,7 +497,7 @@ final class TierService {
 		$steps = json_decode( (string) $plan->steps, true );
 		$out   = array();
 		foreach ( (array) $steps as $s ) {
-			$out[] = ( 'orders' === $plan->basis ? (int) $s['threshold'] : Money::format( (int) $s['threshold'], $currency ) ) . ' → +' . $s['rate'] . ' %';
+			$out[] = ( 'orders' === $plan->basis ? (int) $s['threshold'] : Money::format( (int) $s['threshold'], $currency ) ) . ' → +' . \WPAffiliateCaptain\Core\Locale::percent( $s['rate'] );
 		}
 		return implode( ', ', $out );
 	}

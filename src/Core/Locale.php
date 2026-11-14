@@ -99,6 +99,33 @@ final class Locale {
 	}
 
 	/**
+	 * A stored decimal ("12.5", "19.00") for display in the current language ("12,5", "19"):
+	 * as many decimals as it has (without trailing zeros), at most 4.
+	 *
+	 * @param string|float|int $value Decimal.
+	 * @return string
+	 */
+	public static function number( $value ) {
+		$text = (string) $value;
+		if ( ! is_numeric( $text ) ) {
+			return $text;
+		}
+		$text = false !== strpos( $text, '.' ) ? rtrim( rtrim( $text, '0' ), '.' ) : $text;
+		$dec  = false !== strpos( $text, '.' ) ? min( 4, strlen( substr( strrchr( $text, '.' ), 1 ) ) ) : 0;
+		return function_exists( 'number_format_i18n' ) ? (string) number_format_i18n( (float) $text, $dec ) : number_format( (float) $text, $dec, '.', ',' );
+	}
+
+	/**
+	 * A percentage for display ("12,5 %" in German, with a non-breaking space).
+	 *
+	 * @param string|float|int $value Decimal percent.
+	 * @return string
+	 */
+	public static function percent( $value ) {
+		return self::number( $value ) . "\u{00A0}%";
+	}
+
+	/**
 	 * Language code used by WPML/Polylang for a locale ('' = current language).
 	 *
 	 * @param string $locale Locale ('' = current).

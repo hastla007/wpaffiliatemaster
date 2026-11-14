@@ -914,14 +914,43 @@ final class AffiliateRepository {
 	}
 
 	/**
+	 * Shorten a slug to $max bytes. Non-Latin names are stored URL-encoded ("%d0%b0…"): the cut
+	 * never ends inside an escape or a multi-byte character (a slug ending in "%d" or in half a
+	 * character is never found again, and the next partner collides with it).
+	 *
+	 * @param string $slug Sanitized slug.
+	 * @param int    $max  Bytes.
+	 * @return string
+	 */
+	public static function cut_slug( $slug, $max ) {
+		$slug = (string) $slug;
+		if ( strlen( $slug ) <= $max ) {
+			return $slug;
+		}
+		$cut = (string) preg_replace( '/%[0-9a-f]?$/i', '', substr( $slug, 0, $max ) );
+		if ( preg_match( '/(?:%[0-9a-f]{2})+$/i', $cut, $m ) ) {
+			$bytes = rawurldecode( $m[0] );
+			while ( '' !== $bytes && ! mb_check_encoding( $bytes, 'UTF-8' ) ) {
+				$bytes = substr( $bytes, 0, -1 );
+			}
+			$encoded = '';
+			foreach ( '' !== $bytes ? str_split( $bytes ) : array() as $byte ) {
+				$encoded .= '%' . bin2hex( $byte );
+			}
+			$cut = substr( $cut, 0, strlen( $cut ) - strlen( $m[0] ) ) . $encoded;
+		}
+		return trim( $cut, '-' );
+	}
+
+	/**
 	 * Unique vanity slug.
 	 *
 	 * @param string $base Base.
 	 * @return string
 	 */
 	public static function unique_slug( $base ) {
-		$slug = sanitize_title( $base );
-		$slug = Db::cut( '' !== $slug ? $slug : 'partner', 50 );
+		$slug = self::cut_slug( sanitize_title( $base ), 50 );
+		$slug = '' !== $slug ? $slug : 'partner';
 		$try  = $slug;
 		$i    = 2;
 		while ( self::find_by_slug( $try ) ) {
