@@ -17,16 +17,8 @@ use WPAffiliateCaptain\Portal\Portal;
 echo "G11 blocks, shortcodes, application form\n";
 
 // Stand-ins (only where no other test defined them).
-$GLOBALS['g11_meta'] = array();
-if ( ! function_exists( 'get_post_meta' ) ) {
-	function get_post_meta( $id, $key = '', $single = false ) { return $GLOBALS['g11_meta'][ (int) $id ][ $key ] ?? ''; }
-}
-if ( ! function_exists( 'update_post_meta' ) ) {
-	function update_post_meta( $id, $key, $value ) { $GLOBALS['g11_meta'][ (int) $id ][ $key ] = $value; return true; }
-}
-if ( ! function_exists( 'delete_post_meta' ) ) {
-	function delete_post_meta( $id, $key ) { unset( $GLOBALS['g11_meta'][ (int) $id ][ $key ] ); return true; }
-}
+// Post meta and get_the_ID() come from the bootstrap store; start from an empty one.
+$GLOBALS['test_post_meta'] = array();
 if ( ! function_exists( 'shortcode_atts' ) ) {
 	function shortcode_atts( $pairs, $atts, $sc = '' ) { $out = array(); foreach ( $pairs as $k => $v ) { $out[ $k ] = array_key_exists( $k, (array) $atts ) ? $atts[ $k ] : $v; } return $out; }
 }
@@ -38,9 +30,6 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) {
 }
 if ( ! function_exists( 'nocache_headers' ) ) {
 	function nocache_headers() {}
-}
-if ( ! function_exists( 'get_the_ID' ) ) {
-	function get_the_ID() { return $GLOBALS['g11_the_id'] ?? 0; }
 }
 if ( ! function_exists( 'wp_get_current_user' ) ) {
 	function wp_get_current_user() { return new class() { public $ID = 0; public $display_name = ''; public $user_email = ''; public function exists() { return false; } }; }
@@ -211,7 +200,11 @@ check( 'R6-GB5 flash data read twice in one request, removed from storage', arra
 
 /* R6-GB6: several forms on one page ------------------------------------------------------------ */
 $g11_set_caps( array() );
-$GLOBALS['g11_the_id'] = 1101;
+// New request: the per-request form counter starts at zero (earlier files already rendered forms).
+$g11_inst = new ReflectionProperty( Registration::class, 'instances' );
+$g11_inst->setAccessible( true );
+$g11_inst->setValue( null, 0 );
+$GLOBALS['test_the_id'] = 1101;
 $_GET['wpac_err']      = 'required';
 $_GET['wpac_fi']       = Registration::form_key( $g11_pub, 1101 );
 $g11_a = Registration::render( array( 'group' => $g11_pub ) );
@@ -234,4 +227,4 @@ $GLOBALS['g11_logged_in'] = false;
 check( 'R6-GB9 partner targets and notes not shown to visitors', '', Editor::render_targets() );
 
 $g11_set_caps( $g11_caps );
-unset( $GLOBALS['g11_the_id'] );
+unset( $GLOBALS['test_the_id'] );

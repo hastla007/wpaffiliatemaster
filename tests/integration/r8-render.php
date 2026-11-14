@@ -30,6 +30,7 @@ $r_stubs = array(
 	'disabled'            => static function ( $a, $b = true, $echo = true ) { $r = (string) $a === (string) $b ? ' disabled="disabled"' : ''; if ( $echo ) { echo $r; } return $r; },
 	'wp_nonce_field'      => static function ( $a = -1, $n = '_wpnonce', $ref = true, $echo = true ) { $r = '<input type="hidden" name="' . $n . '" value="nonce">'; if ( $echo ) { echo $r; } return $r; },
 	'wp_create_nonce'     => static function ( $a = -1 ) { return 'nonce'; },
+	'wp_referer_field'    => static function ( $echo = true ) { $r = '<input type="hidden" name="_wp_http_referer" value="/">'; if ( $echo ) { echo $r; } return $r; },
 	'wp_nonce_url'        => static function ( $u, $a = -1, $n = '_wpnonce' ) { return add_query_arg( $n, 'nonce', $u ); },
 	'submit_button'       => static function ( $t = null ) { echo '<button type="submit">' . esc_html( (string) $t ) . '</button>'; },
 	'get_submit_button'   => static function ( $t = null ) { return '<button type="submit">' . esc_html( (string) $t ) . '</button>'; },
@@ -79,9 +80,10 @@ $r_stubs = array(
 	'has_action'          => static function ( $h, $f = false ) { return ! empty( $GLOBALS['test_hooks'][ $h ] ); },
 	'get_posts'           => static function ( $a = array() ) { return array( (object) array( 'ID' => 5, 'post_title' => 'Segelkurs', 'post_type' => 'page', 'post_status' => 'publish' ) ); },
 	'get_post_types'      => static function ( $a = array(), $o = 'names' ) { return array( 'post' => 'post', 'page' => 'page' ); },
-	'get_post_meta'       => static function ( $id, $k = '', $single = false ) { return $single ? 'Ab 18 Jahren' : array( 'Ab 18 Jahren' ); },
 	'human_time_diff'     => static function ( $a, $b = 0 ) { return abs( (int) $b - (int) $a ) . ' s'; },
 );
+// Partner target note of the page get_posts() returns (post meta lives in the bootstrap store).
+update_post_meta( 5, WPAffiliateCaptain\Content\Editor::META_NOTE, 'Ab 18 Jahren' );
 foreach ( $r_stubs as $r_name => $r_fn ) {
 	if ( ! function_exists( $r_name ) ) {
 		$GLOBALS['r_stub_fns'][ $r_name ] = $r_fn;
@@ -92,6 +94,19 @@ foreach ( $r_stubs as $r_name => $r_fn ) {
 /**
  * Runs $fn with output buffering; returns array( output, PHP problems, exception message ).
  */
+// Script/style API used by the portal since the asset registration (G9).
+foreach ( array( 'wp_register_style', 'wp_register_script', 'wp_enqueue_style', 'wp_enqueue_script', 'wp_localize_script', 'wp_add_inline_script', 'wp_add_inline_style', 'wp_set_script_translations' ) as $r_fn ) {
+	if ( ! function_exists( $r_fn ) ) {
+		eval( 'function ' . $r_fn . '() { return true; }' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test stubs.
+	}
+}
+if ( ! function_exists( 'wp_style_is' ) ) {
+	function wp_style_is( $h, $l = 'enqueued' ) { return false; }
+}
+if ( ! function_exists( 'wp_script_is' ) ) {
+	function wp_script_is( $h, $l = 'enqueued' ) { return false; }
+}
+
 function r_render( callable $fn ) {
 	$problems = array();
 	set_error_handler(

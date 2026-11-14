@@ -303,6 +303,28 @@ if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) { function wp_clear_schedu
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { return delete_option( '_t_' . $k ); } }
 if ( ! function_exists( 'wp_cache_delete' ) ) { function wp_cache_delete( $k, $g = '' ) { return true; } }
 
+// Post meta and the current post: one stateful store shared by all integration files, so the result
+// does not depend on which file is required first ($GLOBALS['test_post_meta'][ id ][ key ] = value,
+// $GLOBALS['test_the_id'] = current post id).
+$GLOBALS['test_post_meta'] = array();
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $id, $key = '', $single = false ) {
+		$m = $GLOBALS['test_post_meta'][ (int) $id ] ?? array();
+		if ( '' === $key ) { return array_map( static function ( $v ) { return array( $v ); }, $m ); }
+		if ( ! array_key_exists( $key, $m ) ) { return $single ? '' : array(); }
+		return $single ? $m[ $key ] : array( $m[ $key ] );
+	}
+}
+if ( ! function_exists( 'update_post_meta' ) ) {
+	function update_post_meta( $id, $key, $value ) { $GLOBALS['test_post_meta'][ (int) $id ][ $key ] = $value; return true; }
+}
+if ( ! function_exists( 'delete_post_meta' ) ) {
+	function delete_post_meta( $id, $key ) { unset( $GLOBALS['test_post_meta'][ (int) $id ][ $key ] ); return true; }
+}
+if ( ! function_exists( 'get_the_ID' ) ) {
+	function get_the_ID() { return $GLOBALS['test_the_id'] ?? 0; }
+}
+
 // Partner terms page (self-billing needs one); everything else has no posts.
 function get_post( $id ) {
 	if ( 900 === (int) $id ) {
