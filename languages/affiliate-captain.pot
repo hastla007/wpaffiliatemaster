@@ -372,7 +372,7 @@ msgstr ""
 msgid "Restriction lifted."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Affiliates/AffiliateRepository.php src/Commissions/Ledger.php src/Payouts/PayoutRequests.php src/Payouts/PayoutService.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Affiliates/AffiliateRepository.php src/Commissions/Ledger.php src/Payouts/Corrections.php src/Payouts/PayoutRequests.php src/Payouts/PayoutService.php
 msgid "Please enter a reason."
 msgstr ""
 
@@ -695,7 +695,7 @@ msgstr ""
 msgid "Declined"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Date"
 msgstr ""
 
@@ -870,7 +870,7 @@ msgstr ""
 msgid "Incomplete."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Statement.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Portal/Portal.php
 msgid "Tax status"
 msgstr ""
 
@@ -886,7 +886,7 @@ msgstr ""
 msgid "Country"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/ProfileRepository.php src/Payouts/Statement.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Corrections.php src/Payouts/ProfileRepository.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "VAT ID"
 msgstr ""
 
@@ -932,7 +932,7 @@ msgstr ""
 msgid "consultation number %s"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Statement.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Affiliates/Notifications.php src/Payouts/Corrections.php src/Payouts/Statement.php
 msgid "Tax number"
 msgstr ""
 
@@ -1576,6 +1576,30 @@ msgid "Credit notes moved to the new folder"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Correction credit note issued"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Correction credit note created"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Correction credit note downloaded"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Correction credit note sent to the partner"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Correction credit note could not be written"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Correction credit note deleted after the retention period"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Bonus tier created"
 msgstr ""
 
@@ -1711,7 +1735,7 @@ msgstr ""
 msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/PayoutsTable.php src/Payouts/Statement.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/PayoutsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php
 msgid "Partner"
 msgstr ""
 
@@ -3047,6 +3071,27 @@ msgid "Objection marked as handled; the partner was informed."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Correction credit notes are tax documents. You need the permission to view tax and bank data."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php
+msgid "Please enter the correct net amount (0 or more)."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Please tick the confirmation box: the correction credit note gets a number and cannot be changed afterwards."
+msgstr ""
+
+#. translators: 1: correction number, 2: credit note number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Rest/RestApi.php
+msgid "Not allowed."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Please choose a period end and currency."
 msgstr ""
 
@@ -3086,10 +3131,6 @@ msgstr ""
 msgid "Request rejected."
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Rest/RestApi.php
-msgid "Not allowed."
-msgstr ""
-
 #: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Payment details"
 msgstr ""
@@ -3122,6 +3163,11 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on."
+msgstr ""
+
+#. translators: %s: correction number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "The correction credit note %s could not be stored yet. It is retried automatically; check that the statement folder is writable."
 msgstr ""
 
 #. translators: %s: cancellation number
@@ -3303,6 +3349,44 @@ msgid "No payouts yet. Approved commissions are paid out with a payout run: choo
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Issue correction credit note"
+msgstr ""
+
+#. translators: 1: document number, 2: net, 3: VAT, 4: gross
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions."
+msgstr ""
+
+#. translators: %s: currency
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correct net amount (%s)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Reason (printed on the correction credit note and sent to the partner)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible)."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Privacy/Privacy.php
+msgid "Correction credit notes"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Privacy/Privacy.php
+msgid "Corrected net"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Privacy/Privacy.php
+msgid "Difference (gross)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "deleted after the retention period"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Payout not found."
 msgstr ""
 
@@ -3331,7 +3415,7 @@ msgstr ""
 msgid "Commission statement"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php
 msgid "Issued by"
 msgstr ""
 
@@ -3365,7 +3449,7 @@ msgstr ""
 msgid "plus VAT %s %%"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "VAT"
 msgstr ""
 
@@ -3895,6 +3979,10 @@ msgid "Prefix cancellation numbers"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Prefix correction credit note numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Company BIC (optional)"
 msgstr ""
 
@@ -4334,6 +4422,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Numbers are gapless per year, e.g. GS-2026-000001."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php src/Privacy/Privacy.php
@@ -4781,6 +4873,26 @@ msgstr ""
 #. translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL
 #: src/Affiliates/Notifications.php
 msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Affiliates/Notifications.php
+msgid "The difference of %s is paid with your next payout."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Affiliates/Notifications.php
+msgid "The overpayment of %s is offset against your next commissions."
+msgstr ""
+
+#. translators: 1: site name, 2: correction number, 3: credit note number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Correction credit note %2$s for credit note %3$s"
+msgstr ""
+
+#. translators: 1: name, 2: credit note number, 3: correction number, 4: what happens with the difference, 5: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have corrected credit note %2$s with the attached correction credit note %3$s. %4$s\n\nPartner area: %5$s"
 msgstr ""
 
 #. translators: 1: site name, 2: partner
@@ -5243,6 +5355,10 @@ msgstr ""
 msgid "Opening balance"
 msgstr ""
 
+#: src/Commissions/Balance.php src/Commissions/Ledger.php
+msgid "Correction credit note"
+msgstr ""
+
 #: src/Commissions/Dunning.php
 msgid "No payment request possible: the partner's data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin."
 msgstr ""
@@ -5387,6 +5503,10 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "This commission is part of a payout. Cancel the payout first."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "This booking settles a correction credit note and cannot be rejected. Issue a further correction credit note for the payout instead."
 msgstr ""
 
 #: src/Commissions/Ledger.php
@@ -6583,6 +6703,156 @@ msgstr ""
 msgid "the status \"%1$s\" could not be set: %2$s – the partner is pending; change the status on the partner page"
 msgstr ""
 
+#: src/Payouts/Corrections.php
+msgid "Only paid payouts get a correction credit note; cancel an unpaid payout instead."
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "This payout has no stored credit note (not issued yet or deleted after the retention period)."
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/PayoutService.php
+msgid "Affiliate not found"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "The credit note was corrected in the meantime. Please check the current amounts and try again; nothing was booked."
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "The corrected net amount equals the current one: there is nothing to correct. If the credit note is correct, explain this to the partner instead."
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "The correction credit note could not be saved (database error). Nothing was booked; please try again."
+msgstr ""
+
+#. translators: 1: correction credit note number, 2: credit note number, 3: reason
+#: src/Payouts/Corrections.php
+msgid "We have issued correction credit note %1$s for credit note %2$s (in your partner area under Payouts): %3$s"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Correction credit note (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Correction credit note (self-billing)"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Correction of commission statement"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "DUPLICATE"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Issued by (recipient of the service)"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Partner (provider of the service)"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Correction number"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Privacy/Privacy.php
+msgid "Corrects credit note"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Replaces correction"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Service"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Referral of customers (affiliate commission)"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Service period until"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "VAT ID of the partner"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Tax number of the partner"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Reason for the correction"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Net"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Gross"
+msgstr ""
+
+#. translators: %s: document number
+#: src/Payouts/Corrections.php
+msgid "Previously (%s)"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Corrected"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "Difference"
+msgstr ""
+
+#. translators: %s: VAT rate
+#: src/Payouts/Corrections.php
+msgid "VAT rate of the corrected credit note: %s %%"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Payouts/Corrections.php
+msgid "The difference of %s is credited to the partner account and paid with the next payout."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Payouts/Corrections.php
+msgid "The overpayment of %s is debited to the partner account and offset against the next commissions."
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document."
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Duplicate: built again from the stored data because the original file was not available on this server."
+msgstr ""
+
+#. translators: %s: original texts
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Some characters cannot be shown in this document and were transliterated. Original spelling: %s"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "The statement is not available (anymore)."
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "The stored statement failed the integrity check."
+msgstr ""
+
 #: src/Payouts/Objections.php
 msgid "This credit note cannot be objected to."
 msgstr ""
@@ -6606,11 +6876,11 @@ msgstr ""
 
 #. translators: 1: partner, 2: number, 3: reason, 4: URL
 #: src/Payouts/Objections.php
-msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4$s"
+msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer counts as an invoice. Please check it: cancel an unpaid payout and create it again, issue a correction credit note for a paid one, or explain why it is correct:\n%4$s"
 msgstr ""
 
 #: src/Payouts/Objections.php
-msgid "The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled here. If the objection is justified, agree the correction with the partner – the partner issues their own invoice for the correct amount, or you settle the difference by a separate transfer or repayment request – and keep the documents with the credit note. If the credit note is correct, explain why. Then describe below what was done; the partner receives this text."
+msgid "The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled. If the objection is justified, issue a correction credit note below with the correct net amount: the difference (VAT as on the credit note) is booked to the partner account – a shortfall is paid with the next payout, an overpayment is offset against the next commissions – and the objection is marked as handled. If the credit note is correct, explain why below; the partner receives this text."
 msgstr ""
 
 #: src/Payouts/Objections.php
@@ -6718,10 +6988,6 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Cancelled"
-msgstr ""
-
-#: src/Payouts/PayoutService.php
-msgid "Affiliate not found"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -7026,18 +7292,6 @@ msgstr ""
 msgid "Credit note (self-billing)"
 msgstr ""
 
-#: src/Payouts/Statement.php
-msgid "DUPLICATE"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Issued by (recipient of the service)"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Partner (provider of the service)"
-msgstr ""
-
 #: src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Cancellation number"
 msgstr ""
@@ -7055,31 +7309,7 @@ msgid "Cancels"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "Service"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Referral of customers (affiliate commission)"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Service period until"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "VAT ID of the partner"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Tax number of the partner"
-msgstr ""
-
-#: src/Payouts/Statement.php
 msgid "Other payment method as agreed with the partner"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Net"
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -7096,6 +7326,10 @@ msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "Repayments and write-offs (not taxable)"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Correction credit notes settled (VAT shown on the correction credit note)"
 msgstr ""
 
 #. translators: 1: credit note number, 2: date
@@ -7139,16 +7373,11 @@ msgid "This document settles corrections of earlier credit notes (refunds and ca
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "Correction credit notes settled: the amounts are the gross differences of the correction credit notes named, whose VAT is shown there; no VAT is added on this document."
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Duplicate: built again from the stored data because the original file was not available on this server."
-msgstr ""
-
-#. translators: %s: original texts
-#: src/Payouts/Statement.php
-msgid "Some characters cannot be shown in this document and were transliterated. Original spelling: %s"
 msgstr ""
 
 #. translators: %d: year
@@ -7164,13 +7393,14 @@ msgstr ""
 msgid "Document"
 msgstr ""
 
+#. translators: %s: credit note number
 #: src/Payouts/Statement.php
-msgid "Gross"
+msgid "cancels %s"
 msgstr ""
 
 #. translators: %s: credit note number
 #: src/Payouts/Statement.php
-msgid "cancels %s"
+msgid "corrects %s"
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -7184,14 +7414,6 @@ msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "The statement is not available (anymore)."
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "The stored statement failed the integrity check."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -7815,6 +8037,11 @@ msgstr ""
 
 #: src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Credit note"
+msgstr ""
+
+#. translators: %s: correction credit note number
+#: src/Portal/Portal.php
+msgid "Correction %s"
 msgstr ""
 
 #: src/Portal/Portal.php

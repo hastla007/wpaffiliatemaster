@@ -14,6 +14,7 @@ use WPAffiliateCaptain\Core\Capabilities;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Payouts\Corrections;
 use WPAffiliateCaptain\Payouts\PayoutRequests;
 use WPAffiliateCaptain\Payouts\PayoutService;
 use WPAffiliateCaptain\Payouts\Statement;
@@ -47,6 +48,38 @@ final class PayoutsPage {
 					Admin::back( __( 'This objection was already handled, no longer exists or could not be saved; nothing was sent.', 'affiliate-captain' ), 'error' );
 				}
 				Admin::back( __( 'Objection marked as handled; the partner was informed.', 'affiliate-captain' ) );
+				break;
+
+			case 'payout_correction':
+				// A correction credit note is a tax document with the partner's tax data.
+				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+					Admin::back( __( 'Correction credit notes are tax documents. You need the permission to view tax and bank data.', 'affiliate-captain' ), 'error' );
+				}
+				$cp  = PayoutService::find( absint( Admin::post( 'payout_id' ) ) );
+				$raw = $cp ? Money::parse_amount( (string) Admin::post( 'net' ), (string) $cp->currency ) : null;
+				if ( ! $cp || null === $raw ) {
+					Admin::back( __( 'Please enter the correct net amount (0 or more).', 'affiliate-captain' ), 'error' );
+				}
+				if ( ! Admin::post( 'confirm' ) ) {
+					Admin::back( __( 'Please tick the confirmation box: the correction credit note gets a number and cannot be changed afterwards.', 'affiliate-captain' ), 'error' );
+				}
+				$cid = Corrections::create( (int) $cp->id, Money::to_minor( $raw, (string) $cp->currency ), (string) Admin::post( 'reason' ), sanitize_key( Admin::post( 'request_key' ) ), (int) Admin::post( 'base_net' ) );
+				if ( is_wp_error( $cid ) ) {
+					Admin::back( $cid->get_error_message(), 'error' );
+				}
+				$kg = Corrections::find( (int) $cid );
+				/* translators: 1: correction number, 2: credit note number */
+				Admin::back( sprintf( __( 'Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed.', 'affiliate-captain' ), $kg ? $kg->number : '#' . (int) $cid, $cp->number ), 'success', Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => (int) $cp->id ) ) );
+				break;
+
+			case 'correction_download':
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified in dispatch().
+				$kg = Corrections::find( isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0 );
+				if ( ! $kg || ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+					wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
+				}
+				\WPAffiliateCaptain\Core\Audit::log( 'statement.correction_downloaded', 'payout', (int) $kg->payout_id, array( 'correction' => (int) $kg->id ) );
+				Corrections::send( $kg );
 				break;
 
 			case 'payout_run':
@@ -427,6 +460,13 @@ final class PayoutsPage {
 			}
 			echo '</ul><p class="description">' . esc_html__( 'The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on.', 'affiliate-captain' ) . '</p></div>';
 		}
+		foreach ( Corrections::failures() as $kid => $kfail ) {
+			$kc = Corrections::find( (int) $kid );
+			if ( $kc && '' === (string) $kc->file && ! $kc->file_deleted_at ) {
+				/* translators: %s: correction number */
+				echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'The correction credit note %s could not be stored yet. It is retried automatically; check that the statement folder is writable.', 'affiliate-captain' ), (string) $kc->number ) ) . '</p></div>';
+			}
+		}
 		foreach ( Statement::storno_failures() as $spid => $sfail ) {
 			$sp = PayoutService::find( (int) $spid );
 			if ( $sp && '' === (string) $sp->storno_file ) {
@@ -458,6 +498,9 @@ final class PayoutsPage {
 				}
 				/* translators: %s: payout number */
 				echo '<button class="button" data-wpac-confirm="' . esc_attr( sprintf( __( 'Cancel payout %s? A cancellation document is issued and the commissions are paid with the next run.', 'affiliate-captain' ), $op->number ) ) . '">' . esc_html__( 'Cancel this payout', 'affiliate-captain' ) . '</button></p></form>';
+			}
+			if ( $op && 'paid' === $op->status ) {
+				self::correction_form( $op );
 			}
 			Admin::form_open( 'objection_resolve' );
 			echo '<input type="hidden" name="payout_id" value="' . (int) $pid . '"><p><label for="wpac-obj-resolution-' . (int) $pid . '">' . esc_html__( 'What was done (sent to the partner)', 'affiliate-captain' ) . '</label><br><textarea id="wpac-obj-resolution-' . (int) $pid . '" name="resolution" rows="2" class="large-text" required></textarea></p><p><button class="button">' . esc_html__( 'Mark as handled', 'affiliate-captain' ) . '</button></p></form></div>';
@@ -666,6 +709,92 @@ final class PayoutsPage {
 	}
 
 	/**
+	 * Admin download URL of a correction credit note.
+	 *
+	 * @param int $id Correction.
+	 * @return string
+	 */
+	public static function correction_url( $id ) {
+		return add_query_arg(
+			array(
+				'action'      => 'wpac',
+				'do'          => 'correction_download',
+				'id'          => (int) $id,
+				'_wpac_nonce' => wp_create_nonce( 'wpac_correction_download' ),
+			),
+			admin_url( 'admin-post.php' )
+		);
+	}
+
+	/**
+	 * Form for a correction credit note of a paid payout (payout managers with tax-data access).
+	 *
+	 * @param object $p Payout.
+	 */
+	public static function correction_form( $p ) {
+		if ( ! current_user_can( Capabilities::MANAGE_PAYOUTS ) || ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+			return;
+		}
+		$blocked = Corrections::blocked( $p );
+		if ( '' !== $blocked ) {
+			echo '<p class="description">' . esc_html( $blocked ) . '</p>';
+			return;
+		}
+		list( $net, $vat, $gross, $doc ) = Corrections::base( $p );
+		$fid = 'wpac-kg-' . (int) $p->id;
+		Admin::form_open( 'payout_correction', 'wpac-correction' );
+		echo '<input type="hidden" name="payout_id" value="' . (int) $p->id . '"><input type="hidden" name="base_net" value="' . (int) $net . '"><input type="hidden" name="request_key" value="' . esc_attr( wp_generate_password( 32, false ) ) . '">';
+		echo '<fieldset><legend><strong>' . esc_html__( 'Issue correction credit note', 'affiliate-captain' ) . '</strong></legend>';
+		/* translators: 1: document number, 2: net, 3: VAT, 4: gross */
+		echo '<p class="description">' . esc_html( sprintf( __( 'Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions.', 'affiliate-captain' ), $doc, Money::format( $net, $p->currency ), Money::format( $vat, $p->currency ), Money::format( $gross, $p->currency ) ) ) . '</p>';
+		/* translators: %s: currency */
+		echo '<p><label for="' . esc_attr( $fid ) . '-net">' . esc_html( sprintf( __( 'Correct net amount (%s)', 'affiliate-captain' ), $p->currency ) ) . '</label><br><input type="text" inputmode="decimal" required size="12" id="' . esc_attr( $fid ) . '-net" name="net"></p>';
+		echo '<p><label for="' . esc_attr( $fid ) . '-reason">' . esc_html__( 'Reason (printed on the correction credit note and sent to the partner)', 'affiliate-captain' ) . '</label><br><textarea id="' . esc_attr( $fid ) . '-reason" name="reason" rows="2" class="large-text" required></textarea></p>';
+		echo '<p><label><input type="checkbox" name="confirm" value="1" required> ' . esc_html__( 'Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible).', 'affiliate-captain' ) . '</label></p>';
+		echo '<p><button class="button button-primary">' . esc_html__( 'Issue correction credit note', 'affiliate-captain' ) . '</button></p></fieldset></form>';
+	}
+
+	/**
+	 * Correction credit notes of a payout (receipt page).
+	 *
+	 * @param object $p Payout.
+	 */
+	private static function render_corrections( $p ) {
+		$list = Corrections::for_payout( (int) $p->id );
+		if ( ! $list && 'paid' !== $p->status ) {
+			return;
+		}
+		echo '<h2>' . esc_html__( 'Correction credit notes', 'affiliate-captain' ) . '</h2>';
+		if ( $list ) {
+			$tax = current_user_can( Capabilities::VIEW_TAX_DATA );
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Corrected net', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Difference (gross)', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Reason', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $list as $kg ) {
+				$diff = (int) $kg->net_minor + (int) $kg->vat_minor - (int) $kg->prev_net_minor - (int) $kg->prev_vat_minor;
+				$name = esc_html( $kg->number );
+				if ( $tax && '' !== (string) $kg->file ) {
+					$name = '<a href="' . esc_url( self::correction_url( (int) $kg->id ) ) . '">' . $name . '</a>';
+				} elseif ( $kg->file_deleted_at ) {
+					$name .= ' <small>(' . esc_html__( 'deleted after the retention period', 'affiliate-captain' ) . ')</small>';
+				}
+				printf(
+					'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+					$name, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+					esc_html( Admin::date( $kg->created_at ) ),
+					esc_html( Money::format( (int) $kg->net_minor, $kg->currency ) ),
+					esc_html( Money::format( $diff, $kg->currency ) ),
+					esc_html( (string) $kg->reason )
+				);
+			}
+			echo '</tbody></table>';
+		}
+		if ( 'paid' === $p->status ) {
+			echo '<div class="wpac-noprint">';
+			self::correction_form( $p );
+			echo '</div>';
+		}
+	}
+
+	/**
 	 * Printable statement.
 	 *
 	 * @param int $id Payout.
@@ -736,6 +865,7 @@ final class PayoutsPage {
 			// Payouts from before VAT handling: no treatment was stored.
 			echo '<p class="description">' . esc_html__( 'VAT treatment depends on the partner\'s tax status and must be confirmed by your tax advisor. This statement does not calculate VAT.', 'affiliate-captain' ) . '</p>';
 		}
+		self::render_corrections( $p );
 		echo '</div>';
 	}
 }

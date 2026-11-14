@@ -197,6 +197,9 @@ final class Retention {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p} SET note = '' WHERE affiliate_id = %d", $affiliate_id ) );
 		// Write-off reasons are stored as the description; sales keep the product name.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$c} SET description = '' WHERE affiliate_id = %d AND kind = 'writeoff'", $affiliate_id ) );
+		// Reasons of correction credit notes (the documents are past their retention by now).
+		$wpdb->query( $wpdb->prepare( "UPDATE {$c} SET description = '' WHERE affiliate_id = %d AND kind = 'correction'", $affiliate_id ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payout_corrections' ) . " SET reason = '', profile_snapshot = NULL WHERE affiliate_id = %d", $affiliate_id ) );
 		// Objections to the partner's credit notes.
 		$objections = \WPAffiliateCaptain\Payouts\Objections::all();
 		foreach ( $objections as $pid => $o ) {

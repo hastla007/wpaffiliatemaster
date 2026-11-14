@@ -1159,6 +1159,24 @@ msgstr "Widerspruch bearbeitet"
 msgid "Credit notes moved to the new folder"
 msgstr "Gutschriften in den neuen Ordner verschoben"
 
+msgid "Correction credit note issued"
+msgstr "Korrekturgutschrift ausgestellt"
+
+msgid "Correction credit note created"
+msgstr "Korrekturgutschrift erstellt"
+
+msgid "Correction credit note downloaded"
+msgstr "Korrekturgutschrift heruntergeladen"
+
+msgid "Correction credit note sent to the partner"
+msgstr "Korrekturgutschrift an den Partner gesendet"
+
+msgid "Correction credit note could not be written"
+msgstr "Korrekturgutschrift konnte nicht geschrieben werden"
+
+msgid "Correction credit note deleted after the retention period"
+msgstr "Korrekturgutschrift nach Ablauf der Aufbewahrungsfrist gelöscht"
+
 msgid "Bonus tier created"
 msgstr "Stufenplan angelegt"
 
@@ -2245,6 +2263,21 @@ msgstr "Dieser Widerspruch wurde bereits bearbeitet, existiert nicht mehr oder k
 msgid "Objection marked as handled; the partner was informed."
 msgstr "Widerspruch als erledigt markiert; der Partner wurde informiert."
 
+msgid "Correction credit notes are tax documents. You need the permission to view tax and bank data."
+msgstr "Korrekturgutschriften sind Steuerbelege. Sie benötigen die Berechtigung, Steuer- und Bankdaten einzusehen."
+
+msgid "Please enter the correct net amount (0 or more)."
+msgstr "Bitte geben Sie den richtigen Nettobetrag ein (0 oder mehr)."
+
+msgid "Please tick the confirmation box: the correction credit note gets a number and cannot be changed afterwards."
+msgstr "Bitte setzen Sie das Bestätigungshäkchen: Die Korrekturgutschrift erhält eine Nummer und kann danach nicht mehr geändert werden."
+
+msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
+msgstr "Korrekturgutschrift %1$s zu %2$s ausgestellt; die Differenz wurde auf dem Partnerkonto gebucht und der Partner informiert."
+
+msgid "Not allowed."
+msgstr "Nicht erlaubt."
+
 msgid "Please choose a period end and currency."
 msgstr "Bitte wählen Sie Periodenende und Währung."
 
@@ -2275,9 +2308,6 @@ msgstr "Auszahlung aus dem Antrag angelegt."
 msgid "Request rejected."
 msgstr "Antrag abgelehnt."
 
-msgid "Not allowed."
-msgstr "Nicht erlaubt."
-
 msgid "Payment details"
 msgstr "Zahlungsangaben"
 
@@ -2301,6 +2331,9 @@ msgstr "Vorjahr %1$s, dieses Jahr %2$s"
 
 msgid "The limit counts all turnover of the partner. Ask the partner to check the tax status; a VAT-registered partner gets credit notes with VAT from the change on."
 msgstr "Für die Grenze zählt der gesamte Umsatz des Partners. Bitten Sie den Partner, den Steuerstatus zu prüfen; ein umsatzsteuerpflichtiger Partner erhält ab der Änderung Gutschriften mit USt."
+
+msgid "The correction credit note %s could not be stored yet. It is retried automatically; check that the statement folder is writable."
+msgstr "Die Korrekturgutschrift %s konnte noch nicht gespeichert werden. Es wird automatisch erneut versucht; bitte prüfen Sie, ob der Belegordner beschreibbar ist."
 
 msgid "The cancellation document %s could not be stored yet. It is retried automatically; check that the statement folder is writable."
 msgstr "Der Stornobeleg %s konnte noch nicht gespeichert werden. Er wird automatisch erneut erzeugt; prüfen Sie, ob der Belegordner beschreibbar ist."
@@ -2430,6 +2463,33 @@ msgstr "Keine Auszahlungen mit diesem Status."
 
 msgid "No payouts yet. Approved commissions are paid out with a payout run: choose the period end above and click \"Preview\"."
 msgstr "Noch keine Auszahlungen. Freigegebene Provisionen werden mit einem Auszahlungslauf ausgezahlt: Wählen Sie oben den Stichtag und klicken Sie auf „Vorschau“."
+
+msgid "Issue correction credit note"
+msgstr "Korrekturgutschrift ausstellen"
+
+msgid "Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions."
+msgstr "Aktuelle Beträge (%1$s): netto %2$s, USt %3$s, brutto %4$s. Die Differenz wird wie auf der Gutschrift besteuert und auf dem Partnerkonto gebucht: Ein Fehlbetrag wird mit der nächsten Auszahlung ausgezahlt, eine Überzahlung mit den nächsten Provisionen verrechnet."
+
+msgid "Correct net amount (%s)"
+msgstr "Richtiger Nettobetrag (%s)"
+
+msgid "Reason (printed on the correction credit note and sent to the partner)"
+msgstr "Grund (wird auf die Korrekturgutschrift gedruckt und dem Partner gesendet)"
+
+msgid "Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible)."
+msgstr "Nummerierte Korrekturgutschrift ausstellen und die Differenz buchen (nicht rückgängig zu machen; eine weitere Korrektur ist möglich)."
+
+msgid "Correction credit notes"
+msgstr "Korrekturgutschriften"
+
+msgid "Corrected net"
+msgstr "Netto korrigiert"
+
+msgid "Difference (gross)"
+msgstr "Differenz (brutto)"
+
+msgid "deleted after the retention period"
+msgstr "nach Ablauf der Aufbewahrungsfrist gelöscht"
 
 msgid "Payout not found."
 msgstr "Auszahlung nicht gefunden."
@@ -2866,6 +2926,9 @@ msgstr "Präfix Gutschriftnummern"
 msgid "Prefix cancellation numbers"
 msgstr "Präfix Stornonummern"
 
+msgid "Prefix correction credit note numbers"
+msgstr "Präfix Korrekturgutschriftnummern"
+
 msgid "Company BIC (optional)"
 msgstr "BIC Firmenkonto (optional)"
 
@@ -3193,6 +3256,9 @@ msgstr "Z. B. 19 oder 7,7 – „%“ darf mit eingegeben werden."
 msgid "Numbers are gapless per year, e.g. GS-2026-000001."
 msgstr "Die Nummern sind pro Jahr lückenlos, z. B. GS-2026-000001."
 
+msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
+msgstr "Korrekturgutschriften zu bezahlten Auszahlungen, z. B. KG-2026-000001."
+
 msgid "VAT ID check (VIES)"
 msgstr "Prüfung der USt-IdNr. (VIES)"
 
@@ -3511,6 +3577,18 @@ msgstr "[%1$s] Gutschrift %2$s storniert"
 msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
 msgstr "Hallo %1$s,\n\nwir haben die Gutschrift %2$s mit dem angehängten Stornobeleg %3$s storniert. Die Provisionen bleiben in Ihrem Konto und werden mit einer neuen Gutschrift ausgezahlt.\n\nPartnerbereich: %4$s"
 
+msgid "The difference of %s is paid with your next payout."
+msgstr "Die Differenz von %s wird mit Ihrer nächsten Auszahlung ausgezahlt."
+
+msgid "The overpayment of %s is offset against your next commissions."
+msgstr "Die Überzahlung von %s wird mit Ihren nächsten Provisionen verrechnet."
+
+msgid "[%1$s] Correction credit note %2$s for credit note %3$s"
+msgstr "[%1$s] Korrekturgutschrift %2$s zur Gutschrift %3$s"
+
+msgid "Hello %1$s,\n\nwe have corrected credit note %2$s with the attached correction credit note %3$s. %4$s\n\nPartner area: %5$s"
+msgstr "Hallo %1$s,\n\nwir haben die Gutschrift %2$s mit der beigefügten Korrekturgutschrift %3$s korrigiert. %4$s\n\nPartnerbereich: %5$s"
+
 msgid "[%1$s] Tax data change of %2$s waits for your approval"
 msgstr "[%1$s] Änderung der Steuerdaten von %2$s wartet auf Ihre Freigabe"
 
@@ -3817,6 +3895,9 @@ msgstr "Provision abgelehnt"
 msgid "Opening balance"
 msgstr "Eröffnungssaldo"
 
+msgid "Correction credit note"
+msgstr "Korrekturgutschrift"
+
 msgid "No payment request possible: the partner's data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin."
 msgstr "Keine Zahlungsaufforderung möglich: Die Daten des Partners wurden gelöscht oder ihre Verarbeitung ist eingeschränkt (DSGVO). Buchen Sie den Saldo aus oder fordern Sie ihn außerhalb des Plugins zurück."
 
@@ -3921,6 +4002,9 @@ msgstr "Ausgezahlte oder abgelehnte Provisionen können nicht abgelehnt werden."
 
 msgid "This commission is part of a payout. Cancel the payout first."
 msgstr "Diese Provision ist Teil einer Auszahlung. Stornieren Sie zuerst die Auszahlung."
+
+msgid "This booking settles a correction credit note and cannot be rejected. Issue a further correction credit note for the payout instead."
+msgstr "Diese Buchung gleicht eine Korrekturgutschrift aus und kann nicht abgelehnt werden. Stellen Sie stattdessen eine weitere Korrekturgutschrift zur Auszahlung aus."
 
 msgid "A correction of this commission is part of a payout. Cancel that payout first."
 msgstr "Eine Korrektur dieser Provision ist Teil einer Auszahlung. Stornieren Sie zuerst diese Auszahlung."
@@ -4766,6 +4850,114 @@ msgstr "die Provisionsregel wurde nicht angelegt – legen Sie sie unter Provisi
 msgid "the status \"%1$s\" could not be set: %2$s – the partner is pending; change the status on the partner page"
 msgstr "der Status „%1$s“ konnte nicht gesetzt werden: %2$s – der Partner ist ausstehend; ändern Sie den Status auf der Partnerseite"
 
+msgid "Only paid payouts get a correction credit note; cancel an unpaid payout instead."
+msgstr "Nur bezahlte Auszahlungen erhalten eine Korrekturgutschrift; stornieren Sie eine unbezahlte Auszahlung stattdessen."
+
+msgid "This payout has no stored credit note (not issued yet or deleted after the retention period)."
+msgstr "Zu dieser Auszahlung ist keine Gutschrift gespeichert (noch nicht ausgestellt oder nach Ablauf der Aufbewahrungsfrist gelöscht)."
+
+msgid "Affiliate not found"
+msgstr "Partner nicht gefunden"
+
+msgid "The credit note was corrected in the meantime. Please check the current amounts and try again; nothing was booked."
+msgstr "Die Gutschrift wurde zwischenzeitlich korrigiert. Bitte prüfen Sie die aktuellen Beträge und versuchen Sie es erneut; es wurde nichts gebucht."
+
+msgid "The corrected net amount equals the current one: there is nothing to correct. If the credit note is correct, explain this to the partner instead."
+msgstr "Der korrigierte Nettobetrag entspricht dem aktuellen: Es gibt nichts zu korrigieren. Ist die Gutschrift richtig, erklären Sie dies stattdessen dem Partner."
+
+msgid "The correction credit note could not be saved (database error). Nothing was booked; please try again."
+msgstr "Die Korrekturgutschrift konnte nicht gespeichert werden (Datenbankfehler). Es wurde nichts gebucht; bitte versuchen Sie es erneut."
+
+msgid "We have issued correction credit note %1$s for credit note %2$s (in your partner area under Payouts): %3$s"
+msgstr "Wir haben zur Gutschrift %2$s die Korrekturgutschrift %1$s ausgestellt (in Ihrem Partnerbereich unter „Auszahlungen“): %3$s"
+
+msgid "Correction credit note (Gutschrift)"
+msgstr "Korrekturgutschrift (Gutschrift)"
+
+msgid "Correction credit note (self-billing)"
+msgstr "Korrekturgutschrift (Self-Billing)"
+
+msgid "Correction of commission statement"
+msgstr "Korrektur der Provisionsabrechnung"
+
+msgid "DUPLICATE"
+msgstr "DUPLIKAT"
+
+msgid "Issued by (recipient of the service)"
+msgstr "Aussteller (Leistungsempfänger)"
+
+msgid "Partner (provider of the service)"
+msgstr "Partner (Leistender)"
+
+msgid "Correction number"
+msgstr "Korrekturnummer"
+
+msgid "Corrects credit note"
+msgstr "Korrigiert Gutschrift"
+
+msgid "Replaces correction"
+msgstr "Ersetzt Korrektur"
+
+msgid "Service"
+msgstr "Leistung"
+
+msgid "Referral of customers (affiliate commission)"
+msgstr "Vermittlung von Kunden (Partnerprovision)"
+
+msgid "Service period until"
+msgstr "Leistungszeitraum bis"
+
+msgid "VAT ID of the partner"
+msgstr "USt-IdNr. des Partners"
+
+msgid "Tax number of the partner"
+msgstr "Steuernummer des Partners"
+
+msgid "Reason for the correction"
+msgstr "Grund der Korrektur"
+
+msgid "Net"
+msgstr "Netto"
+
+msgid "Gross"
+msgstr "Brutto"
+
+msgid "Previously (%s)"
+msgstr "Bisher (%s)"
+
+msgid "Corrected"
+msgstr "Korrigiert"
+
+msgid "Difference"
+msgstr "Differenz"
+
+msgid "VAT rate of the corrected credit note: %s %%"
+msgstr "Umsatzsteuersatz der korrigierten Gutschrift: %s %%"
+
+msgid "The difference of %s is credited to the partner account and paid with the next payout."
+msgstr "Die Differenz von %s wird dem Partnerkonto gutgeschrieben und mit der nächsten Auszahlung ausgezahlt."
+
+msgid "The overpayment of %s is debited to the partner account and offset against the next commissions."
+msgstr "Die Überzahlung von %s wird dem Partnerkonto belastet und mit den nächsten Provisionen verrechnet."
+
+msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
+msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (§ 14 Abs. 2 UStG); die Änderung der Beträge ist eine Berichtigung nach § 17 UStG. Der Partner kann ihr wie der Gutschrift widersprechen."
+
+msgid "This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document."
+msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (Art. 224 MwSt-Systemrichtlinie). Der Partner kann ihr wie dem ursprünglichen Beleg widersprechen."
+
+msgid "Duplicate: built again from the stored data because the original file was not available on this server."
+msgstr "Duplikat: aus den gespeicherten Daten neu erstellt, weil die Originaldatei auf diesem Server nicht verfügbar war."
+
+msgid "Some characters cannot be shown in this document and were transliterated. Original spelling: %s"
+msgstr "Einige Zeichen können in diesem Beleg nicht dargestellt werden und wurden umschrieben. Originalschreibweise: %s"
+
+msgid "The statement is not available (anymore)."
+msgstr "Der Beleg ist nicht (mehr) verfügbar."
+
+msgid "The stored statement failed the integrity check."
+msgstr "Der gespeicherte Beleg hat die Integritätsprüfung nicht bestanden."
+
 msgid "This credit note cannot be objected to."
 msgstr "Dieser Gutschrift kann nicht widersprochen werden."
 
@@ -4781,11 +4973,11 @@ msgstr "Ihr Widerspruch konnte nicht gespeichert werden. Bitte versuchen Sie es 
 msgid "Objection to credit note %s"
 msgstr "Widerspruch gegen Gutschrift %s"
 
-msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4$s"
-msgstr "%1$s hat der Gutschrift %2$s widersprochen:\n\n%3$s\n\nDie Gutschrift gilt nicht mehr als Rechnung. Bitte prüfen, die Auszahlung bei Bedarf stornieren und eine korrigierte Gutschrift ausstellen:\n%4$s"
+msgid "%1$s objected to credit note %2$s:\n\n%3$s\n\nThe credit note no longer counts as an invoice. Please check it: cancel an unpaid payout and create it again, issue a correction credit note for a paid one, or explain why it is correct:\n%4$s"
+msgstr "%1$s hat der Gutschrift %2$s widersprochen:\n\n%3$s\n\nDie Gutschrift gilt nicht mehr als Rechnung. Bitte prüfen Sie sie: Eine unbezahlte Auszahlung stornieren und neu erstellen, für eine bezahlte eine Korrekturgutschrift ausstellen oder erklären, warum sie richtig ist:\n%4$s"
 
-msgid "The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled here. If the objection is justified, agree the correction with the partner – the partner issues their own invoice for the correct amount, or you settle the difference by a separate transfer or repayment request – and keep the documents with the credit note. If the credit note is correct, explain why. Then describe below what was done; the partner receives this text."
-msgstr "Die Gutschrift gilt nicht mehr als Rechnung. Diese Auszahlung ist bereits bezahlt und kann hier nicht storniert werden. Ist der Widerspruch berechtigt, vereinbaren Sie die Korrektur mit dem Partner – der Partner stellt eine eigene Rechnung über den richtigen Betrag, oder Sie gleichen die Differenz mit einer gesonderten Überweisung oder Rückforderung aus – und bewahren Sie die Unterlagen bei der Gutschrift auf. Ist die Gutschrift richtig, erklären Sie warum. Beschreiben Sie dann unten, was getan wurde; der Partner erhält diesen Text."
+msgid "The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled. If the objection is justified, issue a correction credit note below with the correct net amount: the difference (VAT as on the credit note) is booked to the partner account – a shortfall is paid with the next payout, an overpayment is offset against the next commissions – and the objection is marked as handled. If the credit note is correct, explain why below; the partner receives this text."
+msgstr "Die Gutschrift gilt nicht mehr als Rechnung. Diese Auszahlung ist bereits bezahlt und kann daher nicht storniert werden. Ist der Widerspruch berechtigt, stellen Sie unten eine Korrekturgutschrift mit dem richtigen Nettobetrag aus: Die Differenz (USt wie auf der Gutschrift) wird auf dem Partnerkonto gebucht – ein Fehlbetrag wird mit der nächsten Auszahlung ausgezahlt, eine Überzahlung mit den nächsten Provisionen verrechnet – und der Widerspruch als erledigt markiert. Ist die Gutschrift richtig, erklären Sie unten, warum; der Partner erhält diesen Text."
 
 msgid "The payout was already cancelled (cancellation document issued); its commissions are paid with the next run and a new credit note. Describe below what was done; the partner receives this text."
 msgstr "Die Auszahlung wurde bereits storniert (Stornobeleg ausgestellt); ihre Provisionen werden mit dem nächsten Lauf und einer neuen Gutschrift ausgezahlt. Beschreiben Sie unten, was getan wurde; der Partner erhält diesen Text."
@@ -4861,9 +5053,6 @@ msgstr "SEPA exportiert"
 
 msgid "Cancelled"
 msgstr "Storniert"
-
-msgid "Affiliate not found"
-msgstr "Partner nicht gefunden"
 
 msgid "Negative balance – carried forward"
 msgstr "Negativer Saldo – vorgetragen"
@@ -5084,15 +5273,6 @@ msgstr "Gutschrift"
 msgid "Credit note (self-billing)"
 msgstr "Gutschrift (Self-Billing)"
 
-msgid "DUPLICATE"
-msgstr "DUPLIKAT"
-
-msgid "Issued by (recipient of the service)"
-msgstr "Aussteller (Leistungsempfänger)"
-
-msgid "Partner (provider of the service)"
-msgstr "Partner (Leistender)"
-
 msgid "Cancellation number"
 msgstr "Stornonummer"
 
@@ -5105,26 +5285,8 @@ msgstr "Belegnummer"
 msgid "Cancels"
 msgstr "Storniert"
 
-msgid "Service"
-msgstr "Leistung"
-
-msgid "Referral of customers (affiliate commission)"
-msgstr "Vermittlung von Kunden (Partnerprovision)"
-
-msgid "Service period until"
-msgstr "Leistungszeitraum bis"
-
-msgid "VAT ID of the partner"
-msgstr "USt-IdNr. des Partners"
-
-msgid "Tax number of the partner"
-msgstr "Steuernummer des Partners"
-
 msgid "Other payment method as agreed with the partner"
 msgstr "Andere, mit dem Partner vereinbarte Zahlungsart"
-
-msgid "Net"
-msgstr "Netto"
 
 msgid "reverse charge"
 msgstr "Reverse Charge"
@@ -5137,6 +5299,9 @@ msgstr "Privatperson, keine USt"
 
 msgid "Repayments and write-offs (not taxable)"
 msgstr "Rückzahlungen und Abschreibungen (nicht steuerbar)"
+
+msgid "Correction credit notes settled (VAT shown on the correction credit note)"
+msgstr "Ausgeglichene Korrekturgutschriften (USt auf der Korrekturgutschrift ausgewiesen)"
 
 msgid "Correction of credit note %1$s of %2$s"
 msgstr "Korrektur zur Gutschrift %1$s vom %2$s"
@@ -5165,14 +5330,11 @@ msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billi
 msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
 msgstr "Dieser Beleg rechnet Berichtigungen früherer Gutschriften (Erstattungen und Stornierungen vermittelter Bestellungen) mit der erhaltenen Rückzahlung bzw. der abgeschriebenen Forderung ab. Er mindert Nettobeträge und USt der oben genannten Gutschriften; es wird nichts überwiesen."
 
+msgid "Correction credit notes settled: the amounts are the gross differences of the correction credit notes named, whose VAT is shown there; no VAT is added on this document."
+msgstr "Ausgeglichene Korrekturgutschriften: Die Beträge sind die Bruttodifferenzen der genannten Korrekturgutschriften, deren Umsatzsteuer dort ausgewiesen ist; auf diesem Beleg wird keine Umsatzsteuer hinzugerechnet."
+
 msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
 msgstr "Dieses Dokument storniert die oben genannte Gutschrift vollständig. Die Provisionen stehen für eine spätere Auszahlung zur Verfügung."
-
-msgid "Duplicate: built again from the stored data because the original file was not available on this server."
-msgstr "Duplikat: aus den gespeicherten Daten neu erstellt, weil die Originaldatei auf diesem Server nicht verfügbar war."
-
-msgid "Some characters cannot be shown in this document and were transliterated. Original spelling: %s"
-msgstr "Einige Zeichen können in diesem Beleg nicht dargestellt werden und wurden umschrieben. Originalschreibweise: %s"
 
 msgid "Annual overview %d"
 msgstr "Jahresübersicht %d"
@@ -5183,11 +5345,11 @@ msgstr "Partnerprogramm"
 msgid "Document"
 msgstr "Beleg"
 
-msgid "Gross"
-msgstr "Brutto"
-
 msgid "cancels %s"
 msgstr "storniert %s"
+
+msgid "corrects %s"
+msgstr "korrigiert %s"
 
 msgid "No credit notes in this year."
 msgstr "Keine Gutschriften in diesem Jahr."
@@ -5197,12 +5359,6 @@ msgstr "Summe %s"
 
 msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
 msgstr "Diese Übersicht fasst Ihre Gutschriften und Stornos des Jahres zusammen. Sie ist selbst kein Steuerbeleg; das sind die Gutschriften. Bitte bewahren Sie diese auf."
-
-msgid "The statement is not available (anymore)."
-msgstr "Der Beleg ist nicht (mehr) verfügbar."
-
-msgid "The stored statement failed the integrity check."
-msgstr "Der gespeicherte Beleg hat die Integritätsprüfung nicht bestanden."
 
 msgid "%d day after the click"
 msgid_plural "%d days after the click"
@@ -5660,6 +5816,9 @@ msgstr "Ihre Auszahlungen"
 
 msgid "Credit note"
 msgstr "Gutschrift"
+
+msgid "Correction %s"
+msgstr "Korrektur %s"
 
 msgid "Annual overview:"
 msgstr "Jahresübersicht:"

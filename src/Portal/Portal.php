@@ -362,6 +362,14 @@ final class Portal {
 		if ( ! $aff || ! $p || (int) $p->affiliate_id !== (int) $aff->id ) {
 			wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
 		}
+		if ( ! empty( $_GET['correction'] ) ) {
+			// Correction credit note of this (own) payout.
+			$kg = \WPAffiliateCaptain\Payouts\Corrections::find( absint( $_GET['correction'] ) );
+			if ( ! $kg || (int) $kg->payout_id !== (int) $p->id ) {
+				wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
+			}
+			\WPAffiliateCaptain\Payouts\Corrections::send( $kg );
+		}
 		if ( ! empty( $_GET['storno'] ) ) {
 			Statement::send_storno( $p );
 		}
@@ -1646,6 +1654,7 @@ final class Portal {
 		}
 		self::list_filter_form( 'payouts', $labels, $filters );
 		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your payouts', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Period until', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		$kgs = \WPAffiliateCaptain\Payouts\Corrections::for_payouts( wp_list_pluck( $rows, 'id' ) );
 		foreach ( $rows as $p ) {
 			if ( 'cancelled' === $p->status && ! $p->storno_file ) {
 				continue;
@@ -1656,6 +1665,12 @@ final class Portal {
 			$pdf = $p->statement_file ? '<a href="' . esc_url( $url( false ) ) . '">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</a>' : '—';
 			if ( $p->storno_file ) {
 				$pdf .= ' · <a href="' . esc_url( $url( true ) ) . '">' . esc_html__( 'Cancellation', 'affiliate-captain' ) . '</a>';
+			}
+			foreach ( isset( $kgs[ (int) $p->id ] ) ? $kgs[ (int) $p->id ] : array() as $kg ) {
+				if ( '' !== (string) $kg->file ) {
+					/* translators: %s: correction credit note number */
+					$pdf .= ' · <a href="' . esc_url( wp_nonce_url( add_query_arg( array( 'wpac_statement' => (int) $p->id, 'correction' => (int) $kg->id ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id ) ) . '">' . esc_html( sprintf( __( 'Correction %s', 'affiliate-captain' ), $kg->number ) ) . '</a>';
+				}
 			}
 			printf(
 				'<tr><td data-label="%6$s">%1$s</td><td data-label="%7$s">%2$s</td><td data-label="%8$s">%3$s</td><td data-label="%9$s">%4$s</td><td data-label="%10$s">%5$s</td></tr>',

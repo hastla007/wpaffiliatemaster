@@ -9,6 +9,7 @@
  *  - payout            commissions were assigned to a payout (−net)
  *  - payout_cancelled  a payout was cancelled, commissions are payable again (+net)
  *  - opening           opening balance when the ledger was introduced
+ *  - correction        correction credit note of a paid payout: gross difference payable (+/-)
  *
  * Invariant: balance == sum of approved commissions not assigned to a payout.
  * Bookings are hash-chained per account (hash of the previous booking + data),
@@ -414,6 +415,7 @@ final class Balance {
 			'payout'           => __( 'Payout', 'affiliate-captain' ),
 			'payout_cancelled' => __( 'Payout cancelled', 'affiliate-captain' ),
 			'opening'          => __( 'Opening balance', 'affiliate-captain' ),
+			'correction'       => __( 'Correction credit note', 'affiliate-captain' ),
 		);
 	}
 }

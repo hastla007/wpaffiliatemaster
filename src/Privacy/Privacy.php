@@ -176,6 +176,7 @@ final class Privacy {
 				'commissions'     => array( __CLASS__, 'commission_item' ),
 				'attributions'    => array( __CLASS__, 'attribution_item' ),
 				'payouts'         => array( __CLASS__, 'payout_item' ),
+				'payout_corrections' => array( __CLASS__, 'correction_item' ),
 				'balance_entries' => array( __CLASS__, 'balance_entry_item' ),
 			);
 			foreach ( $defs as $table => $item ) {
@@ -293,6 +294,29 @@ final class Privacy {
 				array( 'name' => __( 'Paid on', 'affiliate-captain' ), 'value' => (string) $p->paid_at ),
 				array( 'name' => __( 'Cancellation number', 'affiliate-captain' ), 'value' => (string) $p->storno_number ),
 				array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $p->note ),
+			),
+		);
+	}
+
+	/**
+	 * Export item of a correction credit note.
+	 *
+	 * @param object $k Row.
+	 * @return array
+	 */
+	public static function correction_item( $k ) {
+		$p = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $k->payout_id );
+		return array(
+			'group_id'    => 'wpac-payout-corrections',
+			'group_label' => __( 'Correction credit notes', 'affiliate-captain' ),
+			'item_id'     => 'wpac-correction-' . $k->id,
+			'data'        => array(
+				array( 'name' => _x( 'Number', 'document number', 'affiliate-captain' ), 'value' => (string) $k->number ),
+				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => (string) $k->created_at ),
+				array( 'name' => __( 'Corrects credit note', 'affiliate-captain' ), 'value' => $p ? (string) $p->number : '' ),
+				array( 'name' => __( 'Corrected net', 'affiliate-captain' ), 'value' => Money::format( (int) $k->net_minor, $k->currency ) ),
+				array( 'name' => __( 'Difference (gross)', 'affiliate-captain' ), 'value' => Money::format( (int) $k->net_minor + (int) $k->vat_minor - (int) $k->prev_net_minor - (int) $k->prev_vat_minor, $k->currency ) ),
+				array( 'name' => __( 'Reason', 'affiliate-captain' ), 'value' => (string) $k->reason ),
 			),
 		);
 	}

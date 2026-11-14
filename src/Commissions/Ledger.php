@@ -64,6 +64,7 @@ final class Ledger {
 			'increase'     => __( 'Order increase', 'affiliate-captain' ),
 			'adjustment'   => __( 'Manual booking', 'affiliate-captain' ),
 			'repayment'    => __( 'Repayment by the partner', 'affiliate-captain' ),
+			'correction'   => __( 'Correction credit note', 'affiliate-captain' ),
 		);
 	}
 
@@ -1318,6 +1319,10 @@ final class Ledger {
 		if ( (int) $c->payout_id ) {
 			return new \WP_Error( 'wpac_state', __( 'This commission is part of a payout. Cancel the payout first.', 'affiliate-captain' ) );
 		}
+		if ( 'correction' === $c->kind ) {
+			// The amount is fixed by an issued correction credit note: a further change needs another one.
+			return new \WP_Error( 'wpac_state', __( 'This booking settles a correction credit note and cannot be rejected. Issue a further correction credit note for the payout instead.', 'affiliate-captain' ) );
+		}
 		if ( '' === trim( (string) $reason ) ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
 		}
@@ -1649,7 +1654,7 @@ final class Ledger {
 		$t = Db::table( 'commissions' );
 		// Earnings only: a write-off or a repayment settles a debt; rejecting it would revive the debt.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND payout_id = 0 AND amount_minor > 0 AND kind NOT IN ('writeoff','repayment')", $affiliate_id ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND payout_id = 0 AND amount_minor > 0 AND kind NOT IN ('writeoff','repayment','correction')", $affiliate_id ) );
 		$failed = 0;
 		foreach ( $ids as $id ) {
 			// reject() reports errors instead of throwing: one failure must not stop the others.

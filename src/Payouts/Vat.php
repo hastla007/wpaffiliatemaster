@@ -23,8 +23,12 @@ final class Vat {
 	const PRIVATE_PERSON = 'private';         // Private individual: no VAT.
 	const NONE           = 'none';            // Not a service (repayment received, claim written off): outside the scope of VAT.
 
-	/** Booking kinds that are no service of the partner (never taxed on a credit note). */
-	const NON_TAXABLE_KINDS = array( 'repayment', 'writeoff' );
+	/**
+	 * Booking kinds that are never taxed on a credit note: repayments and write-offs are no service
+	 * of the partner; a correction (gross difference of a correction credit note) had its VAT shown
+	 * on the correction credit note itself.
+	 */
+	const NON_TAXABLE_KINDS = array( 'repayment', 'writeoff', 'correction' );
 
 	/**
 	 * VAT ID formats of the EU member states (VIES country code => pattern of the number part).
