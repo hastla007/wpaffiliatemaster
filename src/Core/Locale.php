@@ -84,7 +84,9 @@ final class Locale {
 		if ( ! function_exists( 'unload_textdomain' ) || ! function_exists( 'load_textdomain' ) ) {
 			return;
 		}
-		unload_textdomain( self::DOMAIN );
+		// Reloadable: without it WordPress (6.1+) marks the domain as unloaded for good and the
+		// just-in-time loader no longer finds translations for later strings of the request.
+		unload_textdomain( self::DOMAIN, true );
 		$files = array(
 			WP_LANG_DIR . '/plugins/' . self::DOMAIN . '-' . $locale . '.mo',
 			WPAC_DIR . 'languages/' . self::DOMAIN . '-' . $locale . '.mo',

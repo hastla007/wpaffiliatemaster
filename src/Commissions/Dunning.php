@@ -134,33 +134,36 @@ final class Dunning {
 			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'affiliate-captain' ) );
 		}
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-		$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-		$amount  = html_entity_decode( Money::format( -$open, $currency ), ENT_QUOTES, 'UTF-8' );
-		$vat     = self::open_vat( (int) $affiliate_id, $currency );
-		$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
-		$subject = array(
-			/* translators: %s: site name */
-			1 => __( '[%s] Repayment of commissions', 'affiliate-captain' ),
-			/* translators: %s: site name */
-			2 => __( '[%s] Reminder: repayment of commissions', 'affiliate-captain' ),
-			/* translators: %s: site name */
-			3 => __( '[%s] Final reminder: repayment of commissions', 'affiliate-captain' ),
-		);
-		$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
-		// Reply-To: the program's notification address ("please reply to this e-mail").
-		$sent = \WPAffiliateCaptain\Affiliates\Notifications::send(
-			'dunning',
-			$aff->email,
-			sprintf( $subject[ $level ], $site ),
-			/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
-			sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
-				. ( $vat < 0
-					/* translators: %s: VAT amount */
-					? "\n\n" . sprintf( __( 'The amount includes %s VAT that was paid out with earlier credit notes for the refunded commissions (correction of those credit notes). Once the balance is settled you receive a correction document.', 'affiliate-captain' ), html_entity_decode( Money::format( -$vat, $currency ), ENT_QUOTES, 'UTF-8' ) )
-					: '' ),
-			array( 'affiliate_id' => (int) $affiliate_id )
-		);
-		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		try {
+			$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+			$amount  = html_entity_decode( Money::format( -$open, $currency ), ENT_QUOTES, 'UTF-8' );
+			$vat     = self::open_vat( (int) $affiliate_id, $currency );
+			$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
+			$subject = array(
+				/* translators: %s: site name */
+				1 => __( '[%s] Repayment of commissions', 'affiliate-captain' ),
+				/* translators: %s: site name */
+				2 => __( '[%s] Reminder: repayment of commissions', 'affiliate-captain' ),
+				/* translators: %s: site name */
+				3 => __( '[%s] Final reminder: repayment of commissions', 'affiliate-captain' ),
+			);
+			$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
+			// Reply-To: the program's notification address ("please reply to this e-mail").
+			$sent = \WPAffiliateCaptain\Affiliates\Notifications::send(
+				'dunning',
+				$aff->email,
+				sprintf( $subject[ $level ], $site ),
+				/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
+				sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
+					. ( $vat < 0
+						/* translators: %s: VAT amount */
+						? "\n\n" . sprintf( __( 'The amount includes %s VAT that was paid out with earlier credit notes for the refunded commissions (correction of those credit notes). Once the balance is settled you receive a correction document.', 'affiliate-captain' ), html_entity_decode( Money::format( -$vat, $currency ), ENT_QUOTES, 'UTF-8' ) )
+						: '' ),
+				array( 'affiliate_id' => (int) $affiliate_id )
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
 		if ( ! $sent ) {
 			return new \WP_Error( 'wpac_mail_failed', __( 'The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again.', 'affiliate-captain' ) );
 		}

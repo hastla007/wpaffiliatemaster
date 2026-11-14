@@ -179,30 +179,33 @@ final class MonthlyMail {
 					continue;
 				}
 				$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-				$lines       = array();
-				$lines[]     = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'affiliate-captain' ), $aff->name );
-				$lines[] = '';
-				$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'affiliate-captain' ), self::month_label( $month ) );
-				$lines[] = __( 'Link visits', 'affiliate-captain' ) . ': ' . $r['visits'];
-				$lines[] = __( 'Sales', 'affiliate-captain' ) . ': ' . $r['orders'];
-				$lines[] = __( 'Commission', 'affiliate-captain' ) . ': ' . $fmt( $r['commission'] );
-				if ( $r['corrections'] ) {
-					$lines[] = __( 'Corrections', 'affiliate-captain' ) . ': ' . $fmt( $r['corrections'] );
-				}
-				if ( $r['writeoffs'] ) {
-					$lines[] = __( 'Written-off negative balance', 'affiliate-captain' ) . ': ' . $fmt( $r['writeoffs'] );
-				}
-				if ( $r['bonus'] ) {
-					$lines[] = __( 'Monthly bonus', 'affiliate-captain' ) . ': ' . $fmt( $r['bonus'] );
-				}
-				$lines[] = __( 'Available for payout', 'affiliate-captain' ) . ': ' . $fmt( PayoutRequests::available( (int) $aff->id ) );
-				if ( $portal ) {
+				try {
+					$lines       = array();
+					$lines[]     = sprintf( /* translators: %s: name */ __( 'Hello %s,', 'affiliate-captain' ), $aff->name );
 					$lines[] = '';
-					$lines[] = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
+					$lines[] = sprintf( /* translators: %s: month */ __( 'here is your summary for %s:', 'affiliate-captain' ), self::month_label( $month ) );
+					$lines[] = __( 'Link visits', 'affiliate-captain' ) . ': ' . $r['visits'];
+					$lines[] = __( 'Sales', 'affiliate-captain' ) . ': ' . $r['orders'];
+					$lines[] = __( 'Commission', 'affiliate-captain' ) . ': ' . $fmt( $r['commission'] );
+					if ( $r['corrections'] ) {
+						$lines[] = __( 'Corrections', 'affiliate-captain' ) . ': ' . $fmt( $r['corrections'] );
+					}
+					if ( $r['writeoffs'] ) {
+						$lines[] = __( 'Written-off negative balance', 'affiliate-captain' ) . ': ' . $fmt( $r['writeoffs'] );
+					}
+					if ( $r['bonus'] ) {
+						$lines[] = __( 'Monthly bonus', 'affiliate-captain' ) . ': ' . $fmt( $r['bonus'] );
+					}
+					$lines[] = __( 'Available for payout', 'affiliate-captain' ) . ': ' . $fmt( PayoutRequests::available( (int) $aff->id ) );
+					if ( $portal ) {
+						$lines[] = '';
+						$lines[] = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
+					}
+					// With an unsubscribe link (one click, no login) and List-Unsubscribe header.
+					$wpac_ok = \WPAffiliateCaptain\Affiliates\Notifications::send_optional( 'monthly_partner', $aff, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
+				} finally {
+					\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 				}
-				// With an unsubscribe link (one click, no login) and List-Unsubscribe header.
-				$wpac_ok = \WPAffiliateCaptain\Affiliates\Notifications::send_optional( 'monthly_partner', $aff, sprintf( '[%s] %s', $site, sprintf( /* translators: %s: month */ __( 'Your partner summary %s', 'affiliate-captain' ), self::month_label( $month ) ) ), implode( "\n", $lines ) );
-				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
 				if ( ! $wpac_ok ) {
 					self::record_failure( $month, (int) $aff->id ); // Retried later (retry_failed()).
 					continue;

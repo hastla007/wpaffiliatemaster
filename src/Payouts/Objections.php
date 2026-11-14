@@ -156,19 +156,22 @@ final class Objections {
 		Audit::log( 'statement.objection', 'payout', (int) $payout_id );
 		$aff   = AffiliateRepository::find( (int) $affiliate_id );
 		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
-		\WPAffiliateCaptain\Affiliates\Notifications::send(
-			'objection',
-			\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
-			/* translators: %s: credit note number */
-			sprintf( __( 'Objection to credit note %s', 'affiliate-captain' ), $p->number ),
-			/* translators: 1: partner, 2: number, 3: reason, 4: URL */
-			sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4\$s", 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) ),
-			array(
-				'admin'        => true,
-				'affiliate_id' => (int) $affiliate_id,
-			)
-		);
-		\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		try {
+			\WPAffiliateCaptain\Affiliates\Notifications::send(
+				'objection',
+				\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
+				/* translators: %s: credit note number */
+				sprintf( __( 'Objection to credit note %s', 'affiliate-captain' ), $p->number ),
+				/* translators: 1: partner, 2: number, 3: reason, 4: URL */
+				sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4\$s", 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) ),
+				array(
+					'admin'        => true,
+					'affiliate_id' => (int) $affiliate_id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
 		return true;
 	}
 
@@ -236,16 +239,19 @@ final class Objections {
 		$p   = PayoutService::find( (int) $payout_id );
 		if ( $aff && $p ) {
 			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-			\WPAffiliateCaptain\Affiliates\Notifications::send(
-				'objection_resolved',
-				$aff->email,
-				/* translators: %s: credit note number */
-				sprintf( __( 'Your objection to credit note %s', 'affiliate-captain' ), $p->number ),
-				/* translators: %s: resolution */
-				sprintf( __( "Hello,\n\nwe have reviewed your objection:\n\n%s", 'affiliate-captain' ), $all[ (int) $payout_id ]['resolution'] ),
-				array( 'affiliate_id' => (int) $aff->id )
-			);
-			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			try {
+				\WPAffiliateCaptain\Affiliates\Notifications::send(
+					'objection_resolved',
+					$aff->email,
+					/* translators: %s: credit note number */
+					sprintf( __( 'Your objection to credit note %s', 'affiliate-captain' ), $p->number ),
+					/* translators: %s: resolution */
+					sprintf( __( "Hello,\n\nwe have reviewed your objection:\n\n%s", 'affiliate-captain' ), $all[ (int) $payout_id ]['resolution'] ),
+					array( 'affiliate_id' => (int) $aff->id )
+				);
+			} finally {
+				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			}
 		}
 		return true;
 	}

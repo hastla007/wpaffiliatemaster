@@ -295,17 +295,20 @@ final class Agreements {
 		}
 		$terms       = self::current( (int) $aff->group_id );
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-		$url         = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
-		$sent        = Notifications::send(
-			'terms_reminder',
-			$aff->email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Please accept the current partner terms', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: 1: name, 2: version, 3: terms URL, 4: partner area URL */
-			sprintf( __( "Hello %1\$s,\n\nplease read and accept the current partner program terms (version %2\$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3\$s\nAccept them in your partner area: %4\$s\n\nThank you!", 'affiliate-captain' ), $aff->name, $terms['version'], $terms['url'] ? $terms['url'] : $url, $url ),
-			array( 'affiliate_id' => (int) $aff->id )
-		);
-		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		try {
+			$url  = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
+			$sent = Notifications::send(
+				'terms_reminder',
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Please accept the current partner terms', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: 1: name, 2: version, 3: terms URL, 4: partner area URL */
+				sprintf( __( "Hello %1\$s,\n\nplease read and accept the current partner program terms (version %2\$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3\$s\nAccept them in your partner area: %4\$s\n\nThank you!", 'affiliate-captain' ), $aff->name, $terms['version'], $terms['url'] ? $terms['url'] : $url, $url ),
+				array( 'affiliate_id' => (int) $aff->id )
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
 		return $sent;
 	}
 
