@@ -86,17 +86,17 @@ $ze_csv      = "name;email;website;status;codes;rate;rate_type;group\n"
 $ze_before = $ze_aff_count();
 $ze_dry    = PartnerImport::run( $ze_csv, array( 'dry_run' => true ) );
 check( 'ZE01 dry run writes nothing', $ze_before, $ze_aff_count() );
-check( 'ZE01 dry run: rows with errors are listed per line', array( 2 => 'ok', 3 => 'error', 4 => 'error', 5 => 'error', 6 => 'ok', 7 => 'error', 8 => 'ok' ), array_map( static function ( $r ) { return $r['result']; }, $ze_dry['rows'] ) );
+check( 'ZE01 dry run: rows listed per line (existing partner skipped, unusable code left out – R5-W22/R5-O10)', array( 2 => 'ok', 3 => 'skipped', 4 => 'ok', 5 => 'error', 6 => 'ok', 7 => 'error', 8 => 'ok' ), array_map( static function ( $r ) { return $r['result']; }, $ze_dry['rows'] ) );
 check( 'ZE01 dry run: reasons (existing e-mail, code in use, status, duplicate in file)', array( true, true, true, true ), array(
-	false !== strpos( implode( ' ', $ze_dry['rows'][3]['errors'] ), 'already exists' ),
-	false !== strpos( implode( ' ', $ze_dry['rows'][4]['errors'] ), 'already in use' ),
+	false !== strpos( $ze_dry['rows'][3]['skip'], 'already exists' ),
+	false !== strpos( implode( ' ', $ze_dry['rows'][4]['notes'] ), 'already in use' ),
 	false !== strpos( implode( ' ', $ze_dry['rows'][5]['errors'] ), 'unknown status' ),
 	false !== strpos( implode( ' ', $ze_dry['rows'][7]['errors'] ), 'line 2' ),
 ) );
 check( 'ZE01 dry run: new group announced', true, (bool) preg_grep( '/new partner group/', $ze_dry['rows'][2]['notes'] ) );
 $ze_hooks = count( $GLOBALS['test_hooks']['pre_wp_mail'][99] ?? array() );
 $ze_run   = PartnerImport::run( $ze_csv, array( 'dry_run' => false ) );
-check( 'ZE02 import: 3 created, 4 skipped', array( 3, 4, $ze_before + 3 ), array( $ze_run['created'], $ze_run['failed'], $ze_aff_count() ) );
+check( 'ZE02 import: 4 created, 1 skipped, 2 with errors', array( 4, 1, 2, $ze_before + 4 ), array( $ze_run['created'], $ze_run['skipped'], $ze_run['failed'], $ze_aff_count() ) );
 check( 'ZE02 e-mail muting filter removed after the import', $ze_hooks, count( $GLOBALS['test_hooks']['pre_wp_mail'][99] ?? array() ) );
 $ze_new  = AffiliateRepository::find_by_email( 'ze-neu@example.de' );
 $ze_wait = AffiliateRepository::find_by_email( 'ze-wartend@example.de' );
@@ -108,7 +108,7 @@ check( 'ZE02 one group created and shared by both rows', array( 1, (int) $ze_new
 $ze_rules = $wpdb->get_results( $wpdb->prepare( 'SELECT scope_id, target, rate_type, rate FROM ' . Db::table( 'rules' ) . " WHERE scope = 'affiliate' AND scope_id IN (%d, %d) ORDER BY scope_id", $ze_new->id, $ze_wait->id ), ARRAY_A );
 check( 'ZE02 partner rules: 12.5 % and 5,00 € fixed (minor units)', array( array( 'percent', '12.5' ), array( 'fixed', '500' ) ), array_map( static function ( $r ) { return array( $r['rate_type'], (string) (float) $r['rate'] === $r['rate'] ? $r['rate'] : rtrim( rtrim( $r['rate'], '0' ), '.' ) ); }, $ze_rules ) );
 $ze_again = PartnerImport::run( $ze_csv, array( 'dry_run' => true ) );
-check( 'ZE02 importing the same file again creates nothing new', 0, count( array_filter( $ze_again['rows'], static function ( $r ) { return ! $r['errors']; } ) ) );
+check( 'ZE02 importing the same file again creates nothing new', 0, count( array_filter( $ze_again['rows'], static function ( $r ) { return 'ok' === $r['result']; } ) ) );
 $ze_limited = PartnerImport::run( "email;rate;group\nze-limit@example.de;10;Unbekannt\n", array( 'dry_run' => true, 'allow_program' => false ) );
 check( 'ZE03 without wpac_manage_program: no rules, no new groups', 2, count( $ze_limited['rows'][2]['errors'] ) );
 check( 'ZE03 admin page row limit', true, is_wp_error( PartnerImport::run( "email\na@example.de\nb@example.de\n", array( 'max_rows' => 1 ) ) ) );
@@ -158,7 +158,7 @@ $ze_allowed = static function ( $route, $user, $caps ) use ( $ze_routes ) {
 	$GLOBALS['test_user'] = 1;
 	return $r;
 };
-$ze_admin_routes   = array( '/sales', '/refunds', '/affiliates', '/affiliates/(?P<id>\d+)', '/commissions', '/reports/(?P<view>partners|content|campaign)' );
+$ze_admin_routes   = array( '/sales', '/refunds', '/reinstatements', '/affiliates', '/affiliates/(?P<id>\d+)', '/commissions', '/reports/(?P<view>partners|content|campaign)' );
 $ze_partner_routes = array( '/me', '/me/commissions', '/me/payouts' );
 check( 'ZE05 all protected routes are covered by these checks', count( $ze_routes ) - count( $ze_public ), count( $ze_admin_routes ) + count( $ze_partner_routes ) );
 $ze_partner_user = 9001;

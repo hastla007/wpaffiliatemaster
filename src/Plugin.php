@@ -40,20 +40,28 @@ final class Plugin {
 			1
 		);
 
+		// An old main file left in the folder loaded this code: the new one takes over next request.
+		\WPAffiliateCaptain\Core\Lifecycle::switch_main_file( WPAC_FILE );
 		Installer::maybe_upgrade();
 		Installer::register_multisite_hooks();
+		add_action( 'init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'followup' ), 5 );
+		add_action( 'admin_init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'run_check_clone' ), 5 );
+		\WPAffiliateCaptain\Affiliates\AffiliateRepository::register_user_hooks();
 
 		CodeRepository::register_hooks();
 		ContractApi::register_hooks();
 		Tracker::register_hooks();
+		\WPAffiliateCaptain\Tracking\CustomerLinks::register_hooks();
 		\WPAffiliateCaptain\Tracking\Consent::register_hooks();
 		Registration::register_hooks();
 		\WPAffiliateCaptain\Affiliates\Notifications::register_hooks();
+		\WPAffiliateCaptain\Commissions\ReviewAlert::register_hooks(); // Review count cache and digest mail (R5-W58).
 		Portal::register_hooks();
 		\WPAffiliateCaptain\Promotion\Landing::register_hooks();
 		\WPAffiliateCaptain\Content\Editor::register_hooks();
 		\WPAffiliateCaptain\Rest\RestApi::register_hooks();
 		Cron::register_hooks();
+		\WPAffiliateCaptain\Payouts\PayoutService::register_hooks(); // Credit notes of payout runs (job queue).
 		Privacy::register_hooks();
 		\WPAffiliateCaptain\Cli\Command::register();
 		add_filter( 'site_status_tests', array( \WPAffiliateCaptain\Core\Monitor::class, 'site_status_tests' ) );

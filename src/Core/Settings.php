@@ -13,6 +13,22 @@ final class Settings {
 
 	const OPTION = 'wpac_settings';
 
+	/**
+	 * Fraud thresholds a new installation starts with (the defaults keep the rules off so existing
+	 * shops are not changed by an update). Order value: 2,000 in the program currency.
+	 *
+	 * @param string $currency Program currency.
+	 * @return array
+	 */
+	public static function recommended_fraud( $currency = 'EUR' ) {
+		return array(
+			'fraud_max_orders_day'    => 50,
+			'fraud_max_order_minor'   => Money::to_minor( '2000', (string) $currency ),
+			'fraud_min_click_seconds' => 5,
+			'fraud_max_refund_rate'   => 30,
+		);
+	}
+
 	/** @var array|null */
 	private static $cache = null;
 
@@ -32,6 +48,8 @@ final class Settings {
 			'checkout_field'          => 1,
 			'renewal_commission'      => 1,
 			'js_tracking'             => 0,
+			'cookie_domain'           => '',         // '' = WordPress COOKIE_DOMAIN (current host).
+			'visit_log_percent'       => 100,        // Share of link visits written to the visit log (0 = off).
 			'coupon_priority'         => 1,
 			'self_referral'           => 'block',    // block|review.
 			'rate_limit_per_minute'   => 30,
@@ -48,6 +66,9 @@ final class Settings {
 			'lifetime_enabled'        => 0,
 			'lifetime_days'           => 365,
 			'lifetime_rate'           => '',
+			'hold_start'              => 'paid',     // paid|completed (WooCommerce: hold period starts when the order is completed).
+			'renewal_limit_months'    => 0,          // Renewals earn commission for this many months after the first order (0 = no limit).
+			'rule_precedence'         => 'scope',    // scope|target, see Calculator.
 			// Program.
 			'auto_approve'            => 0,
 			'terms_page_id'           => 0,
@@ -56,19 +77,27 @@ final class Settings {
 			'registration_page_id'    => 0,
 			'terminated_open'         => 'pay',      // pay|reject.
 			'admin_email'             => '',
+			// E-mails: sender ('' = WordPress default) and optional partner notices.
+			'mail_from_name'          => '',
+			'mail_from_email'         => '',
+			'notify_payout_paid'      => 1,
+			'notify_commissions'      => 0,
+			'notify_admin_review'     => 0,          // Hourly digest to the operator about commissions needing review (R5-W58).
 			'maintenance_mode'        => 0,
 			'monitor_token'           => '',
 			// Promotion.
 			'landing_prefix'          => 'partner',
 			'landing_page_id'         => 0,
-			'default_disclosure'      => 'Werbung',
+			// Translated once translations can load (before "init" WordPress warns about early loading).
+			'default_disclosure'      => function_exists( 'did_action' ) && did_action( 'init' ) ? __( 'Advertisement', 'affiliate-captain' ) : 'Advertisement',
 			'promotion_guidelines'    => '',
 			// Payouts.
 			'min_payout_minor'        => 5000,
 			'payout_requests'         => 0,
 			'statement_retention_years' => 10,
 			'retention_hold'          => 0,
-			'payout_period'           => 'monthly',
+			'payout_period'           => 'monthly', // Unused (no effect, no longer offered in the settings); kept for stored settings.
+			'payout_method_manual'    => 1,         // Partners may choose "other payment method" (PayPal etc., paid manually).
 			'debtor_name'             => '',
 			'debtor_iban'             => '',
 			'debtor_bic'              => '',
@@ -120,8 +149,31 @@ final class Settings {
 		return self::$cache;
 	}
 
-	/** Prefix of a hashed monitoring token. */
+	/** Prefix of a hashed monitoring token (older versions keyed it with the WordPress salt). */
 	const MONITOR_HASH = 'h1:';
+
+	/**
+	 * Prefix of a token hashed with the plugin's own key. It still starts with MONITOR_HASH, so
+	 * older versions (after a downgrade) treat it as hashed and never hash it a second time.
+	 */
+	const MONITOR_HASH_KEYED = 'h1:k';
+
+	/**
+	 * Own, permanent key for the monitoring token: a rotation of the WordPress salts must not
+	 * make /health silently unusable.
+	 *
+	 * @return string
+	 */
+	private static function monitor_key() {
+		$key = get_option( 'wpac_monitor_key' );
+		if ( ! is_string( $key ) || strlen( $key ) < 32 ) {
+			$key = bin2hex( random_bytes( 32 ) );
+			add_option( 'wpac_monitor_key', $key, '', false );
+			$stored = get_option( 'wpac_monitor_key' );
+			$key    = is_string( $stored ) && strlen( $stored ) >= 32 ? $stored : $key;
+		}
+		return $key;
+	}
 
 	/**
 	 * Stored form of a monitoring token: only a keyed hash, never the token itself.
@@ -130,11 +182,12 @@ final class Settings {
 	 * @return string
 	 */
 	public static function monitor_token_hash( $token ) {
-		return self::MONITOR_HASH . hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) . 'wpac_monitor' );
+		return self::MONITOR_HASH_KEYED . hash_hmac( 'sha256', (string) $token, self::monitor_key() . 'wpac_monitor' );
 	}
 
 	/**
-	 * Whether a token sent by a monitor matches the stored one.
+	 * Whether a token sent by a monitor matches the stored one. A token hashed by an older version
+	 * (with the WordPress salt) is converted to the own key on its first successful use.
 	 *
 	 * @param string $sent Token from the request.
 	 * @return bool
@@ -147,7 +200,15 @@ final class Settings {
 		if ( 0 !== strpos( $stored, self::MONITOR_HASH ) ) {
 			return hash_equals( $stored, (string) $sent ); // Not hashed yet (see all()).
 		}
-		return hash_equals( $stored, self::monitor_token_hash( (string) $sent ) );
+		if ( 0 === strpos( $stored, self::MONITOR_HASH_KEYED ) ) {
+			return hash_equals( $stored, self::monitor_token_hash( (string) $sent ) );
+		}
+		$salted = self::MONITOR_HASH . hash_hmac( 'sha256', (string) $sent, wp_salt( 'auth' ) . 'wpac_monitor' );
+		if ( ! hash_equals( $stored, $salted ) ) {
+			return false;
+		}
+		self::update( array( 'monitor_token' => self::monitor_token_hash( (string) $sent ) ) );
+		return true;
 	}
 
 	/**
@@ -205,9 +266,28 @@ final class Settings {
 	}
 
 	/**
+	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
+	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
+	 */
+	const INT_MAX = array(
+		'audit_retention_days'       => 36500,
+		'application_retention_days' => 36500,
+		'visit_retention_days'       => 36500,
+		'fraud_max_orders_day'       => 1000000,
+		'fraud_min_click_seconds'    => 86400,
+		'statement_retention_years'  => 100,
+		'lifetime_days'              => 36500,
+		'cookie_days'                => 3650,
+		'rate_limit_per_minute'      => 1000000,
+		'hold_days'                  => 3650,
+	);
+
+	/**
 	 * Persist settings (already sanitized). Runtime state goes to its own options.
 	 *
 	 * @param array $values Values.
+	 * @return bool Whether the settings are stored as given (read back: update_option() also
+	 *              returns false for an unchanged value, and silently fails on a database error).
 	 */
 	public static function update( array $values ) {
 		foreach ( self::RUNTIME as $key => $option ) {
@@ -219,8 +299,24 @@ final class Settings {
 			}
 		}
 		$merged = array_diff_key( array_merge( self::all(), $values ), self::RUNTIME );
+		if ( array_key_exists( 'vat_rate', $values ) ) {
+			// The VAT of a credit note follows the rate valid at the time of the service: keep the old rate.
+			\WPAffiliateCaptain\Payouts\TaxHistory::record_rate( (string) self::get( 'vat_rate' ), (string) $values['vat_rate'] );
+		}
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
+		// A failed write leaves the cached (old) value in place, so reading back detects it.
+		$stored = get_option( self::OPTION );
+		if ( ! is_array( $stored ) ) {
+			return false;
+		}
+		foreach ( $values as $key => $value ) {
+			if ( ! array_key_exists( $key, $stored ) || (string) ( is_scalar( $stored[ $key ] ) ? $stored[ $key ] : wp_json_encode( $stored[ $key ] ) ) !== (string) ( is_scalar( $value ) ? $value : wp_json_encode( $value ) ) ) {
+				Log::error( 'Settings could not be saved', array( 'key' => (string) $key ) );
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -265,6 +361,8 @@ final class Settings {
 		$out['default_rate_type'] = self::choice( $in, 'default_rate_type', array( 'percent', 'fixed' ), $d );
 		$out['terminated_open']   = self::choice( $in, 'terminated_open', array( 'pay', 'reject' ), $d );
 		$out['payout_period']     = self::choice( $in, 'payout_period', array( 'monthly', 'quarterly', 'manual' ), $d );
+		$out['hold_start']        = self::choice( $in, 'hold_start', array( 'paid', 'completed' ), $d );
+		$out['rule_precedence']   = self::choice( $in, 'rule_precedence', array( 'scope', 'target' ), $d );
 
 		$out['lifetime_rate'] = '';
 		if ( isset( $in['lifetime_rate'] ) && '' !== trim( (string) $in['lifetime_rate'] ) ) {
@@ -277,20 +375,26 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			if ( ! isset( $in[ $int ] ) ) {
 				$out[ $int ] = $d[ $int ];
 				continue;
 			}
 			$raw = trim( (string) $in[ $int ] );
+			$max = isset( self::INT_MAX[ $int ] ) ? self::INT_MAX[ $int ] : 2147483647;
 			if ( '' === $raw ) {
 				$out[ $int ] = 0;
-			} elseif ( preg_match( '/^\d+$/', $raw ) ) {
+			} elseif ( preg_match( '/^\d+$/', $raw ) && ( strlen( ltrim( $raw, '0' ) ) < 11 && (int) $raw <= $max ) ) {
 				$out[ $int ] = (int) $raw;
+			} elseif ( preg_match( '/^\d+$/', $raw ) ) {
+				// Huge values would overflow dates (hold period "0000-00-00" = released at once).
+				/* translators: %d: largest allowed number */
+				$errors[ $int ] = sprintf( __( 'Please enter a whole number between 0 and %d.', 'affiliate-captain' ), $max );
+				$out[ $int ]    = (int) $old( $int );
 			} else {
 				$errors[ $int ] = __( 'Please enter a whole number (0 or more).', 'affiliate-captain' );
 				$out[ $int ]    = (int) $old( $int );
@@ -301,7 +405,8 @@ final class Settings {
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
 		}
 
-		$out['operator_country'] = $d['operator_country'];
+		// Not posted (another tab): the stored country, which also sets the retention minimum below.
+		$out['operator_country'] = (string) $old( 'operator_country' );
 		if ( isset( $in['operator_country'] ) ) {
 			$country = strtoupper( trim( (string) $in['operator_country'] ) );
 			if ( isset( self::countries()[ $country ] ) ) {
@@ -355,14 +460,56 @@ final class Settings {
 			}
 		}
 
+		// A new program currency: amounts stored in minor units of the old currency are converted
+		// (with an exchange rate between the two currencies if one is known, otherwise the shown
+		// value is kept, e.g. 50.00 EUR → 50 JPY – reported so it can be checked).
+		$old_currency = self::get( 'currency' ) ? strtoupper( (string) self::get( 'currency' ) ) : $d['currency'];
+		$fx_change    = $old_currency !== $out['currency'];
+		$old_rates    = Fx::parse( (string) $old( 'exchange_rates' ) );
+		$new_rates    = Fx::parse( $out['exchange_rates'] );
+		if ( $fx_change ) {
+			$rebased = self::rebase_rates( $old_rates, $old_currency, $out['currency'] );
+			if ( null !== $rebased && Fx::parse( $out['exchange_rates'] ) === $old_rates && ! isset( $errors['exchange_rates'] ) ) {
+				$lines = array();
+				foreach ( $rebased as $cur => $rate ) {
+					$lines[] = $cur . '=' . $rate;
+				}
+				$out['exchange_rates']     = implode( "\n", $lines );
+				$new_rates                 = $rebased;
+				/* translators: %s: currency code */
+				$notices['exchange_rates'] = sprintf( __( 'Converted to the new program currency %s.', 'affiliate-captain' ), $out['currency'] );
+			}
+			$converted = array();
+			$scaled    = array();
+			foreach ( array( 'min_payout_minor' => 'min_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $key => $field ) {
+				if ( isset( $in[ $field ] ) ) {
+					continue; // Entered together with the currency: parsed in the new currency.
+				}
+				list( $out[ $key ], $how ) = self::convert_minor( (int) $old( $key ), $old_currency, $out['currency'], $old_rates, $new_rates );
+				if ( 'rate' === $how ) {
+					$converted[] = $key;
+				} elseif ( 'scaled' === $how && (int) $old( $key ) ) {
+					$scaled[] = $key;
+				}
+			}
+			$notices['currency'] = $scaled
+				/* translators: 1: old currency, 2: new currency */
+				? sprintf( __( 'No exchange rate between %1$s and %2$s is known, so amounts keep their value (e.g. 50.00 %1$s becomes 50 %2$s). Please check the minimum payout, the review limit for large orders, fixed commission rules, bonus tiers and the exchange rates.', 'affiliate-captain' ), $old_currency, $out['currency'] )
+				/* translators: 1: old currency, 2: new currency */
+				: sprintf( __( 'Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency.', 'affiliate-captain' ), $old_currency, $out['currency'] );
+		}
+
 		$out['default_rate'] = $d['default_rate'];
 		if ( isset( $in['default_rate'] ) ) {
 			if ( 'fixed' === $out['default_rate_type'] ) {
-				// Fixed default rate is entered as a decimal amount, stored as minor units.
-				$rate = self::parse_amount( $in['default_rate'] );
-				$ok   = null !== $rate && (float) $rate >= 0;
+				// Fixed default rate is entered as a decimal amount, stored as minor units. The form
+				// showed it in the stored currency: after a currency change it is converted.
+				$shown_in = $fx_change && 'fixed' === (string) $old( 'default_rate_type' ) ? $old_currency : $out['currency'];
+				$rate     = self::parse_amount( $in['default_rate'], $shown_in );
+				$ok       = null !== $rate && (float) $rate >= 0;
 				if ( $ok ) {
-					$out['default_rate'] = (string) Money::to_minor( $rate, $out['currency'] );
+					$minor               = Money::to_minor( $rate, $shown_in );
+					$out['default_rate'] = (string) ( $shown_in !== $out['currency'] ? self::convert_minor( $minor, $shown_in, $out['currency'], $old_rates, $new_rates )[0] : $minor );
 				} else {
 					$errors['default_rate'] = __( 'Please enter an amount (e.g. 25 or 25,50).', 'affiliate-captain' );
 				}
@@ -376,9 +523,39 @@ final class Settings {
 				}
 			}
 			if ( ! $ok ) {
-				// Rate and type belong together: keep both as stored.
+				// Rate and type belong together: keep both as stored – and say so for the type too
+				// (the form shows both entered values again with the messages).
+				if ( $out['default_rate_type'] !== (string) $old( 'default_rate_type' ) ) {
+					$errors['default_rate_type'] = __( 'Not changed, because the default rate entered with it is not valid.', 'affiliate-captain' );
+				}
 				$out['default_rate']      = (string) $old( 'default_rate' );
 				$out['default_rate_type'] = (string) $old( 'default_rate_type' );
+			}
+		}
+
+		$out['visit_log_percent'] = $d['visit_log_percent'];
+		if ( isset( $in['visit_log_percent'] ) ) {
+			$raw = trim( (string) $in['visit_log_percent'] );
+			if ( preg_match( '/^\d+$/', $raw ) && (int) $raw <= 100 ) {
+				$out['visit_log_percent'] = (int) $raw;
+			} else {
+				$errors['visit_log_percent'] = __( 'Please enter a percentage between 0 and 100.', 'affiliate-captain' );
+				$out['visit_log_percent']    = (int) $old( 'visit_log_percent' );
+			}
+		}
+
+		// Cookie domain for landing pages and shop on different subdomains: must be this site's host
+		// or a parent domain of it (a browser rejects anything else).
+		$out['cookie_domain'] = '';
+		if ( isset( $in['cookie_domain'] ) && '' !== trim( (string) $in['cookie_domain'] ) ) {
+			$domain = ltrim( strtolower( trim( (string) $in['cookie_domain'] ) ), '.' );
+			$host   = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+			if ( preg_match( '/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $domain ) && ( $host === $domain || substr( $host, -strlen( $domain ) - 1 ) === '.' . $domain ) ) {
+				$out['cookie_domain'] = '.' . $domain;
+			} else {
+				/* translators: %s: host name */
+				$errors['cookie_domain'] = sprintf( __( 'Please enter this site\'s domain or a parent domain of %s (e.g. .example.com), or leave the field empty.', 'affiliate-captain' ), $host );
+				$out['cookie_domain']    = (string) $old( 'cookie_domain' );
 			}
 		}
 
@@ -404,9 +581,9 @@ final class Settings {
 			}
 		}
 
-		$out['fraud_max_order_minor'] = 0;
+		$out['fraud_max_order_minor'] = isset( $out['fraud_max_order_minor'] ) ? $out['fraud_max_order_minor'] : 0; // Converted above after a currency change.
 		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
-			$max_order = self::parse_amount( $in['fraud_max_order'] );
+			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'] );
 			if ( null === $max_order || (float) $max_order < 0 ) {
 				$errors['fraud_max_order']    = __( 'Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off).', 'affiliate-captain' );
 				$out['fraud_max_order_minor'] = (int) $old( 'fraud_max_order_minor' );
@@ -416,9 +593,9 @@ final class Settings {
 		}
 		$out['fraud_blocked_domains'] = isset( $in['fraud_blocked_domains'] ) ? implode( "\n", array_filter( array_map( 'sanitize_text_field', preg_split( '/[\s,]+/', strtolower( (string) $in['fraud_blocked_domains'] ) ) ) ) ) : '';
 
-		$out['min_payout_minor'] = $d['min_payout_minor'];
+		$out['min_payout_minor'] = isset( $out['min_payout_minor'] ) ? $out['min_payout_minor'] : $d['min_payout_minor'];
 		if ( isset( $in['min_payout'] ) ) {
-			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'] );
+			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'], $out['currency'] );
 			if ( null === $min || (float) $min < 0 ) {
 				$errors['min_payout']    = __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'affiliate-captain' );
 				$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
@@ -456,7 +633,7 @@ final class Settings {
 				$errors['terms_version'] = __( 'Please enter a version (e.g. 1.0).', 'affiliate-captain' );
 				$out['terms_version']    = (string) $old( 'terms_version' );
 			} else {
-				$out['terms_version'] = substr( $version, 0, 20 );
+				$out['terms_version'] = Db::cut( $version, 20 );
 			}
 		}
 		$out['admin_email'] = '';
@@ -467,6 +644,17 @@ final class Settings {
 				$out['admin_email']    = (string) $old( 'admin_email' );
 			} else {
 				$out['admin_email'] = $email;
+			}
+		}
+		$out['mail_from_name']  = isset( $in['mail_from_name'] ) ? Db::cut( trim( str_replace( array( '<', '>', '"' ), '', sanitize_text_field( (string) $in['mail_from_name'] ) ) ), 100 ) : '';
+		$out['mail_from_email'] = '';
+		if ( isset( $in['mail_from_email'] ) && '' !== trim( (string) $in['mail_from_email'] ) ) {
+			$email = sanitize_email( (string) $in['mail_from_email'] );
+			if ( ! is_email( $email ) ) {
+				$errors['mail_from_email'] = __( 'Please enter a valid e-mail address or leave the field empty.', 'affiliate-captain' );
+				$out['mail_from_email']    = (string) $old( 'mail_from_email' );
+			} else {
+				$out['mail_from_email'] = $email;
 			}
 		}
 		// Only a hash of the monitor token is stored; the form field stays empty and an empty field
@@ -533,6 +721,62 @@ final class Settings {
 	}
 
 	/**
+	 * Convert an amount in minor units to another currency (program currency change): with the
+	 * rate of the old currency in the new rates (1 OLD = x NEW), or of the new currency in the old
+	 * rates (1 NEW = x OLD); without a rate the shown value is kept (50.00 EUR → 50 JPY).
+	 *
+	 * @param int    $minor     Amount in minor units of $from.
+	 * @param string $from      Old currency.
+	 * @param string $to        New currency.
+	 * @param array  $old_rates Rates relative to $from (Fx::parse()).
+	 * @param array  $new_rates Rates relative to $to.
+	 * @return array [ minor units of $to, 'same'|'rate'|'scaled' ]
+	 */
+	public static function convert_minor( $minor, $from, $to, array $old_rates, array $new_rates ) {
+		$from = strtoupper( (string) $from );
+		$to   = strtoupper( (string) $to );
+		if ( $from === $to ) {
+			return array( (int) $minor, 'same' );
+		}
+		if ( isset( $new_rates[ $from ] ) ) {
+			return array( (int) Fx::to_program( (int) $minor, $from, $to, $new_rates ), 'rate' );
+		}
+		if ( isset( $old_rates[ $to ] ) ) {
+			return array( (int) Fx::from_program( (int) $minor, $to, $from, $old_rates ), 'rate' );
+		}
+		return array( Money::to_minor( Money::to_decimal( (int) $minor, $from ), $to ), 'scaled' );
+	}
+
+	/**
+	 * Exchange rates relative to a new program currency, from rates relative to the old one
+	 * (possible when they contain the new currency): 1 X = r_X / r_NEW NEW, 1 OLD = 1 / r_NEW NEW.
+	 *
+	 * @param array  $rates Rates relative to $old (currency => decimal string).
+	 * @param string $old   Old program currency.
+	 * @param string $new   New program currency.
+	 * @return array|null Null when the new currency has no rate.
+	 */
+	public static function rebase_rates( array $rates, $old, $new ) {
+		$old = strtoupper( (string) $old );
+		$new = strtoupper( (string) $new );
+		if ( empty( $rates[ $new ] ) || (float) $rates[ $new ] <= 0 ) {
+			return null;
+		}
+		$base = (float) $rates[ $new ];
+		$fmt  = static function ( $value ) {
+			$text = rtrim( rtrim( sprintf( '%.6F', $value ), '0' ), '.' );
+			return '0' === $text || '' === $text ? '0.000001' : $text;
+		};
+		$out = array( $old => $fmt( 1 / $base ) );
+		foreach ( $rates as $cur => $rate ) {
+			if ( $cur !== $new && $cur !== $old ) {
+				$out[ $cur ] = $fmt( (float) $rate / $base );
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Parse a percentage as typed by people: "15", "15 %", "15,5", "15.5%".
 	 *
 	 * @param mixed $raw Input.
@@ -545,45 +789,171 @@ final class Settings {
 
 	/**
 	 * Parse an amount as typed by people: "25", "25 €", "€ 25,50", "1.000", "1.000,00 EUR",
-	 * "1,000.00". A dot followed by groups of exactly three digits (and no comma) is read as a
-	 * thousands separator: amounts never have three decimals.
+	 * "1,000.00". See Money::parse_amount(): grouped thousands are recognized, but for currencies
+	 * with three decimals (KWD …) "5.000" means 5 – the way the value is shown in the form.
 	 *
-	 * @param mixed $raw Input.
+	 * @param mixed  $raw      Input.
+	 * @param string $currency Currency of the amount ('' = no three-decimal rule).
 	 * @return string|null Normalized decimal or null.
 	 */
-	public static function parse_amount( $raw ) {
-		$value = str_replace( array( '€', '$', '£', '¥', "\u{00A0}", "\u{202F}" ), array( '', '', '', '', ' ', ' ' ), (string) $raw );
-		$value = trim( (string) preg_replace( '/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/', '', trim( $value ) ) );
-		$value = str_replace( ' ', '', $value );
-		if ( preg_match( '/^-?\d{1,3}(\.\d{3})+$/', $value ) ) {
-			$value = str_replace( '.', '', $value );
-		}
-		return Money::normalize_decimal( $value );
+	public static function parse_amount( $raw, $currency = '' ) {
+		return Money::parse_amount( (string) $raw, (string) $currency );
 	}
 
 	/**
 	 * Countries the operator can choose (ISO 3166-1 alpha-2 => name): the EU, the EEA,
-	 * Switzerland, the United Kingdom and other common shop countries.
+	 * Switzerland, the United Kingdom and other common shop countries. Names come from
+	 * WooCommerce, else from PHP intl, else from the plugin's own (translated) list; sorted by
+	 * the reader's language ("Österreich" before "Polen", not after "Zypern").
 	 *
 	 * @return array
 	 */
 	public static function countries() {
-		$codes = array( 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'CH', 'LI', 'NO', 'IS', 'GB', 'US', 'CA', 'AU', 'NZ' );
+		$own   = self::country_names();
 		$names = array();
 		if ( function_exists( 'WC' ) && WC() && isset( WC()->countries ) && is_object( WC()->countries ) ) {
 			$names = (array) WC()->countries->get_countries();
 		}
 		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : 'en_US';
 		$out    = array();
-		foreach ( $codes as $code ) {
+		foreach ( $own as $code => $fallback ) {
 			$name = isset( $names[ $code ] ) ? html_entity_decode( (string) $names[ $code ], ENT_QUOTES, 'UTF-8' ) : '';
 			if ( '' === $name && class_exists( '\Locale' ) ) {
 				$name = (string) \Locale::getDisplayRegion( 'und-' . $code, $locale );
 			}
-			$out[ $code ] = '' !== $name && $name !== $code ? $name : $code;
+			$out[ $code ] = '' !== $name && $name !== $code ? $name : $fallback;
 		}
-		asort( $out, SORT_NATURAL | SORT_FLAG_CASE );
-		return $out;
+		return self::sort_names( $out, $locale );
+	}
+
+	/**
+	 * Sort names for display in a language: with intl's Collator, else by the name without
+	 * accents (byte order would put every "Ö…" after "Z…").
+	 *
+	 * @param array  $names  Key => name.
+	 * @param string $locale Locale.
+	 * @return array
+	 */
+	public static function sort_names( array $names, $locale = 'en_US' ) {
+		if ( class_exists( '\Collator' ) ) {
+			$collator = new \Collator( (string) $locale );
+			if ( $collator->asort( $names ) ) {
+				return $names;
+			}
+		}
+		$keys = array();
+		foreach ( $names as $key => $name ) {
+			$plain        = function_exists( 'remove_accents' ) ? remove_accents( (string) $name ) : strtr(
+				(string) $name,
+				array(
+					'Ä' => 'A',
+					'Ö' => 'O',
+					'Ü' => 'U',
+					'ä' => 'a',
+					'ö' => 'o',
+					'ü' => 'u',
+					'ß' => 'ss',
+					'É' => 'E',
+					'é' => 'e',
+					'È' => 'E',
+					'è' => 'e',
+					'Í' => 'I',
+					'í' => 'i',
+					'Č' => 'C',
+					'č' => 'c',
+					'Š' => 'S',
+					'š' => 's',
+					'Ž' => 'Z',
+					'ž' => 'z',
+					'Å' => 'A',
+					'å' => 'a',
+					'Ø' => 'O',
+					'ø' => 'o',
+					'Ñ' => 'N',
+					'ñ' => 'n',
+					'Ç' => 'C',
+					'ç' => 'c',
+				)
+			);
+			$keys[ $key ] = strtolower( $plain );
+		}
+		uksort(
+			$names,
+			static function ( $a, $b ) use ( $keys ) {
+				return strnatcmp( $keys[ $a ], $keys[ $b ] );
+			}
+		);
+		return $names;
+	}
+
+	/**
+	 * Own country names (used without WooCommerce and PHP intl).
+	 *
+	 * @return array
+	 */
+	private static function country_names() {
+		return array(
+			'AT' => __( 'Austria', 'affiliate-captain' ),
+			'BE' => __( 'Belgium', 'affiliate-captain' ),
+			'BG' => __( 'Bulgaria', 'affiliate-captain' ),
+			'HR' => __( 'Croatia', 'affiliate-captain' ),
+			'CY' => __( 'Cyprus', 'affiliate-captain' ),
+			'CZ' => __( 'Czechia', 'affiliate-captain' ),
+			'DK' => __( 'Denmark', 'affiliate-captain' ),
+			'EE' => __( 'Estonia', 'affiliate-captain' ),
+			'FI' => __( 'Finland', 'affiliate-captain' ),
+			'FR' => __( 'France', 'affiliate-captain' ),
+			'DE' => __( 'Germany', 'affiliate-captain' ),
+			'GR' => __( 'Greece', 'affiliate-captain' ),
+			'HU' => __( 'Hungary', 'affiliate-captain' ),
+			'IE' => __( 'Ireland', 'affiliate-captain' ),
+			'IT' => __( 'Italy', 'affiliate-captain' ),
+			'LV' => __( 'Latvia', 'affiliate-captain' ),
+			'LT' => __( 'Lithuania', 'affiliate-captain' ),
+			'LU' => __( 'Luxembourg', 'affiliate-captain' ),
+			'MT' => __( 'Malta', 'affiliate-captain' ),
+			'NL' => __( 'Netherlands', 'affiliate-captain' ),
+			'PL' => __( 'Poland', 'affiliate-captain' ),
+			'PT' => __( 'Portugal', 'affiliate-captain' ),
+			'RO' => __( 'Romania', 'affiliate-captain' ),
+			'SK' => __( 'Slovakia', 'affiliate-captain' ),
+			'SI' => __( 'Slovenia', 'affiliate-captain' ),
+			'ES' => __( 'Spain', 'affiliate-captain' ),
+			'SE' => __( 'Sweden', 'affiliate-captain' ),
+			'CH' => __( 'Switzerland', 'affiliate-captain' ),
+			'LI' => __( 'Liechtenstein', 'affiliate-captain' ),
+			'NO' => __( 'Norway', 'affiliate-captain' ),
+			'IS' => __( 'Iceland', 'affiliate-captain' ),
+			'GB' => __( 'United Kingdom', 'affiliate-captain' ),
+			'US' => __( 'United States', 'affiliate-captain' ),
+			'CA' => __( 'Canada', 'affiliate-captain' ),
+			'AU' => __( 'Australia', 'affiliate-captain' ),
+			'NZ' => __( 'New Zealand', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Settings of a new installation: the defaults with the shop's currency and country from
+	 * WooCommerce, the disclosure note in the site language and the recommended fraud thresholds.
+	 *
+	 * @return array
+	 */
+	public static function initial() {
+		$values = self::defaults();
+		if ( function_exists( 'get_woocommerce_currency' ) ) {
+			$currency = strtoupper( (string) get_woocommerce_currency() );
+			if ( preg_match( '/^[A-Z]{3}$/', $currency ) ) {
+				$values['currency'] = $currency;
+			}
+		}
+		if ( function_exists( 'WC' ) && WC() && isset( WC()->countries ) && is_object( WC()->countries ) && method_exists( WC()->countries, 'get_base_country' ) ) {
+			$country = strtoupper( (string) WC()->countries->get_base_country() );
+			if ( isset( self::country_names()[ $country ] ) ) {
+				$values['operator_country'] = $country;
+			}
+		}
+		$values['default_disclosure'] = __( 'Advertisement', 'affiliate-captain' );
+		return array_merge( $values, self::recommended_fraud( (string) $values['currency'] ) );
 	}
 
 	/**

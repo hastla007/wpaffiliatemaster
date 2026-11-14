@@ -53,6 +53,142 @@ final class ProfileRepository {
 	}
 
 	/**
+	 * Whether partners may choose another payment method (setting "payout_method_manual").
+	 *
+	 * @return bool
+	 */
+	public static function manual_enabled() {
+		$on = \WPAffiliateCaptain\Core\Settings::get( 'payout_method_manual' );
+		return null === $on || (bool) $on;
+	}
+
+	/**
+	 * Methods a partner can choose: all, or only SEPA when the other method is switched off
+	 * (a partner who already uses it keeps it until changing).
+	 *
+	 * @param object|null $profile Profile.
+	 * @return array
+	 */
+	public static function method_options( $profile ) {
+		$labels = self::method_labels();
+		if ( ! self::manual_enabled() && self::METHOD_MANUAL !== self::method( $profile ) ) {
+			unset( $labels[ self::METHOD_MANUAL ] );
+		}
+		return $labels;
+	}
+
+	/**
+	 * Whether an input changes where the money goes (stored IBAN, payment details or method):
+	 * such a change needs a confirmation by the partner (password).
+	 *
+	 * @param object|null $profile Stored profile.
+	 * @param array       $in      Input as passed to save().
+	 * @return bool
+	 */
+	public static function changes_destination( $profile, array $in ) {
+		if ( ! $profile || '' === (string) $profile->iban_encrypted ) {
+			return false; // First details: nothing is redirected.
+		}
+		$old    = self::method( $profile );
+		$method = isset( $in['payout_method'] ) && isset( self::method_labels()[ $in['payout_method'] ] ) ? (string) $in['payout_method'] : $old;
+		if ( $method !== $old ) {
+			return true;
+		}
+		if ( self::METHOD_MANUAL === $method ) {
+			$details = trim( Db::cut( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 500 ) );
+			return '' !== $details && self::payment_details( $profile ) !== $details;
+		}
+		$iban = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
+		return '' !== $iban && self::iban( $profile ) !== $iban;
+	}
+
+	/**
+	 * Payment details with most characters hidden, to show the partner what is stored
+	 * ("PayPal: an•••@example.com", long numbers only with their last 4 digits).
+	 *
+	 * @param string $details Details.
+	 * @return string
+	 */
+	public static function mask_details( $details ) {
+		$out = array();
+		foreach ( preg_split( '/(\s+)/u', (string) $details, -1, PREG_SPLIT_DELIM_CAPTURE ) as $token ) {
+			if ( preg_match( '/^([^@\s]{1,2})[^@\s]*(@\S+)$/u', $token, $m ) ) {
+				$token = $m[1] . '•••' . $m[2];
+			} elseif ( preg_match_all( '/\d/', $token ) >= 6 ) {
+				$token = '•••' . substr( $token, -4 );
+			}
+			$out[] = $token;
+		}
+		return implode( '', $out );
+	}
+
+	/**
+	 * PayPal address in free-text payment details ("PayPal: name@example.com"): the first e-mail
+	 * address; '' when there is none.
+	 *
+	 * @param string|null $details Payment details.
+	 * @return string
+	 */
+	public static function paypal_email( $details ) {
+		if ( null === $details || ! preg_match( '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/', (string) $details, $m ) ) {
+			return '';
+		}
+		return strtolower( $m[0] );
+	}
+
+	/**
+	 * Input of a rejected admin form to show again: never the IBAN, the payment details only
+	 * encrypted (the form store is a plain transient), the chosen method kept.
+	 *
+	 * @param array $in Input as passed to save().
+	 * @return array
+	 */
+	public static function form_keep( array $in ) {
+		$details = trim( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' );
+		unset( $in['iban'], $in['payment_details'] );
+		$kept = array_map( 'sanitize_textarea_field', $in );
+		if ( '' !== $details ) {
+			$kept['payment_details_encrypted'] = Crypto::encrypt( $details );
+		}
+		return $kept;
+	}
+
+	/**
+	 * Payment details typed into a rejected form (see form_keep()), '' when none.
+	 *
+	 * @param array $kept Kept form.
+	 * @return string
+	 */
+	public static function form_details( array $kept ) {
+		return isset( $kept['payment_details_encrypted'] ) ? (string) Crypto::decrypt( (string) $kept['payment_details_encrypted'] ) : '';
+	}
+
+	/**
+	 * Length in characters.
+	 *
+	 * @param string $text Text.
+	 * @return int
+	 */
+	private static function length( $text ) {
+		return function_exists( 'mb_strlen' ) ? mb_strlen( (string) $text, 'UTF-8' ) : strlen( (string) $text );
+	}
+
+	/**
+	 * Label of a profile field (messages).
+	 *
+	 * @param string $field Field.
+	 * @return string
+	 */
+	private static function field_label( $field ) {
+		$labels = array(
+			'legal_name'     => __( 'Name / company', 'affiliate-captain' ),
+			'account_holder' => __( 'Account holder', 'affiliate-captain' ),
+			'vat_id'         => __( 'VAT ID', 'affiliate-captain' ),
+		);
+		return isset( $labels[ $field ] ) ? $labels[ $field ] : $field;
+	}
+
+	/**
 	 * Payout method of a profile. The manual method stores its encrypted payment details in the
 	 * same column as the IBAN, without IBAN country/last digits (an IBAN always has both).
 	 *
@@ -137,10 +273,14 @@ final class ProfileRepository {
 				return $f;
 			}
 		}
-		if ( '' === (string) $profile->iban_encrypted ) {
+		// Stored, but no longer readable (WordPress salts changed without WPAC_ENCRYPTION_KEY): a
+		// payout would only fail at the export, so the details count as missing.
+		if ( '' === (string) $profile->iban_encrypted || null === \WPAffiliateCaptain\Core\Crypto::decrypt( (string) $profile->iban_encrypted ) ) {
 			return 'iban';
 		}
-		if ( 'business' === $profile->tax_status && '' === (string) $profile->vat_id ) {
+		if ( 'business' === $profile->tax_status && '' === (string) $profile->vat_id && ( self::needs_vat_id( (string) $profile->country ) || '' === trim( (string) ( isset( $profile->tax_number ) ? $profile->tax_number : '' ) ) ) ) {
+			// A domestic business may be identified by its tax number (§14 Abs. 4 Nr. 2 UStG);
+			// reverse charge needs the VAT ID of the partner.
 			return 'vat_id';
 		}
 		if ( 'small_business' === $profile->tax_status && '' === (string) $profile->vat_id && '' === trim( (string) ( isset( $profile->tax_number ) ? $profile->tax_number : '' ) ) ) {
@@ -150,13 +290,31 @@ final class ProfileRepository {
 	}
 
 	/**
+	 * Whether a business in this country needs a VAT ID (reverse charge: partner abroad).
+	 *
+	 * @param string $country Partner country.
+	 * @return bool
+	 */
+	public static function needs_vat_id( $country ) {
+		$operator = strtoupper( (string) \WPAffiliateCaptain\Core\Settings::get( 'operator_country' ) );
+		$country  = strtoupper( (string) $country );
+		return '' !== $country && '' !== $operator && $country !== $operator;
+	}
+
+	/**
 	 * Save (validate) profile input.
 	 *
-	 * @param int   $affiliate_id Affiliate.
-	 * @param array $in           Raw (unslashed) input. Empty IBAN keeps the stored one.
+	 * Changes of the tax data (tax status, country, VAT ID) are logged with the old values and
+	 * reported to the admin. When the partner makes them ($context "partner") and they would
+	 * change the VAT on credit notes, they wait for an admin's approval (approve_tax_change());
+	 * until then the previous data apply.
+	 *
+	 * @param int    $affiliate_id Affiliate.
+	 * @param array  $in           Raw (unslashed) input. Empty IBAN keeps the stored one.
+	 * @param string $context      admin|partner.
 	 * @return true|\WP_Error
 	 */
-	public static function save( $affiliate_id, array $in ) {
+	public static function save( $affiliate_id, array $in, $context = 'admin' ) {
 		global $wpdb;
 		$labels = self::tax_status_labels();
 		$tax    = isset( $in['tax_status'] ) && isset( $labels[ $in['tax_status'] ] ) ? $in['tax_status'] : '';
@@ -172,8 +330,34 @@ final class ProfileRepository {
 			'bic'            => strtoupper( substr( preg_replace( '/[^A-Za-z0-9]/', '', isset( $in['bic'] ) ? (string) $in['bic'] : '' ), 0, 11 ) ),
 			'updated_at'     => Db::now(),
 		);
-		if ( 'business' === $tax && '' === $data['vat_id'] ) {
-			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID.', 'affiliate-captain' ) );
+		// The columns are limited: a longer value would not be stored (and the old one kept unnoticed).
+		foreach ( array(
+			'legal_name'     => 190,
+			'account_holder' => 190,
+			'vat_id'         => 40,
+		) as $field => $max ) {
+			if ( self::length( $data[ $field ] ) > $max ) {
+				return new \WP_Error(
+					'wpac_too_long_' . $field,
+					/* translators: 1: field, 2: number of characters */
+					sprintf( __( '%1$s is too long (at most %2$d characters).', 'affiliate-captain' ), self::field_label( $field ), $max )
+				);
+			}
+		}
+		if ( 'business' === $tax && '' === $data['vat_id'] && self::needs_vat_id( $data['country'] ) ) {
+			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID (required for reverse charge across borders).', 'affiliate-captain' ) );
+		}
+		if ( 'business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
+			return new \WP_Error( 'wpac_vat', __( 'Please enter your VAT ID or tax number (required on credit notes).', 'affiliate-captain' ) );
+		}
+		if ( '' !== $data['vat_id'] ) {
+			$problem = Vat::vat_id_problem( $data['vat_id'], $data['country'] );
+			if ( 'prefix' === $problem ) {
+				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not start with the code of your country. Please check the VAT ID and the country.', 'affiliate-captain' ) );
+			}
+			if ( '' !== $problem ) {
+				return new \WP_Error( 'wpac_vat_format', __( 'The VAT ID does not have a valid format. Please check it.', 'affiliate-captain' ) );
+			}
 		}
 		if ( 'small_business' === $tax && '' === $data['vat_id'] && '' === trim( $data['tax_number'] ) ) {
 			return new \WP_Error( 'wpac_tax_number', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) );
@@ -185,9 +369,12 @@ final class ProfileRepository {
 		$old_method  = self::method( $existing );
 		$details_new = false;
 		$iban        = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
+		if ( self::METHOD_MANUAL === $method && self::METHOD_MANUAL !== $old_method && ! self::manual_enabled() ) {
+			return new \WP_Error( 'wpac_method_disabled', __( 'Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer.', 'affiliate-captain' ) );
+		}
 		if ( self::METHOD_MANUAL === $method ) {
 			// Free-text payment details (e.g. "PayPal: name@example.com"), stored encrypted like the IBAN.
-			$details = trim( substr( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 0, 500 ) );
+			$details = trim( Db::cut( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 500 ) );
 			$iban    = '';
 			if ( '' === $details && self::METHOD_MANUAL !== $old_method ) {
 				return new \WP_Error( 'wpac_payment_details', __( 'Please enter your payment details (e.g. your PayPal address).', 'affiliate-captain' ) );
@@ -217,13 +404,64 @@ final class ProfileRepository {
 			// (IBAN or manual payment details alike).
 			$data['iban_encrypted'] = Crypto::encrypt( (string) Crypto::decrypt( (string) $existing->iban_encrypted ) );
 		}
+		// Tax data: compare with the stored data (old values go to the audit log and the history).
+		$tax_old = TaxHistory::fields( $existing );
+		$tax_new = TaxHistory::fields( $data );
+		$pending = false;
+		if ( $tax_old !== $tax_new ) {
+			if ( 'partner' === $context && TaxHistory::needs_approval( $tax_old, $tax_new ) ) {
+				// Takes effect only after an admin approved it; the stored tax data stay meanwhile.
+				TaxHistory::set_pending( (int) $affiliate_id, $tax_new, $tax_old );
+				foreach ( TaxHistory::FIELDS as $f ) {
+					$data[ $f ] = $tax_old[ $f ];
+				}
+				$pending = true;
+			} else {
+				TaxHistory::record_profile( (int) $affiliate_id, $tax_old );
+				TaxHistory::clear_pending( (int) $affiliate_id );
+			}
+		} elseif ( 'partner' === $context ) {
+			TaxHistory::clear_pending( (int) $affiliate_id ); // Back to the stored data: nothing waits any more.
+		}
 		if ( $existing ) {
-			$wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
+			$stored = $wpdb->update( Db::table( 'payout_profiles' ), $data, array( 'affiliate_id' => (int) $affiliate_id ) );
 		} else {
-			$wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
+			$stored = $wpdb->insert( Db::table( 'payout_profiles' ), $data + array( 'iban_encrypted' => '' ) );
+		}
+		if ( false === $stored || ( ! $existing && ! $stored ) ) {
+			// Nothing was saved: no success message and no "bank details changed" mail.
+			Audit::log( 'payout_profile.save_failed', 'affiliate', (int) $affiliate_id, array( 'error' => Db::cut( (string) $wpdb->last_error, 190 ) ) );
+			return new \WP_Error( 'wpac_profile_db', __( 'Your payout details could not be saved. Please try again; your previous details are unchanged.', 'affiliate-captain' ) );
+		}
+		if ( isset( $data['iban_encrypted'] ) ) {
+			// New bank details: the cached migration check (unreadable/old-key details) is due again
+			// on the next view of the integrations page.
+			$migration = get_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS );
+			if ( is_array( $migration ) && ( ! empty( $migration['broken'] ) || ! empty( $migration['legacy'] ) ) ) {
+				$migration['checked_at'] = 0;
+				update_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS, $migration, false );
+			}
+		}
+		if ( $tax_old !== $tax_new ) {
+			Audit::log(
+				$pending ? 'payout_profile.tax_change_requested' : 'payout_profile.tax_changed',
+				'affiliate',
+				(int) $affiliate_id,
+				array(
+					'old' => $tax_old,
+					'new' => $tax_new,
+				)
+			);
+			\WPAffiliateCaptain\Affiliates\Notifications::tax_data_changed( (int) $affiliate_id, $tax_old, $tax_new, $pending );
 		}
 		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
+		}
+		if ( '' !== $iban || self::METHOD_MANUAL === $method ) {
+			self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : array() );
+		}
+		if ( $pending && '' !== $tax_new['vat_id'] ) {
+			Vies::schedule( (int) $affiliate_id ); // Checks the requested VAT ID: the result helps the admin decide.
 		}
 		$had_details = $existing && '' !== (string) $existing->iban_encrypted;
 		$changed     = $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $method !== $old_method );
@@ -242,6 +480,132 @@ final class ProfileRepository {
 				'details_changed' => $details_new,
 			)
 		);
+		return true;
+	}
+
+	/** Option: partner ID => IDs of other partners with the same IBAN. */
+	const SHARED_IBAN_OPTION = 'wpac_shared_iban';
+
+	/**
+	 * Other partners whose payout profile has the same IBAN (only rows with the same country and
+	 * last four digits are decrypted).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $iban         Normalized IBAN.
+	 * @return int[]
+	 */
+	public static function partners_with_iban( $affiliate_id, $iban ) {
+		global $wpdb;
+		$iban = Iban::normalize( $iban );
+		if ( '' === $iban ) {
+			return array();
+		}
+		$t = Db::table( 'payout_profiles' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, iban_encrypted FROM {$t} WHERE iban_country = %s AND iban_last4 = %s AND affiliate_id <> %d LIMIT 200", substr( $iban, 0, 2 ), substr( $iban, -4 ), $affiliate_id ) );
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			if ( Crypto::decrypt( (string) $row->iban_encrypted ) === $iban ) {
+				$out[] = (int) $row->affiliate_id;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Remember (and audit) partners that share an IBAN with another partner; such partners'
+	 * orders go to review (fraud rule "shared_iban").
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param int[] $others       Other partners with the same IBAN.
+	 */
+	private static function note_shared_iban( $affiliate_id, array $others ) {
+		$map = get_option( self::SHARED_IBAN_OPTION, array() );
+		$map = is_array( $map ) ? $map : array();
+		$old = isset( $map[ $affiliate_id ] ) ? array_map( 'intval', (array) $map[ $affiliate_id ] ) : array();
+		// Drop this partner from the lists of partners it no longer shares an IBAN with.
+		foreach ( array_diff( $old, $others ) as $o ) {
+			if ( isset( $map[ $o ] ) ) {
+				$map[ $o ] = array_values( array_diff( array_map( 'intval', (array) $map[ $o ] ), array( $affiliate_id ) ) );
+				if ( ! $map[ $o ] ) {
+					unset( $map[ $o ] );
+				}
+			}
+		}
+		unset( $map[ $affiliate_id ] );
+		if ( $others ) {
+			$map[ $affiliate_id ] = array_values( $others );
+			foreach ( $others as $o ) {
+				$map[ $o ] = array_values( array_unique( array_merge( isset( $map[ $o ] ) ? array_map( 'intval', (array) $map[ $o ] ) : array(), array( $affiliate_id ) ) ) );
+			}
+			if ( array_diff( $others, $old ) ) {
+				Audit::log( 'payout_profile.iban_shared', 'affiliate', $affiliate_id, array( 'partners' => array_values( $others ) ) );
+			}
+		}
+		update_option( self::SHARED_IBAN_OPTION, $map, false );
+	}
+
+	/**
+	 * Other partners with the same IBAN as this partner.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return int[]
+	 */
+	public static function shared_iban( $affiliate_id ) {
+		$map = get_option( self::SHARED_IBAN_OPTION, array() );
+		return is_array( $map ) && isset( $map[ (int) $affiliate_id ] ) ? array_map( 'intval', (array) $map[ (int) $affiliate_id ] ) : array();
+	}
+
+	/**
+	 * Approve a pending change of the tax data: it applies from now on (earlier commissions
+	 * keep the previous treatment).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return true|\WP_Error
+	 */
+	public static function approve_tax_change( $affiliate_id ) {
+		global $wpdb;
+		$pending  = TaxHistory::pending( (int) $affiliate_id );
+		$existing = self::get( (int) $affiliate_id );
+		if ( ! $pending || ! $existing ) {
+			return new \WP_Error( 'wpac_none', __( 'There is no pending change of the tax data.', 'affiliate-captain' ) );
+		}
+		$old = TaxHistory::fields( $existing );
+		$new = array_merge( $old, array_intersect_key( (array) $pending['new'], $old ) );
+		TaxHistory::record_profile( (int) $affiliate_id, $old );
+		$ok = $wpdb->update( Db::table( 'payout_profiles' ), $new + array( 'updated_at' => Db::now() ), array( 'affiliate_id' => (int) $affiliate_id ) );
+		if ( false === $ok ) {
+			return new \WP_Error( 'wpac_db', __( 'The payout details could not be saved. Please try again.', 'affiliate-captain' ) );
+		}
+		TaxHistory::clear_pending( (int) $affiliate_id );
+		Audit::log(
+			'payout_profile.tax_change_approved',
+			'affiliate',
+			(int) $affiliate_id,
+			array(
+				'old' => $old,
+				'new' => $new,
+			)
+		);
+		if ( '' !== $new['vat_id'] && $new['vat_id'] !== $old['vat_id'] ) {
+			Vies::schedule( (int) $affiliate_id );
+		}
+		return true;
+	}
+
+	/**
+	 * Reject a pending change of the tax data (the stored data stay).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return true|\WP_Error
+	 */
+	public static function reject_tax_change( $affiliate_id ) {
+		$pending = TaxHistory::pending( (int) $affiliate_id );
+		if ( ! $pending ) {
+			return new \WP_Error( 'wpac_none', __( 'There is no pending change of the tax data.', 'affiliate-captain' ) );
+		}
+		TaxHistory::clear_pending( (int) $affiliate_id );
+		Audit::log( 'payout_profile.tax_change_rejected', 'affiliate', (int) $affiliate_id, array( 'new' => $pending['new'] ) );
 		return true;
 	}
 
@@ -278,5 +642,7 @@ final class ProfileRepository {
 	public static function delete( $affiliate_id ) {
 		global $wpdb;
 		$wpdb->delete( Db::table( 'payout_profiles' ), array( 'affiliate_id' => (int) $affiliate_id ) );
+		self::note_shared_iban( (int) $affiliate_id, array() );
+		TaxHistory::delete( (int) $affiliate_id );
 	}
 }

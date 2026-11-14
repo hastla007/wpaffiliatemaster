@@ -14,7 +14,6 @@ namespace WPAffiliateCaptain\Privacy;
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Affiliates\Agreements;
 use WPAffiliateCaptain\Codes\CodeRepository;
-use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Money;
@@ -74,19 +73,266 @@ final class Privacy {
 		return $erasers;
 	}
 
+	/** Items of the long lists (commissions, attributions, payouts, account entries) per export page. */
+	const EXPORT_CHUNK = 500;
+
 	/**
-	 * Export.
+	 * Export (Art. 15 GDPR), in pages: page 1 holds the account, profile, codes, terms, requests,
+	 * objections, VIES result, reminders and the customer data, and every page carries up to
+	 * EXPORT_CHUNK entries of the long lists (all commissions, attributions, payouts and account
+	 * entries – nothing is cut off). WordPress calls the next page until done is true.
 	 *
 	 * @param string $email E-mail.
-	 * @param int    $page  Page.
+	 * @param int    $page  Page (1-based).
 	 * @return array
 	 */
 	public static function export( $email, $page = 1 ) {
+		$page  = max( 1, (int) $page );
+		$user  = get_user_by( 'email', $email );
+		$aff   = self::affiliate( $email );
+		$items = 1 === $page ? self::export_base( $email, $user, $aff ) : array();
+		$lists = self::export_lists( $email, $user, $aff );
+		$start = ( $page - 1 ) * self::EXPORT_CHUNK;
+		$end   = $start + self::EXPORT_CHUNK;
+		$pos   = 0;
+		foreach ( $lists as $list ) {
+			$count = (int) $list['count'];
+			$from  = max( $start, $pos );
+			$to    = min( $end, $pos + $count );
+			if ( $from < $to ) {
+				foreach ( self::export_rows( $list, $from - $pos, $to - $from ) as $row ) {
+					$items[] = call_user_func( $list['item'], $row );
+				}
+			}
+			$pos += $count;
+		}
+		return array(
+			'data' => $items,
+			'done' => $end >= $pos,
+		);
+	}
+
+	/**
+	 * Rows of an export list.
+	 *
+	 * @param array $list   List (table, where, params).
+	 * @param int   $offset Offset.
+	 * @param int   $limit  Limit.
+	 * @return array
+	 */
+	private static function export_rows( array $list, $offset, $limit ) {
+		global $wpdb;
+		$params   = $list['params'];
+		$params[] = (int) $limit;
+		$params[] = (int) $offset;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table and WHERE with placeholders built in export_lists(); $params holds one value per placeholder.
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $list['table'] . ' WHERE ' . $list['where'] . ' ORDER BY id ASC LIMIT %d OFFSET %d', $params ) );
+	}
+
+	/**
+	 * Orders of a customer: the orders that created a lifetime link and, with WooCommerce, the
+	 * orders of the customer account and billing address.
+	 *
+	 * @param string        $email E-mail.
+	 * @param \WP_User|bool $user  User.
+	 * @param array         $links Customer links.
+	 * @return string[] Order IDs (WooCommerce source).
+	 */
+	private static function customer_orders( $email, $user, array $links ) {
+		$ids = array();
+		foreach ( $links as $l ) {
+			if ( \WPAffiliateCaptain\Integrations\WooCommerce::SOURCE === (string) $l->source && '' !== (string) $l->source_order_id ) {
+				$ids[] = (string) $l->source_order_id;
+			}
+		}
+		if ( function_exists( 'wc_get_orders' ) ) {
+			$queries = array( array( 'billing_email' => $email ) );
+			if ( $user ) {
+				$queries[] = array( 'customer_id' => (int) $user->ID );
+			}
+			foreach ( $queries as $q ) {
+				foreach ( (array) wc_get_orders( $q + array( 'return' => 'ids', 'limit' => -1, 'type' => 'shop_order' ) ) as $id ) {
+					$ids[] = (string) (int) $id;
+				}
+			}
+		}
+		return array_values( array_unique( $ids ) );
+	}
+
+	/**
+	 * The long lists of the export with their size.
+	 *
+	 * @param string        $email E-mail.
+	 * @param \WP_User|bool $user  User.
+	 * @param object|null   $aff   Partner.
+	 * @return array[] table, where, params, count, item (callable row => export item).
+	 */
+	private static function export_lists( $email, $user, $aff ) {
+		global $wpdb;
+		$lists = array();
+		if ( $aff ) {
+			$id   = (int) $aff->id;
+			$defs = array(
+				'commissions'     => array( __CLASS__, 'commission_item' ),
+				'attributions'    => array( __CLASS__, 'attribution_item' ),
+				'payouts'         => array( __CLASS__, 'payout_item' ),
+				'balance_entries' => array( __CLASS__, 'balance_entry_item' ),
+			);
+			foreach ( $defs as $table => $item ) {
+				$lists[] = array(
+					'table'  => Db::table( $table ),
+					'where'  => 'affiliate_id = %d',
+					'params' => array( $id ),
+					'item'   => $item,
+				);
+			}
+		}
+		// Customers: the orders attributed to a partner (which partner, how, when).
+		$links  = \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( $user ? (int) $user->ID : 0, $email );
+		$orders = self::customer_orders( $email, $user, $links );
+		if ( $orders ) {
+			$lists[] = array(
+				'table'  => Db::table( 'attributions' ),
+				'where'  => 'source = %s AND source_order_id IN (' . implode( ',', array_fill( 0, count( $orders ), '%s' ) ) . ')' . ( $aff ? ' AND affiliate_id <> %d' : '' ),
+				'params' => array_merge( array( \WPAffiliateCaptain\Integrations\WooCommerce::SOURCE ), $orders, $aff ? array( (int) $aff->id ) : array() ),
+				'item'   => array( __CLASS__, 'customer_attribution_item' ),
+			);
+		}
+		foreach ( $lists as $i => $list ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- See export_rows(): the placeholders are in $list['where'].
+			$lists[ $i ]['count'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $list['table'] . ' WHERE ' . $list['where'], $list['params'] ) );
+		}
+		return $lists;
+	}
+
+	/**
+	 * Export item of a commission.
+	 *
+	 * @param object $r Row.
+	 * @return array
+	 */
+	public static function commission_item( $r ) {
+		return array(
+			'group_id'    => 'wpac-commissions',
+			'group_label' => __( 'Commissions', 'affiliate-captain' ),
+			'item_id'     => 'wpac-commission-' . $r->id,
+			'data'        => array(
+				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
+				array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => $r->source . ' #' . $r->source_order_id ),
+				array( 'name' => __( 'Type', 'affiliate-captain' ), 'value' => (string) $r->kind ),
+				array( 'name' => __( 'Description', 'affiliate-captain' ), 'value' => (string) $r->description ),
+				array( 'name' => __( 'Commission base', 'affiliate-captain' ), 'value' => Money::format( (int) $r->base_minor, $r->currency ) ),
+				array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
+				array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
+				array( 'name' => __( 'Held until', 'affiliate-captain' ), 'value' => (string) $r->hold_until ),
+			),
+		);
+	}
+
+	/**
+	 * Export item of an order attributed to the partner.
+	 *
+	 * @param object $a Row.
+	 * @return array
+	 */
+	public static function attribution_item( $a ) {
+		return array(
+			'group_id'    => 'wpac-attributions',
+			'group_label' => __( 'Attributed orders', 'affiliate-captain' ),
+			'item_id'     => 'wpac-attribution-' . $a->id,
+			'data'        => array(
+				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $a->created_at ),
+				array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => $a->source . ' #' . $a->source_order_id ),
+				array( 'name' => __( 'Method', 'affiliate-captain' ), 'value' => (string) $a->method ),
+				array( 'name' => __( 'Campaign', 'affiliate-captain' ), 'value' => (string) $a->campaign ),
+				array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => isset( $a->note ) ? (string) $a->note : '' ),
+			),
+		);
+	}
+
+	/**
+	 * Export item of an order of the person as a customer that was attributed to a partner.
+	 *
+	 * @param object $a Row.
+	 * @return array
+	 */
+	public static function customer_attribution_item( $a ) {
+		return array(
+			'group_id'    => 'wpac-customer-attributions',
+			'group_label' => __( 'Your orders credited to a partner', 'affiliate-captain' ),
+			'item_id'     => 'wpac-customer-attribution-' . $a->id,
+			'data'        => array(
+				array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => '#' . $a->source_order_id ),
+				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $a->created_at ),
+				array( 'name' => __( 'Partner ID', 'affiliate-captain' ), 'value' => (string) $a->affiliate_id ),
+				array( 'name' => __( 'Method', 'affiliate-captain' ), 'value' => (string) $a->method ),
+				array( 'name' => __( 'Campaign', 'affiliate-captain' ), 'value' => (string) $a->campaign ),
+				array( 'name' => __( 'Marketing consent at the time', 'affiliate-captain' ), 'value' => (int) $a->consent ? __( 'yes', 'affiliate-captain' ) : __( 'no', 'affiliate-captain' ) ),
+			),
+		);
+	}
+
+	/**
+	 * Export item of a payout.
+	 *
+	 * @param object $p Row.
+	 * @return array
+	 */
+	public static function payout_item( $p ) {
+		return array(
+			'group_id'    => 'wpac-payouts',
+			'group_label' => __( 'Payouts', 'affiliate-captain' ),
+			'item_id'     => 'wpac-payout-' . $p->id,
+			'data'        => array(
+				array( 'name' => _x( 'Number', 'document number', 'affiliate-captain' ), 'value' => $p->number ),
+				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $p->created_at ),
+				array( 'name' => __( 'Net amount', 'affiliate-captain' ), 'value' => Money::format( (int) $p->net_minor, $p->currency ) ),
+				array( 'name' => __( 'VAT', 'affiliate-captain' ), 'value' => Money::format( (int) $p->vat_minor, $p->currency ) ),
+				array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $p->amount_minor, $p->currency ) ),
+				array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $p->status ),
+				array( 'name' => __( 'Paid on', 'affiliate-captain' ), 'value' => (string) $p->paid_at ),
+				array( 'name' => __( 'Cancellation number', 'affiliate-captain' ), 'value' => (string) $p->storno_number ),
+				array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $p->note ),
+			),
+		);
+	}
+
+	/**
+	 * Export item of a partner account entry (credit, payout, repayment …).
+	 *
+	 * @param object $e Row.
+	 * @return array
+	 */
+	public static function balance_entry_item( $e ) {
+		$types = \WPAffiliateCaptain\Commissions\Balance::type_labels();
+		return array(
+			'group_id'    => 'wpac-balance-entries',
+			'group_label' => __( 'Partner account entries', 'affiliate-captain' ),
+			'item_id'     => 'wpac-balance-entry-' . $e->id,
+			'data'        => array(
+				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $e->created_at ),
+				array( 'name' => __( 'Type', 'affiliate-captain' ), 'value' => isset( $types[ $e->type ] ) ? $types[ $e->type ] : (string) $e->type ),
+				array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $e->amount_minor, $e->currency ) ),
+				array( 'name' => __( 'Balance', 'affiliate-captain' ), 'value' => Money::format( (int) $e->balance_minor, $e->currency ) ),
+				array( 'name' => __( 'Reference', 'affiliate-captain' ), 'value' => (string) $e->reference ),
+			),
+		);
+	}
+
+	/**
+	 * First export page: customer links, account, codes, terms, payout details, application and
+	 * account details, payout requests, objections, VIES result, payment reminders, balances.
+	 *
+	 * @param string        $email E-mail.
+	 * @param \WP_User|bool $user  User.
+	 * @param object|null   $aff   Partner.
+	 * @return array
+	 */
+	private static function export_base( $email, $user, $aff ) {
+		global $wpdb;
 		$items = array();
-		// Customers: lifetime partner link (stored as keyed hash).
-		$user = get_user_by( 'email', $email );
-		$link = \WPAffiliateCaptain\Tracking\CustomerLinks::find( \WPAffiliateCaptain\Tracking\CustomerLinks::hashes( $user ? (int) $user->ID : 0, $email ) );
-		if ( $link ) {
+		// Customers: every stored lifetime link (keyed hash), also one still waiting for a review.
+		foreach ( \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( $user ? (int) $user->ID : 0, $email ) as $link ) {
 			$items[] = array(
 				'group_id'    => 'wpac-customer-link',
 				'group_label' => __( 'Partner referral (lifetime link)', 'affiliate-captain' ),
@@ -95,20 +341,19 @@ final class Privacy {
 					array( 'name' => __( 'Partner ID', 'affiliate-captain' ), 'value' => (string) $link->affiliate_id ),
 					array( 'name' => __( 'Since', 'affiliate-captain' ), 'value' => $link->created_at ),
 					array( 'name' => __( 'Valid until', 'affiliate-captain' ), 'value' => $link->expires_at ? $link->expires_at : '—' ),
+					array( 'name' => __( 'Created by order', 'affiliate-captain' ), 'value' => '' !== (string) $link->source_order_id ? '#' . $link->source_order_id : '—' ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => ! empty( $link->pending ) ? __( 'waiting for the order to be completed', 'affiliate-captain' ) : __( 'active', 'affiliate-captain' ) ),
 				),
 			);
 		}
-		$aff = self::affiliate( $email );
 		if ( ! $aff ) {
-			return array(
-				'data' => $items,
-				'done' => true,
-			);
+			return $items;
 		}
+		$id      = (int) $aff->id;
 		$items[] = array(
 			'group_id'    => 'wpac-affiliate',
 			'group_label' => __( 'Partner account', 'affiliate-captain' ),
-			'item_id'     => 'wpac-affiliate-' . $aff->id,
+			'item_id'     => 'wpac-affiliate-' . $id,
 			'data'        => array(
 				array( 'name' => __( 'Name', 'affiliate-captain' ), 'value' => $aff->name ),
 				array( 'name' => __( 'E-mail', 'affiliate-captain' ), 'value' => $aff->email ),
@@ -119,7 +364,7 @@ final class Privacy {
 				array( 'name' => __( 'Created', 'affiliate-captain' ), 'value' => $aff->created_at ),
 			),
 		);
-		foreach ( CodeRepository::for_affiliate( (int) $aff->id ) as $c ) {
+		foreach ( CodeRepository::for_affiliate( $id ) as $c ) {
 			$items[] = array(
 				'group_id'    => 'wpac-codes',
 				'group_label' => __( 'Partner codes', 'affiliate-captain' ),
@@ -130,7 +375,7 @@ final class Privacy {
 				),
 			);
 		}
-		foreach ( Agreements::for_affiliate( (int) $aff->id ) as $a ) {
+		foreach ( Agreements::for_affiliate( $id ) as $a ) {
 			$items[] = array(
 				'group_id'    => 'wpac-agreements',
 				'group_label' => __( 'Terms acceptance', 'affiliate-captain' ),
@@ -143,71 +388,117 @@ final class Privacy {
 				),
 			);
 		}
-		$profile = ProfileRepository::get( (int) $aff->id );
+		$profile = ProfileRepository::get( $id );
 		if ( $profile ) {
-			$snap    = ProfileRepository::snapshot( $profile );
-			$data    = array();
-			foreach ( $snap as $k => $v ) {
+			$data = array();
+			foreach ( ProfileRepository::snapshot( $profile ) as $k => $v ) {
 				$data[] = array(
 					'name'  => $k,
 					'value' => (string) $v,
 				);
 			}
+			// Art. 15 GDPR: the payment details of another payment method are personal data too.
+			$details = ProfileRepository::payment_details( $profile );
+			if ( null !== $details ) {
+				$data[] = array(
+					'name'  => __( 'Payment details', 'affiliate-captain' ),
+					'value' => $details,
+				);
+			}
 			$items[] = array(
 				'group_id'    => 'wpac-payout-profile',
 				'group_label' => __( 'Payout details', 'affiliate-captain' ),
-				'item_id'     => 'wpac-profile-' . $aff->id,
+				'item_id'     => 'wpac-profile-' . $id,
 				'data'        => $data,
 			);
 		}
-		list( $rows ) = Ledger::query(
-			array(
-				'affiliate_id' => (int) $aff->id,
-				'limit'        => 0,
-			)
-		);
-		foreach ( $rows as $r ) {
+		// Result of the VAT ID check with VIES (name and address as registered, consultation number).
+		$vies = \WPAffiliateCaptain\Payouts\Vies::result( $id );
+		if ( $vies ) {
+			$vdata = array();
+			$names = array(
+				'vat_id'       => __( 'VAT ID', 'affiliate-captain' ),
+				'status'       => __( 'Result', 'affiliate-captain' ),
+				'name'         => __( 'Name registered with VIES', 'affiliate-captain' ),
+				'address'      => __( 'Address registered with VIES', 'affiliate-captain' ),
+				'consultation' => __( 'Consultation number', 'affiliate-captain' ),
+				'checked_at'   => __( 'Checked on', 'affiliate-captain' ),
+			);
+			foreach ( $names as $key => $label ) {
+				if ( isset( $vies[ $key ] ) && '' !== (string) $vies[ $key ] ) {
+					$vdata[] = array(
+						'name'  => $label,
+						'value' => is_scalar( $vies[ $key ] ) ? (string) $vies[ $key ] : wp_json_encode( $vies[ $key ] ),
+					);
+				}
+			}
 			$items[] = array(
-				'group_id'    => 'wpac-commissions',
-				'group_label' => __( 'Commissions', 'affiliate-captain' ),
-				'item_id'     => 'wpac-commission-' . $r->id,
+				'group_id'    => 'wpac-vies',
+				'group_label' => __( 'VAT ID check (VIES)', 'affiliate-captain' ),
+				'item_id'     => 'wpac-vies-' . $id,
+				'data'        => $vdata,
+			);
+		}
+		// Objections to credit notes.
+		foreach ( \WPAffiliateCaptain\Payouts\Objections::all() as $payout_id => $o ) {
+			if ( ! isset( $o['affiliate_id'] ) || (int) $o['affiliate_id'] !== $id ) {
+				continue;
+			}
+			$p       = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $payout_id );
+			$items[] = array(
+				'group_id'    => 'wpac-objections',
+				'group_label' => __( 'Objections to credit notes', 'affiliate-captain' ),
+				'item_id'     => 'wpac-objection-' . (int) $payout_id,
 				'data'        => array(
-					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
-					array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => $r->source . ' #' . $r->source_order_id ),
-					array( 'name' => __( 'Type', 'affiliate-captain' ), 'value' => (string) $r->kind ),
-					array( 'name' => __( 'Description', 'affiliate-captain' ), 'value' => (string) $r->description ),
-					array( 'name' => __( 'Commission base', 'affiliate-captain' ), 'value' => Money::format( (int) $r->base_minor, $r->currency ) ),
-					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
-					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
-					array( 'name' => __( 'Held until', 'affiliate-captain' ), 'value' => (string) $r->hold_until ),
+					array( 'name' => __( 'Credit note', 'affiliate-captain' ), 'value' => $p ? (string) $p->number : '#' . (int) $payout_id ),
+					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => isset( $o['at'] ) ? (string) $o['at'] : '' ),
+					array( 'name' => __( 'Reason', 'affiliate-captain' ), 'value' => isset( $o['reason'] ) ? (string) $o['reason'] : '' ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => isset( $o['status'] ) ? (string) $o['status'] : '' ),
+					array( 'name' => __( 'Resolution', 'affiliate-captain' ), 'value' => isset( $o['resolution'] ) ? (string) $o['resolution'] : '' ),
+					array( 'name' => __( 'Resolved on', 'affiliate-captain' ), 'value' => isset( $o['resolved_at'] ) ? (string) $o['resolved_at'] : '' ),
 				),
 			);
 		}
-		global $wpdb;
-		$at = Db::table( 'attributions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$at} WHERE affiliate_id = %d ORDER BY id DESC LIMIT 5000", $aff->id ) ) as $a ) {
+		// Payment requests and reminders for a negative balance (one option per currency).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$currencies = (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT currency FROM ' . Db::table( 'commissions' ) . ' WHERE affiliate_id = %d', $id ) );
+		$currencies = array_unique( array_map( 'strtoupper', array_merge( $currencies, \WPAffiliateCaptain\Commissions\Balance::currencies( $id ), array( (string) Settings::get( 'currency' ) ) ) ) );
+		foreach ( $currencies as $currency ) {
+			foreach ( \WPAffiliateCaptain\Commissions\Dunning::history( $id, $currency ) as $n => $h ) {
+				$items[] = array(
+					'group_id'    => 'wpac-dunning',
+					'group_label' => __( 'Payment requests and reminders', 'affiliate-captain' ),
+					'item_id'     => 'wpac-dunning-' . $id . '-' . $currency . '-' . (int) $n,
+					'data'        => array(
+						array( 'name' => __( 'Level', 'affiliate-captain' ), 'value' => isset( $h['level'] ) ? (string) $h['level'] : '' ),
+						array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => isset( $h['at'] ) ? (string) $h['at'] : '' ),
+						array( 'name' => __( 'Balance', 'affiliate-captain' ), 'value' => isset( $h['amount'] ) ? Money::format( (int) $h['amount'], $currency ) : '' ),
+					),
+				);
+			}
+		}
+		// Account balances per currency (the entries follow as a list).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT currency, balance_minor, updated_at FROM ' . Db::table( 'balances' ) . ' WHERE affiliate_id = %d ORDER BY currency', $id ) ) as $b ) {
 			$items[] = array(
-				'group_id'    => 'wpac-attributions',
-				'group_label' => __( 'Attributed orders', 'affiliate-captain' ),
-				'item_id'     => 'wpac-attribution-' . $a->id,
+				'group_id'    => 'wpac-balances',
+				'group_label' => __( 'Partner account balance', 'affiliate-captain' ),
+				'item_id'     => 'wpac-balance-' . $id . '-' . $b->currency,
 				'data'        => array(
-					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $a->created_at ),
-					array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => $a->source . ' #' . $a->source_order_id ),
-					array( 'name' => __( 'Method', 'affiliate-captain' ), 'value' => (string) $a->method ),
-					array( 'name' => __( 'Campaign', 'affiliate-captain' ), 'value' => (string) $a->campaign ),
-					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => isset( $a->note ) ? (string) $a->note : '' ),
+					array( 'name' => __( 'Currency', 'affiliate-captain' ), 'value' => (string) $b->currency ),
+					array( 'name' => __( 'Balance', 'affiliate-captain' ), 'value' => Money::format( (int) $b->balance_minor, $b->currency ) ),
+					array( 'name' => __( 'Updated', 'affiliate-captain' ), 'value' => (string) $b->updated_at ),
 				),
 			);
 		}
 		$vt = Db::table( 'visits' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$visits = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) n, MIN(created_at) first_at, MAX(created_at) last_at FROM {$vt} WHERE affiliate_id = %d", $aff->id ) );
+		$visits = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) n, MIN(created_at) first_at, MAX(created_at) last_at FROM {$vt} WHERE affiliate_id = %d", $id ) );
 		if ( $visits && (int) $visits->n ) {
 			$items[] = array(
 				'group_id'    => 'wpac-visits',
 				'group_label' => __( 'Link visits (without IP address)', 'affiliate-captain' ),
-				'item_id'     => 'wpac-visits-' . $aff->id,
+				'item_id'     => 'wpac-visits-' . $id,
 				'data'        => array(
 					array( 'name' => __( 'Number of visits', 'affiliate-captain' ), 'value' => (string) (int) $visits->n ),
 					array( 'name' => __( 'First visit', 'affiliate-captain' ), 'value' => (string) $visits->first_at ),
@@ -215,23 +506,31 @@ final class Privacy {
 				),
 			);
 		}
-		$app = json_decode( (string) $aff->application_data, true );
+		$app   = json_decode( (string) $aff->application_data, true );
+		$group = (int) $aff->group_id ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) : null;
 		$extra = array(
 			array( 'name' => __( 'Vanity slug', 'affiliate-captain' ), 'value' => $aff->slug ),
 			array( 'name' => __( 'Last reason', 'affiliate-captain' ), 'value' => (string) $aff->status_reason ),
 			array( 'name' => __( 'Welcome message on landing page', 'affiliate-captain' ), 'value' => (string) $aff->landing_message ),
-			array( 'name' => __( 'Partner group', 'affiliate-captain' ), 'value' => (int) $aff->group_id ? (string) ( \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id )->name : $aff->group_id ) : '—' ),
+			array( 'name' => __( 'Partner group', 'affiliate-captain' ), 'value' => (int) $aff->group_id ? ( $group ? (string) $group->name : (string) $aff->group_id ) : '—' ),
 			array( 'name' => __( 'Linked user account', 'affiliate-captain' ), 'value' => (int) $aff->user_id ? '#' . (int) $aff->user_id : '—' ),
 		);
-		$restriction = Restriction::get( (int) $aff->id );
+		$restriction = Restriction::get( $id );
 		if ( $restriction ) {
 			$extra[] = array( 'name' => __( 'Processing restricted since', 'affiliate-captain' ), 'value' => (string) $restriction['since'] );
 		}
-		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
+		$pending = \WPAffiliateCaptain\Core\Pending::get( 'email_change_' . $id );
+		$pending = null !== $pending ? $pending : get_transient( 'wpac_email_change_' . $id ); // Older version.
 		if ( is_array( $pending ) ) {
 			$extra[] = array( 'name' => __( 'Requested new e-mail address (not confirmed)', 'affiliate-captain' ), 'value' => (string) $pending['email'] );
 		}
-		$prev = AffiliateRepository::previous_email( (int) $aff->id );
+		$public = AffiliateRepository::pending_public_change( $id );
+		if ( $public ) {
+			$extra[] = array( 'name' => __( 'Requested new public name (waiting for approval)', 'affiliate-captain' ), 'value' => isset( $public['name'] ) ? (string) $public['name'] : '' );
+			$extra[] = array( 'name' => __( 'Requested new website (waiting for approval)', 'affiliate-captain' ), 'value' => isset( $public['website'] ) ? (string) $public['website'] : '' );
+			$extra[] = array( 'name' => __( 'Requested on', 'affiliate-captain' ), 'value' => isset( $public['requested_at'] ) ? (string) $public['requested_at'] : '' );
+		}
+		$prev = AffiliateRepository::previous_email( $id );
 		if ( '' !== $prev ) {
 			$extra[] = array( 'name' => __( 'Previous e-mail address (security notices for 30 days)', 'affiliate-captain' ), 'value' => $prev );
 		}
@@ -244,34 +543,10 @@ final class Privacy {
 		$items[] = array(
 			'group_id'    => 'wpac-affiliate-details',
 			'group_label' => __( 'Application', 'affiliate-captain' ),
-			'item_id'     => 'wpac-affiliate-details-' . $aff->id,
+			'item_id'     => 'wpac-affiliate-details-' . $id,
 			'data'        => $extra,
 		);
-		list( $payouts ) = \WPAffiliateCaptain\Payouts\PayoutService::query(
-			array(
-				'affiliate_id' => (int) $aff->id,
-				'limit'        => 1000,
-			)
-		);
-		foreach ( $payouts as $p ) {
-			$items[] = array(
-				'group_id'    => 'wpac-payouts',
-				'group_label' => __( 'Payouts', 'affiliate-captain' ),
-				'item_id'     => 'wpac-payout-' . $p->id,
-				'data'        => array(
-					array( 'name' => _x( 'Number', 'document number', 'affiliate-captain' ), 'value' => $p->number ),
-					array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $p->created_at ),
-					array( 'name' => __( 'Net amount', 'affiliate-captain' ), 'value' => Money::format( (int) $p->net_minor, $p->currency ) ),
-					array( 'name' => __( 'VAT', 'affiliate-captain' ), 'value' => Money::format( (int) $p->vat_minor, $p->currency ) ),
-					array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $p->amount_minor, $p->currency ) ),
-					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $p->status ),
-					array( 'name' => __( 'Paid on', 'affiliate-captain' ), 'value' => (string) $p->paid_at ),
-					array( 'name' => __( 'Cancellation number', 'affiliate-captain' ), 'value' => (string) $p->storno_number ),
-					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $p->note ),
-				),
-			);
-		}
-		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', (int) $aff->id ) as $r ) {
+		foreach ( \WPAffiliateCaptain\Payouts\PayoutRequests::query( '', $id, 0 ) as $r ) {
 			$items[] = array(
 				'group_id'    => 'wpac-payout-requests',
 				'group_label' => __( 'Payout requests', 'affiliate-captain' ),
@@ -284,10 +559,7 @@ final class Privacy {
 				),
 			);
 		}
-		return array(
-			'data' => $items,
-			'done' => true,
-		);
+		return $items;
 	}
 
 	/**
@@ -312,6 +584,28 @@ final class Privacy {
 				'done'           => true,
 			);
 		}
+		$messages   = self::erase_partner( $aff );
+		$messages[] = __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'affiliate-captain' );
+		Audit::log( 'privacy.erased', 'affiliate', (int) $aff->id );
+
+		return array(
+			'items_removed'  => true,
+			'items_retained' => true,
+			'messages'       => $messages,
+			'done'           => true,
+		);
+	}
+
+	/**
+	 * Anonymise a partner: personal fields, codes, visits, links, pending changes, VIES result,
+	 * reminders and the change log details; booking records stay (restricted) and the payout
+	 * details are deleted unless something is still open.
+	 *
+	 * @param object $aff Partner.
+	 * @return string[] Messages.
+	 */
+	public static function erase_partner( $aff ) {
+		global $wpdb;
 		$messages = array();
 		$open     = self::has_open_items( (int) $aff->id );
 
@@ -343,9 +637,12 @@ final class Privacy {
 		// the payout change log) must stay unchanged during the retention period: processing is
 		// restricted instead (Art. 17(3)(b), Art. 18 GDPR) and the free texts are deleted when the
 		// period ends (Retention::purge_erased()).
-		Restriction::add( (int) $aff->id, Restriction::ERASURE );
+		if ( ! Restriction::add( (int) $aff->id, Restriction::ERASURE ) ) {
+			$messages[] = __( 'The restriction of processing could not be saved. Please restrict the partner manually on the partner page.', 'affiliate-captain' );
+		}
 		// Pending e-mail change, previous address and account-link token contain addresses.
 		delete_transient( 'wpac_email_change_' . (int) $aff->id );
+		\WPAffiliateCaptain\Core\Pending::delete( 'email_change_' . (int) $aff->id );
 		delete_option( 'wpac_prev_email_' . (int) $aff->id );
 		delete_option( 'wpac_user_link_' . (int) $aff->id );
 		// Requested public name/website change, VIES result (VAT ID, company name) and payment
@@ -366,15 +663,7 @@ final class Privacy {
 		} else {
 			ProfileRepository::delete( (int) $aff->id );
 		}
-		$messages[] = __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'affiliate-captain' );
-		Audit::log( 'privacy.erased', 'affiliate', (int) $aff->id );
-
-		return array(
-			'items_removed'  => true,
-			'items_retained' => true,
-			'messages'       => $messages,
-			'done'           => true,
-		);
+		return $messages;
 	}
 
 	/**
@@ -404,19 +693,30 @@ final class Privacy {
 		if ( ! in_array( $type, array( 'restrict', 'object' ), true ) || '' === trim( $note ) ) {
 			return 'privacy_failed';
 		}
-		$admin = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
-			'restrict' === $type
-				/* translators: %s: partner */
-				? sprintf( __( 'Data protection: %s asks to restrict processing', 'affiliate-captain' ), $aff->name )
-				/* translators: %s: partner */
-				: sprintf( __( 'Data protection: %s objects to processing', 'affiliate-captain' ), $aff->name ),
-			/* translators: 1: details, 2: URL */
-			sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) )
-		);
-		Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type ) );
-		return 'privacy_sent';
+		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
+		try {
+			$sent     = \WPAffiliateCaptain\Affiliates\Notifications::send(
+				'privacy_request',
+				\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
+				'restrict' === $type
+					/* translators: %s: partner */
+					? sprintf( __( 'Data protection: %s asks to restrict processing', 'affiliate-captain' ), $aff->name )
+					/* translators: %s: partner */
+					: sprintf( __( 'Data protection: %s objects to processing', 'affiliate-captain' ), $aff->name ),
+				/* translators: 1: details, 2: URL */
+				sprintf( __( "Details from the partner:\n\n%1\$s\n\nPlease answer within one month (Art. 12(3) GDPR). Restrict processing on the partner page if justified:\n%2\$s", 'affiliate-captain' ), $note, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $aff->id ) ),
+				array(
+					'admin'        => true,
+					'reply_to'     => is_email( $aff->email ) ? (string) $aff->email : '',
+					'affiliate_id' => (int) $aff->id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
+		Audit::log( 'privacy.request', 'affiliate', (int) $aff->id, array( 'type' => $type, 'mail' => $sent ? 'sent' : 'failed' ) );
+		// Only claim "sent" when the operator really got the request (the mail is its only record).
+		return $sent ? 'privacy_sent' : 'privacy_failed';
 	}
 
 	/**
@@ -443,6 +743,8 @@ final class Privacy {
 			'{retention_years}'            => Retention::years() > 0 ? (string) Retention::years() : '∞',
 			'{application_retention_days}' => $days( 'application_retention_days' ),
 			'{audit_retention_days}'       => $days( 'audit_retention_days' ),
+			// Other payment method on: the payment provider receives the payout (e.g. PayPal; outside the EU possible).
+			'{payment_providers}'          => ProfileRepository::manual_enabled() ? 'Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ' : '',
 		);
 		return strtr( $text, $map );
 	}
@@ -466,7 +768,7 @@ final class Privacy {
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'use_wc_session' ) ) {
-			$p[] = __( 'If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.', 'affiliate-captain' );
+			$p[] = __( 'If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days = (int) Settings::get( 'lifetime_days' );
@@ -474,6 +776,7 @@ final class Privacy {
 				/* translators: %d: days */
 				? sprintf( _n( 'After a purchase via a partner, later purchases within %d day are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', $days, 'affiliate-captain' ), $days )
 				: __( 'After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself.', 'affiliate-captain' );
+			$p[]  = __( 'This link is only created for purchases with a customer account that earned the partner a commission (never for guest orders), and it is deleted at the latest when the partnership ends or the shop stops crediting later purchases.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'js_tracking' ) ) {
 			$p[] = __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.', 'affiliate-captain' );
@@ -501,6 +804,10 @@ final class Privacy {
 		$periods[] = $apps > 0 ? sprintf( _n( 'rejected partner applications: %d day', 'rejected partner applications: %d days', $apps, 'affiliate-captain' ), $apps ) : __( 'rejected partner applications: until deleted manually', 'affiliate-captain' );
 		/* translators: %d: years */
 		$periods[] = $years > 0 ? sprintf( _n( 'commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)', 'commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)', $years, 'affiliate-captain' ), $years ) : __( 'commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically', 'affiliate-captain' );
+		if ( $years > 0 || $apps > 0 ) {
+			// Retention::purge_ended(): ended partnerships are anonymised without an erasure request.
+			$periods[] = __( 'partner account and payout details after the partnership ended: deleted once the retention period of the last booking has passed (without bookings: after the period for rejected applications)', 'affiliate-captain' );
+		}
 		/* translators: %d: days */
 		$periods[] = $audit > 0 ? sprintf( _n( 'change log of other settings and partner data: %d day', 'change log of other settings and partner data: %d days', $audit, 'affiliate-captain' ), $audit ) : __( 'change log: until deleted manually', 'affiliate-captain' );
 		$p[] = __( 'Storage periods:', 'affiliate-captain' ) . ' ' . implode( '; ', $periods ) . '.';
@@ -510,6 +817,9 @@ final class Privacy {
 
 		// Recipients.
 		$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'affiliate-captain' );
+		if ( ProfileRepository::manual_enabled() ) {
+			$p[] = __( 'Partners who choose another payment method (e.g. PayPal or Wise) instead of a bank transfer: the amount, the payment reference and the payment details they entered (e.g. their PayPal address) go to that payment provider for the payout. The provider processes them under its own responsibility and may transfer them to third countries (e.g. the USA).', 'affiliate-captain' );
+		}
 		// VIES (Vies::check()): on unless switched off under Settings → Payouts ("vies_check").
 		$vies = Settings::get( 'vies_check' );
 		if ( null === $vies || $vies ) {

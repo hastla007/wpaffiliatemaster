@@ -12,7 +12,6 @@ namespace WPAffiliateCaptain\Payouts;
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
-use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -125,39 +124,84 @@ final class Objections {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please describe what is incorrect.', 'affiliate-captain' ) );
 		}
 		// Check and write under a lock: parallel objections or resolutions must not overwrite each other.
-		$filed = Db::with_lock(
-			self::LOCK,
-			static function () use ( $payout_id, $affiliate_id, $reason ) {
-				$all = self::fresh();
-				if ( isset( $all[ (int) $payout_id ] ) && 'open' === $all[ (int) $payout_id ]['status'] ) {
-					return false;
+		try {
+			$filed = Db::with_lock(
+				self::LOCK,
+				static function () use ( $payout_id, $affiliate_id, $reason ) {
+					$all = self::fresh();
+					if ( isset( $all[ (int) $payout_id ] ) && 'open' === $all[ (int) $payout_id ]['status'] ) {
+						return 'open';
+					}
+					$all[ (int) $payout_id ] = array(
+						'affiliate_id' => (int) $affiliate_id,
+						'at'           => Db::now(),
+						'reason'       => self::cut( $reason, 1000 ),
+						'status'       => 'open',
+						'resolution'   => '',
+						'resolved_at'  => '',
+					);
+					// Success only when the objection was really stored: the partner relies on it.
+					return update_option( self::OPTION, $all, false ) ? 'filed' : 'failed';
 				}
-				$all[ (int) $payout_id ] = array(
-					'affiliate_id' => (int) $affiliate_id,
-					'at'           => Db::now(),
-					'reason'       => substr( $reason, 0, 1000 ),
-					'status'       => 'open',
-					'resolution'   => '',
-					'resolved_at'  => '',
-				);
-				update_option( self::OPTION, $all, false );
-				return true;
-			}
-		);
-		if ( ! $filed ) {
+			);
+		} catch ( \Throwable $e ) {
+			$filed = 'failed'; // Lock not available.
+		}
+		if ( 'open' === $filed ) {
 			return new \WP_Error( 'wpac_objection_open', __( 'Your objection to this credit note is already being reviewed.', 'affiliate-captain' ) );
+		}
+		if ( 'filed' !== $filed ) {
+			return new \WP_Error( 'wpac_objection_save', __( 'Your objection could not be saved. Please try again or send it to us by e-mail.', 'affiliate-captain' ) );
 		}
 		Audit::log( 'statement.objection', 'payout', (int) $payout_id );
 		$aff   = AffiliateRepository::find( (int) $affiliate_id );
-		$admin = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
-			/* translators: %s: credit note number */
-			sprintf( __( 'Objection to credit note %s', 'affiliate-captain' ), $p->number ),
-			/* translators: 1: partner, 2: number, 3: reason, 4: URL */
-			sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4\$s", 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) )
-		);
+		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
+		try {
+			\WPAffiliateCaptain\Affiliates\Notifications::send(
+				'objection',
+				\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
+				/* translators: %s: credit note number */
+				sprintf( __( 'Objection to credit note %s', 'affiliate-captain' ), $p->number ),
+				/* translators: 1: partner, 2: number, 3: reason, 4: URL */
+				sprintf( __( "%1\$s objected to credit note %2\$s:\n\n%3\$s\n\nThe credit note no longer counts as an invoice. Please check it, cancel the payout if needed and issue a corrected credit note:\n%4\$s", 'affiliate-captain' ), $aff ? $aff->name : '#' . (int) $affiliate_id, $p->number, $reason, admin_url( 'admin.php?page=wpac-payouts' ) ),
+				array(
+					'admin'        => true,
+					'affiliate_id' => (int) $affiliate_id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
 		return true;
+	}
+
+	/**
+	 * What the operator can do about an objection, depending on the payout's state. A paid
+	 * payout cannot be cancelled (the money went out): the correction runs outside the payout.
+	 *
+	 * @param object|null $payout Payout.
+	 * @return string
+	 */
+	public static function guidance( $payout ) {
+		if ( $payout && 'paid' === $payout->status ) {
+			return __( 'The credit note no longer counts as an invoice. This payout is already paid, so it cannot be cancelled here. If the objection is justified, agree the correction with the partner – the partner issues their own invoice for the correct amount, or you settle the difference by a separate transfer or repayment request – and keep the documents with the credit note. If the credit note is correct, explain why. Then describe below what was done; the partner receives this text.', 'affiliate-captain' );
+		}
+		if ( $payout && 'cancelled' === $payout->status ) {
+			return __( 'The payout was already cancelled (cancellation document issued); its commissions are paid with the next run and a new credit note. Describe below what was done; the partner receives this text.', 'affiliate-captain' );
+		}
+		return __( 'The credit note no longer counts as an invoice. Cancel the payout (cancellation document) and create a corrected one, or explain why it is correct.', 'affiliate-captain' );
+	}
+
+	/**
+	 * Shorten text to a number of characters without cutting a multi-byte character in half
+	 * (the database rejects invalid UTF-8, and the text would be lost).
+	 *
+	 * @param string $text Text.
+	 * @param int    $max  Characters.
+	 * @return string
+	 */
+	public static function cut( $text, $max ) {
+		return Db::cut( $text, $max ); // One helper for character-safe truncation.
 	}
 
 	/**
@@ -168,21 +212,25 @@ final class Objections {
 	 * @return bool
 	 */
 	public static function resolve( $payout_id, $resolution ) {
-		$resolution = substr( sanitize_textarea_field( (string) $resolution ), 0, 1000 );
-		$all        = Db::with_lock(
-			self::LOCK,
-			static function () use ( $payout_id, $resolution ) {
-				$all = self::fresh();
-				if ( ! isset( $all[ (int) $payout_id ] ) || 'open' !== $all[ (int) $payout_id ]['status'] ) {
-					return null;
+		$resolution = self::cut( sanitize_textarea_field( (string) $resolution ), 1000 );
+		try {
+			$all = Db::with_lock(
+				self::LOCK,
+				static function () use ( $payout_id, $resolution ) {
+					$all = self::fresh();
+					if ( ! isset( $all[ (int) $payout_id ] ) || 'open' !== $all[ (int) $payout_id ]['status'] ) {
+						return null;
+					}
+					$all[ (int) $payout_id ]['status']      = 'resolved';
+					$all[ (int) $payout_id ]['resolution']  = $resolution;
+					$all[ (int) $payout_id ]['resolved_at'] = Db::now();
+					// Not stored: the objection stays open and the partner is not told it was handled.
+					return update_option( self::OPTION, $all, false ) ? $all : null;
 				}
-				$all[ (int) $payout_id ]['status']      = 'resolved';
-				$all[ (int) $payout_id ]['resolution']  = $resolution;
-				$all[ (int) $payout_id ]['resolved_at'] = Db::now();
-				update_option( self::OPTION, $all, false );
-				return $all;
-			}
-		);
+			);
+		} catch ( \Throwable $e ) {
+			$all = null; // Lock not available.
+		}
 		if ( null === $all ) {
 			return false;
 		}
@@ -191,14 +239,19 @@ final class Objections {
 		$p   = PayoutService::find( (int) $payout_id );
 		if ( $aff && $p ) {
 			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-			wp_mail(
-				$aff->email,
-				/* translators: %s: credit note number */
-				sprintf( __( 'Your objection to credit note %s', 'affiliate-captain' ), $p->number ),
-				/* translators: %s: resolution */
-				sprintf( __( "Hello,\n\nwe have reviewed your objection:\n\n%s", 'affiliate-captain' ), $all[ (int) $payout_id ]['resolution'] )
-			);
-			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			try {
+				\WPAffiliateCaptain\Affiliates\Notifications::send(
+					'objection_resolved',
+					$aff->email,
+					/* translators: %s: credit note number */
+					sprintf( __( 'Your objection to credit note %s', 'affiliate-captain' ), $p->number ),
+					/* translators: %s: resolution */
+					sprintf( __( "Hello,\n\nwe have reviewed your objection:\n\n%s", 'affiliate-captain' ), $all[ (int) $payout_id ]['resolution'] ),
+					array( 'affiliate_id' => (int) $aff->id )
+				);
+			} finally {
+				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			}
 		}
 		return true;
 	}

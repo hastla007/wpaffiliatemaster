@@ -132,6 +132,8 @@ jobs:
           # Fails below this total line coverage (tests/coverage-report.php; measured 73 %).
           WPAC_COVERAGE_MIN: "70"
         run: |
+          # Without pipefail the exit code of "| tee" would hide a failing coverage check.
+          set -o pipefail
           php -d xdebug.mode=coverage -d auto_prepend_file=tests/coverage-prepend.php tests/run.php
           php -d xdebug.mode=coverage -d auto_prepend_file=tests/coverage-prepend.php tests/integration/run.php
           php tests/coverage-report.php | tee coverage/summary.md >> "$GITHUB_STEP_SUMMARY"
@@ -333,6 +335,9 @@ jobs:
           wp plugin activate affiliate-captain --path="$RUNNER_TEMP/wp"
       - name: Plugin Check
         run: |
+          # Without pipefail the exit code of "| tee" would hide the result of the evaluation
+          # (the job – and with it the release – could never fail).
+          set -o pipefail
           wp plugin check affiliate-captain --format=json --path="$RUNNER_TEMP/wp" > "$RUNNER_TEMP/plugin-check.json"
           php tests/ci/plugin-check.php "$RUNNER_TEMP/plugin-check.json" | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -479,5 +484,6 @@ jobs:
           zip="dist/affiliate-captain-${TAG#v}.zip"
           [ -f "$zip" ] || { echo "Tested ZIP $zip not found (version mismatch)"; ls dist; exit 1; }
           sha256sum "$zip"
-          notes="$(awk -v v="${TAG#v}" '$0 ~ "^= " v " " {on=1; next} on && /^= / {exit} on' readme.txt)"
+          # Only the "== Changelog ==" section (the Upgrade Notice has the same "= x.y.z =" headings).
+          notes="$(awk -v v="${TAG#v}" '/^== /{cl=($0 ~ /^== Changelog ==/); on=0; next} cl && $0 == "= " v " =" {on=1; next} on && /^= /{exit} on' readme.txt)"
           gh release create "$TAG" "$zip" --target "$GITHUB_SHA" --title "Affiliate Captain ${TAG#v}" --notes "${notes:-Siehe readme.txt}"

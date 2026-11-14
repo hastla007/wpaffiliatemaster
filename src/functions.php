@@ -62,6 +62,20 @@ if ( ! function_exists( 'wpac_record_refund' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wpac_record_reinstatement' ) ) {
+	/**
+	 * Withdraw a cancellation or chargeback (chargeback won, cancellation reversed): the reversed
+	 * commission is reinstated. Partial refunds stay deducted. Idempotent.
+	 *
+	 * @since 0.11.0
+	 * @param array $payload { contract, source, order_id, refund_id (optional), reason }, see docs/CONTRACT.md.
+	 * @return array|WP_Error { status: reinstated|unchanged, count }
+	 */
+	function wpac_record_reinstatement( array $payload ) {
+		return \WPAffiliateCaptain\Sales\ContractApi::record_reinstatement( $payload );
+	}
+}
+
 if ( ! function_exists( 'wpac_current_touch' ) ) {
 	/**
 	 * Referral of the current visitor (contract 1.1.0): the partner link of this shop session
@@ -70,7 +84,8 @@ if ( ! function_exists( 'wpac_current_touch' ) ) {
 	 * when the sale is reported. Contains no personal data.
 	 *
 	 * @since 0.6.0
-	 * @return array|null { code, method, campaign, content_id, ts } or null (ts = click time, since 0.8.0).
+	 * @return array|null { code, method, campaign, content_id, ts, sub_id, visit_id } or null (ts = click time,
+	 *                    since 0.8.0; sub_id = the partner's sub-ID, visit_id = the recorded visit, since 0.9.0).
 	 */
 	function wpac_current_touch() {
 		$touch = \WPAffiliateCaptain\Tracking\Tracker::current_touch();
@@ -83,6 +98,8 @@ if ( ! function_exists( 'wpac_current_touch' ) ) {
 			'campaign'   => isset( $touch['campaign'] ) ? (string) $touch['campaign'] : '',
 			'content_id' => isset( $touch['content_id'] ) ? (int) $touch['content_id'] : 0,
 			'ts'         => isset( $touch['ts'] ) ? (int) $touch['ts'] : 0,
+			'sub_id'     => isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '',
+			'visit_id'   => isset( $touch['visit_id'] ) ? (int) $touch['visit_id'] : 0,
 		);
 	}
 }

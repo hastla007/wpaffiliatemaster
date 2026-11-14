@@ -44,10 +44,19 @@ final class ExportCommand {
 		if ( $tax && ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 			\WP_CLI::error( 'Tax and bank data need --user=<login> of a user with the capability wpac_view_tax_data.' );
 		}
-		$counts = ProgramExport::write( $file, $tax );
+		// Created readable only by the current user before anything is written (personal data,
+		// with --include-tax-data also decrypted IBANs); removed again if the export fails.
+		$existed = file_exists( $file );
+		$umask   = umask( 0077 );
+		$counts  = ProgramExport::write( $file, $tax );
+		umask( $umask );
 		if ( is_wp_error( $counts ) ) {
+			if ( ! $existed && file_exists( $file ) ) {
+				@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.unlink_unlink
+			}
 			\WP_CLI::error( $counts->get_error_message() );
 		}
+		@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_chmod
 		foreach ( $counts as $name => $n ) {
 			\WP_CLI::log( sprintf( '%-22s %d rows', $name, $n ) );
 		}

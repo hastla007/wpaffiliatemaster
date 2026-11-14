@@ -56,7 +56,7 @@ final class Agreements {
 		if ( ! $post || hash( 'sha256', $post->post_title . "\n" . $post->post_content ) !== $terms['hash'] ) {
 			return false;
 		}
-		return (bool) add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'stored_at' => Db::now() ), '', false );
+		return (bool) add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'page_id' => (int) $post->ID, 'stored_at' => Db::now() ), '', false );
 	}
 
 	/**
@@ -121,9 +121,11 @@ final class Agreements {
 	}
 
 	/**
-	 * Whether the affiliate accepted the current version. Only the version decides: editing the
-	 * terms page (typo, layout) does not ask all partners to accept again – increase the version
-	 * for material changes. The page hash of every acceptance is kept as evidence only.
+	 * Whether the affiliate accepted the current version of the current terms page. Editing the
+	 * page (typo, layout) does not ask all partners to accept again – increase the version for
+	 * material changes. But the version alone is not enough: a group with its own terms page and
+	 * no own version shares the program's version number, so the page that was accepted must be
+	 * the current one too (otherwise accepting page A would count for page B).
 	 *
 	 * @param int $affiliate_id Affiliate.
 	 * @return bool
@@ -131,7 +133,31 @@ final class Agreements {
 	public static function has_current( $affiliate_id ) {
 		$latest = self::latest( $affiliate_id );
 		$terms  = self::current( self::group_of( $affiliate_id ) );
-		return $latest && (string) $latest->version === (string) $terms['version'];
+		return $latest && self::matches( (string) $latest->version, (string) $latest->doc_hash, $terms );
+	}
+
+	/**
+	 * Whether an acceptance (version + page hash) covers the given terms.
+	 *
+	 * @param string $version Accepted version.
+	 * @param string $hash    Hash of the accepted page text.
+	 * @param array  $terms   Current terms (page_id, version, hash).
+	 * @return bool
+	 */
+	public static function matches( $version, $hash, array $terms ) {
+		if ( (string) $version !== (string) $terms['version'] ) {
+			return false;
+		}
+		if ( '' === (string) $hash || (string) $hash === (string) $terms['hash'] ) {
+			return true;
+		}
+		// The text was edited since, or it is another page: the stored text of the acceptance
+		// names its page. Acceptances from before the page was stored with it count by version.
+		$text = get_option( 'wpac_terms_text_' . $hash );
+		if ( is_array( $text ) && ! empty( $text['page_id'] ) ) {
+			return (int) $text['page_id'] === (int) $terms['page_id'];
+		}
+		return true;
 	}
 
 	/** Background batches of the "accept the current terms" reminder. */
@@ -153,7 +179,7 @@ final class Agreements {
 		$g     = Db::table( 'agreements' );
 		$limit = (int) $limit > 0 ? ' LIMIT ' . (int) $limit : '';
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- table names and an integer only.
-		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT a.id, a.group_id, ( SELECT g.version FROM {$g} g WHERE g.affiliate_id = a.id AND g.result = 'accepted' ORDER BY g.id DESC LIMIT 1 ) AS version FROM {$a} a WHERE a.status = 'active' AND a.id > %d ORDER BY a.id ASC{$limit}", (int) $after_id ) );
+		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT a.id, a.group_id, ( SELECT g.version FROM {$g} g WHERE g.affiliate_id = a.id AND g.result = 'accepted' ORDER BY g.id DESC LIMIT 1 ) AS version, ( SELECT g.doc_hash FROM {$g} g WHERE g.affiliate_id = a.id AND g.result = 'accepted' ORDER BY g.id DESC LIMIT 1 ) AS doc_hash FROM {$a} a WHERE a.status = 'active' AND a.id > %d ORDER BY a.id ASC{$limit}", (int) $after_id ) );
 		$current = array();
 		$missing = array();
 		$last    = (int) $after_id;
@@ -166,7 +192,7 @@ final class Agreements {
 			if ( ! $current[ $group ]['page_id'] ) {
 				continue; // No terms page: nothing to accept.
 			}
-			if ( null === $r->version || (string) $r->version !== (string) $current[ $group ]['version'] ) {
+			if ( null === $r->version || ! self::matches( (string) $r->version, (string) $r->doc_hash, $current[ $group ] ) ) {
 				$missing[] = (int) $r->id;
 			}
 		}
@@ -188,9 +214,17 @@ final class Agreements {
 		if ( is_array( $state ) && (int) $state['started'] > time() - DAY_IN_SECONDS ) {
 			return new \WP_Error( 'wpac_rate_limited', __( 'Reminders were already sent in the last 24 hours. Please wait a day before asking again.', 'affiliate-captain' ) );
 		}
+		if ( Settings::get( 'maintenance_mode' ) ) {
+			// Would wait silently until maintenance ends (R5-O9).
+			return new \WP_Error( 'wpac_maintenance', __( 'Maintenance mode is on: no reminders are sent. Switch it off first (Settings → Data & maintenance).', 'affiliate-captain' ) );
+		}
 		list( $missing ) = self::missing_current();
 		if ( ! $missing ) {
 			return new \WP_Error( 'wpac_none', __( 'All active partners have accepted the current terms.', 'affiliate-captain' ) );
+		}
+		$missing = self::reminder_recipients( $missing );
+		if ( ! $missing ) {
+			return new \WP_Error( 'wpac_none', __( 'All partners without the current acceptance were reminded in the last 7 days, have restricted processing or no valid e-mail address – nobody is asked now.', 'affiliate-captain' ) );
 		}
 		update_option(
 			self::REMIND_OPTION,
@@ -209,6 +243,25 @@ final class Agreements {
 	}
 
 	/**
+	 * Partners of a list who really get a reminder now: not restricted, not reminded in the last
+	 * 7 days and with a valid e-mail address (the count shown before and after sending).
+	 *
+	 * @param int[] $ids Partners without the current acceptance.
+	 * @return int[]
+	 */
+	public static function reminder_recipients( array $ids ) {
+		$out = array();
+		AffiliateRepository::find_many( $ids );
+		foreach ( $ids as $id ) {
+			$aff = AffiliateRepository::find( (int) $id );
+			if ( $aff && is_email( $aff->email ) && ! \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $id ) && ! get_transient( 'wpac_terms_reminded_' . (int) $id ) ) {
+				$out[] = (int) $id;
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Send one batch of reminders and schedule the next.
 	 *
 	 * @param int $size Partners per batch.
@@ -219,9 +272,12 @@ final class Agreements {
 			return;
 		}
 		if ( Settings::get( 'maintenance_mode' ) ) {
-			Scheduler::once( self::REMIND_HOOK, HOUR_IN_SECONDS ); // Wait until maintenance ends.
+			Scheduler::once( self::REMIND_HOOK, HOUR_IN_SECONDS ); // Wait until maintenance ends (shown in the partner list).
+			$state['paused'] = time();
+			update_option( self::REMIND_OPTION, $state, false );
 			return;
 		}
+		unset( $state['paused'] );
 		list( $missing, $last ) = self::missing_current( (int) $state['cursor'], $size );
 		foreach ( $missing as $id ) {
 			if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( $id ) || get_transient( 'wpac_terms_reminded_' . $id ) ) {
@@ -269,15 +325,20 @@ final class Agreements {
 		}
 		$terms       = self::current( (int) $aff->group_id );
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-		$url         = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
-		$sent        = (bool) wp_mail(
-			$aff->email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Please accept the current partner terms', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-			/* translators: 1: name, 2: version, 3: terms URL, 4: partner area URL */
-			sprintf( __( "Hello %1\$s,\n\nplease read and accept the current partner program terms (version %2\$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3\$s\nAccept them in your partner area: %4\$s\n\nThank you!", 'affiliate-captain' ), $aff->name, $terms['version'], $terms['url'] ? $terms['url'] : $url, $url )
-		);
-		\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		try {
+			$url  = \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff );
+			$sent = Notifications::send(
+				'terms_reminder',
+				$aff->email,
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Please accept the current partner terms', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+				/* translators: 1: name, 2: version, 3: terms URL, 4: partner area URL */
+				sprintf( __( "Hello %1\$s,\n\nplease read and accept the current partner program terms (version %2\$s). We need your acceptance to issue credit notes and pay out your commissions.\n\nTerms: %3\$s\nAccept them in your partner area: %4\$s\n\nThank you!", 'affiliate-captain' ), $aff->name, $terms['version'], $terms['url'] ? $terms['url'] : $url, $url ),
+				array( 'affiliate_id' => (int) $aff->id )
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
 		return $sent;
 	}
 

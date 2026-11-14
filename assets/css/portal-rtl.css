@@ -1,0 +1,13 @@
+/* Affiliate Captain partner area: right-to-left languages (loaded after portal.css when is_rtl()). */
+.wpac-form--inline label{margin-right:0;margin-left:.75em}
+.wpac-hp{left:auto!important;right:-9999px!important}
+.wpac-notice,.wpac-disclosure,.wpac-welcome,.wpac-hero{border-left-width:1px;border-right-width:4px;border-right-style:solid}
+.wpac-notice{border-left:0;border-right-color:var(--wpac-accent)}
+.wpac-notice--success{border-right-color:#2e7d32}
+.wpac-notice--error{border-right-color:#c62828}
+.wpac-disclosure{border-left:0;border-right-color:#f9a825}
+.wpac-welcome{border-left-color:var(--wpac-border,rgba(0,0,0,.12));border-right-color:#0b6e99}
+.wpac-hero{border-left-color:var(--wpac-border);border-right-color:var(--wpac-accent)}
+.wpac-table th,.wpac-table td{text-align:right}
+/* Codes, links, IBANs and amounts stay left-to-right inside right-to-left text. */
+.wpac-copy,.wpac-code,.wpac-portal code,.wpac-portal input[type=url],.wpac-form input[type=url],.wpac-form input[type=email],.wpac-form input[name=iban],.wpac-form input[name=bic],.wpac-form input[name=vat_id]{direction:ltr;unicode-bidi:isolate;text-align:left}

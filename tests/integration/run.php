@@ -374,16 +374,18 @@ WPAffiliateCaptain\Core\Jobs::run_due();
 check( 'R3 only the remaining half is commissioned', 1000, (int) $wpdb->get_var( "SELECT SUM(amount_minor) FROM {$ct} WHERE source_order_id = '5003' AND status <> 'rejected'" ) );
 
 // R4 job claim: a running job is not run twice; an aborted run counts as an attempt.
-WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
-$jid = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'jobs' ) . " WHERE type = 'nohandler'" );
+// (A handler that throws: a missing handler no longer uses up attempts, see R5-O20.)
+$GLOBALS['test_hooks']['wpac_run_job'][10][] = array( static function ( $handled, $type ) { if ( 'failing' === $type ) { throw new \RuntimeException( 'boom' ); } return $handled; }, 2 );
+WPAffiliateCaptain\Core\Jobs::enqueue( 'failing', 'x1', array(), 'e', 'e' );
+$jid = (int) $wpdb->get_var( 'SELECT id FROM ' . t( 'jobs' ) . " WHERE type = 'failing'" );
 q( 'UPDATE ' . t( 'jobs' ) . " SET status = 'running', attempts = 3, next_attempt_at = '2000-01-01 00:00:00' WHERE id = {$jid}" );
 check( 'R4 running job is not claimed again', false, WPAffiliateCaptain\Core\Jobs::run( $jid ) );
 WPAffiliateCaptain\Core\Jobs::run_due();
 $job = $wpdb->get_row( 'SELECT status, attempts, last_error_code FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" );
 // The dead run counts as an attempt (3 → requeued as aborted) and the job then runs again in the
-// same pass and fails without a handler (attempt 4).
-check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 4, 'no_handler' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
-WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
+// same pass and fails again (attempt 4).
+check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 4, 'exception' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
+WPAffiliateCaptain\Core\Jobs::enqueue( 'failing', 'x1', array(), 'e', 'e' );
 check( 'R4 re-enqueue keeps the attempts (a job that keeps failing must still end as failed)', '4', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
 
 // R5 filtered commission base: a refund of half the line reverses half the commission.
@@ -574,7 +576,9 @@ q( 'ALTER TABLE ' . t( 'payout_profiles' ) . ' DROP COLUMN tax_number' );
 check( 'U5 missing column reported', true, in_array( 'missing column ' . t( 'payout_profiles' ) . '.tax_number', WPAffiliateCaptain\Core\Installer::verify_schema(), true ) );
 $before_version = (int) get_option( 'wpac_db_version' );
 update_option( 'wpac_db_version', 6 );
-WPAffiliateCaptain\Core\Installer::install_schema(); // Test dbDelta stub cannot add columns → migration stays incomplete.
+$GLOBALS['test_dbdelta_create_only'] = true; // dbDelta leaves the existing table unchanged → migration stays incomplete.
+WPAffiliateCaptain\Core\Installer::install_schema();
+unset( $GLOBALS['test_dbdelta_create_only'] );
 check( 'U5 incomplete migration does not set the schema version', 6, (int) get_option( 'wpac_db_version' ) );
 check( 'U5 problems stored for the admin notice', true, (bool) get_option( 'wpac_schema_problems' ) );
 q( 'ALTER TABLE ' . t( 'payout_profiles' ) . " ADD COLUMN tax_number varchar(40) NOT NULL DEFAULT ''" );
@@ -1058,8 +1062,15 @@ class ZA_Order {
 	public function get_customer_id() { return 0; }
 	public function get_billing_email() { return 'abo@example.de'; }
 	public function get_parent_id() { return $this->parent; }
+	public function get_total() { return '50.00'; }
+	public function get_total_tax() { return '0.00'; }
+	public function get_shipping_total() { return '0.00'; }
+	public function get_status() { return 'processing'; }
+	public function has_status( $s ) { return in_array( 'processing', (array) $s, true ); }
 }
 class ZA_Item {
+	public function get_meta( $k ) { return ''; }
+	public function get_total_tax() { return '0.00'; }
 	public function get_product() { return null; }
 	public function get_variation_id() { return 0; }
 	public function get_product_id() { return 0; }
@@ -1185,7 +1196,7 @@ Settings::flush_cache();
 check( 'ZB-W17 value of an older version is still read from the settings', '2019-05', Settings::get( 'tier_month_first' ) );
 update_option( 'wpac_db_version', 8 );
 WPAffiliateCaptain\Core\Installer::install_schema();
-check( 'ZB-W17 v9 migration moves the runtime state out of the settings', array( '2019-05', false, 9 ), array( get_option( 'wpac_tier_month_first' ), array_key_exists( 'tier_month_first', (array) get_option( 'wpac_settings' ) ), (int) get_option( 'wpac_db_version' ) ) );
+check( 'ZB-W17 v9 migration moves the runtime state out of the settings', array( '2019-05', false, WPAC_DB_VERSION ), array( get_option( 'wpac_tier_month_first' ), array_key_exists( 'tier_month_first', (array) get_option( 'wpac_settings' ) ), (int) get_option( 'wpac_db_version' ) ) );
 update_option( 'wpac_tier_month_closed', gmdate( 'Y-m', strtotime( gmdate( 'Y-m-01' ) . ' -3 month' ) ) );
 $zb_settings = get_option( 'wpac_settings' );
 WPAffiliateCaptain\Commissions\TierService::close_due_months();
@@ -1512,6 +1523,22 @@ refund( 'zf-2', 'zf-r1', array( array( 'item_id' => '1', 'net_minor' => 5000 ) )
 WPAffiliateCaptain\Core\Cron::daily();
 $zf_hosts = array_values( array_unique( array_map( static function ( $u ) { return (string) parse_url( (string) $u, PHP_URL_HOST ); }, $GLOBALS['test_http_calls'] ) ) );
 check( 'ZF6 core flows make no outgoing requests (no license server, VIES off)', array(), $zf_hosts );
+require __DIR__ . '/r8-g2.php';
+require __DIR__ . '/r8-g1.php';
+require __DIR__ . '/r8-g6.php';
+require __DIR__ . '/r8-g4b.php';
+require __DIR__ . '/r8-g4a.php';
+require __DIR__ . '/r8-g5.php';
+require __DIR__ . '/r8-g3.php';
+require __DIR__ . '/r8-g11.php';
+require __DIR__ . '/r8-g9.php';
+require __DIR__ . '/r8-g8.php';
+require __DIR__ . '/r8-g7.php';
+require __DIR__ . '/r8-g10.php';
+require __DIR__ . '/r9-h1.php';
+require __DIR__ . '/r9-h2.php';
+require __DIR__ . '/r9-h3.php';
+require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

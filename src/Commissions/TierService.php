@@ -5,8 +5,9 @@
  * A month is closed automatically once the hold period of its last day has
  * passed, so refunds within the hold period are already reflected. The bonus is
  * booked as an approved ledger row of kind "bonus" with a frozen snapshot of the
- * plan; it is idempotent per partner and month. Refunds after closing do not
- * change a booked bonus.
+ * plan; it is idempotent per partner and month. Later changes of a closed month (refunds,
+ * rejections, late approvals) are booked as bonus corrections by recalculate_closed_months(),
+ * counted in the month of the original sale.
  *
  * @package WPAffiliateCaptain
  */
@@ -118,8 +119,95 @@ final class TierService {
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ) {
 			return false;
 		}
-		$end = strtotime( gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) ) . ' UTC' );
+		$end = strtotime( self::range( $month )[1] . ' UTC' );
 		return time() >= $end + ( (int) Settings::get( 'hold_days' ) + 1 ) * DAY_IN_SECONDS;
+	}
+
+	/** Option: first month whose boundaries are the site's local month (earlier closed months keep UTC). */
+	const LOCAL_FROM = 'wpac_tier_local_from';
+
+	/**
+	 * UTC range of a bonus month. Months are the site's calendar months (time zone in the WordPress
+	 * settings); months closed before this changed keep their UTC boundaries, so recalculating
+	 * them books no corrections only because orders around midnight moved to another month.
+	 *
+	 * @param string $month YYYY-MM.
+	 * @return string[] [ start, end ] UTC.
+	 */
+	public static function range( $month ) {
+		$from = (string) get_option( self::LOCAL_FROM, '' );
+		if ( '' !== $from && $month < $from ) {
+			return array( $month . '-01 00:00:00', gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) ) );
+		}
+		return Db::month_range( $month );
+	}
+
+	/** Single event that continues closing/recalculating months that did not fit into the time budget. */
+	const CONTINUE_HOOK = 'wpac_tier_continue';
+
+	/** Option: [ month, last partner ID ] of a month whose closing or recalculation stopped halfway. */
+	const CURSOR = 'wpac_tier_cursor';
+
+	/** @var bool Whether the last close_month()/recalculate_month() stopped at its time limit. */
+	private static $stopped = false;
+
+	/**
+	 * Seconds one run of closing/recalculating may take before it continues separately.
+	 *
+	 * @return float
+	 */
+	public static function budget() {
+		/**
+		 * Seconds the monthly bonus closing/recalculation may run in one request (0 = no limit).
+		 *
+		 * @param float $budget Default 20.
+		 */
+		return (float) apply_filters( 'wpac_tier_budget', 20 );
+	}
+
+	/**
+	 * Continuation event: finish closing and recalculating what the last run left.
+	 */
+	public static function continue_run() {
+		if ( ! \WPAffiliateCaptain\Core\Installer::schema_current() || Settings::get( 'maintenance_mode' ) ) {
+			return; // The daily run picks it up again.
+		}
+		if ( self::close_due_months() ) {
+			self::recalculate_closed_months( self::budget() );
+		}
+	}
+
+	/**
+	 * Remember where a month stopped and schedule the continuation.
+	 *
+	 * @param string $kind  close|recalc.
+	 * @param string $month Month.
+	 * @param int    $after Last partner done.
+	 */
+	private static function stop_at( $kind, $month, $after ) {
+		update_option(
+			self::CURSOR,
+			array(
+				'kind'  => $kind,
+				'month' => $month,
+				'after' => (int) $after,
+			),
+			false
+		);
+		self::$stopped = true;
+		\WPAffiliateCaptain\Core\Scheduler::once( self::CONTINUE_HOOK, 120 );
+	}
+
+	/**
+	 * Partner to continue after in a month ( 0 = from the start).
+	 *
+	 * @param string $kind  close|recalc.
+	 * @param string $month Month.
+	 * @return int
+	 */
+	private static function cursor( $kind, $month ) {
+		$c = get_option( self::CURSOR );
+		return is_array( $c ) && isset( $c['kind'], $c['month'], $c['after'] ) && $kind === $c['kind'] && $month === $c['month'] ? (int) $c['after'] : 0;
 	}
 
 	/** Months whose recalculation did not fit into the last run's time budget. */
@@ -130,29 +218,40 @@ final class TierService {
 	 */
 	public static function close_due_months() {
 		if ( ! self::all() ) {
-			return;
+			return true;
 		}
 		$last = Settings::state( 'tier_month_closed' );
-		// Without history: start with the previous month.
-		$month = $last ? gmdate( 'Y-m', strtotime( $last . '-01 +1 month' ) ) : gmdate( 'Y-m', strtotime( 'first day of previous month' ) );
+		// Without history: start with the previous (local) month.
+		$month    = $last ? gmdate( 'Y-m', strtotime( $last . '-01 +1 month' ) ) : Db::local_month( -1 );
+		$budget   = self::budget();
+		$deadline = $budget > 0 ? microtime( true ) + $budget : 0.0;
 		for ( $guard = 0; $guard < 24; $guard++ ) {
 			if ( ! self::is_due( $month ) ) {
 				break;
 			}
-			self::close_month( $month );
+			self::close_month( $month, $deadline );
+			if ( self::$stopped ) {
+				return false; // Continues in the next run (CONTINUE_HOOK), the month is not closed yet.
+			}
 			Settings::set_state( 'tier_month_closed', $month ); // Own option: never writes the settings back.
 			$month = gmdate( 'Y-m', strtotime( $month . '-01 +1 month' ) );
 		}
+		return true;
 	}
 
 	/**
 	 * Book bonuses for one month (idempotent).
 	 *
-	 * @param string $month YYYY-MM.
+	 * Partners are processed in ID order; with a time limit the month stops after a partner and
+	 * continues there in the next run (idempotent per partner either way).
+	 *
+	 * @param string $month    YYYY-MM.
+	 * @param float  $deadline Stop after this time (microtime, 0 = no limit).
 	 * @return int Number of bonus rows created.
 	 */
-	public static function close_month( $month ) {
+	public static function close_month( $month, $deadline = 0.0 ) {
 		global $wpdb;
+		self::$stopped = false;
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
 			return 0;
 		}
@@ -162,13 +261,18 @@ final class TierService {
 		}
 		$c        = Db::table( 'commissions' );
 		$currency = strtoupper( (string) Settings::get( 'currency' ) );
-		$start    = $month . '-01 00:00:00';
-		$end      = gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) );
+		list( $start, $end ) = self::range( $month );
+		$after    = self::cursor( 'close', $month );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND currency = %s AND created_at BETWEEN %s AND %s", $currency, $start, $end ) );
+		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND created_at BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC", $start, $end, $after ) ); // All currencies (orders() converts).
 		$created    = 0;
+		AffiliateRepository::find_many( $affiliates );
 
-		foreach ( $affiliates as $affiliate_id ) {
+		foreach ( $affiliates as $i => $affiliate_id ) {
+			if ( $deadline > 0 && $i > 0 && microtime( true ) > $deadline ) {
+				self::stop_at( 'close', $month, (int) $affiliates[ $i - 1 ] );
+				return $created;
+			}
 			$aff = AffiliateRepository::find( (int) $affiliate_id );
 			// No bonus for paused or terminated partners.
 			$plan = $aff && 'active' === $aff->status ? self::plan_for( $aff ) : null;
@@ -242,6 +346,9 @@ final class TierService {
 				++$created;
 			}
 		}
+		if ( $after ) {
+			delete_option( self::CURSOR );
+		}
 		Audit::log(
 			'tier.month_closed',
 			'tier',
@@ -265,11 +372,27 @@ final class TierService {
 	 */
 	private static function orders( $affiliate_id, $month, $currency ) {
 		global $wpdb;
-		$c     = Db::table( 'commissions' );
-		$start = $month . '-01 00:00:00';
-		$end   = gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) );
+		$c = Db::table( 'commissions' );
+		list( $start, $end ) = self::range( $month );
+		// All currencies: orders in another currency count with their value in the program currency
+		// (reference rate); without a rate they cannot be valued and are left out. Only the orders
+		// sold in the month are read (index affiliate_created), not the partner's whole history;
+		// their later corrections (refunds etc., created later) are included.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_results( $wpdb->prepare( "SELECT source, source_order_id, SUM(base_minor) AS revenue, MIN(CASE WHEN kind = 'sale' THEN created_at END) AS sold_at FROM {$c} WHERE affiliate_id = %d AND currency = %s AND status IN ('approved','paid') AND kind <> 'bonus' GROUP BY source, source_order_id HAVING sold_at BETWEEN %s AND %s ORDER BY sold_at ASC", $affiliate_id, $currency, $start, $end ), ARRAY_A );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.source, c.source_order_id, c.currency, SUM(c.base_minor) AS revenue, MIN(CASE WHEN c.kind = 'sale' THEN c.created_at END) AS sold_at FROM {$c} c INNER JOIN ( SELECT DISTINCT source, source_order_id FROM {$c} WHERE affiliate_id = %d AND kind = 'sale' AND created_at BETWEEN %s AND %s ) m ON m.source = c.source AND m.source_order_id = c.source_order_id WHERE c.affiliate_id = %d AND c.status IN ('approved','paid') AND c.kind <> 'bonus' GROUP BY c.source, c.source_order_id, c.currency HAVING sold_at BETWEEN %s AND %s ORDER BY sold_at ASC", $affiliate_id, $start, $end, $affiliate_id, $start, $end ), ARRAY_A );
+		$out  = array();
+		foreach ( $rows as $row ) {
+			if ( strtoupper( (string) $row['currency'] ) !== strtoupper( (string) $currency ) ) {
+				$value = \WPAffiliateCaptain\Core\Fx::to_program( (int) $row['revenue'], (string) $row['currency'], (string) $currency, \WPAffiliateCaptain\Core\Fx::rates() );
+				if ( null === $value ) {
+					continue;
+				}
+				$row['revenue'] = $value;
+			}
+			unset( $row['currency'] );
+			$out[] = $row;
+		}
+		return $out;
 	}
 
 	/**
@@ -279,39 +402,42 @@ final class TierService {
 	 *
 	 * Runs with a time budget: months that did not fit are remembered and come first in the next run.
 	 *
-	 * @param float $budget Seconds (0 = no limit).
+	 * @param float|null $budget Seconds (0 = no limit, null = filter wpac_tier_budget).
 	 * @return int Number of corrections.
 	 */
-	public static function recalculate_closed_months( $budget = 20 ) {
+	public static function recalculate_closed_months( $budget = null ) {
+		$budget = null === $budget ? self::budget() : (float) $budget;
 		$last = Settings::state( 'tier_month_closed' );
 		if ( '' === $last || ! self::all() ) {
 			return 0;
 		}
-		global $wpdb;
 		$months = array();
 		for ( $i = 0; $i < 3; $i++ ) {
 			$months[] = gmdate( 'Y-m', strtotime( $last . '-01 -' . $i . ' month' ) );
 		}
-		// Older closed months whose commissions changed recently (late approvals after a
-		// long hold, e.g. event or money-back periods; late rejections and refunds).
-		$c = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$changed = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT DATE_FORMAT(created_at, '%%Y-%%m') FROM {$c} WHERE kind <> 'bonus' AND updated_at >= %s AND created_at >= %s AND created_at <= %s", Db::now( time() - 3 * DAY_IN_SECONDS ), gmdate( 'Y-m-01 00:00:00', strtotime( $last . '-01 -24 month' ) ), gmdate( 'Y-m-t 23:59:59', strtotime( $last . '-01' ) ) ) );
+		$changed = self::changed_months( $last );
 		$pending = array_filter(
 			array_map( 'strval', (array) get_option( self::RECALC_PENDING, array() ) ),
 			static function ( $m ) {
 				return (bool) preg_match( '/^\d{4}-\d{2}$/', $m );
 			}
 		);
-		$months  = array_values( array_unique( array_merge( $pending, $months, array_map( 'strval', (array) $changed ) ) ) );
-		$n       = 0;
-		$start   = microtime( true );
+		$months   = array_values( array_unique( array_merge( $pending, $months, array_map( 'strval', (array) $changed ) ) ) );
+		$n        = 0;
+		$start    = microtime( true );
+		$deadline = $budget > 0 ? $start + $budget : 0.0;
 		foreach ( $months as $i => $month ) {
 			if ( $budget > 0 && $i > 0 && microtime( true ) - $start > $budget ) {
 				update_option( self::RECALC_PENDING, array_slice( $months, $i ), false );
+				\WPAffiliateCaptain\Core\Scheduler::once( self::CONTINUE_HOOK, 120 ); // Not only the next day.
 				return $n;
 			}
-			$n += self::recalculate_month( $month );
+			$n += self::recalculate_month( $month, $deadline );
+			if ( self::$stopped ) {
+				// Stopped within the month: it comes first in the continuation (from its cursor).
+				update_option( self::RECALC_PENDING, array_slice( $months, $i ), false );
+				return $n;
+			}
 		}
 		if ( $pending ) {
 			delete_option( self::RECALC_PENDING );
@@ -320,29 +446,69 @@ final class TierService {
 	}
 
 	/**
+	 * Older closed months (up to 24 months before $last) whose commissions changed in the last
+	 * three days: late approvals after a long hold, late rejections and refunds. A late refund is
+	 * a new row (created now): the month that changes is the month of the order's sale, so the
+	 * changed orders are mapped to the month of their sale row.
+	 *
+	 * @param string $last Last closed month (YYYY-MM).
+	 * @return string[] Months (YYYY-MM).
+	 */
+	public static function changed_months( $last ) {
+		global $wpdb;
+		$c     = Db::table( 'commissions' );
+		$first = gmdate( 'Y-m', strtotime( $last . '-01 -24 month' ) );
+		// UTC days of the sales; each is mapped to the bonus month(s) it belongs to (a UTC day can
+		// touch two local months), so the month boundaries follow range().
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$days   = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT LEFT(s.created_at, 10) FROM {$c} s INNER JOIN ( SELECT DISTINCT source, source_order_id FROM {$c} WHERE kind <> 'bonus' AND updated_at >= %s ) r ON r.source = s.source AND r.source_order_id = s.source_order_id WHERE s.kind = 'sale' AND s.created_at >= %s AND s.created_at <= %s", Db::now( time() - 3 * DAY_IN_SECONDS ), self::range( $first )[0], self::range( $last )[1] ) ) );
+		$months = array();
+		foreach ( $days as $day ) {
+			foreach ( array( $day . ' 00:00:00', $day . ' 23:59:59' ) as $t ) {
+				foreach ( array( substr( $t, 0, 7 ), gmdate( 'Y-m', strtotime( substr( $t, 0, 7 ) . '-01 -1 month' ) ), gmdate( 'Y-m', strtotime( substr( $t, 0, 7 ) . '-01 +1 month' ) ) ) as $m ) {
+					list( $from, $to ) = self::range( $m );
+					if ( $t >= $from && $t <= $to && $m >= $first && $m <= $last ) {
+						$months[ $m ] = $m;
+					}
+				}
+			}
+		}
+		sort( $months );
+		return array_values( $months );
+	}
+
+	/**
 	 * Recalculate one closed month and book corrections.
 	 *
-	 * @param string $month YYYY-MM.
+	 * @param string $month    YYYY-MM.
+	 * @param float  $deadline Stop after this time (microtime, 0 = no limit); continues from the partner reached.
 	 * @return int Number of corrections booked.
 	 */
-	public static function recalculate_month( $month ) {
+	public static function recalculate_month( $month, $deadline = 0.0 ) {
+		self::$stopped = false;
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ) {
 			return 0;
 		}
 		global $wpdb;
 		$c        = Db::table( 'commissions' );
 		$currency = strtoupper( (string) Settings::get( 'currency' ) );
-		$start    = $month . '-01 00:00:00';
-		$end      = gmdate( 'Y-m-t 23:59:59', strtotime( $month . '-01' ) );
+		list( $start, $end ) = self::range( $month );
+		$after    = self::cursor( 'recalc', $month );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND currency = %s AND created_at BETWEEN %s AND %s", $currency, $start, $end ) );
+		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND created_at BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC", $start, $end, $after ) ); // All currencies (orders() converts).
 		$booked     = 0;
+		$done       = 0;
 		$first      = Settings::state( 'tier_month_first' );
 		if ( '' === $first ) {
 			$first = Settings::state( 'tier_month_closed' ); // Installs from before this setting.
 		}
 		foreach ( $affiliates as $affiliate_id ) {
 			$affiliate_id = (int) $affiliate_id;
+			if ( $deadline > 0 && $done > 0 && microtime( true ) > $deadline ) {
+				self::stop_at( 'recalc', $month, $done );
+				break;
+			}
+			$done = $affiliate_id;
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$c} WHERE affiliate_id = %d AND kind = 'bonus' AND source = 'wpac' AND source_order_id = %s AND status <> 'rejected' ORDER BY id ASC", $affiliate_id, 'tier-' . $month ) );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -445,6 +611,9 @@ final class TierService {
 				++$booked;
 			}
 		}
+		if ( ! self::$stopped && $after ) {
+			delete_option( self::CURSOR );
+		}
 		if ( $booked ) {
 			Audit::log(
 				'tier.month_recalculated',
@@ -470,7 +639,7 @@ final class TierService {
 		$steps = json_decode( (string) $plan->steps, true );
 		$out   = array();
 		foreach ( (array) $steps as $s ) {
-			$out[] = ( 'orders' === $plan->basis ? (int) $s['threshold'] : Money::format( (int) $s['threshold'], $currency ) ) . ' → +' . $s['rate'] . ' %';
+			$out[] = ( 'orders' === $plan->basis ? (int) $s['threshold'] : Money::format( (int) $s['threshold'], $currency ) ) . ' → +' . \WPAffiliateCaptain\Core\Locale::percent( $s['rate'] );
 		}
 		return implode( ', ', $out );
 	}

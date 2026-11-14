@@ -66,14 +66,16 @@ final class CheckoutField {
 	}
 
 	/**
-	 * Persist code + touch on classic checkout.
+	 * Persist code (only with the checkout field on) + touch on classic checkout.
 	 *
 	 * @param \WC_Order $order Order.
 	 * @param array     $data  Data.
 	 */
 	public static function classic_save( $order, $data ) {
+		// The posted code only counts while the checkout field is switched on: otherwise it was
+		// neither shown nor validated/rate-limited, and a code outranks links and coupons.
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$code = isset( $_POST['wpac_partner_code'] ) ? CodeRepository::normalize( sanitize_text_field( wp_unslash( $_POST['wpac_partner_code'] ) ) ) : '';
+		$code = Settings::get( 'checkout_field' ) && isset( $_POST['wpac_partner_code'] ) ? CodeRepository::normalize( sanitize_text_field( wp_unslash( $_POST['wpac_partner_code'] ) ) ) : '';
 		if ( '' !== $code ) {
 			$order->update_meta_data( WooCommerce::META_CODE, $code );
 		}
@@ -158,6 +160,8 @@ final class CheckoutField {
 					'campaign'   => isset( $touch['campaign'] ) ? (string) $touch['campaign'] : '',
 					'content_id' => isset( $touch['content_id'] ) ? (int) $touch['content_id'] : 0,
 					'ts'         => isset( $touch['ts'] ) ? (int) $touch['ts'] : 0,
+					'sub_id'     => isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '',
+					'visit_id'   => isset( $touch['visit_id'] ) ? (int) $touch['visit_id'] : 0,
 				)
 			);
 		}

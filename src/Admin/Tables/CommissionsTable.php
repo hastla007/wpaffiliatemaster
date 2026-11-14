@@ -99,7 +99,8 @@ final class CommissionsTable extends \WP_List_Table {
 	 */
 	protected function extra_tablenav( $which ) {
 		if ( 'top' === $which ) {
-			echo '<div class="alignleft actions"><label class="screen-reader-text" for="wpac-bulk-reason">' . esc_html__( 'Reason', 'affiliate-captain' ) . '</label><input type="text" name="reason" id="wpac-bulk-reason" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'affiliate-captain' ) . '"></div>';
+			// Bulk rejection asks first (admin.js): it cannot be undone in one step.
+			echo '<div class="alignleft actions" data-wpac-bulk-confirm="reject" data-wpac-bulk-message="' . esc_attr__( 'Reject all selected commissions? The partners see the reason.', 'affiliate-captain' ) . '"><label class="screen-reader-text" for="wpac-bulk-reason">' . esc_html__( 'Reason', 'affiliate-captain' ) . '</label><input type="text" name="reason" id="wpac-bulk-reason" placeholder="' . esc_attr__( 'Reason (required for rejection)', 'affiliate-captain' ) . '"></div>';
 		}
 	}
 
@@ -147,7 +148,13 @@ final class CommissionsTable extends \WP_List_Table {
 	 * Empty state.
 	 */
 	public function no_items() {
-		esc_html_e( 'No commissions found.', 'affiliate-captain' );
+		if ( array_filter( $this->filters ) ) {
+			esc_html_e( 'No commissions match these filters.', 'affiliate-captain' );
+			echo ' <a href="' . esc_url( Admin::url( 'wpac-commissions' ) ) . '">' . esc_html__( 'Reset filters', 'affiliate-captain' ) . '</a>';
+			return;
+		}
+		esc_html_e( 'No commissions yet. They appear here as soon as an order placed through a partner link, code or coupon is paid.', 'affiliate-captain' );
+		echo ' <a href="' . esc_url( Admin::url( 'wpac-affiliates' ) ) . '">' . esc_html__( 'Go to the partners', 'affiliate-captain' ) . '</a>';
 	}
 
 	/**
@@ -189,7 +196,7 @@ final class CommissionsTable extends \WP_List_Table {
 			case 'amount_minor':
 				return '<strong class="' . ( (int) $r->amount_minor < 0 ? 'wpac-negative' : '' ) . '">' . esc_html( Money::format( (int) $r->amount_minor, $r->currency ) ) . '</strong>';
 			case 'status':
-				return Admin::badge( $r->status, isset( $this->labels[ $r->status ] ) ? $this->labels[ $r->status ] : $r->status ) . ( in_array( $r->status, array( 'pending', 'review' ), true ) ? '<br><small>' . esc_html__( 'until', 'affiliate-captain' ) . ' ' . esc_html( Admin::date( $r->hold_until ) ) . '</small>' : '' );
+				return Admin::badge( $r->status, isset( $this->labels[ $r->status ] ) ? $this->labels[ $r->status ] : $r->status ) . ( in_array( $r->status, array( 'pending', 'review' ), true ) ? '<br><small>' . esc_html( sprintf( /* translators: %s: date */ __( 'until %s', 'affiliate-captain' ), Admin::date( $r->hold_until ) ) ) . '</small>' : '' );
 		}
 		return '';
 	}

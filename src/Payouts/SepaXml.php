@@ -15,20 +15,65 @@ use WPAffiliateCaptain\Core\Money;
 final class SepaXml {
 
 	/**
-	 * Restrict text to the SEPA (Latin) character set.
+	 * Restrict text to the SEPA (Latin) character set. Letters outside it are transliterated
+	 * ("Łukasz" → "Lukasz", "Øyvind Ærø" → "Oyvind Aero", Cyrillic → Latin) instead of being
+	 * dropped: the bank compares the name with the account holder (Verification of Payee).
 	 *
 	 * @param string $text Text.
 	 * @param int    $max  Max length.
 	 * @return string
 	 */
 	public static function clean( $text, $max ) {
-		$map  = array(
-			'Ä' => 'Ae', 'Ö' => 'Oe', 'Ü' => 'Ue', 'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss',
-			'é' => 'e', 'è' => 'e', 'ê' => 'e', 'á' => 'a', 'à' => 'a', 'ó' => 'o', 'ò' => 'o', 'í' => 'i', 'ç' => 'c', 'ñ' => 'n',
-		);
-		$text = strtr( (string) $text, $map );
+		$text = strtr( (string) $text, self::transliteration_map() );
+		if ( preg_match( '/[^\x00-\x7F]/', $text ) ) {
+			if ( function_exists( 'transliterator_transliterate' ) ) {
+				$latin = transliterator_transliterate( 'Any-Latin; Latin-ASCII', $text );
+				$text  = is_string( $latin ) ? $latin : $text;
+			} elseif ( function_exists( 'remove_accents' ) ) {
+				$text = remove_accents( $text );
+			} elseif ( function_exists( 'iconv' ) ) {
+				$ascii = @iconv( 'UTF-8', 'ASCII//TRANSLIT//IGNORE', $text ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid bytes are dropped.
+				$text  = is_string( $ascii ) ? $ascii : $text;
+			}
+		}
 		$text = preg_replace( '/[^A-Za-z0-9\/\-\?:\(\)\.,\'\+ ]/', '', $text );
 		return substr( trim( preg_replace( '/\s+/', ' ', $text ) ), 0, $max );
+	}
+
+	/**
+	 * Transliteration of letters outside the SEPA character set that generic transliteration
+	 * gets wrong or does not cover everywhere (German umlauts, Nordic, Polish and Czech letters,
+	 * Cyrillic).
+	 *
+	 * @return array
+	 */
+	private static function transliteration_map() {
+		static $map = null;
+		if ( null !== $map ) {
+			return $map;
+		}
+		$map = array(
+			'Ä' => 'Ae', 'Ö' => 'Oe', 'Ü' => 'Ue', 'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss', 'ẞ' => 'SS',
+			'Æ' => 'Ae', 'æ' => 'ae', 'Ø' => 'O', 'ø' => 'o', 'Å' => 'A', 'å' => 'a', 'Œ' => 'Oe', 'œ' => 'oe',
+			'Ł' => 'L', 'ł' => 'l', 'Đ' => 'D', 'đ' => 'd', 'Ð' => 'D', 'ð' => 'd', 'Þ' => 'Th', 'þ' => 'th', 'ı' => 'i',
+			'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e', 'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o',
+			'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i', 'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ç' => 'c', 'ñ' => 'n', 'ý' => 'y', 'ÿ' => 'y',
+			'É' => 'E', 'È' => 'E', 'Ê' => 'E', 'Á' => 'A', 'À' => 'A', 'Ó' => 'O', 'Í' => 'I', 'Ú' => 'U', 'Ç' => 'C', 'Ñ' => 'N',
+			'ą' => 'a', 'ć' => 'c', 'ę' => 'e', 'ń' => 'n', 'ś' => 's', 'ź' => 'z', 'ż' => 'z', 'Ą' => 'A', 'Ć' => 'C', 'Ę' => 'E', 'Ń' => 'N', 'Ś' => 'S', 'Ź' => 'Z', 'Ż' => 'Z',
+			'č' => 'c', 'š' => 's', 'ž' => 'z', 'ř' => 'r', 'ě' => 'e', 'ů' => 'u', 'Č' => 'C', 'Š' => 'S', 'Ž' => 'Z', 'Ř' => 'R',
+		);
+		$cyr = array(
+			'А' => 'A', 'Б' => 'B', 'В' => 'V', 'Г' => 'G', 'Д' => 'D', 'Е' => 'E', 'Ё' => 'Yo', 'Ж' => 'Zh', 'З' => 'Z', 'И' => 'I', 'Й' => 'Y',
+			'К' => 'K', 'Л' => 'L', 'М' => 'M', 'Н' => 'N', 'О' => 'O', 'П' => 'P', 'Р' => 'R', 'С' => 'S', 'Т' => 'T', 'У' => 'U', 'Ф' => 'F',
+			'Х' => 'Kh', 'Ц' => 'Ts', 'Ч' => 'Ch', 'Ш' => 'Sh', 'Щ' => 'Shch', 'Ъ' => '', 'Ы' => 'Y', 'Ь' => '', 'Э' => 'E', 'Ю' => 'Yu', 'Я' => 'Ya',
+			'Є' => 'Ye', 'І' => 'I', 'Ї' => 'Yi', 'Ґ' => 'G',
+		);
+		foreach ( $cyr as $upper => $latin ) {
+			$map[ $upper ] = $latin;
+			$lower         = function_exists( 'mb_strtolower' ) ? mb_strtolower( $upper, 'UTF-8' ) : $upper;
+			$map[ $lower ] = strtolower( $latin );
+		}
+		return $map;
 	}
 
 	/**
@@ -100,8 +145,9 @@ final class SepaXml {
 	 */
 	public static function build( array $debtor, array $transfers, $msg_id, $exec_date, $created = '' ) {
 		if ( ! self::dom_available() ) {
-			$msg = 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.';
-			throw new \InvalidArgumentException( function_exists( '__' ) ? __( 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.', 'affiliate-captain' ) : $msg );
+			// Exception texts are escaped (they may end up in an admin notice); without WordPress
+			// (unit tests) the untranslated text is used.
+			throw new \InvalidArgumentException( function_exists( 'esc_html__' ) ? esc_html__( 'The SEPA XML export needs the PHP extension "dom" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.', 'affiliate-captain' ) : 'The SEPA XML export needs the PHP extension dom (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead.' );
 		}
 		if ( ! $transfers ) {
 			throw new \InvalidArgumentException( 'No transfers.' );
@@ -115,7 +161,7 @@ final class SepaXml {
 				throw new \InvalidArgumentException( 'Transfer amounts must be positive.' );
 			}
 			if ( ! Iban::is_valid( $t['iban'] ) ) {
-				throw new \InvalidArgumentException( 'Invalid creditor IBAN for ' . $t['end_to_end_id'] );
+				throw new \InvalidArgumentException( function_exists( 'esc_html' ) ? esc_html( 'Invalid creditor IBAN for ' . $t['end_to_end_id'] ) : 'Invalid creditor IBAN.' );
 			}
 			$total += (int) $t['amount_minor'];
 		}

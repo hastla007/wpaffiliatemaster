@@ -29,6 +29,39 @@ final class RuleRepository {
 	}
 
 	/**
+	 * Active rules that can apply to one partner: global rules plus the rules of the partner and
+	 * of its group (the calculator would skip the rules of all other partners anyway; after an
+	 * import there can be thousands of them).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @param int $group_id     Group (0 = none).
+	 * @return array
+	 */
+	public static function active_for( $affiliate_id, $group_id = 0 ) {
+		global $wpdb;
+		$t = Db::table( 'rules' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE active = 1 AND ( scope = 'global' OR ( scope = 'affiliate' AND scope_id = %d ) OR ( scope = 'group' AND scope_id = %d AND scope_id > 0 ) )", (int) $affiliate_id, (int) $group_id ), ARRAY_A );
+	}
+
+	/**
+	 * Rule precedence setting for the calculator (scope|target), see Calculator.
+	 *
+	 * @return string
+	 */
+	public static function precedence() {
+		$mode = (string) Settings::get( 'rule_precedence' );
+		/**
+		 * Rule precedence: "scope" (partner > group > global first, exclusions always win) or
+		 * "target" (product/SKU > category/tag > all first; exclusions compete like other rules).
+		 *
+		 * @param string $mode Mode.
+		 */
+		$mode = (string) apply_filters( 'wpac_rule_precedence', $mode );
+		return in_array( $mode, Calculator::PRECEDENCES, true ) ? $mode : 'scope';
+	}
+
+	/**
 	 * All rules.
 	 *
 	 * @return array
@@ -168,10 +201,6 @@ final class RuleRepository {
 		if ( 'fixed' === $rate_type ) {
 			return Money::format( (int) $rate, $currency ? $currency : Settings::get( 'currency' ) );
 		}
-		$rate = (string) $rate;
-		if ( false !== strpos( $rate, '.' ) ) {
-			$rate = rtrim( rtrim( $rate, '0' ), '.' );
-		}
-		return $rate . ' %';
+		return \WPAffiliateCaptain\Core\Locale::percent( (string) $rate ); // Localized: "12,5 %" (R6-MS13).
 	}
 }

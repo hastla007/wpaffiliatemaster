@@ -46,7 +46,8 @@ $own     = is_file( WP_PLUGIN_DIR . '/affiliate-captain/affiliate-captain.php' )
 $plugins = array( 'woocommerce/woocommerce.php', $own );
 if ( $siblings ) {
 	$plugins[] = 'voucher-captain/voucher-captain.php';
-	$plugins[] = 'wp-pass-captain/wp-pass-captain.php';
+	// Pass Captain renamed its main file from wp-pass-captain.php to pass-captain.php (WordPress.org naming).
+	$plugins[] = is_file( WP_PLUGIN_DIR . '/pass-captain/pass-captain.php' ) ? 'pass-captain/pass-captain.php' : 'pass-captain/wp-pass-captain.php';
 }
 foreach ( $plugins as $plugin ) {
 	$r = activate_plugin( $plugin, '', false, false );

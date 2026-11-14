@@ -14,41 +14,147 @@ final class Installer {
 	const DB_OPTION = 'wpac_db_version';
 
 	/**
+	 * Schema version of this code. It lives in the class (not only in the main file), so an old
+	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
+	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
+	 */
+	const DB_VERSION = 11;
+
+	/**
+	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
+	 * a higher one.
+	 *
+	 * @return int
+	 */
+	public static function db_version() {
+		return max( self::DB_VERSION, defined( 'WPAC_DB_VERSION' ) ? (int) WPAC_DB_VERSION : 0 );
+	}
+
+	/**
 	 * Activation hook. On a network-wide activation every site of the network is set up.
 	 *
 	 * @param bool $network_wide Network-wide activation (multisite).
 	 */
 	public static function activate( $network_wide = false ) {
+		if ( ! $network_wide && function_exists( 'get_current_user_id' ) && get_current_user_id() ) {
+			// Show the setup checklist once after a manual activation (Admin::activation_redirect()).
+			update_option( 'wpac_activation_redirect', (int) get_current_user_id(), false );
+		}
 		if ( is_multisite() && $network_wide ) {
 			// Small networks are set up right away; large ones in batches (cron) so the network
 			// activation request never runs into the time limit. Every site also migrates itself
 			// on its next admin or cron request (maybe_upgrade()).
 			$ids = array_map( 'intval', (array) get_sites( array( 'fields' => 'ids', 'number' => 0, 'network_id' => get_current_network_id() ) ) );
-			$now = array_slice( $ids, 0, self::NETWORK_BATCH );
-			foreach ( $now as $id ) {
-				self::run_on_site( $id, array( __CLASS__, 'activate_site' ) );
-			}
-			$rest = array_slice( $ids, self::NETWORK_BATCH );
-			if ( $rest ) {
-				update_site_option( 'wpac_network_pending', $rest );
-				Scheduler::once( self::NETWORK_HOOK, 30 );
-			}
+			self::network_setup( $ids );
 			return;
 		}
 		self::activate_site();
 	}
 
+	/** Seconds a network activation (or one of its cron batches) may spend on setting up sites. */
+	const NETWORK_BUDGET = 15;
+
+	/**
+	 * Set up sites of a network within the time budget; the rest continues in single cron events.
+	 *
+	 * @param int[] $ids Site IDs.
+	 */
+	private static function network_setup( array $ids ) {
+		$start = microtime( true );
+		$done  = 0;
+		foreach ( array_slice( $ids, 0, self::NETWORK_BATCH ) as $id ) {
+			if ( $done > 0 && microtime( true ) - $start > self::NETWORK_BUDGET ) {
+				break;
+			}
+			self::run_on_site( $id, array( __CLASS__, 'activate_site' ) );
+			++$done;
+		}
+		$rest = array_slice( $ids, $done );
+		if ( $rest ) {
+			update_site_option( 'wpac_network_pending', $rest );
+			Scheduler::once( self::NETWORK_HOOK, 30 );
+		} else {
+			delete_site_option( 'wpac_network_pending' );
+		}
+	}
+
 	/**
 	 * Set up the current site: schema, capabilities, cron, default settings.
+	 *
+	 * The schema is migrated like every other migration: under the migration lock, without time
+	 * limit and with errors recorded (admin notice, retry) instead of a fatal "plugin could not be
+	 * activated". The schema of a newer plugin version is never touched (downgrade marker stays).
 	 */
 	public static function activate_site() {
 		\WPAffiliateCaptain\Promotion\Landing::reset_rewrite();
-		self::install_schema();
+		if ( ! self::schema_current() ) {
+			self::upgrade();
+		}
 		Capabilities::install();
 		Cron::schedule();
 		if ( false === get_option( Settings::OPTION ) ) {
-			add_option( Settings::OPTION, Settings::defaults(), '', true );
+			// New installation: fraud rules start with sensible thresholds instead of switched off.
+			// Currency and country follow WooCommerce (R5-O54).
+			add_option( Settings::OPTION, Settings::initial(), '', true );
 		}
+		self::adopt_retained();
+		Lifecycle::check_clone();
+	}
+
+	/**
+	 * Reinstallation after an uninstall that had to keep the booking records (retention period):
+	 * partner IDs referenced by the kept records are reserved (pseudonymised placeholder partners),
+	 * so a new partner never gets the ID – and with it the credit notes, balance and commissions –
+	 * of a former one. The "delete all data" switch of the old installation is switched off.
+	 *
+	 * @return int Placeholder partners created.
+	 */
+	public static function adopt_retained() {
+		global $wpdb;
+		if ( ! get_option( 'wpac_retained_after_uninstall' ) ) {
+			return 0;
+		}
+		$a       = Db::table( 'affiliates' );
+		$created = 0;
+		$sources = array();
+		foreach ( array( 'payouts', 'balances', 'balance_entries', 'commissions', 'agreements' ) as $name ) {
+			$table = Db::table( $name );
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$sources[] = "SELECT DISTINCT affiliate_id FROM {$table}";
+			}
+		}
+		if ( $sources ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery -- Own table names only.
+			$ids = array_map( 'intval', (array) $wpdb->get_col( 'SELECT x.affiliate_id FROM (' . implode( ' UNION ', $sources ) . ") x LEFT JOIN {$a} f ON f.id = x.affiliate_id WHERE f.id IS NULL AND x.affiliate_id > 0" ) );
+			foreach ( $ids as $id ) {
+				$ok = $wpdb->insert(
+					$a,
+					array(
+						'id'            => $id,
+						'status'        => 'terminated',
+						'slug'          => 'deleted-' . $id,
+						'name'          => __( 'Deleted partner', 'affiliate-captain' ),
+						'email'         => 'deleted-' . $id . '@invalid.invalid',
+						'status_reason' => 'retained_after_uninstall',
+						'created_at'    => Db::now(),
+						'updated_at'    => Db::now(),
+					)
+				);
+				if ( $ok ) {
+					++$created;
+				}
+			}
+		}
+		$settings = get_option( Settings::OPTION );
+		if ( is_array( $settings ) && ! empty( $settings['delete_on_uninstall'] ) ) {
+			$settings['delete_on_uninstall'] = 0;
+			update_option( Settings::OPTION, $settings, true );
+			Settings::flush_cache();
+		}
+		update_option( 'wpac_retained_notice', array( 'since' => (string) get_option( 'wpac_retained_after_uninstall' ), 'reserved' => $created ), false );
+		delete_option( 'wpac_retained_after_uninstall' );
+		Audit::log( 'setup.retained_adopted', 'setup', 0, array( 'reserved_ids' => $created ) );
+		return $created;
 	}
 
 	/**
@@ -98,6 +204,9 @@ final class Installer {
 		}
 		add_action( self::NETWORK_HOOK, array( __CLASS__, 'network_setup_batch' ) );
 		add_action( 'wp_initialize_site', array( __CLASS__, 'on_new_site' ), 200 );
+		// Before WordPress deletes the site's uploads folder (priority 10): keep credit notes that
+		// are still within their retention period.
+		add_action( 'wp_uninitialize_site', array( __CLASS__, 'archive_statements' ), 5 );
 		// Per-request caches hold data of one site; drop them when code switches to another site.
 		add_action( 'switch_blog', array( __CLASS__, 'flush_site_caches' ) );
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_tables' ), 10, 2 );
@@ -114,16 +223,7 @@ final class Installer {
 		if ( ! $pending ) {
 			return;
 		}
-		foreach ( array_slice( $pending, 0, self::NETWORK_BATCH ) as $id ) {
-			self::run_on_site( $id, array( __CLASS__, 'activate_site' ) );
-		}
-		$rest = array_slice( $pending, self::NETWORK_BATCH );
-		if ( $rest ) {
-			update_site_option( 'wpac_network_pending', $rest );
-			Scheduler::once( self::NETWORK_HOOK, 30 );
-		} else {
-			delete_site_option( 'wpac_network_pending' );
-		}
+		self::network_setup( $pending );
 	}
 
 	/**
@@ -168,10 +268,125 @@ final class Installer {
 	public static function drop_tables( $tables, $blog_id ) {
 		global $wpdb;
 		$prefix = $wpdb->get_blog_prefix( (int) $blog_id );
+		$keep   = self::site_must_retain( (int) $blog_id );
 		foreach ( Db::TABLES as $name ) {
+			if ( $keep && in_array( $name, self::FINANCIAL_TABLES, true ) ) {
+				continue; // Booking records within their retention period (dropped later by the daily sweep).
+			}
 			$tables[] = $prefix . 'wpac_' . $name;
 		}
+		if ( $keep ) {
+			self::remember_retained_site( (int) $blog_id );
+		}
 		return $tables;
+	}
+
+	/**
+	 * Tables with booking records that must be kept for the statutory retention period (the same
+	 * list as in uninstall.php; the partners table is kept too, see there).
+	 */
+	const FINANCIAL_TABLES = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements' );
+
+	/** Site option: deleted sites whose booking records are kept (site ID => retention data). */
+	const RETAINED_SITES = 'wpac_retained_sites';
+
+	/**
+	 * Whether a site still has credit notes within their retention period (or a legal hold).
+	 *
+	 * @param int $blog_id Site ID.
+	 * @return bool
+	 */
+	public static function site_must_retain( $blog_id ) {
+		global $wpdb;
+		$switched = (int) $blog_id !== (int) get_current_blog_id();
+		if ( $switched ) {
+			switch_to_blog( (int) $blog_id );
+		}
+		try {
+			$t = Db::table( 'payouts' );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $t ) ) ) ) {
+				return false;
+			}
+			$cutoff = \WPAffiliateCaptain\Privacy\Retention::cutoff();
+			if ( null === $cutoff ) {
+				// Keep forever or legal hold: kept as long as there is any payout.
+				return (bool) $wpdb->get_var( "SELECT 1 FROM {$t} LIMIT 1" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			}
+			// Cancellations start their own period (storno_at).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE created_at > %s OR storno_at > %s LIMIT 1", $cutoff, $cutoff ) );
+		} finally {
+			if ( $switched ) {
+				restore_current_blog();
+			}
+		}
+	}
+
+	/**
+	 * Remember the retention data of a site that is being deleted (its options go with it).
+	 *
+	 * @param int $blog_id Site ID.
+	 */
+	private static function remember_retained_site( $blog_id ) {
+		$switched = (int) $blog_id !== (int) get_current_blog_id();
+		if ( $switched ) {
+			switch_to_blog( (int) $blog_id );
+		}
+		$entry = array(
+			'years'  => \WPAffiliateCaptain\Privacy\Retention::years(),
+			'hold'   => \WPAffiliateCaptain\Privacy\Retention::on_hold() ? 1 : 0,
+			'folder' => '',
+			'time'   => time(),
+		);
+		if ( $switched ) {
+			restore_current_blog();
+		}
+		$all = (array) get_site_option( self::RETAINED_SITES, array() );
+		if ( isset( $all[ (int) $blog_id ]['folder'] ) ) {
+			$entry['folder'] = (string) $all[ (int) $blog_id ]['folder'];
+		}
+		$all[ (int) $blog_id ] = $entry;
+		update_site_option( self::RETAINED_SITES, $all );
+		Log::warning( 'Booking records of a deleted site are kept for the retention period', array( 'site' => (int) $blog_id ) );
+	}
+
+	/**
+	 * A site is being deleted: move its credit notes out of its uploads folder (which WordPress
+	 * deletes) into a protected network folder while they are within the retention period. With
+	 * WPAC_STATEMENT_DIR the site's subfolder is outside WordPress and stays where it is.
+	 *
+	 * @param \WP_Site|int $site Site.
+	 */
+	public static function archive_statements( $site ) {
+		$blog_id = (int) ( is_object( $site ) ? $site->blog_id : $site );
+		if ( $blog_id < 1 || ! self::site_must_retain( $blog_id ) ) {
+			return;
+		}
+		switch_to_blog( $blog_id );
+		$from = \WPAffiliateCaptain\Payouts\Statement::dir();
+		restore_current_blog();
+		$folder = $from;
+		if ( ! defined( 'WPAC_STATEMENT_DIR' ) || '' === (string) WPAC_STATEMENT_DIR ) {
+			switch_to_blog( (int) get_main_site_id() );
+			$base = trailingslashit( wp_upload_dir( null, false )['basedir'] ) . 'wpac-retained';
+			restore_current_blog();
+			$folder = $base . '/site-' . $blog_id;
+			wp_mkdir_p( $base );
+			if ( ! file_exists( $base . '/.htaccess' ) ) {
+				file_put_contents( $base . '/.htaccess', "Require all denied\nDeny from all\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+				file_put_contents( $base . '/index.php', "<?php\n// Silence.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			}
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename, WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( is_dir( $from ) && ! file_exists( $folder ) && ! @rename( $from, $folder ) ) {
+				Log::error( 'Credit notes of a deleted site could not be kept', array( 'site' => $blog_id, 'folder' => $from ) );
+				$folder = '';
+			}
+		}
+		$all                       = (array) get_site_option( self::RETAINED_SITES, array() );
+		$all[ $blog_id ]           = isset( $all[ $blog_id ] ) ? (array) $all[ $blog_id ] : array( 'years' => 10, 'hold' => 0, 'time' => time() );
+		$all[ $blog_id ]['folder'] = $folder;
+		update_site_option( self::RETAINED_SITES, $all );
 	}
 
 	/**
@@ -191,28 +406,100 @@ final class Installer {
 		set_site_transient( 'wpac_orphan_sweep', 1, DAY_IN_SECONDS - 300 );
 		$base = $wpdb->base_prefix;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$found = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( '_wpac_affiliates' ) ) );
-		$n     = 0;
+		$found = array_merge(
+			(array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( '_wpac_affiliates' ) ) ),
+			(array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( '_wpac_payouts' ) ) )
+		);
+		$retained = (array) get_site_option( self::RETAINED_SITES, array() );
+		$n        = 0;
+		$seen     = array();
 		foreach ( $found as $table ) {
-			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(\d+)_wpac_affiliates$/i', (string) $table, $m ) ) {
+			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(\d+)_wpac_(affiliates|payouts)$/i', (string) $table, $m ) ) {
 				continue;
 			}
 			$blog_id = (int) $m[1];
-			if ( $blog_id < 2 || get_site( $blog_id ) ) {
+			if ( $blog_id < 2 || isset( $seen[ $blog_id ] ) || get_site( $blog_id ) ) {
 				continue;
 			}
-			$prefix = $base . $blog_id . '_';
+			$seen[ $blog_id ] = true;
+			$prefix           = $base . $blog_id . '_';
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix . 'options' ) ) ) ) {
 				continue; // Not a deleted site (or not one of this network).
 			}
+			$keep = self::deleted_site_retained( $prefix, isset( $retained[ $blog_id ] ) ? (array) $retained[ $blog_id ] : null );
 			foreach ( Db::TABLES as $name ) {
+				if ( $keep && in_array( $name, self::FINANCIAL_TABLES, true ) ) {
+					continue;
+				}
 				$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $prefix . 'wpac_' . $name ) . '`' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			}
+			if ( $keep ) {
+				continue;
+			}
+			// Retention over: the kept credit notes go as well.
+			if ( isset( $retained[ $blog_id ] ) ) {
+				self::delete_retained_folder( isset( $retained[ $blog_id ]['folder'] ) ? (string) $retained[ $blog_id ]['folder'] : '' );
+				unset( $retained[ $blog_id ] );
+				update_site_option( self::RETAINED_SITES, $retained );
 			}
 			Log::warning( 'Dropped the partner program tables of a deleted site', array( 'site' => $blog_id ) );
 			++$n;
 		}
+		// Kept folders of deleted sites whose tables are already gone.
+		foreach ( $retained as $blog_id => $entry ) {
+			if ( isset( $seen[ (int) $blog_id ] ) || get_site( (int) $blog_id ) ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base . (int) $blog_id . '_wpac_payouts' ) ) ) ) {
+				self::delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
+				unset( $retained[ $blog_id ] );
+				update_site_option( self::RETAINED_SITES, $retained );
+			}
+		}
 		return $n;
+	}
+
+	/**
+	 * Whether the kept booking records of a deleted site are still within their retention period.
+	 *
+	 * @param string     $prefix Table prefix of the deleted site.
+	 * @param array|null $entry  Retention data remembered when the site was deleted (null: none,
+	 *                           e.g. deleted while the plugin was not loaded: 10 years).
+	 * @return bool
+	 */
+	private static function deleted_site_retained( $prefix, $entry ) {
+		global $wpdb;
+		$t = $prefix . 'wpac_payouts';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $t ) ) ) || ! $wpdb->get_var( 'SHOW COLUMNS FROM `' . esc_sql( $t ) . "` LIKE 'storno_at'" ) ) {
+			return false;
+		}
+		$years = null === $entry || ! isset( $entry['years'] ) ? 10 : (int) $entry['years'];
+		if ( ! empty( $entry['hold'] ) || $years <= 0 ) {
+			return true; // Keep forever / legal hold: the network admin deletes the tables by hand.
+		}
+		$cutoff = gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM `' . esc_sql( $t ) . '` WHERE created_at > %s OR storno_at > %s LIMIT 1', $cutoff, $cutoff ) );
+	}
+
+	/**
+	 * Delete the kept credit note folder of a deleted site (after the retention period).
+	 *
+	 * @param string $folder Folder.
+	 */
+	private static function delete_retained_folder( $folder ) {
+		if ( '' === $folder || ! is_dir( $folder ) || ! preg_match( '#/site-\d+$#', untrailingslashit( $folder ) ) ) {
+			return;
+		}
+		foreach ( (array) scandir( $folder ) as $entry ) {
+			if ( '.' !== $entry && '..' !== $entry && is_file( $folder . '/' . $entry ) ) {
+				wp_delete_file( $folder . '/' . $entry );
+			}
+		}
+		@rmdir( $folder ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 	}
 
 	public static function flush_site_caches() {
@@ -228,29 +515,6 @@ final class Installer {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		return is_plugin_active_for_network( plugin_basename( WPAC_FILE ) );
-	}
-
-	/**
-	 * Run a callback on every site of the current network.
-	 *
-	 * @param callable $callback Callback.
-	 */
-	public static function for_each_site( callable $callback ) {
-		$ids = get_sites(
-			array(
-				'fields'     => 'ids',
-				'number'     => 0,
-				'network_id' => get_current_network_id(),
-			)
-		);
-		foreach ( $ids as $id ) {
-			switch_to_blog( (int) $id );
-			try {
-				call_user_func( $callback );
-			} finally {
-				restore_current_blog();
-			}
-		}
 	}
 
 	/** Lock that lets only one request migrate. */
@@ -270,7 +534,8 @@ final class Installer {
 	 * serves anonymous visitors). Background work waits meanwhile (schema_current()).
 	 */
 	public static function maybe_upgrade() {
-		if ( (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION ) {
+		if ( (int) get_option( self::DB_OPTION, 0 ) >= self::db_version() ) {
+			self::clear_stale_problems();
 			return; // Current, or the schema of a newer version (downgrade, see downgraded_from()).
 		}
 		// A migration that failed is retried at most every 5 minutes (not on every page load).
@@ -293,7 +558,7 @@ final class Installer {
 	 * Admin request: migrate only for administrators (a cron request does it otherwise).
 	 */
 	public static function upgrade_for_admin() {
-		if ( (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION ) {
+		if ( (int) get_option( self::DB_OPTION, 0 ) >= self::db_version() ) {
 			return;
 		}
 		if ( current_user_can( 'activate_plugins' ) || current_user_can( 'manage_options' ) ) {
@@ -334,18 +599,39 @@ final class Installer {
 			Capabilities::install();
 			Cron::schedule();
 		} catch ( \Throwable $e ) {
+			if ( $e instanceof IntegrationException && 'upgrade_lock_lost' === $e->error_code ) {
+				// Another request took the migration over and finishes it: not a failure of the
+				// schema (recording one would leave a notice that never goes away).
+				Log::warning( 'Database migration handed over to another request' );
+				return true;
+			}
 			// Recorded like an incomplete schema: admin notice, Site Health, alarm after an hour, retry.
 			if ( ! get_option( 'wpac_schema_problems_since' ) ) {
 				update_option( 'wpac_schema_problems_since', time(), false );
 			}
-			update_option( 'wpac_schema_problems', array( 'migration aborted: ' . substr( $e->getMessage(), 0, 300 ) ), false );
+			update_option( 'wpac_schema_problems', array( 'migration aborted: ' . Db::cut( $e->getMessage(), 300 ) ), false );
 			set_transient( 'wpac_upgrade_retry', 1, 5 * MINUTE_IN_SECONDS );
-			Log::error( 'Database migration aborted', array( 'error' => substr( $e->getMessage(), 0, 500 ) ) );
+			Log::exception( 'Database migration aborted', $e );
 		} finally {
 			Db::unlock( self::LOCK, self::$lock_owner );
 			self::$lock_owner = '';
 		}
 		return true;
+	}
+
+	/**
+	 * A recorded migration problem that no longer applies (e.g. written by a request whose
+	 * migration was finished by another one): verify the current schema and clear it.
+	 */
+	public static function clear_stale_problems() {
+		if ( ! get_option( 'wpac_schema_problems' ) || ! self::schema_current() || self::downgraded_from() ) {
+			return;
+		}
+		if ( ! self::verify_schema() ) {
+			delete_option( 'wpac_schema_problems' );
+			delete_option( 'wpac_schema_problems_since' );
+			delete_transient( 'wpac_upgrade_retry' );
+		}
 	}
 
 	/** Seconds after which the migration lock counts as abandoned (without being extended). */
@@ -376,7 +662,7 @@ final class Installer {
 	 */
 	public static function downgraded_from() {
 		$stored = (int) get_option( self::DB_OPTION, 0 );
-		return $stored > WPAC_DB_VERSION ? $stored : 0;
+		return $stored > self::db_version() ? $stored : 0;
 	}
 
 	/**
@@ -385,7 +671,7 @@ final class Installer {
 	 * @return bool
 	 */
 	public static function schema_current() {
-		return (int) get_option( self::DB_OPTION, 0 ) >= WPAC_DB_VERSION;
+		return (int) get_option( self::DB_OPTION, 0 ) >= self::db_version();
 	}
 
 	/**
@@ -403,11 +689,12 @@ final class Installer {
 			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at', 'operator_snapshot' ),
 			'payout_items'    => array( 'id', 'payout_id', 'commission_id', 'vat_mode', 'vat_rate', 'ref_payout_id' ),
 			'payout_profiles' => array( 'affiliate_id', 'tax_number' ),
-			'balances'        => array( 'affiliate_id', 'last_hash' ),
+			'balances'        => array( 'affiliate_id', 'last_hash', 'verified_id', 'verified_hash' ),
 			'balance_entries' => array( 'id', 'hash', 'prev_hash' ),
 			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
-			'attributions'    => array( 'id', 'content_id', 'campaign' ),
-			'visits'          => array( 'id', 'content_id', 'campaign' ),
+			'attributions'    => array( 'id', 'content_id', 'campaign', 'sub_id', 'visit_id' ),
+			'visits'          => array( 'id', 'content_id', 'campaign', 'sub_id' ),
+			'customer_links'  => array( 'id', 'customer_hash', 'pending' ),
 		);
 		// Existing tables of this plugin, compared without case: with lower_case_table_names=1
 		// (Windows, some macOS/managed MySQL) the server reports names in lower case.
@@ -466,17 +753,18 @@ final class Installer {
 	public static function alert_if_stuck() {
 		$problems = get_option( 'wpac_schema_problems' );
 		$since    = (int) get_option( 'wpac_schema_problems_since' );
-		if ( ! $problems || ! $since || $since > time() - HOUR_IN_SECONDS || get_transient( 'wpac_schema_alerted' ) ) {
+		if ( ! $problems || ! $since || $since > time() - HOUR_IN_SECONDS || get_transient( 'wpac_schema_alerted' ) || Lifecycle::copy_paused() ) {
 			return;
 		}
 		set_transient( 'wpac_schema_alerted', 1, DAY_IN_SECONDS );
-		$admin = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $admin ) ? $admin : (string) get_option( 'admin_email' ),
+		\WPAffiliateCaptain\Affiliates\Notifications::send(
+			'schema_stuck',
+			\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
 			/* translators: %s: site name */
 			sprintf( __( '[%s] Partner program: database update is stuck', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
 			/* translators: %s: problems */
-			sprintf( __( "The database update of Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade", 'affiliate-captain' ), implode( "\n", (array) $problems ) )
+			sprintf( __( "The database update of Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade", 'affiliate-captain' ), implode( "\n", (array) $problems ) ),
+			array( 'admin' => true )
 		);
 		Audit::log( 'schema.stuck', 'setup', 0, array( 'problems' => count( (array) $problems ) ) );
 	}
@@ -490,6 +778,12 @@ final class Installer {
 
 		$c        = $wpdb->get_charset_collate();
 		$previous = (int) get_option( self::DB_OPTION, 0 );
+		if ( $previous > self::db_version() ) {
+			// Schema of a newer plugin version (downgrade): an older dbDelta could undo its changes
+			// and lowering the stored version would hide the downgrade and repeat its migrations.
+			Log::warning( 'Schema of a newer plugin version left unchanged', array( 'stored' => $previous, 'code' => self::db_version() ) );
+			return;
+		}
 		self::migrate_before( $previous );
 		$t = static function ( $name ) {
 			return Db::table( $name );
@@ -520,7 +814,8 @@ final class Installer {
 			UNIQUE KEY slug (slug),
 			KEY user_id (user_id),
 			KEY email (email),
-			KEY status (status)
+			KEY status (status),
+			KEY updated_at (updated_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('partner_groups')} (
@@ -580,7 +875,8 @@ final class Installer {
 			iban_last4 varchar(4) NOT NULL DEFAULT '',
 			bic varchar(11) NOT NULL DEFAULT '',
 			updated_at datetime NOT NULL,
-			PRIMARY KEY  (affiliate_id)
+			PRIMARY KEY  (affiliate_id),
+			KEY updated_at (updated_at)
 		) $c;";
 
 		$sql[] = "CREATE TABLE {$t('visits')} (
@@ -593,11 +889,11 @@ final class Installer {
 			referrer_host varchar(190) NOT NULL DEFAULT '',
 			landing_path varchar(255) NOT NULL DEFAULT '',
 			content_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			sub_id varchar(100) NOT NULL DEFAULT '',
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY affiliate_created (affiliate_id,created_at),
-			KEY created_at (created_at),
-			KEY content_id (content_id),
+			KEY created_affiliate (created_at,affiliate_id),
 			KEY campaign_created (campaign,created_at,affiliate_id),
 			KEY content_created (content_id,created_at,affiliate_id)
 		) $c;";
@@ -611,6 +907,8 @@ final class Installer {
 			method varchar(20) NOT NULL,
 			campaign varchar(100) NOT NULL DEFAULT '',
 			content_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			sub_id varchar(100) NOT NULL DEFAULT '',
+			visit_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			consent tinyint(1) NOT NULL DEFAULT 0,
 			touch_model varchar(10) NOT NULL DEFAULT '',
 			status varchar(20) NOT NULL DEFAULT 'attributed',
@@ -618,7 +916,6 @@ final class Installer {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY source_order (source,source_order_id),
-			KEY affiliate_id (affiliate_id),
 			KEY affiliate_created (affiliate_id,created_at),
 			KEY created_at (created_at),
 			KEY content_created (content_id,created_at),
@@ -795,17 +1092,19 @@ final class Installer {
 			customer_hash char(64) NOT NULL,
 			source varchar(40) NOT NULL DEFAULT '',
 			source_order_id varchar(64) NOT NULL DEFAULT '',
+			pending tinyint(1) NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
 			expires_at datetime NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY customer_hash (customer_hash),
 			KEY affiliate_id (affiliate_id),
+			KEY source_order (source,source_order_id),
 			KEY expires_at (expires_at)
 		) $c;";
 
 		// Rate-limit counters (own table: millions of short-lived rows must not bloat wp_options).
 		$sql[] = "CREATE TABLE {$t('rate_limits')} (
-			rl_key char(32) NOT NULL,
+			rl_key binary(16) NOT NULL,
 			hits int(10) unsigned NOT NULL DEFAULT 0,
 			expires_at int(10) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (rl_key),
@@ -841,6 +1140,10 @@ final class Installer {
 			entries int(10) unsigned NOT NULL DEFAULT 0,
 			last_hash char(64) NOT NULL DEFAULT '',
 			updated_at datetime NOT NULL,
+			verified_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			verified_hash char(64) NOT NULL DEFAULT '',
+			verified_balance bigint(20) NOT NULL DEFAULT 0,
+			verified_at datetime NULL,
 			PRIMARY KEY  (affiliate_id,currency)
 		) $c;";
 
@@ -912,7 +1215,7 @@ final class Installer {
 		}
 		delete_option( 'wpac_schema_problems' );
 		delete_option( 'wpac_schema_problems_since' );
-		update_option( self::DB_OPTION, WPAC_DB_VERSION, true );
+		update_option( self::DB_OPTION, self::db_version(), true );
 	}
 
 	/**
@@ -922,6 +1225,20 @@ final class Installer {
 	 */
 	private static function migrate_before( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 10 ) {
+			// v10: rate-limit keys become BINARY(16) (half the size of the hex key). The counters only
+			// live for minutes: emptying the table first lets the column change without converting rows.
+			$rl = Db::table( 'rate_limits' );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $rl ) ) ) {
+				$type = $wpdb->get_row( "SHOW COLUMNS FROM {$rl} LIKE 'rl_key'" );
+				if ( $type && 0 !== stripos( (string) $type->Type, 'binary' ) ) {
+					$wpdb->query( "TRUNCATE TABLE {$rl}" );
+					$wpdb->query( "ALTER TABLE {$rl} MODIFY rl_key binary(16) NOT NULL" );
+				}
+			}
+			// phpcs:enable
+		}
 		if ( $previous > 0 && $previous < 8 ) {
 			// v8: VAT treatment and the original credit note per payout item, operator data per payout.
 			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
@@ -1064,8 +1381,11 @@ final class Installer {
 				if ( '' === $name || ! is_file( $root . '/' . $name ) || file_exists( $dir . '/' . $name ) ) {
 					continue;
 				}
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
-				if ( @rename( $root . '/' . $name, $dir . '/' . $name ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				// One ignore comment per line: a second "phpcs:ignore" for the same line replaces the
+				// first one, so both codes are listed here. rename() on purpose: a move within the
+				// server, WP_Filesystem may be FTP-based and cannot reach a folder outside the web root.
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename, WordPress.PHP.NoSilencedErrors.Discouraged
+				if ( @rename( $root . '/' . $name, $dir . '/' . $name ) ) {
 					++$moved;
 				} else {
 					++$fail;
@@ -1084,12 +1404,58 @@ final class Installer {
 	}
 
 	/**
+	 * v11: indexes that are a prefix of another one only cost writes (visits.content_id is the
+	 * start of content_created, attributions.affiliate_id of affiliate_created); visits.created_at
+	 * is replaced by created_affiliate (created_at, affiliate_id), which dbDelta has added by now,
+	 * so retention and reports never run without an index on created_at.
+	 */
+	private static function migrate_v11_indexes() {
+		global $wpdb;
+		$drop = array(
+			Db::table( 'visits' )       => array(
+				'content_id' => 'content_created',
+				'created_at' => 'created_affiliate',
+			),
+			Db::table( 'attributions' ) => array(
+				'affiliate_id' => 'affiliate_created',
+			),
+		);
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.DirectDatabaseQuery
+		foreach ( $drop as $table => $indexes ) {
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+				continue;
+			}
+			$parts = array();
+			foreach ( $indexes as $index => $replacement ) {
+				// Only when the covering index exists (never leave a column without any index).
+				if ( $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", $index ) ) && $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", $replacement ) ) ) {
+					$parts[] = 'DROP INDEX ' . $index;
+				}
+			}
+			if ( $parts ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Own table and index names only.
+				$wpdb->query( "ALTER TABLE {$table} " . implode( ', ', $parts ) );
+			}
+			self::keep_lock();
+		}
+		// phpcs:enable
+	}
+
+	/**
 	 * Data migrations after dbDelta.
 	 *
 	 * @param int $previous Previous schema version.
 	 */
 	private static function migrate_after( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 11 ) {
+			self::migrate_v11_indexes();
+			// v11: bonus months follow the site's time zone; months closed before keep UTC.
+			$closed = Settings::state( 'tier_month_closed' );
+			if ( '' !== $closed && false === get_option( \WPAffiliateCaptain\Commissions\TierService::LOCAL_FROM ) ) {
+				update_option( \WPAffiliateCaptain\Commissions\TierService::LOCAL_FROM, gmdate( 'Y-m', strtotime( $closed . '-01 +1 month' ) ), false );
+			}
+		}
 		if ( $previous > 0 && $previous < 9 ) {
 			self::migrate_v9_settings();
 			self::migrate_v9_statement_files();

@@ -60,6 +60,7 @@ final class Ledger {
 			'bonus'        => __( 'Monthly bonus', 'affiliate-captain' ),
 			'writeoff'     => __( 'Write-off', 'affiliate-captain' ),
 			'reinstatement' => __( 'Reinstatement', 'affiliate-captain' ),
+			'adjustment'   => __( 'Manual booking', 'affiliate-captain' ),
 			'repayment'    => __( 'Repayment by the partner', 'affiliate-captain' ),
 		);
 	}
@@ -160,9 +161,13 @@ final class Ledger {
 		if ( $attr['review'] ) {
 			array_unshift( $flags, 'self_referral' );
 		}
+		if ( ! empty( $sale['review'] ) ) {
+			// The source asks for a review (e.g. renewal of a subscription whose first order is under review).
+			$flags[] = 'source_review';
+		}
 		if ( $flags ) {
 			$attr['review'] = true;
-			$attr['note']   = substr( implode( ',', array_unique( $flags ) ), 0, 255 );
+			$attr['note']   = Db::cut( implode( ',', array_unique( $flags ) ), 255 );
 			Audit::log(
 				'attribution.flagged',
 				'affiliate',
@@ -175,8 +180,10 @@ final class Ledger {
 			);
 		}
 
-		$rules   = RuleRepository::active();
-		$default = RuleRepository::default_rate();
+		// Only the rules that can apply to this partner (global, own, own group).
+		$rules      = RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id );
+		$default    = RuleRepository::default_rate();
+		$precedence = RuleRepository::precedence();
 		$program = strtoupper( (string) Settings::get( 'currency' ) );
 		if ( $program !== $sale['currency'] ) {
 			// Fixed amounts are stored in the program currency: convert them with the
@@ -226,7 +233,23 @@ final class Ledger {
 		$status  = $attr['review'] ? 'review' : 'pending';
 
 		$result = Db::transaction(
-			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $hold, $status, $round, $existing ) {
+			static function () use ( $wpdb, $sale, $attr, $aff, $rules, $default, $hold, $status, $round, $existing, $precedence ) {
+				// Usage limit of the code: counted first with a conditional UPDATE, so parallel orders
+				// cannot all pass a limit read without a lock (the row lock lasts until COMMIT; a later
+				// failure rolls the count back with everything else).
+				$counted = false;
+				if ( $attr['code_id'] ) {
+					if ( ! CodeRepository::increment_usage( (int) $attr['code_id'] ) ) {
+						return array(
+							'status'         => 'unattributed',
+							'attribution_id' => 0,
+							'commission_ids' => array(),
+							'reason'         => 'code_limit',
+						);
+					}
+					$counted = true;
+				}
+
 				// A concurrent report of the same order loses on the unique key; that is expected under
 				// load and answered as "duplicate" below, so it must not flood the PHP error log. Any other
 				// failure is raised as IntegrationException with the database error (retry queue, audit).
@@ -236,9 +259,11 @@ final class Ledger {
 					'source_order_id' => $sale['order_id'],
 					'affiliate_id'    => (int) $attr['affiliate_id'],
 					'code_id'         => (int) $attr['code_id'],
-					'method'          => substr( (string) $attr['method'], 0, 20 ),
-					'campaign'        => substr( (string) $attr['campaign'], 0, 100 ),
+					'method'          => Db::cut( (string) $attr['method'], 20 ),
+					'campaign'        => Db::cut( (string) $attr['campaign'], 100 ),
 					'content_id'      => (int) $attr['content_id'],
+					'sub_id'          => Db::cut( isset( $attr['sub_id'] ) ? (string) $attr['sub_id'] : '', 100 ),
+					'visit_id'        => isset( $attr['visit_id'] ) ? (int) $attr['visit_id'] : 0,
 					'consent'         => (int) $attr['consent'],
 					'touch_model'     => (string) $attr['touch_model'],
 					'status'          => $attr['review'] ? 'review' : 'attributed',
@@ -253,11 +278,14 @@ final class Ledger {
 				}
 				$wpdb->suppress_errors( $suppress );
 				if ( ! $ok && $round ) {
-					throw new IntegrationException( 'db_attribution', $wpdb->last_error );
+					throw new IntegrationException( 'db_attribution', esc_html( $wpdb->last_error ) );
 				}
 				if ( ! $ok ) {
 					// Unique (source, order) – a concurrent request won.
 					if ( self::attribution_for( $sale['source'], $sale['order_id'] ) ) {
+						if ( $counted ) {
+							CodeRepository::decrement_usage( (int) $attr['code_id'] );
+						}
 						return array(
 							'status'         => 'duplicate',
 							'attribution_id' => 0,
@@ -265,13 +293,14 @@ final class Ledger {
 							'reason'         => 'already_processed',
 						);
 					}
-					throw new IntegrationException( 'db_attribution', $wpdb->last_error );
+					throw new IntegrationException( 'db_attribution', esc_html( $wpdb->last_error ) );
 				}
 				$attribution_id = $round && $existing ? (int) $existing->id : (int) $wpdb->insert_id;
 				$ids            = array();
 
 				foreach ( $sale['items'] as $item ) {
-					$calc = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default );
+					// The amount filter runs once, after the base filter (Calculator::filter_amount()).
+					$calc = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default, false, $precedence );
 
 					/**
 					 * Adjust the net commission base of a line (minor units, same currency).
@@ -285,7 +314,10 @@ final class Ledger {
 					$base     = (int) apply_filters( 'wpac_commission_base', $calc['base_minor'], $item, $sale );
 					if ( $base !== $calc['base_minor'] && ! $calc['excluded'] ) {
 						$item['net_minor'] = max( 0, $base );
-						$calc              = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default );
+						$calc              = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default, false, $precedence );
+					}
+					if ( ! $calc['excluded'] ) {
+						$calc['amount_minor'] = Calculator::filter_amount( $calc['amount_minor'], $item, (int) $aff->id, $calc['rule'], (int) $calc['base_minor'] );
 					}
 					if ( $calc['amount_minor'] <= 0 ) {
 						continue;
@@ -311,8 +343,8 @@ final class Ledger {
 							'source_item_id'  => $item['item_id'],
 							'kind'            => 'sale',
 							'parent_id'       => 0,
-							'product_ref'     => substr( (string) ( $item['sku'] ? $item['sku'] : $item['product_id'] ), 0, 190 ),
-							'description'     => substr( (string) $item['name'], 0, 255 ),
+							'product_ref'     => Db::cut( (string) ( $item['sku'] ? $item['sku'] : $item['product_id'] ), 190 ),
+							'description'     => Db::cut( (string) $item['name'], 255 ),
 							'currency'        => $sale['currency'],
 							'base_minor'      => $calc['base_minor'],
 							'amount_minor'    => $calc['amount_minor'],
@@ -328,15 +360,11 @@ final class Ledger {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_commission', $wpdb->last_error );
+						throw new IntegrationException( 'db_commission', esc_html( $wpdb->last_error ) );
 					}
 					$cid   = (int) $wpdb->insert_id;
 					$ids[] = $cid;
 					self::event( $cid, 'created', '', $status, $calc['amount_minor'], $attr['review'] ? 'review: ' . $attr['note'] : '', $sale['idempotency_key'] );
-				}
-
-				if ( $attr['code_id'] ) {
-					CodeRepository::increment_usage( (int) $attr['code_id'] );
 				}
 
 				return array(
@@ -350,8 +378,11 @@ final class Ledger {
 
 		// Notify listeners only after COMMIT.
 		if ( 'created' === $result['status'] ) {
-			if ( Settings::get( 'lifetime_enabled' ) && 'lifetime' !== $attr['method'] && ! $attr['review'] ) {
-				CustomerLinks::link( (int) $aff->id, CustomerLinks::hashes( $sale['customer']['user_id'], $sale['customer']['email'] ), $sale['source'], $sale['order_id'] );
+			// Lifetime link only for an order that earned a commission, and only for the verified
+			// identity (customer account, account e-mail) – never for a guest's typed e-mail. Under
+			// review the link waits for the approval (approve()).
+			if ( Settings::get( 'lifetime_enabled' ) && 'lifetime' !== $attr['method'] && $result['commission_ids'] ) {
+				CustomerLinks::link( (int) $aff->id, CustomerLinks::link_hashes( $sale['customer']['user_id'], $sale['customer']['email'] ), $sale['source'], $sale['order_id'], (bool) $attr['review'] );
 			}
 			/**
 			 * Fires after an attribution was persisted.
@@ -361,10 +392,15 @@ final class Ledger {
 			 * @param string $method       code|link|cookie|coupon|app|manual.
 			 * @param string $source       Sales source.
 			 */
-			do_action( 'wpac_affiliate_attributed', $sale['order_id'], (int) $aff->id, $attr['method'], $sale['source'] );
-			foreach ( $result['commission_ids'] as $cid ) {
-				do_action( 'wpac_commission_created', $cid );
-			}
+			// Inside an outer transaction (reassign()) only once it is committed.
+			Db::after_commit(
+				static function () use ( $sale, $aff, $attr, $result ) {
+					do_action( 'wpac_affiliate_attributed', $sale['order_id'], (int) $aff->id, $attr['method'], $sale['source'] );
+					foreach ( $result['commission_ids'] as $cid ) {
+						do_action( 'wpac_commission_created', $cid );
+					}
+				}
+			);
 		}
 		return $result;
 	}
@@ -410,11 +446,29 @@ final class Ledger {
 				$lines[ $item_id ] = 0;
 			}
 		} else {
+			$unknown = array();
 			foreach ( $refund['items'] as $line ) {
 				if ( isset( $by_item[ $line['item_id'] ] ) ) {
 					// Several refund lines for the same item add up.
 					$lines[ $line['item_id'] ] = ( isset( $lines[ $line['item_id'] ] ) ? $lines[ $line['item_id'] ] : 0 ) + (int) $line['net_minor'];
+				} else {
+					$unknown[] = (string) $line['item_id'];
 				}
+			}
+			if ( $unknown ) {
+				// Not booked for this order (wrong item_id, or a line without commission, e.g. an
+				// excluded product): say so instead of a silent "unchanged".
+				Audit::log(
+					'refund.unknown_items',
+					'order',
+					0,
+					array(
+						'source'    => $refund['source'],
+						'order_id'  => $refund['order_id'],
+						'refund_id' => $refund['refund_id'],
+						'items'     => array_slice( array_unique( $unknown ), 0, 50 ),
+					)
+				);
 			}
 		}
 
@@ -456,7 +510,7 @@ final class Ledger {
 							'kind'            => $refund['type'],
 							'parent_id'       => (int) $parent->id,
 							'product_ref'     => $parent->product_ref,
-							'description'     => substr( $refund['reason'], 0, 255 ),
+							'description'     => Db::cut( $refund['reason'], 255 ),
 							'currency'        => $parent->currency,
 							'base_minor'      => -( $refund['full'] ? max( 0, (int) $parent->base_minor - $refunded ) : min( abs( (int) $refunded_net ), max( 0, (int) $parent->base_minor - $refunded ) ) ),
 							'amount_minor'    => $amount,
@@ -475,7 +529,7 @@ final class Ledger {
 						if ( self::find_by_key( $key ) ) {
 							continue;
 						}
-						throw new IntegrationException( 'db_adjustment', $wpdb->last_error );
+						throw new IntegrationException( 'db_adjustment', esc_html( $wpdb->last_error ) );
 					}
 					$aid   = (int) $wpdb->insert_id;
 					$ids[] = $aid;
@@ -492,17 +546,28 @@ final class Ledger {
 				);
 			}
 		);
-		if ( $result['adjustment_ids'] ) {
-			// A correction of a commission that sits in a payout not sent to the bank yet: the
-			// payout would pay too much now and offset it only later (clawback). Flag it so the
-			// operator can rebuild the payout before exporting it.
-			foreach ( $originals as $o ) {
-				if ( (int) $o->payout_id ) {
-					\WPAffiliateCaptain\Payouts\PayoutService::flag_clawback( (int) $o->payout_id, $refund['source'] . ' #' . $refund['order_id'] );
-				}
+		if ( ! empty( $unknown ) ) {
+			$result['unknown_items'] = array_values( array_unique( $unknown ) );
+			if ( ! $result['adjustment_ids'] && ! $lines ) {
+				$result['status'] = 'unknown_items';
 			}
-			self::maybe_forget_links( $refund['source'], $refund['order_id'] );
-			do_action( 'wpac_commission_adjusted', $refund, $result['adjustment_ids'] ); // After COMMIT.
+		}
+		if ( $result['adjustment_ids'] ) {
+			// Inside an outer transaction (reassign()) only once it is committed.
+			Db::after_commit(
+				static function () use ( $originals, $refund, $result ) {
+					// A correction of a commission that sits in a payout not sent to the bank yet: the
+					// payout would pay too much now and offset it only later (clawback). Flag it so the
+					// operator can rebuild the payout before exporting it.
+					foreach ( $originals as $o ) {
+						if ( (int) $o->payout_id ) {
+							\WPAffiliateCaptain\Payouts\PayoutService::flag_clawback( (int) $o->payout_id, $refund['source'] . ' #' . $refund['order_id'] );
+						}
+					}
+					self::maybe_forget_links( $refund['source'], $refund['order_id'] );
+					do_action( 'wpac_commission_adjusted', $refund, $result['adjustment_ids'] ); // After COMMIT.
+				}
+			);
 		}
 		return $result;
 	}
@@ -551,7 +616,7 @@ final class Ledger {
 		if ( ! $check['attribution'] || (int) $check['attribution']['affiliate_id'] !== (int) $to->id ) {
 			return new \WP_Error(
 				'wpac_reassign_failed',
-				'self_referral' === $check['reason']
+				'self_referral' === $check['reason'] || AttributionResolver::is_self_referral( (int) $to->id, $new_sale )
 					? __( 'The order cannot be attributed to this partner: the partner is the buyer (self-referral).', 'affiliate-captain' )
 					: __( 'The order cannot be attributed to this partner. Nothing was changed.', 'affiliate-captain' )
 			);
@@ -576,13 +641,14 @@ final class Ledger {
 					CustomerLinks::forget_order( $sale['source'], (string) $sale['order_id'] );
 					$booked = self::record_sale( $new_sale );
 					if ( ! is_array( $booked ) || 'created' !== $booked['status'] ) {
-						throw new IntegrationException( 'reassign_failed', 'New booking not created: ' . ( is_array( $booked ) ? $booked['status'] . ' ' . $booked['reason'] : '' ) );
+						throw new IntegrationException( 'reassign_failed', esc_html( 'New booking not created: ' . ( is_array( $booked ) ? $booked['status'] . ' ' . $booked['reason'] : '' ) ) );
 					}
 					update_option( $option, $round, false );
 					return $booked;
 				}
 			);
 		} catch ( \Throwable $e ) {
+			$code = $e instanceof IntegrationException ? $e->error_code : 'exception';
 			// The option may have been written inside the rolled back transaction: drop the cached value.
 			wp_cache_delete( $option, 'options' );
 			wp_cache_delete( 'notoptions', 'options' );
@@ -591,9 +657,13 @@ final class Ledger {
 				array(
 					'source'  => $sale['source'],
 					'order'   => (string) $sale['order_id'],
-					'message' => substr( $e->getMessage(), 0, 300 ),
+					'message' => Db::cut( $e->getMessage(), 300 ),
 				)
 			);
+			if ( 'reassign_failed' === $code ) {
+				// Not a database problem: the new booking was refused (e.g. changed by a filter or no line earns commission).
+				return new \WP_Error( 'wpac_reassign_failed', __( 'The order could not be booked for the new partner (the booking was refused, e.g. by a filter or because no line earns commission). Nothing was changed.', 'affiliate-captain' ) );
+			}
 			return new \WP_Error( 'wpac_reassign_failed', __( 'The order could not be attributed to the new partner (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
 		}
 		Audit::log(
@@ -617,27 +687,36 @@ final class Ledger {
 	 * that are not paid out yet are rejected; reversals already deducted in a payout get a
 	 * positive reinstatement booking (next payout). Idempotent per reversal.
 	 *
-	 * @param string $source   Source.
-	 * @param string $order_id Order.
-	 * @param string $reason   Reason (shown in the history).
+	 * Reinstated are full status reversals of the WooCommerce adapter (refund ID "status-…") and
+	 * cancellations/chargebacks reported by any source (contract: wpac_record_reinstatement());
+	 * never refunds (the money really went back) and never the reversal of a reassignment.
+	 *
+	 * @param string $source    Source.
+	 * @param string $order_id  Order.
+	 * @param string $reason    Reason (shown in the history).
+	 * @param string $refund_id Only this reversal ('' = all reinstatable reversals of the order).
 	 * @return int Number of reversals reinstated.
 	 */
-	public static function reinstate( $source, $order_id, $reason ) {
+	public static function reinstate( $source, $order_id, $reason, $refund_id = '' ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
-		// Full status reversals of this order (refund id "status-…"), not rejected.
+		// Full reversals of this order, not rejected.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$children = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE source = %s AND source_order_id = %s AND parent_id > 0 AND kind IN ('refund','cancellation','chargeback') AND status <> 'rejected' AND amount_minor < 0", $source, (string) $order_id ) );
 		$n        = 0;
 		foreach ( $children as $child ) {
-			$events = self::events( (int) $child->id );
-			$status_reversal = false;
-			foreach ( $events as $e ) {
-				if ( 0 === strpos( (string) $e->source_event_id, 'status-' ) ) {
-					$status_reversal = true;
+			$event_id = '';
+			foreach ( self::events( (int) $child->id ) as $e ) {
+				if ( 'created' === $e->event ) {
+					$event_id = (string) $e->source_event_id;
+					break;
 				}
 			}
-			if ( ! $status_reversal ) {
+			if ( '' !== (string) $refund_id && (string) $refund_id !== $event_id ) {
+				continue;
+			}
+			$reinstatable = 0 === strpos( $event_id, 'status-' ) || ( in_array( $child->kind, array( 'cancellation', 'chargeback' ), true ) && 0 !== strpos( $event_id, 'reassign-' ) );
+			if ( ! $reinstatable ) {
 				continue; // Partial refunds stay (money really went back).
 			}
 			if ( ! (int) $child->payout_id && in_array( $child->status, array( 'pending', 'review', 'approved' ), true ) ) {
@@ -667,7 +746,7 @@ final class Ledger {
 							'kind'            => 'reinstatement',
 							'parent_id'       => (int) $parent->id,
 							'product_ref'     => $child->product_ref,
-							'description'     => substr( (string) $reason, 0, 255 ),
+							'description'     => Db::cut( (string) $reason, 255 ),
 							'currency'        => $child->currency,
 							'base_minor'      => -(int) $child->base_minor,
 							'amount_minor'    => $amount,
@@ -682,7 +761,7 @@ final class Ledger {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_reinstatement', $wpdb->last_error );
+						throw new IntegrationException( 'db_reinstatement', esc_html( $wpdb->last_error ) );
 					}
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $child->affiliate_id, $child->currency, 'approved', $amount, $id, 0, 'reinstatement' );
@@ -700,10 +779,11 @@ final class Ledger {
 
 	/**
 	 * Allowed status transitions: to => allowed from-statuses.
-	 * Paid and rejected are final.
+	 * Paid is final; a rejection can only be reopened for review (reopen()).
 	 */
 	const TRANSITIONS = array(
 		'pending'  => array( 'review' ),
+		'review'   => array( 'rejected' ),
 		'approved' => array( 'pending', 'review' ),
 		'rejected' => array( 'pending', 'review', 'approved' ),
 		'paid'     => array( 'approved' ),
@@ -728,13 +808,29 @@ final class Ledger {
 		$last = 0;
 		for ( $batch = 0; $batch < 40 && microtime( true ) < $deadline; $batch++ ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE status = 'pending' AND hold_until <= %s AND id > %d ORDER BY id ASC LIMIT 500", Db::now(), $last ) );
-			if ( ! $ids ) {
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, source, source_order_id FROM {$t} WHERE status = 'pending' AND hold_until <= %s AND id > %d ORDER BY id ASC LIMIT 500", Db::now(), $last ) );
+			if ( ! $rows ) {
 				break;
 			}
-			foreach ( $ids as $id ) {
-				$last = (int) $id;
-				if ( self::transition( (int) $id, 'approved', __( 'Hold period ended', 'affiliate-captain' ), 0 ) ) {
+			$held = array();
+			foreach ( $rows as $row ) {
+				$last  = (int) $row->id;
+				$order = $row->source . ':' . $row->source_order_id;
+				if ( ! isset( $held[ $order ] ) ) {
+					/**
+					 * Hold back the release of an order's commissions for now (e.g. the shop order is
+					 * on hold or in a payment dispute). Checked again in every run.
+					 *
+					 * @param bool   $hold     Whether to wait.
+					 * @param string $source   Sales source.
+					 * @param string $order_id Source order ID.
+					 */
+					$held[ $order ] = (bool) apply_filters( 'wpac_hold_release', false, (string) $row->source, (string) $row->source_order_id );
+				}
+				if ( $held[ $order ] ) {
+					continue;
+				}
+				if ( self::transition( (int) $row->id, 'approved', __( 'Hold period ended', 'affiliate-captain' ), 0 ) ) {
 					++$count;
 				}
 			}
@@ -769,6 +865,10 @@ final class Ledger {
 				self::transition( (int) $child->id, $to, $reason, get_current_user_id(), 0, $c->status );
 			}
 		}
+		if ( 'sale' === $c->kind && 'review' === $c->status ) {
+			// Review passed: the customer link of the order now counts.
+			CustomerLinks::activate_order( $c->source, $c->source_order_id );
+		}
 		return true;
 	}
 
@@ -796,19 +896,213 @@ final class Ledger {
 				return new \WP_Error( 'wpac_state', __( 'A correction of this commission is part of a payout. Cancel that payout first.', 'affiliate-captain' ) );
 			}
 		}
-		// Atomic: only if still unassigned to a payout and in the status we saw.
-		if ( ! self::transition( (int) $id, 'rejected', $reason, get_current_user_id(), 0, $c->status ) ) {
-			return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime (e.g. added to a payout). Please reload and try again.', 'affiliate-captain' ) );
-		}
-		foreach ( self::children( (int) $id ) as $child ) {
-			if ( in_array( $child->status, array( 'pending', 'review', 'approved' ), true ) ) {
-				self::transition( (int) $child->id, 'rejected', $reason, get_current_user_id() );
+		// Atomic: only if still unassigned to a payout and in the status we saw. A database error
+		// (rolled back) is reported, never a fatal error with the commission left as it was.
+		try {
+			if ( ! self::transition( (int) $id, 'rejected', $reason, get_current_user_id(), 0, $c->status ) ) {
+				return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime (e.g. added to a payout). Please reload and try again.', 'affiliate-captain' ) );
 			}
+			foreach ( self::children( (int) $id ) as $child ) {
+				if ( in_array( $child->status, array( 'pending', 'review', 'approved' ), true ) ) {
+					self::transition( (int) $child->id, 'rejected', $reason, get_current_user_id() );
+				}
+			}
+		} catch ( \Throwable $e ) {
+			\WPAffiliateCaptain\Core\Log::error(
+				'Rejecting a commission failed',
+				array(
+					'commission' => (int) $id,
+					'message'    => Db::cut( $e->getMessage(), 300 ),
+				)
+			);
+			return new \WP_Error( 'wpac_db_error', __( 'The commission could not be rejected (database error). Please try again.', 'affiliate-captain' ) );
 		}
 		if ( 'sale' === $c->kind ) {
 			self::maybe_forget_links( $c->source, $c->source_order_id );
 		}
 		return true;
+	}
+
+	/**
+	 * Reopen a rejected commission for review (the rejection turned out to be wrong). Corrections
+	 * that were rejected together with it are reopened as well. The decision is made again with
+	 * approve() or reject(). Sales and manual bookings only; bonuses and corrections follow
+	 * their own rules.
+	 *
+	 * @param int    $id     Commission.
+	 * @param string $reason Reason (required).
+	 * @return true|\WP_Error
+	 */
+	public static function reopen( $id, $reason ) {
+		$reason = trim( (string) $reason );
+		$c      = self::find( $id );
+		if ( '' === $reason ) {
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
+		}
+		if ( ! $c || 'rejected' !== $c->status || (int) $c->parent_id || ! in_array( $c->kind, array( 'sale', 'adjustment' ), true ) ) {
+			return new \WP_Error( 'wpac_state', __( 'Only rejected sale commissions and manual bookings can be reopened.', 'affiliate-captain' ) );
+		}
+		// The rejection being undone: the last "rejected" event of the commission.
+		$rejected_at = '';
+		$rejected_by = '';
+		foreach ( self::events( (int) $id ) as $e ) {
+			if ( 'rejected' === $e->event ) {
+				$rejected_at = (string) $e->created_at;
+				$rejected_by = (string) $e->reason;
+			}
+		}
+		try {
+			if ( ! self::transition( (int) $id, 'review', $reason, get_current_user_id(), 0, 'rejected' ) ) {
+				return new \WP_Error( 'wpac_conflict', __( 'The commission was changed in the meantime. Please reload and try again.', 'affiliate-captain' ) );
+			}
+			foreach ( self::children( (int) $id ) as $child ) {
+				if ( 'rejected' !== $child->status || '' === $rejected_at ) {
+					continue;
+				}
+				// Only corrections rejected together with the commission (same reason, same moment).
+				foreach ( array_reverse( self::events( (int) $child->id ) ) as $e ) {
+					if ( 'rejected' === $e->event ) {
+						if ( (string) $e->reason === $rejected_by && abs( strtotime( $e->created_at . ' UTC' ) - strtotime( $rejected_at . ' UTC' ) ) <= 120 ) {
+							self::transition( (int) $child->id, 'review', $reason, get_current_user_id(), 0, 'rejected' );
+						}
+						break;
+					}
+				}
+			}
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'wpac_db_error', __( 'The commission could not be reopened (database error). Please try again.', 'affiliate-captain' ) );
+		}
+		Audit::log(
+			'commission.reopened',
+			'commission',
+			(int) $id,
+			array( 'reason' => $reason )
+		);
+		return true;
+	}
+
+	/**
+	 * Manual booking: a commission, bonus or correction (positive or negative) for a partner,
+	 * approved at once and payable with the next payout. With $parent_id it is a correction of
+	 * that commission (same order, shown under it). Audited.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param int    $amount_minor Amount (minor units, not 0; negative = deduction).
+	 * @param string $reason       Reason (required, shown to the partner).
+	 * @param int    $parent_id    Commission this corrects (0 = none).
+	 * @return int|\WP_Error Commission ID.
+	 */
+	public static function manual_adjustment( $affiliate_id, $currency, $amount_minor, $reason, $parent_id = 0 ) {
+		global $wpdb;
+		$reason       = trim( (string) $reason );
+		$amount_minor = (int) $amount_minor;
+		$currency     = strtoupper( (string) $currency );
+		$parent       = $parent_id ? self::find( (int) $parent_id ) : null;
+		if ( '' === $reason ) {
+			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
+		}
+		if ( 0 === $amount_minor || abs( $amount_minor ) > \WPAffiliateCaptain\Sales\ContractApi::MAX_MINOR ) {
+			return new \WP_Error( 'wpac_amount', __( 'Please enter an amount other than 0.', 'affiliate-captain' ) );
+		}
+		if ( $parent_id && ( ! $parent || 'rejected' === $parent->status ) ) {
+			return new \WP_Error( 'wpac_state', __( 'Corrections can only be booked for commissions that are not rejected.', 'affiliate-captain' ) );
+		}
+		if ( $parent ) {
+			$affiliate_id = (int) $parent->affiliate_id;
+			$currency     = (string) $parent->currency;
+		}
+		if ( ! AffiliateRepository::find( (int) $affiliate_id ) || ! preg_match( '/^[A-Z]{3}$/', $currency ) ) {
+			return new \WP_Error( 'wpac_state', __( 'Unknown partner or currency.', 'affiliate-captain' ) );
+		}
+		$t = Db::table( 'commissions' );
+		// A correction of an open commission follows it (like a refund); otherwise payable at once.
+		$status = $parent && in_array( $parent->status, array( 'pending', 'review' ), true ) ? $parent->status : 'approved';
+		try {
+			$id = Db::transaction(
+				static function () use ( $wpdb, $t, $affiliate_id, $currency, $amount_minor, $reason, $parent, $status ) {
+					$key = self::key( 'manual:' . (int) $affiliate_id . ':' . Db::now() . ':' . wp_generate_password( 8, false ) );
+					$ok  = $wpdb->insert(
+						$t,
+						array(
+							'affiliate_id'    => (int) $affiliate_id,
+							'source'          => $parent ? $parent->source : 'wpac',
+							'source_order_id' => $parent ? $parent->source_order_id : 'manual',
+							'source_item_id'  => $parent ? $parent->source_item_id : '',
+							'kind'            => 'adjustment',
+							'parent_id'       => $parent ? (int) $parent->id : 0,
+							'product_ref'     => $parent ? $parent->product_ref : '',
+							'description'     => Db::cut( $reason, 255 ),
+							'currency'        => $currency,
+							'base_minor'      => 0,
+							'amount_minor'    => $amount_minor,
+							'rate_type'       => 'fixed',
+							'rate'            => '0',
+							'rule_id'         => 0,
+							'rule_snapshot'   => null,
+							'status'          => $status,
+							'hold_until'      => $parent && 'approved' !== $status ? $parent->hold_until : Db::now(),
+							'idempotency_key' => $key,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
+						)
+					);
+					if ( ! $ok ) {
+						throw new IntegrationException( 'db_adjustment', esc_html( $wpdb->last_error ) );
+					}
+					$id = (int) $wpdb->insert_id;
+					if ( 'approved' === $status ) {
+						Balance::post( (int) $affiliate_id, $currency, 'approved', $amount_minor, $id, 0, 'manual' );
+					}
+					self::event( $id, 'created', '', $status, $amount_minor, 'manual: ' . $reason, $key, get_current_user_id() );
+					if ( $parent ) {
+						self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount_minor, 'manual', $key, get_current_user_id() );
+					}
+					return $id;
+				}
+			);
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'wpac_db_error', __( 'The booking could not be saved (database error). Please try again.', 'affiliate-captain' ) );
+		}
+		Audit::log(
+			'commission.manual',
+			'affiliate',
+			(int) $affiliate_id,
+			array(
+				'commission' => $id,
+				'amount'     => $amount_minor,
+				'currency'   => $currency,
+				'parent'     => $parent ? (int) $parent->id : 0,
+				'reason'     => $reason,
+			)
+		);
+		do_action( 'wpac_commission_created', $id );
+		return $id;
+	}
+
+	/**
+	 * Start the hold period of an order's open commissions again from a later date (e.g. the
+	 * order was shipped/completed). Only shortens a longer hold (the placeholder "until the
+	 * order is completed"); never releases earlier than hold_until() for that date.
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order.
+	 * @param int    $from     Timestamp the hold period starts.
+	 * @return int Rows changed.
+	 */
+	public static function restart_hold( $source, $order_id, $from ) {
+		global $wpdb;
+		$t    = Db::table( 'commissions' );
+		$hold = self::hold_until(
+			array(
+				'source'     => (string) $source,
+				'order_id'   => (string) $order_id,
+				'paid_at'    => gmdate( 'Y-m-d H:i:s', (int) $from ),
+				'hold_until' => '',
+			)
+		);
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET hold_until = %s, updated_at = %s WHERE source = %s AND source_order_id = %s AND status IN ('pending','review') AND hold_until > %s", Db::now( $hold ), Db::now(), (string) $source, (string) $order_id, Db::now( $hold ) ) );
 	}
 
 	/**
@@ -846,13 +1140,16 @@ final class Ledger {
 		$currency = strtoupper( (string) $currency );
 		$t        = Db::table( 'commissions' );
 		try {
-			return Db::transaction(
+			$written = Db::transaction(
 				static function () use ( $wpdb, $t, $affiliate_id, $currency, $reason ) {
-					// The open (approved, unpaid) rows define the balance; lock them.
+					// The open (approved, unpaid) rows define the balance; lock them. The claim includes
+					// the VAT of refunded commissions that were paid out with VAT (the write-off itself
+					// is not taxable, so it covers the gross amount).
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$open = (int) array_sum( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) ) ) );
+					$wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) );
+					$open = Dunning::open( (int) $affiliate_id, $currency );
 					if ( $open >= 0 ) {
-						throw new IntegrationException( 'not_negative', __( 'The balance is not negative.', 'affiliate-captain' ) );
+						throw new IntegrationException( 'not_negative', esc_html__( 'The balance is not negative.', 'affiliate-captain' ) );
 					}
 					$key = self::key( 'writeoff:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
 					$ok  = $wpdb->insert(
@@ -865,7 +1162,7 @@ final class Ledger {
 							'kind'            => 'writeoff',
 							'parent_id'       => 0,
 							'product_ref'     => '',
-							'description'     => substr( $reason, 0, 255 ),
+							'description'     => Db::cut( $reason, 255 ),
 							'currency'        => $currency,
 							'base_minor'      => 0,
 							'amount_minor'    => -$open,
@@ -881,7 +1178,7 @@ final class Ledger {
 						)
 					);
 					if ( ! $ok ) {
-						throw new IntegrationException( 'db_writeoff', $wpdb->last_error );
+						throw new IntegrationException( 'db_writeoff', esc_html( $wpdb->last_error ) );
 					}
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $affiliate_id, $currency, 'approved', -$open, $id, 0, 'write-off' );
@@ -902,6 +1199,11 @@ final class Ledger {
 		} catch ( IntegrationException $e ) {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
+		// The debt is settled: a later new debt starts again with the first payment request.
+		Dunning::reset( (int) $affiliate_id, $currency );
+		// Correction document for the VAT corrections the settled balance contains.
+		\WPAffiliateCaptain\Payouts\PayoutService::settle( (int) $affiliate_id, $currency );
+		return $written;
 	}
 
 	/**
@@ -909,15 +1211,22 @@ final class Ledger {
 	 *
 	 * @param int    $affiliate_id Affiliate.
 	 * @param string $reason       Reason.
+	 * @return int Number of commissions that could not be rejected.
 	 */
 	public static function reject_open_for_affiliate( $affiliate_id, $reason ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
+		// Earnings only: a write-off or a repayment settles a debt; rejecting it would revive the debt.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND payout_id = 0 AND amount_minor > 0", $affiliate_id ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND status IN ('pending','review','approved') AND payout_id = 0 AND amount_minor > 0 AND kind NOT IN ('writeoff','repayment')", $affiliate_id ) );
+		$failed = 0;
 		foreach ( $ids as $id ) {
-			self::reject( (int) $id, $reason );
+			// reject() reports errors instead of throwing: one failure must not stop the others.
+			if ( is_wp_error( self::reject( (int) $id, $reason ) ) ) {
+				++$failed;
+			}
 		}
+		return $failed;
 	}
 
 	/**
@@ -981,7 +1290,7 @@ final class Ledger {
 				if ( 'approved' === $to ) {
 					Balance::post( (int) $c->affiliate_id, $c->currency, 'approved', (int) $c->amount_minor, (int) $id );
 				} elseif ( 'rejected' === $to && 'approved' === $from_status ) {
-					Balance::post( (int) $c->affiliate_id, $c->currency, 'rejected', -(int) $c->amount_minor, (int) $id, 0, substr( (string) $reason, 0, 191 ) );
+					Balance::post( (int) $c->affiliate_id, $c->currency, 'rejected', -(int) $c->amount_minor, (int) $id, 0, Db::cut( (string) $reason, 191 ) );
 				}
 				return true;
 			}
@@ -989,6 +1298,7 @@ final class Ledger {
 		if ( ! $ok ) {
 			return false;
 		}
+		ReviewAlert::flush(); // Menu bubble count, also when the hooks are fired later.
 		if ( $fire_hooks ) {
 			do_action( 'wpac_commission_' . $to, (int) $id );
 		}
@@ -1006,10 +1316,14 @@ final class Ledger {
 	 * @param string $reason   Reason.
 	 * @param string $event_id Source event ID.
 	 * @param int    $actor    Actor (defaults to current user).
+	 * @return true
+	 * @throws IntegrationException When the event could not be stored: the history of a commission
+	 *                              must not miss a step, so the caller's transaction is rolled back
+	 *                              (and the booking reported as failed) instead of looking saved.
 	 */
 	public static function event( $id, $event, $from, $to, $amount, $reason = '', $event_id = '', $actor = null ) {
 		global $wpdb;
-		$wpdb->insert(
+		$ok = $wpdb->insert(
 			Db::table( 'commission_events' ),
 			array(
 				'commission_id'   => (int) $id,
@@ -1017,12 +1331,16 @@ final class Ledger {
 				'from_status'     => $from,
 				'to_status'       => $to,
 				'amount_minor'    => (int) $amount,
-				'reason'          => substr( (string) $reason, 0, 255 ),
+				'reason'          => Db::cut( (string) $reason, 255 ),
 				'actor_id'        => null === $actor ? get_current_user_id() : (int) $actor,
-				'source_event_id' => substr( (string) $event_id, 0, 191 ),
+				'source_event_id' => Db::cut( (string) $event_id, 191 ),
 				'created_at'      => Db::now(),
 			)
 		);
+		if ( ! $ok ) {
+			throw new IntegrationException( 'db_commission_event', esc_html( 'Could not store the commission event: ' . $wpdb->last_error ) );
+		}
+		return true;
 	}
 
 	/**
@@ -1074,7 +1392,7 @@ final class Ledger {
 	 */
 	public static function key( $key ) {
 		$key = (string) $key;
-		return strlen( $key ) <= 191 ? $key : substr( $key, 0, 140 ) . ':h:' . sha1( $key );
+		return strlen( $key ) <= 191 ? $key : Db::cut( $key, 140 ) . ':h:' . sha1( $key );
 	}
 
 	/**
@@ -1116,6 +1434,38 @@ final class Ledger {
 		$t = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE source = %s AND source_order_id = %s AND kind = 'sale'", $source, (string) $order_id ) );
+	}
+
+	/**
+	 * Whether the commission of an order still stands: not rejected and not fully reversed
+	 * (refunded, cancelled, chargeback). Orders attributed without any commission line count as
+	 * standing. Used e.g. for subscription renewals of that order.
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order.
+	 * @return bool
+	 */
+	public static function commission_stands( $source, $order_id ) {
+		global $wpdb;
+		$rows = self::sale_commissions( $source, $order_id );
+		if ( ! $rows ) {
+			return true;
+		}
+		$sales = 0;
+		$open  = false;
+		foreach ( $rows as $r ) {
+			if ( 'rejected' !== $r->status ) {
+				$open   = true;
+				$sales += (int) $r->amount_minor;
+			}
+		}
+		if ( ! $open ) {
+			return false;
+		}
+		$t = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE source = %s AND source_order_id = %s AND status <> 'rejected' AND kind <> 'bonus'", $source, (string) $order_id ) );
+		return $sales <= 0 || $left > 0;
 	}
 
 	/**
@@ -1199,12 +1549,26 @@ final class Ledger {
 		global $wpdb;
 		$t                      = Db::table( 'commissions' );
 		list( $where, $params ) = self::where( $args );
+		$cache                  = '';
+		if ( '1=1' === $where ) {
+			// Without a filter the sums cover the whole table: cached until a commission is added or
+			// changed (MAX(id) and MAX(updated_at) are index lookups).
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$cache = 'wpac_commission_totals_' . md5( wp_json_encode( $wpdb->get_row( "SELECT MAX(id), MAX(updated_at) FROM {$t}" ) ) );
+			$hit   = get_transient( $cache );
+			if ( is_array( $hit ) ) {
+				return $hit;
+			}
+		}
 		$sql                    = "SELECT status, currency, SUM(amount_minor) total FROM {$t} WHERE {$where} GROUP BY status, currency";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
 		$out  = array();
 		foreach ( $rows as $r ) {
 			$out[ $r->status ][ $r->currency ] = (int) $r->total;
+		}
+		if ( '' !== $cache ) {
+			set_transient( $cache, $out, 5 * MINUTE_IN_SECONDS ); // Short: several changes within one second keep MAX(updated_at).
 		}
 		return $out;
 	}
@@ -1234,13 +1598,14 @@ final class Ledger {
 			$where   .= ' AND source_order_id = %s';
 			$params[] = (string) $args['order_id'];
 		}
+		// Dates of the filter are local days (site time zone); stored times are UTC.
 		if ( ! empty( $args['from'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $args['from'] ) ) {
 			$where   .= ' AND created_at >= %s';
-			$params[] = $args['from'] . ' 00:00:00';
+			$params[] = Db::local_range( $args['from'], $args['from'] )[0];
 		}
 		if ( ! empty( $args['to'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $args['to'] ) ) {
 			$where   .= ' AND created_at <= %s';
-			$params[] = $args['to'] . ' 23:59:59';
+			$params[] = Db::local_range( $args['to'], $args['to'] )[1];
 		}
 		return array( $where, $params );
 	}

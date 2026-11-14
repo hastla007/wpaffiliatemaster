@@ -18,16 +18,65 @@ defined( 'ABSPATH' ) || exit;
 final class PayoutRequests {
 
 	/**
-	 * Approved, unassigned balance of a partner in the program currency.
+	 * Amount a payout would pay now (gross incl. VAT, with the same hold-backs as a payout:
+	 * corrections still in review hold back their commission), in one currency.
 	 *
-	 * @param int $affiliate_id Affiliate.
+	 * @param int    $affiliate_id Affiliate.
+	 * @param string $currency     Currency ('' = program currency).
 	 * @return int
 	 */
-	public static function available( $affiliate_id ) {
+	public static function available( $affiliate_id, $currency = '' ) {
+		$currency = '' !== (string) $currency ? (string) $currency : (string) Settings::get( 'currency' );
+		return (int) PayoutService::payable( (int) $affiliate_id, $currency )['gross'];
+	}
+
+	/**
+	 * Payable amounts per currency (only currencies with a positive balance), the program
+	 * currency first.
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return array currency => [ net, vat, gross, count ]
+	 */
+	public static function available_all( $affiliate_id ) {
 		global $wpdb;
-		$t = Db::table( 'commissions' );
+		$t          = Db::table( 'commissions' );
+		$program    = strtoupper( (string) Settings::get( 'currency' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE affiliate_id = %d AND status = 'approved' AND payout_id = 0 AND currency = %s", $affiliate_id, Settings::get( 'currency' ) ) );
+		$currencies = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT currency FROM {$t} WHERE affiliate_id = %d AND status = 'approved' AND payout_id = 0", $affiliate_id ) );
+		usort(
+			$currencies,
+			static function ( $a, $b ) use ( $program ) {
+				if ( $program === $a || $program === $b ) {
+					return $program === $a ? -1 : 1;
+				}
+				return strcmp( $a, $b );
+			}
+		);
+		$out = array();
+		foreach ( $currencies as $currency ) {
+			$amounts = PayoutService::payable( (int) $affiliate_id, (string) $currency );
+			if ( $amounts['net'] > 0 && $amounts['gross'] > 0 ) {
+				$out[ strtoupper( (string) $currency ) ] = $amounts;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Currency a request is made in: the program currency when its balance reaches the minimum,
+	 * otherwise the first other currency that does ('' = none reaches it).
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return string
+	 */
+	public static function request_currency( $affiliate_id ) {
+		foreach ( self::available_all( (int) $affiliate_id ) as $currency => $amounts ) {
+			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+			if ( null !== $min && $amounts['gross'] >= max( 1, (int) $min ) ) {
+				return (string) $currency;
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -81,8 +130,9 @@ final class PayoutRequests {
 		if ( '' !== $code ) {
 			return isset( $partner_reasons[ $code ] ) ? $partner_reasons[ $code ] : __( 'Please complete your payout details first.', 'affiliate-captain' );
 		}
-		$min = (int) Settings::get( 'min_payout_minor' );
-		if ( self::available( (int) $aff->id ) < max( 1, $min ) ) {
+		// Like the payout: the net balance (without VAT) must reach the minimum, in any currency.
+		if ( '' === self::request_currency( (int) $aff->id ) ) {
+			$min = (int) Settings::get( 'min_payout_minor' );
 			/* translators: %s: minimum */
 			return sprintf( __( 'Your approved balance is below the minimum payout of %s.', 'affiliate-captain' ), Money::format( $min, Settings::get( 'currency' ) ) );
 		}
@@ -111,38 +161,53 @@ final class PayoutRequests {
 					if ( self::open_for( (int) $aff->id ) ) {
 						return 0;
 					}
+					$currency = self::request_currency( (int) $aff->id );
+					if ( '' === $currency ) {
+						return 0;
+					}
 					$ok = $wpdb->insert(
 						Db::table( 'payout_requests' ),
 						array(
 							'affiliate_id' => (int) $aff->id,
-							'currency'     => (string) Settings::get( 'currency' ),
-							'amount_minor' => self::available( (int) $aff->id ),
+							'currency'     => $currency,
+							'amount_minor' => self::available( (int) $aff->id, $currency ),
 							'status'       => 'requested',
 							'created_at'   => Db::now(),
 						)
 					);
 					if ( ! $ok || ! (int) $wpdb->insert_id ) {
-						throw new \WPAffiliateCaptain\Core\IntegrationException( 'db_payout_request', $wpdb->last_error );
+						throw new \WPAffiliateCaptain\Core\IntegrationException( 'db_payout_request', esc_html( $wpdb->last_error ) );
 					}
 					return (int) $wpdb->insert_id;
 				}
 			);
 		} catch ( \Throwable $e ) {
+			\WPAffiliateCaptain\Core\Log::exception( 'Payout request could not be saved', $e, array( 'affiliate' => (int) $aff->id ) );
 			return new \WP_Error( 'wpac_request', __( 'The payout request could not be saved. Please try again.', 'affiliate-captain' ) );
 		}
 		if ( ! $id ) {
 			return new \WP_Error( 'wpac_request', __( 'You already have an open payout request.', 'affiliate-captain' ) );
 		}
-		$amount = (int) self::find( $id )->amount_minor;
-		Audit::log( 'payout_request.created', 'affiliate', (int) $aff->id, array( 'amount' => $amount ) );
-		$to = (string) Settings::get( 'admin_email' );
-		wp_mail(
-			is_email( $to ) ? $to : (string) get_option( 'admin_email' ),
-			/* translators: %s: partner */
-			sprintf( __( 'Payout request from %s', 'affiliate-captain' ), $aff->name ),
-			/* translators: 1: partner, 2: amount, 3: URL */
-			sprintf( __( "%1\$s requested a payout of %2\$s.\n\n%3\$s", 'affiliate-captain' ), $aff->name, Money::format( $amount, Settings::get( 'currency' ) ), admin_url( 'admin.php?page=wpac-payouts' ) )
-		);
+		$req    = self::find( $id );
+		$amount = (int) $req->amount_minor;
+		Audit::log( 'payout_request.created', 'affiliate', (int) $aff->id, array( 'amount' => $amount, 'currency' => (string) $req->currency ) );
+		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
+		try {
+			\WPAffiliateCaptain\Affiliates\Notifications::send(
+				'payout_request',
+				\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
+				/* translators: %s: partner */
+				sprintf( __( 'Payout request from %s', 'affiliate-captain' ), $aff->name ),
+				/* translators: 1: partner, 2: amount, 3: URL */
+				sprintf( __( "%1\$s requested a payout of %2\$s.\n\n%3\$s", 'affiliate-captain' ), $aff->name, Money::format( $amount, (string) $req->currency ), admin_url( 'admin.php?page=wpac-payouts' ) ),
+				array(
+					'admin'        => true,
+					'affiliate_id' => (int) $aff->id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
 		return $id;
 	}
 
@@ -245,7 +310,7 @@ final class PayoutRequests {
 			Db::table( 'payout_requests' ),
 			array(
 				'status'       => 'rejected',
-				'note'         => substr( sanitize_text_field( $reason ), 0, 255 ),
+				'note'         => Db::cut( sanitize_text_field( $reason ), 255 ),
 				'processed_at' => Db::now(),
 				'processed_by' => get_current_user_id(),
 			),
@@ -254,6 +319,9 @@ final class PayoutRequests {
 				'status' => 'requested', // Only an open request (it may have been processed meanwhile).
 			)
 		);
+		if ( false === $updated ) {
+			return new \WP_Error( 'wpac_db_error', __( 'The rejection could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
+		}
 		if ( 1 !== (int) $updated ) {
 			return new \WP_Error( 'wpac_state', __( 'This request was already handled or could not be updated. Please reload.', 'affiliate-captain' ) );
 		}
@@ -261,10 +329,19 @@ final class PayoutRequests {
 		$aff = AffiliateRepository::find( (int) $r->affiliate_id );
 		if ( $aff ) {
 			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
-			/* translators: 1: name, 2: reason */
-			/* translators: %s: site name */
-			wp_mail( $aff->email, sprintf( __( '[%s] Your payout request', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ), sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'affiliate-captain' ), $aff->name, $reason ) );
-			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			try {
+				\WPAffiliateCaptain\Affiliates\Notifications::send(
+					'payout_request_rejected',
+					$aff->email,
+					/* translators: %s: site name */
+					sprintf( __( '[%s] Your payout request', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+					/* translators: 1: name, 2: reason */
+					sprintf( __( "Hello %1\$s,\n\nyour payout request could not be processed.\n\n%2\$s", 'affiliate-captain' ), $aff->name, $reason ),
+					array( 'affiliate_id' => (int) $aff->id )
+				);
+			} finally {
+				\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+			}
 		}
 		return true;
 	}
@@ -287,11 +364,47 @@ final class PayoutRequests {
 	 *
 	 * @param string $status Status ('' = all).
 	 * @param int    $affiliate_id Optional partner.
+	 * @param int    $limit        Max rows (0 = all).
+	 * @param int    $offset       Rows to skip (pages).
 	 * @return array
 	 */
-	public static function query( $status = 'requested', $affiliate_id = 0 ) {
+	public static function query( $status = 'requested', $affiliate_id = 0, $limit = 200, $offset = 0 ) {
 		global $wpdb;
-		$t      = Db::table( 'payout_requests' );
+		list( $where, $params ) = self::where( $status, $affiliate_id );
+		$t   = Db::table( 'payout_requests' );
+		$sql = "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC";
+		if ( (int) $limit > 0 ) {
+			$sql     .= ' LIMIT %d OFFSET %d';
+			$params[] = (int) $limit;
+			$params[] = max( 0, (int) $offset );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
+	}
+
+	/**
+	 * Number of requests by status (no limit).
+	 *
+	 * @param string $status       Status ('' = all).
+	 * @param int    $affiliate_id Optional partner.
+	 * @return int
+	 */
+	public static function count( $status = 'requested', $affiliate_id = 0 ) {
+		global $wpdb;
+		list( $where, $params ) = self::where( $status, $affiliate_id );
+		$sql = 'SELECT COUNT(*) FROM ' . Db::table( 'payout_requests' ) . " WHERE {$where}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_var( $sql ) );
+	}
+
+	/**
+	 * WHERE clause of query()/count().
+	 *
+	 * @param string $status       Status.
+	 * @param int    $affiliate_id Partner.
+	 * @return array [ where, params ]
+	 */
+	private static function where( $status, $affiliate_id ) {
 		$where  = '1=1';
 		$params = array();
 		if ( $status ) {
@@ -302,8 +415,6 @@ final class PayoutRequests {
 			$where   .= ' AND affiliate_id = %d';
 			$params[] = (int) $affiliate_id;
 		}
-		$sql = "SELECT * FROM {$t} WHERE {$where} ORDER BY id DESC LIMIT 200";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return $params ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) ) : $wpdb->get_results( $sql );
+		return array( $where, $params );
 	}
 }

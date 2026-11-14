@@ -37,9 +37,9 @@ final class RulesPage {
 				$data = RuleRepository::sanitize(
 					array(
 						'scope'        => sanitize_key( Admin::post( 'scope' ) ),
-						'scope_id'     => absint( Admin::post( 'scope' ) === 'group' ? Admin::post( 'group_id' ) : Admin::post( 'affiliate_id' ) ),
+						'scope_id'     => Admin::post( 'scope' ) === 'group' ? absint( Admin::post( 'group_id' ) ) : AffiliateRepository::resolve_input( sanitize_text_field( (string) Admin::post( 'affiliate_id' ) ) ),
 						'target'       => sanitize_key( Admin::post( 'target' ) ),
-						'target_value' => Admin::post( 'target_value' ),
+						'target_value' => self::posted_target_value( sanitize_key( Admin::post( 'target' ) ) ),
 						'rate_type'    => sanitize_key( Admin::post( 'rate_type' ) ),
 						'rate'         => Admin::post( 'rate' ),
 						'priority'     => (int) Admin::post( 'priority', 0 ),
@@ -82,7 +82,7 @@ final class RulesPage {
 				TierService::create(
 					array(
 						'scope'    => $scope,
-						'scope_id' => absint( 'group' === $scope ? Admin::post( 'group_id' ) : Admin::post( 'affiliate_id' ) ),
+						'scope_id' => 'group' === $scope ? absint( Admin::post( 'group_id' ) ) : AffiliateRepository::resolve_input( sanitize_text_field( (string) Admin::post( 'affiliate_id' ) ) ),
 						'basis'    => $basis,
 						'mode'     => sanitize_key( Admin::post( 'mode' ) ),
 						'steps'    => $steps,
@@ -131,8 +131,17 @@ final class RulesPage {
 				break;
 
 			case 'group_delete':
-				Groups::delete( absint( Admin::post( 'id' ) ) );
-				Admin::back( __( 'Group deleted.', 'affiliate-captain' ) );
+				$impact = Groups::delete( absint( Admin::post( 'id' ) ) );
+				$msg    = __( 'Group deleted.', 'affiliate-captain' );
+				if ( $impact['rules'] ) {
+					/* translators: %d: number of rules */
+					$msg .= ' ' . sprintf( _n( '%d commission rule of the group was deactivated.', '%d commission rules of the group were deactivated.', $impact['rules'], 'affiliate-captain' ), $impact['rules'] );
+				}
+				if ( $impact['own_terms'] && $impact['partners'] ) {
+					/* translators: %d: number of partners */
+					$msg .= ' ' . sprintf( _n( '%d partner now falls under the program terms and must accept them before the next credit note.', '%d partners now fall under the program terms and must accept them before the next credit note.', $impact['partners'], 'affiliate-captain' ), $impact['partners'] );
+				}
+				Admin::back( $msg, $impact['own_terms'] && $impact['partners'] ? 'warning' : 'success' );
 				break;
 		}
 	}
@@ -143,12 +152,24 @@ final class RulesPage {
 	public static function render() {
 		$groups   = Groups::options();
 		$currency = (string) Settings::get( 'currency' );
-		list( $affs ) = AffiliateRepository::query( array( 'limit' => 1000 ) );
-		$aff_names    = array();
-		foreach ( $affs as $a ) {
-			$aff_names[ (int) $a->id ] = $a->name;
-		}
 		$edit = absint( Admin::get( 'edit' ) ) ? RuleRepository::find( absint( Admin::get( 'edit' ) ) ) : null;
+		// Names only of the partners that rules and tier plans refer to (no fixed partner limit:
+		// the selection fields search all partners, see Admin::partner_picker()).
+		global $wpdb;
+		$rules_t = \WPAffiliateCaptain\Core\Db::table( 'rules' );
+		$tiers_t = \WPAffiliateCaptain\Core\Db::table( 'tiers' );
+		$ids     = array_merge(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			(array) $wpdb->get_col( "SELECT DISTINCT scope_id FROM {$rules_t} WHERE scope = 'affiliate'" ),
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			(array) $wpdb->get_col( "SELECT DISTINCT scope_id FROM {$tiers_t} WHERE scope = 'affiliate'" )
+		);
+		$aff_names = array();
+		foreach ( AffiliateRepository::find_many( $ids ) as $aid => $a ) {
+			if ( $a ) {
+				$aff_names[ (int) $aid ] = $a->name;
+			}
+		}
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Rules & groups', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
@@ -248,16 +269,27 @@ final class RulesPage {
 		foreach ( $groups as $gid => $name ) {
 			printf( '<option value="%d" %s>%s</option>', (int) $gid, selected( 'group' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $gid, false ), esc_html( $name ) );
 		}
-		echo '</select> <select name="affiliate_id" aria-label="' . esc_attr__( 'Partner', 'affiliate-captain' ) . '" data-wpac-depends="scope=affiliate"><option value="">' . esc_html__( '– partner –', 'affiliate-captain' ) . '</option>';
-		foreach ( $aff_names as $aid => $name ) {
-			printf( '<option value="%d" %s>%s</option>', (int) $aid, selected( 'affiliate' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $aid, false ), esc_html( $name ) );
-		}
-		echo '</select></td></tr>';
+		echo '</select> ';
+		$picker = Admin::partner_picker(
+			'affiliate_id',
+			'affiliate' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0,
+			'',
+			array(
+				'aria-label'        => __( 'Partner', 'affiliate-captain' ),
+				'data-wpac-depends' => 'scope=affiliate',
+			)
+		);
+		echo $picker; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		echo '</td></tr>';
 		echo '<tr><th><label for="wpac-rule-target">' . esc_html__( 'Products', 'affiliate-captain' ) . '</label></th><td><select name="target" id="wpac-rule-target">';
 		foreach ( $targets as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'target', 'all' ), $k, false ), esc_html( $l ) );
 		}
-		echo '</select> <span data-wpac-depends="target=product|category|tag|sku"><input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'IDs or SKUs', 'affiliate-captain' ) . '" aria-describedby="wpac-target-hint"><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'affiliate-captain' ) . '</span></span></td></tr>';
+		echo '</select>';
+		// With WooCommerce: products by search and categories from a list instead of typed IDs (R5-O51).
+		$pickers = self::target_pickers( $v( 'target' ), $v( 'target_value' ) );
+		echo $pickers; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped in target_pickers().
+		echo ' <span data-wpac-depends="target=' . ( '' !== $pickers ? 'tag|sku' : 'product|category|tag|sku' ) . '"><input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'IDs or SKUs', 'affiliate-captain' ) . '" aria-describedby="wpac-target-hint"><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'affiliate-captain' ) . '</span></span></td></tr>';
 		echo '<tr><th><label for="wpac-rule-type">' . esc_html__( 'Commission', 'affiliate-captain' ) . '</label></th><td><select name="rate_type" id="wpac-rule-type">';
 		foreach ( array( 'percent' => __( 'Percent of net', 'affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ), 'exclude' => __( 'Exclude (no commission)', 'affiliate-captain' ) ) as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'rate_type', 'percent' ), $k, false ), esc_html( $l ) );
@@ -270,6 +302,62 @@ final class RulesPage {
 		submit_button( $edit ? __( 'Save rule', 'affiliate-captain' ) : __( 'Add rule', 'affiliate-captain' ) );
 		echo '</form>';
 
+	}
+
+	/**
+	 * Product search and category list for a rule (WooCommerce): '' without WooCommerce.
+	 *
+	 * @param string $target Current target.
+	 * @param string $value  Current IDs (comma separated).
+	 * @return string HTML.
+	 */
+	private static function target_pickers( $target, $value ) {
+		if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'wc_get_product' ) ) {
+			return '';
+		}
+		wp_enqueue_script( 'wc-enhanced-select' );
+		wp_enqueue_style( 'woocommerce_admin_styles' );
+		$ids = array_filter( array_map( 'absint', explode( ',', (string) $value ) ) );
+		$out = ' <span data-wpac-depends="target=product"><label class="screen-reader-text" for="wpac-rule-products">' . esc_html__( 'Products', 'affiliate-captain' ) . '</label><select class="wc-product-search" multiple="multiple" style="min-width:320px" id="wpac-rule-products" name="target_products[]" data-placeholder="' . esc_attr__( 'Search for a product…', 'affiliate-captain' ) . '" data-action="woocommerce_json_search_products_and_variations">';
+		if ( 'product' === $target ) {
+			foreach ( $ids as $id ) {
+				$product = wc_get_product( $id );
+				$out    .= '<option value="' . (int) $id . '" selected="selected">' . esc_html( $product ? wp_strip_all_tags( $product->get_formatted_name() ) : '#' . $id ) . '</option>';
+			}
+		}
+		$out .= '</select></span>';
+		$terms = get_terms(
+			array(
+				'taxonomy'   => 'product_cat',
+				'hide_empty' => false,
+				'number'     => 500,
+			)
+		);
+		$out .= ' <span data-wpac-depends="target=category"><label class="screen-reader-text" for="wpac-rule-categories">' . esc_html__( 'Categories', 'affiliate-captain' ) . '</label><select class="wc-enhanced-select" multiple="multiple" style="min-width:320px" id="wpac-rule-categories" name="target_categories[]" data-placeholder="' . esc_attr__( 'Choose categories…', 'affiliate-captain' ) . '">';
+		foreach ( is_array( $terms ) ? $terms : array() as $term ) {
+			$out .= '<option value="' . (int) $term->term_id . '"' . ( 'category' === $target && in_array( (int) $term->term_id, $ids, true ) ? ' selected="selected"' : '' ) . '>' . esc_html( $term->name ) . '</option>';
+		}
+		return $out . '</select></span>';
+	}
+
+	/**
+	 * Target value of the rule form: chosen products/categories, else the typed value.
+	 *
+	 * @param string $target Target.
+	 * @return string
+	 */
+	private static function posted_target_value( $target ) {
+		$lists = array(
+			'product'  => 'target_products',
+			'category' => 'target_categories',
+		);
+		if ( isset( $lists[ $target ] ) ) {
+			$ids = array_filter( array_map( 'absint', (array) Admin::post( $lists[ $target ], array() ) ) );
+			if ( $ids ) {
+				return implode( ',', $ids );
+			}
+		}
+		return (string) Admin::post( 'target_value' );
 	}
 
 	/**
@@ -298,7 +386,7 @@ final class RulesPage {
 			echo '<tr><th>' . esc_html__( 'Additional application fields', 'affiliate-captain' ) . '</th><td><textarea name="fields" rows="4" class="large-text code" placeholder="school_name|Name der Bootsschule|text|required&#10;students|Schüler pro Jahr|number">' . esc_textarea( Groups::fields_text( $g ) ) . '</textarea><p class="description">' . esc_html__( 'One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox.', 'affiliate-captain' ) . '</p></td></tr>';
 			echo '</table><p><button class="button button-primary">' . esc_html__( 'Save group', 'affiliate-captain' ) . '</button></p></form>';
 			Admin::form_open( 'group_delete', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this group?', 'affiliate-captain' ) . '">' . esc_html__( 'Delete group', 'affiliate-captain' ) . '</button></form></details></li>';
+			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated.', 'affiliate-captain' ) . '">' . esc_html__( 'Delete group', 'affiliate-captain' ) . '</button></form></details></li>';
 		}
 		echo '</ul>';
 		Admin::form_open( 'group_create' );
@@ -346,11 +434,8 @@ final class RulesPage {
 		foreach ( $groups as $gid => $name ) {
 			printf( '<option value="%d">%s</option>', (int) $gid, esc_html( $name ) );
 		}
-		echo '</select> <select name="affiliate_id"><option value="">' . esc_html__( '– partner –', 'affiliate-captain' ) . '</option>';
-		foreach ( $aff_names as $aid => $name ) {
-			printf( '<option value="%d">%s</option>', (int) $aid, esc_html( $name ) );
-		}
-		echo '</select></p><p><select name="basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select> ';
+		echo '</select> ' . Admin::partner_picker( 'affiliate_id', 0, '', array( 'aria-label' => __( 'Partner', 'affiliate-captain' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		echo '</p><p><select name="basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select> ';
 		echo '<select name="mode"><option value="marginal">' . esc_html__( 'Marginal (only above the threshold)', 'affiliate-captain' ) . '</option><option value="retroactive">' . esc_html__( 'Retroactive (whole month)', 'affiliate-captain' ) . '</option></select></p>';
 		/* translators: %s: currency */
 		echo '<p><textarea name="steps" rows="3" cols="40" placeholder="' . esc_attr( sprintf( __( "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)", 'affiliate-captain' ), $currency ) ) . '"></textarea></p>';
@@ -358,7 +443,7 @@ final class RulesPage {
 
 		Admin::form_open( 'tier_close_month' );
 		/* translators: %s: last closed month */
-		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'affiliate-captain' ), Settings::get( 'tier_month_closed' ) ? Settings::get( 'tier_month_closed' ) : '—' ) ) . ' <input type="month" name="month" value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of previous month' ) ) ) . '"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'affiliate-captain' ) . '">' . esc_html__( 'Close month now', 'affiliate-captain' ) . '</button></p></form>';
+		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'affiliate-captain' ), Settings::get( 'tier_month_closed' ) ? Settings::get( 'tier_month_closed' ) : '—' ) ) . ' <input type="month" name="month" value="' . esc_attr( \WPAffiliateCaptain\Core\Db::local_month( -1 ) ) . '"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'affiliate-captain' ) . '">' . esc_html__( 'Close month now', 'affiliate-captain' ) . '</button></p></form>';
 	}
 
 	/**
@@ -370,11 +455,7 @@ final class RulesPage {
 	private static function render_preview( array $aff_names, $currency ) {
 		echo '<h2>' . esc_html__( 'Rule preview', 'affiliate-captain' ) . '</h2>';
 		echo '<form method="get"><input type="hidden" name="page" value="wpac-rules"><input type="hidden" name="tab" value="preview"><input type="hidden" name="preview" value="1">';
-		echo '<select name="p_affiliate">';
-		foreach ( $aff_names as $aid => $name ) {
-			printf( '<option value="%d" %s>%s</option>', (int) $aid, selected( absint( Admin::get( 'p_affiliate' ) ), $aid, false ), esc_html( $name ) );
-		}
-		echo '</select> ';
+		echo Admin::partner_picker( 'p_affiliate', AffiliateRepository::resolve_input( Admin::get( 'p_affiliate' ) ), '', array( 'aria-label' => __( 'Partner', 'affiliate-captain' ) ) ) . ' '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
 		echo '<input type="number" name="p_product" aria-label="' . esc_attr__( 'Product ID', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Product ID', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_product' ) ) . '" class="small-text"> ';
 		echo '<input type="text" name="p_sku" aria-label="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_sku' ) ) . '" size="10"> ';
 		echo '<input type="text" name="p_cats" aria-label="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8"> ';
@@ -385,7 +466,7 @@ final class RulesPage {
 		if ( ! Admin::get( 'preview' ) ) {
 			return;
 		}
-		$aff = AffiliateRepository::find( absint( Admin::get( 'p_affiliate' ) ) );
+		$aff = AffiliateRepository::find( AffiliateRepository::resolve_input( Admin::get( 'p_affiliate' ) ) );
 		if ( ! $aff ) {
 			return;
 		}
@@ -398,21 +479,34 @@ final class RulesPage {
 			$cats = $cats ? $cats : wc_get_product_term_ids( $product->get_parent_id() ? $product->get_parent_id() : $product_id, 'product_cat' );
 			$tags = $tags ? $tags : wc_get_product_term_ids( $product->get_parent_id() ? $product->get_parent_id() : $product_id, 'product_tag' );
 		}
-		$net  = Money::to_minor( (string) Money::normalize_decimal( Admin::get( 'p_net' ) ), $currency );
+		// Parent categories: rules on a parent category apply to its subcategories as well.
+		$ancestors = array();
+		if ( function_exists( 'get_ancestors' ) ) {
+			foreach ( $cats as $cat ) {
+				foreach ( (array) get_ancestors( (int) $cat, 'product_cat', 'taxonomy' ) as $a ) {
+					$ancestors[ (int) $a ] = (int) $a;
+				}
+			}
+		}
+		$ancestors = array_values( array_diff( $ancestors, $cats ) );
+		$net       = Money::to_minor( (string) Money::normalize_decimal( Admin::get( 'p_net' ) ), $currency );
 		$calc = Calculator::calculate(
 			array(
 				'product_id'   => $product_id,
 				'parent_id'    => 0,
 				'sku'          => $sku,
-				'category_ids' => $cats,
-				'tag_ids'      => $tags,
-				'quantity'     => 1,
-				'net_minor'    => $net,
+				'category_ids'          => $cats,
+				'category_ancestor_ids' => $ancestors,
+				'tag_ids'               => $tags,
+				'quantity'              => 1,
+				'net_minor'             => $net,
 			),
-			RuleRepository::active(),
+			RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id ),
 			(int) $aff->id,
 			(int) $aff->group_id,
-			RuleRepository::default_rate()
+			RuleRepository::default_rate(),
+			true,
+			RuleRepository::precedence()
 		);
 		echo '<div class="notice notice-info inline"><p>';
 		if ( $calc['excluded'] ) {

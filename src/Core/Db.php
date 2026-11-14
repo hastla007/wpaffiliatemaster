@@ -58,6 +58,49 @@ final class Db {
 	}
 
 	/**
+	 * UTC range of local calendar days (site time zone): stored times are UTC, but months and
+	 * days in reports, bonuses and mails are the site's.
+	 *
+	 * @param string $from First local day (Y-m-d).
+	 * @param string $to   Last local day (Y-m-d).
+	 * @return string[] [ start, end ] as UTC "Y-m-d H:i:s" (inclusive).
+	 */
+	public static function local_range( $from, $to ) {
+		$tz = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		try {
+			$start = new \DateTimeImmutable( $from . ' 00:00:00', $tz );
+			$end   = ( new \DateTimeImmutable( $to . ' 00:00:00', $tz ) )->modify( '+1 day' );
+		} catch ( \Exception $e ) {
+			return array( $from . ' 00:00:00', $to . ' 23:59:59' );
+		}
+		return array( gmdate( 'Y-m-d H:i:s', $start->getTimestamp() ), gmdate( 'Y-m-d H:i:s', $end->getTimestamp() - 1 ) );
+	}
+
+	/**
+	 * UTC range of a local calendar month (site time zone).
+	 *
+	 * @param string $month Month (Y-m).
+	 * @return string[] [ start, end ] as UTC "Y-m-d H:i:s" (inclusive).
+	 */
+	public static function month_range( $month ) {
+		$first = $month . '-01';
+		return self::local_range( $first, gmdate( 'Y-m-t', (int) strtotime( $first . ' 12:00:00 UTC' ) ) );
+	}
+
+	/**
+	 * A local month relative to the current one (site time zone).
+	 *
+	 * @param int $offset Months from now (-1 = previous month).
+	 * @param int $ts     Reference time (default now).
+	 * @return string Y-m.
+	 */
+	public static function local_month( $offset = 0, $ts = null ) {
+		$tz  = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		$now = ( new \DateTimeImmutable( '@' . ( null === $ts ? time() : (int) $ts ) ) )->setTimezone( $tz );
+		return $now->modify( 'first day of this month' )->modify( ( (int) $offset >= 0 ? '+' : '' ) . (int) $offset . ' month' )->format( 'Y-m' );
+	}
+
+	/**
 	 * Take a named lock (a row in the options table) atomically. add_option() is NOT atomic
 	 * in WordPress (it is an upsert after a cached read), so INSERT IGNORE decides: only the
 	 * request that inserted the row owns the lock. An expired lock is taken over with a
@@ -143,7 +186,7 @@ final class Db {
 			usleep( 100000 );
 		} while ( microtime( true ) < $deadline );
 		if ( '' === $owner ) {
-			throw new IntegrationException( 'locked', 'Could not acquire the lock ' . $name . '.' );
+			throw new IntegrationException( 'locked', esc_html( 'Could not acquire the lock ' . $name . '.' ) );
 		}
 		try {
 			return $fn();
@@ -151,6 +194,66 @@ final class Db {
 			self::unlock( $name, $owner );
 		}
 	}
+
+	/**
+	 * Shorten a value to a column length in characters without cutting a multibyte (UTF-8)
+	 * character in half. A byte cut (substr) inside "ä" or "€" leaves invalid UTF-8, which
+	 * WordPress/MySQL reject: the whole INSERT/UPDATE fails.
+	 *
+	 * @param mixed $value Value.
+	 * @param int   $max   Maximum number of characters.
+	 * @return string
+	 */
+	public static function cut( $value, $max ) {
+		$value = (string) $value;
+		$max   = max( 0, (int) $max );
+		if ( strlen( $value ) <= $max ) {
+			return $value; // Fits in bytes, so certainly in characters.
+		}
+		if ( function_exists( 'mb_substr' ) ) {
+			return mb_substr( $value, 0, $max, 'UTF-8' );
+		}
+		// Without mbstring: byte cut, then drop a trailing incomplete UTF-8 sequence.
+		$cut = substr( $value, 0, $max );
+		if ( preg_match( '/[\xC0-\xFF][\x80-\xBF]*$/', $cut, $m ) ) {
+			$lead = ord( $m[0][0] );
+			$len  = $lead >= 0xF0 ? 4 : ( $lead >= 0xE0 ? 3 : 2 );
+			if ( strlen( $m[0] ) < $len ) {
+				$cut = substr( $cut, 0, -strlen( $m[0] ) );
+			}
+		}
+		return $cut;
+	}
+
+	/**
+	 * Whether a text is longer than a column holds (in characters, as Db::cut() counts). wpdb
+	 * refuses the whole INSERT/UPDATE for such a value, so check user input before writing.
+	 *
+	 * @param string $value Text.
+	 * @param int    $max   Max characters.
+	 * @return bool
+	 */
+	public static function too_long( $value, $max ) {
+		return self::cut( (string) $value, $max ) !== (string) $value;
+	}
+
+	/**
+	 * Run a callback after the current transaction was committed (right away outside a
+	 * transaction). Dropped when the transaction is rolled back. For notifications and other
+	 * side effects that must not happen for a booking that is rolled back.
+	 *
+	 * @param callable $fn Callback.
+	 */
+	public static function after_commit( callable $fn ) {
+		if ( self::$depth > 0 ) {
+			self::$after_commit[] = $fn;
+			return;
+		}
+		$fn();
+	}
+
+	/** @var callable[] Callbacks waiting for the COMMIT of the running transaction. */
+	private static $after_commit = array();
 
 	/**
 	 * Run a callback in a transaction (InnoDB). Rolls back and rethrows on error.
@@ -168,7 +271,7 @@ final class Db {
 		// A transaction that could not be started or committed must never look like success
 		// (ledger and payout data would be partly written or not at all).
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
-			throw new IntegrationException( 'db_transaction', 'Could not start a database transaction: ' . $wpdb->last_error );
+			throw new IntegrationException( 'db_transaction', esc_html( 'Could not start a database transaction: ' . $wpdb->last_error ) );
 		}
 		self::$depth = 1;
 		try {
@@ -176,13 +279,19 @@ final class Db {
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new IntegrationException( 'db_commit', 'Could not commit the database transaction: ' . $wpdb->last_error );
 			}
-			return $result;
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
+			self::$after_commit = array();
 			throw $e;
 		} finally {
 			self::$depth = 0;
 		}
+		$queued             = self::$after_commit;
+		self::$after_commit = array();
+		foreach ( $queued as $cb ) {
+			$cb();
+		}
+		return $result;
 	}
 
 	/** @var int Transaction nesting depth. */

@@ -53,18 +53,24 @@ final class RestApi {
 	 * @return array|\WP_Error
 	 */
 	public static function touch( $r ) {
-		if ( ! Settings::get( 'js_tracking' ) ) {
+		// "consent": the visitor gave marketing consent after the landing; the referral is stored
+		// again (cookie), the visit was already counted. Available whenever cookies need consent.
+		$consent_only = ! empty( $r['consent'] );
+		if ( ! Settings::get( 'js_tracking' ) && ! ( $consent_only && 'consent' === Settings::get( 'cookie_mode' ) ) ) {
 			return new \WP_Error( 'wpac_disabled', __( 'JavaScript tracking is disabled.', 'affiliate-captain' ), array( 'status' => 404 ) );
 		}
 		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).
 		$res->header( 'Cache-Control', 'no-store' );
-		// Like a page view, but a script can send many: limited per client (same answer when over the limit).
-		if ( ! RateLimiter::allow( 'touch', 30, MINUTE_IN_SECONDS ) ) {
+		// Only pages of this shop report (same answer otherwise). No per-IP limit here: behind a CDN all
+		// visitors share one address and the referral must never be dropped – visit statistics are
+		// limited per client in Tracker::capture_code(), unknown codes write nothing.
+		if ( ! self::own_origin( (string) $r->get_header( 'origin' ) ) ) {
 			return $res;
 		}
 		// REST requests do not load the WooCommerce session: without it the touch of a visitor with a
-		// cart would not reach the checkout.
-		if ( function_exists( 'WC' ) && function_exists( 'wc_load_cart' ) && ! WC()->session ) {
+		// cart would not reach the checkout. Not for logged-in customers: without a nonce the REST
+		// request runs as a guest, and WooCommerce would end (empty) their session.
+		if ( function_exists( 'WC' ) && function_exists( 'wc_load_cart' ) && ! WC()->session && ! \WPAffiliateCaptain\Tracking\Tracker::has_login_cookie() ) {
 			wc_load_cart();
 		}
 		$path = wp_parse_url( (string) $r['path'], PHP_URL_PATH );
@@ -74,16 +80,39 @@ final class RestApi {
 		$host = preg_match( '/^[a-z0-9.-]{1,253}$/i', $host ) ? strtolower( $host ) : '';
 		\WPAffiliateCaptain\Tracking\Tracker::capture_code(
 			sanitize_text_field( (string) $r['code'] ),
-			sanitize_text_field( (string) $r['campaign'] ),
+			\WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['campaign'] ),
 			absint( $r['content_id'] ),
 			array(
-				'utm_source' => sanitize_text_field( (string) $r['utm_source'] ),
-				'utm_medium' => sanitize_text_field( (string) $r['utm_medium'] ),
+				'utm_source' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['utm_source'] ),
+				'utm_medium' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['utm_medium'] ),
+				'sub_id'     => \WPAffiliateCaptain\Tracking\Tracker::clean_sub( (string) $r['sub'] ),
 				'path'       => is_string( $path ) ? $path : '',
 				'referrer'   => '' !== $host ? 'https://' . $host . '/' : '',
+				'count'      => ! $consent_only,
 			)
 		);
 		return $res;
+	}
+
+	/**
+	 * Whether a beacon request comes from a page of this shop (Origin header of this host or
+	 * inside the cookie domain). Requests without Origin (older browsers) are accepted.
+	 *
+	 * @param string $origin Origin header.
+	 * @return bool
+	 */
+	public static function own_origin( $origin ) {
+		if ( '' === $origin ) {
+			return true;
+		}
+		$ok = \WPAffiliateCaptain\Tracking\Tracker::is_own_host( (string) wp_parse_url( $origin, PHP_URL_HOST ) );
+		/**
+		 * Whether a beacon from this origin is accepted (e.g. a headless frontend on another domain).
+		 *
+		 * @param bool   $ok     Decision.
+		 * @param string $origin Origin header.
+		 */
+		return (bool) apply_filters( 'wpac_touch_allowed_origin', $ok, $origin );
 	}
 
 	/**
@@ -149,17 +178,22 @@ final class RestApi {
 				'permission_callback' => '__return_true', // Public like a page view; only active with the beacon setting.
 				'callback'            => array( __CLASS__, 'touch' ),
 				'args'                => array(
+					// As lenient as the page request: the code is normalised when it is resolved
+					// (e.g. "ANNA." from a link at the end of a sentence).
 					'code'       => array(
-						'type'     => 'string',
-						'required' => true,
-						'pattern'  => '^[A-Za-z0-9_\\-]{3,64}$',
+						'type'      => 'string',
+						'required'  => true,
+						'minLength' => 1,
+						'maxLength' => 100,
 					),
 					'campaign'   => array( 'type' => 'string' ),
 					'utm_source' => array( 'type' => 'string' ),
 					'utm_medium' => array( 'type' => 'string' ),
+					'sub'        => array( 'type' => 'string' ),
 					'content_id' => array( 'type' => 'integer' ),
 					'path'       => array( 'type' => 'string' ),
 					'referrer'   => array( 'type' => 'string' ),
+					'consent'    => array( 'type' => 'boolean' ),
 				),
 			)
 		);
@@ -181,6 +215,22 @@ final class RestApi {
 				'callback'            => static function ( \WP_REST_Request $r ) {
 					return self::result( ContractApi::record_sale( (array) $r->get_json_params() ) );
 				},
+				'args'                => self::contract_args(
+					array(
+						'currency' => array(
+							'type'     => 'string',
+							'required' => true,
+							'pattern'  => '^[A-Za-z]{3}$',
+						),
+						'items'    => array(
+							'type'     => 'array',
+							'required' => true,
+							'minItems' => 1,
+							'maxItems' => ContractApi::MAX_ITEMS,
+							'items'    => array( 'type' => 'object' ),
+						),
+					)
+				),
 			)
 		);
 		register_rest_route(
@@ -192,6 +242,39 @@ final class RestApi {
 				'callback'            => static function ( \WP_REST_Request $r ) {
 					return self::result( ContractApi::record_refund( (array) $r->get_json_params() ) );
 				},
+				'args'                => self::contract_args(
+					array(
+						'refund_id' => array(
+							'type'      => array( 'string', 'integer' ),
+							'required'  => true,
+							'maxLength' => 64,
+						),
+						'items'     => array(
+							'type'     => 'array',
+							'maxItems' => ContractApi::MAX_ITEMS,
+							'items'    => array( 'type' => 'object' ),
+						),
+					)
+				),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/reinstatements',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => self::can( Capabilities::MANAGE_PROGRAM ),
+				'callback'            => static function ( \WP_REST_Request $r ) {
+					return self::result( ContractApi::record_reinstatement( (array) $r->get_json_params() ) );
+				},
+				'args'                => self::contract_args(
+					array(
+						'refund_id' => array(
+							'type'      => array( 'string', 'integer' ),
+							'maxLength' => 64,
+						),
+					)
+				),
 			)
 		);
 		register_rest_route(
@@ -316,6 +399,31 @@ final class RestApi {
 	}
 
 	/**
+	 * Schema of the contract routes (the contract validates everything again in detail).
+	 *
+	 * @param array $extra Route specific args.
+	 * @return array
+	 */
+	private static function contract_args( array $extra ) {
+		return $extra + array(
+			'contract' => array(
+				'type'      => 'string',
+				'maxLength' => 20,
+			),
+			'source'   => array(
+				'type'      => 'string',
+				'required'  => true,
+				'maxLength' => 40,
+			),
+			'order_id' => array(
+				'type'      => array( 'string', 'integer' ),
+				'required'  => true,
+				'maxLength' => 64,
+			),
+		);
+	}
+
+	/**
 	 * Common paging args.
 	 *
 	 * @param array $extra Extra args.
@@ -368,7 +476,25 @@ final class RestApi {
 					202
 				);
 			}
+			if ( 'wpac_not_queued' === $result->get_error_code() ) {
+				// Server problem (e.g. database unavailable): the sender must try again later.
+				$res = new \WP_REST_Response(
+					array(
+						'code'    => 'wpac_not_queued',
+						'message' => $result->get_error_message(),
+						'data'    => array( 'status' => 503 ),
+					),
+					503
+				);
+				$res->header( 'Retry-After', '300' );
+				return $res;
+			}
 			$result->add_data( array( 'status' => 400 ) );
+			return $result;
+		}
+		if ( is_array( $result ) && isset( $result['status'] ) && in_array( $result['status'], array( 'queued', 'parked' ), true ) ) {
+			// Stored for later processing (waiting for its sale): the same 202 as a queued sale.
+			return new \WP_REST_Response( $result, 202 );
 		}
 		return $result;
 	}
@@ -399,10 +525,19 @@ final class RestApi {
 	 * @return array|\WP_Error
 	 */
 	public static function check_code( \WP_REST_Request $r ) {
+		// Public GET: never from a CDN/proxy cache (a cached "valid" would outlive a deactivated code).
 		if ( ! RateLimiter::allow( 'rest_code', 20, MINUTE_IN_SECONDS ) ) {
-			return new \WP_Error( 'wpac_rate_limited', __( 'Too many attempts. Please wait a minute and try again.', 'affiliate-captain' ), array( 'status' => 429 ) );
+			$res = new \WP_Error( 'wpac_rate_limited', __( 'Too many attempts. Please wait a minute and try again.', 'affiliate-captain' ), array( 'status' => 429 ) );
+			if ( function_exists( 'rest_convert_error_to_response' ) ) {
+				$res = rest_convert_error_to_response( $res );
+			}
+		} else {
+			$res = rest_ensure_response( array( 'valid' => (bool) wpac_resolve_partner_code( (string) $r['code'], array( 'context' => 'rest' ) ) ) );
 		}
-		return array( 'valid' => (bool) wpac_resolve_partner_code( (string) $r['code'], array( 'context' => 'rest' ) ) );
+		if ( $res instanceof \WP_REST_Response ) {
+			$res->header( 'Cache-Control', 'no-store, private' );
+		}
+		return $res;
 	}
 
 	/**
@@ -534,8 +669,8 @@ final class RestApi {
 	 * @return array
 	 */
 	public static function report( \WP_REST_Request $r ) {
-		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['from'] ) ? (string) $r['from'] : gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
-		$to   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['to'] ) ? (string) $r['to'] : gmdate( 'Y-m-d' );
+		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['from'] ) ? (string) $r['from'] : wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
+		$to   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['to'] ) ? (string) $r['to'] : wp_date( 'Y-m-d' );
 		$rows = 'partners' === $r['view'] ? Reports::partners( $from, $to ) : Reports::by_dimension( 'content' === $r['view'] ? 'content_id' : 'campaign', $from, $to );
 		return array(
 			'from'        => $from,
@@ -570,6 +705,14 @@ final class RestApi {
 			'currency'          => $currency,
 			'totals_minor'      => $sum,
 			'available_minor'   => PayoutRequests::available( (int) $aff->id ),
+			// All booking currencies (orders in USD are booked in USD): status => currency => minor.
+			'totals_by_currency'    => $totals,
+			'available_by_currency' => array_map(
+				static function ( $a ) {
+					return (int) $a['gross'];
+				},
+				PayoutRequests::available_all( (int) $aff->id )
+			),
 			'min_payout_minor'  => (int) Settings::get( 'min_payout_minor' ),
 			'codes'             => array_values(
 				array_map(

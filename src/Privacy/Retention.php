@@ -117,6 +117,70 @@ final class Retention {
 		return $n;
 	}
 
+	/** Partners anonymised per daily run. */
+	const ENDED_BATCH = 50;
+
+	/**
+	 * Daily: partners whose partnership ended (terminated, or rejected with bookings) are
+	 * anonymised without an erasure request once nothing requires their data any more
+	 * (storage limitation, Art. 5(1)(e) GDPR): with bookings after the statutory retention of
+	 * their last booking, without any booking after the retention of rejected applications.
+	 * Nothing is deleted during a tax audit / legal hold or while something is still open.
+	 *
+	 * @return int Partners anonymised.
+	 */
+	public static function purge_ended() {
+		global $wpdb;
+		if ( self::on_hold() ) {
+			return 0;
+		}
+		$cutoff = self::cutoff();
+		$days   = (int) Settings::get( 'application_retention_days' );
+		$quiet  = $days > 0 ? Db::now( time() - $days * DAY_IN_SECONDS ) : null;
+		if ( null === $cutoff && null === $quiet ) {
+			return 0;
+		}
+		$a = Db::table( 'affiliates' );
+		$c = Db::table( 'commissions' );
+		$p = Db::table( 'payouts' );
+		// Booking-free partners first (cheap), then those whose bookings are past the retention.
+		$cond   = array();
+		$params = array();
+		if ( null !== $quiet ) {
+			$cond[]   = "( a.status = 'terminated' AND a.updated_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.affiliate_id = a.id ) AND NOT EXISTS ( SELECT 1 FROM {$p} p WHERE p.affiliate_id = a.id ) )";
+			$params[] = $quiet;
+		}
+		if ( null !== $cutoff ) {
+			$cond[]   = "( a.status IN ('terminated','rejected') AND a.updated_at < %s )";
+			$params[] = $cutoff;
+		}
+		$params[] = self::ENDED_BATCH * 4;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table names; values are placeholders.
+		$ids = (array) $wpdb->get_col( $wpdb->prepare( "SELECT a.id FROM {$a} a WHERE a.status_reason <> 'privacy_erasure' AND ( " . implode( ' OR ', $cond ) . ' ) ORDER BY a.id LIMIT %d', $params ) );
+		$n   = 0;
+		foreach ( $ids as $id ) {
+			$id  = (int) $id;
+			$aff = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( $id );
+			if ( ! $aff || Privacy::has_open_items( $id ) || Restriction::is_restricted( $id ) ) {
+				continue; // Open money, or restricted on request (Art. 18): keep.
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$bookings = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ( SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d ) + ( SELECT COUNT(*) FROM {$p} WHERE affiliate_id = %d )", $id, $id ) );
+			if ( $bookings && ! self::partner_expired( $id ) ) {
+				continue; // Credit notes and their partner data are still within the retention.
+			}
+			Privacy::erase_partner( $aff );
+			self::scrub_ledger_texts( $id );
+			self::delete_agreements( $id );
+			Restriction::remove( $id, Restriction::ERASURE, false );
+			Audit::log( 'privacy.retention_anonymised', 'affiliate', $id, array( 'bookings' => $bookings ? 1 : 0 ) );
+			if ( ++$n >= self::ENDED_BATCH ) {
+				break;
+			}
+		}
+		return $n;
+	}
+
 	/**
 	 * Delete free texts in booking records (reasons and notes may contain personal data).
 	 *

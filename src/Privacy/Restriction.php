@@ -70,24 +70,34 @@ final class Restriction {
 	 * @param int    $affiliate_id Partner.
 	 * @param string $kind         erasure|request.
 	 * @param string $note         Internal note (why, e.g. "accuracy disputed").
+	 * @return bool Whether the restriction is stored (it is checked by reading it back).
 	 */
 	public static function add( $affiliate_id, $kind, $note = '' ) {
 		$entry = array(
 			'kind'  => $kind,
 			'since' => Db::now(),
-			'note'  => substr( sanitize_text_field( (string) $note ), 0, 190 ),
+			'note'  => Db::cut( sanitize_text_field( (string) $note ), 190 ),
 		);
 		// Read and write under a lock: two parallel changes must not overwrite each other.
-		Db::with_lock(
+		// update_option() also returns false for an unchanged value, so the stored list decides.
+		$saved = (bool) Db::with_lock(
 			self::LOCK,
 			static function () use ( $affiliate_id, $entry ) {
 				$all                        = self::fresh();
 				$all[ (int) $affiliate_id ] = $entry;
 				update_option( self::OPTION, $all, false );
+				$stored = self::fresh();
+				return isset( $stored[ (int) $affiliate_id ]['kind'] ) && $stored[ (int) $affiliate_id ]['kind'] === $entry['kind'];
 			}
 		);
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache( (int) $affiliate_id );
+		if ( ! $saved ) {
+			\WPAffiliateCaptain\Core\Log::error( 'Restriction of processing could not be saved', array( 'affiliate' => (int) $affiliate_id, 'kind' => $kind ) );
+			Audit::log( 'privacy.restriction_failed', 'affiliate', (int) $affiliate_id, array( 'kind' => $kind ) );
+			return false;
+		}
 		Audit::log( 'privacy.restricted', 'affiliate', (int) $affiliate_id, array( 'kind' => $kind ) );
+		return true;
 	}
 
 	/** Lock of the list (read-modify-write). */

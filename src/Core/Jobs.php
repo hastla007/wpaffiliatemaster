@@ -13,36 +13,59 @@ defined( 'ABSPATH' ) || exit;
 
 final class Jobs {
 
+	/** Default number of attempts before a job fails for good (filter wpac_job_max_attempts). */
 	const MAX_ATTEMPTS = 8;
+
+	/**
+	 * Attempts before a job fails for good.
+	 *
+	 * @return int
+	 */
+	public static function max_attempts() {
+		/**
+		 * Attempts before a sale or refund job fails for good and needs a manual retry.
+		 *
+		 * @param int $attempts Default 8 (backoff 10 min … 24 h, about 2 days in total).
+		 */
+		return max( 4, (int) apply_filters( 'wpac_job_max_attempts', self::MAX_ATTEMPTS ) );
+	}
 
 	/**
 	 * Queue (or re-queue) a job. The idempotency key prevents duplicates.
 	 *
-	 * @param string $type    Job type (sale|refund|woo_order|woo_refund).
+	 * @param string $type    Job type (sale|refund|woo_order|woo_refund|statement …).
 	 * @param string $key     Idempotency key.
 	 * @param array  $payload Payload.
 	 * @param string $code    Error code of the first failure.
 	 * @param string $message Error message of the first failure.
+	 * @param int    $delay   Seconds until the first run (default: 5 minutes after a failure).
+	 * @param string $status  queued, or parked (runs only when woken, see wake_refunds()).
 	 * @return bool Whether the job is stored (only then may callers report "queued").
 	 */
-	public static function enqueue( $type, $key, array $payload, $code = '', $message = '' ) {
+	public static function enqueue( $type, $key, array $payload, $code = '', $message = '', $delay = 300, $status = 'queued' ) {
+		$status = 'parked' === $status ? 'parked' : 'queued';
 		global $wpdb;
 		$table = Db::table( 'jobs' );
-		$key   = substr( $type . ':' . $key, 0, 191 );
+		$key   = Db::cut( $type . ':' . $key, 191 );
 		$now   = Db::now();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE idempotency_key = %s", $key ) );
+		$row    = $wpdb->get_row( $wpdb->prepare( "SELECT id, status, last_error_code FROM {$table} WHERE idempotency_key = %s", $key ) );
+		$exists = $row ? (int) $row->id : 0;
+		if ( $row && 'done' === $row->status && 'superseded' === $row->last_error_code ) {
+			// This refund is already part of the booked sale (supersede_refunds()): never run it again.
+			return true;
+		}
 		if ( $exists ) {
 			// The attempts are kept: a job that keeps failing must still end as "failed" for the
 			// admin instead of restarting its count with every new failure report.
 			$ok = $wpdb->update(
 				$table,
 				array(
-					'status'          => 'queued',
+					'status'          => $status,
 					'payload'         => wp_json_encode( $payload ),
-					'next_attempt_at' => Db::now( time() + 300 ),
-					'last_error_code' => substr( (string) $code, 0, 64 ),
-					'last_error'      => substr( (string) $message, 0, 255 ),
+					'next_attempt_at' => Db::now( time() + max( 0, (int) $delay ) ),
+					'last_error_code' => Db::cut( (string) $code, 64 ),
+					'last_error'      => Db::cut( (string) $message, 255 ),
 					'updated_at'      => $now,
 				),
 				array( 'id' => (int) $exists )
@@ -55,11 +78,11 @@ final class Jobs {
 				'type'            => $type,
 				'idempotency_key' => $key,
 				'payload'         => wp_json_encode( $payload ),
-				'status'          => 'queued',
-				'attempts'        => 1,
-				'next_attempt_at' => Db::now( time() + 300 ),
-				'last_error_code' => substr( (string) $code, 0, 64 ),
-				'last_error'      => substr( (string) $message, 0, 255 ),
+				'status'          => $status,
+				'attempts'        => 'parked' === $status ? 0 : 1,
+				'next_attempt_at' => Db::now( time() + max( 0, (int) $delay ) ),
+				'last_error_code' => Db::cut( (string) $code, 64 ),
+				'last_error'      => Db::cut( (string) $message, 255 ),
 				'created_at'      => $now,
 				'updated_at'      => $now,
 			)
@@ -79,7 +102,7 @@ final class Jobs {
 		// Jobs whose lease expired (the run died, e.g. timeout or fatal error) count as a
 		// failed attempt: back to the queue, or failed after the last attempt.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = IF(attempts >= %d, 'failed', 'queued'), last_error_code = 'aborted', last_error = 'The previous run did not finish (timeout or fatal error).', updated_at = %s WHERE status = 'running' AND next_attempt_at <= %s", self::MAX_ATTEMPTS, Db::now(), Db::now() ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = IF(attempts >= %d, 'failed', 'queued'), last_error_code = 'aborted', last_error = 'The previous run did not finish (timeout or fatal error).', updated_at = %s WHERE status = 'running' AND next_attempt_at <= %s", self::max_attempts(), Db::now(), Db::now() ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'queued' AND next_attempt_at <= %s ORDER BY next_attempt_at ASC LIMIT %d", Db::now(), $limit ) );
 		foreach ( $ids as $id ) {
@@ -118,7 +141,7 @@ final class Jobs {
 		$table = Db::table( 'jobs' );
 		// A manual retry starts a short new series (3 more attempts) instead of failing at once.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', attempts = LEAST(attempts, %d), next_attempt_at = %s, updated_at = %s WHERE status = 'failed'", self::MAX_ATTEMPTS - 3, Db::now(), Db::now() ) );
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', attempts = LEAST(attempts, %d), next_attempt_at = %s, updated_at = %s WHERE status = 'failed'", self::max_attempts() - 3, Db::now(), Db::now() ) );
 		if ( $n ) {
 			Audit::log( 'job.retry_all', 'job', 0, array( 'count' => $n ) );
 		}
@@ -179,24 +202,37 @@ final class Jobs {
 			return true;
 		} catch ( \Throwable $e ) {
 			$attempts = (int) $job->attempts;
+			$max      = self::max_attempts();
 			$delay    = min( DAY_IN_SECONDS, 300 * ( 2 ** min( $attempts, 10 ) ) );
-			if ( $e instanceof IntegrationException && 'sale_pending' === $e->error_code ) {
-				// Waiting for the sale is not a failure: it must not use up the attempts
-				// (the sale job wakes this job when it is booked, see wake_refunds()).
+			$code     = $e instanceof IntegrationException ? $e->error_code : 'exception';
+			$context  = array(
+				'job'      => (int) $job->id,
+				'type'     => (string) $job->type,
+				'attempts' => $attempts,
+			);
+			if ( 'sale_pending' === $code || 'no_handler' === $code ) {
+				// Waiting for the sale, or no handler right now (e.g. WooCommerce briefly
+				// deactivated during an update), is not a failure of the job: it must not use up
+				// the attempts. The sale job wakes a waiting refund when it is booked (wake_refunds()).
 				$attempts = max( 0, $attempts - 1 );
 				$delay    = HOUR_IN_SECONDS;
-			}
-			if ( $attempts >= self::MAX_ATTEMPTS ) {
-				Log::error( 'Job failed for good', array( 'job' => (int) $job->id, 'type' => $job->type, 'error' => $e instanceof IntegrationException ? $e->error_code : 'exception', 'message' => substr( $e->getMessage(), 0, 300 ) ) );
+				Log::debug( 'Job postponed: ' . $code, $context );
+			} elseif ( $attempts >= $max ) {
+				Log::exception( 'Job failed for good', $e, $context );
+			} elseif ( 1 === $attempts ) {
+				// The first failure is logged as well: the cause is often only visible there.
+				Log::exception( 'Job failed, will be retried', $e, $context, 'warning' );
+			} else {
+				Log::exception( 'Job failed again, will be retried', $e, $context, 'debug' );
 			}
 			$wpdb->update(
 				$table,
 				array(
-					'status'          => $attempts >= self::MAX_ATTEMPTS ? 'failed' : 'queued',
+					'status'          => $attempts >= $max ? 'failed' : 'queued',
 					'attempts'        => $attempts,
 					'next_attempt_at' => Db::now( time() + $delay ),
-					'last_error_code' => substr( $e instanceof IntegrationException ? $e->error_code : 'exception', 0, 64 ),
-					'last_error'      => substr( $e->getMessage(), 0, 255 ),
+					'last_error_code' => Db::cut( $code, 64 ),
+					'last_error'      => Db::cut( Log::plain( $e->getMessage() ), 255 ),
 					'updated_at'      => Db::now(),
 				),
 				array( 'id' => (int) $job->id )
@@ -215,8 +251,14 @@ final class Jobs {
 	 */
 	public static function sale_pending( $source, $order_id ) {
 		global $wpdb;
-		// Being booked right now by another request (see ContractApi::record_sale()).
+		// Being booked right now by another request (see ContractApi::record_sale()): a MySQL
+		// user lock held by that request's connection (nothing is written for it).
 		$inflight = self::inflight_key( $source, $order_id );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( null !== $wpdb->get_var( $wpdb->prepare( 'SELECT IS_USED_LOCK(%s)', self::inflight_lock( $inflight ) ) ) ) {
+			return true;
+		}
+		// Marker row of older versions (and of a request still running during an update).
 		wp_cache_delete( $inflight, 'options' );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$since = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $inflight ) );
@@ -224,9 +266,23 @@ final class Jobs {
 			return true;
 		}
 		$table = Db::table( 'jobs' );
-		$keys  = array( substr( 'sale:' . $source . ':' . $order_id, 0, 191 ), substr( 'woo_order:' . $source . ':' . $order_id, 0, 191 ) );
+		$keys  = array( Db::cut( 'sale:' . $source . ':' . $order_id, 191 ), Db::cut( 'woo_order:' . $source . ':' . $order_id, 191 ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key IN (%s, %s) AND status IN ('queued','running','failed') LIMIT 1", $keys[0], $keys[1] ) );
+	}
+
+	/**
+	 * Whether refund jobs of an order are still waiting (queued, running, failed or parked).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @return bool
+	 */
+	public static function refunds_pending( $source, $order_id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE type = 'refund' AND idempotency_key LIKE %s AND status IN ('queued','running','failed','parked') LIMIT 1", $wpdb->esc_like( Db::cut( 'refund:' . $source . ':' . $order_id . ':', 191 ) ) . '%' ) );
 	}
 
 	/**
@@ -241,7 +297,7 @@ final class Jobs {
 		}
 		$table = Db::table( 'jobs' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE type = 'refund' AND idempotency_key LIKE %s AND status IN ('queued','failed')", Db::now(), Db::now(), $wpdb->esc_like( 'refund:' . $order_key . ':' ) . '%' ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE type = 'refund' AND idempotency_key LIKE %s AND status IN ('queued','failed','parked')", Db::now(), Db::now(), $wpdb->esc_like( 'refund:' . $order_key . ':' ) . '%' ) );
 	}
 
 	/**
@@ -254,11 +310,48 @@ final class Jobs {
 	public static function supersede_refunds( $source, $order_id, array $refund_ids ) {
 		global $wpdb;
 		$table = Db::table( 'jobs' );
-		foreach ( $refund_ids as $rid ) {
-			$key = substr( 'refund:' . $source . ':' . $order_id . ':' . $rid, 0, 191 );
+		foreach ( array_unique( array_map( 'strval', $refund_ids ) ) as $rid ) {
+			if ( '' === $rid ) {
+				continue;
+			}
+			$key = Db::cut( 'refund:' . $source . ':' . $order_id . ':' . $rid, 191 );
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the retried sale.', updated_at = %s WHERE idempotency_key = %s AND status IN ('queued','failed')", Db::now(), $key ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the retried sale.', updated_at = %s WHERE idempotency_key = %s AND status IN ('queued','failed','parked','running')", Db::now(), $key ) );
+			// A refund reported later (or still on its way, parallel request) must not be deducted
+			// again: leave a closed marker that enqueue() and is_superseded() recognize.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$table} (type, idempotency_key, payload, status, attempts, next_attempt_at, last_error_code, last_error, created_at, updated_at) VALUES ('refund', %s, '{}', 'done', 0, %s, 'superseded', 'Already deducted in the retried sale.', %s, %s)", $key, Db::now(), Db::now(), Db::now() ) );
 		}
+	}
+
+	/**
+	 * Close the parked refunds of an order (reported before the sale; the sale of a source
+	 * without `netted_refund_ids` already deducted them, see ContractApi::after_booking()).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 */
+	public static function supersede_parked( $source, $order_id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'superseded', last_error = 'Already deducted in the reported sale.', updated_at = %s WHERE type = 'refund' AND idempotency_key LIKE %s AND status = 'parked'", Db::now(), $wpdb->esc_like( Db::cut( 'refund:' . $source . ':' . $order_id . ':', 191 ) ) . '%' ) );
+	}
+
+	/**
+	 * Whether a refund is already part of the booked sale of its order (supersede_refunds()).
+	 *
+	 * @param string $source    Source.
+	 * @param string $order_id  Order ID.
+	 * @param string $refund_id Refund ID.
+	 * @return bool
+	 */
+	public static function is_superseded( $source, $order_id, $refund_id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		$key   = Db::cut( 'refund:' . $source . ':' . $order_id . ':' . $refund_id, 191 );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE idempotency_key = %s AND status = 'done' AND last_error_code = 'superseded'", $key ) );
 	}
 
 	/**
@@ -273,30 +366,134 @@ final class Jobs {
 	}
 
 	/**
-	 * Reset a failed job so it runs at the next opportunity.
+	 * Name of the MySQL user lock for an in-flight marker. User locks are server-wide, so the
+	 * database and table prefix are part of the name (several sites on one server). Max. 64 characters.
+	 *
+	 * @param string $inflight Marker name (inflight_key()).
+	 * @return string
+	 */
+	public static function inflight_lock( $inflight ) {
+		global $wpdb;
+		return 'wpac_' . md5( ( defined( 'DB_NAME' ) ? DB_NAME : '' ) . '|' . $wpdb->prefix . '|' . $inflight );
+	}
+
+	/**
+	 * Mark a sale as being booked by this request (no database write; released at the latest
+	 * when the connection ends, so a request that dies leaves nothing behind).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @return bool Whether this request holds the marker (false: a parallel request books it).
+	 */
+	public static function begin_inflight( $source, $order_id ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return 1 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', self::inflight_lock( self::inflight_key( $source, $order_id ) ) ) );
+	}
+
+	/**
+	 * Release the marker of begin_inflight().
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 */
+	public static function end_inflight( $source, $order_id ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', self::inflight_lock( self::inflight_key( $source, $order_id ) ) ) );
+	}
+
+	/**
+	 * Run a failed or waiting job now ("retry now"). Jobs that are running or done are left
+	 * alone: a second run next to a running one would book in parallel.
 	 *
 	 * @param int $id Job ID.
+	 * @return bool Whether the job ran successfully.
 	 */
 	public static function retry( $id ) {
 		global $wpdb;
-		$wpdb->update(
-			Db::table( 'jobs' ),
-			array(
-				'status'          => 'queued',
-				'next_attempt_at' => Db::now(),
-				'updated_at'      => Db::now(),
-			),
-			array( 'id' => (int) $id )
-		);
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE id = %d AND status IN ('queued','failed','parked')", Db::now(), Db::now(), (int) $id ) );
+		if ( 1 !== $n ) {
+			return false;
+		}
 		Audit::log( 'job.retry', 'job', (int) $id );
 		return self::run( (int) $id );
 	}
 
 	/**
-	 * Jobs list for the admin.
+	 * One job.
 	 *
-	 * @param string $status Optional status filter.
-	 * @param int    $limit  Limit.
+	 * @param int $id Job ID.
+	 * @return object|null
+	 */
+	public static function find( $id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", (int) $id ) );
+	}
+
+	/**
+	 * Dismiss a failed or parked job on purpose (it is not retried any more). Audited.
+	 *
+	 * @param int $id Job ID.
+	 * @return bool
+	 */
+	public static function dismiss( $id ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		$job   = self::find( $id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', last_error_code = 'dismissed', last_error = 'Dismissed in the admin.', updated_at = %s WHERE id = %d AND status IN ('failed','parked')", Db::now(), (int) $id ) );
+		if ( 1 !== $n ) {
+			return false;
+		}
+		Audit::log(
+			'job.dismissed',
+			'job',
+			(int) $id,
+			array(
+				'type' => $job ? $job->type : '',
+				'key'  => $job ? $job->idempotency_key : '',
+			)
+		);
+		return true;
+	}
+
+	/**
+	 * Number of jobs with a status (the list itself is limited).
+	 *
+	 * @param string $status Status.
+	 * @return int
+	 */
+	public static function count( $status ) {
+		global $wpdb;
+		$table = Db::table( 'jobs' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE status = %s", (string) $status ) );
+	}
+
+	/**
+	 * Order a job is about ([ source, order ID ]) from its key type:source:order[:refund].
+	 *
+	 * @param object $job Job row.
+	 * @return array|null
+	 */
+	public static function order_of( $job ) {
+		$parts = explode( ':', (string) $job->idempotency_key );
+		if ( count( $parts ) < 3 || '' === $parts[1] || '' === $parts[2] || ! in_array( (string) $job->type, array( 'sale', 'refund', 'reinstate', 'woo_reinstate' ), true ) ) {
+			return null;
+		}
+		return array( $parts[1], $parts[2] );
+	}
+
+	/**
+	 * Jobs (newest first).
+	 *
+	 * @param string $status Status ('' = all open and failed).
+	 * @param int    $limit  Maximum.
 	 * @return array
 	 */
 	public static function query( $status = '', $limit = 100 ) {

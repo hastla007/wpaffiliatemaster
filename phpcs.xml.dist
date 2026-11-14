@@ -14,11 +14,9 @@
 	<config name="text_domain" value="affiliate-captain"/>
 
 	<!-- Security: escaping, nonces, sanitizing input, prepared SQL. -->
-	<rule ref="WordPress.Security">
-		<!-- Exception messages are never printed raw: they go to the audit log, job errors and
-		     WP_Error messages, which are escaped where they are shown. -->
-		<exclude name="WordPress.Security.EscapeOutput.ExceptionNotEscaped"/>
-	</rule>
+	<!-- Including ExceptionNotEscaped: the WordPress.org upload check reports it, so exception
+	     messages are escaped where they are thrown. -->
+	<rule ref="WordPress.Security"/>
 	<rule ref="WordPress.DB.PreparedSQL"/>
 	<rule ref="WordPress.DB.PreparedSQLPlaceholders"/>
 	<rule ref="WordPress.DB.RestrictedFunctions"/>

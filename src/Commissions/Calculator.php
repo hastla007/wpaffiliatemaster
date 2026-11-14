@@ -4,13 +4,19 @@
  *
  * Rule shape: [ id, scope (global|group|affiliate), scope_id, target (all|product|category|tag|sku),
  *               target_value, rate_type (percent|fixed|exclude), rate, priority, active ]
- * Item shape: [ product_id, parent_id, sku, category_ids[], quantity, net_minor ]
+ * Item shape: [ product_id, parent_id, sku, category_ids[], category_ancestor_ids[], quantity, net_minor ]
  *
- * Resolution:
+ * Resolution (precedence "scope", the default):
  *  - A matching "exclude" rule on any level excludes the item (explicit exclusions win).
  *  - Otherwise the most specific matching rule wins: affiliate > group > global,
- *    then product/SKU > category/tag > all, then priority, then newest rule.
+ *    then product/SKU > category/tag > all, then the finer match (variation before its parent
+ *    product, exact SKU before a wildcard – longer prefix first –, own category before a parent
+ *    category), then priority, then newest rule.
  *  - Without a matching rule the program default applies.
+ *
+ * Precedence "target" (setting rule_precedence): the target counts first (product/SKU >
+ * category/tag > all), the scope second, and exclusions compete like any other rule – so a
+ * partner rule for a product or category overrides a global exclusion of the same target.
  *
  * @package WPAffiliateCaptain
  */
@@ -33,6 +39,9 @@ final class Calculator {
 		'tag'      => 20,
 		'all'      => 10,
 	);
+
+	/** Rule precedence: scope first (default) or target first. */
+	const PRECEDENCES = array( 'scope', 'target' );
 
 	/**
 	 * Does a rule match an item/affiliate?
@@ -71,8 +80,8 @@ final class Calculator {
 				$ids = array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
 				return in_array( (int) $item['product_id'], $ids, true ) || ( ! empty( $item['parent_id'] ) && in_array( (int) $item['parent_id'], $ids, true ) );
 			case 'category':
-				$ids = array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
-				return (bool) array_intersect( $ids, array_map( 'intval', (array) $item['category_ids'] ) );
+				// Rules on a parent category apply to products of its subcategories as well.
+				return self::precision( $rule, $item ) > 0;
 			case 'tag':
 				$ids = array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
 				return (bool) array_intersect( $ids, array_map( 'intval', isset( $item['tag_ids'] ) ? (array) $item['tag_ids'] : array() ) );
@@ -93,27 +102,71 @@ final class Calculator {
 	}
 
 	/**
+	 * How exactly a matching rule fits the item within its target type (higher = finer):
+	 * product: variation itself 2, its parent product 1; SKU: exact 1000, wildcard by prefix
+	 * length; category: own category 2, a parent category 1. 0 = no match (category only).
+	 *
+	 * @param array $rule Rule.
+	 * @param array $item Item.
+	 * @return int
+	 */
+	public static function precision( array $rule, array $item ) {
+		$value = (string) $rule['target_value'];
+		switch ( $rule['target'] ) {
+			case 'product':
+				$ids = array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
+				return in_array( (int) $item['product_id'], $ids, true ) ? 2 : 1;
+			case 'sku':
+				$sku  = strtoupper( trim( (string) $item['sku'] ) );
+				$best = 0;
+				foreach ( array_filter( array_map( 'trim', explode( ',', strtoupper( $value ) ) ) ) as $pattern ) {
+					if ( $sku === $pattern ) {
+						return 1000;
+					}
+					if ( '*' === substr( $pattern, -1 ) && 0 === strpos( $sku, substr( $pattern, 0, -1 ) ) ) {
+						$best = max( $best, min( 999, strlen( $pattern ) ) );
+					}
+				}
+				return $best;
+			case 'category':
+				$ids = array_map( 'intval', array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
+				if ( array_intersect( $ids, array_map( 'intval', isset( $item['category_ids'] ) ? (array) $item['category_ids'] : array() ) ) ) {
+					return 2;
+				}
+				return array_intersect( $ids, array_map( 'intval', isset( $item['category_ancestor_ids'] ) ? (array) $item['category_ancestor_ids'] : array() ) ) ? 1 : 0;
+		}
+		return 0;
+	}
+
+	/**
 	 * Pick the applicable rule.
 	 *
-	 * @param array $rules        Rules.
-	 * @param array $item         Item.
-	 * @param int   $affiliate_id Affiliate.
-	 * @param int   $group_id     Group.
+	 * @param array  $rules        Rules.
+	 * @param array  $item         Item.
+	 * @param int    $affiliate_id Affiliate.
+	 * @param int    $group_id     Group.
+	 * @param string $precedence   scope (default) or target, see the class comment.
 	 * @return array|null Rule or null (= default).
 	 */
-	public static function pick_rule( array $rules, array $item, $affiliate_id, $group_id ) {
+	public static function pick_rule( array $rules, array $item, $affiliate_id, $group_id, $precedence = 'scope' ) {
 		$best       = null;
 		$best_score = null;
+		$by_target  = 'target' === $precedence;
 		foreach ( $rules as $rule ) {
 			if ( ! self::matches( $rule, $item, $affiliate_id, $group_id ) ) {
 				continue;
 			}
-			if ( 'exclude' === $rule['rate_type'] ) {
+			if ( 'exclude' === $rule['rate_type'] && ! $by_target ) {
 				return $rule;
 			}
-			$score = array(
-				self::SCOPE_WEIGHT[ $rule['scope'] ] + self::TARGET_WEIGHT[ $rule['target'] ],
+			$scope  = self::SCOPE_WEIGHT[ $rule['scope'] ];
+			$target = self::TARGET_WEIGHT[ $rule['target'] ];
+			$score  = array(
+				$by_target ? $target * 100 + $scope : $scope + $target,
+				self::precision( $rule, $item ),
 				(int) $rule['priority'],
+				// Same rank in "target" mode: an exclusion wins over a rate.
+				$by_target && 'exclude' === $rule['rate_type'] ? 1 : 0,
 				(int) $rule['id'],
 			);
 			if ( null === $best_score || $score > $best_score ) {
@@ -132,11 +185,13 @@ final class Calculator {
 	 * @param int    $affiliate_id Affiliate.
 	 * @param int    $group_id     Group.
 	 * @param array  $default      [ rate_type, rate ] program default (fixed = minor units).
+	 * @param bool   $filter       Apply the wpac_commission_amount filter (false: the caller does it once, see filter_amount()).
+	 * @param string $precedence   Rule precedence (scope|target).
 	 * @return array amount_minor, base_minor, rate_type, rate, rule_id, excluded, rule
 	 */
-	public static function calculate( array $item, array $rules, $affiliate_id, $group_id, array $default ) {
+	public static function calculate( array $item, array $rules, $affiliate_id, $group_id, array $default, $filter = true, $precedence = 'scope' ) {
 		$base = max( 0, (int) $item['net_minor'] );
-		$rule = self::pick_rule( $rules, $item, $affiliate_id, $group_id );
+		$rule = self::pick_rule( $rules, $item, $affiliate_id, $group_id, $precedence );
 
 		if ( $rule && 'exclude' === $rule['rate_type'] ) {
 			return array(
@@ -163,18 +218,8 @@ final class Calculator {
 		}
 
 		$amount = max( 0, $amount );
-		if ( function_exists( 'apply_filters' ) ) {
-			/**
-			 * Commission of one line item (minor units) after the rule was applied, e.g. for
-			 * add-on rules. Never negative; excluded items are not filtered.
-			 *
-			 * @since contract 1.2.0
-			 * @param int        $amount       Commission (minor units).
-			 * @param array      $item         Line item (net_minor, product_id, quantity, …).
-			 * @param int        $affiliate_id Partner.
-			 * @param array|null $rule         Applied rule (null = program default).
-			 */
-			$amount = max( 0, (int) apply_filters( 'wpac_commission_amount', $amount, $item, (int) $affiliate_id, $rule ) );
+		if ( $filter ) {
+			$amount = self::filter_amount( $amount, $item, $affiliate_id, $rule, $base );
 		}
 
 		return array(
@@ -186,6 +231,36 @@ final class Calculator {
 			'excluded'     => false,
 			'rule'         => $rule,
 		);
+	}
+
+	/**
+	 * Apply the wpac_commission_amount filter (once per line). The result is never negative and
+	 * never more than the net base of the line.
+	 *
+	 * @param int        $amount       Commission (minor units).
+	 * @param array      $item         Item.
+	 * @param int        $affiliate_id Partner.
+	 * @param array|null $rule         Applied rule.
+	 * @param int        $base         Net base of the line.
+	 * @return int
+	 */
+	public static function filter_amount( $amount, array $item, $affiliate_id, $rule, $base ) {
+		if ( ! function_exists( 'apply_filters' ) ) {
+			return (int) $amount;
+		}
+		/**
+		 * Commission of one line item (minor units) after the rule was applied, e.g. for
+		 * add-on rules. Never negative and never above the net base of the line; excluded
+		 * items are not filtered. Runs once per line (after wpac_commission_base).
+		 *
+		 * @since contract 1.2.0
+		 * @param int        $amount       Commission (minor units).
+		 * @param array      $item         Line item (net_minor, product_id, quantity, …).
+		 * @param int        $affiliate_id Partner.
+		 * @param array|null $rule         Applied rule (null = program default).
+		 */
+		$filtered = apply_filters( 'wpac_commission_amount', $amount, $item, (int) $affiliate_id, $rule );
+		return min( max( 0, (int) $base ), max( 0, (int) $filtered ) );
 	}
 
 	/**

@@ -30,31 +30,196 @@ final class Admin {
 		add_action( 'admin_post_wpac', array( __CLASS__, 'dispatch' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'setup_notice' ) );
+		add_action( 'admin_init', array( __CLASS__, 'activation_redirect' ) );
+		add_filter( 'set_screen_option_wpac_partners_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set_screen_option_wpac_commissions_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set-screen-option', array( __CLASS__, 'save_screen_option' ), 10, 3 ); // WordPress before 5.4.2.
+		add_filter( 'default_hidden_columns', array( __CLASS__, 'default_hidden_columns' ), 10, 2 );
 		add_action( 'admin_notices', array( __CLASS__, 'cron_notice' ) );
+		add_action( 'wp_ajax_wpac_partner_search', array( __CLASS__, 'ajax_partner_search' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WPAC_FILE ), array( __CLASS__, 'action_links' ) );
 		Pages\ImportExportPage::register_hooks(); // Own menu entry and admin-post actions.
 	}
 
 	public static function menu() {
-		add_menu_page( __( 'Affiliate Captain', 'affiliate-captain' ), __( 'Affiliate Captain', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ), 'dashicons-groups', 56 );
-		add_submenu_page( 'wpac', __( 'Dashboard', 'affiliate-captain' ), __( 'Dashboard', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ) );
+		$bubble = self::review_bubble( \WPAffiliateCaptain\Commissions\ReviewAlert::count_for_user() );
+		add_menu_page( __( 'Affiliate Captain', 'affiliate-captain' ), __( 'Affiliate Captain', 'affiliate-captain' ) . $bubble, Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ), 'dashicons-groups', 56 );
+		$dashboard = add_submenu_page( 'wpac', __( 'Dashboard', 'affiliate-captain' ), __( 'Dashboard', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac', array( DashboardPage::class, 'render' ) );
 		$partners = add_submenu_page( 'wpac', __( 'Partners', 'affiliate-captain' ), __( 'Partners', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-affiliates', array( AffiliatesPage::class, 'render' ) );
-		$ledger   = add_submenu_page( 'wpac', __( 'Commissions', 'affiliate-captain' ), __( 'Commissions', 'affiliate-captain' ), Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
+		$ledger   = add_submenu_page( 'wpac', __( 'Commissions', 'affiliate-captain' ), __( 'Commissions', 'affiliate-captain' ) . $bubble, Capabilities::MANAGE_AFFILIATES, 'wpac-commissions', array( CommissionsPage::class, 'render' ) );
 		// List table bulk actions are processed before any output (then redirected).
 		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
 		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
-		add_submenu_page( 'wpac', __( 'Payouts', 'affiliate-captain' ), __( 'Payouts', 'affiliate-captain' ), Capabilities::MANAGE_PAYOUTS, 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
+		$payouts = add_submenu_page( 'wpac', __( 'Payouts', 'affiliate-captain' ), __( 'Payouts', 'affiliate-captain' ), Capabilities::payouts_page_cap(), 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
+		// Daily work first, technical pages and settings last (R5-O46).
+		Pages\ImportExportPage::menu();
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
+		$settings = add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
+		// Screen options (rows per page, columns) and help tabs (R5-O47).
+		add_action( 'load-' . $partners, array( __CLASS__, 'screen_partners' ) );
+		add_action( 'load-' . $ledger, array( __CLASS__, 'screen_commissions' ) );
+		foreach ( array( $dashboard, $partners, $ledger, $payouts, $settings ) as $hook ) {
+			add_action( 'load-' . $hook, array( __CLASS__, 'help_tabs' ) );
+		}
 		/**
 		 * Add-ons add their own pages below the plugin menu (parent slug "wpac").
 		 *
 		 * @param string $parent Parent menu slug.
 		 */
 		do_action( 'wpac_admin_menu', 'wpac' );
+	}
+
+	/**
+	 * Count bubble (WordPress "awaiting-mod" markup) for commissions that need review (R5-W58).
+	 *
+	 * @param int $count Commissions waiting for review.
+	 * @return string HTML ('' when there are none).
+	 */
+	public static function review_bubble( $count ) {
+		$count = (int) $count;
+		if ( $count < 1 ) {
+			return '';
+		}
+		/* translators: %d: number of commissions */
+		$label = sprintf( _n( '%d commission needs review', '%d commissions need review', $count, 'affiliate-captain' ), $count );
+		return ' <span class="awaiting-mod count-' . $count . '"><span class="pending-count" aria-hidden="true">' . esc_html( number_format_i18n( $count ) ) . '</span><span class="screen-reader-text">' . esc_html( $label ) . '</span></span>';
+	}
+
+	/**
+	 * After a manual activation (one plugin, not in bulk, not network-wide): open the dashboard
+	 * with the setup checklist once, for the user who activated the plugin (R5-W61).
+	 */
+	public static function activation_redirect() {
+		$user = (int) get_option( 'wpac_activation_redirect', 0 );
+		if ( ! $user ) {
+			return;
+		}
+		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'get';
+		if ( get_current_user_id() !== $user || 'get' !== $method ) {
+			return; // Left for the user who activated it; never interrupts a form post.
+		}
+		delete_option( 'wpac_activation_redirect' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only read to skip the redirect.
+		$bulk = isset( $_GET['activate-multi'] );
+		if ( $bulk || wp_doing_ajax() || ( defined( 'WP_CLI' ) && WP_CLI ) || is_network_admin() || ! current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
+			return;
+		}
+		wp_safe_redirect( self::url( 'wpac' ) );
+		exit;
+	}
+
+	/**
+	 * Screen options of the partner list: rows per page and columns.
+	 */
+	public static function screen_partners() {
+		add_screen_option(
+			'per_page',
+			array(
+				'label'   => __( 'Partners per page', 'affiliate-captain' ),
+				'default' => 30,
+				'option'  => 'wpac_partners_per_page',
+			)
+		);
+		// The list table registers its columns for the "Columns" checkboxes.
+		$GLOBALS['wpac_list_table'] = new Tables\AffiliatesTable();
+	}
+
+	/**
+	 * Screen options of the commission list: rows per page and columns.
+	 */
+	public static function screen_commissions() {
+		add_screen_option(
+			'per_page',
+			array(
+				'label'   => __( 'Commissions per page', 'affiliate-captain' ),
+				'default' => 50,
+				'option'  => 'wpac_commissions_per_page',
+			)
+		);
+	}
+
+	/**
+	 * Store a rows-per-page screen option of the plugin (1–500).
+	 *
+	 * @param mixed  $keep   Value to keep (false = do not store).
+	 * @param string $option Option name.
+	 * @param mixed  $value  Submitted value.
+	 * @return mixed
+	 */
+	public static function save_screen_option( $keep, $option, $value ) {
+		if ( in_array( $option, array( 'wpac_partners_per_page', 'wpac_commissions_per_page' ), true ) ) {
+			return max( 1, min( 500, (int) $value ) );
+		}
+		return $keep;
+	}
+
+	/**
+	 * Columns of the partner list that are hidden until switched on in the screen options.
+	 *
+	 * @param string[]   $hidden Hidden columns.
+	 * @param \WP_Screen $screen Screen.
+	 * @return string[]
+	 */
+	public static function default_hidden_columns( $hidden, $screen ) {
+		if ( $screen && false !== strpos( (string) $screen->id, 'wpac-affiliates' ) ) {
+			return array_merge( (array) $hidden, Tables\AffiliatesTable::default_hidden() );
+		}
+		return $hidden;
+	}
+
+	/**
+	 * Help tabs of the main pages (WordPress "Help" button) with a link to the handbook.
+	 */
+	public static function help_tabs() {
+		$screen = get_current_screen();
+		if ( ! $screen ) {
+			return;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- page slug only.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		$tabs = self::help_texts();
+		if ( ! isset( $tabs[ $page ] ) ) {
+			return;
+		}
+		foreach ( $tabs[ $page ] as $i => $tab ) {
+			$screen->add_help_tab(
+				array(
+					'id'      => 'wpac-help-' . $page . '-' . $i,
+					'title'   => $tab[0],
+					'content' => '<p>' . esc_html( $tab[1] ) . '</p>',
+				)
+			);
+		}
+		$screen->set_help_sidebar( '<p><strong>' . esc_html__( 'More help', 'affiliate-captain' ) . '</strong></p><p><a href="https://github.com/hastla007/wpaffiliatemaster/blob/main/docs/HANDBOOK.md" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Handbook', 'affiliate-captain' ) . '</a></p>' );
+	}
+
+	/**
+	 * Help texts per page: [ [ title, text ], … ].
+	 *
+	 * @return array
+	 */
+	public static function help_texts() {
+		return array(
+			'wpac'             => array(
+				array( __( 'Overview', 'affiliate-captain' ), __( 'The dashboard shows visits, attributed orders and commissions of the chosen period, by partner, content or campaign. Until the setup is complete, the checklist at the top shows what is still missing.', 'affiliate-captain' ) ),
+			),
+			'wpac-affiliates'  => array(
+				array( __( 'Overview', 'affiliate-captain' ), __( 'All partners with their status. New applications are listed under "Application pending" and can be approved or rejected there, also in bulk. Use "Screen Options" to choose the columns and the number of rows.', 'affiliate-captain' ) ),
+				array( __( 'Partner page', 'affiliate-captain' ), __( 'Open a partner to edit the details, codes and coupons, payout details and tax status, and to see the account and the history.', 'affiliate-captain' ) ),
+			),
+			'wpac-commissions' => array(
+				array( __( 'Overview', 'affiliate-captain' ), __( 'Every commission with its status: pending (hold period), needs review, approved, paid, rejected. Approved commissions are paid with the next payout run. Filter by partner name, e-mail or number.', 'affiliate-captain' ) ),
+			),
+			'wpac-payouts'     => array(
+				array( __( 'Overview', 'affiliate-captain' ), __( 'Create a payout run: choose the period end, check the preview and create the payouts. Each payout gets a numbered credit note. Then download the SEPA file or transfer list and mark the payouts as paid once the bank executed them.', 'affiliate-captain' ) ),
+			),
+			'wpac-settings'    => array(
+				array( __( 'Overview', 'affiliate-captain' ), __( 'Each tab saves only its own fields. Invalid values are not saved and are shown again with a message next to the field.', 'affiliate-captain' ) ),
+			),
+		);
 	}
 
 	/**
@@ -93,7 +258,7 @@ final class Admin {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain: the database update is incomplete. Scheduled tasks are paused until it succeeds; it is retried on the next page load.', 'affiliate-captain' ) . '</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', array_slice( $schema, 0, 10 ) ) ) . '</li></ul></div>';
 		}
 		if ( \WPAffiliateCaptain\Core\Settings::get( 'maintenance_mode' ) ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded.', 'affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ) ) . '">' . esc_html__( 'Settings', 'affiliate-captain' ) . '</a></p></div>';
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Affiliate Captain is in maintenance mode: approvals, payouts, report mails and partner area changes wait. Sales are still recorded.', 'affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac-settings', array( 'tab' => 'data' ) ) ) . '">' . esc_html__( 'Settings', 'affiliate-captain' ) . '</a></p></div>';
 		}
 		$warnings = get_option( 'wpac_schema_warnings' );
 		if ( is_array( $warnings ) && $warnings ) {
@@ -116,9 +281,20 @@ final class Admin {
 		if ( $screen && false !== strpos( (string) $screen->id, 'wpac' ) && current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
 			self::blocked_payouts_notice();
 		}
+		\WPAffiliateCaptain\Core\Lifecycle::notices();
+		$migration = get_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS );
+		if ( is_array( $migration ) && current_user_can( Capabilities::MANAGE_PAYOUTS ) && ( ! empty( $migration['broken'] ) || ! empty( $migration['legacy'] ) || ! empty( $migration['misplaced'] ) ) ) {
+			$state = md5( wp_json_encode( array( $migration['broken'], $migration['legacy'], $migration['misplaced'] ) ) );
+			if ( ! empty( $migration['broken'] ) || ! self::notice_hidden( 'migration', $state ) ) {
+				$text = ! empty( $migration['broken'] )
+					/* translators: 1: number, 2: partner IDs */
+					? sprintf( __( 'Affiliate Captain: the bank details of %1$d partners cannot be decrypted (partner IDs %2$s). They get no payouts until they enter them again.', 'affiliate-captain' ), (int) $migration['broken'], implode( ', ', array_map( 'intval', (array) $migration['broken_ids'] ) ) )
+					: __( 'Affiliate Captain: bank details or credit notes still need to be migrated (re-encryption or moving files).', 'affiliate-captain' );
+				echo '<div class="notice ' . ( ! empty( $migration['broken'] ) ? 'notice-error' : 'notice-warning' ) . '"><p>' . esc_html( $text ) . ' <a href="' . esc_url( self::url( 'wpac-integrations', array( 'tab' => 'status' ) ) ) . '">' . esc_html__( 'Open the integrations page', 'affiliate-captain' ) . '</a>' . ( empty( $migration['broken'] ) ? self::hide_link( 'migration', $state ) : '' ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hide_link() is escaped.
+			}
+		}
 		\WPAffiliateCaptain\Core\Cron::schedule(); // Cheap; restores events lost e.g. after a migration.
-		$next = wp_next_scheduled( \WPAffiliateCaptain\Core\Cron::HOURLY );
-		if ( ! $next || $next > time() - 2 * HOUR_IN_SECONDS ) {
+		if ( \WPAffiliateCaptain\Core\Monitor::cron_running() ) {
 			return;
 		}
 		$state = md5( 'cron' . gmdate( 'Y-m-d' ) ); // Hidden for the rest of the day at most.
@@ -159,7 +335,7 @@ final class Admin {
 	public static function blocked_fix( $affiliate_id, $code ) {
 		switch ( $code ) {
 			case 'maintenance':
-				return array( self::url( 'wpac-settings', array( 'tab' => 'reports' ) ), __( 'Switch off maintenance mode', 'affiliate-captain' ) );
+				return array( self::url( 'wpac-settings', array( 'tab' => 'data' ) ), __( 'Switch off maintenance mode', 'affiliate-captain' ) );
 			case 'operator':
 			case 'operator_vat_id':
 				return array( self::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), __( 'Complete your details in the payout settings', 'affiliate-captain' ) );
@@ -182,28 +358,11 @@ final class Admin {
 	 * settings, payout details, acceptances or payouts change, and can be hidden until it changes.
 	 */
 	private static function blocked_payouts_notice() {
-		$state = self::blocked_state();
-		$cache = get_transient( 'wpac_blocked_payouts' );
-		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['list'] ) || $cache['state'] !== $state ) {
-			$blocked  = array();
-			$currency = (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' );
-			$min      = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
-				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
-					$blocked[] = array( (int) $row['affiliate']->id, (string) $row['affiliate']->name, (string) $row['reason'], isset( $row['code'] ) ? (string) $row['code'] : '' );
-				}
-			}
-			$cache = array(
-				'state' => $state,
-				'list'  => $blocked,
-			);
-			set_transient( 'wpac_blocked_payouts', $cache, HOUR_IN_SECONDS );
-		}
-		$blocked = $cache['list'];
+		$blocked = self::blocked_payouts();
 		if ( ! $blocked ) {
 			return;
 		}
-		$hide = md5( wp_json_encode( $blocked ) );
+		$hide = md5( wp_json_encode( array_map( null, wp_list_pluck( $blocked, 0 ), wp_list_pluck( $blocked, 3 ) ) ) ); // IDs and codes, not the language.
 		if ( self::notice_hidden( 'blocked', $hide ) ) {
 			return;
 		}
@@ -216,18 +375,94 @@ final class Admin {
 		echo '</ul></div>';
 	}
 
+	/** Transient: partners who cannot be paid out, language-neutral (IDs and reason codes). */
+	const BLOCKED_CACHE = 'wpac_blocked_payouts';
+
+	/**
+	 * Partners with a payable balance who cannot be paid out: [ id, name, reason, code ].
+	 *
+	 * The cache keeps only IDs and reason codes (no translated text: admins with another language
+	 * would otherwise see the reasons in the language of whoever built it); the reasons of the
+	 * listed partners are put into words for the current user. It is rebuilt when the
+	 * fingerprint (blocked_state(), indexed MAX() lookups only) changes.
+	 *
+	 * @return array
+	 */
+	public static function blocked_payouts() {
+		$state    = self::blocked_state();
+		$cache    = get_transient( self::BLOCKED_CACHE );
+		$currency = (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' );
+		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['ids'] ) || $cache['state'] !== $state ) {
+			$ids = array();
+			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
+				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
+					$ids[] = array( (int) $row['affiliate']->id, isset( $row['code'] ) ? (string) $row['code'] : '' );
+				}
+			}
+			$cache = array(
+				'state' => $state,
+				'ids'   => $ids,
+			);
+			set_transient( self::BLOCKED_CACHE, $cache, HOUR_IN_SECONDS );
+		}
+		$out = array();
+		\WPAffiliateCaptain\Affiliates\AffiliateRepository::find_many( wp_list_pluck( $cache['ids'], 0 ) );
+		foreach ( $cache['ids'] as $i => $entry ) {
+			$aff  = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( (int) $entry[0] );
+			$code = (string) $entry[1];
+			// Reasons only for the entries shown (10), the rest only count.
+			$out[] = array( (int) $entry[0], $aff ? (string) $aff->name : '#' . (int) $entry[0], $i < 10 ? self::blocked_text( (int) $entry[0], $code, $currency ) : '', $code );
+		}
+		return $out;
+	}
+
+	/**
+	 * Reason text of a blocked payout in the current user's language.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $code         Reason code (PayoutService::preview()).
+	 * @param string $currency     Currency.
+	 * @return string
+	 */
+	private static function blocked_text( $affiliate_id, $code, $currency ) {
+		switch ( $code ) {
+			case 'operator':
+				return (string) \WPAffiliateCaptain\Payouts\PayoutService::operator_missing();
+			case 'negative':
+				return __( 'Balance including VAT corrections is not positive – carried forward', 'affiliate-captain' );
+			case 'below_minimum':
+				return __( 'Below minimum – carried forward', 'affiliate-captain' );
+			case 'no_rate':
+				/* translators: %s: currency */
+				return sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'affiliate-captain' ), $currency );
+		}
+		$text = \WPAffiliateCaptain\Payouts\PayoutService::blocked_reason( $affiliate_id );
+		return '' !== $text ? $text : __( 'Cannot be paid out right now', 'affiliate-captain' );
+	}
+
 	/**
 	 * Hint on other plugin screens until the setup is complete (the dashboard shows the checklist).
 	 */
 	public static function setup_notice() {
-		if ( ! current_user_can( Capabilities::MANAGE_PROGRAM ) || \WPAffiliateCaptain\Core\Settings::get( 'portal_page_id' ) ) {
+		if ( ! current_user_can( Capabilities::MANAGE_PROGRAM ) ) {
 			return;
 		}
 		$screen = get_current_screen();
-		if ( ! $screen || false === strpos( (string) $screen->id, 'wpac' ) || 'toplevel_page_wpac' === $screen->id ) {
+		// On the plugin's screens (the dashboard shows the checklist itself) and on the plugins
+		// and WordPress dashboard screens, until every required item of the checklist is done (R5-W61).
+		$ours = $screen && false !== strpos( (string) $screen->id, 'wpac' );
+		if ( ! $screen || 'toplevel_page_wpac' === $screen->id || ( ! $ours && ! in_array( $screen->id, array( 'plugins', 'dashboard' ), true ) ) ) {
 			return;
 		}
-		echo '<div class="notice notice-info"><p>' . esc_html__( 'Affiliate Captain is not fully set up yet.', 'affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac' ) ) . '">' . esc_html__( 'Open the setup checklist', 'affiliate-captain' ) . '</a></p></div>';
+		if ( ! DashboardPage::setup_open() ) {
+			return;
+		}
+		$state = 'setup';
+		if ( ! $ours && self::notice_hidden( 'setup', $state ) ) {
+			return;
+		}
+		echo '<div class="notice notice-info"><p>' . esc_html__( 'Affiliate Captain is not fully set up yet.', 'affiliate-captain' ) . ' <a href="' . esc_url( self::url( 'wpac' ) ) . '">' . esc_html__( 'Open the setup checklist', 'affiliate-captain' ) . '</a>' . ( $ours ? '' : self::hide_link( 'setup', $state ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hide_link() is escaped.
 	}
 
 	/**
@@ -343,7 +578,7 @@ final class Admin {
 	 * @return bool
 	 */
 	public static function notice_hidden( $key, $state ) {
-		$hidden = get_user_meta( get_current_user_id(), 'wpac_hidden_notices', true );
+		$hidden = get_user_option( 'wpac_hidden_notices', get_current_user_id() );
 		return is_array( $hidden ) && isset( $hidden[ $key ] ) && hash_equals( (string) $hidden[ $key ], (string) $state );
 	}
 
@@ -376,11 +611,12 @@ final class Admin {
 		$key   = isset( $_GET['notice'] ) ? sanitize_key( wp_unslash( $_GET['notice'] ) ) : '';
 		$state = isset( $_GET['state'] ) ? sanitize_key( wp_unslash( $_GET['state'] ) ) : '';
 		// phpcs:enable
-		if ( in_array( $key, array( 'blocked', 'engine', 'cron' ), true ) ) {
-			$hidden         = get_user_meta( get_current_user_id(), 'wpac_hidden_notices', true );
+		if ( in_array( $key, array( 'blocked', 'engine', 'cron', 'migration', 'setup' ), true ) ) {
+			$hidden         = get_user_option( 'wpac_hidden_notices', get_current_user_id() );
 			$hidden         = is_array( $hidden ) ? $hidden : array();
 			$hidden[ $key ] = $state;
-			update_user_meta( get_current_user_id(), 'wpac_hidden_notices', $hidden );
+			// Per site (on a network the notices of one site say nothing about another).
+			update_user_option( get_current_user_id(), 'wpac_hidden_notices', $hidden );
 		}
 		wp_safe_redirect( wpac_return_url() ? wpac_return_url() : self::url( 'wpac' ) );
 		exit;
@@ -420,8 +656,11 @@ final class Admin {
 			'affiliate_status'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'public_change'     => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'vies_check'        => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'tax_approve'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'tax_reject'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statements_move'   => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
@@ -437,6 +676,7 @@ final class Admin {
 			'repayment'         => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'commission_status' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'commission_export' => array( CommissionsPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'commission_manual' => array( CommissionsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_run'        => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'objection_resolve' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_rebuild'    => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
@@ -458,6 +698,7 @@ final class Admin {
 			'creative_archive'  => array( CreativesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'job_retry'         => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'job_retry_all'     => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
+			'job_dismiss'       => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_save'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'ropa_download'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
@@ -470,7 +711,13 @@ final class Admin {
 		if ( ! current_user_can( $cap ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'affiliate-captain' ), 403 );
 		}
-		call_user_func( array( $class, 'handle' ), $do );
+		try {
+			call_user_func( array( $class, 'handle' ), $do );
+		} catch ( \WPAffiliateCaptain\Core\IntegrationException $e ) {
+			// A booking the database refused was rolled back: an error notice, never "saved".
+			/* translators: %s: technical reason */
+			self::back( sprintf( __( 'A change could not be saved because of a database error and was not applied. Please check and try again. (%s)', 'affiliate-captain' ), wp_specialchars_decode( $e->getMessage(), ENT_QUOTES ) ), 'error' );
+		}
 		self::back( __( 'Done.', 'affiliate-captain' ) );
 	}
 
@@ -545,6 +792,78 @@ final class Admin {
 			return '—';
 		}
 		$format = get_option( 'date_format' ) . ( $time ? ' ' . get_option( 'time_format' ) : '' );
-		return get_date_from_gmt( $utc, $format );
+		$ts     = strtotime( $utc . ' UTC' );
+		if ( false === $ts ) {
+			return '—';
+		}
+		// wp_date() translates month and day names (get_date_from_gmt() prints "3. March 2026")
+		// and converts to the site time zone.
+		return (string) wp_date( $format, $ts );
+	}
+
+	/** Up to this many partners a selection field is a plain list; above it, a search field. */
+	const PICKER_MAX = 200;
+
+	/**
+	 * Partner selection field without a fixed limit: a list for small programs, a search field
+	 * (with suggestions from wpac_partner_search) for large ones, so every partner can be chosen.
+	 * The value is resolved with AffiliateRepository::resolve_input().
+	 *
+	 * @param string $name    Field name.
+	 * @param int    $current Selected partner (0 = none).
+	 * @param string $status  Only partners of this status ('' = all).
+	 * @param array  $attrs   Extra attributes (id, aria-label, style, data-*).
+	 * @param int[]  $exclude Partners not offered.
+	 * @return string HTML.
+	 */
+	public static function partner_picker( $name, $current = 0, $status = '', array $attrs = array(), array $exclude = array() ) {
+		$html = '';
+		foreach ( $attrs as $k => $v ) {
+			$html .= ' ' . esc_attr( $k ) . '="' . esc_attr( $v ) . '"';
+		}
+		$current = (int) $current;
+		wp_enqueue_script( 'wpac-admin', WPAC_URL . 'assets/js/admin.js', array(), WPAC_VERSION, true );
+		$rows = \WPAffiliateCaptain\Affiliates\AffiliateRepository::options( '', $status, self::PICKER_MAX + 1 );
+		if ( count( $rows ) <= self::PICKER_MAX ) {
+			$out   = '<select name="' . esc_attr( $name ) . '"' . $html . '><option value="">—</option>';
+			$found = false;
+			foreach ( $rows as $a ) {
+				if ( in_array( (int) $a->id, $exclude, true ) ) {
+					continue;
+				}
+				$found = $found || (int) $a->id === $current;
+				$out  .= '<option value="' . (int) $a->id . '"' . selected( $current, (int) $a->id, false ) . '>' . esc_html( $a->name . ' (' . $a->slug . ')' ) . '</option>';
+			}
+			if ( $current && ! $found ) {
+				// Keep the current partner (e.g. paused) selectable, so saving never drops it by accident.
+				$aff  = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( $current );
+				$out .= '<option value="' . $current . '" selected>' . esc_html( $aff ? $aff->name . ' (' . $aff->slug . ') – ' . $aff->status : '#' . $current ) . '</option>';
+			}
+			return $out . '</select>';
+		}
+		$value = '';
+		if ( $current ) {
+			$aff   = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( $current );
+			$value = $aff ? \WPAffiliateCaptain\Affiliates\AffiliateRepository::option_label( $aff ) : (string) $current;
+		}
+		$list = 'wpac-pl-' . substr( md5( $name . wp_rand() ), 0, 8 );
+		return '<input type="text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" list="' . esc_attr( $list ) . '" autocomplete="off" placeholder="' . esc_attr__( 'Search: name, slug, e-mail or ID', 'affiliate-captain' ) . '" data-wpac-partner-search="' . esc_attr( wp_create_nonce( 'wpac_partner_search' ) ) . '" data-wpac-status="' . esc_attr( $status ) . '" data-wpac-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '"' . $html . '><datalist id="' . esc_attr( $list ) . '"></datalist>';
+	}
+
+	/**
+	 * admin-ajax: partner suggestions for partner_picker() (id, name, slug only).
+	 */
+	public static function ajax_partner_search() {
+		check_ajax_referer( 'wpac_partner_search', 'nonce' );
+		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) && ! current_user_can( Capabilities::MANAGE_PROGRAM ) ) {
+			wp_send_json_error( null, 403 );
+		}
+		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		$search = isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '';
+		$out    = array();
+		foreach ( \WPAffiliateCaptain\Affiliates\AffiliateRepository::options( $search, $status, 20 ) as $a ) {
+			$out[] = \WPAffiliateCaptain\Affiliates\AffiliateRepository::option_label( $a );
+		}
+		wp_send_json_success( $out );
 	}
 }

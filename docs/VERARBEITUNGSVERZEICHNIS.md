@@ -35,9 +35,9 @@ Vorlage für die Einträge, die Affiliate Captain betreffen. Die Werte in `{gesc
 |---|---|
 | Zweck | Provisionen berechnen, Gutschriften (§ 14 Abs. 2 UStG) erstellen, auszahlen, buchen |
 | Betroffene | Partner |
-| Daten | rechtlicher Name, Anschrift, Land, Steuerstatus, USt-IdNr./Steuernummer, Kontoinhaber, IBAN (verschlüsselt), BIC, Provisionen, Auszahlungen, Gutschrift-PDFs, VIES-Prüfergebnis |
+| Daten | rechtlicher Name, Anschrift, Land, Steuerstatus, USt-IdNr./Steuernummer, Kontoinhaber, IBAN (verschlüsselt), BIC, bei „anderer Zahlungsweg“ die Zahlungsangaben (z. B. PayPal-Adresse, verschlüsselt), Provisionen, Auszahlungen, Gutschrift-PDFs, VIES-Prüfergebnis |
 | Rechtsgrundlage | Art. 6 Abs. 1 lit. b DSGVO; Art. 6 Abs. 1 lit. c DSGVO (§ 147 AO, § 14b UStG / § 132 BAO / Art. 958f OR) |
-| Empfänger | Hausbank (SEPA-Überweisung), Steuerberatung, Finanzbehörden; EU-Kommission (VIES-Abfrage der USt-IdNr.) |
+| Empfänger | Hausbank (SEPA-Überweisung), {payment_providers}Steuerberatung, Finanzbehörden; EU-Kommission (VIES-Abfrage der USt-IdNr.) |
 | Löschfristen | {retention_years} Jahre ab Ende des Kalenderjahres; während einer Betriebsprüfung oder Sperre keine Löschung. Nach einem Löschantrag wird die Verarbeitung bis dahin eingeschränkt |
 
 ## 4. Änderungsprotokoll (Audit-Log)

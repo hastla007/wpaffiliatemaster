@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 9 );
+define( 'WPAC_DB_VERSION', 11 );
 define( 'WPAC_CONTRACT_VERSION', '1.2.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -67,6 +67,7 @@ class Test_WPDB {
 	public $options = 'wp_options';
 	public $rows_affected = 0;
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
+	public function get_blog_prefix( $id = null ) { return $this->prefix; }
 	public function esc_like( $t ) { return addcslashes( $t, '_%\\' ); }
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) {
@@ -186,7 +187,7 @@ function do_action( $tag, ...$args ) {
 }
 function remove_all_filters( $tag ) { unset( $GLOBALS['test_hooks'][ $tag ] ); }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['test_options'] ) ? $GLOBALS['test_options'][ $k ] : $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['test_options'][ $k ] = $v; return true; }
+function update_option( $k, $v, $a = null ) { if ( ! empty( $GLOBALS['test_option_fail'][ $k ] ) ) { return false; } $GLOBALS['test_options'][ $k ] = $v; return true; } // test_option_fail: simulate a failed write.
 function add_option( $k, $v, $x = '', $a = null ) {
 	// Like WordPress core: a cached read, then an UPSERT – NOT atomic (use Db::lock() for locks).
 	global $wpdb;
@@ -223,6 +224,7 @@ function wp_rand( $a = 0, $b = 0 ) { return random_int( $a, $b ); }
 function wp_salt( $s = 'auth' ) { return 'test-salt-' . $s; }
 function wp_hash( $d ) { return hash_hmac( 'md5', $d, 'test' ); }
 function home_url( $p = '' ) { return 'http://example.test' . $p; }
+if ( ! function_exists( 'add_query_arg' ) ) { function add_query_arg( $k, $v = null, $url = '' ) { if ( is_array( $k ) ) { $url = (string) $v; } else { $k = array( $k => $v ); } return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $k ); } }
 function admin_url( $p = '' ) { return 'http://example.test/wp-admin/' . $p; }
 function get_bloginfo( $s ) { return 'Test Shop'; }
 function wp_specialchars_decode( $t, $q = 0 ) { return $t; }
@@ -237,8 +239,9 @@ function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
 function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function wp_delete_file( $f ) { @unlink( $f ); }
 function wp_mail( $to, $s, $m ) { if ( ! empty( $GLOBALS['test_mail_fail'] ) ) { return false; } $GLOBALS['test_mails'][] = array( $to, $s ); return true; }
-function get_user_by( $f, $v ) { return false; }
-function get_userdata( $id ) { return false; }
+// Users: none unless a test puts some into $GLOBALS['test_users'] (ID => object) or $GLOBALS['test_userdata'].
+function get_user_by( $f, $v ) { foreach ( $GLOBALS['test_users'] ?? array() as $u ) { if ( ( 'email' === $f && 0 === strcasecmp( (string) $u->user_email, (string) $v ) ) || ( 'id' === $f && (int) $u->ID === (int) $v ) ) { return $u; } } return false; }
+function get_userdata( $id ) { return $GLOBALS['test_users'][ (int) $id ] ?? ( $GLOBALS['test_userdata'][ (int) $id ] ?? false ); }
 function username_exists( $u ) { return false; }
 function wp_insert_user( $u ) { static $id = 100; return ++$id; }
 function wp_new_user_notification( $id, $x = null, $n = '' ) {}
@@ -292,7 +295,7 @@ function untrailingslashit( $p ) { return rtrim( $p, '/\\' ); }
 function wp_list_pluck( $l, $f ) { return array_map( function ( $r ) use ( $f ) { return is_object( $r ) ? $r->$f : $r[ $f ]; }, $l ); }
 $GLOBALS['test_scheduled'] = array();
 function wp_schedule_single_event( $ts, $hook, $args = array() ) { $GLOBALS['test_scheduled'][] = $hook; return true; }
-function get_permalink( $id ) { return 'http://example.test/?p=' . (int) ( is_object( $id ) ? $id->ID : $id ); }
+function get_permalink( $id = 0 ) { return 'http://example.test/?p=' . (int) ( is_object( $id ) ? $id->ID : $id ); }
 function wp_unslash( $v ) { return is_array( $v ) ? array_map( "wp_unslash", $v ) : stripslashes( (string) $v ); }
 if ( ! function_exists( 'wp_using_ext_object_cache' ) ) { function wp_using_ext_object_cache() { return false; } }
 if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $hook ) { return in_array( $hook, $GLOBALS['test_scheduled'] ?? array(), true ) ? time() + 60 : false; } }
@@ -300,8 +303,34 @@ if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) { function wp_clear_schedu
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { return delete_option( '_t_' . $k ); } }
 if ( ! function_exists( 'wp_cache_delete' ) ) { function wp_cache_delete( $k, $g = '' ) { return true; } }
 
-// Partner terms page (self-billing needs one); everything else has no posts.
+// Post meta and the current post: one stateful store shared by all integration files, so the result
+// does not depend on which file is required first ($GLOBALS['test_post_meta'][ id ][ key ] = value,
+// $GLOBALS['test_the_id'] = current post id).
+$GLOBALS['test_post_meta'] = array();
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $id, $key = '', $single = false ) {
+		$m = $GLOBALS['test_post_meta'][ (int) $id ] ?? array();
+		if ( '' === $key ) { return array_map( static function ( $v ) { return array( $v ); }, $m ); }
+		if ( ! array_key_exists( $key, $m ) ) { return $single ? '' : array(); }
+		return $single ? $m[ $key ] : array( $m[ $key ] );
+	}
+}
+if ( ! function_exists( 'update_post_meta' ) ) {
+	function update_post_meta( $id, $key, $value ) { $GLOBALS['test_post_meta'][ (int) $id ][ $key ] = $value; return true; }
+}
+if ( ! function_exists( 'delete_post_meta' ) ) {
+	function delete_post_meta( $id, $key ) { unset( $GLOBALS['test_post_meta'][ (int) $id ][ $key ] ); return true; }
+}
+if ( ! function_exists( 'get_the_ID' ) ) {
+	function get_the_ID() { return $GLOBALS['test_the_id'] ?? 0; }
+}
+
+// Partner terms page (self-billing needs one); everything else has no posts unless a test puts
+// some into $GLOBALS['test_posts'] (ID => object).
 function get_post( $id ) {
+	if ( isset( $GLOBALS['test_posts'][ (int) $id ] ) ) {
+		return $GLOBALS['test_posts'][ (int) $id ];
+	}
 	if ( 900 === (int) $id ) {
 		return (object) array( 'ID' => 900, 'post_title' => 'Partner-AGB', 'post_content' => 'Gutschriftverfahren vereinbart.', 'post_status' => 'publish', 'post_password' => '', 'post_author' => 1 );
 	}

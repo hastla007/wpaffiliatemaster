@@ -287,7 +287,7 @@ check( 'normal weekday', '2026-11-12', SepaXml::next_business_day( gmmktime( 10,
 $cf = array( '173.245.48.0/20', '2400:cb00::/32' );
 check( 'no proxy: remote addr', '203.0.113.5', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '203.0.113.5', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4' ), array() ) );
 check( 'untrusted peer: XFF ignored', '203.0.113.5', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '203.0.113.5', 'HTTP_X_FORWARDED_FOR' => '1.2.3.4' ), $cf ) );
-check( 'trusted CF: CF-Connecting-IP', '198.51.100.7', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '173.245.50.1', 'HTTP_CF_CONNECTING_IP' => '198.51.100.7' ), $cf ) );
+check( 'trusted CF: CF-Connecting-IP when enabled', '198.51.100.7', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '173.245.50.1', 'HTTP_CF_CONNECTING_IP' => '198.51.100.7' ), $cf, array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR' ) ) );
 check( 'trusted: right-most untrusted XFF hop', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_FORWARDED_FOR' => '6.6.6.6, 198.51.100.9, 10.0.0.2' ), array( '10.0.0.0/8' ) ) );
 check( 'cidr v4', true, RateLimiter::in_cidr( '173.245.63.255', '173.245.48.0/20' ) );
 check( 'cidr v4 outside', false, RateLimiter::in_cidr( '173.245.64.0', '173.245.48.0/20' ) );
@@ -361,6 +361,183 @@ foreach ( $wpac_guard_files as $wpac_f ) {
 	}
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
+
+// R6-CC3: behind a trusted proxy only X-Forwarded-For is read by default; CF-Connecting-IP and
+// X-Real-IP (any client can send them) only when enabled.
+check( 'R6-CC3 forged CF-Connecting-IP via a trusted non-Cloudflare proxy ignored', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_CF_CONNECTING_IP' => '6.6.6.6', 'HTTP_X_FORWARDED_FOR' => '198.51.100.9' ), array( '10.0.0.0/8' ) ) );
+check( 'R6-CC3 forged X-Real-IP ignored, peer address used', '10.0.0.1', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_REAL_IP' => '6.6.6.6' ), array( '10.0.0.0/8' ) ) );
+check( 'R6-CC3 X-Real-IP when enabled', '198.51.100.3', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_REAL_IP' => '198.51.100.3' ), array( '10.0.0.0/8' ), array( 'HTTP_X_REAL_IP' ) ) );
+// R7-TR5: prefetch/prerender requests are recognised.
+check(
+	'R7-TR5 speculative requests (Sec-Purpose, Purpose, X-Moz) vs. normal navigation',
+	array( true, true, true, true, false ),
+	array(
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_SEC_PURPOSE' => 'prefetch' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_SEC_PURPOSE' => 'prefetch;prerender' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_PURPOSE' => 'prefetch' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_X_MOZ' => 'prefetch' ) ),
+		WPAffiliateCaptain\Tracking\Tracker::is_speculative( array( 'HTTP_USER_AGENT' => 'Mozilla/5.0' ) ),
+	)
+);
+/* G6: CI and release hygiene --------------------------------------------- */
+$g6_root = dirname( __DIR__ );
+// R5-K2: every CI step that pipes into tee runs with pipefail (otherwise the step cannot fail).
+$g6_ci    = (string) file_get_contents( $g6_root . '/.github/workflows/ci.yml' );
+$g6_steps = preg_split( '/\n\s+- (?=name:|uses:|run:)/', $g6_ci );
+$g6_bad   = array();
+foreach ( $g6_steps as $g6_step ) {
+	if ( preg_match( '/\|\s*tee\b/', $g6_step ) && false === strpos( $g6_step, 'set -o pipefail' ) && ! preg_match( '/shell:\s*bash\s*$/m', $g6_step ) ) {
+		$g6_bad[] = strtok( trim( $g6_step ), "\n" );
+	}
+}
+check( 'R5-K2 CI steps piping into tee use pipefail', array(), $g6_bad );
+// R5-K2: two phpcs:ignore comments for the same line (one above, one trailing) – the second one
+// replaces the first, the first code is reported again (rename_rename in Installer.php).
+$g6_double = array();
+$g6_it     = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $g6_root . '/src', FilesystemIterator::SKIP_DOTS ) );
+$g6_files  = array( $g6_root . '/affiliate-captain.php', $g6_root . '/uninstall.php' );
+foreach ( $g6_it as $g6_file ) {
+	if ( '.php' === substr( (string) $g6_file, -4 ) ) {
+		$g6_files[] = (string) $g6_file;
+	}
+}
+foreach ( $g6_files as $g6_file ) {
+	$g6_lines = file( $g6_file );
+	foreach ( $g6_lines as $g6_i => $g6_line ) {
+		if ( $g6_i > 0 && preg_match( '#^\s*// phpcs:ignore#', $g6_lines[ $g6_i - 1 ] ) && preg_match( '#\S.*// phpcs:ignore#', $g6_line ) && ! preg_match( '#^\s*//#', $g6_line ) ) {
+			$g6_double[] = substr( $g6_file, strlen( $g6_root ) + 1 ) . ':' . ( $g6_i + 1 );
+		}
+	}
+}
+check( 'R5-K2 no line with two phpcs:ignore comments', array(), $g6_double );
+// R5-W5: ExceptionNotEscaped is not ignored – the WordPress.org upload check does not know our lists.
+check( 'R5-W5 plugin check ignore list without ExceptionNotEscaped', false, (bool) preg_match( '/^\s*WordPress\.Security\.EscapeOutput\.ExceptionNotEscaped/m', (string) file_get_contents( $g6_root . '/tests/ci/plugin-check-ignore.txt' ) ) );
+check( 'R5-W5 phpcs.xml.dist does not exclude ExceptionNotEscaped', false, false !== strpos( (string) file_get_contents( $g6_root . '/phpcs.xml.dist' ), 'ExceptionNotEscaped"' ) );
+// R5-W5: the message of every exception thrown in src/ is a literal or escaped.
+$g6_unescaped = array();
+foreach ( $g6_files as $g6_file ) {
+	$g6_tokens = token_get_all( (string) file_get_contents( $g6_file ) );
+	$g6_n      = count( $g6_tokens );
+	for ( $g6_i = 0; $g6_i < $g6_n; $g6_i++ ) {
+		if ( ! is_array( $g6_tokens[ $g6_i ] ) || T_THROW !== $g6_tokens[ $g6_i ][0] ) {
+			continue;
+		}
+		// throw new Class( args ): collect the top-level arguments.
+		$g6_args  = array( '' );
+		$g6_depth = 0;
+		$g6_class = '';
+		$g6_line  = $g6_tokens[ $g6_i ][2];
+		for ( $g6_j = $g6_i + 1; $g6_j < $g6_n; $g6_j++ ) {
+			$g6_t = $g6_tokens[ $g6_j ];
+			$g6_s = is_array( $g6_t ) ? $g6_t[1] : $g6_t;
+			if ( 0 === $g6_depth && ';' === $g6_s ) {
+				break;
+			}
+			if ( '(' === $g6_s ) {
+				++$g6_depth;
+				if ( 1 === $g6_depth ) {
+					continue;
+				}
+			} elseif ( ')' === $g6_s ) {
+				--$g6_depth;
+				if ( 0 === $g6_depth ) {
+					break;
+				}
+			}
+			if ( 0 === $g6_depth ) {
+				$g6_class .= $g6_s;
+			} elseif ( 1 === $g6_depth && ',' === $g6_s ) {
+				$g6_args[] = '';
+			} elseif ( ! is_array( $g6_t ) || ! in_array( $g6_t[0], array( T_WHITESPACE, T_COMMENT ), true ) ) {
+				$g6_args[ count( $g6_args ) - 1 ] .= $g6_s;
+			}
+		}
+		if ( false === strpos( $g6_class, 'new' ) ) {
+			continue; // Rethrow of a caught exception.
+		}
+		$g6_msg = false !== strpos( $g6_class, 'IntegrationException' ) ? ( isset( $g6_args[1] ) ? $g6_args[1] : '' ) : $g6_args[0];
+		$g6_msg = preg_replace( '/^\$\w+\?(?=esc_html)/', '', $g6_msg ); // $cond ? esc_html__() : esc_html__().
+		if ( '' === $g6_msg || preg_match( "/^('[^']*'|esc_html(__)?\\(|function_exists\\('esc_html(__)?'\\)\\?esc_html)/", $g6_msg ) ) {
+			continue;
+		}
+		$g6_unescaped[] = substr( $g6_file, strlen( $g6_root ) + 1 ) . ':' . $g6_line;
+	}
+}
+check( 'R5-W5 exception messages are literals or escaped', array(), $g6_unescaped );
+
+// R5-W4: every Upgrade Notice entry fits the 300 characters WordPress.org shows.
+$g6_readme = (string) file_get_contents( $g6_root . '/readme.txt' );
+$g6_long   = array();
+if ( preg_match( '/== Upgrade Notice ==\s*(.*?)(?:\n== |\z)/s', $g6_readme, $g6_m ) ) {
+	foreach ( preg_split( '/^= (.+?) =\s*$/m', $g6_m[1], -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY ) as $g6_i => $g6_part ) {
+		if ( 1 === $g6_i % 2 && 300 < mb_strlen( trim( $g6_part ) ) ) {
+			$g6_long[] = mb_strlen( trim( $g6_part ) );
+		}
+	}
+}
+check( 'R5-W4 upgrade notices have at most 300 characters', array(), $g6_long );
+// R5-W3: the release notes are read from the Changelog section only (the Upgrade Notice has the
+// same "= x.y.z =" headings and would otherwise become the release text).
+check( 'R5-W3 release notes awk reads only the Changelog section', true, (bool) preg_match( '/notes="\$\(awk[^\n]*Changelog/', $g6_ci ) );
+// R8 package G4b (pure logic).
+check( 'R5-W6 "5.000" KWD is 5 dinars (as shown), not 5000', 5000, Money::to_minor( Money::parse_amount( Money::to_decimal( 5000, 'KWD' ), 'KWD' ), 'KWD' ) );
+check( 'R5-W6 saving a shown 3-decimal amount again keeps it (no x1000)', '12.345', Money::parse_amount( '12.345', 'BHD' ) );
+check( 'R5-W6 "1.000.000" KWD is still thousands grouping', '1000000', Money::parse_amount( '1.000.000', 'KWD' ) );
+check( 'R5-W6 English "1,000" EUR is one thousand, not 1,00', '1000', Money::parse_amount( '1,000', 'EUR' ) );
+check( 'R5-W6 German "1.000,00 €" and "50,00" unchanged', array( '1000.00', '50.00', '0.500' ), array( Money::parse_amount( '1.000,00 €', 'EUR' ), Money::parse_amount( '50,00', 'EUR' ), Money::parse_amount( '0,500', 'EUR' ) ) );
+check( 'R6-QA12 SEPA names are transliterated, not cut', array( 'Lukasz Zolc', 'Oyvind Aero', 'Ivan Petrov', 'Mueller GmbH', 'Jose Nunez' ), array( SepaXml::clean( 'Łukasz Żółć', 70 ), SepaXml::clean( 'Øyvind Ærø', 70 ), SepaXml::clean( 'Иван Петров', 70 ), SepaXml::clean( 'Müller GmbH', 70 ), SepaXml::clean( 'José Núñez', 70 ) ) );
+// R8 G4a: VAT treatment of repayments/write-offs, history by service date, VAT ID format, PDFs.
+check( 'R6-DD2 repayment and write-off are not taxable', array( array( 'mode' => 'none', 'rate' => '0' ), array( 'mode' => 'none', 'rate' => '0' ), array( 'mode' => 'standard', 'rate' => '19' ) ), array( Vat::for_kind( 'repayment', array( 'mode' => 'standard', 'rate' => '19' ) ), Vat::for_kind( 'writeoff', array( 'mode' => 'standard', 'rate' => '19' ) ), Vat::for_kind( 'refund', array( 'mode' => 'standard', 'rate' => '19' ) ) ) );
+$g4a_rows = array( (object) array( 'id' => 1, 'amount_minor' => -10000 ), (object) array( 'id' => 2, 'amount_minor' => 11900 ) );
+check( 'R6-DD1 gross repayment settles a refund with VAT correction', array( 1900, -1900, 0 ), Vat::totals( $g4a_rows, array( 1 => array( 'rate' => '19' ), 2 => array( 'rate' => '0' ) ) ) );
+$g4a_hist = array( array( 'until' => '2027-01-01 00:00:00', 'tax_status' => 'small_business', 'country' => 'DE', 'vat_id' => '' ) );
+$g4a_cur  = array( 'tax_status' => 'business', 'country' => 'DE', 'vat_id' => 'DE123456789' );
+check( 'R6-DD5 December service keeps the tax status valid then', 'small_business', Vat::state_at( $g4a_hist, '2026-12-15 10:00:00', $g4a_cur )['tax_status'] );
+check( 'R6-DD5 January service uses the new tax status', 'business', Vat::state_at( $g4a_hist, '2027-01-02 10:00:00', $g4a_cur )['tax_status'] );
+check( 'R6-DD5 rate history by service date', array( '16', '19' ), array( Vat::state_at( array( array( 'until' => '2021-01-01 00:00:00', 'rate' => '16' ) ), '2020-08-01 00:00:00', array( 'rate' => '19' ) )['rate'], Vat::state_at( array( array( 'until' => '2021-01-01 00:00:00', 'rate' => '16' ) ), '2021-02-01 00:00:00', array( 'rate' => '19' ) )['rate'] ) );
+check( 'R6-DD5 undeclared earlier status is skipped', 'business', Vat::state_at( array( array( 'until' => '2027-01-01 00:00:00', 'tax_status' => '' ) ), '2026-12-01 00:00:00', $g4a_cur )['tax_status'] );
+check( 'R6-DD6 VAT ID format and country prefix', array( '', '', 'prefix', 'format', '', 'format' ), array( Vat::vat_id_problem( 'DE123456789', 'DE' ), Vat::vat_id_problem( 'EL123456789', 'GR' ), Vat::vat_id_problem( 'ATU12345678', 'DE' ), Vat::vat_id_problem( 'DE12345', 'DE' ), Vat::vat_id_problem( 'CHE123456789', 'CH' ), Vat::vat_id_problem( 'X', 'US' ) ) );
+check( 'R7-AD17 small business limits', array( '', 'previous', 'current' ), array( Vat::small_business_exceeded( 2500000, 9000000, array( 2500000, 10000000 ) ), Vat::small_business_exceeded( 2500001, 0, array( 2500000, 10000000 ) ), Vat::small_business_exceeded( 0, 10000001, array( 2500000, 10000000 ) ) ) );
+check( 'R5-W45 PDF transliterates instead of "?"', "(L\xF3dz M\xFCller Dvor\xE1k Ellada)", Pdf::literal( 'Łódź Müller Dvořák Ελλάδα' ) );
+check( 'R5-W45 CP1252 characters stay', "(\xFC\x80)", Pdf::literal( 'ü€' ) );
+$g4a_pdf = new Pdf( array( 'title' => 'Gutschrift Łukasz' ) );
+$g4a_pdf->text( 50, 60, 'Łukasz Wiśniewski' );
+$g4a_out = $g4a_pdf->output();
+check( 'R5-W45 original spelling kept in the document properties', array( array( 'Łukasz Wiśniewski' ), true, false ), array( $g4a_pdf->transliterated(), false !== strpos( $g4a_out, '/Subject <FEFF' ), false !== strpos( $g4a_out, '?' ) && false !== strpos( $g4a_out, '(?' ) ) );
+check( 'R6-QA14 wrap breaks words longer than the column', true, max( array_map( static function ( $l ) { return Pdf::width( $l, 9 ); }, Pdf::wrap( 'a3f1c2d4-5b6e-4f70-8a9b-0c1d2e3f4a5b Kurs', 100, 9 ) ) ) <= 100 );
+/* R8-G3: rule precision and precedence (R7-AD11, R7-AD12, R7-AD7), amount cap (R5-O3). -------- */
+$g3_rule = static function ( $id, $scope, $scope_id, $target, $value, $type, $rate, $prio = 0 ) {
+	return array( 'id' => $id, 'scope' => $scope, 'scope_id' => $scope_id, 'target' => $target, 'target_value' => $value, 'rate_type' => $type, 'rate' => $rate, 'priority' => $prio, 'active' => 1 );
+};
+$g3_def = array( 'rate_type' => 'percent', 'rate' => '10' );
+$g3_var = array( 'product_id' => 11, 'parent_id' => 10, 'sku' => 'PASS-E12-T3', 'category_ids' => array( 4 ), 'category_ancestor_ids' => array( 2 ), 'quantity' => 1, 'net_minor' => 10000 );
+check( 'R7-AD11 variation rule beats the (newer) rule of its parent product', 1, Calculator::calculate( $g3_var, array( $g3_rule( 1, 'global', 0, 'product', '11', 'percent', '20' ), $g3_rule( 2, 'global', 0, 'product', '10', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'] );
+check( 'R7-AD11 exact SKU beats a (newer) wildcard, longer prefix beats shorter', array( 1, 3 ), array( Calculator::calculate( $g3_var, array( $g3_rule( 1, 'global', 0, 'sku', 'PASS-E12-T3', 'percent', '20' ), $g3_rule( 2, 'global', 0, 'sku', 'PASS-*', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'], Calculator::calculate( $g3_var, array( $g3_rule( 3, 'global', 0, 'sku', 'PASS-E12-*', 'percent', '20' ), $g3_rule( 4, 'global', 0, 'sku', 'PASS-*', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'] ) );
+check( 'R7-AD7 own category beats a (newer) rule of the parent category, the parent rule still applies alone', array( 1, 2 ), array( Calculator::calculate( $g3_var, array( $g3_rule( 1, 'global', 0, 'category', '4', 'percent', '20' ), $g3_rule( 2, 'global', 0, 'category', '2', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'], Calculator::calculate( $g3_var, array( $g3_rule( 2, 'global', 0, 'category', '2', 'percent', '5' ) ), 1, 0, $g3_def )['rule_id'] ) );
+$g3_prec = array( $g3_rule( 1, 'affiliate', 7, 'all', '', 'percent', '3' ), $g3_rule( 2, 'global', 0, 'product', '11', 'percent', '20' ) );
+check( 'R7-AD12 precedence "scope" (default): partner/all beats global/product; "target": the product rule wins', array( 1, 2 ), array( Calculator::calculate( $g3_var, $g3_prec, 7, 0, $g3_def )['rule_id'], Calculator::calculate( $g3_var, $g3_prec, 7, 0, $g3_def, true, 'target' )['rule_id'] ) );
+$g3_excl = array( $g3_rule( 1, 'global', 0, 'category', '4', 'exclude', '0' ), $g3_rule( 2, 'affiliate', 7, 'category', '4', 'percent', '15' ) );
+check( 'R7-AD12 a partner rule overrides a global exclusion only with precedence "target"', array( true, false, 1500 ), array( Calculator::calculate( $g3_var, $g3_excl, 7, 0, $g3_def )['excluded'], Calculator::calculate( $g3_var, $g3_excl, 7, 0, $g3_def, true, 'target' )['excluded'], Calculator::calculate( $g3_var, $g3_excl, 7, 0, $g3_def, true, 'target' )['amount_minor'] ) );
+check( 'R7-AD12 with "target" an exclusion still wins at the same rank', true, Calculator::calculate( $g3_var, array( $g3_rule( 1, 'affiliate', 7, 'category', '4', 'percent', '15' ), $g3_rule( 2, 'affiliate', 7, 'category', '4', 'exclude', '0' ) ), 7, 0, $g3_def, true, 'target' )['excluded'] );
+check( 'R5-O3 filter_amount without WordPress leaves the amount', 300, Calculator::filter_amount( 300, $g3_var, 1, null, 10000 ) );
+
+/* R8-G9: QR code with text alternative (R5-O39). */
+$g9_svg = Qr::svg( 'https://example.test/?partner=A&b=1', 4, 4, 'QR "partner"' );
+check( 'R5-O39 QR SVG has role="img", aria-label and title (escaped)', array( true, true ), array( false !== strpos( $g9_svg, 'role="img" aria-label="QR &quot;partner&quot;"' ), false !== strpos( $g9_svg, '<title>QR &quot;partner&quot;</title>' ) ) );
+check( 'R5-O39 QR label defaults to the encoded text', true, false !== strpos( Qr::svg( 'AB&C' ), 'aria-label="AB&amp;C"' ) );
+
+/* R8 G7: CSV formula protection and import rates ------------------------------------------- */
+$g7_csv   = Csv::build( array( 'a', 'b' ), array( array( 'x\\";=HYPERLINK("http://evil")', 'ok' ) ) );
+$g7_lines = explode( "\n", trim( substr( $g7_csv, 3 ) ) );
+$g7_cells = str_getcsv( $g7_lines[1], ';', '"', '' );
+check( 'R6-QA10 backslash before a quote cannot end the cell (no formula cell)', array( 'x\\";=HYPERLINK("http://evil")', 'ok' ), $g7_cells );
+$g7_rate = static function ( $r, $t = '', $c = '' ) {
+	return \WPAffiliateCaptain\Migration\PartnerImport::parse_rate( $r, $t, $c );
+};
+check( 'R6-QA11 "15 Euro", "15 eur", "15 Dollar" are fixed amounts', array( array( 'fixed', '15' ), array( 'fixed', '15' ), array( 'fixed', '15' ) ), array( $g7_rate( '15 Euro' ), $g7_rate( '15 eur' ), $g7_rate( '15 Dollar' ) ) );
+check( 'R6-QA11 "1.500 JPY" is 1500 yen (no decimals), "1.234,50 €" thousands', array( array( 'fixed', '1500' ), array( 'fixed', '1234.50' ) ), array( $g7_rate( '1.500 JPY', '', 'JPY' ), $g7_rate( '1.234,50 €', '', 'EUR' ) ) );
+check( 'R6-QA11 amount in another currency than the shop and unknown words are refused', array( null, null ), array( $g7_rate( '15 USD', '', 'EUR' ), $g7_rate( '15 Punkte' ) ) );
+check( 'R6-QA11 percentages unchanged', array( array( 'percent', '15' ), array( 'percent', '12.5' ) ), array( $g7_rate( '15' ), $g7_rate( '12,5 %' ) ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );
