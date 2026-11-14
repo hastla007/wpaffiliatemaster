@@ -7,6 +7,9 @@
  * - Sets the affiliate cookie only with marketing consent (or when configured to "always"),
  *   also when the consent is given after the landing (consent listener / beacon) or when the
  *   first product is put into the cart.
+ * - Cookie mode "consent": until the visitor consents (at most 30 minutes), same-site links carry
+ *   a signed URL parameter with the referral (see carry_token()), so a consent given on a later
+ *   page still sets the cookie – nothing is stored in the browser before the consent.
  *
  * @package WPAffiliateCaptain
  */
@@ -26,8 +29,17 @@ final class Tracker {
 	const COOKIE      = 'wpac_ref';
 	const SESSION_KEY = 'wpac_ref';
 
+	/** URL parameter that carries a referral to the next pages until consent (see carry_token()). */
+	const CARRY_PARAM = 'wpac_carry';
+
 	/** @var bool Whether this request already captured a referral. */
 	private static $captured_now = false;
+
+	/** @var bool Whether this request was reached through a valid carried referral (no consent yet). */
+	private static $carried_now = false;
+
+	/** @var string Carry token for the links of this landing page ('' = none). */
+	private static $carry_token = '';
 
 	/** @var array Cookies written in this request (name, value, options) – for diagnostics and tests. */
 	private static $written = array();
@@ -50,8 +62,12 @@ final class Tracker {
 	 */
 	public static function capture() {
 		$param = (string) Settings::get( 'referral_param' );
+		if ( is_admin() ) {
+			return;
+		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( is_admin() || empty( $_GET[ $param ] ) ) {
+		if ( empty( $_GET[ $param ] ) ) {
+			self::capture_carry();
 			return;
 		}
 		if ( self::beacon_only() ) {
@@ -74,17 +90,184 @@ final class Tracker {
 			nocache_headers();
 		}
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
-		self::capture_code(
-			sanitize_text_field( wp_unslash( $_GET[ $param ] ) ),
-			isset( $_GET['utm_campaign'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ) ) : '',
+		$code     = sanitize_text_field( wp_unslash( $_GET[ $param ] ) );
+		$campaign = isset( $_GET['utm_campaign'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_campaign'] ) ) ) : '';
+		$sub      = isset( $_GET[ self::sub_param() ] ) ? self::clean_sub( sanitize_text_field( wp_unslash( $_GET[ self::sub_param() ] ) ) ) : '';
+		$captured = self::capture_code(
+			$code,
+			$campaign,
 			is_singular() ? (int) get_queried_object_id() : 0,
 			array(
 				'utm_source' => isset( $_GET['utm_source'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_source'] ) ) ) : '',
 				'utm_medium' => isset( $_GET['utm_medium'] ) ? self::clean_utm( sanitize_text_field( wp_unslash( $_GET['utm_medium'] ) ) ) : '',
-				'sub_id'     => isset( $_GET[ self::sub_param() ] ) ? self::clean_sub( sanitize_text_field( wp_unslash( $_GET[ self::sub_param() ] ) ) ) : '',
+				'sub_id'     => $sub,
 			)
 		);
 		// phpcs:enable
+		// Without consent the links of this page carry the referral to the next pages (the page is
+		// not cached, see above).
+		if ( $captured && self::carry_wanted() ) {
+			self::$carry_token = self::carry_token( $code, $campaign, $sub, time() );
+		}
+	}
+
+	/**
+	 * Whether referrals are carried in same-site links until consent: cookie mode "consent" and
+	 * the setting "carry_referral_links" (filter `wpac_carry_referral_links`).
+	 *
+	 * @return bool
+	 */
+	public static function carry_enabled() {
+		$on = 'consent' === Settings::get( 'cookie_mode' ) && (bool) Settings::get( 'carry_referral_links' );
+		/**
+		 * Whether the referral of a partner link is carried in same-site links (signed URL
+		 * parameter) until the visitor gives marketing consent.
+		 *
+		 * @param bool $on Default: cookie mode "consent" and the setting is on.
+		 */
+		return (bool) apply_filters( 'wpac_carry_referral_links', $on );
+	}
+
+	/**
+	 * Whether this request needs a carry token: carrying is on and there is no consent yet.
+	 *
+	 * @return bool
+	 */
+	public static function carry_wanted() {
+		return self::carry_enabled() && ! Consent::cookie_allowed();
+	}
+
+	/**
+	 * How long a carried referral is valid after the click (seconds, 1 minute to 1 day; default
+	 * 30 minutes, filter `wpac_carry_referral_window`).
+	 *
+	 * @return int
+	 */
+	public static function carry_window() {
+		/**
+		 * Validity of a carried referral after the partner link click, in seconds.
+		 *
+		 * @param int $seconds Default 1800 (30 minutes).
+		 */
+		$window = (int) apply_filters( 'wpac_carry_referral_window', 30 * MINUTE_IN_SECONDS );
+		return max( MINUTE_IN_SECONDS, min( DAY_IN_SECONDS, $window ) );
+	}
+
+	/**
+	 * Signed carry token: base64url(JSON [code, campaign, sub-ID, issued-at]) + "." + HMAC. The
+	 * issued-at time is signed, so a token cannot be extended; anybody can get a token only for
+	 * what a normal partner link gives anyway. The code is not checked here (a beacon gets the
+	 * same answer for unknown codes); it is resolved when the token is used.
+	 *
+	 * @param string $code     Code from the partner link.
+	 * @param string $campaign utm_campaign.
+	 * @param string $sub      Sub-ID.
+	 * @param int    $ts       Issued at (click time).
+	 * @return string
+	 */
+	public static function carry_token( $code, $campaign, $sub, $ts ) {
+		$json    = (string) wp_json_encode( array( Db::cut( (string) $code, 100 ), Db::cut( (string) $campaign, 100 ), self::clean_sub( $sub ), (int) $ts ) );
+		$payload = rtrim( strtr( base64_encode( $json ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- URL-safe transport, signed.
+		return $payload . '.' . self::carry_sig( $payload );
+	}
+
+	/**
+	 * HMAC of a carry payload (own context: a carry token is never a valid cookie and vice versa).
+	 *
+	 * @param string $payload Payload.
+	 * @return string
+	 */
+	private static function carry_sig( $payload ) {
+		return substr( hash_hmac( 'sha256', 'carry|' . $payload, self::sign_key() ), 0, 16 );
+	}
+
+	/**
+	 * Verify a carry token: signature and validity window (issued at most carry_window() ago,
+	 * not in the future).
+	 *
+	 * @param string   $raw Token.
+	 * @param int|null $now Time (tests).
+	 * @return array|null code, campaign, sub_id, ts
+	 */
+	public static function parse_carry( $raw, $now = null ) {
+		$raw = (string) $raw;
+		if ( strlen( $raw ) > 600 || ! preg_match( '/^([A-Za-z0-9_\-]+)\.([0-9a-f]{16})$/', $raw, $m ) ) {
+			return null;
+		}
+		if ( ! hash_equals( self::carry_sig( $m[1] ), $m[2] ) ) {
+			return null;
+		}
+		$data = json_decode( (string) base64_decode( strtr( $m[1], '-_', '+/' ) ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- signed token.
+		if ( ! is_array( $data ) || 4 !== count( $data ) || ! isset( $data[0], $data[3] ) || ! is_string( $data[0] ) || '' === $data[0] ) {
+			return null;
+		}
+		$now = null === $now ? time() : (int) $now;
+		$ts  = (int) $data[3];
+		if ( $ts > $now + MINUTE_IN_SECONDS || $ts < $now - self::carry_window() ) {
+			return null;
+		}
+		return array(
+			'code'     => Db::cut( $data[0], 100 ),
+			'campaign' => self::clean_utm( (string) $data[1] ),
+			'sub_id'   => self::clean_sub( (string) $data[2] ),
+			'ts'       => $ts,
+		);
+	}
+
+	/**
+	 * Carried referral of a page request (a link of a landing page without consent): never a new
+	 * visit. With consent by now the referral is stored (cookie); without consent the page gets
+	 * the waiting script again. Pages with the parameter never come from or go into a page cache.
+	 */
+	private static function capture_carry() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		if ( empty( $_GET[ self::CARRY_PARAM ] ) || ! is_string( $_GET[ self::CARRY_PARAM ] ) || ! self::carry_enabled() ) {
+			return;
+		}
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+		$carried = self::parse_carry( sanitize_text_field( wp_unslash( $_GET[ self::CARRY_PARAM ] ) ) );
+		// phpcs:enable
+		// A prefetch stores nothing (the script reports the consent once the page is shown).
+		if ( ! $carried || self::is_speculative( $_SERVER ) ) {
+			return;
+		}
+		if ( Consent::cookie_allowed() ) {
+			self::capture_code(
+				$carried['code'],
+				$carried['campaign'],
+				0,
+				array(
+					'sub_id' => $carried['sub_id'],
+					'ts'     => $carried['ts'],
+					'count'  => false,
+				)
+			);
+			return;
+		}
+		self::$carried_now = true;
+	}
+
+	/**
+	 * Whether this request was reached through a valid carried referral without consent.
+	 *
+	 * @return bool
+	 */
+	public static function carried_now() {
+		return self::$carried_now;
+	}
+
+	/**
+	 * Carry token issued for the links of this landing page ('' = none).
+	 *
+	 * @return string
+	 */
+	public static function issued_carry() {
+		return self::$carry_token;
 	}
 
 	/**
@@ -191,7 +374,8 @@ final class Tracker {
 	 * @param int    $content_id Landing content.
 	 * @param array  $extra      utm_source, utm_medium, path, referrer (beacon); count (false: store
 	 *                           only, e.g. after a consent given later); cart (true: a cart is being
-	 *                           created, the shop session may be used).
+	 *                           created, the shop session may be used); ts (click time of a
+	 *                           carried referral).
 	 * @return bool Whether the code resolved.
 	 */
 	public static function capture_code( $raw, $campaign, $content_id, array $extra = array() ) {
@@ -203,7 +387,8 @@ final class Tracker {
 			'code'       => $resolved['code'],
 			'campaign'   => Db::cut( (string) $campaign, 100 ),
 			'content_id' => (int) $content_id,
-			'ts'         => time(),
+			// A carried referral keeps the time of the original click (fraud checks, attribution window).
+			'ts'         => ! empty( $extra['ts'] ) ? min( time(), (int) $extra['ts'] ) : time(),
 			'sub_id'     => isset( $extra['sub_id'] ) ? self::clean_sub( $extra['sub_id'] ) : '',
 		);
 		// Checked after the code resolved, so unknown codes cause no counter writes. The limit only
@@ -306,11 +491,13 @@ final class Tracker {
 		if ( ! $beacon ) {
 			// Without the beacon only the consent listener is needed, and only on a landing that was
 			// just captured without consent.
+			// Also on a later page reached through a carried referral.
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( ! $consent || empty( $_GET[ $param ] ) || ! self::$captured_now || Consent::cookie_allowed() ) {
+			if ( ! self::listener_needed( $consent, ! empty( $_GET[ $param ] ) && self::$captured_now, self::$carried_now, Consent::cookie_allowed() ) ) {
 				return;
 			}
 		}
+		$carry = self::carry_enabled();
 		$config = array(
 			'url'     => esc_url_raw( rest_url( 'wpac/v1/touch' ) ),
 			'param'   => $param,
@@ -320,10 +507,33 @@ final class Tracker {
 			'consent' => $consent ? 1 : 0,
 			'sub'     => self::sub_param(),
 		);
+		if ( $carry ) {
+			// Static per settings like the rest of the configuration (the token is in the URL, in the
+			// per-page data or in the beacon answer – never in a cached script).
+			$config['carry']  = self::CARRY_PARAM;
+			$config['window'] = self::carry_window();
+		}
 		wp_register_script( 'wpac-beacon', '', array(), WPAC_VERSION, array( 'in_footer' => true ) );
 		wp_enqueue_script( 'wpac-beacon' );
 		wp_add_inline_script( 'wpac-beacon', self::beacon_script( $config ) );
+		if ( $carry ) {
+			wp_enqueue_script( 'wpac-carry', WPAC_URL . 'assets/js/carry.js', array( 'wpac-beacon' ), WPAC_VERSION, array( 'in_footer' => true ) );
+		}
 		add_action( 'wp_footer', array( __CLASS__, 'print_beacon_data' ), 5 );
+	}
+
+	/**
+	 * Whether the consent listener is needed without the beacon: cookie mode "consent", no consent
+	 * yet, and the page is a landing captured just now or reached through a carried referral.
+	 *
+	 * @param bool $consent_mode Cookie mode "consent".
+	 * @param bool $landing      A partner link was captured in this request.
+	 * @param bool $carried      A valid carried referral reached this page.
+	 * @param bool $allowed      Marketing consent given.
+	 * @return bool
+	 */
+	public static function listener_needed( $consent_mode, $landing, $carried, $allowed ) {
+		return $consent_mode && ! $allowed && ( $landing || $carried );
 	}
 
 	/**
@@ -337,7 +547,7 @@ final class Tracker {
 		return 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}var d={},e=document.getElementById("wpac-beacon-data"),done=0;if(e){try{d=JSON.parse(e.textContent)||{};}catch(x){}}'
 			. 'function has(){return typeof window.wp_has_consent==="function"&&window.wp_has_consent("marketing");}'
 			. 'function r(){try{if(!document.referrer){return"";}if(!c.ref&&!has()){return"";}return new URL(document.referrer).host;}catch(x){return"";}}'
-			. 'function send(k){var b={code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",sub:q.get(c.sub||"sub")||"",content_id:d.content||0,path:location.pathname,referrer:r()};if(k){b.consent=1;}try{fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});}catch(x){}}'
+			. 'function send(k){var b={code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",sub:q.get(c.sub||"sub")||"",content_id:d.content||0,path:location.pathname,referrer:r()};if(k){b.consent=1;}try{var f=fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});if(c.carry&&!k&&f&&f.then){f.then(function(y){return y.json();}).then(function(j){if(j&&j.carry){document.dispatchEvent(new CustomEvent("wpac_carry",{detail:j.carry}));}}).catch(function(){});}}catch(x){}}'
 			. 'function granted(){if(done){return;}done=1;send(1);}window.wpacConsentGranted=granted;'
 			. 'function go(){if(c.beacon!==0){if(has()){done=1;}send(0);}else if(has()){granted();}}'
 			. 'if(c.consent){document.addEventListener("wp_listen_for_consent_change",function(ev){var x=ev&&ev.detail||{};if(x.marketing==="allow"){granted();}});}'
@@ -349,7 +559,7 @@ final class Tracker {
 	 * Per-page beacon data (before the footer scripts): the content ID.
 	 */
 	public static function print_beacon_data() {
-		$data = self::beacon_data( is_singular() ? (int) get_queried_object_id() : 0, false, time() );
+		$data = self::beacon_data( is_singular() ? (int) get_queried_object_id() : 0, false, time(), self::$carry_token );
 		echo '<script type="application/json" id="wpac-beacon-data">' . wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP ) . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON with < and & hex-encoded.
 	}
 
@@ -357,13 +567,17 @@ final class Tracker {
 	 * Per-page beacon data. "cap"/"gen" are no longer used by the script (a cached copy carries
 	 * them as well); kept for compatibility of the data format.
 	 *
-	 * @param int  $content  Content ID.
-	 * @param bool $captured Whether this request captured the referral.
-	 * @param int  $now      Time.
+	 * @param int    $content  Content ID.
+	 * @param bool   $captured Whether this request captured the referral.
+	 * @param int    $now      Time.
+	 * @param string $carry    Carry token of a landing page without consent (never on a cached page).
 	 * @return array
 	 */
-	public static function beacon_data( $content, $captured, $now ) {
+	public static function beacon_data( $content, $captured, $now, $carry = '' ) {
 		$data = array( 'content' => (int) $content );
+		if ( '' !== (string) $carry ) {
+			$data['carry'] = (string) $carry;
+		}
 		if ( $captured ) {
 			$data['cap'] = 1;
 			$data['gen'] = (int) $now;
@@ -466,16 +680,42 @@ final class Tracker {
 			}
 			return;
 		}
-		if ( empty( $_SERVER['HTTP_REFERER'] ) || self::current_touch() ) {
+		// A referral carried until consent (in the add-to-cart link or on the referring page).
+		$carry = self::carry_enabled() && ! empty( $_GET[ self::CARRY_PARAM ] ) && is_string( $_GET[ self::CARRY_PARAM ] ) ? (string) sanitize_text_field( wp_unslash( $_GET[ self::CARRY_PARAM ] ) ) : '';
+		if ( ( '' === $carry && empty( $_SERVER['HTTP_REFERER'] ) ) || self::current_touch() ) {
 			return;
 		}
-		$ref = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
-		if ( ! self::is_own_host( (string) wp_parse_url( $ref, PHP_URL_HOST ) ) ) {
-			return;
+		$ref   = '';
+		$query = array();
+		if ( '' === $carry ) {
+			$ref = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
+			if ( ! self::is_own_host( (string) wp_parse_url( $ref, PHP_URL_HOST ) ) ) {
+				return;
+			}
+			parse_str( (string) wp_parse_url( $ref, PHP_URL_QUERY ), $query );
+			if ( empty( $query[ $param ] ) && self::carry_enabled() && ! empty( $query[ self::CARRY_PARAM ] ) && is_string( $query[ self::CARRY_PARAM ] ) ) {
+				$carry = sanitize_text_field( $query[ self::CARRY_PARAM ] );
+			}
 		}
-		parse_str( (string) wp_parse_url( $ref, PHP_URL_QUERY ), $query );
-		$code = isset( $query[ $param ] ) ? sanitize_text_field( (string) $query[ $param ] ) : '';
 		// phpcs:enable
+		if ( '' !== $carry ) {
+			$carried  = self::parse_carry( $carry );
+			$resolved = $carried ? wpac_resolve_partner_code( $carried['code'], array( 'context' => 'cart' ) ) : null;
+			if ( $resolved ) {
+				self::store_touch(
+					array(
+						'code'       => $resolved['code'],
+						'campaign'   => $carried['campaign'],
+						'content_id' => 0,
+						'ts'         => $carried['ts'],
+						'sub_id'     => $carried['sub_id'],
+					),
+					true
+				);
+			}
+			return;
+		}
+		$code     = isset( $query[ $param ] ) ? sanitize_text_field( (string) $query[ $param ] ) : '';
 		$resolved = '' !== $code ? wpac_resolve_partner_code( $code, array( 'context' => 'cart' ) ) : null;
 		if ( ! $resolved ) {
 			return;

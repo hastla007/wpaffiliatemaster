@@ -48,6 +48,7 @@ final class Settings {
 			'checkout_field'          => 1,
 			'renewal_commission'      => 1,
 			'js_tracking'             => 0,
+			'carry_referral_links'    => 1,        // Cookie mode "consent": keep the referral in same-site links until consent.
 			'cookie_domain'           => '',         // '' = WordPress COOKIE_DOMAIN (current host).
 			'visit_log_percent'       => 100,        // Share of link visits written to the visit log (0 = off).
 			'coupon_priority'         => 1,
@@ -375,7 +376,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'carry_referral_links', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 

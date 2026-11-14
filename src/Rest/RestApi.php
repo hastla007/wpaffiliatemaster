@@ -59,12 +59,45 @@ final class RestApi {
 		if ( ! Settings::get( 'js_tracking' ) && ! ( $consent_only && 'consent' === Settings::get( 'cookie_mode' ) ) ) {
 			return new \WP_Error( 'wpac_disabled', __( 'JavaScript tracking is disabled.', 'affiliate-captain' ), array( 'status' => 404 ) );
 		}
-		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).
+		$carry = (string) $r['carry'];
+		$body  = array( 'ok' => true ); // Same answer for unknown codes (no enumeration).
+		// Without consent the landing page carries the referral in its links (Tracker::carry_token()).
+		// The token is made from the code as sent, also for unknown codes (same answer).
+		if ( ! $consent_only && '' === $carry && \WPAffiliateCaptain\Tracking\Tracker::carry_wanted() ) {
+			$body['carry'] = \WPAffiliateCaptain\Tracking\Tracker::carry_token(
+				sanitize_text_field( (string) $r['code'] ),
+				\WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['campaign'] ),
+				\WPAffiliateCaptain\Tracking\Tracker::clean_sub( (string) $r['sub'] ),
+				time()
+			);
+		}
+		$res = rest_ensure_response( $body );
 		$res->header( 'Cache-Control', 'no-store' );
 		// Only pages of this shop report (same answer otherwise). No per-IP limit here: behind a CDN all
 		// visitors share one address and the referral must never be dropped – visit statistics are
 		// limited per client in Tracker::capture_code(), unknown codes write nothing.
 		if ( ! self::own_origin( (string) $r->get_header( 'origin' ) ) ) {
+			return $res;
+		}
+		if ( '' !== $carry ) {
+			// A later page reports the consent for a carried referral: only the signed token counts
+			// (never a new visit); an expired or forged token is ignored.
+			$carried = \WPAffiliateCaptain\Tracking\Tracker::carry_enabled() ? \WPAffiliateCaptain\Tracking\Tracker::parse_carry( $carry ) : null;
+			if ( $carried ) {
+				if ( function_exists( 'WC' ) && function_exists( 'wc_load_cart' ) && ! WC()->session && ! \WPAffiliateCaptain\Tracking\Tracker::has_login_cookie() ) {
+					wc_load_cart();
+				}
+				\WPAffiliateCaptain\Tracking\Tracker::capture_code(
+					$carried['code'],
+					$carried['campaign'],
+					0,
+					array(
+						'sub_id' => $carried['sub_id'],
+						'ts'     => $carried['ts'],
+						'count'  => false,
+					)
+				);
+			}
 			return $res;
 		}
 		// REST requests do not load the WooCommerce session: without it the touch of a visitor with a
@@ -194,6 +227,11 @@ final class RestApi {
 					'path'       => array( 'type' => 'string' ),
 					'referrer'   => array( 'type' => 'string' ),
 					'consent'    => array( 'type' => 'boolean' ),
+					// Signed referral carried in the links of a landing page until consent.
+					'carry'      => array(
+						'type'      => 'string',
+						'maxLength' => 600,
+					),
 				),
 			)
 		);

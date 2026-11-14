@@ -164,6 +164,8 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_attribution_candidates` | `array $candidates, array $sale` | Prioritätsliste anpassen. |
 | `wpac_is_self_referral` | `bool, int $affiliate_id, array $sale` | Zusätzliche Self-Referral-Prüfung. |
 | `wpac_has_marketing_consent` | `bool` | Consent-Banner anbinden (Cookie nur bei `true`). |
+| `wpac_carry_referral_links` | `bool $on` | Ob die Zuordnung eines Partnerlinks bis zur Einwilligung in den shopeigenen Links weitergetragen wird (URL-Parameter `wpac_carry`, signiert; Standard: Cookie-Modus „consent“ und Einstellung an). |
+| `wpac_carry_referral_window` | `int $seconds` | Gültigkeit des weitergetragenen Tokens ab Klick (Standard 1800, 60 bis 86400). |
 | `wpac_wc_sale_payload` | `array $payload, WC_Order $order` | WooCommerce-Payload ergänzen (z. B. `hold_until`). |
 | `wpac_fraud_flags` | `string[] $flags, array $sale, array $attr` | Eigene Betrugsregeln; jeder Treffer setzt die Provision auf „Prüfung nötig“. |
 | `wpac_statement_note` | `string $note, object $payout` | Hinweistext im PDF-Abrechnungsbeleg anpassen. |

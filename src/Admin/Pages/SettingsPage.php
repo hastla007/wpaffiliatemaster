@@ -197,6 +197,7 @@ final class SettingsPage {
 				'coupon_priority'       => __( 'Affiliate coupon has priority over partner links', 'affiliate-captain' ),
 				'self_referral'         => __( 'Self-referrals', 'affiliate-captain' ),
 				'js_tracking'           => __( 'Also record partner links via JavaScript (for full-page caches/CDNs)', 'affiliate-captain' ),
+				'carry_referral_links'  => __( 'Keep the referral of a partner link on the next pages until consent (link parameter, no storage)', 'affiliate-captain' ),
 				'fraud_max_order_minor' => __( 'Review orders above (net)', 'affiliate-captain' ),
 				'fraud_check_domains'   => __( 'Review orders with disposable or blocked e-mail domains', 'affiliate-captain' ),
 				'fraud_blocked_domains' => __( 'Additional blocked domains', 'affiliate-captain' ),
@@ -271,7 +272,7 @@ final class SettingsPage {
 		return array(
 			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open' ),
 			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'report_admin', 'report_partners' ),
-			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
+			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'carry_referral_links', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines', 'coupon_tpl_discount_type', 'coupon_tpl_amount', 'coupon_tpl_individual_use', 'coupon_tpl_usage_limit_per_user', 'coupon_tpl_expiry_days', 'coupon_tpl_free_shipping', 'coupon_tpl_minimum_amount', 'coupon_tpl_exclude_sale_items' ),
@@ -414,6 +415,7 @@ final class SettingsPage {
 		if ( 'always' === $s['cookie_mode'] ) {
 			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html__( 'An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use "Only with marketing consent" unless your shop is outside the EU and you checked the local law.', 'affiliate-captain' ) . '</p></div></td></tr>';
 		}
+		self::checkbox( 'carry_referral_links', __( 'Keep the referral of a partner link on the next pages until consent (link parameter, no storage)', 'affiliate-captain' ), $s, __( 'Only with "Only with marketing consent": if the visitor answers the consent banner only on a later page, links and search forms of this shop carry the referral for 30 minutes (signed URL parameter, nothing is stored in the browser before consent). With consent the cookie is set; without consent nothing is kept.', 'affiliate-captain' ) );
 		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'affiliate-captain' ), $s );
 		self::text( 'cookie_domain', __( 'Cookie domain', 'affiliate-captain' ), $s, __( 'Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both.', 'affiliate-captain' ) );
 		self::checkbox( 'js_tracking', __( 'Also record partner links via JavaScript (for full-page caches/CDNs)', 'affiliate-captain' ), $s, __( 'Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare "Cache Everything"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice.', 'affiliate-captain' ) );

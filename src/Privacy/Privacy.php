@@ -767,6 +767,9 @@ final class Privacy {
 			/* translators: %d: days */
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
+		if ( 'consent' === $mode && \WPAffiliateCaptain\Tracking\Tracker::carry_enabled() ) {
+			$p[] = __( 'Until you answer the consent banner (at most 30 minutes after the partner link), the links of our shop carry the partner code as a signed parameter in the page address, so a consent given on a later page still credits the partner. Nothing is stored on your device for this; without consent the information ends with your visit.', 'affiliate-captain' );
+		}
 		if ( Settings::get( 'use_wc_session' ) ) {
 			$p[] = __( 'If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout.', 'affiliate-captain' );
 		}

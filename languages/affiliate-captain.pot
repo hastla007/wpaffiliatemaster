@@ -4061,6 +4061,10 @@ msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Keep the referral of a partner link on the next pages until consent (link parameter, no storage)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Review orders with disposable or blocked e-mail domains"
 msgstr ""
 
@@ -4300,6 +4304,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use \"Only with marketing consent\" unless your shop is outside the EU and you checked the local law."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only with \"Only with marketing consent\": if the visitor answers the consent banner only on a later page, links and search forms of this shop carry the referral for 30 minutes (signed URL parameter, nothing is stored in the browser before consent). With consent the cookie is set; without consent nothing is kept."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -8324,6 +8332,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Until you answer the consent banner (at most 30 minutes after the partner link), the links of our shop carry the partner code as a signed parameter in the page address, so a consent given on a later page still credits the partner. Nothing is stored on your device for this; without consent the information ends with your visit."
 msgstr ""
 
 #: src/Privacy/Privacy.php
