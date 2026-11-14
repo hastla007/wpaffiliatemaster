@@ -398,21 +398,34 @@ final class RulesPage {
 			$cats = $cats ? $cats : wc_get_product_term_ids( $product->get_parent_id() ? $product->get_parent_id() : $product_id, 'product_cat' );
 			$tags = $tags ? $tags : wc_get_product_term_ids( $product->get_parent_id() ? $product->get_parent_id() : $product_id, 'product_tag' );
 		}
-		$net  = Money::to_minor( (string) Money::normalize_decimal( Admin::get( 'p_net' ) ), $currency );
+		// Parent categories: rules on a parent category apply to its subcategories as well.
+		$ancestors = array();
+		if ( function_exists( 'get_ancestors' ) ) {
+			foreach ( $cats as $cat ) {
+				foreach ( (array) get_ancestors( (int) $cat, 'product_cat', 'taxonomy' ) as $a ) {
+					$ancestors[ (int) $a ] = (int) $a;
+				}
+			}
+		}
+		$ancestors = array_values( array_diff( $ancestors, $cats ) );
+		$net       = Money::to_minor( (string) Money::normalize_decimal( Admin::get( 'p_net' ) ), $currency );
 		$calc = Calculator::calculate(
 			array(
 				'product_id'   => $product_id,
 				'parent_id'    => 0,
 				'sku'          => $sku,
-				'category_ids' => $cats,
-				'tag_ids'      => $tags,
-				'quantity'     => 1,
-				'net_minor'    => $net,
+				'category_ids'          => $cats,
+				'category_ancestor_ids' => $ancestors,
+				'tag_ids'               => $tags,
+				'quantity'              => 1,
+				'net_minor'             => $net,
 			),
-			RuleRepository::active(),
+			RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id ),
 			(int) $aff->id,
 			(int) $aff->group_id,
-			RuleRepository::default_rate()
+			RuleRepository::default_rate(),
+			true,
+			RuleRepository::precedence()
 		);
 		echo '<div class="notice notice-info inline"><p>';
 		if ( $calc['excluded'] ) {

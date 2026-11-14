@@ -8,8 +8,9 @@ Authentifizierung über WordPress (Cookie + `X-WP-Nonce` oder Application Passwo
 | `GET /wp-json/wpac/v1/contract` | öffentlich | Vertragsversion (Plugin-Version nur für angemeldete Nutzer mit `wpac_manage_program`) |
 | `GET /wpac/v1/codes/{code}` | öffentlich, max. 20/min je Client | `{ "valid": true|false }` – keine Partnerdaten (Schutz vor Enumeration) |
 | `POST /wpac/v1/touch` | öffentlich, nur mit Einstellung „Partnerlinks zusätzlich per JavaScript erfassen“ (sonst 404) | Meldet einen Partnerlink von einer gecachten Seite: `{ code, campaign?, utm_source?, utm_medium?, content_id?, path?, referrer? }` → immer `{ "ok": true }` (auch bei unbekanntem Code); Besuch zählt je Client und Code höchstens einmal pro Minute. |
-| `POST /wpac/v1/sales` | `wpac_manage_program` | Verkauf melden (Payload wie `wpac_record_sale`, siehe CONTRACT.md); `202` = zur Wiederholung eingeplant |
-| `POST /wpac/v1/refunds` | `wpac_manage_program` | Refund/Storno/Chargeback melden |
+| `POST /wpac/v1/sales` | `wpac_manage_program` | Verkauf melden (Payload wie `wpac_record_sale`, siehe CONTRACT.md); `200` = verarbeitet, `202` = zur Wiederholung eingeplant, `400` = ungültige Daten (nicht wiederholen), `503` + `Retry-After` = nicht gespeichert (später erneut senden) |
+| `POST /wpac/v1/refunds` | `wpac_manage_program` | Refund/Storno/Chargeback melden; Statuscodes wie `/sales` (`202` auch, wenn die Erstattung auf ihren Verkauf wartet: `queued`/`parked`) |
+| `POST /wpac/v1/reinstatements` | `wpac_manage_program` | Storno/Chargeback zurücknehmen (Payload wie `wpac_record_reinstatement`, siehe CONTRACT.md) |
 | `GET /wpac/v1/affiliates?status=&search=&page=&per_page=` | `wpac_manage_affiliates` | Partnerliste (`X-WP-Total`) |
 | `GET /wpac/v1/affiliates/{id}` | `wpac_manage_affiliates` | Partner mit Codes |
 | `GET /wpac/v1/commissions?affiliate_id=&status=&source=&order_id=&from=&to=` | `wpac_manage_affiliates` | Ledger |

@@ -101,6 +101,7 @@ final class AttributionResolver {
 		 * @param array $sale       Sale.
 		 */
 		$candidates = apply_filters( 'wpac_attribution_candidates', $candidates, $sale );
+		$offered    = is_array( $candidates ) && (bool) $candidates;
 		// Whatever added a candidate (coupon links, integrations, filters): only active partners
 		// whose processing is not restricted (Art. 18 GDPR) can earn new commissions.
 		$candidates = array_values(
@@ -112,9 +113,17 @@ final class AttributionResolver {
 			)
 		);
 		if ( ! $candidates ) {
+			// Why (shown on the order): a partner was found but may not earn, a code/link/partner
+			// was given but is unknown or not usable, or there was no referral at all.
+			$reason = 'no_candidate';
+			if ( $offered || ! empty( $sale['affiliate_id'] ) ) {
+				$reason = 'partner_not_eligible';
+			} elseif ( ! empty( $sale['partner_code'] ) || ! empty( $sale['touch']['code'] ) ) {
+				$reason = 'code_not_found';
+			}
 			return array(
 				'attribution' => null,
-				'reason'      => 'no_candidate',
+				'reason'      => $reason,
 			);
 		}
 

@@ -59,6 +59,14 @@ final class OrderMetaBox {
 			echo '<p><strong>' . esc_html( $aff ? $aff->name : '#' . $attr->affiliate_id ) . '</strong><br>';
 			echo esc_html__( 'Method', 'affiliate-captain' ) . ': ' . esc_html( Ledger::method_label( $attr->method ) ) . '<br>';
 			echo esc_html__( 'Commission', 'affiliate-captain' ) . ': ' . esc_html( Money::format( $sum, $order->get_currency() ) ) . '</p>';
+			if ( 'review' === $attr->status || '' !== (string) $attr->note ) {
+				$labels = \WPAffiliateCaptain\Tracking\FraudCheck::labels();
+				$flags  = array();
+				foreach ( array_filter( explode( ',', (string) $attr->note ) ) as $flag ) {
+					$flags[] = isset( $labels[ $flag ] ) ? $labels[ $flag ] : $flag;
+				}
+				echo '<p><strong>' . esc_html__( 'Needs review', 'affiliate-captain' ) . ':</strong> ' . esc_html( $flags ? implode( ', ', $flags ) : '—' ) . '</p>';
+			}
 			echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wpac-commissions&order_id=' . $order->get_id() . '&source=' . WooCommerce::SOURCE ) ) . '">' . esc_html__( 'View commissions', 'affiliate-captain' ) . '</a></p>';
 			if ( $order->is_paid() ) {
 				// Re-attribution: the current partner's commission is reversed, the order is booked for the new one.
@@ -88,7 +96,23 @@ final class OrderMetaBox {
 			/* translators: %s: code */
 			echo '<p>' . esc_html( sprintf( __( 'Partner code entered: %s', 'affiliate-captain' ), $code ) ) . '</p>';
 		}
-		echo '<p>' . esc_html__( 'Not attributed.', 'affiliate-captain' ) . '</p>';
+		$touch = $order->get_meta( WooCommerce::META_TOUCH );
+		if ( is_array( $touch ) && ! empty( $touch['code'] ) ) {
+			/* translators: 1: partner code, 2: method (link, cookie …) */
+			echo '<p>' . esc_html( sprintf( __( 'Referral before the order: %1$s (%2$s)', 'affiliate-captain' ), (string) $touch['code'], Ledger::method_label( isset( $touch['method'] ) ? (string) $touch['method'] : 'link' ) ) ) . '</p>';
+		}
+		echo '<p>' . esc_html__( 'Not attributed.', 'affiliate-captain' );
+		if ( Jobs::sale_pending( WooCommerce::SOURCE, (string) $order->get_id() ) ) {
+			echo ' ' . esc_html__( 'The booking failed and is retried automatically (Affiliate Captain → Integrations).', 'affiliate-captain' );
+		} elseif ( 'none' === $order->get_meta( '_wpac_resolved' ) ) {
+			echo ' ' . esc_html( OrderSync::unresolved_label( (string) $order->get_meta( OrderSync::META_UNRESOLVED_REASON ) ) );
+		}
+		$last_error = (string) $order->get_meta( OrderSync::META_LAST_ERROR );
+		if ( '' !== $last_error && 0 === strpos( $last_error, 'sale:' ) && 'sale:wpac_queued' !== $last_error ) {
+			/* translators: %s: error code */
+			echo ' ' . esc_html( sprintf( __( 'The sale was not accepted (%s), see the order notes.', 'affiliate-captain' ), substr( $last_error, 5 ) ) );
+		}
+		echo '</p>';
 		list( $affiliates ) = AffiliateRepository::query(
 			array(
 				'status' => 'active',

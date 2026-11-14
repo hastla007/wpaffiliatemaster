@@ -1292,7 +1292,7 @@ msgstr ""
 msgid "Period end"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php
 msgid "Currency"
 msgstr ""
 
@@ -1344,6 +1344,14 @@ msgid "Commissions updated."
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
+msgid "Please enter a valid amount (e.g. 25 or -12,50)."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Manual booking saved. It is payable with the next payout."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
 msgid "Please enter a reason for the rejection."
 msgstr ""
 
@@ -1361,6 +1369,26 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Order"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Manual booking (commission, bonus or deduction)"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Amount (negative = deduction)"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Reason (shown to the partner)"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Book this amount for the partner? It is approved at once and paid with the next payout."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Book"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Reports/MonthlyMail.php
@@ -1446,6 +1474,30 @@ msgstr ""
 #. translators: %s: amount
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Reject this commission (%s)? The partner sees the reason."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Reopen"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Reason (required)"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Reopen for review"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
+msgid "Correction"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Book this correction? Approved commissions change the payable balance at once."
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Book correction"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -2030,11 +2082,23 @@ msgid "There are no failed jobs."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "This job is running or already done and was not started again."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "Job processed successfully."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Job failed again – see error."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Job dismissed. It will not be retried."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Only failed or parked jobs can be dismissed."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -2082,6 +2146,10 @@ msgid "Waiting for the next attempt"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Waiting for its sale"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "Running"
 msgstr ""
 
@@ -2103,6 +2171,14 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Already included in the retried sale."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The sale of this order was not reported yet; the refund is booked once it is."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The integration of this job is not active right now (e.g. WooCommerce deactivated); it is retried later without using up attempts."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -2245,6 +2321,14 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Retry now"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Dismiss this job? It will not be retried; a sale in it stays without commission."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Dismiss"
 msgstr ""
 
 #. translators: %d: number of payouts
@@ -2603,10 +2687,6 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Description"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
-msgid "Correction"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
@@ -3043,6 +3123,10 @@ msgid "Hold period (days after payment)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Renewal commission for (months, 0 = unlimited)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Your country"
 msgstr ""
 
@@ -3313,11 +3397,39 @@ msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Off: only the first order of a subscription earns commission; renewals are not attributed."
+msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until."
+msgid "Renewals earn commission only within this many months after the first order of the subscription."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Rule precedence"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Partner rules first: partner > group > all partners, then product > category > all; exclusions always win"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Most specific product first: product > category > all, then partner > group > all partners; exclusions compete like other rules"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Hold period starts"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "At payment"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -3503,6 +3615,10 @@ msgstr ""
 
 #: src/Admin/Tables/CommissionsTable.php
 msgid "Reject (reason required, shown to the partner)"
+msgstr ""
+
+#: src/Admin/Tables/CommissionsTable.php
+msgid "Reject all selected commissions? The partners see the reason."
 msgstr ""
 
 #: src/Admin/Tables/CommissionsTable.php
@@ -4027,7 +4143,7 @@ msgstr ""
 msgid "Pending (hold period)"
 msgstr ""
 
-#: src/Commissions/Ledger.php
+#: src/Commissions/Ledger.php src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Needs review"
 msgstr ""
 
@@ -4049,6 +4165,10 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "Reinstatement"
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Manual booking"
 msgstr ""
 
 #: src/Commissions/Ledger.php
@@ -4078,6 +4198,10 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "The order cannot be attributed to this partner. Nothing was changed."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The order could not be booked for the new partner (the booking was refused, e.g. by a filter or because no line earns commission). Nothing was changed."
 msgstr ""
 
 #: src/Commissions/Ledger.php
@@ -4114,6 +4238,34 @@ msgstr ""
 
 #: src/Commissions/Ledger.php
 msgid "The commission was changed in the meantime (e.g. added to a payout). Please reload and try again."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The commission could not be rejected (database error). Please try again."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Only rejected sale commissions and manual bookings can be reopened."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The commission could not be reopened (database error). Please try again."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Please enter an amount other than 0."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Corrections can only be booked for commissions that are not rejected."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "Unknown partner or currency."
+msgstr ""
+
+#: src/Commissions/Ledger.php
+msgid "The booking could not be saved (database error). Please try again."
 msgstr ""
 
 #: src/Commissions/RuleRepository.php
@@ -4574,16 +4726,26 @@ msgstr ""
 msgid "Partner code entered: %s"
 msgstr ""
 
+#. translators: 1: partner code, 2: method (link, cookie …)
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Referral before the order: %1$s (%2$s)"
+msgstr ""
+
 #: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Not attributed."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
-msgid "Assign manually"
+msgid "The booking failed and is retried automatically (Affiliate Captain → Integrations)."
+msgstr ""
+
+#. translators: %s: error code
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "The sale was not accepted (%s), see the order notes."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
-msgid "Reason (required)"
+msgid "Assign manually"
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
@@ -4636,9 +4798,54 @@ msgstr ""
 msgid "The order could not be attributed to partner \"%s\" (partner not active, processing restricted or the partner is the buyer)."
 msgstr ""
 
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "No partner link, partner code, coupon or lifetime customer."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "The partner code or link is unknown, expired, blocked or used up."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "The partner is not active or processing is restricted."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "The partner is the buyer (self-referral)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Commission on subscription renewals is switched off."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "The first order of the subscription has no partner, its commission was rejected or reversed, or the renewal period has ended."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "No partner found."
+msgstr ""
+
 #. translators: 1: affiliate name, 2: method
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Affiliate Captain: attributed to partner \"%1$s\" (%2$s)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the partner commission could not be booked yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the refund could not be deducted from the partner commission yet and will be retried automatically (Affiliate Captain → Integrations)."
+msgstr ""
+
+#. translators: 1: error message, 2: error code
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the sale could not be booked: %1$s (%2$s)"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the refund could not be booked: %1$s (%2$s)"
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
@@ -4647,6 +4854,26 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Order cancelled"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Order moved to the trash"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Order deleted"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Order items changed after payment"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically. If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction)."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
@@ -6143,6 +6370,14 @@ msgstr ""
 msgid "The refund could not be processed and was queued for retry."
 msgstr ""
 
+#: src/Sales/ContractApi.php
+msgid "Reversal withdrawn by the sales source (e.g. chargeback won)"
+msgstr ""
+
+#: src/Sales/ContractApi.php
+msgid "The reinstatement could not be processed and was queued for retry."
+msgstr ""
+
 #: src/Tracking/FraudCheck.php
 msgid "Self-referral"
 msgstr ""
@@ -6169,6 +6404,10 @@ msgstr ""
 
 #: src/Tracking/FraudCheck.php
 msgid "Coupon of another partner used"
+msgstr ""
+
+#: src/Tracking/FraudCheck.php
+msgid "Review requested by the sales source (e.g. first order of the subscription under review)"
 msgstr ""
 
 #: assets/js/blocks.js

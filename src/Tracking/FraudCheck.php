@@ -43,6 +43,7 @@ final class FraudCheck {
 			'refund_rate'     => __( 'High refund rate of the partner', 'affiliate-captain' ),
 			'email_domain'    => __( 'Blocked or disposable e-mail domain', 'affiliate-captain' ),
 			'coupon_mismatch' => __( 'Coupon of another partner used', 'affiliate-captain' ),
+			'source_review'   => __( 'Review requested by the sales source (e.g. first order of the subscription under review)', 'affiliate-captain' ),
 		);
 	}
 

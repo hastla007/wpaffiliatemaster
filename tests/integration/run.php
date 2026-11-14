@@ -381,10 +381,10 @@ check( 'R4 running job is not claimed again', false, WPAffiliateCaptain\Core\Job
 WPAffiliateCaptain\Core\Jobs::run_due();
 $job = $wpdb->get_row( 'SELECT status, attempts, last_error_code FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" );
 // The dead run counts as an attempt (3 → requeued as aborted) and the job then runs again in the
-// same pass and fails without a handler (attempt 4).
-check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 4, 'no_handler' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
+// same pass; a missing handler (integration not loaded) waits without using up an attempt (R5-O20).
+check( 'R4 expired lease → the dead run and the new run are counted', array( 'queued', 3, 'no_handler' ), array( $job->status, (int) $job->attempts, $job->last_error_code ) );
 WPAffiliateCaptain\Core\Jobs::enqueue( 'nohandler', 'x1', array(), 'e', 'e' );
-check( 'R4 re-enqueue keeps the attempts (a job that keeps failing must still end as failed)', '4', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
+check( 'R4 re-enqueue keeps the attempts (a job that keeps failing must still end as failed)', '3', (string) $wpdb->get_var( 'SELECT attempts FROM ' . t( 'jobs' ) . " WHERE id = {$jid}" ) );
 
 // R5 filtered commission base: a refund of half the line reverses half the commission.
 $GLOBALS['test_hooks']['wpac_commission_base'][10][] = array( static function ( $base ) { return intdiv( $base, 2 ); }, 1 );
@@ -1058,8 +1058,15 @@ class ZA_Order {
 	public function get_customer_id() { return 0; }
 	public function get_billing_email() { return 'abo@example.de'; }
 	public function get_parent_id() { return $this->parent; }
+	public function get_total() { return '50.00'; }
+	public function get_total_tax() { return '0.00'; }
+	public function get_shipping_total() { return '0.00'; }
+	public function get_status() { return 'processing'; }
+	public function has_status( $s ) { return in_array( 'processing', (array) $s, true ); }
 }
 class ZA_Item {
+	public function get_meta( $k ) { return ''; }
+	public function get_total_tax() { return '0.00'; }
 	public function get_product() { return null; }
 	public function get_variation_id() { return 0; }
 	public function get_product_id() { return 0; }
@@ -1512,6 +1519,7 @@ refund( 'zf-2', 'zf-r1', array( array( 'item_id' => '1', 'net_minor' => 5000 ) )
 WPAffiliateCaptain\Core\Cron::daily();
 $zf_hosts = array_values( array_unique( array_map( static function ( $u ) { return (string) parse_url( (string) $u, PHP_URL_HOST ); }, $GLOBALS['test_http_calls'] ) ) );
 check( 'ZF6 core flows make no outgoing requests (no license server, VIES off)', array(), $zf_hosts );
+require __DIR__ . '/r8-g3.php';
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 
 echo "\n{$count} integration checks, {$fails} failures\n";

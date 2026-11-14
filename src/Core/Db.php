@@ -153,6 +153,54 @@ final class Db {
 	}
 
 	/**
+	 * Shorten a value to a column length in characters without cutting a multibyte (UTF-8)
+	 * character in half. A byte cut (substr) inside "ä" or "€" leaves invalid UTF-8, which
+	 * WordPress/MySQL reject: the whole INSERT/UPDATE fails.
+	 *
+	 * @param mixed $value Value.
+	 * @param int   $max   Maximum number of characters.
+	 * @return string
+	 */
+	public static function cut( $value, $max ) {
+		$value = (string) $value;
+		$max   = max( 0, (int) $max );
+		if ( strlen( $value ) <= $max ) {
+			return $value; // Fits in bytes, so certainly in characters.
+		}
+		if ( function_exists( 'mb_substr' ) ) {
+			return mb_substr( $value, 0, $max, 'UTF-8' );
+		}
+		// Without mbstring: byte cut, then drop a trailing incomplete UTF-8 sequence.
+		$cut = substr( $value, 0, $max );
+		if ( preg_match( '/[\xC0-\xFF][\x80-\xBF]*$/', $cut, $m ) ) {
+			$lead = ord( $m[0][0] );
+			$len  = $lead >= 0xF0 ? 4 : ( $lead >= 0xE0 ? 3 : 2 );
+			if ( strlen( $m[0] ) < $len ) {
+				$cut = substr( $cut, 0, -strlen( $m[0] ) );
+			}
+		}
+		return $cut;
+	}
+
+	/**
+	 * Run a callback after the current transaction was committed (right away outside a
+	 * transaction). Dropped when the transaction is rolled back. For notifications and other
+	 * side effects that must not happen for a booking that is rolled back.
+	 *
+	 * @param callable $fn Callback.
+	 */
+	public static function after_commit( callable $fn ) {
+		if ( self::$depth > 0 ) {
+			self::$after_commit[] = $fn;
+			return;
+		}
+		$fn();
+	}
+
+	/** @var callable[] Callbacks waiting for the COMMIT of the running transaction. */
+	private static $after_commit = array();
+
+	/**
 	 * Run a callback in a transaction (InnoDB). Rolls back and rethrows on error.
 	 *
 	 * @param callable $fn Callback.
@@ -176,13 +224,19 @@ final class Db {
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new IntegrationException( 'db_commit', 'Could not commit the database transaction: ' . $wpdb->last_error );
 			}
-			return $result;
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
+			self::$after_commit = array();
 			throw $e;
 		} finally {
 			self::$depth = 0;
 		}
+		$queued             = self::$after_commit;
+		self::$after_commit = array();
+		foreach ( $queued as $cb ) {
+			$cb();
+		}
+		return $result;
 	}
 
 	/** @var int Transaction nesting depth. */

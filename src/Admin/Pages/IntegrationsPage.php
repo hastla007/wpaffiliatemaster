@@ -58,8 +58,17 @@ final class IntegrationsPage {
 			Admin::back( $message, $failed ? ( $ok ? 'warning' : 'error' ) : 'success' );
 		}
 		if ( 'job_retry' === $do ) {
-			$ok = Jobs::retry( absint( Admin::post( 'id' ) ) );
+			$id  = absint( Admin::post( 'id' ) );
+			$job = Jobs::find( $id );
+			if ( ! $job || ! in_array( $job->status, array( 'queued', 'failed', 'parked' ), true ) ) {
+				Admin::back( __( 'This job is running or already done and was not started again.', 'affiliate-captain' ), 'warning' );
+			}
+			$ok = Jobs::retry( $id );
 			Admin::back( $ok ? __( 'Job processed successfully.', 'affiliate-captain' ) : __( 'Job failed again – see error.', 'affiliate-captain' ), $ok ? 'success' : 'error' );
+		}
+		if ( 'job_dismiss' === $do ) {
+			$ok = Jobs::dismiss( absint( Admin::post( 'id' ) ) );
+			Admin::back( $ok ? __( 'Job dismissed. It will not be retried.', 'affiliate-captain' ) : __( 'Only failed or parked jobs can be dismissed.', 'affiliate-captain' ), $ok ? 'success' : 'error' );
 		}
 		if ( 'reencrypt' === $do ) {
 			if ( ! Crypto::has_dedicated_key() ) {
@@ -139,6 +148,7 @@ final class IntegrationsPage {
 	private static function job_status_label( $status ) {
 		$labels = array(
 			'queued'  => __( 'Waiting for the next attempt', 'affiliate-captain' ),
+			'parked'  => __( 'Waiting for its sale', 'affiliate-captain' ),
 			'running' => __( 'Running', 'affiliate-captain' ),
 			'failed'  => __( 'Failed', 'affiliate-captain' ),
 			'done'    => __( 'Done', 'affiliate-captain' ),
@@ -157,6 +167,8 @@ final class IntegrationsPage {
 			'aborted'            => __( 'The previous attempt did not finish (timeout or fatal error).', 'affiliate-captain' ),
 			'sale_pending'       => __( 'Waiting for the sale of this order to be booked first.', 'affiliate-captain' ),
 			'superseded'         => __( 'Already included in the retried sale.', 'affiliate-captain' ),
+			'no_sale'            => __( 'The sale of this order was not reported yet; the refund is booked once it is.', 'affiliate-captain' ),
+			'no_handler'         => __( 'The integration of this job is not active right now (e.g. WooCommerce deactivated); it is retried later without using up attempts.', 'affiliate-captain' ),
 			'exception'          => __( 'Unexpected error.', 'affiliate-captain' ),
 			'db_transaction'     => __( 'Database error (transaction could not be started).', 'affiliate-captain' ),
 			'db_commit'          => __( 'Database error (transaction could not be saved).', 'affiliate-captain' ),
@@ -258,8 +270,15 @@ final class IntegrationsPage {
 				esc_html( $j->last_error ),
 				esc_html( 'queued' === $j->status ? Admin::date( $j->next_attempt_at, true ) : '—' )
 			);
-			Admin::form_open( 'job_retry', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $j->id . '"><button class="button button-small">' . esc_html__( 'Retry now', 'affiliate-captain' ) . '</button></form></td></tr>';
+			if ( 'running' !== $j->status ) {
+				Admin::form_open( 'job_retry', 'wpac-inline' );
+				echo '<input type="hidden" name="id" value="' . (int) $j->id . '"><button class="button button-small">' . esc_html__( 'Retry now', 'affiliate-captain' ) . '</button></form>';
+			}
+			if ( in_array( $j->status, array( 'failed', 'parked' ), true ) ) {
+				Admin::form_open( 'job_dismiss', 'wpac-inline' );
+				echo '<input type="hidden" name="id" value="' . (int) $j->id . '"><button class="button button-small button-link-delete" data-wpac-confirm="' . esc_attr__( 'Dismiss this job? It will not be retried; a sale in it stays without commission.', 'affiliate-captain' ) . '">' . esc_html__( 'Dismiss', 'affiliate-captain' ) . '</button></form>';
+			}
+			echo '</td></tr>';
 		}
 		echo '</tbody></table></div>';
 	}

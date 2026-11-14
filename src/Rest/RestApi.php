@@ -181,6 +181,22 @@ final class RestApi {
 				'callback'            => static function ( \WP_REST_Request $r ) {
 					return self::result( ContractApi::record_sale( (array) $r->get_json_params() ) );
 				},
+				'args'                => self::contract_args(
+					array(
+						'currency' => array(
+							'type'     => 'string',
+							'required' => true,
+							'pattern'  => '^[A-Za-z]{3}$',
+						),
+						'items'    => array(
+							'type'     => 'array',
+							'required' => true,
+							'minItems' => 1,
+							'maxItems' => ContractApi::MAX_ITEMS,
+							'items'    => array( 'type' => 'object' ),
+						),
+					)
+				),
 			)
 		);
 		register_rest_route(
@@ -192,6 +208,39 @@ final class RestApi {
 				'callback'            => static function ( \WP_REST_Request $r ) {
 					return self::result( ContractApi::record_refund( (array) $r->get_json_params() ) );
 				},
+				'args'                => self::contract_args(
+					array(
+						'refund_id' => array(
+							'type'      => array( 'string', 'integer' ),
+							'required'  => true,
+							'maxLength' => 64,
+						),
+						'items'     => array(
+							'type'     => 'array',
+							'maxItems' => ContractApi::MAX_ITEMS,
+							'items'    => array( 'type' => 'object' ),
+						),
+					)
+				),
+			)
+		);
+		register_rest_route(
+			self::NS,
+			'/reinstatements',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => self::can( Capabilities::MANAGE_PROGRAM ),
+				'callback'            => static function ( \WP_REST_Request $r ) {
+					return self::result( ContractApi::record_reinstatement( (array) $r->get_json_params() ) );
+				},
+				'args'                => self::contract_args(
+					array(
+						'refund_id' => array(
+							'type'      => array( 'string', 'integer' ),
+							'maxLength' => 64,
+						),
+					)
+				),
 			)
 		);
 		register_rest_route(
@@ -316,6 +365,31 @@ final class RestApi {
 	}
 
 	/**
+	 * Schema of the contract routes (the contract validates everything again in detail).
+	 *
+	 * @param array $extra Route specific args.
+	 * @return array
+	 */
+	private static function contract_args( array $extra ) {
+		return $extra + array(
+			'contract' => array(
+				'type'      => 'string',
+				'maxLength' => 20,
+			),
+			'source'   => array(
+				'type'      => 'string',
+				'required'  => true,
+				'maxLength' => 40,
+			),
+			'order_id' => array(
+				'type'      => array( 'string', 'integer' ),
+				'required'  => true,
+				'maxLength' => 64,
+			),
+		);
+	}
+
+	/**
 	 * Common paging args.
 	 *
 	 * @param array $extra Extra args.
@@ -368,7 +442,25 @@ final class RestApi {
 					202
 				);
 			}
+			if ( 'wpac_not_queued' === $result->get_error_code() ) {
+				// Server problem (e.g. database unavailable): the sender must try again later.
+				$res = new \WP_REST_Response(
+					array(
+						'code'    => 'wpac_not_queued',
+						'message' => $result->get_error_message(),
+						'data'    => array( 'status' => 503 ),
+					),
+					503
+				);
+				$res->header( 'Retry-After', '300' );
+				return $res;
+			}
 			$result->add_data( array( 'status' => 400 ) );
+			return $result;
+		}
+		if ( is_array( $result ) && isset( $result['status'] ) && in_array( $result['status'], array( 'queued', 'parked' ), true ) ) {
+			// Stored for later processing (waiting for its sale): the same 202 as a queued sale.
+			return new \WP_REST_Response( $result, 202 );
 		}
 		return $result;
 	}

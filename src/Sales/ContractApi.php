@@ -40,6 +40,12 @@ final class ContractApi {
 				self::record_refund( (array) $payload );
 			}
 		);
+		add_action(
+			'wpac_v1_record_reinstatement',
+			static function ( $payload ) {
+				self::record_reinstatement( (array) $payload );
+			}
+		);
 		add_filter( 'wpac_run_job', array( __CLASS__, 'run_job' ), 10, 3 );
 	}
 
@@ -68,11 +74,13 @@ final class ContractApi {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
 		// Mark the sale as in flight: a refund arriving meanwhile (parallel webhook) is queued
-		// instead of being dropped as "no commission" (Jobs::sale_pending()).
-		$inflight = Jobs::inflight_key( $sale['source'], $sale['order_id'] );
-		$owner    = Db::lock( $inflight, 10 * MINUTE_IN_SECONDS ); // '' when a parallel request books it: keep its marker.
+		// instead of being dropped as "no commission" (Jobs::sale_pending()). A MySQL user lock of
+		// this connection – nothing is written to the database for orders without a partner.
+		$owner = Jobs::begin_inflight( $sale['source'], $sale['order_id'] ); // false when a parallel request books it: keep its marker.
 		try {
-			return Ledger::record_sale( $sale );
+			$result = Ledger::record_sale( $sale );
+			self::after_booking( $sale, $result );
+			return $result;
 		} catch ( \Throwable $e ) {
 			$code = $e instanceof IntegrationException ? $e->error_code : 'exception';
 			if ( is_array( $retry ) && ! empty( $retry['type'] ) ) {
@@ -85,8 +93,33 @@ final class ContractApi {
 			}
 			return new \WP_Error( 'wpac_queued', __( 'The sale could not be processed and was queued for retry.', 'affiliate-captain' ) );
 		} finally {
-			Db::unlock( $inflight, $owner );
+			if ( $owner ) {
+				Jobs::end_inflight( $sale['source'], $sale['order_id'] );
+			}
 		}
+	}
+
+	/**
+	 * After a sale was booked: refunds already deducted from its net amounts are closed, the
+	 * other refunds that waited for it (queued or parked) run now.
+	 *
+	 * With `netted_refund_ids` the source says which refunds it deducted. Without it (sources
+	 * written for contract 1.0–1.2, which deduct earlier refunds as documented), refunds that
+	 * were parked because the sale was unknown are treated as deducted, so nothing is deducted twice.
+	 *
+	 * @param array $sale   Normalized sale.
+	 * @param array $result Result of Ledger::record_sale().
+	 */
+	public static function after_booking( array $sale, $result ) {
+		if ( ! is_array( $result ) || 'created' !== $result['status'] ) {
+			return;
+		}
+		if ( is_array( $sale['netted_refund_ids'] ) ) {
+			Jobs::supersede_refunds( $sale['source'], $sale['order_id'], $sale['netted_refund_ids'] );
+		} else {
+			Jobs::supersede_parked( $sale['source'], $sale['order_id'] );
+		}
+		Jobs::wake_refunds( $sale['source'] . ':' . $sale['order_id'] );
 	}
 
 	/**
@@ -140,10 +173,28 @@ final class ContractApi {
 			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 		}
 		try {
+			if ( Jobs::is_superseded( $refund['source'], $refund['order_id'], $refund['refund_id'] ) ) {
+				// Already deducted from the net amounts of the booked sale.
+				return array(
+					'status'         => 'superseded',
+					'adjustment_ids' => array(),
+				);
+			}
 			$result = Ledger::record_refund( $refund );
 			if ( 'no_commission' === $result['status'] && ! Jobs::sale_pending( $refund['source'], $refund['order_id'] ) && Ledger::attribution_for( $refund['source'], $refund['order_id'] ) ) {
 				// The sale was booked between our read and the pending check: apply the refund now.
 				$result = Ledger::record_refund( $refund );
+			}
+			if ( 'no_commission' === $result['status'] && ! Jobs::sale_pending( $refund['source'], $refund['order_id'] ) && ! Ledger::attribution_for( $refund['source'], $refund['order_id'] ) ) {
+				// Unknown order (the sale was not reported yet): park the refund until the sale is
+				// booked (see after_booking()); otherwise the full commission would be paid later.
+				if ( ! Jobs::enqueue( 'refund', $refund['source'] . ':' . $refund['order_id'] . ':' . $refund['refund_id'], $payload, 'no_sale', 'Waiting for the sale of this order to be reported.', 'parked' ) ) {
+					return self::not_queued( 'refund', $refund, 'no_sale', null );
+				}
+				return array(
+					'status'         => 'parked',
+					'adjustment_ids' => array(),
+				);
 			}
 			if ( 'no_commission' === $result['status'] && Jobs::sale_pending( $refund['source'], $refund['order_id'] ) ) {
 				// The sale is still in the retry queue: keep the refund until it is booked,
@@ -176,18 +227,79 @@ final class ContractApi {
 	 */
 	public static function run_job( $handled, $type, $payload ) {
 		if ( 'sale' === $type ) {
-			Ledger::record_sale( self::normalize_sale( $payload ) );
+			$sale = self::normalize_sale( $payload );
+			self::after_booking( $sale, Ledger::record_sale( $sale ) );
 			return true;
 		}
 		if ( 'refund' === $type ) {
 			$refund = self::normalize_refund( $payload );
+			if ( Jobs::is_superseded( $refund['source'], $refund['order_id'], $refund['refund_id'] ) ) {
+				return true;
+			}
 			$result = Ledger::record_refund( $refund );
 			if ( 'no_commission' === $result['status'] && Jobs::sale_pending( $refund['source'], $refund['order_id'] ) ) {
 				throw new IntegrationException( 'sale_pending', 'Waiting for the queued sale of this order.' );
 			}
 			return true;
 		}
+		if ( 'reinstate' === $type ) {
+			$r = self::normalize_reinstatement( $payload );
+			Ledger::reinstate( $r['source'], $r['order_id'], $r['reason'], $r['refund_id'] );
+			return true;
+		}
 		return $handled;
+	}
+
+	/** Largest amount per line in minor units (10 million in a 2-decimal currency). Larger values overflow the integer math of pro-rata refunds. */
+	const MAX_MINOR = 1000000000;
+
+	/** Most lines per sale or refund. */
+	const MAX_ITEMS = 500;
+
+	/** ISO 4217 currency codes accepted by the contract. */
+	const CURRENCIES = 'AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VES VND VUV WST XAF XCD XOF XPF YER ZAR ZMW ZWL';
+
+	/**
+	 * A reference (order, item or refund ID) as string: scalars only, never arrays/objects
+	 * ("Array" would be booked), shortened to the column length without breaking UTF-8.
+	 *
+	 * @param mixed $value Value.
+	 * @param int   $max   Column length.
+	 * @return string
+	 * @throws IntegrationException When the value is not a scalar.
+	 */
+	private static function reference( $value, $max = 64 ) {
+		if ( null === $value ) {
+			return '';
+		}
+		if ( ! is_scalar( $value ) ) {
+			throw new IntegrationException( 'invalid_reference', 'order_id, item_id and refund_id must be strings or numbers' );
+		}
+		return Db::cut( sanitize_text_field( (string) $value ), $max );
+	}
+
+	/**
+	 * An amount in minor units: integers (also as digit strings or whole floats from filters),
+	 * within ±MAX_MINOR. "1e3", "12.5" or huge numbers are refused.
+	 *
+	 * @param mixed $value Value.
+	 * @return int
+	 * @throws IntegrationException When the value is no valid amount.
+	 */
+	public static function minor( $value ) {
+		if ( is_int( $value ) ) {
+			$n = $value;
+		} elseif ( is_float( $value ) && is_finite( $value ) && floor( $value ) === $value && abs( $value ) <= self::MAX_MINOR ) {
+			$n = (int) $value;
+		} elseif ( is_string( $value ) && preg_match( '/^\s*-?\d{1,18}\s*$/', $value ) ) {
+			$n = (int) $value;
+		} else {
+			throw new IntegrationException( 'invalid_amount', 'net_minor must be an integer (minor units)' );
+		}
+		if ( abs( $n ) > self::MAX_MINOR ) {
+			throw new IntegrationException( 'invalid_amount', 'net_minor is out of range (max. ' . self::MAX_MINOR . ' minor units per line)' );
+		}
+		return $n;
 	}
 
 	/**
@@ -198,52 +310,92 @@ final class ContractApi {
 	 * @throws IntegrationException On invalid payloads.
 	 */
 	public static function normalize_sale( array $p ) {
-		$contract = isset( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
+		$contract = isset( $p['contract'] ) && is_scalar( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
 		if ( ! self::is_compatible( $contract ) ) {
 			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
 		}
-		$source   = isset( $p['source'] ) ? sanitize_key( $p['source'] ) : '';
-		$order_id = isset( $p['order_id'] ) ? substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';
+		$source   = isset( $p['source'] ) && is_scalar( $p['source'] ) ? substr( sanitize_key( (string) $p['source'] ), 0, 40 ) : '';
+		$order_id = self::reference( isset( $p['order_id'] ) ? $p['order_id'] : null );
 		if ( '' === $source || '' === $order_id ) {
 			throw new IntegrationException( 'missing_reference', 'source and order_id are required' );
 		}
-		$currency = isset( $p['currency'] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $p['currency'] ) ) : '';
-		if ( 3 !== strlen( $currency ) ) {
+		$currency = isset( $p['currency'] ) && is_scalar( $p['currency'] ) ? strtoupper( trim( (string) $p['currency'] ) ) : '';
+		/**
+		 * Currencies accepted in sale payloads (ISO 4217 codes).
+		 *
+		 * @param string[] $codes Codes.
+		 */
+		$currencies = (array) apply_filters( 'wpac_contract_currencies', explode( ' ', self::CURRENCIES ) );
+		if ( ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! in_array( $currency, $currencies, true ) ) {
 			throw new IntegrationException( 'invalid_currency', 'currency must be an ISO 4217 code' );
 		}
 		if ( empty( $p['items'] ) || ! is_array( $p['items'] ) ) {
 			throw new IntegrationException( 'missing_items', 'items are required' );
 		}
+		if ( count( $p['items'] ) > self::MAX_ITEMS ) {
+			throw new IntegrationException( 'too_many_items', 'at most ' . self::MAX_ITEMS . ' items per sale' );
+		}
 
 		$items = array();
+		$seen  = array();
 		foreach ( $p['items'] as $i => $raw ) {
+			if ( ! is_array( $raw ) && ! is_object( $raw ) ) {
+				throw new IntegrationException( 'invalid_item', 'each item must be an object' );
+			}
 			$raw = (array) $raw;
-			if ( ! isset( $raw['net_minor'] ) || ! is_numeric( $raw['net_minor'] ) || (int) $raw['net_minor'] != $raw['net_minor'] ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual
+			if ( ! isset( $raw['net_minor'] ) ) {
 				throw new IntegrationException( 'invalid_amount', 'net_minor must be an integer (minor units)' );
 			}
+			$net     = self::minor( $raw['net_minor'] );
+			$item_id = isset( $raw['item_id'] ) ? self::reference( $raw['item_id'] ) : (string) $i;
+			if ( '' === $item_id ) {
+				$item_id = (string) $i;
+			}
+			// item_id is the key for refunds and part of the booking key: it must be unique.
+			if ( isset( $seen[ $item_id ] ) ) {
+				throw new IntegrationException( 'duplicate_item', 'item_id ' . $item_id . ' occurs more than once' );
+			}
+			$seen[ $item_id ] = true;
+			$meta             = isset( $raw['meta'] ) && is_array( $raw['meta'] ) ? $raw['meta'] : array();
+			if ( $meta && strlen( (string) wp_json_encode( $meta ) ) > 4096 ) {
+				throw new IntegrationException( 'invalid_meta', 'item meta is limited to 4 KB' );
+			}
 			$items[] = array(
-				'item_id'      => isset( $raw['item_id'] ) ? substr( sanitize_text_field( (string) $raw['item_id'] ), 0, 64 ) : (string) $i,
-				'product_id'   => isset( $raw['product_id'] ) ? (int) $raw['product_id'] : 0,
-				'parent_id'    => isset( $raw['parent_id'] ) ? (int) $raw['parent_id'] : 0,
-				'sku'          => isset( $raw['sku'] ) ? sanitize_text_field( (string) $raw['sku'] ) : '',
-				'category_ids' => isset( $raw['category_ids'] ) ? array_map( 'intval', (array) $raw['category_ids'] ) : array(),
-				'tag_ids'      => isset( $raw['tag_ids'] ) ? array_map( 'intval', (array) $raw['tag_ids'] ) : array(),
-				'name'         => isset( $raw['name'] ) ? sanitize_text_field( (string) $raw['name'] ) : '',
-				'quantity'     => isset( $raw['quantity'] ) ? max( 1, (int) $raw['quantity'] ) : 1,
-				'net_minor'    => max( 0, (int) $raw['net_minor'] ),
-				'meta'         => isset( $raw['meta'] ) && is_array( $raw['meta'] ) ? $raw['meta'] : array(),
+				'item_id'               => $item_id,
+				'product_id'            => isset( $raw['product_id'] ) && is_scalar( $raw['product_id'] ) ? max( 0, (int) $raw['product_id'] ) : 0,
+				'parent_id'             => isset( $raw['parent_id'] ) && is_scalar( $raw['parent_id'] ) ? max( 0, (int) $raw['parent_id'] ) : 0,
+				'sku'                   => isset( $raw['sku'] ) && is_scalar( $raw['sku'] ) ? Db::cut( sanitize_text_field( (string) $raw['sku'] ), 190 ) : '',
+				'category_ids'          => isset( $raw['category_ids'] ) ? self::ids( $raw['category_ids'] ) : array(),
+				// Optional: parent categories (rules on a parent category apply to subcategories).
+				'category_ancestor_ids' => isset( $raw['category_ancestor_ids'] ) ? self::ids( $raw['category_ancestor_ids'] ) : array(),
+				'tag_ids'               => isset( $raw['tag_ids'] ) ? self::ids( $raw['tag_ids'] ) : array(),
+				'name'                  => isset( $raw['name'] ) && is_scalar( $raw['name'] ) ? Db::cut( sanitize_text_field( (string) $raw['name'] ), 255 ) : '',
+				'quantity'              => isset( $raw['quantity'] ) && is_scalar( $raw['quantity'] ) ? min( 100000, max( 1, (int) $raw['quantity'] ) ) : 1,
+				'net_minor'             => max( 0, $net ),
+				'meta'                  => $meta,
 			);
 		}
 
 		$touch = null;
-		if ( ! empty( $p['touch'] ) && is_array( $p['touch'] ) && ! empty( $p['touch']['code'] ) ) {
+		if ( ! empty( $p['touch'] ) && is_array( $p['touch'] ) && ! empty( $p['touch']['code'] ) && is_scalar( $p['touch']['code'] ) ) {
 			$touch = array(
-				'code'       => sanitize_text_field( (string) $p['touch']['code'] ),
-				'method'     => isset( $p['touch']['method'] ) ? sanitize_key( $p['touch']['method'] ) : 'link',
-				'campaign'   => isset( $p['touch']['campaign'] ) ? sanitize_text_field( (string) $p['touch']['campaign'] ) : '',
-				'content_id' => isset( $p['touch']['content_id'] ) ? (int) $p['touch']['content_id'] : 0,
-				'ts'         => isset( $p['touch']['ts'] ) ? (int) $p['touch']['ts'] : 0,
+				'code'       => Db::cut( sanitize_text_field( (string) $p['touch']['code'] ), 64 ),
+				'method'     => isset( $p['touch']['method'] ) && is_scalar( $p['touch']['method'] ) ? sanitize_key( (string) $p['touch']['method'] ) : 'link',
+				'campaign'   => isset( $p['touch']['campaign'] ) && is_scalar( $p['touch']['campaign'] ) ? Db::cut( sanitize_text_field( (string) $p['touch']['campaign'] ), 100 ) : '',
+				'content_id' => isset( $p['touch']['content_id'] ) && is_scalar( $p['touch']['content_id'] ) ? (int) $p['touch']['content_id'] : 0,
+				'ts'         => isset( $p['touch']['ts'] ) && is_scalar( $p['touch']['ts'] ) ? (int) $p['touch']['ts'] : 0,
 			);
+		}
+
+		$netted = null;
+		if ( isset( $p['netted_refund_ids'] ) ) {
+			$netted = array();
+			foreach ( array_slice( (array) $p['netted_refund_ids'], 0, self::MAX_ITEMS ) as $rid ) {
+				$rid = self::reference( $rid );
+				if ( '' !== $rid ) {
+					$netted[] = $rid;
+				}
+			}
 		}
 
 		return array(
@@ -251,22 +403,43 @@ final class ContractApi {
 			'source'              => $source,
 			'order_id'            => $order_id,
 			'currency'            => $currency,
-			'paid_at'             => self::datetime( isset( $p['paid_at'] ) ? $p['paid_at'] : '' ),
-			'hold_until'          => self::datetime( isset( $p['hold_until'] ) ? $p['hold_until'] : '' ),
+			'paid_at'             => self::datetime( isset( $p['paid_at'] ) ? $p['paid_at'] : '', 'paid_at' ),
+			'hold_until'          => self::datetime( isset( $p['hold_until'] ) ? $p['hold_until'] : '', 'hold_until' ),
 			'items'               => $items,
-			'coupon_codes'        => isset( $p['coupon_codes'] ) ? array_values( array_filter( array_map( 'sanitize_text_field', (array) $p['coupon_codes'] ) ) ) : array(),
-			'partner_code'        => isset( $p['partner_code'] ) ? sanitize_text_field( (string) $p['partner_code'] ) : '',
-			'partner_code_method' => isset( $p['partner_code_method'] ) ? sanitize_key( $p['partner_code_method'] ) : '',
-			'affiliate_id'        => isset( $p['affiliate_id'] ) ? (int) $p['affiliate_id'] : 0,
-			'attribution_method'  => isset( $p['attribution_method'] ) ? sanitize_key( $p['attribution_method'] ) : '',
+			'coupon_codes'        => isset( $p['coupon_codes'] ) ? array_slice( array_values( array_filter( array_map( 'sanitize_text_field', array_map( 'strval', array_filter( (array) $p['coupon_codes'], 'is_scalar' ) ) ) ) ), 0, 50 ) : array(),
+			'partner_code'        => isset( $p['partner_code'] ) && is_scalar( $p['partner_code'] ) ? Db::cut( sanitize_text_field( (string) $p['partner_code'] ), 64 ) : '',
+			'partner_code_method' => isset( $p['partner_code_method'] ) && is_scalar( $p['partner_code_method'] ) ? sanitize_key( (string) $p['partner_code_method'] ) : '',
+			'affiliate_id'        => isset( $p['affiliate_id'] ) && is_scalar( $p['affiliate_id'] ) ? max( 0, (int) $p['affiliate_id'] ) : 0,
+			// Method shown for an explicit affiliate_id (e.g. "renewal"; default "manual").
+			'attribution_method'  => isset( $p['attribution_method'] ) && is_scalar( $p['attribution_method'] ) ? substr( sanitize_key( (string) $p['attribution_method'] ), 0, 20 ) : '',
 			'touch'               => $touch,
 			'customer'            => array(
-				'user_id' => isset( $p['customer']['user_id'] ) ? (int) $p['customer']['user_id'] : 0,
+				'user_id' => isset( $p['customer']['user_id'] ) && is_scalar( $p['customer']['user_id'] ) ? (int) $p['customer']['user_id'] : 0,
 				// Used only for the self-referral comparison, never stored.
-				'email'   => isset( $p['customer']['email'] ) ? sanitize_email( (string) $p['customer']['email'] ) : '',
+				'email'   => isset( $p['customer']['email'] ) && is_scalar( $p['customer']['email'] ) ? sanitize_email( (string) $p['customer']['email'] ) : '',
 			),
-			'idempotency_key'     => isset( $p['idempotency_key'] ) ? substr( sanitize_text_field( (string) $p['idempotency_key'] ), 0, 191 ) : $source . ':' . $order_id,
+			// The source asks for a manual review (e.g. renewal of a subscription whose first order is under review).
+			'review'              => ! empty( $p['review'] ),
+			// Refund IDs already deducted from net_minor (null: not stated, see after_booking()).
+			'netted_refund_ids'   => $netted,
+			'idempotency_key'     => isset( $p['idempotency_key'] ) && is_scalar( $p['idempotency_key'] ) ? Db::cut( sanitize_text_field( (string) $p['idempotency_key'] ), 191 ) : $source . ':' . $order_id,
 		);
+	}
+
+	/**
+	 * Category/tag IDs: positive integers, unique, at most 200.
+	 *
+	 * @param mixed $raw Value.
+	 * @return int[]
+	 */
+	private static function ids( $raw ) {
+		$out = array();
+		foreach ( (array) $raw as $v ) {
+			if ( is_scalar( $v ) && (int) $v > 0 ) {
+				$out[ (int) $v ] = (int) $v;
+			}
+		}
+		return array_slice( array_values( $out ), 0, 200 );
 	}
 
 	/**
@@ -277,13 +450,13 @@ final class ContractApi {
 	 * @throws IntegrationException On invalid payloads.
 	 */
 	public static function normalize_refund( array $p ) {
-		$contract = isset( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
+		$contract = isset( $p['contract'] ) && is_scalar( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
 		if ( ! self::is_compatible( $contract ) ) {
 			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
 		}
-		$source    = isset( $p['source'] ) ? sanitize_key( $p['source'] ) : '';
-		$order_id  = isset( $p['order_id'] ) ? substr( sanitize_text_field( (string) $p['order_id'] ), 0, 64 ) : '';
-		$refund_id = isset( $p['refund_id'] ) ? substr( sanitize_text_field( (string) $p['refund_id'] ), 0, 64 ) : '';
+		$source    = isset( $p['source'] ) && is_scalar( $p['source'] ) ? substr( sanitize_key( (string) $p['source'] ), 0, 40 ) : '';
+		$order_id  = self::reference( isset( $p['order_id'] ) ? $p['order_id'] : null );
+		$refund_id = self::reference( isset( $p['refund_id'] ) ? $p['refund_id'] : null );
 		if ( '' === $source || '' === $order_id || '' === $refund_id ) {
 			throw new IntegrationException( 'missing_reference', 'source, order_id and refund_id are required' );
 		}
@@ -292,14 +465,21 @@ final class ContractApi {
 
 		$items = array();
 		if ( ! $full ) {
-			foreach ( (array) ( isset( $p['items'] ) ? $p['items'] : array() ) as $raw ) {
+			$raw_items = isset( $p['items'] ) ? (array) $p['items'] : array();
+			if ( count( $raw_items ) > self::MAX_ITEMS ) {
+				throw new IntegrationException( 'too_many_items', 'at most ' . self::MAX_ITEMS . ' items per refund' );
+			}
+			foreach ( $raw_items as $raw ) {
+				if ( ! is_array( $raw ) && ! is_object( $raw ) ) {
+					continue;
+				}
 				$raw = (array) $raw;
 				if ( ! isset( $raw['item_id'], $raw['net_minor'] ) ) {
 					continue;
 				}
 				$items[] = array(
-					'item_id'   => substr( sanitize_text_field( (string) $raw['item_id'] ), 0, 64 ),
-					'net_minor' => abs( (int) $raw['net_minor'] ),
+					'item_id'   => self::reference( $raw['item_id'] ),
+					'net_minor' => abs( self::minor( $raw['net_minor'] ) ),
 				);
 			}
 			if ( ! $items ) {
@@ -315,22 +495,101 @@ final class ContractApi {
 			'type'      => $type,
 			'full'      => $full,
 			'items'     => $items,
-			'reason'    => isset( $p['reason'] ) ? sanitize_text_field( (string) $p['reason'] ) : '',
+			'reason'    => isset( $p['reason'] ) && is_scalar( $p['reason'] ) ? Db::cut( sanitize_text_field( (string) $p['reason'] ), 255 ) : '',
 		);
 	}
 
 	/**
-	 * Normalize a date/time to UTC "Y-m-d H:i:s" ('' when empty/invalid).
+	 * Validate + normalize a reinstatement payload (chargeback won, cancellation withdrawn).
 	 *
-	 * @param mixed $value Value (string or timestamp).
-	 * @return string
+	 * @param array $p Payload.
+	 * @return array
+	 * @throws IntegrationException On invalid payloads.
 	 */
-	private static function datetime( $value ) {
-		if ( '' === $value || null === $value ) {
+	public static function normalize_reinstatement( array $p ) {
+		$contract = isset( $p['contract'] ) && is_scalar( $p['contract'] ) ? (string) $p['contract'] : '1.0.0';
+		if ( ! self::is_compatible( $contract ) ) {
+			throw new IntegrationException( 'incompatible_contract', 'Unsupported contract version ' . $contract );
+		}
+		$source   = isset( $p['source'] ) && is_scalar( $p['source'] ) ? substr( sanitize_key( (string) $p['source'] ), 0, 40 ) : '';
+		$order_id = self::reference( isset( $p['order_id'] ) ? $p['order_id'] : null );
+		if ( '' === $source || '' === $order_id ) {
+			throw new IntegrationException( 'missing_reference', 'source and order_id are required' );
+		}
+		return array(
+			'contract'  => $contract,
+			'source'    => $source,
+			'order_id'  => $order_id,
+			'refund_id' => self::reference( isset( $p['refund_id'] ) ? $p['refund_id'] : null ),
+			'reason'    => isset( $p['reason'] ) && is_scalar( $p['reason'] ) && '' !== trim( (string) $p['reason'] ) ? Db::cut( sanitize_text_field( (string) $p['reason'] ), 255 ) : __( 'Reversal withdrawn by the sales source (e.g. chargeback won)', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Reinstate the commission of an order whose cancellation or chargeback turned out to be
+	 * wrong (chargeback won, cancellation withdrawn). Partial refunds stay. Idempotent.
+	 *
+	 * @param array $payload { contract, source, order_id, refund_id (optional: only this reversal), reason }.
+	 * @return array|\WP_Error { status: reinstated|unchanged, count }
+	 */
+	public static function record_reinstatement( array $payload ) {
+		try {
+			$r = self::normalize_reinstatement( $payload );
+		} catch ( IntegrationException $e ) {
+			return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
+		}
+		try {
+			$n = Ledger::reinstate( $r['source'], $r['order_id'], $r['reason'], $r['refund_id'] );
+			return array(
+				'status' => $n ? 'reinstated' : 'unchanged',
+				'count'  => (int) $n,
+			);
+		} catch ( \Throwable $e ) {
+			$code = $e instanceof IntegrationException ? $e->error_code : 'exception';
+			if ( ! Jobs::enqueue( 'reinstate', $r['source'] . ':' . $r['order_id'] . ':' . $r['refund_id'], $payload, $code, $e->getMessage() ) ) {
+				return self::not_queued( 'reinstatement', $r, $code, $e );
+			}
+			return new \WP_Error( 'wpac_queued', __( 'The reinstatement could not be processed and was queued for retry.', 'affiliate-captain' ) );
+		}
+	}
+
+	/**
+	 * Normalize a date/time to UTC "Y-m-d H:i:s" ('' when empty).
+	 *
+	 * Accepts "Y-m-d H:i:s" (UTC), ISO 8601, compact "Ymd"/"YmdHis" and Unix timestamps in
+	 * seconds or milliseconds. Dates before 2000 or more than ten years ahead are refused: they
+	 * would release a commission at once or never.
+	 *
+	 * @param mixed  $value Value (string or timestamp).
+	 * @param string $field Field name (error message).
+	 * @return string
+	 * @throws IntegrationException On unreadable or implausible dates.
+	 */
+	public static function datetime( $value, $field = 'date' ) {
+		if ( '' === $value || null === $value || false === $value ) {
 			return '';
 		}
-		$ts = is_numeric( $value ) ? (int) $value : strtotime( (string) $value );
-		return $ts ? gmdate( 'Y-m-d H:i:s', $ts ) : '';
+		if ( ! is_scalar( $value ) ) {
+			throw new IntegrationException( 'invalid_date', $field . ' must be a date or a Unix timestamp' );
+		}
+		$str = trim( (string) $value );
+		if ( preg_match( '/^(\d{4})(\d{2})(\d{2})$/', $str, $m ) ) {
+			$ts = checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) ? strtotime( "{$m[1]}-{$m[2]}-{$m[3]} 00:00:00 UTC" ) : false; // Ymd.
+		} elseif ( preg_match( '/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/', $str, $m ) ) {
+			$ts = checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) ? strtotime( "{$m[1]}-{$m[2]}-{$m[3]} {$m[4]}:{$m[5]}:{$m[6]} UTC" ) : false; // YmdHis.
+		} elseif ( preg_match( '/^\d+(\.\d+)?$/', $str ) ) {
+			$ts = (int) $str;
+			if ( $ts > 100000000000 ) {
+				$ts = (int) floor( $ts / 1000 ); // Milliseconds (JavaScript, many APIs).
+			}
+		} else {
+			// Without a zone the value is UTC (as documented), not the server's zone.
+			$ts = preg_match( '/(Z|[+-]\d{2}:?\d{2}|UTC|GMT)$/i', $str ) ? strtotime( $str ) : strtotime( $str . ' UTC' );
+		}
+		if ( ! $ts || $ts < 946684800 || $ts > time() + 10 * 365 * DAY_IN_SECONDS ) {
+			throw new IntegrationException( 'invalid_date', $field . ' is not a valid date between 2000 and ten years from now' );
+		}
+		return gmdate( 'Y-m-d H:i:s', $ts );
 	}
 
 	/**

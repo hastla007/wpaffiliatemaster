@@ -112,6 +112,7 @@ final class SettingsPage {
 			'rate_limit_per_minute'      => __( 'Max. counted link visits per client and minute', 'affiliate-captain' ),
 			'visit_retention_days'       => __( 'Keep visit data (days)', 'affiliate-captain' ),
 			'hold_days'                  => __( 'Hold period (days after payment)', 'affiliate-captain' ),
+			'renewal_limit_months'       => __( 'Renewal commission for (months, 0 = unlimited)', 'affiliate-captain' ),
 			'operator_country'           => __( 'Your country', 'affiliate-captain' ),
 			'currency'                   => __( 'Program currency', 'affiliate-captain' ),
 			'exchange_rates'             => __( 'Reference exchange rates', 'affiliate-captain' ),
@@ -175,7 +176,7 @@ final class SettingsPage {
 			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'admin_email' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'visit_retention_days', 'application_retention_days' ),
-			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'renewal_commission' ),
+			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_period', 'payout_requests', 'statement_retention_years', 'retention_hold', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			'reports'     => array( 'report_admin', 'report_partners', 'audit_retention_days', 'delete_on_uninstall', 'maintenance_mode', 'monitor_token' ),
@@ -287,10 +288,29 @@ final class SettingsPage {
 		}
 		self::text( 'default_rate', __( 'Default rate', 'affiliate-captain' ), $display, __( 'Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes.', 'affiliate-captain' ) );
 		self::checkbox( 'lifetime_enabled', __( 'Lifetime commissions: repeat purchases of referred customers go to the same partner', 'affiliate-captain' ), $s, __( 'Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only.', 'affiliate-captain' ) );
-		self::checkbox( 'renewal_commission', __( 'Commission on subscription renewals (WooCommerce Subscriptions)', 'affiliate-captain' ), $s, __( 'Off: only the first order of a subscription earns commission; renewals are not attributed.', 'affiliate-captain' ) );
+		self::checkbox( 'renewal_commission', __( 'Commission on subscription renewals (WooCommerce Subscriptions)', 'affiliate-captain' ), $s, __( 'Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled.', 'affiliate-captain' ) );
+		self::number( 'renewal_limit_months', __( 'Renewal commission for (months, 0 = unlimited)', 'affiliate-captain' ), $s, __( 'Renewals earn commission only within this many months after the first order of the subscription.', 'affiliate-captain' ) );
+		self::select(
+			'rule_precedence',
+			__( 'Rule precedence', 'affiliate-captain' ),
+			$s,
+			array(
+				'scope'  => __( 'Partner rules first: partner > group > all partners, then product > category > all; exclusions always win', 'affiliate-captain' ),
+				'target' => __( 'Most specific product first: product > category > all, then partner > group > all partners; exclusions compete like other rules', 'affiliate-captain' ),
+			)
+		);
 		self::number( 'lifetime_days', __( 'Lifetime link duration (days, 0 = unlimited)', 'affiliate-captain' ), $s );
 		self::text( 'lifetime_rate', __( 'Lifetime rate in % (empty = normal rules)', 'affiliate-captain' ), $s );
-		self::number( 'hold_days', __( 'Hold period (days after payment)', 'affiliate-captain' ), $s, __( 'Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until.', 'affiliate-captain' ) );
+		self::number( 'hold_days', __( 'Hold period (days after payment)', 'affiliate-captain' ), $s, __( 'Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again.', 'affiliate-captain' ) );
+		self::select(
+			'hold_start',
+			__( 'Hold period starts', 'affiliate-captain' ),
+			$s,
+			array(
+				'paid'      => __( 'At payment', 'affiliate-captain' ),
+				'completed' => __( 'When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery', 'affiliate-captain' ),
+			)
+		);
 		self::end();
 
 		self::section( __( 'Promotion', 'affiliate-captain' ), 'promotion' );

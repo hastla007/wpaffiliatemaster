@@ -158,7 +158,7 @@ $ze_allowed = static function ( $route, $user, $caps ) use ( $ze_routes ) {
 	$GLOBALS['test_user'] = 1;
 	return $r;
 };
-$ze_admin_routes   = array( '/sales', '/refunds', '/affiliates', '/affiliates/(?P<id>\d+)', '/commissions', '/reports/(?P<view>partners|content|campaign)' );
+$ze_admin_routes   = array( '/sales', '/refunds', '/reinstatements', '/affiliates', '/affiliates/(?P<id>\d+)', '/commissions', '/reports/(?P<view>partners|content|campaign)' );
 $ze_partner_routes = array( '/me', '/me/commissions', '/me/payouts' );
 check( 'ZE05 all protected routes are covered by these checks', count( $ze_routes ) - count( $ze_public ), count( $ze_admin_routes ) + count( $ze_partner_routes ) );
 $ze_partner_user = 9001;

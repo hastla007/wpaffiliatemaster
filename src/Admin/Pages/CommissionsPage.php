@@ -36,7 +36,11 @@ final class CommissionsPage {
 			$errors = 0;
 			$last   = '';
 			foreach ( $ids as $id ) {
-				$result = 'approved' === $to ? Ledger::approve( $id, $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
+				if ( 'review' === $to ) {
+					$result = Ledger::reopen( $id, $reason );
+				} else {
+					$result = 'approved' === $to ? Ledger::approve( $id, $reason ? $reason : __( 'Approved manually', 'affiliate-captain' ) ) : Ledger::reject( $id, $reason );
+				}
 				if ( is_wp_error( $result ) ) {
 					++$errors;
 					$last = $result->get_error_message();
@@ -47,6 +51,23 @@ final class CommissionsPage {
 				Admin::back( sprintf( _n( '%1$d commission could not be changed: %2$s', '%1$d commissions could not be changed: %2$s', $errors, 'affiliate-captain' ), $errors, $last ), 'error' );
 			}
 			Admin::back( __( 'Commissions updated.', 'affiliate-captain' ) );
+		}
+
+		if ( 'commission_manual' === $do ) {
+			$parent   = absint( Admin::post( 'parent_id', 0 ) );
+			$currency = strtoupper( sanitize_key( Admin::post( 'currency' ) ) );
+			$currency = '' !== $currency ? $currency : strtoupper( (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ) );
+			$decimal  = Money::normalize_decimal( ltrim( trim( (string) Admin::post( 'amount' ) ), '-' ) );
+			$negative = 0 === strpos( trim( (string) Admin::post( 'amount' ) ), '-' );
+			if ( null === $decimal ) {
+				Admin::back( __( 'Please enter a valid amount (e.g. 25 or -12,50).', 'affiliate-captain' ), 'error' );
+			}
+			$minor  = Money::to_minor( $decimal, $currency ) * ( $negative ? -1 : 1 );
+			$result = Ledger::manual_adjustment( absint( Admin::post( 'affiliate_id' ) ), $currency, $minor, sanitize_text_field( Admin::post( 'reason' ) ), $parent );
+			if ( is_wp_error( $result ) ) {
+				Admin::back( $result->get_error_message(), 'error' );
+			}
+			Admin::back( __( 'Manual booking saved. It is payable with the next payout.', 'affiliate-captain' ) );
 		}
 
 		if ( 'commission_export' === $do ) {
@@ -179,6 +200,17 @@ final class CommissionsPage {
 		}
 		echo '<button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form>';
 
+		if ( current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
+			// Manual commission, bonus or deduction for a partner (approved at once).
+			echo '<details class="wpac-manual"><summary>' . esc_html__( 'Manual booking (commission, bonus or deduction)', 'affiliate-captain' ) . '</summary>';
+			Admin::form_open( 'commission_manual' );
+			echo '<p><label>' . esc_html__( 'Partner ID', 'affiliate-captain' ) . ' <input type="number" name="affiliate_id" min="1" required class="small-text"></label> ';
+			echo '<label>' . esc_html__( 'Amount (negative = deduction)', 'affiliate-captain' ) . ' <input type="text" name="amount" required size="8" placeholder="25,00"></label> ';
+			echo '<label>' . esc_html__( 'Currency', 'affiliate-captain' ) . ' <input type="text" name="currency" size="4" maxlength="3" value="' . esc_attr( (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ) ) . '"></label> ';
+			echo '<label>' . esc_html__( 'Reason (shown to the partner)', 'affiliate-captain' ) . ' <input type="text" name="reason" required class="regular-text"></label> ';
+			echo '<button class="button" data-wpac-confirm="' . esc_attr__( 'Book this amount for the partner? It is approved at once and paid with the next payout.', 'affiliate-captain' ) . '">' . esc_html__( 'Book', 'affiliate-captain' ) . '</button></p></form></details>';
+		}
+
 		// Totals.
 		echo '<p class="wpac-totals">';
 		foreach ( $totals as $status => $by_currency ) {
@@ -256,6 +288,22 @@ final class CommissionsPage {
 			}
 			/* translators: %s: amount */
 			echo '<button class="button" name="to" value="rejected" data-wpac-confirm="' . esc_attr( sprintf( __( 'Reject this commission (%s)? The partner sees the reason.', 'affiliate-captain' ), html_entity_decode( Money::format( (int) $c->amount_minor, $c->currency ), ENT_QUOTES, 'UTF-8' ) ) ) . '">' . esc_html__( 'Reject', 'affiliate-captain' ) . '</button></form>';
+		}
+		if ( 'rejected' === $c->status && ! (int) $c->parent_id && in_array( $c->kind, array( 'sale', 'adjustment' ), true ) ) {
+			// A rejection is not final: reopen it for a new decision.
+			echo '<h2>' . esc_html__( 'Reopen', 'affiliate-captain' ) . '</h2>';
+			Admin::form_open( 'commission_status' );
+			echo '<input type="hidden" name="id" value="' . (int) $c->id . '"><label class="screen-reader-text" for="wpac-reopen-reason">' . esc_html__( 'Reason', 'affiliate-captain' ) . '</label><input type="text" id="wpac-reopen-reason" name="reason" required class="regular-text" placeholder="' . esc_attr__( 'Reason (required)', 'affiliate-captain' ) . '"> ';
+			echo '<button class="button" name="to" value="review">' . esc_html__( 'Reopen for review', 'affiliate-captain' ) . '</button></form>';
+		}
+		if ( 'rejected' !== $c->status && current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PAYOUTS ) ) {
+			// Correction of this commission (more or less), e.g. a wrong rate or a goodwill bonus.
+			echo '<h2>' . esc_html__( 'Correction', 'affiliate-captain' ) . '</h2>';
+			Admin::form_open( 'commission_manual' );
+			echo '<input type="hidden" name="parent_id" value="' . (int) $c->id . '"><input type="hidden" name="affiliate_id" value="' . (int) $c->affiliate_id . '"><input type="hidden" name="currency" value="' . esc_attr( $c->currency ) . '">';
+			echo '<label>' . esc_html__( 'Amount (negative = deduction)', 'affiliate-captain' ) . ' <input type="text" name="amount" required size="8" placeholder="-5,00"></label> ';
+			echo '<label>' . esc_html__( 'Reason (shown to the partner)', 'affiliate-captain' ) . ' <input type="text" name="reason" required class="regular-text"></label> ';
+			echo '<button class="button" data-wpac-confirm="' . esc_attr__( 'Book this correction? Approved commissions change the payable balance at once.', 'affiliate-captain' ) . '">' . esc_html__( 'Book correction', 'affiliate-captain' ) . '</button></form>';
 		}
 
 		echo '<h2>' . esc_html__( 'Events', 'affiliate-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Event', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Reason', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'By', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
