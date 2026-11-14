@@ -229,7 +229,7 @@ msgstr ""
 msgid "The link has expired. Please go back and try again."
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/ImportExportPage.php
+#: src/Admin/Admin.php src/Admin/Pages/ImportExportPage.php src/Integrations/WooCommerce/CouponLink.php
 msgid "You are not allowed to do this."
 msgstr ""
 
@@ -388,6 +388,11 @@ msgstr ""
 msgid "Coupon link updated."
 msgstr ""
 
+#. translators: %s: coupon code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Coupon \"%s\" created in WooCommerce and linked to the partner."
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "The VAT ID could not be checked (the VIES check may be switched off in the settings)."
 msgstr ""
@@ -477,7 +482,7 @@ msgstr ""
 msgid "Create partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Integrations/WooCommerce/CouponLink.php
 msgid "Partner not found."
 msgstr ""
 
@@ -778,6 +783,51 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Add"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Create coupon for partner"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
+msgid "Partner code"
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "replaces coupon %s"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "New partner code (derived from the coupon code)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Empty coupon code = the selected partner code. The coupon must not exist in WooCommerce yet."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Discount type"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Percentage discount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Fixed cart discount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Amount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Individual use only"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Create coupon and link"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -1127,10 +1177,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Privacy/Privacy.php
 msgid "Reference"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Amount"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AffiliatesTable.php src/Privacy/Privacy.php
@@ -1965,10 +2011,6 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
 msgid "Cookie"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
-msgid "Partner code"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
@@ -5123,7 +5165,7 @@ msgid "There is no WooCommerce coupon \"%s\". Please create the coupon first (Ma
 msgstr ""
 
 #. translators: 1: coupon code, 2: partner name
-#: src/Codes/CodeRepository.php
+#: src/Codes/CodeRepository.php src/Integrations/WooCommerce/CouponLink.php
 msgid "The coupon \"%1$s\" is already linked to partner \"%2$s\". Remove that link first."
 msgstr ""
 
@@ -6084,6 +6126,49 @@ msgstr ""
 #. translators: %s: error message
 #: src/Integrations/WooCommerce/CouponLink.php
 msgid "Affiliate Captain: the coupon was not linked to the partner: %s"
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Coupons can only be created while WooCommerce is active."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Please choose one of the codes of this partner."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Please enter a coupon code."
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "A WooCommerce coupon \"%s\" already exists. Link it in the code table instead, or choose another coupon code."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Please enter a discount greater than 0 (at most 100 for a percentage discount)."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Please enter a valid expiry date that is not in the past."
+msgstr ""
+
+#. translators: %s: partner name
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Partner coupon for %s (Affiliate Captain)"
+msgstr ""
+
+#. translators: %s: technical reason
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "The coupon could not be created: %s"
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "The coupon could not be created. Nothing was changed."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "The coupon could not be linked to the partner code and was deleted again. Nothing was changed; please try again."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php src/Privacy/Privacy.php
