@@ -22,15 +22,37 @@ final class Locale {
 	 * @return string
 	 */
 	public static function for_affiliate( $aff ) {
-		if ( $aff && ! empty( $aff->user_id ) && function_exists( 'get_user_locale' ) && function_exists( 'get_userdata' ) && get_userdata( (int) $aff->user_id ) ) {
-			$locale = (string) get_user_locale( (int) $aff->user_id );
-			if ( '' !== $locale ) {
-				return $locale;
+		$user = $aff && ! empty( $aff->user_id ) && function_exists( 'get_userdata' ) ? get_userdata( (int) $aff->user_id ) : false;
+		// The language chosen in the linked account. An account without one follows the site
+		// language: get_user_locale() would return get_locale(), which WPML/Polylang set to the
+		// language of the current request (the admin who triggers the mail, a translated page).
+		if ( $user && ! empty( $user->locale ) ) {
+			return (string) $user->locale;
+		}
+		return self::site();
+	}
+
+	/**
+	 * The site language: with WPML/Polylang the default language (get_locale() follows the
+	 * language of the current request there), otherwise get_locale().
+	 *
+	 * @return string
+	 */
+	public static function site() {
+		$locale = '';
+		if ( function_exists( 'pll_default_language' ) ) {
+			$locale = (string) pll_default_language( 'locale' );
+		} elseif ( function_exists( 'has_filter' ) && has_filter( 'wpml_default_language' ) ) {
+			$code  = (string) apply_filters( 'wpml_default_language', null );
+			$langs = (array) apply_filters( 'wpml_active_languages', null, array( 'skip_missing' => 0 ) );
+			if ( '' !== $code && isset( $langs[ $code ]['default_locale'] ) ) {
+				$locale = (string) $langs[ $code ]['default_locale'];
 			}
 		}
-		// The site language (get_locale(), not the language of the admin who triggers the mail).
-		$site = function_exists( 'get_locale' ) ? (string) get_locale() : '';
-		return '' !== $site ? $site : 'en_US';
+		if ( '' === $locale && function_exists( 'get_locale' ) ) {
+			$locale = (string) get_locale();
+		}
+		return '' !== $locale ? $locale : 'en_US';
 	}
 
 	/**

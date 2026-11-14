@@ -195,10 +195,17 @@ if ( is_multisite() ) {
 		@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	}
 	$wpac_limit = (int) ini_get( 'max_execution_time' );
-	$wpac_start = microtime( true );
-	$wpac_left  = array();
+	/**
+	 * Seconds the uninstall may spend on the sites of a network (0 = no limit). Sites not
+	 * reached are recorded in the network option wpac_uninstall_incomplete.
+	 *
+	 * @param float $budget Default: 80 % of max_execution_time when it could not be lifted, else 0.
+	 */
+	$wpac_budget = (float) apply_filters( 'wpac_uninstall_time_budget', $wpac_limit > 0 ? $wpac_limit * 0.8 : 0 );
+	$wpac_start  = microtime( true );
+	$wpac_left   = array();
 	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $wpac_site_id ) {
-		if ( $wpac_limit > 0 && microtime( true ) - $wpac_start > $wpac_limit * 0.8 ) {
+		if ( $wpac_budget > 0 && microtime( true ) - $wpac_start > $wpac_budget ) {
 			$wpac_left[] = (int) $wpac_site_id; // Time limit could not be lifted: record the rest.
 			continue;
 		}
