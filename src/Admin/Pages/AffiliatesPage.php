@@ -219,6 +219,25 @@ final class AffiliatesPage {
 				Admin::back( __( 'Coupon link updated.', 'affiliate-captain' ) );
 				break;
 
+			case 'code_coupon_create':
+				$input  = array(
+					'code_id'        => absint( Admin::post( 'code_id', 0 ) ),
+					'coupon_code'    => sanitize_text_field( (string) Admin::post( 'coupon_code' ) ),
+					'discount_type'  => sanitize_key( Admin::post( 'discount_type' ) ),
+					'amount'         => sanitize_text_field( (string) Admin::post( 'amount' ) ),
+					'expires'        => sanitize_text_field( (string) Admin::post( 'expires' ) ),
+					'usage_limit'    => absint( Admin::post( 'usage_limit', 0 ) ),
+					'individual_use' => (bool) Admin::post( 'individual_use' ),
+				);
+				$result = \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::create_for_partner( $id, $input );
+				if ( is_wp_error( $result ) ) {
+					Admin::keep_form( 'coupon_create_' . $id, $input );
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				/* translators: %s: coupon code */
+				Admin::back( sprintf( __( 'Coupon "%s" created in WooCommerce and linked to the partner.', 'affiliate-captain' ), $result['coupon'] ) );
+				break;
+
 			case 'code_export':
 				list( $rows ) = CodeRepository::query(
 					array(
@@ -630,6 +649,37 @@ final class AffiliatesPage {
 		echo '<p><label for="wpac-wish-code">' . esc_html__( 'Desired code (optional)', 'affiliate-captain' ) . '</label><br><input type="text" name="code" id="wpac-wish-code"> <label for="wpac-coupon-code" class="screen-reader-text">' . esc_html__( 'Coupon code (optional)', 'affiliate-captain' ) . '</label><input type="text" name="coupon_code" id="wpac-coupon-code" placeholder="' . esc_attr__( 'Coupon code (optional)', 'affiliate-captain' ) . '"></p>';
 		echo '<p class="description">' . esc_html__( 'Empty = random code (recommended). Speaking codes like SAILING-NORTH are easy to guess and can be misused for own purchases.', 'affiliate-captain' ) . '</p>';
 		echo '<p><label>' . esc_html__( 'Usage limit', 'affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="0" class="small-text"></label> <label>' . esc_html__( 'Valid until', 'affiliate-captain' ) . ' <input type="date" name="expires_at"></label> <button class="button">' . esc_html__( 'Add', 'affiliate-captain' ) . '</button></p></form>';
+
+		if ( \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::can_create() ) {
+			// Create a WooCommerce coupon and link it to a partner code in one step.
+			$kept = Admin::kept_form( 'coupon_create_' . $id );
+			$kv   = static function ( $k, $d = '' ) use ( $kept ) {
+				return isset( $kept[ $k ] ) ? $kept[ $k ] : $d;
+			};
+			$main = CodeRepository::main_code( $id );
+			$sel  = (int) $kv( 'code_id', 0 );
+			echo '<h4>' . esc_html__( 'Create coupon for partner', 'affiliate-captain' ) . '</h4>';
+			Admin::form_open( 'code_coupon_create' );
+			echo '<input type="hidden" name="id" value="' . (int) $id . '">';
+			echo '<p><label for="wpac-cc-code">' . esc_html__( 'Partner code', 'affiliate-captain' ) . '</label><br><select name="code_id" id="wpac-cc-code">';
+			foreach ( $codes as $c ) {
+				if ( $c->batch ) {
+					continue;
+				}
+				$is_sel = $kept ? $sel === (int) $c->id : $main === $c->code;
+				printf( '<option value="%d" %s>%s</option>', (int) $c->id, selected( $is_sel, true, false ), esc_html( $c->code . ( $c->coupon_code ? ' (' . sprintf( /* translators: %s: coupon code */ __( 'replaces coupon %s', 'affiliate-captain' ), $c->coupon_code ) . ')' : '' ) ) );
+			}
+			echo '<option value="0" ' . selected( $kept && 0 === $sel, true, false ) . '>' . esc_html__( 'New partner code (derived from the coupon code)', 'affiliate-captain' ) . '</option></select> ';
+			echo '<label for="wpac-cc-coupon" class="screen-reader-text">' . esc_html__( 'Coupon code', 'affiliate-captain' ) . '</label><input type="text" name="coupon_code" id="wpac-cc-coupon" value="' . esc_attr( $kv( 'coupon_code' ) ) . '" placeholder="' . esc_attr__( 'Coupon code', 'affiliate-captain' ) . '"></p>';
+			echo '<p class="description">' . esc_html__( 'Empty coupon code = the selected partner code. The coupon must not exist in WooCommerce yet.', 'affiliate-captain' ) . '</p>';
+			echo '<p><label for="wpac-cc-type">' . esc_html__( 'Discount type', 'affiliate-captain' ) . '</label> <select name="discount_type" id="wpac-cc-type">';
+			foreach ( array( 'percent' => __( 'Percentage discount', 'affiliate-captain' ), 'fixed_cart' => __( 'Fixed cart discount', 'affiliate-captain' ) ) as $k => $l ) {
+				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $kv( 'discount_type', 'percent' ), $k, false ), esc_html( $l ) );
+			}
+			echo '</select> <label>' . esc_html__( 'Amount', 'affiliate-captain' ) . ' <input type="text" inputmode="decimal" name="amount" value="' . esc_attr( $kv( 'amount' ) ) . '" size="6" required></label></p>';
+			echo '<p><label>' . esc_html__( 'Valid until', 'affiliate-captain' ) . ' <input type="date" name="expires" value="' . esc_attr( $kv( 'expires' ) ) . '"></label> <label>' . esc_html__( 'Usage limit', 'affiliate-captain' ) . ' <input type="number" name="usage_limit" min="0" value="' . (int) $kv( 'usage_limit', 0 ) . '" class="small-text"></label> <label><input type="checkbox" name="individual_use" value="1" ' . checked( (bool) $kv( 'individual_use', false ), true, false ) . '> ' . esc_html__( 'Individual use only', 'affiliate-captain' ) . '</label></p>';
+			echo '<p><button class="button">' . esc_html__( 'Create coupon and link', 'affiliate-captain' ) . '</button></p></form>';
+		}
 
 		echo '<h4>' . esc_html__( 'Generate code batch', 'affiliate-captain' ) . '</h4>';
 		Admin::form_open( 'code_batch' );
