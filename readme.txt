@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.11.0
+Stable tag: 0.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,7 +115,7 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
-= Unreleased =
+= 0.12.0 =
 Database schema 12:
 * Payouts: correction credit notes for paid payouts (own gapless number series "KG-…", prefix configurable): corrected net amount with reason, before/after/difference with the VAT treatment frozen on the original credit note; the difference is booked to the partner account (shortfall paid in the next run, overpayment offset later); an open objection is resolved automatically; PDF by e-mail and in the partner area
 * Money: line items raised or added after payment are booked automatically ("Order increase", at the rate of the original commission; new lines with the current rules); refunds afterwards include the increase
@@ -248,6 +248,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.12.0 =
+Make a backup first; the database update to schema 12 (new table for correction credit notes) runs automatically. New: correction credit notes for paid payouts, automatic booking of raised order lines, coupon creation for partners, sortable admin lists and the add-on contract 1.3.0.
 
 = 0.11.0 =
 Renamed to "Affiliate Captain" (folder "affiliate-captain"). Make a backup first; the database update to schema 11 runs automatically. Install it next to "WP Affiliate Captain" and activate it: the old copy is switched off, all data stays. Then delete the old copy. Needs WordPress 6.3+.
