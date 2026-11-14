@@ -41,7 +41,7 @@ function wpac_uninstall_site() {
 		$wpac_country = isset( $wpac_settings['operator_country'] ) ? strtoupper( (string) $wpac_settings['operator_country'] ) : '';
 		$wpac_minimum = array( 'DE' => 8, 'AT' => 7, 'CH' => 10 );
 		$wpac_minimum = isset( $wpac_minimum[ $wpac_country ] ) ? $wpac_minimum[ $wpac_country ] : 10;
-		$wpac_cutoff  = 0 === $wpac_years ? '0000-00-00 00:00:00' : gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( max( $wpac_minimum, $wpac_years ) + 1 ) . ' years' ) );
+		$wpac_cutoff  = 0 === $wpac_years ? '1000-01-01 00:00:00' : gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( max( $wpac_minimum, $wpac_years ) + 1 ) . ' years' ) );
 		$wpac_keep    = ! empty( $wpac_settings['retention_hold'] ) || (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpac_payouts} WHERE created_at > %s OR storno_at > %s", $wpac_cutoff, $wpac_cutoff ) ) > 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
 	}
 	// The partners table stays with the booking records (pseudonymised below): its IDs are what
