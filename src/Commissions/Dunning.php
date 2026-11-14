@@ -262,6 +262,12 @@ final class Dunning {
 					$id = (int) $wpdb->insert_id;
 					Balance::post( (int) $affiliate_id, $currency, 'approved', $amount_minor, $id, 0, 'repayment' );
 					Ledger::event( $id, 'created', '', 'approved', $amount_minor, 'repayment', $key, get_current_user_id() );
+					// After COMMIT (dropped on rollback), like the other ledger bookings.
+					Db::after_commit(
+						static function () use ( $id ) {
+							do_action( 'wpac_commission_created', $id );
+						}
+					);
 					return $id;
 				}
 			);

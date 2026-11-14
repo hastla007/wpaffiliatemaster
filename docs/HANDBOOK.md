@@ -265,6 +265,10 @@ All e-mails of the plugin go through one function (developers: filter `wpac_mail
 - **Applicants** get a confirmation after the double opt-in ("we received your application"); the operator mail about a new application is written in the operator's language (user language of the account with the notification address, otherwise the site language) and has the applicant as Reply-To.
 - A failed mail is logged with the reason (see Logs above).
 
+### Add-ons: API, branding and events (contract 1.3.0)
+
+Add-ons never read the plugin tables. Since contract 1.3.0 they use public PHP functions to read partners and commissions (`wpac_get_affiliate(s)`, `wpac_get_commission(s)`) and to change them with the same rules, e-mails and audit entries as the admin (`wpac_update_affiliate`, `wpac_set_affiliate_status`, `wpac_set_commission_status`, `wpac_create_adjustment`). These functions do not check permissions themselves – an add-on that offers them over REST must require the capability "Manage partners" (or "Manage payouts" for early approvals). Every change appears in the audit log under the logged-in user. The partner area shows no plugin name; a white-label add-on can add its logo, header and footer, CSS classes and its own tab labels, and set the e-mail sender name. Every new ledger booking (including correction credit notes, write-offs and repayments) and every cancelled payout triggers an event after it is saved, e.g. for webhooks. Details: [CONTRACT.md](CONTRACT.md), "Lese- und Schreib-API (1.3.0)".
+
 ## 13. Troubleshooting
 
 | Symptom | Cause and solution |

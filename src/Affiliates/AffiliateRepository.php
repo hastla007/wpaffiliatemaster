@@ -1140,7 +1140,7 @@ final class AffiliateRepository {
 	/**
 	 * List affiliates.
 	 *
-	 * @param array $args status, search, limit, offset.
+	 * @param array $args status, group_id, search, limit, offset.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -1151,6 +1151,10 @@ final class AffiliateRepository {
 		if ( ! empty( $args['status'] ) ) {
 			$where   .= ' AND status = %s';
 			$params[] = $args['status'];
+		}
+		if ( isset( $args['group_id'] ) && '' !== (string) $args['group_id'] && (int) $args['group_id'] >= 0 ) {
+			$where   .= ' AND group_id = %d';
+			$params[] = (int) $args['group_id'];
 		}
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';

@@ -1138,6 +1138,17 @@ final class PayoutService {
 				'was_exported' => 'exported' === $p->status,
 			)
 		);
+		/**
+		 * A payout that was not paid was cancelled (after the COMMIT; inside rebuild() only once
+		 * the rebuild is committed, never when it is rolled back). Since contract 1.3.0.
+		 *
+		 * @param int $payout_id Payout.
+		 */
+		Db::after_commit(
+			static function () use ( $id ) {
+				do_action( 'wpac_payout_cancelled', (int) $id );
+			}
+		);
 		return true;
 	}
 

@@ -206,6 +206,7 @@ function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
 function esc_attr( $t ) { return esc_html( $t ); }
 function wp_json_encode( $d, $o = 0 ) { return json_encode( $d, $o ); }
 function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+function sanitize_html_class( $c, $fallback = '' ) { $c = preg_replace( '|%[a-fA-F0-9][a-fA-F0-9]|', '', (string) $c ); $c = preg_replace( '/[^A-Za-z0-9_-]/', '', $c ); return '' === $c ? $fallback : $c; }
 function sanitize_text_field( $t ) { return trim( preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( (string) $t ) ) ); }
 function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
 function sanitize_email( $e ) { return trim( (string) $e ); }

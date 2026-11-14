@@ -706,6 +706,12 @@ final class Portal {
 			'account'     => __( 'My account', 'affiliate-captain' ),
 			'privacy'     => __( 'Privacy', 'affiliate-captain' ),
 		);
+		$labels = self::labels( $aff );
+		foreach ( $tabs as $key => $label ) {
+			if ( isset( $labels[ 'tab_' . $key ] ) ) {
+				$tabs[ $key ] = $labels[ 'tab_' . $key ];
+			}
+		}
 		if ( $closed ) {
 			// Terminated partners keep read access to commissions, payouts and their credit
 			// notes (open commissions are still paid out; the documents are needed for taxes).
@@ -740,7 +746,15 @@ final class Portal {
 		$tab = isset( $tabs[ $tab ] ) ? $tab : key( $tabs );
 
 		ob_start();
-		echo '<div class="wpac-portal">';
+		echo '<div class="' . esc_attr( self::classes( $aff, $tab ) ) . '">';
+		/**
+		 * Start of the partner area of a logged-in partner, inside the wrapper (e.g. a logo or
+		 * header of a white-label add-on; escape all output). Since contract 1.3.0.
+		 *
+		 * @param object $aff Partner.
+		 * @param string $tab Current tab.
+		 */
+		do_action( 'wpac_portal_before', $aff, $tab );
 		self::messages();
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			echo '<div class="wpac-notice">' . esc_html__( 'The partner area is being maintained. You can look at everything, but changes are possible again shortly.', 'affiliate-captain' ) . '</div>';
@@ -755,7 +769,7 @@ final class Portal {
 		if ( ! $closed && $terms['page_id'] && ! Agreements::has_current( (int) $aff->id ) ) {
 			self::terms_notice( $terms, (bool) Agreements::latest( (int) $aff->id ) );
 		}
-		echo '<nav class="wpac-tabs" aria-label="' . esc_attr__( 'Partner area', 'affiliate-captain' ) . '">';
+		echo '<nav class="wpac-tabs" aria-label="' . esc_attr( isset( $labels['nav'] ) ? $labels['nav'] : __( 'Partner area', 'affiliate-captain' ) ) . '">';
 		foreach ( $tabs as $key => $label ) {
 			printf(
 				'<a href="%s" class="%s"%s>%s</a>',
@@ -776,8 +790,71 @@ final class Portal {
 			 */
 			do_action( 'wpac_portal_tab_' . $tab, $aff );
 		}
-		echo '</div></div>';
+		echo '</div>';
+		/**
+		 * End of the partner area of a logged-in partner, inside the wrapper (e.g. a footer with
+		 * contact details; escape all output). Since contract 1.3.0.
+		 *
+		 * @param object $aff Partner.
+		 * @param string $tab Current tab.
+		 */
+		do_action( 'wpac_portal_after', $aff, $tab );
+		echo '</div>';
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * CSS classes of the partner area wrapper (filter wpac_portal_classes). "wpac-portal" always
+	 * stays (styles and scripts of the core rely on it).
+	 *
+	 * @param object $aff Partner.
+	 * @param string $tab Current tab.
+	 * @return string
+	 */
+	private static function classes( $aff, $tab ) {
+		/**
+		 * CSS classes of the partner area wrapper (e.g. a theme class of a white-label add-on).
+		 * Since contract 1.3.0.
+		 *
+		 * @param string[] $classes Classes (always contains "wpac-portal").
+		 * @param object   $aff     Partner.
+		 * @param string   $tab     Current tab.
+		 */
+		$classes = apply_filters( 'wpac_portal_classes', array( 'wpac-portal' ), $aff, $tab );
+		$out     = array( 'wpac-portal' );
+		foreach ( is_array( $classes ) ? $classes : array() as $class ) {
+			$class = is_scalar( $class ) ? sanitize_html_class( (string) $class ) : '';
+			if ( '' !== $class ) {
+				$out[] = $class;
+			}
+		}
+		return implode( ' ', array_unique( $out ) );
+	}
+
+	/**
+	 * Replaced labels of the partner area (filter wpac_portal_labels): keys "tab_{key}" for the core
+	 * tabs and "nav" for the accessible name of the tab navigation. Only non-empty texts count.
+	 *
+	 * @param object $aff Partner.
+	 * @return array<string,string>
+	 */
+	private static function labels( $aff ) {
+		/**
+		 * Labels of the partner area (white-label add-ons): return key => text, e.g.
+		 * array( 'tab_overview' => 'Dashboard', 'nav' => 'Partner programme' ). Since contract 1.3.0.
+		 *
+		 * @param array  $labels Labels to replace (empty by default).
+		 * @param object $aff    Partner.
+		 */
+		$labels = apply_filters( 'wpac_portal_labels', array(), $aff );
+		$out    = array();
+		foreach ( is_array( $labels ) ? $labels : array() as $key => $text ) {
+			$text = is_scalar( $text ) ? trim( sanitize_text_field( (string) $text ) ) : '';
+			if ( '' !== $text ) {
+				$out[ sanitize_key( (string) $key ) ] = $text;
+			}
+		}
+		return $out;
 	}
 
 	/** Query arguments of one view (messages, generator, filters, page) – dropped when switching. */

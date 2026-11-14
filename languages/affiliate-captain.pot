@@ -1839,7 +1839,7 @@ msgstr[1] ""
 msgid "Approving before the end of the hold period needs the permission to manage payouts."
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Core/PublicApi.php
 msgid "Approved manually"
 msgstr ""
 
@@ -1903,7 +1903,7 @@ msgstr ""
 msgid "All commissions"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Rest/RestApi.php
+#: src/Admin/Pages/CommissionsPage.php src/Core/PublicApi.php src/Rest/RestApi.php
 msgid "Not found."
 msgstr ""
 
@@ -3487,7 +3487,7 @@ msgstr ""
 msgid "Rule deleted."
 msgstr ""
 
-#: src/Admin/Pages/RulesPage.php
+#: src/Admin/Pages/RulesPage.php src/Core/PublicApi.php
 msgid "Please enter a name."
 msgstr ""
 
@@ -5529,7 +5529,7 @@ msgstr ""
 msgid "The commission could not be reopened (database error). Please try again."
 msgstr ""
 
-#: src/Commissions/Ledger.php
+#: src/Commissions/Ledger.php src/Core/PublicApi.php
 msgid "Please enter an amount other than 0."
 msgstr ""
 
@@ -5973,6 +5973,16 @@ msgstr ""
 #. translators: 1: problems, 2: URL
 #: src/Core/Monitor.php
 msgid "The daily check of the partner program found problems:\n\n%1$s\n\nDetails: Tools → Site Health, or %2$s"
+msgstr ""
+
+#. translators: %s: field names
+#: src/Core/PublicApi.php
+msgid "These fields cannot be changed: %s"
+msgstr ""
+
+#. translators: %s: argument name
+#: src/Core/PublicApi.php
+msgid "Invalid value for \"%s\"."
 msgstr ""
 
 #: src/Core/Settings.php
