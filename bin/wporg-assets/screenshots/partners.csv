@@ -1,0 +1,8 @@
+name,email,website,status,codes,rate,rate_type,group,channel
+Oliver Grant,oliver@bluewater-blog.example.com,https://bluewater-blog.example.com,active,OLIVER,12,percent,Creators,Blog
+Mia Sorensen,mia.sorensen@example.com,https://mia-sails.example.com,active,MIASAILS,,,Creators,Instagram
+Westbay Rowing & Sailing Club,info@westbay-club.example.com,https://westbay-club.example.com,active,WESTBAY,15,percent,Sailing clubs,Club newsletter
+Noah Fischer,noah.fischer@example.com,,pending,,,,,YouTube
+Lena Hartmann,lena@coastal-sailing.example.com,https://coastal-sailing.example.com,active,LENA,,,Creators,Blog
+Ava Brooks,ava.brooks(at)example.com,https://ava-at-sea.example.com,active,AVA,,,,Podcast
+Seaside Charter Ltd,office@seaside-charter.example.com,https://seaside-charter.example.com,active,SEASIDE,25,fixed,Marinas & charter,Charter bookings
