@@ -7090,11 +7090,25 @@ msgid "The statement of payout %s could not be stored. Please check that the sta
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "The payout is not claimed with this reference."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "This payout cannot be marked as paid."
 msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Only unpaid payouts can be cancelled."
+msgstr ""
+
+#. translators: 1: payout number, 2: claim reference
+#: src/Payouts/PayoutService.php
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here 7 days after the claim, after checking in the account of the payment provider that it was not paid."
+msgstr ""
+
+#. translators: 1: payout number, 2: claim reference
+#: src/Payouts/PayoutService.php
+msgid "Payout %1$s was handed to a payment provider (reference %2$s). Confirm that the provider did not pay it before cancelling – otherwise the commissions could be paid twice."
 msgstr ""
 
 #. translators: %s: payout number
@@ -7144,6 +7158,14 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "The partner changed the payout details after the payout was created. Please verify the change, cancel the payout and create it again."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Only a created payout that was not exported yet can be paid through a payment provider."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php

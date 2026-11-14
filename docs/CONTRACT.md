@@ -2,7 +2,7 @@
 
 Öffentliche Schnittstelle von Affiliate Captain für Verkaufsquellen (Pass Captain, Voucher Captain, WooCommerce-Adapter, Connector-Add-ons wie LearnBoating). Kompatibel ist jede Version mit gleicher Major-Version; andere Versionen werden abgelehnt (`incompatible_contract`) und im Integrationsstatus angezeigt.
 
-Änderungen: **Ergänzungen ohne Versionswechsel (abwärtskompatibel, Plugin 0.11.0)** – `wpac_record_reinstatement()` und `POST /reinstatements`; optionale Felder `netted_refund_ids`, `review`, `category_ancestor_ids`; Erstattungen zu unbekannten Bestellungen werden geparkt (`parked`) statt verworfen; strengere Prüfung der Payloads (siehe „Grenzen und Prüfungen“). **1.2.0** – Erweiterungspunkte für Add-ons (Abschnitt „Add-ons“: `wpac_admin_menu`, `wpac_portal_tabs`/`wpac_portal_tab_{key}`, `wpac_commission_amount`, `wpac_payout_created`, `wpac_transfer_rows`/`wpac_transfer_header`, `wpac_report_partners`, `wpac_program_export_files`; abwärtskompatibel). **1.1.0** – neue Funktion `wpac_current_touch()` (abwärtskompatibel; Payloads mit `contract => '1.0.0'` bleiben gültig).
+Änderungen: **1.3.0** – Auszahlung über Zahlungsdienste für Add-ons: `wpac_get_payout()`, `wpac_get_payouts()`, `wpac_claim_payout()`, `wpac_complete_payout()`, `wpac_release_payout()` (Abschnitt „Auszahlung über Zahlungsdienste“; abwärtskompatibel). **Ergänzungen ohne Versionswechsel (abwärtskompatibel, Plugin 0.11.0)** – `wpac_record_reinstatement()` und `POST /reinstatements`; optionale Felder `netted_refund_ids`, `review`, `category_ancestor_ids`; Erstattungen zu unbekannten Bestellungen werden geparkt (`parked`) statt verworfen; strengere Prüfung der Payloads (siehe „Grenzen und Prüfungen“). **1.2.0** – Erweiterungspunkte für Add-ons (Abschnitt „Add-ons“: `wpac_admin_menu`, `wpac_portal_tabs`/`wpac_portal_tab_{key}`, `wpac_commission_amount`, `wpac_payout_created`, `wpac_transfer_rows`/`wpac_transfer_header`, `wpac_report_partners`, `wpac_program_export_files`; abwärtskompatibel). **1.1.0** – neue Funktion `wpac_current_touch()` (abwärtskompatibel; Payloads mit `contract => '1.0.0'` bleiben gültig).
 
 Grundregeln:
 
@@ -251,6 +251,25 @@ Eine abgelaufene oder fehlende Lizenz eines Add-ons darf nur dessen eigene Zusat
 Alle Erweiterungspunkte sind öffentliche API dieses Vertrags (Änderungen nur abwärtskompatibel innerhalb von Version 1) und durch Integrationstests abgesichert (`tests/integration/run.php`, Abschnitt ZF). Ein Test in `tests/run.php` (A2) schlägt fehl, sobald Lizenzclient, Rechteprüfung oder ein eigener Updater ins Kernplugin gelangen; ein weiterer (ZF6) stellt sicher, dass Buchungen, Auszahlungen, Gutschriften, Exporte und die tägliche Wartung ohne Add-on und ohne Netzwerkzugriff laufen.
 
 **Hinweise auf das Add-on im Kernplugin** (WordPress.org-Richtlinie 11): derzeit keine. Falls künftig gewünscht, nur dezent, wegklickbar und nur auf den eigenen Plugin-Seiten; keine Menüpunkte, Schalter oder Felder, die sichtbar sind, aber erst nach einem Kauf funktionieren.
+
+## Auszahlung über Zahlungsdienste (seit 1.3.0)
+
+Für Add-ons, die Auszahlungen über einen Zahlungsdienst ausführen (z. B. PayPal Payouts, Stripe, Wise). Sie lesen die Auszahlung, **reservieren** sie, zahlen sie beim Dienst aus und melden das Ergebnis. Die Reservierung hat dieselben Schutzregeln wie die Exportdateien, damit eine Auszahlung nie doppelt ausgezahlt wird.
+
+| Funktion | Zweck |
+|---|---|
+| `wpac_get_payout( $payout_id )` | Auszahlung als Array oder `null`: `id`, `number`, `affiliate_id`, `status` (`pending`, `exported`, `paid`, `cancelled`), `currency`, `amount_minor`, `method` (`sepa`/`manual`), `paypal_email`, `claim`, `created_at`, `exported_at`, `paid_at`. `paypal_email` ist nur bei der Auszahlungsart „andere“ gefüllt, wenn die Zahlungsangaben eine E-Mail-Adresse enthalten (dieselbe Regel wie die PayPal-Datei), und nur solange die Auszahlung offen ist. Bankdaten werden nie geliefert. |
+| `wpac_get_payouts( $args )` | Liste, älteste zuerst. `status`, `method`, `affiliate_id`, `limit` (1–200, Standard 50). |
+| `wpac_claim_payout( $payout_id, $provider )` | Reserviert eine **erstellte** Auszahlung für den Dienst (`$provider`: `a–z`, `0–9`, `_`, `-`, 2–20 Zeichen). Ergebnis: die Auszahlung mit `claim` (`API-<DIENST>-<ID>-<Zufall>`), Status `exported`. Abgelehnt (`WP_Error`): `wpac_payout_state` (nicht mehr „erstellt“, z. B. schon exportiert oder reserviert), `wpac_profile_changed` (Partner hat die Auszahlungsdaten nach dem Erstellen geändert), `wpac_statement` (Gutschrift fehlt), `wpac_provider`. |
+| `wpac_complete_payout( $payout_id, $claim, $reference )` | Nach erfolgreicher Zahlung: Auszahlung und Provisionen werden „bezahlt“, `wpac_payout_paid` und `wpac_commission_paid` feuern wie beim Markieren im Admin. Die Reservierung wird unter Zeilensperre geprüft. `$reference` (Transaktions- oder Batch-ID des Dienstes) steht im Audit-Log. Fehler: `wpac_claim`, `wpac_state`. |
+| `wpac_release_payout( $payout_id, $claim, $reason )` | Wenn der Dienst nicht gezahlt hat: die Auszahlung ist wieder „erstellt“ und kann exportiert oder neu reserviert werden. Fehler: `wpac_claim`. |
+
+Regeln:
+
+- Erst reservieren, dann zahlen. Eine reservierte Auszahlung nehmen weder die Exportdateien (SEPA, Überweisungsliste, PayPal-Datei) noch eine zweite Reservierung.
+- Die Reservierungsnummer beim Dienst als Idempotenz-Schlüssel verwenden (z. B. `sender_batch_id` bei PayPal), damit eine Wiederholung nach einem Abbruch nicht doppelt zahlt.
+- Im Admin lässt sich eine reservierte Auszahlung in den ersten 7 Tagen nach der Reservierung nicht stornieren; danach nur mit der Bestätigung, dass der Dienst nicht gezahlt hat. Das Add-on gibt Auszahlungen, die der Dienst ablehnt, selbst mit `wpac_release_payout()` frei.
+- Jeder Schritt steht im Audit-Log (`payout.claimed`, `payout.provider_paid`, `payout.claim_released`).
 
 ## Mitgelieferte Adapter
 
