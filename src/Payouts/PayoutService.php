@@ -1069,8 +1069,11 @@ final class PayoutService {
 					}
 					$pt = Db::table( 'payouts' );
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$rows = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'cancelled', note = %s WHERE id = %d AND status = %s", substr( sanitize_text_field( $reason ), 0, 255 ), $id, $p->status ) );
-					if ( 1 !== $rows ) {
+					$rows = $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET status = 'cancelled', note = %s WHERE id = %d AND status = %s", mb_substr( sanitize_text_field( $reason ), 0, 255 ), $id, $p->status ) );
+					if ( false === $rows ) {
+						throw new IntegrationException( 'db_error', esc_html__( 'The cancellation could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
+					}
+					if ( 1 !== (int) $rows ) {
 						throw new IntegrationException( 'state', esc_html__( 'Only unpaid payouts can be cancelled.', 'affiliate-captain' ) );
 					}
 					// A credit note that was issued is cancelled by its own document with a new number.

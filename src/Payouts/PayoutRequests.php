@@ -307,7 +307,7 @@ final class PayoutRequests {
 			Db::table( 'payout_requests' ),
 			array(
 				'status'       => 'rejected',
-				'note'         => substr( sanitize_text_field( $reason ), 0, 255 ),
+				'note'         => mb_substr( sanitize_text_field( $reason ), 0, 255 ),
 				'processed_at' => Db::now(),
 				'processed_by' => get_current_user_id(),
 			),
@@ -316,6 +316,9 @@ final class PayoutRequests {
 				'status' => 'requested', // Only an open request (it may have been processed meanwhile).
 			)
 		);
+		if ( false === $updated ) {
+			return new \WP_Error( 'wpac_db_error', __( 'The rejection could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
+		}
 		if ( 1 !== (int) $updated ) {
 			return new \WP_Error( 'wpac_state', __( 'This request was already handled or could not be updated. Please reload.', 'affiliate-captain' ) );
 		}

@@ -237,7 +237,8 @@ final class Privacy {
 		if ( $restriction ) {
 			$extra[] = array( 'name' => __( 'Processing restricted since', 'affiliate-captain' ), 'value' => (string) $restriction['since'] );
 		}
-		$pending = get_transient( 'wpac_email_change_' . (int) $aff->id );
+		$pending = \WPAffiliateCaptain\Core\Pending::get( 'email_change_' . (int) $aff->id );
+		$pending = null !== $pending ? $pending : get_transient( 'wpac_email_change_' . (int) $aff->id ); // Older version.
 		if ( is_array( $pending ) ) {
 			$extra[] = array( 'name' => __( 'Requested new e-mail address (not confirmed)', 'affiliate-captain' ), 'value' => (string) $pending['email'] );
 		}
@@ -353,9 +354,12 @@ final class Privacy {
 		// the payout change log) must stay unchanged during the retention period: processing is
 		// restricted instead (Art. 17(3)(b), Art. 18 GDPR) and the free texts are deleted when the
 		// period ends (Retention::purge_erased()).
-		Restriction::add( (int) $aff->id, Restriction::ERASURE );
+		if ( ! Restriction::add( (int) $aff->id, Restriction::ERASURE ) ) {
+			$messages[] = __( 'The restriction of processing could not be saved. Please restrict the partner manually on the partner page.', 'affiliate-captain' );
+		}
 		// Pending e-mail change, previous address and account-link token contain addresses.
 		delete_transient( 'wpac_email_change_' . (int) $aff->id );
+		\WPAffiliateCaptain\Core\Pending::delete( 'email_change_' . (int) $aff->id );
 		delete_option( 'wpac_prev_email_' . (int) $aff->id );
 		delete_option( 'wpac_user_link_' . (int) $aff->id );
 		// Requested public name/website change, VIES result (VAT ID, company name) and payment

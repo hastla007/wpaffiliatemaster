@@ -165,7 +165,7 @@ final class Registration {
 
 		$data = array(
 			'user_id'          => $user && $user->exists() ? $user->ID : 0,
-			// Bounded lengths: the data waits in a transient (wp_options) until it is confirmed.
+			// Bounded lengths: the data waits in an option (Core\Pending) until it is confirmed.
 			'name'             => isset( $_POST['wpac_name'] ) && is_string( $_POST['wpac_name'] ) ? self::cap( sanitize_text_field( wp_unslash( $_POST['wpac_name'] ) ), self::MAX_NAME ) : '',
 			'email'            => $email,
 			'website'          => isset( $_POST['wpac_website'] ) && is_string( $_POST['wpac_website'] ) ? esc_url_raw( self::cap( wp_unslash( $_POST['wpac_website'] ), self::MAX_URL ) ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- esc_url_raw().
@@ -189,14 +189,32 @@ final class Registration {
 			Notifications::already_registered( $email );
 		} else {
 			$token = wp_generate_password( 32, false );
-			set_transient( 'wpac_app_' . hash( 'sha256', $token ), $data, 2 * DAY_IN_SECONDS );
+			if ( ! \WPAffiliateCaptain\Core\Pending::set( 'app_' . hash( 'sha256', $token ), $data, 2 * DAY_IN_SECONDS ) ) {
+				self::back( $redirect, 'error' );
+			}
 			Notifications::confirm_application( $email, add_query_arg( 'wpac_confirm', rawurlencode( $token ), $redirect ) );
 		}
 		self::back( $redirect, '', 'confirm' );
 	}
 
 	/**
-	 * Hash of a confirmation token (transient key part).
+	 * A pending application or confirmation marker (Core\Pending; older versions kept them in
+	 * transients, which are still read until they expire).
+	 *
+	 * @param string $kind app_|appdone_.
+	 * @param string $hash Token hash.
+	 * @return mixed|null
+	 */
+	private static function stored( $kind, $hash ) {
+		$value = \WPAffiliateCaptain\Core\Pending::get( $kind . $hash );
+		if ( null === $value ) {
+			$value = get_transient( 'wpac_' . $kind . $hash );
+		}
+		return false === $value ? null : $value;
+	}
+
+	/**
+	 * Hash of a confirmation token (key part).
 	 *
 	 * @param string $token Token.
 	 * @return string
@@ -217,10 +235,10 @@ final class Registration {
 			return 'expired';
 		}
 		$hash = self::token_hash( $token );
-		if ( is_array( get_transient( 'wpac_app_' . $hash ) ) ) {
+		if ( is_array( self::stored( 'app_', $hash ) ) ) {
 			return 'pending';
 		}
-		return get_transient( 'wpac_appdone_' . $hash ) ? 'done' : 'expired';
+		return self::stored( 'appdone_', $hash ) ? 'done' : 'expired';
 	}
 
 	/**
@@ -255,7 +273,6 @@ final class Registration {
 		$token = sanitize_text_field( wp_unslash( $_POST['wpac_confirm'] ) );
 		// phpcs:enable
 		$hash  = self::token_hash( $token );
-		$key   = 'wpac_app_' . $hash;
 		$back  = wpac_return_url();
 		$state = self::token_state( $token );
 		if ( 'done' === $state ) {
@@ -269,10 +286,10 @@ final class Registration {
 		if ( '' === $lock ) {
 			self::back( $back, '', 'ok' );
 		}
-		$data = get_transient( $key );
+		$data = self::stored( 'app_', $hash );
 		if ( ! is_array( $data ) ) {
 			Db::unlock( 'wpac_appconf_' . substr( $hash, 0, 32 ), $lock );
-			self::back( $back, get_transient( 'wpac_appdone_' . $hash ) ? '' : 'expired', 'ok' );
+			self::back( $back, self::stored( 'appdone_', $hash ) ? '' : 'expired', 'ok' );
 		}
 		if ( ! self::account_matches( $data ) ) {
 			Db::unlock( 'wpac_appconf_' . substr( $hash, 0, 32 ), $lock );
@@ -283,9 +300,10 @@ final class Registration {
 		$result = self::finalize( $data );
 		if ( ! is_wp_error( $result ) ) {
 			// Repeated clicks within the link's lifetime show success instead of "expired".
-			set_transient( 'wpac_appdone_' . $hash, 1, 2 * DAY_IN_SECONDS );
+			\WPAffiliateCaptain\Core\Pending::set( 'appdone_' . $hash, 1, 2 * DAY_IN_SECONDS );
 		}
-		delete_transient( $key );
+		\WPAffiliateCaptain\Core\Pending::delete( 'app_' . $hash );
+		delete_transient( 'wpac_app_' . $hash ); // Stored by an older version.
 		Db::unlock( 'wpac_appconf_' . substr( $hash, 0, 32 ), $lock );
 		$target = ! empty( $data['redirect'] ) ? $data['redirect'] : $back;
 		self::back( $target, is_wp_error( $result ) ? 'exists' : '', 'ok' );
@@ -305,7 +323,7 @@ final class Registration {
 		if ( 'pending' !== $state ) {
 			return '<div class="wpac-notice wpac-notice--error" role="alert">' . esc_html__( 'The confirmation link is invalid or has expired. Please apply again.', 'affiliate-captain' ) . '</div>';
 		}
-		$data = get_transient( 'wpac_app_' . self::token_hash( $token ) );
+		$data = self::stored( 'app_', self::token_hash( $token ) );
 		$data = is_array( $data ) ? $data : array();
 		if ( ! self::account_matches( $data ) ) {
 			$here = add_query_arg( 'wpac_confirm', rawurlencode( $token ), get_permalink() ? get_permalink() : home_url( '/' ) );
@@ -492,6 +510,7 @@ final class Registration {
 			'required' => __( 'Please fill in all required fields.', 'affiliate-captain' ),
 			'expired'  => __( 'The confirmation link is invalid or has expired. Please apply again.', 'affiliate-captain' ),
 			'invalid' => __( 'Please check your entries.', 'affiliate-captain' ),
+			'error'   => __( 'Your application could not be saved. Please try again later.', 'affiliate-captain' ),
 		);
 		$err    = isset( $_GET['wpac_err'] ) ? sanitize_key( wp_unslash( $_GET['wpac_err'] ) ) : '';
 		$form   = isset( $_GET['wpac_form'] ) ? get_transient( 'wpac_form_' . sanitize_text_field( wp_unslash( $_GET['wpac_form'] ) ) ) : array();

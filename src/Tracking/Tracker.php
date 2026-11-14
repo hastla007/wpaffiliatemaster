@@ -141,7 +141,7 @@ final class Tracker {
 	 * @return string
 	 */
 	public static function clean_utm( $value ) {
-		$value = substr( sanitize_text_field( (string) $value ), 0, 100 );
+		$value = mb_substr( sanitize_text_field( (string) $value ), 0, 100 );
 		if ( preg_match( '/^[A-Z0-9_]*_STRIPPED$/i', $value ) ) {
 			$value = '';
 		}
@@ -173,7 +173,7 @@ final class Tracker {
 		}
 		$touch = array(
 			'code'       => $resolved['code'],
-			'campaign'   => substr( (string) $campaign, 0, 100 ),
+			'campaign'   => mb_substr( (string) $campaign, 0, 100 ),
 			'content_id' => (int) $content_id,
 			'ts'         => time(),
 		);
@@ -613,7 +613,7 @@ final class Tracker {
 		}
 		$touch = array(
 			'code'       => $parts[0],
-			'campaign'   => isset( $parts[1] ) ? substr( rawurldecode( $parts[1] ), 0, 100 ) : '',
+			'campaign'   => isset( $parts[1] ) ? mb_substr( rawurldecode( $parts[1] ), 0, 100 ) : '',
 			'content_id' => isset( $parts[2] ) ? (int) $parts[2] : 0,
 			'ts'         => isset( $parts[3] ) ? (int) $parts[3] : 0,
 			'method'     => 'cookie',
@@ -719,7 +719,7 @@ final class Tracker {
 			$referrer = isset( $extra['referrer'] ) ? (string) $extra['referrer'] : ( ! empty( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '' );
 			if ( '' !== $referrer ) {
 				$host     = wp_parse_url( $referrer, PHP_URL_HOST );
-				$ref_host = $host ? substr( strtolower( $host ), 0, 190 ) : '';
+				$ref_host = $host ? mb_substr( strtolower( $host ), 0, 190 ) : '';
 			}
 		}
 		$path = isset( $extra['path'] ) ? (string) $extra['path'] : ( isset( $_SERVER['REQUEST_URI'] ) ? wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '' );
@@ -729,10 +729,10 @@ final class Tracker {
 				'affiliate_id'  => (int) $resolved['affiliate_id'],
 				'code_id'       => (int) $resolved['code_id'],
 				'campaign'      => $touch['campaign'],
-				'utm_source'    => substr( isset( $extra['utm_source'] ) ? (string) $extra['utm_source'] : '', 0, 100 ),
-				'utm_medium'    => substr( isset( $extra['utm_medium'] ) ? (string) $extra['utm_medium'] : '', 0, 100 ),
+				'utm_source'    => mb_substr( isset( $extra['utm_source'] ) ? (string) $extra['utm_source'] : '', 0, 100 ),
+				'utm_medium'    => mb_substr( isset( $extra['utm_medium'] ) ? (string) $extra['utm_medium'] : '', 0, 100 ),
 				'referrer_host' => $ref_host,
-				'landing_path'  => substr( (string) $path, 0, 255 ),
+				'landing_path'  => mb_substr( (string) $path, 0, 255 ),
 				'content_id'    => (int) $touch['content_id'],
 				'created_at'    => Db::now(),
 			)

@@ -67,14 +67,18 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
-		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST ) as $hook ) {
+		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST, Crypto::REENCRYPT_HOOK, \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK ) as $hook ) {
 			Scheduler::clear( $hook );
 		}
 		Scheduler::clear_group(); // Anything else of this plugin still waiting in the Action Scheduler.
 	}
 
+	/** Option: steps whose last run failed: key => [ since, last, count, error ]. */
+	const FAILURES = 'wpac_cron_failures';
+
 	public static function hourly() {
 		self::mark_run( 'hourly' );
+		Lifecycle::check_clone();
 		if ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
 			return; // A migration is running or failed: no bookings against the old schema.
@@ -85,17 +89,70 @@ final class Cron {
 		// Each step on its own (an error in one must not stop the others), the queue first:
 		// sales and refunds waiting for a retry are the most urgent, approvals and documents follow.
 		foreach ( array(
-			array( Jobs::class, 'run_due' ),
-			array( Ledger::class, 'approve_due' ),
-			array( '\WPAffiliateCaptain\Payouts\PayoutService', 'generate_missing_statements' ),
-		) as $step ) {
-			try {
-				call_user_func( $step );
-			} catch ( \Throwable $e ) {
-				Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $step[1], 'error' => substr( $e->getMessage(), 0, 190 ) ) );
-				Log::exception( 'Scheduled step failed: ' . $step[1], $e );
-			}
+			'jobs'       => array( Jobs::class, 'run_due' ),
+			'approve'    => array( Ledger::class, 'approve_due' ),
+			'statements' => array( '\WPAffiliateCaptain\Payouts\PayoutService', 'generate_missing_statements' ),
+		) as $key => $step ) {
+			self::run_step( 'hourly.' . $key, $step );
 		}
+	}
+
+	/**
+	 * Run one step on its own (an error must not stop the others). Failures are logged with the
+	 * step key (several steps call methods of the same name) and kept for the health check, so a
+	 * step that fails every time does not go unnoticed.
+	 *
+	 * @param string   $key  Step key (hourly.jobs, daily.balances …).
+	 * @param callable $step Callback.
+	 */
+	private static function run_step( $key, $step ) {
+		try {
+			call_user_func( $step );
+			self::record_step( $key, null );
+		} catch ( \Throwable $e ) {
+			Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $key, 'error' => mb_substr( $e->getMessage(), 0, 190 ) ) );
+			Log::exception( 'Scheduled step failed: ' . $key, $e );
+			self::record_step( $key, $e );
+		}
+	}
+
+	/**
+	 * Remember a failed step (or forget it after a successful run).
+	 *
+	 * @param string          $key Step key.
+	 * @param \Throwable|null $e   Error, null on success.
+	 */
+	private static function record_step( $key, $e ) {
+		$all = get_option( self::FAILURES, array() );
+		$all = is_array( $all ) ? $all : array();
+		if ( null === $e ) {
+			if ( isset( $all[ $key ] ) ) {
+				unset( $all[ $key ] );
+				if ( $all ) {
+					update_option( self::FAILURES, $all, false );
+				} else {
+					delete_option( self::FAILURES );
+				}
+			}
+			return;
+		}
+		$all[ $key ] = array(
+			'since' => isset( $all[ $key ]['since'] ) ? (int) $all[ $key ]['since'] : time(),
+			'last'  => time(),
+			'count' => isset( $all[ $key ]['count'] ) ? (int) $all[ $key ]['count'] + 1 : 1,
+			'error' => mb_substr( $e->getMessage(), 0, 190 ),
+		);
+		update_option( self::FAILURES, $all, false );
+	}
+
+	/**
+	 * Steps whose last run failed.
+	 *
+	 * @return array Key => [ since, last, count, error ].
+	 */
+	public static function failures() {
+		$all = get_option( self::FAILURES, array() );
+		return is_array( $all ) ? $all : array();
 	}
 
 	/**
@@ -147,6 +204,8 @@ final class Cron {
 			'jobs'                  => array( array( __CLASS__, 'purge_jobs' ), false ),
 			'inflight'              => array( array( __CLASS__, 'purge_inflight' ), false ),
 			'rate_limits'           => array( array( '\WPAffiliateCaptain\Tracking\RateLimiter', 'purge' ), false ),
+			'pending'               => array( array( Pending::class, 'purge' ), false ),
+			'migrations'            => array( array( Monitor::class, 'check_migrations' ), false ),
 			'orphaned_tables'       => array( array( Installer::class, 'drop_orphaned_tables' ), false ),
 			'tier_close'            => array( array( '\WPAffiliateCaptain\Commissions\TierService', 'close_due_months' ), true ),
 			'tier_recalculate'      => array( array( '\WPAffiliateCaptain\Commissions\TierService', 'recalculate_closed_months' ), true ),
@@ -161,6 +220,7 @@ final class Cron {
 	public static function daily() {
 		self::mark_run( 'daily' );
 		delete_option( self::DAILY_REST_OPTION ); // A new day's run replaces the rest of an older one.
+		Lifecycle::check_clone();
 		if ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
 		}
@@ -205,12 +265,7 @@ final class Cron {
 			if ( $needs_bookings && ! $bookings ) {
 				continue; // Bookings, documents and mails only on the current schema and outside maintenance.
 			}
-			try {
-				call_user_func( $step );
-			} catch ( \Throwable $e ) {
-				Audit::log( 'cron.step_failed', 'cron', 0, array( 'step' => $step[1], 'error' => substr( $e->getMessage(), 0, 190 ) ) );
-				Log::exception( 'Scheduled step failed: ' . $step[1], $e );
-			}
+			self::run_step( 'daily.' . $key, $step );
 		}
 	}
 

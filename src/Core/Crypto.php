@@ -124,13 +124,24 @@ final class Crypto {
 	 * @return array [ legacy count, unreadable count ]
 	 */
 	public static function legacy_status() {
+		$status = self::status();
+		return array( $status['legacy'], $status['broken'] );
+	}
+
+	/**
+	 * Stored bank details by readability: still on the legacy key (with a dedicated key set),
+	 * and unreadable – also without a dedicated key, where a change of the WordPress salts makes
+	 * every stored value unreadable.
+	 *
+	 * @param int $max_ids Partner IDs of unreadable details to return.
+	 * @return array [ legacy => int, broken => int, broken_ids => int[] ]
+	 */
+	public static function status( $max_ids = 50 ) {
 		global $wpdb;
-		if ( ! self::has_dedicated_key() ) {
-			return array( 0, 0 );
-		}
 		$t       = Db::table( 'payout_profiles' );
 		$legacy  = 0;
 		$broken  = 0;
+		$ids     = array();
 		$last_id = 0;
 		do {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -140,14 +151,21 @@ final class Crypto {
 				if ( null !== self::open( (string) $r->iban_encrypted, self::key() ) ) {
 					continue;
 				}
-				if ( null !== self::open( (string) $r->iban_encrypted, self::legacy_key() ) ) {
+				if ( self::has_dedicated_key() && null !== self::open( (string) $r->iban_encrypted, self::legacy_key() ) ) {
 					++$legacy;
 				} else {
 					++$broken;
+					if ( count( $ids ) < (int) $max_ids ) {
+						$ids[] = $last_id;
+					}
 				}
 			}
 		} while ( $rows && 500 === count( $rows ) );
-		return array( $legacy, $broken );
+		return array(
+			'legacy'     => $legacy,
+			'broken'     => $broken,
+			'broken_ids' => $ids,
+		);
 	}
 
 	/**

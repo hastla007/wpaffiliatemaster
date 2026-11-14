@@ -67,6 +67,7 @@ class Test_WPDB {
 	public $options = 'wp_options';
 	public $rows_affected = 0;
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
+	public function get_blog_prefix( $id = null ) { return $this->prefix; }
 	public function esc_like( $t ) { return addcslashes( $t, '_%\\' ); }
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) {
@@ -238,8 +239,9 @@ function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
 function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function wp_delete_file( $f ) { @unlink( $f ); }
 function wp_mail( $to, $s, $m ) { if ( ! empty( $GLOBALS['test_mail_fail'] ) ) { return false; } $GLOBALS['test_mails'][] = array( $to, $s ); return true; }
-function get_user_by( $f, $v ) { return false; }
-function get_userdata( $id ) { return isset( $GLOBALS['test_userdata'][ (int) $id ] ) ? $GLOBALS['test_userdata'][ (int) $id ] : false; }
+// Users: none unless a test puts some into $GLOBALS['test_users'] (ID => object) or $GLOBALS['test_userdata'].
+function get_user_by( $f, $v ) { foreach ( $GLOBALS['test_users'] ?? array() as $u ) { if ( ( 'email' === $f && 0 === strcasecmp( (string) $u->user_email, (string) $v ) ) || ( 'id' === $f && (int) $u->ID === (int) $v ) ) { return $u; } } return false; }
+function get_userdata( $id ) { return $GLOBALS['test_users'][ (int) $id ] ?? ( $GLOBALS['test_userdata'][ (int) $id ] ?? false ); }
 function username_exists( $u ) { return false; }
 function wp_insert_user( $u ) { static $id = 100; return ++$id; }
 function wp_new_user_notification( $id, $x = null, $n = '' ) {}

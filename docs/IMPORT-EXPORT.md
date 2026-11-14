@@ -29,7 +29,7 @@ On the admin page the file is always checked first (dry run): every row is liste
 | `rate` | no | `12.5`, `12,5 %` or an amount such as `5,00 €` | Creates a partner rule for all products. Percent 0–100. An amount (currency sign, currency code or `rate_type` `fixed`) is a fixed commission per unit in the program currency. Needs `wpac_manage_program`. |
 | `rate_type` | no | `percent` (default), `percentage`, `fixed`, `flat` | |
 | `group` | no | name or ID of a partner group | An unknown name creates the group (needs `wpac_manage_program`); an unknown ID is an error. |
-| `user_id` | no | ID of an existing WordPress user | Links the partner to this account. The account must have the same e-mail address, no editing rights and no other partner. Without `user_id`, approval links or creates the account as usual. |
+| `user_id` | no | ID of an existing WordPress user | Checked only: the account must have the same e-mail address, no editing rights and no other partner. It is not linked directly (WordPress does not verify account e-mail addresses): on approval the partner receives the one-time link to confirm the account, as for every existing account. |
 | `channel` | no | text | e.g. "Instagram", "Blog". |
 
 Example:
@@ -42,7 +42,7 @@ Segelblog GmbH;info@segelblog.example;segelblog.example;pending;;5.00;fixed;;;Bl
 
 ### E-mails
 
-By default no e-mail is sent during the import (approval mails, new account mails and account link requests are suppressed). Partners therefore do not receive a password link: tell them to use "Lost your password?" with their e-mail address, or import with "Send the usual e-mails". Partners whose e-mail address belongs to an existing WordPress account are only linked to it when you give its `user_id` (or after the account-link e-mail, which is only sent with e-mails on).
+By default no e-mail is sent during the import (approval mails, new account mails and account link requests are suppressed). Partners therefore do not receive a password link: tell them to use "Lost your password?" with their e-mail address, or import with "Send the usual e-mails". Partners whose e-mail address belongs to an existing WordPress account are only linked to it after they confirm the account-link e-mail. With e-mails off it is not sent: use "Resend account link" on the partner page later.
 
 ### Moving from AffiliateWP
 

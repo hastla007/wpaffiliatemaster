@@ -116,9 +116,20 @@ final class Admin {
 		if ( $screen && false !== strpos( (string) $screen->id, 'wpac' ) && current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
 			self::blocked_payouts_notice();
 		}
+		\WPAffiliateCaptain\Core\Lifecycle::notices();
+		$migration = get_option( \WPAffiliateCaptain\Core\Monitor::MIGRATION_STATUS );
+		if ( is_array( $migration ) && current_user_can( Capabilities::MANAGE_PAYOUTS ) && ( ! empty( $migration['broken'] ) || ! empty( $migration['legacy'] ) || ! empty( $migration['misplaced'] ) ) ) {
+			$state = md5( wp_json_encode( array( $migration['broken'], $migration['legacy'], $migration['misplaced'] ) ) );
+			if ( ! empty( $migration['broken'] ) || ! self::notice_hidden( 'migration', $state ) ) {
+				$text = ! empty( $migration['broken'] )
+					/* translators: 1: number, 2: partner IDs */
+					? sprintf( __( 'Affiliate Captain: the bank details of %1$d partners cannot be decrypted (partner IDs %2$s). They get no payouts until they enter them again.', 'affiliate-captain' ), (int) $migration['broken'], implode( ', ', array_map( 'intval', (array) $migration['broken_ids'] ) ) )
+					: __( 'Affiliate Captain: bank details or credit notes still need to be migrated (re-encryption or moving files).', 'affiliate-captain' );
+				echo '<div class="notice ' . ( ! empty( $migration['broken'] ) ? 'notice-error' : 'notice-warning' ) . '"><p>' . esc_html( $text ) . ' <a href="' . esc_url( self::url( 'wpac-integrations' ) ) . '">' . esc_html__( 'Open the integrations page', 'affiliate-captain' ) . '</a>' . ( empty( $migration['broken'] ) ? self::hide_link( 'migration', $state ) : '' ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hide_link() is escaped.
+			}
+		}
 		\WPAffiliateCaptain\Core\Cron::schedule(); // Cheap; restores events lost e.g. after a migration.
-		$next = wp_next_scheduled( \WPAffiliateCaptain\Core\Cron::HOURLY );
-		if ( ! $next || $next > time() - 2 * HOUR_IN_SECONDS ) {
+		if ( \WPAffiliateCaptain\Core\Monitor::cron_running() ) {
 			return;
 		}
 		$state = md5( 'cron' . gmdate( 'Y-m-d' ) ); // Hidden for the rest of the day at most.
@@ -343,7 +354,7 @@ final class Admin {
 	 * @return bool
 	 */
 	public static function notice_hidden( $key, $state ) {
-		$hidden = get_user_meta( get_current_user_id(), 'wpac_hidden_notices', true );
+		$hidden = get_user_option( 'wpac_hidden_notices', get_current_user_id() );
 		return is_array( $hidden ) && isset( $hidden[ $key ] ) && hash_equals( (string) $hidden[ $key ], (string) $state );
 	}
 
@@ -376,11 +387,12 @@ final class Admin {
 		$key   = isset( $_GET['notice'] ) ? sanitize_key( wp_unslash( $_GET['notice'] ) ) : '';
 		$state = isset( $_GET['state'] ) ? sanitize_key( wp_unslash( $_GET['state'] ) ) : '';
 		// phpcs:enable
-		if ( in_array( $key, array( 'blocked', 'engine', 'cron' ), true ) ) {
-			$hidden         = get_user_meta( get_current_user_id(), 'wpac_hidden_notices', true );
+		if ( in_array( $key, array( 'blocked', 'engine', 'cron', 'migration' ), true ) ) {
+			$hidden         = get_user_option( 'wpac_hidden_notices', get_current_user_id() );
 			$hidden         = is_array( $hidden ) ? $hidden : array();
 			$hidden[ $key ] = $state;
-			update_user_meta( get_current_user_id(), 'wpac_hidden_notices', $hidden );
+			// Per site (on a network the notices of one site say nothing about another).
+			update_user_option( get_current_user_id(), 'wpac_hidden_notices', $hidden );
 		}
 		wp_safe_redirect( wpac_return_url() ? wpac_return_url() : self::url( 'wpac' ) );
 		exit;
@@ -424,6 +436,7 @@ final class Admin {
 			'tax_reject'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statements_move'   => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),

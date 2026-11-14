@@ -119,7 +119,7 @@ final class Landing {
 	 * Flush rewrite rules once after activation/prefix change.
 	 */
 	public static function maybe_flush() {
-		$key = 'v' . WPAC_DB_VERSION . ':' . Settings::get( 'landing_prefix' );
+		$key = 'v' . \WPAffiliateCaptain\Core\Installer::db_version() . ':' . Settings::get( 'landing_prefix' );
 		if ( get_option( 'wpac_rewrite_flushed' ) !== $key ) {
 			flush_rewrite_rules( false );
 			update_option( 'wpac_rewrite_flushed', $key, true );

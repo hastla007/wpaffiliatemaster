@@ -84,6 +84,19 @@ msgstr ""
 msgid "Affiliate Captain: %1$d partner accounts do not match their bookings (%2$s). Please check them before the next payout."
 msgstr ""
 
+#. translators: 1: number, 2: partner IDs
+#: src/Admin/Admin.php
+msgid "Affiliate Captain: the bank details of %1$d partners cannot be decrypted (partner IDs %2$s). They get no payouts until they enter them again."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Affiliate Captain: bank details or credit notes still need to be migrated (re-encryption or moving files)."
+msgstr ""
+
+#: src/Admin/Admin.php src/Core/Monitor.php
+msgid "Open the integrations page"
+msgstr ""
+
 #: src/Admin/Admin.php
 msgid "Affiliate Captain: the scheduled tasks have not run for more than two hours."
 msgstr ""
@@ -197,6 +210,14 @@ msgid "The WordPress user is now linked: the partner can log in to the partner a
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "This partner is not linked to a WordPress user."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The WordPress user was disconnected. The partner keeps all data; a new account can be linked."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Partner saved."
 msgstr ""
 
@@ -218,6 +239,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Affiliates/AffiliateRepository.php src/Commissions/Ledger.php src/Payouts/PayoutRequests.php src/Payouts/PayoutService.php
 msgid "Please enter a reason."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The restriction could not be saved. Nothing was changed; please try again."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -485,6 +510,23 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
 msgid "Save"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Partner area access"
+msgstr ""
+
+#. translators: %d: user ID
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The linked WordPress user #%d no longer exists. Disconnect it so a new account can be linked."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Disconnect the WordPress user from this partner? The account then no longer sees the partner area."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Disconnect WordPress user"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
@@ -780,10 +822,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php
 msgid "System"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Partner area access"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -2128,6 +2166,10 @@ msgid "Re-encrypt bank details with the new key"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Partner IDs:"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "The statement folder was changed (e.g. WPAC_STATEMENT_DIR defined later). The files are still found and downloadable, but they stay in the old, possibly public folder until you move them."
 msgstr ""
 
@@ -3156,6 +3198,10 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "The settings could not be saved (database error). Nothing was changed; please try again."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Settings saved with an adjustment:"
 msgstr ""
 
@@ -3792,6 +3838,10 @@ msgid "Processing of this partner is restricted (data protection). Lift the rest
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
+msgid "The status could not be saved (database error or changed meanwhile). Nothing was changed; please try again."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
 msgid "Partnership terminated"
 msgstr ""
 
@@ -3822,6 +3872,38 @@ msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
 msgid "No WordPress user with this ID or e-mail address was found."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "You cannot link your own account to a partner. Ask another administrator, or let the partner confirm the link from the e-mail."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "The account's e-mail address differs from the partner's. Only program managers can link such an account; otherwise change the partner's e-mail address first."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/AffiliateRepository.php
+msgid "[%s] An account was linked to your partner access"
+msgstr ""
+
+#. translators: 1: partner name, 2: login name
+#: src/Affiliates/AffiliateRepository.php
+msgid "Hello %1$s,\n\nthe shop team linked the user account \"%2$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/AffiliateRepository.php
+msgid "[%s] Partner account linked manually"
+msgstr ""
+
+#. translators: 1: partner ID, 2: login name, 3: user who linked it, 4: note
+#: src/Affiliates/AffiliateRepository.php
+msgid "Partner #%1$d was linked to the user account \"%2$s\" by %3$s.%4$s"
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "The account has a different e-mail address than the partner."
 msgstr ""
 
 #. translators: %s: site name
@@ -4203,6 +4285,10 @@ msgid "Please check your entries."
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Your application could not be saved. Please try again later."
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "Which kind of partner are you?"
 msgstr ""
 
@@ -4556,6 +4642,10 @@ msgstr ""
 msgid "Tax advisor (Affiliate Captain, read only)"
 msgstr ""
 
+#: src/Core/Installer.php src/Privacy/Privacy.php
+msgid "Deleted partner"
+msgstr ""
+
 #. translators: %s: site name
 #: src/Core/Installer.php
 msgid "[%s] Partner program: database update is stuck"
@@ -4565,6 +4655,50 @@ msgstr ""
 #: src/Core/Installer.php
 msgid "The database update of Affiliate Captain has not completed for over an hour. Approvals, payouts and mails wait until it is done; tracking and privacy clean-ups keep running.\n\nProblems:\n%s\n\nPlease check the database user's rights (ALTER, CREATE, INDEX) or run: wp wpac upgrade"
 msgstr ""
+
+#: src/Core/Lifecycle.php
+msgid "Affiliate Captain: this looks like a copy of the site."
+msgstr ""
+
+#. translators: 1: previous address, 2: current address
+#: src/Core/Lifecycle.php
+msgid "The partner program last ran on %1$s and now runs on %2$s. Maintenance mode was switched on so this copy sends no report mails, alarms, VIES requests or payouts to real partners. If the site was moved for good, switch maintenance mode off in the settings."
+msgstr ""
+
+#. translators: %s: old plugin entries
+#: src/Core/Lifecycle.php
+msgid "Affiliate Captain took over from the old copy (%s): data, settings and schedules are kept. You can delete the old copy under Plugins."
+msgstr ""
+
+#: src/Core/Lifecycle.php
+msgid "\"Delete all data on uninstall\" was switched off so deleting the old copy cannot remove the shared data; switch it on again afterwards if you want."
+msgstr ""
+
+#. translators: 1: date, 2: number
+#: src/Core/Lifecycle.php
+msgid "Affiliate Captain found booking records kept from an earlier installation (uninstalled %1$s, within their retention period). Their %2$d partner numbers stay reserved as \"Deleted partner\", so new partners never get them. \"Delete all data on uninstall\" is off."
+msgstr ""
+
+#. translators: %d: number of partners
+#: src/Core/Monitor.php
+msgid "Bank details of %d partner cannot be decrypted"
+msgid_plural "Bank details of %d partners cannot be decrypted"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Core/Monitor.php
+msgid "Bank details of %d partner still use the old key"
+msgid_plural "Bank details of %d partners still use the old key"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of files
+#: src/Core/Monitor.php
+msgid "%d credit note is still in the previous statement folder"
+msgid_plural "%d credit notes are still in the previous statement folder"
+msgstr[0] ""
+msgstr[1] ""
 
 #. translators: %d: number
 #: src/Core/Monitor.php
@@ -4610,7 +4744,29 @@ msgid "Scheduled tasks have not run for over two hours"
 msgstr ""
 
 #: src/Core/Monitor.php
-msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\")."
+msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\"; on a network for every site)."
+msgstr ""
+
+#. translators: 1: step, 2: number of runs, 3: error
+#: src/Core/Monitor.php
+msgid "%1$s (failed %2$d times in a row: %3$s)"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Scheduled steps fail"
+msgstr ""
+
+#. translators: %s: partner IDs
+#: src/Core/Monitor.php
+msgid "The WordPress salts were probably changed without WPAC_ENCRYPTION_KEY. No payouts for these partners until they enter their bank details again. Partner IDs: %s"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Affiliate Captain → Integrations: re-encrypt them with WPAC_ENCRYPTION_KEY."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Affiliate Captain → Integrations: move them to the current folder."
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -4685,10 +4841,6 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "Schema, scheduled tasks, retry queue, account balances and credit notes are fine."
-msgstr ""
-
-#: src/Core/Monitor.php
-msgid "Open the integrations page"
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -4771,6 +4923,11 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty."
+msgstr ""
+
+#. translators: %d: largest allowed number
+#: src/Core/Settings.php
+msgid "Please enter a whole number between 0 and %d."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -5279,6 +5436,10 @@ msgid "The approved balance is no longer above the minimum."
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
+msgid "The rejection could not be saved (database error). Nothing was changed; please try again."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
 msgid "This request was already handled or could not be updated. Please reload."
 msgstr ""
 
@@ -5427,6 +5588,10 @@ msgstr ""
 #. translators: %s: payout number
 #: src/Payouts/PayoutService.php
 msgid "Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "The cancellation could not be saved (database error). Nothing was changed; please try again."
 msgstr ""
 
 #. translators: %s: payout number
@@ -6511,7 +6676,7 @@ msgid "Payout requests"
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Deleted partner"
+msgid "The restriction of processing could not be saved. Please restrict the partner manually on the partner page."
 msgstr ""
 
 #: src/Privacy/Privacy.php

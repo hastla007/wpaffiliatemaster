@@ -215,8 +215,8 @@ final class CustomerLinks {
 				array(
 					'affiliate_id'    => (int) $affiliate_id,
 					'customer_hash'   => $hash,
-					'source'          => substr( (string) $source, 0, 40 ),
-					'source_order_id' => substr( (string) $order_id, 0, 64 ),
+					'source'          => mb_substr( (string) $source, 0, 40 ),
+					'source_order_id' => mb_substr( (string) $order_id, 0, 64 ),
 					'pending'         => $pending ? 1 : 0,
 					'created_at'      => Db::now(),
 					'expires_at'      => $expires,
@@ -250,8 +250,8 @@ final class CustomerLinks {
 			Db::table( 'customer_links' ),
 			array( 'pending' => 0 ),
 			array(
-				'source'          => substr( (string) $source, 0, 40 ),
-				'source_order_id' => substr( (string) $order_id, 0, 64 ),
+				'source'          => mb_substr( (string) $source, 0, 40 ),
+				'source_order_id' => mb_substr( (string) $order_id, 0, 64 ),
 				'pending'         => 1,
 			)
 		);
@@ -295,7 +295,7 @@ final class CustomerLinks {
 				array(
 					'count'  => $n,
 					'orders' => array_values( array_unique( wp_list_pluck( $rows, 'source_order_id' ) ) ),
-					'reason' => substr( (string) $reason, 0, 255 ),
+					'reason' => mb_substr( (string) $reason, 0, 255 ),
 				)
 			);
 		}
@@ -331,8 +331,8 @@ final class CustomerLinks {
 		return (int) $wpdb->delete(
 			Db::table( 'customer_links' ),
 			array(
-				'source'          => substr( (string) $source, 0, 40 ),
-				'source_order_id' => substr( (string) $order_id, 0, 64 ),
+				'source'          => mb_substr( (string) $source, 0, 40 ),
+				'source_order_id' => mb_substr( (string) $order_id, 0, 64 ),
 			)
 		);
 	}

@@ -92,7 +92,7 @@ final class Log {
 		return array(
 			'exception' => get_class( $e ),
 			'code'      => $e instanceof IntegrationException ? $e->error_code : (string) $e->getCode(),
-			'message'   => substr( self::plain( $e->getMessage() ), 0, 500 ),
+			'message'   => mb_substr( self::plain( $e->getMessage() ), 0, 500 ),
 			'file'      => $file,
 			'line'      => (int) $e->getLine(),
 		);

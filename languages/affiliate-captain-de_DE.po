@@ -63,6 +63,9 @@ msgstr "Ohne die InnoDB-Engine kann eine Buchung, die mittendrin abbricht (z. B.
 msgid "Affiliate Captain: %1$d partner accounts do not match their bookings (%2$s). Please check them before the next payout."
 msgstr "Affiliate Captain: %1$d Partnerkonten stimmen nicht mit ihren Buchungen überein (%2$s). Bitte vor der nächsten Auszahlung prüfen."
 
+msgid "Open the integrations page"
+msgstr "Integrationsseite öffnen"
+
 msgid "Affiliate Captain: the scheduled tasks have not run for more than two hours."
 msgstr "Affiliate Captain: Die geplanten Aufgaben sind seit mehr als zwei Stunden nicht gelaufen."
 
@@ -359,6 +362,9 @@ msgstr "Wird über [wpac_partner_welcome] angezeigt. Wird nur vom Betreiber gepf
 msgid "Save"
 msgstr "Speichern"
 
+msgid "Partner area access"
+msgstr "Zugang zum Partnerbereich"
+
 msgid "Terms acceptance"
 msgstr "Annahme der Bedingungen"
 
@@ -574,9 +580,6 @@ msgstr "Verlauf"
 
 msgid "System"
 msgstr "System"
-
-msgid "Partner area access"
-msgstr "Zugang zum Partnerbereich"
 
 msgid "The partner's e-mail address belongs to an account with backend rights (e.g. an administrator or editor). Such accounts are never linked to a partner. Use a different e-mail address for the partner or link a customer account below."
 msgstr "Die E-Mail-Adresse des Partners gehört zu einem Konto mit Backend-Rechten (z. B. Administrator oder Redakteur). Solche Konten werden nie mit einem Partner verknüpft. Verwenden Sie eine andere E-Mail-Adresse für den Partner oder verknüpfen Sie unten ein Kundenkonto."
@@ -3197,6 +3200,9 @@ msgstr "Empfohlene Ziele erscheinen im Partnerbereich mit fertigem Partnerlink."
 msgid "Recommended target pages"
 msgstr "Empfohlene Zielseiten"
 
+msgid "Deleted partner"
+msgstr "Gelöschter Partner"
+
 msgid "[%s] Partner program: database update is stuck"
 msgstr "[%s] Partnerprogramm: Datenbank-Update hängt"
 
@@ -3233,9 +3239,6 @@ msgstr "Geplante Aufgaben laufen"
 
 msgid "Scheduled tasks have not run for over two hours"
 msgstr "Geplante Aufgaben sind seit über zwei Stunden nicht gelaufen"
-
-msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\")."
-msgstr "Provisionen werden nicht freigegeben und fehlgeschlagene Verkäufe nicht wiederholt. Richten Sie einen System-Cron ein (\"wp cron event run --due-now\")."
 
 msgid "Affiliate Captain → Integrations → Retry queue."
 msgstr "Affiliate Captain → Integrationen → Wiederholungs-Warteschlange."
@@ -3290,9 +3293,6 @@ msgstr "Partnerprogramm"
 
 msgid "Schema, scheduled tasks, retry queue, account balances and credit notes are fine."
 msgstr "Schema, geplante Aufgaben, Wiederholungswarteschlange, Kontostände und Gutschriften sind in Ordnung."
-
-msgid "Open the integrations page"
-msgstr "Integrationsseite öffnen"
 
 msgid "Yes"
 msgstr "Ja"
@@ -4520,9 +4520,6 @@ msgstr "Bezahlt am"
 
 msgid "Payout requests"
 msgstr "Auszahlungsanträge"
-
-msgid "Deleted partner"
-msgstr "Gelöschter Partner"
 
 msgid "Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled."
 msgstr "Die Auszahlungsdaten wurden aufbewahrt, weil der Partner noch offene Provisionen oder Auszahlungen hat. Sie werden automatisch gelöscht, sobald alles abgerechnet ist."

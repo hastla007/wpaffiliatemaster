@@ -42,7 +42,11 @@ final class SettingsPage {
 		$notices = array();
 		$new     = array_intersect_key( Settings::sanitize( $raw, $errors, $notices ), array_flip( $tabs[ $tab ] ) );
 		$old     = Settings::all();
-		Settings::update( $new );
+		$url     = Admin::url( 'wpac-settings', array( 'tab' => $tab ) );
+		if ( ! Settings::update( $new ) ) {
+			Audit::log( 'settings.save_failed', 'settings', 0, array( 'tab' => $tab ) );
+			Admin::back( __( 'The settings could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ), 'error', $url );
+		}
 		$changed = array();
 		foreach ( $new as $k => $v ) {
 			if ( ! isset( $old[ $k ] ) || (string) $old[ $k ] !== (string) $v ) {
@@ -52,7 +56,6 @@ final class SettingsPage {
 		if ( $changed ) {
 			Audit::log( 'settings.updated', 'settings', 0, array( 'changed' => $changed ) );
 		}
-		$url    = Admin::url( 'wpac-settings', array( 'tab' => $tab ) );
 		$labels = self::field_labels();
 		if ( $errors ) {
 			// Show the rejected input again, with the message next to the field.

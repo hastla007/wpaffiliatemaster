@@ -761,7 +761,7 @@ final class Statement {
 					array(
 						'payout'       => (int) $payout_id,
 						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-						'cause'        => is_array( $last ) ? substr( (string) $last['message'], 0, 300 ) : '',
+						'cause'        => is_array( $last ) ? mb_substr( (string) $last['message'], 0, 300 ) : '',
 					)
 				);
 				self::backoff( (int) $payout_id );
@@ -1069,7 +1069,7 @@ final class Statement {
 					array(
 						'payout'       => (int) $payout_id,
 						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-						'cause'        => is_array( $last ) ? substr( (string) $last['message'], 0, 300 ) : '',
+						'cause'        => is_array( $last ) ? mb_substr( (string) $last['message'], 0, 300 ) : '',
 					)
 				);
 				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
@@ -1162,11 +1162,26 @@ final class Statement {
 		$t = Db::table( 'payouts' );
 		// Retention starts at the end of the calendar year of the statement (cancellations: of their own date).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, storno_file FROM {$t} WHERE statement_deleted_at IS NULL AND created_at <= %s AND ( storno_at IS NULL OR storno_at <= %s ) LIMIT 200", $cutoff, $cutoff ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, statement_hash, storno_file, storno_hash FROM {$t} WHERE statement_deleted_at IS NULL AND created_at <= %s AND ( storno_at IS NULL OR storno_at <= %s ) LIMIT 200", $cutoff, $cutoff ) );
+		// The current folder and the earlier ones (files not moved yet must not outlive the period).
+		// An earlier folder may be shared (flat WPAC_STATEMENT_DIR of a network): there only the
+		// document with this payout's hash is deleted, never another site's file of the same name.
+		$current = self::dir();
+		$legacy  = self::legacy_dirs();
 		foreach ( $rows as $r ) {
-			foreach ( array( $r->statement_file, $r->storno_file ) as $file ) {
-				if ( '' !== (string) $file && file_exists( self::dir() . '/' . basename( (string) $file ) ) ) {
-					wp_delete_file( self::dir() . '/' . basename( (string) $file ) );
+			foreach ( array( array( $r->statement_file, $r->statement_hash ), array( $r->storno_file, $r->storno_hash ) ) as $doc ) {
+				$name = basename( (string) $doc[0] );
+				if ( '' === $name || '.' === $name[0] ) {
+					continue;
+				}
+				if ( file_exists( $current . '/' . $name ) ) {
+					wp_delete_file( $current . '/' . $name );
+				}
+				foreach ( $legacy as $dir ) {
+					$path = $dir . '/' . $name;
+					if ( is_file( $path ) && ( '' === (string) $doc[1] || hash_equals( (string) $doc[1], (string) hash_file( 'sha256', $path ) ) ) ) {
+						wp_delete_file( $path );
+					}
 				}
 			}
 			$wpdb->update(

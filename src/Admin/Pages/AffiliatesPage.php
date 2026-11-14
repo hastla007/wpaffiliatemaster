@@ -69,6 +69,13 @@ final class AffiliatesPage {
 				Admin::back( __( 'The WordPress user is now linked: the partner can log in to the partner area with it.', 'affiliate-captain' ) );
 				break;
 
+			case 'user_unlink':
+				if ( ! AffiliateRepository::unlink_user( $id, 'manual' ) ) {
+					Admin::back( __( 'This partner is not linked to a WordPress user.', 'affiliate-captain' ), 'error' );
+				}
+				Admin::back( __( 'The WordPress user was disconnected. The partner keeps all data; a new account can be linked.', 'affiliate-captain' ) );
+				break;
+
 			case 'terms_remind':
 				$result = Agreements::start_reminders();
 				if ( is_wp_error( $result ) ) {
@@ -136,7 +143,9 @@ final class AffiliatesPage {
 				if ( '' === $note ) {
 					Admin::back( __( 'Please enter a reason.', 'affiliate-captain' ), 'error' );
 				}
-				\WPAffiliateCaptain\Privacy\Restriction::add( $id, \WPAffiliateCaptain\Privacy\Restriction::REQUEST, $note );
+				if ( ! \WPAffiliateCaptain\Privacy\Restriction::add( $id, \WPAffiliateCaptain\Privacy\Restriction::REQUEST, $note ) ) {
+					Admin::back( __( 'The restriction could not be saved. Nothing was changed; please try again.', 'affiliate-captain' ), 'error' );
+				}
 				Admin::back( __( 'Processing is restricted: no new attributions, no report mails, no reactivation.', 'affiliate-captain' ) );
 				break;
 
@@ -517,6 +526,15 @@ final class AffiliatesPage {
 		// Partner area access (no linked WordPress user).
 		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
 			self::user_link_box( $a );
+		} elseif ( $a->user_id ) {
+			echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner area access', 'affiliate-captain' ) . '</h2><div class="inside">';
+			if ( ! get_userdata( (int) $a->user_id ) ) {
+				/* translators: %d: user ID */
+				echo '<p>' . esc_html( sprintf( __( 'The linked WordPress user #%d no longer exists. Disconnect it so a new account can be linked.', 'affiliate-captain' ), (int) $a->user_id ) ) . '</p>';
+			}
+			Admin::form_open( 'user_unlink', 'wpac-inline' );
+			echo '<input type="hidden" name="id" value="' . (int) $a->id . '"><p><button class="button" data-wpac-confirm="' . esc_attr__( 'Disconnect the WordPress user from this partner? The account then no longer sees the partner area.', 'affiliate-captain' ) . '">' . esc_html__( 'Disconnect WordPress user', 'affiliate-captain' ) . '</button></p></form>';
+			echo '</div></div>';
 		}
 		// Agreements.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Terms acceptance', 'affiliate-captain' ) . '</h2><div class="inside">';

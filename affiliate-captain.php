@@ -21,25 +21,14 @@ defined( 'ABSPATH' ) || exit;
 
 /*
  * Until 0.10 the plugin lived in the folder "wp-affiliate-captain" (WordPress.org does not allow
- * "WP" in plugin names). If that copy is still active, it is deactivated here – without its
- * deactivation or uninstall routine, so data, settings and schedules stay as they are. Both copies
- * share the same database tables, options and hooks.
+ * "WP" in plugin names). If that copy is still active (in any folder), this copy takes its place –
+ * without its deactivation or uninstall routine, so data, settings and schedules stay as they are.
+ * Both copies share the same database tables, options and hooks. See Core\Lifecycle::take_over().
  */
-if ( 'wp-affiliate-captain/wp-affiliate-captain.php' !== plugin_basename( __FILE__ ) ) {
-	$wpac_legacy = 'wp-affiliate-captain/wp-affiliate-captain.php';
-	$wpac_active = (array) get_option( 'active_plugins', array() );
-	if ( in_array( $wpac_legacy, $wpac_active, true ) ) {
-		update_option( 'active_plugins', array_values( array_diff( $wpac_active, array( $wpac_legacy ) ) ) );
-	}
-	if ( is_multisite() ) {
-		$wpac_network = (array) get_site_option( 'active_sitewide_plugins', array() );
-		if ( isset( $wpac_network[ $wpac_legacy ] ) ) {
-			unset( $wpac_network[ $wpac_legacy ] );
-			update_site_option( 'active_sitewide_plugins', $wpac_network );
-		}
-	}
-	unset( $wpac_legacy, $wpac_active, $wpac_network );
+if ( ! class_exists( \WPAffiliateCaptain\Core\Lifecycle::class, false ) ) {
+	require_once __DIR__ . '/src/Core/Lifecycle.php';
 }
+\WPAffiliateCaptain\Core\Lifecycle::take_over( plugin_basename( __FILE__ ) );
 // The old copy was already loaded in this request: it serves this request, this copy takes over
 // from the next one.
 if ( defined( 'WPAC_VERSION' ) ) {
@@ -99,11 +88,12 @@ add_action(
 );
 
 // Deleting the old copy ("wp-affiliate-captain", up to 0.10) runs its uninstall routine, which
-// would remove the shared data when "Delete all data" is on: this copy keeps the data.
+// would remove the shared data when "Delete all data" is on: this copy keeps the data. (The
+// takeover also switched the setting off for good, for when this copy is not loaded then.)
 add_action(
 	'pre_uninstall_plugin',
 	static function ( $plugin ) {
-		if ( 'wp-affiliate-captain/wp-affiliate-captain.php' !== $plugin ) {
+		if ( ! \WPAffiliateCaptain\Core\Lifecycle::is_legacy( $plugin, plugin_basename( WPAC_FILE ) ) ) {
 			return;
 		}
 		add_filter(

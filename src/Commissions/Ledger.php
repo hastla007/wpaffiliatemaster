@@ -162,7 +162,7 @@ final class Ledger {
 		}
 		if ( $flags ) {
 			$attr['review'] = true;
-			$attr['note']   = substr( implode( ',', array_unique( $flags ) ), 0, 255 );
+			$attr['note']   = mb_substr( implode( ',', array_unique( $flags ) ), 0, 255 );
 			Audit::log(
 				'attribution.flagged',
 				'affiliate',
@@ -252,8 +252,8 @@ final class Ledger {
 					'source_order_id' => $sale['order_id'],
 					'affiliate_id'    => (int) $attr['affiliate_id'],
 					'code_id'         => (int) $attr['code_id'],
-					'method'          => substr( (string) $attr['method'], 0, 20 ),
-					'campaign'        => substr( (string) $attr['campaign'], 0, 100 ),
+					'method'          => mb_substr( (string) $attr['method'], 0, 20 ),
+					'campaign'        => mb_substr( (string) $attr['campaign'], 0, 100 ),
 					'content_id'      => (int) $attr['content_id'],
 					'consent'         => (int) $attr['consent'],
 					'touch_model'     => (string) $attr['touch_model'],
@@ -330,8 +330,8 @@ final class Ledger {
 							'source_item_id'  => $item['item_id'],
 							'kind'            => 'sale',
 							'parent_id'       => 0,
-							'product_ref'     => substr( (string) ( $item['sku'] ? $item['sku'] : $item['product_id'] ), 0, 190 ),
-							'description'     => substr( (string) $item['name'], 0, 255 ),
+							'product_ref'     => mb_substr( (string) ( $item['sku'] ? $item['sku'] : $item['product_id'] ), 0, 190 ),
+							'description'     => mb_substr( (string) $item['name'], 0, 255 ),
 							'currency'        => $sale['currency'],
 							'base_minor'      => $calc['base_minor'],
 							'amount_minor'    => $calc['amount_minor'],
@@ -474,7 +474,7 @@ final class Ledger {
 							'kind'            => $refund['type'],
 							'parent_id'       => (int) $parent->id,
 							'product_ref'     => $parent->product_ref,
-							'description'     => substr( $refund['reason'], 0, 255 ),
+							'description'     => mb_substr( $refund['reason'], 0, 255 ),
 							'currency'        => $parent->currency,
 							'base_minor'      => -( $refund['full'] ? max( 0, (int) $parent->base_minor - $refunded ) : min( abs( (int) $refunded_net ), max( 0, (int) $parent->base_minor - $refunded ) ) ),
 							'amount_minor'    => $amount,
@@ -609,7 +609,7 @@ final class Ledger {
 				array(
 					'source'  => $sale['source'],
 					'order'   => (string) $sale['order_id'],
-					'message' => substr( $e->getMessage(), 0, 300 ),
+					'message' => mb_substr( $e->getMessage(), 0, 300 ),
 				)
 			);
 			return new \WP_Error( 'wpac_reassign_failed', __( 'The order could not be attributed to the new partner (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
@@ -685,7 +685,7 @@ final class Ledger {
 							'kind'            => 'reinstatement',
 							'parent_id'       => (int) $parent->id,
 							'product_ref'     => $child->product_ref,
-							'description'     => substr( (string) $reason, 0, 255 ),
+							'description'     => mb_substr( (string) $reason, 0, 255 ),
 							'currency'        => $child->currency,
 							'base_minor'      => -(int) $child->base_minor,
 							'amount_minor'    => $amount,
@@ -890,7 +890,7 @@ final class Ledger {
 							'kind'            => 'writeoff',
 							'parent_id'       => 0,
 							'product_ref'     => '',
-							'description'     => substr( $reason, 0, 255 ),
+							'description'     => mb_substr( $reason, 0, 255 ),
 							'currency'        => $currency,
 							'base_minor'      => 0,
 							'amount_minor'    => -$open,
@@ -1012,7 +1012,7 @@ final class Ledger {
 				if ( 'approved' === $to ) {
 					Balance::post( (int) $c->affiliate_id, $c->currency, 'approved', (int) $c->amount_minor, (int) $id );
 				} elseif ( 'rejected' === $to && 'approved' === $from_status ) {
-					Balance::post( (int) $c->affiliate_id, $c->currency, 'rejected', -(int) $c->amount_minor, (int) $id, 0, substr( (string) $reason, 0, 191 ) );
+					Balance::post( (int) $c->affiliate_id, $c->currency, 'rejected', -(int) $c->amount_minor, (int) $id, 0, mb_substr( (string) $reason, 0, 191 ) );
 				}
 				return true;
 			}
@@ -1048,9 +1048,9 @@ final class Ledger {
 				'from_status'     => $from,
 				'to_status'       => $to,
 				'amount_minor'    => (int) $amount,
-				'reason'          => substr( (string) $reason, 0, 255 ),
+				'reason'          => mb_substr( (string) $reason, 0, 255 ),
 				'actor_id'        => null === $actor ? get_current_user_id() : (int) $actor,
-				'source_event_id' => substr( (string) $event_id, 0, 191 ),
+				'source_event_id' => mb_substr( (string) $event_id, 0, 191 ),
 				'created_at'      => Db::now(),
 			)
 		);
