@@ -255,7 +255,7 @@ final class StatementSweep {
 		}
 		$t     = Db::table( 'payouts' );
 		$marks = implode( ',', array_fill( 0, count( $names ), '%s' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name and placeholders only.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and %s placeholders built above.
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT statement_file, storno_file FROM {$t} WHERE statement_file IN ({$marks}) OR storno_file IN ({$marks})", array_merge( $names, $names ) ) );
 		if ( '' !== (string) $wpdb->last_error ) {
 			throw new \RuntimeException( 'Statement sweep: ' . esc_html( $wpdb->last_error ) ); // Never treat a failed query as "not referenced".
@@ -281,7 +281,7 @@ final class StatementSweep {
 		global $wpdb;
 		$t     = Db::table( 'payouts' );
 		$marks = implode( ',', array_fill( 0, count( $hashes ), '%s' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name and placeholders only.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and %s placeholders built above.
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT statement_hash, storno_hash FROM {$t} WHERE statement_deleted_at IS NOT NULL AND ( statement_hash IN ({$marks}) OR storno_hash IN ({$marks}) )", array_merge( $hashes, $hashes ) ) );
 		$out  = array();
 		foreach ( $rows as $r ) {

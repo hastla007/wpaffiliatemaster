@@ -5321,6 +5321,10 @@ msgid "Reinstatement"
 msgstr ""
 
 #: src/Commissions/Ledger.php
+msgid "Order increase"
+msgstr ""
+
+#: src/Commissions/Ledger.php
 msgid "Manual booking"
 msgstr ""
 
@@ -6419,6 +6423,19 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Order items increased after payment"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment, but the additional partner commission could not be booked. Please save the order items again later."
+msgstr ""
+
+#. translators: %s: commission amount
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the order items were increased after payment; an additional partner commission of %s was booked (released after the hold period of the order)."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php

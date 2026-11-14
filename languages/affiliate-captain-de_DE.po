@@ -3871,6 +3871,9 @@ msgstr "Ausbuchung"
 msgid "Reinstatement"
 msgstr "Wiederherstellung"
 
+msgid "Order increase"
+msgstr "Erhöhung der Bestellung"
+
 msgid "Manual booking"
 msgstr "Manuelle Buchung"
 
@@ -4657,6 +4660,15 @@ msgstr "Bestellpositionen nach der Zahlung geändert"
 
 msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
 msgstr "Affiliate Captain: Die Partnerprovision wurde verringert, weil die Bestellpositionen geändert wurden."
+
+msgid "Order items increased after payment"
+msgstr "Bestellpositionen nach der Zahlung erhöht"
+
+msgid "Affiliate Captain: the order items were increased after payment, but the additional partner commission could not be booked. Please save the order items again later."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht, die zusätzliche Partnerprovision konnte jedoch nicht gebucht werden. Bitte speichern Sie die Bestellpositionen später erneut."
+
+msgid "Affiliate Captain: the order items were increased after payment; an additional partner commission of %s was booked (released after the hold period of the order)."
+msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; eine zusätzliche Partnerprovision von %s wurde gebucht (Freigabe nach der Haltefrist der Bestellung)."
 
 msgid "Affiliate Captain: the order items were increased after payment; the partner commission was not raised automatically. If the partner should earn more, book a correction (Affiliate Captain → Commissions → commission → Correction)."
 msgstr "Affiliate Captain: Die Bestellpositionen wurden nach der Zahlung erhöht; die Partnerprovision wurde nicht automatisch erhöht. Soll der Partner mehr erhalten, eine Korrektur buchen (Affiliate Captain → Provisionen → Provision → Korrektur)."

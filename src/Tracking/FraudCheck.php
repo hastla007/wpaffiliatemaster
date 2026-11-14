@@ -180,7 +180,7 @@ final class FraudCheck {
 		}
 		$c = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$row   = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(DISTINCT CASE WHEN kind = 'sale' THEN source_order_id END) orders, SUM(CASE WHEN kind = 'sale' THEN amount_minor ELSE 0 END) sales, SUM(CASE WHEN kind IN ('refund','cancellation','chargeback') THEN amount_minor ELSE 0 END) corr FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at >= %s", $affiliate_id, Db::now( time() - 90 * DAY_IN_SECONDS ) ) );
+		$row   = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(DISTINCT CASE WHEN kind = 'sale' THEN source_order_id END) orders, SUM(CASE WHEN kind IN ('sale','increase') THEN amount_minor ELSE 0 END) sales, SUM(CASE WHEN kind IN ('refund','cancellation','chargeback') THEN amount_minor ELSE 0 END) corr FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at >= %s", $affiliate_id, Db::now( time() - 90 * DAY_IN_SECONDS ) ) );
 		$stats = array(
 			'orders' => $row ? (int) $row->orders : 0,
 			'sales'  => $row ? (int) $row->sales : 0,
