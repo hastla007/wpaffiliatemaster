@@ -553,6 +553,29 @@ final class Portal {
 	/**
 	 * Flash messages.
 	 */
+	/** @var array<string,mixed> Flash data (error details, kept form entries) read in this request. */
+	private static $flash = array();
+
+	/**
+	 * Read flash data once per request: the transient is deleted when it is read, but the
+	 * value is kept for this request, because the partner area can be rendered more than once
+	 * (SEO plugins and page builders run the_content before the visible output).
+	 *
+	 * @param string $key Transient name.
+	 * @return mixed Value or false.
+	 */
+	public static function flash( $key ) {
+		$key = (string) $key;
+		if ( ! array_key_exists( $key, self::$flash ) ) {
+			$value = get_transient( $key );
+			if ( false !== $value ) {
+				delete_transient( $key );
+			}
+			self::$flash[ $key ] = $value;
+		}
+		return self::$flash[ $key ];
+	}
+
 	private static function messages() {
 		$messages = array(
 			'saved'     => array( 'success', __( 'Your details have been saved.', 'affiliate-captain' ) ),
@@ -599,10 +622,9 @@ final class Portal {
 			$text = $messages[ $key ][1];
 			if ( in_array( $key, array( 'request_failed', 'objection_failed' ), true ) ) {
 				// The actual reason (e.g. below the minimum, profile incomplete).
-				$detail = get_transient( 'wpac_portal_error_' . get_current_user_id() );
+				$detail = self::flash( 'wpac_portal_error_' . get_current_user_id() );
 				if ( $detail ) {
 					$text .= ' ' . $detail;
-					delete_transient( 'wpac_portal_error_' . get_current_user_id() );
 				}
 			}
 			printf( '<div class="wpac-notice wpac-notice--%s" role="%s" id="wpac-portal-error">%s</div>', esc_attr( $messages[ $key ][0] ), 'error' === $messages[ $key ][0] ? 'alert' : 'status', esc_html( $text ) );
@@ -983,10 +1005,7 @@ final class Portal {
 			}
 		}
 		if ( Settings::get( 'self_billing' ) && $objectable ) {
-			$kept = get_transient( 'wpac_objection_form_' . get_current_user_id() );
-			if ( is_array( $kept ) ) {
-				delete_transient( 'wpac_objection_form_' . get_current_user_id() );
-			}
+			$kept = self::flash( 'wpac_objection_form_' . get_current_user_id() );
 			echo '<details class="wpac-objection" id="wpac-objection"' . ( is_array( $kept ) ? ' open' : '' ) . '><summary>' . esc_html__( 'Something is wrong with a credit note?', 'affiliate-captain' ) . '</summary><form method="post" class="wpac-form">';
 			wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 			echo '<input type="hidden" name="wpac_portal_action" value="objection"><p><label for="wpac_obj_payout">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</label><select id="wpac_obj_payout" name="wpac_obj_payout">';
@@ -1026,10 +1045,7 @@ final class Portal {
 			echo '<p><a href="' . esc_url( $policy ) . '">' . esc_html__( 'Full privacy policy', 'affiliate-captain' ) . '</a></p>';
 		}
 		echo '<h3>' . esc_html__( 'Your rights', 'affiliate-captain' ) . '</h3><p>' . esc_html__( 'You can request a copy of your data, its erasure, the restriction of its processing, or object to processing based on our legitimate interest. Copy and erasure are confirmed by e-mail first. Records we must keep by law are restricted instead of deleted until the retention period ends.', 'affiliate-captain' ) . '</p>';
-		$kept = get_transient( 'wpac_privacy_form_' . get_current_user_id() );
-		if ( is_array( $kept ) ) {
-			delete_transient( 'wpac_privacy_form_' . get_current_user_id() );
-		}
+		$kept = self::flash( 'wpac_privacy_form_' . get_current_user_id() );
 		echo '<form method="post" class="wpac-form">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="privacy"><p><label for="wpac_privacy_type">' . esc_html__( 'Request', 'affiliate-captain' ) . '</label><select id="wpac_privacy_type" name="wpac_privacy_type">';
@@ -1053,9 +1069,8 @@ final class Portal {
 	 */
 	private static function tab_profile( $aff ) {
 		$p    = ProfileRepository::get( (int) $aff->id );
-		$kept = get_transient( 'wpac_profile_form_' . get_current_user_id() );
+		$kept = self::flash( 'wpac_profile_form_' . get_current_user_id() );
 		if ( is_array( $kept ) ) {
-			delete_transient( 'wpac_profile_form_' . get_current_user_id() );
 			self::$invalid = (string) $kept['field'];
 		}
 		$v = static function ( $key ) use ( $p, $kept ) {

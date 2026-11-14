@@ -21,6 +21,21 @@
 		};
 	}
 
+	// Inactive groups are shown but not selectable; a deleted group stays visible as such.
+	function groupOptions( current ) {
+		var found = false;
+		var options = data.groups.map( function ( g ) {
+			if ( g.value === ( current || 0 ) ) {
+				found = true;
+			}
+			return { value: String( g.value ), label: g.label, disabled: !! g.disabled && g.value !== current };
+		} );
+		if ( current && ! found ) {
+			options.push( { value: String( current ), label: ( data.missing || '#%d' ).replace( '%d', String( current ) ) } );
+		}
+		return options;
+	}
+
 	wp.blocks.registerBlockType( 'wpac/registration', {
 		edit: function ( props ) {
 			return el(
@@ -32,7 +47,7 @@
 							label: __( 'Partner group', 'affiliate-captain' ),
 							help: __( 'Fix the group of this form, or let applicants choose among the public groups.', 'affiliate-captain' ),
 							value: String( props.attributes.group || 0 ),
-							options: data.groups.map( function ( g ) { return { value: String( g.value ), label: g.label }; } ),
+							options: groupOptions( props.attributes.group ),
 							onChange: function ( v ) { props.setAttributes( { group: parseInt( v, 10 ) || 0 } ); }
 						} )
 					)

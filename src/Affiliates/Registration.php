@@ -23,7 +23,11 @@ final class Registration {
 		add_action( 'init', array( __CLASS__, 'handle_submit' ) );
 		add_action( 'init', array( __CLASS__, 'handle_confirm' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'no_cache' ), 2 );
+		add_action( 'save_post', array( __CLASS__, 'record_group_approval' ), 20, 2 );
 	}
+
+	/** Post meta: private groups whose forms a partner manager approved in this post's content. */
+	const META_GROUPS = '_wpac_form_groups';
 
 	/** Maximum lengths of the application fields (characters). */
 	const MAX_NAME    = 100;
@@ -80,7 +84,9 @@ final class Registration {
 			return;
 		}
 		$redirect = wpac_return_url();
-		$redirect = remove_query_arg( array( 'wpac_reg', 'wpac_err' ), $redirect );
+		$redirect = remove_query_arg( array( 'wpac_reg', 'wpac_err', 'wpac_fi' ), $redirect );
+		// Which form on the page was sent (several forms must not share messages and entries).
+		self::$form_id = isset( $_POST['wpac_form_id'] ) && is_string( $_POST['wpac_form_id'] ) ? substr( sanitize_key( wp_unslash( $_POST['wpac_form_id'] ) ), 0, 40 ) : '';
 
 		// Checks first: nothing is stored for requests that fail them (no storage abuse).
 		if ( ! isset( $_POST['_wpac_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpac_nonce'] ) ), 'wpac_register' ) ) {
@@ -99,7 +105,7 @@ final class Registration {
 			if ( count( self::$values ) >= 40 ) {
 				break;
 			}
-			if ( is_string( $v ) && 0 === strpos( (string) $k, 'wpac_' ) && strlen( (string) $k ) <= 64 && ! in_array( $k, array( 'wpac_register', 'wpac_url_confirm', 'wpac_group_sig', 'wpac_group_post' ), true ) ) {
+			if ( is_string( $v ) && 0 === strpos( (string) $k, 'wpac_' ) && strlen( (string) $k ) <= 64 && ! in_array( $k, array( 'wpac_register', 'wpac_url_confirm', 'wpac_group_sig', 'wpac_group_post', 'wpac_form_id' ), true ) ) {
 				self::$values[ sanitize_key( $k ) ] = Db::cut( sanitize_textarea_field( wp_unslash( $v ) ), 2000 );
 			}
 		}
@@ -394,7 +400,10 @@ final class Registration {
 	 * @param string $success Success state (ok|confirm).
 	 */
 	private static function back( $url, $code, $success = '' ) {
-		$url = remove_query_arg( array( 'wpac_reg', 'wpac_err', 'wpac_confirm', 'wpac_form' ), $url );
+		$url = remove_query_arg( array( 'wpac_reg', 'wpac_err', 'wpac_confirm', 'wpac_form', 'wpac_fi' ), $url );
+		if ( '' !== $code && '' !== self::$form_id ) {
+			$url = add_query_arg( 'wpac_fi', self::$form_id, $url );
+		}
 		if ( '' !== $code && self::$values ) {
 			$token = wp_generate_password( 20, false );
 			set_transient(
@@ -417,6 +426,15 @@ final class Registration {
 	/** @var string Field with the error. */
 	private static $field = '';
 
+	/** @var string Form that was submitted (form_key()). */
+	private static $form_id = '';
+
+	/** @var int Forms rendered in this request (unique element IDs). */
+	private static $instances = 0;
+
+	/** @var string Suffix of the element IDs of the form being rendered. */
+	private static $suffix = '';
+
 	/**
 	 * Attributes for a form control: kept value, aria-invalid/describedby.
 	 *
@@ -431,53 +449,233 @@ final class Registration {
 			$out .= ' value="' . esc_attr( $form['values'][ $name ] ) . '"';
 		}
 		if ( isset( $form['field'] ) && $form['field'] === $name ) {
-			$out .= ' aria-invalid="true" aria-describedby="wpac-form-error" autofocus';
+			$out .= ' aria-invalid="true" aria-describedby="wpac-form-error' . self::$suffix . '"' . ( '' === self::$suffix ? ' autofocus' : '' );
 		}
 		return $out;
 	}
 
 	/**
-	 * Signature for a group fixed via shortcode attribute.
+	 * Signature for a group fixed via shortcode attribute or block, bound to the page and to
+	 * the approval of the group on that page (copies of an older version stop working when the
+	 * approval of the page's groups changes).
 	 *
-	 * @param int $group_id Group.
+	 * @param int         $group_id Group.
+	 * @param object|null $post     Page that shows the form.
 	 * @return string
 	 */
-	private static function group_sig( $group_id, $post_id ) {
-		return wp_hash( 'wpac_group_' . (int) $group_id . '_' . (int) $post_id );
+	private static function group_sig( $group_id, $post ) {
+		if ( ! $post ) {
+			return '';
+		}
+		$approval = get_post_meta( (int) $post->ID, self::META_GROUPS, true );
+		$stamp    = is_array( $approval ) && isset( $approval['at'] ) ? (string) $approval['at'] : ( isset( $post->post_modified_gmt ) ? (string) $post->post_modified_gmt : '' );
+		return wp_hash( 'wpac_group_' . (int) $group_id . '_' . (int) $post->ID . '_' . $stamp );
 	}
 
 	/**
-	 * A non-public group is only accepted from a published page of a partner manager
-	 * (a preview of a draft or a post by an author cannot be used to join a private group).
+	 * Partner groups fixed by application forms in a content (shortcode attribute group="ID"
+	 * and the block attribute "group", also in nested blocks).
+	 *
+	 * @param string $content Post content.
+	 * @return int[]
+	 */
+	public static function content_groups( $content ) {
+		$content = (string) $content;
+		$out     = array();
+		if ( preg_match_all( '/\[' . self::SHORTCODE . '\b([^\]]*)\]/', $content, $m ) ) {
+			foreach ( $m[1] as $atts ) {
+				if ( preg_match( '/\bgroup\s*=\s*(?:"|\'|&quot;|&#0?39;|&#8221;|&#8243;)?\s*(\d+)/', $atts, $g ) ) {
+					$out[] = (int) $g[1];
+				}
+			}
+		}
+		if ( preg_match_all( '/<!--\s+wp:wpac\/registration\s+(\{.*?\})\s+\/?-->/s', $content, $m ) ) {
+			foreach ( $m[1] as $json ) {
+				$attrs = json_decode( $json, true );
+				if ( is_array( $attrs ) && isset( $attrs['group'] ) && is_numeric( $attrs['group'] ) ) {
+					$out[] = (int) $attrs['group'];
+				}
+			}
+		}
+		$out = array_values( array_unique( array_filter( $out ) ) );
+		sort( $out );
+		return $out;
+	}
+
+	/**
+	 * Groups a form in the content may open after a save: a partner manager approves all groups
+	 * of the content; anybody else keeps only groups approved before (editing the text of an
+	 * approved page keeps its invitation, setting another group does not open it).
+	 *
+	 * @param int[] $found      Groups in the new content.
+	 * @param int[] $previous   Groups approved before.
+	 * @param bool  $can_manage Whether the saving user manages partners.
+	 * @return int[]
+	 */
+	public static function approved_groups( array $found, array $previous, $can_manage ) {
+		$found = array_map( 'intval', $found );
+		$out   = $can_manage ? $found : array_intersect( $found, array_map( 'intval', $previous ) );
+		$out   = array_values( array_unique( $out ) );
+		sort( $out );
+		return $out;
+	}
+
+	/**
+	 * Record which fixed groups of a saved post are approved (save_post).
+	 *
+	 * @param int      $post_id Post.
+	 * @param \WP_Post $post    Post.
+	 */
+	public static function record_group_approval( $post_id, $post ) {
+		if ( ! $post || ( function_exists( 'wp_is_post_revision' ) && ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) ) ) {
+			return;
+		}
+		$found    = self::content_groups( isset( $post->post_content ) ? $post->post_content : '' );
+		$stored   = get_post_meta( (int) $post_id, self::META_GROUPS, true );
+		$previous = is_array( $stored ) && isset( $stored['groups'] ) ? array_map( 'intval', (array) $stored['groups'] ) : array();
+		if ( ! $found ) {
+			if ( is_array( $stored ) ) {
+				delete_post_meta( (int) $post_id, self::META_GROUPS );
+			}
+			return;
+		}
+		$groups = self::approved_groups( $found, $previous, current_user_can( Capabilities::MANAGE_AFFILIATES ) );
+		if ( is_array( $stored ) && $groups === $previous ) {
+			return; // Unchanged: open forms keep their signature.
+		}
+		update_post_meta(
+			(int) $post_id,
+			self::META_GROUPS,
+			array(
+				'groups' => $groups,
+				'at'     => time() . '-' . wp_generate_password( 6, false ),
+			)
+		);
+	}
+
+	/**
+	 * Whether a published page may show a form for a non-public group: the group must be fixed
+	 * by a form in the page's own content and approved by a partner manager (record_group_approval();
+	 * pages saved before that was recorded: last edited by a partner manager). A preview of a
+	 * draft, a post by an author or a group set by an editor cannot open a private group.
+	 *
+	 * @param object|null $post     Page.
+	 * @param int         $group_id Group.
+	 * @return bool
+	 */
+	public static function post_opens_group( $post, $group_id ) {
+		if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) {
+			return false;
+		}
+		if ( ! in_array( (int) $group_id, self::content_groups( isset( $post->post_content ) ? $post->post_content : '' ), true ) ) {
+			return false;
+		}
+		$approval = get_post_meta( (int) $post->ID, self::META_GROUPS, true );
+		if ( is_array( $approval ) ) {
+			return in_array( (int) $group_id, array_map( 'intval', isset( $approval['groups'] ) ? (array) $approval['groups'] : array() ), true );
+		}
+		$editor = (int) get_post_meta( (int) $post->ID, '_edit_last', true );
+		return user_can( $editor ? $editor : (int) $post->post_author, Capabilities::MANAGE_AFFILIATES );
+	}
+
+	/**
+	 * A non-public group is only accepted from a page that may open it (signed form).
 	 *
 	 * @param int    $group_id Group.
 	 * @param int    $post_id  Page that showed the form.
 	 * @param string $sig      Signature.
 	 * @return bool
 	 */
-	private static function fixed_group_valid( $group_id, $post_id, $sig ) {
-		if ( ! $post_id || ! hash_equals( self::group_sig( $group_id, $post_id ), (string) $sig ) ) {
-			return false;
+	public static function fixed_group_valid( $group_id, $post_id, $sig ) {
+		$post = $post_id ? get_post( $post_id ) : null;
+		return $post && self::post_opens_group( $post, $group_id ) && hash_equals( self::group_sig( $group_id, $post ), (string) $sig );
+	}
+
+	/**
+	 * Signature a form on the page would carry (tests, diagnostics).
+	 *
+	 * @param int $group_id Group.
+	 * @param int $post_id  Page.
+	 * @return string
+	 */
+	public static function signature_for( $group_id, $post_id ) {
+		return self::group_sig( $group_id, get_post( $post_id ) );
+	}
+
+	/**
+	 * Why a form with a fixed group cannot be sent ('' = it can).
+	 *
+	 * @param object|null $group    Group.
+	 * @param int         $group_id Group ID.
+	 * @param int         $post_id  Page showing the form.
+	 * @return string Reason for partner managers.
+	 */
+	public static function fixed_group_problem( $group, $group_id, $post_id ) {
+		if ( ! $group ) {
+			/* translators: %d: group ID */
+			return sprintf( __( 'The partner group #%d set in this form no longer exists.', 'affiliate-captain' ), (int) $group_id );
 		}
-		$post = get_post( $post_id );
-		if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) {
-			return false;
+		if ( 'active' !== $group->status ) {
+			/* translators: %s: group name */
+			return sprintf( __( 'The partner group "%s" set in this form is inactive.', 'affiliate-captain' ), $group->name );
 		}
-		// Only pages whose author manages partners (or the configured application page) may open a
-		// private group: an author could otherwise publish the shortcode with any group. No content
-		// check, so the form also works from widgets, patterns and templates on such pages.
-		return (int) $post->ID === (int) Settings::get( 'registration_page_id' ) || user_can( (int) $post->post_author, Capabilities::MANAGE_AFFILIATES );
+		if ( ! (int) $group->public && ! self::post_opens_group( $post_id ? get_post( $post_id ) : null, (int) $group_id ) ) {
+			/* translators: %s: group name */
+			return sprintf( __( 'The private partner group "%s" opens only from a form in the content of a published page last saved by a partner manager.', 'affiliate-captain' ), $group->name );
+		}
+		return '';
+	}
+
+	/**
+	 * Key of a form on a page (keeps messages and entries with the form that was sent).
+	 *
+	 * @param int $group_id Fixed group.
+	 * @param int $post_id  Page.
+	 * @return string
+	 */
+	public static function form_key( $group_id, $post_id ) {
+		return 'f' . (int) $group_id . 'p' . (int) $post_id;
+	}
+
+	/**
+	 * Nonce and referer fields without element IDs (several forms on one page).
+	 *
+	 * @return string HTML.
+	 */
+	private static function nonce_field() {
+		return '<input type="hidden" name="_wpac_nonce" value="' . esc_attr( wp_create_nonce( 'wpac_register' ) ) . '">' . wp_referer_field( false );
+	}
+
+	/**
+	 * Notice instead of a form that could never be sent (group deleted, inactive or not
+	 * approved on this page). Partner managers see the reason.
+	 *
+	 * @param string $reason Reason for partner managers.
+	 * @return string HTML.
+	 */
+	private static function unavailable( $reason ) {
+		$text = __( 'Applications via this form are currently not possible.', 'affiliate-captain' );
+		if ( current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
+			$text .= ' ' . $reason;
+		}
+		return '<div class="wpac-notice" role="status">' . esc_html( $text ) . '</div>';
 	}
 
 	/**
 	 * Shortcode output. Attribute group="ID" fixes the partner group; otherwise
 	 * applicants choose one of the public groups (if any).
 	 *
-	 * @param array $atts Attributes.
+	 * @param array  $atts    Attributes.
+	 * @param string $content Unused (shortcode content).
+	 * @param string $tag     Unused (shortcode tag).
+	 * @param int    $post_id Page that shows the form (block context); default: current post.
 	 * @return string
 	 */
-	public static function render( $atts = array() ) {
+	public static function render( $atts = array(), $content = null, $tag = '', $post_id = 0 ) {
 		$atts = shortcode_atts( array( 'group' => 0 ), (array) $atts, self::SHORTCODE );
+		// The form carries a nonce: never from a page cache, also where the page check before
+		// output cannot see it (builder templates, template parts, synced patterns, widgets).
+		\WPAffiliateCaptain\Promotion\Landing::no_cache();
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
@@ -512,21 +710,31 @@ final class Registration {
 			'invalid' => __( 'Please check your entries.', 'affiliate-captain' ),
 			'error'   => __( 'Your application could not be saved. Please try again later.', 'affiliate-captain' ),
 		);
-		$err    = isset( $_GET['wpac_err'] ) ? sanitize_key( wp_unslash( $_GET['wpac_err'] ) ) : '';
-		$form   = isset( $_GET['wpac_form'] ) ? get_transient( 'wpac_form_' . sanitize_text_field( wp_unslash( $_GET['wpac_form'] ) ) ) : array();
-		$form   = is_array( $form ) ? $form : array();
-		$kept   = static function ( $name ) use ( $form ) {
+		$group_id = absint( $atts['group'] );
+		$fixed    = (bool) $group_id;
+		$post_id  = $post_id ? (int) $post_id : (int) get_the_ID();
+		$key      = self::form_key( $group_id, $post_id );
+		// Messages and kept entries belong to the form that was sent (several forms on a page).
+		$mine = ! isset( $_GET['wpac_fi'] ) || sanitize_key( wp_unslash( $_GET['wpac_fi'] ) ) === $key;
+		$err  = $mine && isset( $_GET['wpac_err'] ) ? sanitize_key( wp_unslash( $_GET['wpac_err'] ) ) : '';
+		$form = $mine && isset( $_GET['wpac_form'] ) ? get_transient( 'wpac_form_' . sanitize_text_field( wp_unslash( $_GET['wpac_form'] ) ) ) : array();
+		$form = is_array( $form ) ? $form : array();
+		$kept = static function ( $name ) use ( $form ) {
 			return isset( $form['values'][ $name ] ) ? (string) $form['values'][ $name ] : '';
 		};
 		// phpcs:enable
 
-		$group_id = absint( $atts['group'] );
-		$fixed    = (bool) $group_id;
 		if ( ! $group_id && isset( $_GET['wpac_group'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$group_id = absint( $_GET['wpac_group'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		}
 		$group = $group_id ? Groups::find( $group_id ) : null;
-		if ( $group && ! $fixed && ! (int) $group->public ) {
+		if ( $fixed ) {
+			// A form that could never be sent is not shown (and does not silently fall back to the group choice).
+			$reason = self::fixed_group_problem( $group, $group_id, $post_id );
+			if ( '' !== $reason ) {
+				return self::unavailable( $reason );
+			}
+		} elseif ( $group && ( ! (int) $group->public || 'active' !== $group->status ) ) {
 			$group    = null;
 			$group_id = 0;
 		}
@@ -540,59 +748,67 @@ final class Registration {
 			return $out . '</ul></div>';
 		}
 		$terms = Agreements::current( $group_id );
+		++self::$instances;
+		self::$suffix = 1 === self::$instances ? '' : '-' . self::$instances;
+		$sfx          = self::$suffix;
 
 		ob_start();
 		?>
 		<form class="wpac-form" method="post">
 			<?php if ( $err && isset( $errors[ $err ] ) ) : ?>
-				<div class="wpac-notice wpac-notice--error" role="alert" id="wpac-form-error"><?php echo esc_html( $errors[ $err ] ); ?></div>
+				<div class="wpac-notice wpac-notice--error" role="alert" id="wpac-form-error<?php echo esc_attr( $sfx ); ?>"><?php echo esc_html( $errors[ $err ] ); ?></div>
 			<?php endif; ?>
-			<?php wp_nonce_field( 'wpac_register', '_wpac_nonce' ); ?>
+			<?php echo self::nonce_field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 			<input type="hidden" name="wpac_register" value="1">
+			<input type="hidden" name="wpac_form_id" value="<?php echo esc_attr( $key ); ?>">
 			<p class="wpac-required-note"><?php esc_html_e( 'Fields marked with * are required.', 'affiliate-captain' ); ?></p>
 			<input type="hidden" name="wpac_group" value="<?php echo (int) $group_id; ?>">
 			<?php if ( $fixed ) : ?>
-				<?php $wpac_post = (int) get_the_ID(); ?>
-				<input type="hidden" name="wpac_group_post" value="<?php echo (int) $wpac_post; ?>">
-				<input type="hidden" name="wpac_group_sig" value="<?php echo esc_attr( self::group_sig( $group_id, $wpac_post ) ); ?>">
+				<input type="hidden" name="wpac_group_post" value="<?php echo (int) $post_id; ?>">
+				<?php if ( ! (int) $group->public ) : ?>
+				<input type="hidden" name="wpac_group_sig" value="<?php echo esc_attr( self::group_sig( $group_id, get_post( $post_id ) ) ); ?>">
+				<?php endif; ?>
 			<?php endif; ?>
 			<?php if ( $group ) : ?>
 				<p class="wpac-muted"><?php echo esc_html( sprintf( /* translators: %s: group */ __( 'Application as: %s', 'affiliate-captain' ), $group->name ) ); ?></p>
 			<?php endif; ?>
 			<p class="wpac-hp" aria-hidden="true"><label>URL <input type="text" name="wpac_url_confirm" tabindex="-1" autocomplete="off"></label></p>
 			<p>
-				<label for="wpac_name"><?php esc_html_e( 'Name / company', 'affiliate-captain' ); ?> *</label>
-				<input type="text" id="wpac_name" name="wpac_name" required autocomplete="name" value="<?php echo esc_attr( '' !== $kept( 'wpac_name' ) ? $kept( 'wpac_name' ) : ( $user->exists() ? $user->display_name : '' ) ); ?>"<?php echo self::attrs( $form, 'wpac_name', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+				<label for="wpac_name<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'Name / company', 'affiliate-captain' ); ?> *</label>
+				<input type="text" id="wpac_name<?php echo esc_attr( $sfx ); ?>" name="wpac_name" required autocomplete="name" value="<?php echo esc_attr( '' !== $kept( 'wpac_name' ) ? $kept( 'wpac_name' ) : ( $user->exists() ? $user->display_name : '' ) ); ?>"<?php echo self::attrs( $form, 'wpac_name', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<?php if ( ! $user->exists() ) : ?>
 			<p>
-				<label for="wpac_email"><?php esc_html_e( 'E-mail', 'affiliate-captain' ); ?> *</label>
-				<input type="email" id="wpac_email" name="wpac_email" required autocomplete="email"<?php echo self::attrs( $form, 'wpac_email' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+				<label for="wpac_email<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'E-mail', 'affiliate-captain' ); ?> *</label>
+				<input type="email" id="wpac_email<?php echo esc_attr( $sfx ); ?>" name="wpac_email" required autocomplete="email"<?php echo self::attrs( $form, 'wpac_email' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<?php endif; ?>
 			<p>
-				<label for="wpac_website"><?php esc_html_e( 'Website', 'affiliate-captain' ); ?></label>
-				<input type="url" id="wpac_website" name="wpac_website" placeholder="https://" autocomplete="url"<?php echo self::attrs( $form, 'wpac_website' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+				<label for="wpac_website<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'Website', 'affiliate-captain' ); ?></label>
+				<input type="url" id="wpac_website<?php echo esc_attr( $sfx ); ?>" name="wpac_website" placeholder="https://" autocomplete="url"<?php echo self::attrs( $form, 'wpac_website' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<p>
-				<label for="wpac_channel"><?php esc_html_e( 'Channel (e.g. Instagram, YouTube, newsletter, school)', 'affiliate-captain' ); ?></label>
-				<input type="text" id="wpac_channel" name="wpac_channel"<?php echo self::attrs( $form, 'wpac_channel' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+				<label for="wpac_channel<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'Channel (e.g. Instagram, YouTube, newsletter, school)', 'affiliate-captain' ); ?></label>
+				<input type="text" id="wpac_channel<?php echo esc_attr( $sfx ); ?>" name="wpac_channel"<?php echo self::attrs( $form, 'wpac_channel' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			</p>
 			<p>
-				<label for="wpac_note"><?php esc_html_e( 'How do you want to promote us?', 'affiliate-captain' ); ?></label>
-				<textarea id="wpac_note" name="wpac_note" rows="4"><?php echo esc_textarea( $kept( 'wpac_note' ) ); ?></textarea>
+				<label for="wpac_note<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'How do you want to promote us?', 'affiliate-captain' ); ?></label>
+				<textarea id="wpac_note<?php echo esc_attr( $sfx ); ?>" name="wpac_note" rows="4"><?php echo esc_textarea( $kept( 'wpac_note' ) ); ?></textarea>
 			</p>
 			<?php foreach ( Groups::fields( $group ) as $field ) : ?>
-				<?php $fid = 'wpac_f_' . $field['key']; ?>
+				<?php
+				$fid      = 'wpac_f_' . $field['key'];
+				$wpac_fel = $fid . $sfx;
+				?>
 				<p class="<?php echo 'checkbox' === $field['type'] ? 'wpac-check' : ''; ?>">
 				<?php if ( 'checkbox' === $field['type'] ) : ?>
 					<label><input type="checkbox" name="<?php echo esc_attr( $fid ); ?>" value="1" <?php echo $field['required'] ? 'required' : ''; ?> <?php checked( '1', $kept( $fid ) ); ?><?php echo self::attrs( $form, $fid, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>> <?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
 				<?php else : ?>
-					<label for="<?php echo esc_attr( $fid ); ?>"><?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
+					<label for="<?php echo esc_attr( $wpac_fel ); ?>"><?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
 					<?php if ( 'textarea' === $field['type'] ) : ?>
-						<textarea id="<?php echo esc_attr( $fid ); ?>" name="<?php echo esc_attr( $fid ); ?>" rows="3" <?php echo $field['required'] ? 'required' : ''; ?><?php echo self::attrs( $form, $fid, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>><?php echo esc_textarea( $kept( $fid ) ); ?></textarea>
+						<textarea id="<?php echo esc_attr( $wpac_fel ); ?>" name="<?php echo esc_attr( $fid ); ?>" rows="3" <?php echo $field['required'] ? 'required' : ''; ?><?php echo self::attrs( $form, $fid, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>><?php echo esc_textarea( $kept( $fid ) ); ?></textarea>
 					<?php else : ?>
-						<input type="<?php echo esc_attr( 'url' === $field['type'] ? 'url' : ( 'number' === $field['type'] ? 'number' : 'text' ) ); ?>" id="<?php echo esc_attr( $fid ); ?>" name="<?php echo esc_attr( $fid ); ?>" <?php echo $field['required'] ? 'required' : ''; ?><?php echo self::attrs( $form, $fid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+						<input type="<?php echo esc_attr( 'url' === $field['type'] ? 'url' : ( 'number' === $field['type'] ? 'number' : 'text' ) ); ?>" id="<?php echo esc_attr( $wpac_fel ); ?>" name="<?php echo esc_attr( $fid ); ?>" <?php echo $field['required'] ? 'required' : ''; ?><?php echo self::attrs( $form, $fid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 					<?php endif; ?>
 				<?php endif; ?>
 				</p>
@@ -625,6 +841,7 @@ final class Registration {
 			<p><button type="submit" class="wpac-button"><?php esc_html_e( 'Apply now', 'affiliate-captain' ); ?></button></p>
 		</form>
 		<?php
+		self::$suffix = '';
 		return (string) ob_get_clean();
 	}
 }
