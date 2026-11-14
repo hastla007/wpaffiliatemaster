@@ -5126,11 +5126,20 @@ msgstr "Technischer Fehler beim Speichern (Details im Audit-Log) – bitte führ
 msgid "The statement of payout %s could not be stored. Please check that the statement folder is writable and try again."
 msgstr "Der Beleg der Auszahlung %s konnte nicht gespeichert werden. Bitte prüfen Sie, ob der Belegordner beschreibbar ist, und versuchen Sie es erneut."
 
+msgid "The payout is not claimed with this reference."
+msgstr "Die Auszahlung ist nicht unter dieser Referenz reserviert."
+
 msgid "This payout cannot be marked as paid."
 msgstr "Diese Auszahlung kann nicht als bezahlt markiert werden."
 
 msgid "Only unpaid payouts can be cancelled."
 msgstr "Nur nicht bezahlte Auszahlungen können storniert werden."
+
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here 7 days after the claim, after checking in the account of the payment provider that it was not paid."
+msgstr "Auszahlung %1$s wird gerade über einen Zahlungsdienst ausgezahlt (Referenz %2$s). Das Add-on, das sie reserviert hat, gibt sie zurück, wenn der Zahlungsdienst nicht zahlt. Hier stornieren lässt sie sich erst 7 Tage nach der Reservierung, nachdem Sie im Konto des Zahlungsdienstes geprüft haben, dass nicht gezahlt wurde."
+
+msgid "Payout %1$s was handed to a payment provider (reference %2$s). Confirm that the provider did not pay it before cancelling – otherwise the commissions could be paid twice."
+msgstr "Auszahlung %1$s wurde an einen Zahlungsdienst übergeben (Referenz %2$s). Bestätigen Sie vor dem Stornieren, dass der Zahlungsdienst nicht gezahlt hat – sonst könnten die Provisionen doppelt ausgezahlt werden."
 
 msgid "Payout %s was already exported to SEPA. Confirm that the bank did not execute the transfer before cancelling – otherwise the commissions could be paid twice."
 msgstr "Auszahlung %s wurde bereits per SEPA exportiert. Bestätigen Sie vor dem Stornieren, dass die Bank die Überweisung nicht ausgeführt hat – sonst könnten Provisionen doppelt ausgezahlt werden."
@@ -5164,6 +5173,12 @@ msgstr "SEPA-Überweisungen sind nur in EUR möglich."
 
 msgid "The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
 msgstr "Die ausgewählten Auszahlungen nutzen eine andere Auszahlungsart (z. B. PayPal) und sind nicht Teil der SEPA-Datei. Laden Sie für die Zahlungsangaben die Überweisungsliste (CSV) herunter, zahlen Sie manuell und markieren Sie die Auszahlungen als bezahlt."
+
+msgid "The partner changed the payout details after the payout was created. Please verify the change, cancel the payout and create it again."
+msgstr "Der Partner hat seine Auszahlungsdaten geändert, nachdem die Auszahlung erstellt wurde. Bitte prüfen Sie die Änderung, stornieren Sie die Auszahlung und erstellen Sie sie neu."
+
+msgid "Only a created payout that was not exported yet can be paid through a payment provider."
+msgstr "Über einen Zahlungsdienst kann nur eine erstellte, noch nicht exportierte Auszahlung ausgezahlt werden."
 
 msgid "Private individual"
 msgstr "Privatperson"

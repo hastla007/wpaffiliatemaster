@@ -123,6 +123,7 @@ Database schema 12:
 * Admin: audit log, payouts and creatives lists with sortable columns, search, paging and rows-per-page screen options
 * Privacy: credit notes deleted after the retention period are also removed on every other app server (per-server sweep, new command wp wpac statements sweep); deleted credit notes are never served or rebuilt
 * WordPress.org: icon, banner and screenshots
+* Add-ons (contract 1.3.0): payouts can be paid through a payment provider add-on – read, claim, mark paid or release a payout with the same guards against paying twice as the export files; a claimed payout cannot be cancelled in the admin for 7 days
 
 = 0.11.0 =
 Renamed to "Affiliate Captain" (folder and text domain "affiliate-captain"); expert review rounds 5 to 7 (money, VAT, privacy, tracking, operations, partner area); database schema 11:

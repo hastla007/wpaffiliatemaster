@@ -116,3 +116,81 @@ if ( ! function_exists( 'wpac_resolve_partner_code' ) ) {
 		return apply_filters( 'wpac_resolve_partner_code', null, (string) $code, $context );
 	}
 }
+
+if ( ! function_exists( 'wpac_get_payout' ) ) {
+	/**
+	 * One payout (contract 1.3.0): number, partner, status, currency, amount, method and – for the
+	 * manual method with an e-mail address in the payment details – the PayPal address. Bank
+	 * details are never returned.
+	 *
+	 * @since 0.12.0
+	 * @param int $payout_id Payout ID.
+	 * @return array|null { id, number, affiliate_id, status, currency, amount_minor, method, paypal_email, claim, created_at, exported_at, paid_at }
+	 */
+	function wpac_get_payout( $payout_id ) {
+		$p = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $payout_id );
+		return $p ? \WPAffiliateCaptain\Payouts\PayoutService::contract_view( $p ) : null;
+	}
+}
+
+if ( ! function_exists( 'wpac_get_payouts' ) ) {
+	/**
+	 * Payouts, oldest first (contract 1.3.0).
+	 *
+	 * @since 0.12.0
+	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual), affiliate_id, limit (1–200, default 50).
+	 * @return array[] As wpac_get_payout().
+	 */
+	function wpac_get_payouts( array $args = array() ) {
+		return \WPAffiliateCaptain\Payouts\PayoutService::contract_list( $args );
+	}
+}
+
+if ( ! function_exists( 'wpac_claim_payout' ) ) {
+	/**
+	 * Claim a created payout before paying it through a payment provider (contract 1.3.0). The
+	 * payout becomes "exported" under the returned claim, so no export file and no second claim
+	 * can pay it again. Refused when the payout is not "created" any more or the partner changed
+	 * the payout details after it was created.
+	 *
+	 * @since 0.12.0
+	 * @param int    $payout_id Payout ID.
+	 * @param string $provider  Provider key, e.g. "paypal".
+	 * @return array|WP_Error The payout as wpac_get_payout(), with `claim`.
+	 */
+	function wpac_claim_payout( $payout_id, $provider ) {
+		return \WPAffiliateCaptain\Payouts\PayoutService::claim( (int) $payout_id, (string) $provider );
+	}
+}
+
+if ( ! function_exists( 'wpac_complete_payout' ) ) {
+	/**
+	 * Mark a claimed payout as paid after the provider executed it (contract 1.3.0): commissions
+	 * become paid and wpac_payout_paid fires, as with "mark as paid" in the admin.
+	 *
+	 * @since 0.12.0
+	 * @param int    $payout_id Payout ID.
+	 * @param string $claim     Claim from wpac_claim_payout().
+	 * @param string $reference Transaction or batch ID of the provider (audit log).
+	 * @return true|WP_Error
+	 */
+	function wpac_complete_payout( $payout_id, $claim, $reference = '' ) {
+		return \WPAffiliateCaptain\Payouts\PayoutService::complete_claim( (int) $payout_id, (string) $claim, (string) $reference );
+	}
+}
+
+if ( ! function_exists( 'wpac_release_payout' ) ) {
+	/**
+	 * Give a claimed payout back when the provider did not pay it (contract 1.3.0); it is
+	 * "created" again and can be exported or claimed anew.
+	 *
+	 * @since 0.12.0
+	 * @param int    $payout_id Payout ID.
+	 * @param string $claim     Claim from wpac_claim_payout().
+	 * @param string $reason    Reason (audit log).
+	 * @return true|WP_Error
+	 */
+	function wpac_release_payout( $payout_id, $claim, $reason = '' ) {
+		return \WPAffiliateCaptain\Payouts\PayoutService::release_claim( (int) $payout_id, (string) $claim, (string) $reason );
+	}
+}
