@@ -2218,7 +2218,7 @@ msgid "unknown error"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Template – please adapt it to your program and have it checked before publishing."
+msgid "Template – please adapt it to your program and have it checked by a lawyer before publishing (not legal advice)."
 msgstr ""
 
 #. translators: %s: site name
@@ -2227,27 +2227,39 @@ msgid "1. Parties and subject: these terms govern the partner program of %s. Par
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "2. Commission: the rates shown in the partner area apply. Commissions are released after the hold period; refunded or cancelled orders reduce them."
+msgid "2. Independence: partners act as independent businesses on their own account and decide freely whether, when and how they promote us. They are not commercial agents (§§ 84 ff. German Commercial Code, HGB), are not entitled to conclude contracts in our name and have no claim to an indemnity under § 89b HGB."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "3. Payout: payouts are made once the minimum payout is reached, by bank transfer or another agreed payment method."
+msgid "3. Commission: the rates shown in the partner area apply. Commissions are released after the hold period; refunded or cancelled orders reduce them."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "4. Credit notes (self-billing): we settle commissions by credit note in the name and for the account of the partner (§14 (2) sentence 2 German VAT Act). The partner agrees to this procedure, keeps the tax details in the partner area up to date and may object to a credit note; it then loses its effect as an invoice."
+msgid "4. Payout: payouts are made once the minimum payout is reached, by bank transfer or another agreed payment method."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "5. Advertising rules: partners label their posts as advertising, follow the promotion guidelines and do not use misleading claims, spam, brand bidding or cookie stuffing."
+msgid "5. Credit notes (self-billing): we settle commissions by credit note in the name and for the account of the partner (§14 (2) sentence 2 German VAT Act). The partner agrees to this procedure, keeps the tax details in the partner area up to date and may object to a credit note; it then loses its effect as an invoice."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "6. Data protection: we process the partner data needed for the program and payouts as described in our privacy policy."
+msgid "6. Format of the credit notes: the partner agrees to receive credit notes electronically – as a PDF in the partner area and by e-mail – and, where required by law, as a structured e-invoice (e.g. XRechnung or ZUGFeRD). As long as the law still permits other formats (transition rules of § 27 (38) German VAT Act, at the latest until 31 December 2027), the partner expressly consents to credit notes in PDF format."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "7. Term and termination: either party can end the partnership at any time; commissions earned until then are settled as described in the partner area."
+msgid "7. Small business status: the partner informs us without delay, in the partner area or in writing, when it starts or stops applying the small business scheme (§ 19 German VAT Act) or its VAT status changes otherwise. Until then credit notes follow the tax details on file; the partner bears the consequences of an outdated status."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "8. Advertising rules: partners label every post, video, story, newsletter or profile with a partner link, code, short link or QR code clearly as advertising – with \"Advertisement\" or \"Ad\" at the beginning, visible without clicking (e.g. \"Ad\" at the start of an Instagram caption, a verbal note at the start of a video or podcast). They follow the promotion guidelines and do not use misleading claims, spam, brand bidding or cookie stuffing."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "9. Data protection: we process the partner data needed for the program and payouts as described in our privacy policy. Each party is solely responsible for the data it processes in its own channels (website, newsletter, social media profiles) and for the consents needed there. Partners do not receive personal data of our customers; orders are shown to them only without names or contact details."
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "10. Term and termination: either party can end the partnership at any time; commissions earned until then are settled as described in the partner area."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -2284,6 +2296,10 @@ msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
 msgid "Recommended: own encryption key WPAC_ENCRYPTION_KEY in wp-config.php (bank details then survive a change of the WordPress salts)"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "Recommended: connect your consent banner (WP Consent API or the filter wpac_has_marketing_consent) – otherwise the affiliate cookie is never set and only partner codes and the shop session count"
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -2917,10 +2933,6 @@ msgid "Partner code field available in block checkout (WooCommerce 8.9+)"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
-msgid "WP Consent API detected (marketing consent for the affiliate cookie)"
-msgstr ""
-
-#: src/Admin/Pages/IntegrationsPage.php
 msgid "Dedicated encryption key WPAC_ENCRYPTION_KEY defined"
 msgstr ""
 
@@ -2958,6 +2970,22 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "check"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Consent banner: not needed for the current cookie setting"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Consent banner connected (WP Consent API with a registered banner or the filter wpac_has_marketing_consent) – the affiliate cookie is set after marketing consent"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WP Consent API installed, but no consent banner has registered with it: the affiliate cookie is never set. Use a banner with WP Consent API support or add the filter wpac_has_marketing_consent (recipes in the handbook, section \"Consent banners\"). Partner codes keep working."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "No consent banner connected: the affiliate cookie is never set. Install a banner with WP Consent API support or add the filter wpac_has_marketing_consent (recipes in the handbook, section \"Consent banners\"). Partner codes keep working."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -3996,6 +4024,11 @@ msgstr ""
 msgid "Not converted: %1$d active fixed-amount rules and %2$d bonus tier plans with revenue thresholds – please adjust them under Rules & groups."
 msgstr ""
 
+#. translators: 1: configured cookie lifetime in days, 2: advised maximum in days
+#: src/Admin/Pages/SettingsPage.php
+msgid "A cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days, about 13 months). Choose a shorter lifetime unless you have documented reasons; the lifetime must also be stated in your consent banner."
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "Link parameter"
 msgstr ""
@@ -4237,6 +4270,10 @@ msgid "Promotion guidelines for partners"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Show the disclosure note visibly above the banner embed code"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Partners can request payouts in the partner area"
 msgstr ""
 
@@ -4447,6 +4484,10 @@ msgid "An affiliate cookie is not strictly necessary: in the EU it may only be s
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Named in the privacy policy text and in the cookie details for your consent banner. Data protection authorities consider up to 13 months (395 days) proportionate for consent-based cookies."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both."
 msgstr ""
 
@@ -4560,6 +4601,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Add [wpac_partner_welcome] to show \"Recommended by …\"."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. \"Advertisement\"), so the label stays with the banner on the partner's website."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -6228,6 +6273,11 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "Please enter a percentage between 0 and 100."
+msgstr ""
+
+#. translators: 1: configured cookie lifetime in days, 2: advised maximum in days
+#: src/Core/Settings.php
+msgid "Saved, but please check: a cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days)."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -8194,6 +8244,31 @@ msgstr ""
 msgid "The link is too long for a QR code."
 msgstr ""
 
+#. translators: %s: disclosure note, e.g. "Advertisement"
+#: src/Portal/Portal.php
+msgid "Label every post with your link, code, short link or QR code as advertising – e.g. with \"%s\" at the beginning, visible without clicking."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Instagram, TikTok, Facebook: at the beginning of the caption or in the story itself, plus the platform's \"paid partnership\" label where available – a hashtag at the end is not enough."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "YouTube, podcasts, streams: say it at the beginning and write it in the description; switch on the platform's note for paid promotion."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Website, blog: directly above the link or banner, not only in the imprint; links with rel=\"sponsored\"."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Newsletter, messenger: in the subject line or at the beginning of the message."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Print, talks, flyers with a QR code or code: next to the code or the QR code."
+msgstr ""
+
 #: src/Portal/Portal.php
 msgid "Your partner code"
 msgstr ""
@@ -8617,6 +8692,13 @@ msgstr[1] ""
 
 #. translators: %d: days
 #: src/Privacy/Privacy.php
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: days
+#: src/Privacy/Privacy.php
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgstr[0] ""
@@ -8892,6 +8974,18 @@ msgid "Details from the partner:\n\n%1$s\n\nPlease answer within one month (Art.
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "not active"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "until the partnership ends"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), "
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr ""
 
@@ -8965,6 +9059,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "VAT ID check: if a partner enters an EU VAT ID, it is checked with the VIES service of the European Commission (ec.europa.eu) when the payout details are saved and again periodically. The VAT ID of the partner and our own VAT ID are sent; the European Commission receives these as an independent controller (legal basis: our obligation and legitimate interest to verify the VAT ID before issuing reverse-charge credit notes, Art. 6(1)(c) and (f) GDPR). The result and the consultation number are stored with the payout details."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Customers can object at any time, on grounds relating to their particular situation, to the attribution of their orders to a partner and to the link to a partner for later purchases (Art. 21 GDPR); we then remove the link and do not attribute later orders. Customers also have the right of access, correction, erasure, restriction of processing and to lodge a complaint with a data protection supervisory authority. A message to the contact details given in this privacy policy is enough."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Customers can object at any time, on grounds relating to their particular situation, to the attribution of their orders to a partner (Art. 21 GDPR). Customers also have the right of access, correction, erasure, restriction of processing and to lodge a complaint with a data protection supervisory authority. A message to the contact details given in this privacy policy is enough."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -9168,6 +9270,14 @@ msgstr ""
 #. translators: %s: cookie name
 #: src/Tracking/Tracker.php
 msgid "This host only passes allow-listed cookies to WordPress; \"%s\" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Affiliate cookie is never set: no consent banner connected"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "The affiliate cookie is only set with marketing consent, but neither a consent banner registered with the WP Consent API nor the filter wpac_has_marketing_consent provides it (window.wpacConsentGranted() alone is not enough – the server checks the consent again). Partner links then only count while a shop session lasts (if enabled); partner codes keep working. See the handbook, section \"Consent banners\", for recipes (Borlabs, Complianz, Real Cookie Banner, Usercentrics, CCM19, Cookiebot)."
 msgstr ""
 
 #: src/Tracking/Tracker.php

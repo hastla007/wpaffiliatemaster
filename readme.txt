@@ -88,7 +88,7 @@ Yes. Network activation sets up every site (in batches for large networks), new 
 
 = Is it GDPR compliant? =
 
-The plugin is built for data minimisation: no IP addresses for attribution, cookie only with consent, customers are never shown to partners, lifetime links store only a keyed hash, bank details are encrypted, retention periods delete old data automatically, and personal data export and erasure (including restriction of processing for records that must be kept) are connected to the WordPress privacy tools. It adds a suggested text to the privacy policy guide and ships a record of processing activities template (Settings → Reports & data). Whether your setup is compliant depends on your situation – have it reviewed by your data protection advisor.
+The plugin is built for data minimisation: no IP addresses for attribution, cookie only with consent, partners never see customer names, e-mail or addresses (only order number, product, date, amounts, status and their own sub-ID), lifetime links store only a keyed hash, bank details are encrypted, retention periods delete old data automatically, and personal data export and erasure (including restriction of processing for records that must be kept) are connected to the WordPress privacy tools. It adds a suggested text to the privacy policy guide and ships a record of processing activities template (Settings → Data & maintenance). Whether your setup is compliant depends on your situation – have it reviewed by your data protection advisor.
 
 = Does it work with Pass Captain and Voucher Captain? =
 
