@@ -84,6 +84,9 @@ final class Editor {
 			array(
 				'render_callback' => static function ( $atts ) {
 					$text = isset( $atts['text'] ) && '' !== $atts['text'] ? array( 'text' => $atts['text'] ) : array();
+					if ( ! empty( $atts['showDiscount'] ) ) {
+						$text['discount'] = '1';
+					}
 					// Placeholder only for the editor preview (block renderer, context=edit) – not for headless clients.
 					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 					if ( defined( 'REST_REQUEST' ) && REST_REQUEST && isset( $_GET['context'] ) && 'edit' === $_GET['context'] ) {

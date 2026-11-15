@@ -252,7 +252,7 @@ msgstr ""
 msgid "Please enter a valid amount (e.g. %1$s or %2$s)."
 msgstr ""
 
-#: src/Admin/Admin.php
+#: src/Admin/Admin.php src/Admin/Reauth.php
 msgid "The link has expired. Please go back and try again."
 msgstr ""
 
@@ -319,6 +319,12 @@ msgid_plural "%d selected partners were skipped because they are not pending app
 msgstr[0] ""
 msgstr[1] ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "This partner recruited %d partner."
+msgid_plural "This partner recruited %d partners."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: number of partners
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "%d active partner has not accepted the current partner terms yet; credit notes cannot be issued to them."
@@ -371,6 +377,14 @@ msgstr ""
 msgid "Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved."
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php
+msgid "The recruiting partner does not exist."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Nothing was saved."
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Partner saved."
 msgstr ""
@@ -405,6 +419,99 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Decision saved; the partner was informed."
+msgstr ""
+
+#. translators: %s: code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Code %s approved and active; the partner was informed."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "It is the main code now; the earlier codes stay valid."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Code request rejected; the partner was informed."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
+msgid "Requested partner codes"
+msgstr ""
+
+#. translators: 1: shown, 2: total
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The oldest %1$d of %2$d requests are shown."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/PayoutsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Partner"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Notifications.php
+msgid "Requested code"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Current main code"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php
+msgid "Approve"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php
+msgid "Reject"
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "coupon %s"
+msgstr ""
+
+#. translators: %s: current main code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Make main code (the current main code %s stays valid)"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Make main code"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "WooCommerce coupon"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "No coupon change"
+msgstr ""
+
+#. translators: 1: coupon code, 2: new code
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Rename the coupon %1$s to %2$s and link it to the new code"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Create a WooCommerce coupon with this code:"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Discount type"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Percentage discount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Fixed cart discount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php src/Affiliates/Notifications.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Amount"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reason (sent to the partner)"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -541,7 +648,7 @@ msgstr ""
 msgid "Pending"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Commissions/Ledger.php src/Promotion/Creatives.php
+#: src/Admin/Pages/AffiliatesPage.php src/Codes/CodeRequests.php src/Commissions/Ledger.php src/Promotion/Creatives.php
 msgid "Approved"
 msgstr ""
 
@@ -598,14 +705,6 @@ msgstr ""
 msgid "Application"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php
-msgid "Approve"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php
-msgid "Reject"
-msgstr ""
-
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Pause"
 msgstr ""
@@ -651,7 +750,7 @@ msgstr ""
 msgid "Profile"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php
 msgid "WordPress user"
 msgstr ""
 
@@ -665,6 +764,19 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
 msgid "Vanity slug"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Recruited by"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Open recruiting partner"
+msgstr ""
+
+#. translators: %d: number of partners
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The partner whose referral link this partner registered through. Stored for add-ons (e.g. sub-affiliate programs); the free plugin pays no commission for it."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -867,22 +979,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Empty coupon code = the selected partner code. The coupon must not exist in WooCommerce yet."
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Discount type"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Percentage discount"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Fixed cart discount"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php src/Affiliates/Notifications.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Amount"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -1399,6 +1495,26 @@ msgid "Codes exported"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Own code requested by the partner"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Code request withdrawn by the partner"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Code request approved"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Code request rejected"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Coupon renamed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Payment request sent"
 msgstr ""
 
@@ -1607,6 +1723,14 @@ msgid "Settings changed"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Password confirmed for a money-relevant action"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Password confirmation failed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Maintenance mode switched"
 msgstr ""
 
@@ -1774,6 +1898,10 @@ msgstr ""
 msgid "Month"
 msgstr ""
 
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Privacy/Privacy.php
+msgid "Action"
+msgstr ""
+
 #: src/Admin/Pages/AuditPage.php
 msgid "Moved"
 msgstr ""
@@ -1784,6 +1912,18 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "failed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "wrong password"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "second factor not confirmed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "too many attempts"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -1816,10 +1956,6 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/PayoutsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php
-msgid "Partner"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Portal/Portal.php src/Privacy/Privacy.php src/Reports/MonthlyMail.php
@@ -1869,10 +2005,6 @@ msgstr ""
 #. translators: %s: area key, e.g. commission
 #: src/Admin/Pages/AuditPage.php
 msgid "All of \"%s\""
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Privacy/Privacy.php
-msgid "Action"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -3212,6 +3344,22 @@ msgstr ""
 msgid "Discard your changes to this template?"
 msgstr ""
 
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Reauth.php
+msgid "Download SEPA XML"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Reauth.php
+msgid "Download transfer list (CSV, any currency)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Reauth.php
+msgid "Download PayPal payouts file (CSV)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Reauth.php
+msgid "Mark as paid"
+msgstr ""
+
 #. translators: 1: correction credit note number(s), comma separated, 2: credit note number
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
@@ -3583,22 +3731,6 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "— Choose action —"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Download SEPA XML"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Download transfer list (CSV, any currency)"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Download PayPal payouts file (CSV)"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Mark as paid"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -4361,6 +4493,10 @@ msgid "Open commissions on termination"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Partners can request an own partner code (e.g. MARIA10) in the partner area"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Sender name"
 msgstr ""
 
@@ -4413,6 +4549,10 @@ msgid "Additional blocked domains"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Ask for the password again before payout files, marking payouts as paid, bank details and account links"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Default commission type"
 msgstr ""
 
@@ -4442,6 +4582,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Show the disclosure note visibly above the banner embed code"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Apply the partner's coupon automatically after a partner link"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4590,6 +4734,10 @@ msgid "Are rejected"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Addresses"
 msgstr ""
 
@@ -4715,6 +4863,10 @@ msgstr ""
 msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php
+msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
+msgstr ""
+
 #. translators: %s: currency
 #: src/Admin/Pages/SettingsPage.php
 msgid "One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies."
@@ -4784,6 +4936,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. \"Advertisement\"), so the label stays with the banner on the partner's website."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an \"individual use\" coupon is not combined. Not for the partner's own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4909,6 +5065,94 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Only a hash of the token is stored; note it down before saving."
+msgstr ""
+
+#. translators: %d: minutes
+#: src/Admin/Reauth.php
+msgid "This action changes where money goes or exports bank details. For your protection, please enter your password again. Afterwards such actions work without asking again for %d minute in this login session."
+msgid_plural "This action changes where money goes or exports bank details. For your protection, please enter your password again. Afterwards such actions work without asking again for %d minutes in this login session."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/Reauth.php
+msgid "Confirm your password"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Too many attempts. Please wait 15 minutes and try again."
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "The password is not correct."
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Password confirmed. The action you started had expired and was not carried out; please start it again."
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Password confirmed."
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "The action you started has expired (after 5 minutes) or belongs to another login. Confirm your password and then start the action again."
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Confirm your password and then start the action again."
+msgstr ""
+
+#. translators: %s: action, e.g. "Download SEPA file"
+#: src/Admin/Reauth.php
+msgid "Action: %s"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Password"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Second factor"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Confirm and continue"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Back without confirming"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Approve new bank details"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Link a WordPress account to a partner"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Unlink the WordPress account of a partner"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Send the link to connect the account again"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Change the payout and tax details of a partner"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Switch off the password confirmation"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "The second factor (e.g. the code of your authenticator app) is not correct."
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "The second factor could not be confirmed."
 msgstr ""
 
 #: src/Admin/Tables/AffiliatesTable.php
@@ -5071,6 +5315,22 @@ msgid "The affiliate could not be saved."
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
+msgid "A partner cannot be their own recruiter."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "The chosen recruiter was recruited (directly or indirectly) by this partner: that would form a cycle."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "The chain of recruiters is too long."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "Affiliate not found."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
 msgid "The partner data could not be saved. Please try again; the previous data are unchanged."
 msgstr ""
 
@@ -5091,10 +5351,6 @@ msgstr ""
 #. translators: %s: new address, partly hidden
 #: src/Affiliates/AffiliateRepository.php
 msgid "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately."
-msgstr ""
-
-#: src/Affiliates/AffiliateRepository.php
-msgid "Affiliate not found."
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
@@ -5336,6 +5592,18 @@ msgid "Name or website change not approved"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
+msgid "Partner requested an own code (to you)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Requested code approved"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Requested code not approved"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
 msgid "Partner account paused"
 msgstr ""
 
@@ -5356,7 +5624,15 @@ msgid "Confirmation link"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
+msgid "Partner link with the new code"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
 msgid "Partner link (start page with the partner code)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Address of the list of open requests in the admin"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
@@ -5545,6 +5821,36 @@ msgstr ""
 
 #: src/Affiliates/Notifications.php
 msgid "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us."
+msgstr ""
+
+#. translators: 1: site name, 2: requested code
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Partner requests the code %2$s"
+msgstr ""
+
+#. translators: 1: partner name, 2: requested code, 3: admin URL
+#: src/Affiliates/Notifications.php
+msgid "%1$s would like to use the code %2$s. The code works only after you approve it:\n\n%3$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your new partner code"
+msgstr ""
+
+#. translators: 1: name, 2: code, 3: partner link, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nyour requested code %2$s was approved and works from now on – customers can enter it at checkout.\n\nYour partner link with the new code: %3$s\n\nAll your links and codes: %4$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your code request"
+msgstr ""
+
+#. translators: 1: name, 2: code, 3: reason, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nunfortunately we could not approve the code %2$s.\n\nReason: %3$s\n\nYour previous codes remain valid. You can request another code in your partner area: %4$s"
 msgstr ""
 
 #. translators: %s: site name
@@ -5932,10 +6238,31 @@ msgid "You already have a partner account."
 msgstr ""
 
 #: src/Codes/CodeRepository.php
-msgid "Codes need at least 3 characters."
+msgid "Please enter a code."
 msgstr ""
 
 #: src/Codes/CodeRepository.php
+msgid "Only letters A–Z, digits, \"-\" and \"_\" are allowed (no spaces, umlauts or other characters), and the code must start and end with a letter or digit."
+msgstr ""
+
+#. translators: 1: minimum length, 2: maximum length
+#: src/Codes/CodeRepository.php
+msgid "The code must have between %1$d and %2$d characters."
+msgstr ""
+
+#: src/Codes/CodeRepository.php
+msgid "This code is reserved. Please choose another one."
+msgstr ""
+
+#: src/Codes/CodeRepository.php
+msgid "This code is already in use. Please choose another one."
+msgstr ""
+
+#: src/Codes/CodeRepository.php
+msgid "Codes need at least 3 characters."
+msgstr ""
+
+#: src/Codes/CodeRepository.php src/Codes/CodeRequests.php
 msgid "This code is already in use."
 msgstr ""
 
@@ -5951,6 +6278,84 @@ msgstr ""
 #. translators: 1: coupon code, 2: partner name
 #: src/Codes/CodeRepository.php src/Integrations/WooCommerce/CouponLink.php
 msgid "The coupon \"%1$s\" is already linked to partner \"%2$s\". Remove that link first."
+msgstr ""
+
+#. translators: %d: number of requests
+#: src/Codes/CodeRequests.php
+msgid "You can request %d code within 30 days. Please try again later."
+msgid_plural "You can request %d codes within 30 days. Please try again later."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Codes/CodeRequests.php
+msgid "Requests for own codes are switched off."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "Only active partners can request a code."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "You already have a code request waiting for review. Please wait for our decision or withdraw it first."
+msgstr ""
+
+#: src/Codes/CodeRequests.php src/Portal/Portal.php
+msgid "The code could not be requested."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "This request was already decided or withdrawn."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "The partner is no longer active. Please reject the request."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "Please reject the request with a short explanation."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "The current main code has no linked coupon that could be renamed."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "Coupons can only be changed while WooCommerce is active and with the right to edit coupons."
+msgstr ""
+
+#: src/Codes/CodeRequests.php src/Integrations/WooCommerce/CouponLink.php
+msgid "Please enter a discount greater than 0 (at most 100 for a percentage discount)."
+msgstr ""
+
+#. translators: %s: reason
+#: src/Codes/CodeRequests.php
+msgid "The coupon was not created: %s"
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Codes/CodeRequests.php
+msgid "The coupon \"%s\" was not renamed: it no longer exists in WooCommerce."
+msgstr ""
+
+#. translators: %s: technical reason
+#: src/Codes/CodeRequests.php
+msgid "The coupon could not be renamed: %s"
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "Please enter a reason (it is sent to the partner)."
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "Waiting for review"
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "Not approved"
+msgstr ""
+
+#: src/Codes/CodeRequests.php
+msgid "Withdrawn"
 msgstr ""
 
 #. translators: %d: booking ID
@@ -7004,6 +7409,21 @@ msgstr ""
 msgid "New Zealand"
 msgstr ""
 
+#. translators: %s: coupon code
+#: src/Integrations/WooCommerce/AutoCoupon.php
+msgid "Your partner discount (coupon %s) was applied automatically."
+msgstr ""
+
+#. translators: %s: amount, e.g. 2,00 €
+#: src/Integrations/WooCommerce/AutoCoupon.php
+msgid "%s per product"
+msgstr ""
+
+#. translators: 1: discount, e.g. "10%" or "5,00 €", 2: coupon code
+#: src/Integrations/WooCommerce/AutoCoupon.php
+msgid "Your link gives customers %1$s off: the coupon %2$s is applied to their cart automatically."
+msgstr ""
+
 #: src/Integrations/WooCommerce/CheckoutField.php
 msgid "Partner code (optional)"
 msgstr ""
@@ -7052,10 +7472,6 @@ msgstr ""
 #. translators: %s: coupon code
 #: src/Integrations/WooCommerce/CouponLink.php
 msgid "A WooCommerce coupon \"%s\" already exists. Link it in the code table instead, or choose another coupon code."
-msgstr ""
-
-#: src/Integrations/WooCommerce/CouponLink.php
-msgid "Please enter a discount greater than 0 (at most 100 for a percentage discount)."
 msgstr ""
 
 #: src/Integrations/WooCommerce/CouponLink.php
@@ -7141,6 +7557,11 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Commission is created once the order is paid."
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Integrations/WooCommerce/OrderMetaBox.php
+msgid "Coupon %s was applied automatically after the partner link."
 msgstr ""
 
 #. translators: 1: partner name, 2: order number that created the binding
@@ -8563,6 +8984,14 @@ msgid "Saved. Your new name or website is shown after our review."
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Thank you. Your code request was sent; the code works as soon as we have approved it. We will let you know by e-mail."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your code request was withdrawn."
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Our partner program terms have been updated."
 msgstr ""
 
@@ -8900,6 +9329,37 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Inactive"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Request your own code"
+msgstr ""
+
+#. translators: 1: code, 2: date
+#: src/Portal/Portal.php
+msgid "Your request for the code %1$s from %2$s is waiting for our review. The code works as soon as we have approved it."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Withdraw request"
+msgstr ""
+
+#. translators: 1: code, 2: reason
+#: src/Portal/Portal.php
+msgid "Your request for the code %1$s was not approved. Reason: %2$s"
+msgstr ""
+
+#. translators: 1: maximum length
+#: src/Portal/Portal.php
+msgid "An easy-to-remember code such as your name plus a number (e.g. MARIA10). Letters A–Z, digits, \"-\" and \"_\", 3 to %1$d characters. It is added to your existing codes, which remain valid."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Desired code"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Request code"
 msgstr ""
 
 #. translators: %s: label of the link, e.g. "Your partner link"
@@ -9422,6 +9882,18 @@ msgid "active"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Recruited by (partner ID)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Requested on"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Decided on"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Payout requests"
 msgstr ""
 
@@ -9435,10 +9907,6 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Requested change of the tax data (waiting for approval)"
-msgstr ""
-
-#: src/Privacy/Privacy.php
-msgid "Requested on"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -9700,6 +10168,11 @@ msgstr ""
 msgid "Only drafts can be approved."
 msgstr ""
 
+#. translators: 1: discount, e.g. "10%" or "5,00 €", 2: coupon code
+#: src/Promotion/Landing.php
+msgid "Your discount: %1$s off with the coupon %2$s. If it is not in your cart automatically, enter it at checkout."
+msgstr ""
+
 #. translators: %s: month
 #: src/Reports/MonthlyMail.php
 msgid "here is your summary for %s:"
@@ -9928,6 +10401,14 @@ msgid "Text (%s = partner name)"
 msgstr ""
 
 #: assets/js/blocks.js
+msgid "Show the partner discount"
+msgstr ""
+
+#: assets/js/blocks.js
+msgid "Shows the discount of the partner's coupon when the coupon is applied automatically (Settings → Promotion)."
+msgstr ""
+
+#: assets/js/blocks.js
 msgid "Recommended partner targets"
 msgstr ""
 
@@ -10008,4 +10489,9 @@ msgstr ""
 #: blocks/src
 msgctxt "e-invoice link"
 msgid "(XML)"
+msgstr ""
+
+#: blocks/src
+msgctxt "percentage discount"
+msgid "%s%%"
 msgstr ""

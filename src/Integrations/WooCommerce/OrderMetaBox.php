@@ -61,6 +61,7 @@ final class OrderMetaBox {
 			echo '<p><strong>' . esc_html( $aff ? $aff->name : '#' . $attr->affiliate_id ) . '</strong><br>';
 			echo esc_html__( 'Method', 'affiliate-captain' ) . ': ' . esc_html( Ledger::method_label( $attr->method ) ) . '<br>';
 			echo esc_html__( 'Commission', 'affiliate-captain' ) . ': ' . esc_html( Money::format( $sum, $order->get_currency() ) ) . '</p>';
+			self::render_auto_coupon( $order );
 			if ( 'review' === $attr->status || '' !== (string) $attr->note ) {
 				$labels = \WPAffiliateCaptain\Tracking\FraudCheck::labels();
 				$flags  = array();
@@ -104,6 +105,7 @@ final class OrderMetaBox {
 			/* translators: 1: partner code, 2: method (link, cookie …) */
 			echo '<p>' . esc_html( sprintf( __( 'Referral before the order: %1$s (%2$s)', 'affiliate-captain' ), (string) $touch['code'], Ledger::method_label( isset( $touch['method'] ) ? (string) $touch['method'] : 'link' ) ) ) . '</p>';
 		}
+		self::render_auto_coupon( $order );
 		echo '<p>' . esc_html__( 'Not attributed.', 'affiliate-captain' );
 		if ( Jobs::sale_pending( WooCommerce::SOURCE, (string) $order->get_id() ) ) {
 			echo ' ' . esc_html__( 'The booking failed and is retried automatically (Affiliate Captain → Integrations).', 'affiliate-captain' );
@@ -132,6 +134,19 @@ final class OrderMetaBox {
 		);
 		echo '</p><p><label for="wpac_assign_reason">' . esc_html__( 'Reason (required)', 'affiliate-captain' ) . '</label><input type="text" name="wpac_assign_reason" id="wpac_assign_reason" style="width:100%"></p>';
 		echo '<p class="description">' . esc_html__( 'Commission is created once the order is paid.', 'affiliate-captain' ) . '</p>';
+	}
+
+	/**
+	 * Note when the partner's coupon was applied automatically after the partner link (0.15.0).
+	 *
+	 * @param \WC_Order $order Order.
+	 */
+	private static function render_auto_coupon( $order ) {
+		$auto = $order->get_meta( AutoCoupon::META_ORDER );
+		if ( is_array( $auto ) && ! empty( $auto['coupon'] ) ) {
+			/* translators: %s: coupon code */
+			echo '<p>' . esc_html( sprintf( __( 'Coupon %s was applied automatically after the partner link.', 'affiliate-captain' ), strtoupper( (string) $auto['coupon'] ) ) ) . '</p>';
+		}
 	}
 
 	/**

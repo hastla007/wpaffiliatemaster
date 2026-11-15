@@ -192,6 +192,7 @@ final class Registration {
 			'application_note' => isset( $_POST['wpac_note'] ) && is_string( $_POST['wpac_note'] ) ? self::cap( sanitize_textarea_field( wp_unslash( $_POST['wpac_note'] ) ), self::MAX_NOTE ) : '',
 			'application_data' => $application_data,
 			'group_id'         => $group_id,
+			'referred_by'      => self::recruiter( $email, $user && $user->exists() ? (int) $user->ID : 0 ),
 			'terms'            => $terms['page_id'] ? $terms + array( 'accepted_at' => Db::now() ) : null, // Version + hash accepted now.
 			'redirect'         => $redirect,
 		);
@@ -370,6 +371,61 @@ final class Registration {
 	}
 
 	/**
+	 * Recruiting partner of an application (sub-affiliate add-ons, wpac_affiliate_recruited): a
+	 * partner code on the registration URL (referral parameter, e.g. ?partner=CODE; the form posts
+	 * to the same URL, else the page it was sent from), otherwise the captured referral of the
+	 * visitor (session or consented cookie, like an order). Only active partners, never the
+	 * applicant themselves.
+	 *
+	 * @param string $email   Applicant e-mail address.
+	 * @param int    $user_id Logged-in WordPress user of the applicant (0 = none).
+	 * @return int Partner ID, 0 = none.
+	 */
+	public static function recruiter( $email, $user_id ) {
+		$param = (string) Settings::get( 'referral_param' );
+		$code  = '';
+		// phpcs:disable WordPress.Security.NonceVerification -- read-only; the form nonce was checked by the caller.
+		if ( '' !== $param && isset( $_GET[ $param ] ) && is_string( $_GET[ $param ] ) ) {
+			$code = sanitize_text_field( wp_unslash( $_GET[ $param ] ) );
+		}
+		// phpcs:enable
+		if ( '' === $code && '' !== $param ) {
+			$query = wp_parse_url( wpac_return_url(), PHP_URL_QUERY );
+			if ( is_string( $query ) ) {
+				parse_str( $query, $vars );
+				$code = isset( $vars[ $param ] ) && is_string( $vars[ $param ] ) ? sanitize_text_field( $vars[ $param ] ) : '';
+			}
+		}
+		$resolved = '' !== $code ? wpac_resolve_partner_code( Db::cut( $code, 100 ), array( 'context' => 'link' ) ) : null;
+		if ( ! is_array( $resolved ) ) {
+			$touch    = \WPAffiliateCaptain\Tracking\Tracker::current_touch();
+			$resolved = $touch && ! empty( $touch['code'] ) ? wpac_resolve_partner_code( (string) $touch['code'], array( 'context' => 'touch' ) ) : null;
+		}
+		$recruiter = is_array( $resolved ) && ! empty( $resolved['affiliate_id'] ) ? (int) $resolved['affiliate_id'] : 0;
+		return $recruiter && self::recruiter_valid( $recruiter, (string) $email, (int) $user_id ) ? $recruiter : 0;
+	}
+
+	/**
+	 * Whether a partner can be recorded as the recruiter of an applicant: active, processing not
+	 * restricted, and not the applicant (same WordPress user or same e-mail address).
+	 *
+	 * @param int    $recruiter Partner.
+	 * @param string $email     Applicant e-mail address.
+	 * @param int    $user_id   Applicant WordPress user (0 = none).
+	 * @return bool
+	 */
+	public static function recruiter_valid( $recruiter, $email, $user_id ) {
+		$aff = AffiliateRepository::find( (int) $recruiter );
+		if ( ! $aff || 'active' !== $aff->status || \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $aff->id ) ) {
+			return false;
+		}
+		if ( (int) $user_id && (int) $aff->user_id === (int) $user_id ) {
+			return false;
+		}
+		return AffiliateRepository::comparable_email( (string) $aff->email ) !== AffiliateRepository::comparable_email( (string) $email );
+	}
+
+	/**
 	 * Create the application (after verification).
 	 *
 	 * @param array $data Application data.
@@ -388,6 +444,8 @@ final class Registration {
 				'application_data' => $data['application_data'],
 				'group_id'         => (int) $data['group_id'],
 				'status'           => Settings::get( 'auto_approve' ) ? 'active' : 'pending',
+				// Checked again: the recruiter may have been paused since the application.
+				'referred_by'      => ! empty( $data['referred_by'] ) && self::recruiter_valid( (int) $data['referred_by'], (string) $data['email'], (int) $data['user_id'] ) ? (int) $data['referred_by'] : 0,
 			)
 		);
 		if ( is_wp_error( $result ) ) {

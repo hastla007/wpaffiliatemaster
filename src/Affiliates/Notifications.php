@@ -199,6 +199,22 @@ final class Notifications {
 				'label' => __( 'Name or website change not approved', 'affiliate-captain' ),
 				'vars'  => array( 'name', 'site' ),
 			),
+			// Code requests from the partner area (since 0.15.0).
+			'code_request_admin'     => array(
+				'type'  => 'code_requested',
+				'label' => __( 'Partner requested an own code (to you)', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'code', 'admin_url' ),
+			),
+			'code_request_approved'  => array(
+				'type'  => 'code_request_resolved',
+				'label' => __( 'Requested code approved', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'code', 'link', 'portal_url' ),
+			),
+			'code_request_rejected'  => array(
+				'type'  => 'code_request_resolved',
+				'label' => __( 'Requested code not approved', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'code', 'reason', 'portal_url' ),
+			),
 			'status_paused'          => array(
 				'type'  => 'status_changed',
 				'label' => __( 'Partner account paused', 'affiliate-captain' ),
@@ -227,8 +243,9 @@ final class Notifications {
 		return array(
 			'name'              => __( 'Name of the partner', 'affiliate-captain' ),
 			'site'              => __( 'Name of your website', 'affiliate-captain' ),
-			'link'              => 'confirm_application' === $key ? __( 'Confirmation link', 'affiliate-captain' ) : __( 'Partner link (start page with the partner code)', 'affiliate-captain' ),
-			'code'              => __( 'Partner code', 'affiliate-captain' ),
+			'link'              => 'confirm_application' === $key ? __( 'Confirmation link', 'affiliate-captain' ) : ( 'code_request_approved' === $key ? __( 'Partner link with the new code', 'affiliate-captain' ) : __( 'Partner link (start page with the partner code)', 'affiliate-captain' ) ),
+			'code'              => 0 === strpos( (string) $key, 'code_request' ) ? __( 'Requested code', 'affiliate-captain' ) : __( 'Partner code', 'affiliate-captain' ),
+			'admin_url'         => __( 'Address of the list of open requests in the admin', 'affiliate-captain' ),
 			'rate'              => __( 'Commission rate', 'affiliate-captain' ),
 			'portal_url'        => __( 'Address of the partner area', 'affiliate-captain' ),
 			'access'            => __( 'Access to the partner area (set-password link, hint on the terms)', 'affiliate-captain' ),
@@ -339,6 +356,24 @@ final class Notifications {
 				$body    = 'public_change_approved' === $key
 					? __( "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on.", 'affiliate-captain' )
 					: __( "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us.", 'affiliate-captain' );
+				break;
+			case 'code_request_admin':
+				/* translators: 1: site name, 2: requested code */
+				$subject = sprintf( __( '[%1$s] Partner requests the code %2$s', 'affiliate-captain' ), '{site}', '{code}' );
+				/* translators: 1: partner name, 2: requested code, 3: admin URL */
+				$body = sprintf( __( "%1\$s would like to use the code %2\$s. The code works only after you approve it:\n\n%3\$s", 'affiliate-captain' ), '{name}', '{code}', '{admin_url}' );
+				break;
+			case 'code_request_approved':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your new partner code', 'affiliate-captain' ), '{site}' );
+				/* translators: 1: name, 2: code, 3: partner link, 4: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nyour requested code %2\$s was approved and works from now on – customers can enter it at checkout.\n\nYour partner link with the new code: %3\$s\n\nAll your links and codes: %4\$s", 'affiliate-captain' ), '{name}', '{code}', '{link}', '{portal_url}' );
+				break;
+			case 'code_request_rejected':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your code request', 'affiliate-captain' ), '{site}' );
+				/* translators: 1: name, 2: code, 3: reason, 4: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nunfortunately we could not approve the code %2\$s.\n\nReason: %3\$s\n\nYour previous codes remain valid. You can request another code in your partner area: %4\$s", 'affiliate-captain' ), '{name}', '{code}', '{reason}', '{portal_url}' );
 				break;
 			case 'status_paused':
 				/* translators: %s: site name */
@@ -547,6 +582,7 @@ final class Notifications {
 			/* translators: %s: amount */
 			'effect'            => sprintf( __( 'The difference of %s is paid with your next payout.', 'affiliate-captain' ), $amount ),
 			'events'            => __( 'New commissions (pending until the end of the hold period)', 'affiliate-captain' ) . ': 2 (' . $amount . ')',
+			'admin_url'         => admin_url( 'admin.php?page=wpac-affiliates#wpac-code-requests' ),
 		);
 		$defs = self::template_defs();
 		$vars = isset( $defs[ $key ] ) ? $defs[ $key ]['vars'] : array();
@@ -1757,6 +1793,85 @@ final class Notifications {
 			list( $subject, $body ) = self::render_template( $key, array( 'name' => $aff->name ) );
 			self::send(
 				'public_change_resolved',
+				$aff->email,
+				$subject,
+				$body,
+				array(
+					'template'     => $key,
+					'affiliate_id' => (int) $aff->id,
+				)
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+	}
+
+	/**
+	 * A partner requested an own code: mail to the operator (template code_request_admin).
+	 *
+	 * @param int    $id   Affiliate ID.
+	 * @param string $code Requested code.
+	 */
+	public static function code_requested( $id, $code ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff ) {
+			return;
+		}
+		$switched = self::switch_for_admin();
+		try {
+			list( $subject, $body ) = self::render_template(
+				'code_request_admin',
+				array(
+					'name'      => $aff->name,
+					'code'      => (string) $code,
+					'admin_url' => admin_url( 'admin.php?page=wpac-affiliates#wpac-code-requests' ),
+				)
+			);
+			self::send(
+				'code_requested',
+				self::admin_email(),
+				$subject,
+				$body,
+				array(
+					'admin'        => true,
+					'template'     => 'code_request_admin',
+					'affiliate_id' => (int) $aff->id,
+				)
+			);
+		} finally {
+			Locale::restore( $switched );
+		}
+	}
+
+	/**
+	 * Decision on a code request: mail to the partner (templates code_request_approved/rejected).
+	 *
+	 * @param int    $id       Affiliate ID.
+	 * @param string $code     Code.
+	 * @param bool   $approved Approved.
+	 * @param string $reason   Reason of a rejection.
+	 */
+	public static function code_request_resolved( $id, $code, $approved, $reason = '' ) {
+		$aff = AffiliateRepository::find( $id );
+		if ( ! $aff ) {
+			return;
+		}
+		$switched = Locale::switch_for_affiliate( $aff );
+		try {
+			$key  = $approved ? 'code_request_approved' : 'code_request_rejected';
+			$vars = array(
+				'name'       => $aff->name,
+				'code'       => (string) $code,
+				'portal_url' => self::portal_url( $aff ),
+			);
+			if ( $approved ) {
+				$vars['link'] = add_query_arg( (string) Settings::get( 'referral_param' ), rawurlencode( (string) $code ), home_url( '/' ) );
+			} else {
+				$vars['reason'] = (string) $reason;
+			}
+			list( $subject, $body ) = self::render_template( $key, $vars );
+			self::send(
+				'code_request_resolved',
 				$aff->email,
 				$subject,
 				$body,

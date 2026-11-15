@@ -102,6 +102,18 @@ final class AffiliatesPage {
 					// with account access or payout details it is as sensitive as the bank details (R14-S1).
 					Admin::back( __( 'Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved.', 'affiliate-captain' ), 'error' );
 				}
+				// Recruiting partner (sub-affiliate add-ons): checked before anything is saved.
+				$recruiter = null;
+				if ( null !== Admin::post( 'referred_by', null ) ) {
+					$raw       = sanitize_text_field( (string) Admin::post( 'referred_by' ) );
+					$recruiter = AffiliateRepository::resolve_input( $raw );
+					$problem   = '' !== trim( $raw ) && ! $recruiter
+						? new \WP_Error( 'wpac_invalid_recruiter', __( 'The recruiting partner does not exist.', 'affiliate-captain' ) )
+						: AffiliateRepository::recruiter_problem( $id, $recruiter );
+					if ( $problem ) {
+						Admin::back( $problem->get_error_message() . ' ' . __( 'Nothing was saved.', 'affiliate-captain' ), 'error' );
+					}
+				}
 				$saved = AffiliateRepository::update(
 					$id,
 					array(
@@ -116,6 +128,12 @@ final class AffiliatesPage {
 				);
 				if ( is_wp_error( $saved ) ) {
 					Admin::back( $saved->get_error_message(), 'error' );
+				}
+				if ( null !== $recruiter ) {
+					$changed = AffiliateRepository::set_referred_by( $id, $recruiter ); // Audited (affiliate.referred_by).
+					if ( is_wp_error( $changed ) ) {
+						Admin::back( $changed->get_error_message(), 'error' );
+					}
 				}
 				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) ) {
 					$changed = AffiliateRepository::set_email( $id, $email );
@@ -174,6 +192,10 @@ final class AffiliatesPage {
 				Admin::back( __( 'Decision saved; the partner was informed.', 'affiliate-captain' ) );
 				break;
 
+			case 'code_request':
+				self::handle_code_request();
+				break;
+
 			case 'code_create':
 			case 'code_batch':
 			case 'code_status':
@@ -195,6 +217,91 @@ final class AffiliatesPage {
 				self::handle_payout_data( $do, $id );
 				break;
 		}
+	}
+
+	/**
+	 * Approve or reject a partner's code request (CodeRequests, since 0.15.0).
+	 */
+	private static function handle_code_request() {
+		$row_id = absint( Admin::post( 'request_id', 0 ) );
+		if ( 'approve' === sanitize_key( Admin::post( 'decision' ) ) ) {
+			$result = \WPAffiliateCaptain\Codes\CodeRequests::approve(
+				$row_id,
+				array(
+					'make_main'     => (bool) Admin::post( 'make_main' ),
+					'coupon'        => sanitize_key( Admin::post( 'coupon' ) ),
+					'discount_type' => sanitize_key( Admin::post( 'discount_type' ) ),
+					'amount'        => sanitize_text_field( (string) Admin::post( 'amount' ) ),
+				)
+			);
+			if ( is_wp_error( $result ) ) {
+				Admin::back( $result->get_error_message(), 'error' );
+			}
+			/* translators: %s: code */
+			$message = sprintf( __( 'Code %s approved and active; the partner was informed.', 'affiliate-captain' ), $result['code'] );
+			if ( Admin::post( 'make_main' ) ) {
+				$message .= ' ' . __( 'It is the main code now; the earlier codes stay valid.', 'affiliate-captain' );
+			}
+			Admin::back( $message, $result['warnings'] ? 'warning' : 'success', '', $result['warnings'] );
+		}
+		$result = \WPAffiliateCaptain\Codes\CodeRequests::reject( $row_id, (string) Admin::post( 'reason' ) );
+		if ( is_wp_error( $result ) ) {
+			Admin::back( $result->get_error_message(), 'error' );
+		}
+		Admin::back( __( 'Code request rejected; the partner was informed.', 'affiliate-captain' ) );
+	}
+
+	/**
+	 * Open code requests with the approve and reject forms (Partners page and partner detail).
+	 *
+	 * @param int $affiliate_id Only this partner (0 = all).
+	 */
+	private static function render_code_requests( $affiliate_id = 0 ) {
+		$rows = $affiliate_id ? array_filter( array( \WPAffiliateCaptain\Codes\CodeRequests::open_for( $affiliate_id ) ) ) : \WPAffiliateCaptain\Codes\CodeRequests::open_all( 50 );
+		if ( ! $rows ) {
+			return;
+		}
+		$coupons = \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::can_create();
+		echo '<div class="notice notice-warning inline wpac-code-requests" id="wpac-code-requests"><h2>' . esc_html__( 'Requested partner codes', 'affiliate-captain' ) . '</h2>';
+		if ( ! $affiliate_id ) {
+			$total = \WPAffiliateCaptain\Codes\CodeRequests::open_count();
+			if ( $total > count( $rows ) ) {
+				/* translators: 1: shown, 2: total */
+				echo '<p class="description">' . esc_html( sprintf( __( 'The oldest %1$d of %2$d requests are shown.', 'affiliate-captain' ), count( $rows ), $total ) ) . '</p>';
+			}
+		}
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Requested code', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Current main code', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Approve', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Reject', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $r ) {
+			$aff  = AffiliateRepository::find( (int) $r->affiliate_id );
+			$main = CodeRepository::main_row( (int) $r->affiliate_id );
+			$rid  = (int) $r->id;
+			echo '<tr><td><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $r->affiliate_id ) ) ) . '">' . esc_html( $aff ? $aff->name : '#' . (int) $r->affiliate_id ) . '</a>';
+			if ( $aff && 'active' !== $aff->status ) {
+				echo '<br><small>' . esc_html( $aff->status ) . '</small>';
+			}
+			echo '<br><small>' . esc_html( Admin::date( $r->created_at, true ) ) . '</small></td>';
+			echo '<td><code>' . esc_html( $r->code ) . '</code></td><td>' . ( $main ? '<code>' . esc_html( $main->code ) . '</code>' . ( '' !== (string) $main->coupon_code ? '<br><small>' . esc_html( sprintf( /* translators: %s: coupon code */ __( 'coupon %s', 'affiliate-captain' ), $main->coupon_code ) ) . '</small>' : '' ) : '—' ) . '</td><td>';
+			Admin::form_open( 'code_request' );
+			echo '<input type="hidden" name="request_id" value="' . esc_attr( (string) $rid ) . '"><input type="hidden" name="decision" value="approve">';
+			echo '<label><input type="checkbox" name="make_main" value="1"> ' . esc_html( $main ? sprintf( /* translators: %s: current main code */ __( 'Make main code (the current main code %s stays valid)', 'affiliate-captain' ), $main->code ) : __( 'Make main code', 'affiliate-captain' ) ) . '</label><br>';
+			if ( $coupons ) {
+				echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'WooCommerce coupon', 'affiliate-captain' ) . '</legend>';
+				echo '<label><input type="radio" name="coupon" value="" checked> ' . esc_html__( 'No coupon change', 'affiliate-captain' ) . '</label><br>';
+				if ( $main && '' !== (string) $main->coupon_code ) {
+					/* translators: 1: coupon code, 2: new code */
+					echo '<label><input type="radio" name="coupon" value="rename"> ' . esc_html( sprintf( __( 'Rename the coupon %1$s to %2$s and link it to the new code', 'affiliate-captain' ), $main->coupon_code, $r->code ) ) . '</label><br>';
+				}
+				echo '<label><input type="radio" name="coupon" value="create"> ' . esc_html__( 'Create a WooCommerce coupon with this code:', 'affiliate-captain' ) . '</label> ';
+				echo '<label class="screen-reader-text" for="wpac-cr-type-' . esc_attr( (string) $rid ) . '">' . esc_html__( 'Discount type', 'affiliate-captain' ) . '</label><select name="discount_type" id="wpac-cr-type-' . esc_attr( (string) $rid ) . '"><option value="percent">' . esc_html__( 'Percentage discount', 'affiliate-captain' ) . '</option><option value="fixed_cart">' . esc_html__( 'Fixed cart discount', 'affiliate-captain' ) . '</option></select> ';
+				echo '<label>' . esc_html__( 'Amount', 'affiliate-captain' ) . ' <input type="text" inputmode="decimal" name="amount" size="5"></label></fieldset>';
+			}
+			echo '<button class="button button-primary">' . esc_html__( 'Approve', 'affiliate-captain' ) . '</button></form></td><td>';
+			Admin::form_open( 'code_request' );
+			echo '<input type="hidden" name="request_id" value="' . esc_attr( (string) $rid ) . '"><input type="hidden" name="decision" value="reject">';
+			echo '<label for="wpac-cr-reason-' . esc_attr( (string) $rid ) . '">' . esc_html__( 'Reason (sent to the partner)', 'affiliate-captain' ) . '</label><br><input type="text" name="reason" id="wpac-cr-reason-' . esc_attr( (string) $rid ) . '" required maxlength="500" class="regular-text"><br>';
+			echo '<button class="button">' . esc_html__( 'Reject', 'affiliate-captain' ) . '</button></form></td></tr>';
+		}
+		echo '</tbody></table></div>';
 	}
 
 	/**
@@ -469,6 +576,7 @@ final class AffiliatesPage {
 		echo '<div class="wrap"><h1 class="wp-heading-inline">' . esc_html__( 'Partners', 'affiliate-captain' ) . '</h1> ';
 		echo '<a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Add partner', 'affiliate-captain' ) . '</a><hr class="wp-header-end">';
 		Admin::notice();
+		self::render_code_requests();
 		self::terms_reminder_box();
 		self::broadcast_box();
 		$table->views();
@@ -671,6 +779,20 @@ final class AffiliatesPage {
 		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $a->website, 'type="url" maxlength="255"' );
 		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $a->channel, 'maxlength="255"' );
 		self::row_group( (int) $a->group_id );
+		$recruiter = isset( $a->referred_by ) ? (int) $a->referred_by : 0;
+		$recruits  = AffiliateRepository::query(
+			array(
+				'referred_by' => (int) $id,
+				'limit'       => 1,
+			)
+		)[1];
+		echo '<tr><th><label for="wpac-referred_by">' . esc_html__( 'Recruited by', 'affiliate-captain' ) . '</label></th><td>';
+		echo Admin::partner_picker( 'referred_by', $recruiter, '', array( 'id' => 'wpac-referred_by', 'aria-describedby' => 'wpac-referred_by-desc' ), array( (int) $id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		if ( $recruiter ) {
+			echo ' <a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $recruiter ) ) ) . '">' . esc_html__( 'Open recruiting partner', 'affiliate-captain' ) . '</a>';
+		}
+		/* translators: %d: number of partners */
+		echo '<p class="description" id="wpac-referred_by-desc">' . esc_html__( 'The partner whose referral link this partner registered through. Stored for add-ons (e.g. sub-affiliate programs); the free plugin pays no commission for it.', 'affiliate-captain' ) . ( $recruits ? ' ' . esc_html( sprintf( _n( 'This partner recruited %d partner.', 'This partner recruited %d partners.', (int) $recruits, 'affiliate-captain' ), (int) $recruits ) ) : '' ) . '</p></td></tr>';
 		echo '<tr><th><label for="wpac-landing_page_id">' . esc_html__( 'Landing page', 'affiliate-captain' ) . '</label></th><td>';
 		wp_dropdown_pages(
 			array(
@@ -752,6 +874,7 @@ final class AffiliatesPage {
 	private static function render_codes_box( $id ) {
 		// Codes.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner codes', 'affiliate-captain' ) . '</h2><div class="inside">';
+		self::render_code_requests( $id );
 		$codes = CodeRepository::for_affiliate( $id );
 		$param = (string) Settings::get( 'referral_param' );
 		if ( $codes ) {

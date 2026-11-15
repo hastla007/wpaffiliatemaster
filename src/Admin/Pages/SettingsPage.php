@@ -195,6 +195,7 @@ final class SettingsPage {
 				'terms_page_id'         => __( 'Partner program terms', 'affiliate-captain' ),
 				'auto_approve'          => __( 'Approve applications automatically', 'affiliate-captain' ),
 				'terminated_open'       => __( 'Open commissions on termination', 'affiliate-captain' ),
+				'code_requests'         => __( 'Partners can request an own partner code (e.g. MARIA10) in the partner area', 'affiliate-captain' ),
 				'mail_from_name'        => __( 'Sender name', 'affiliate-captain' ),
 				'notify_payout_paid'    => __( 'E-mail to the partner when a payout was paid', 'affiliate-captain' ),
 				'notify_commissions'    => __( 'E-mail to partners about new, approved and rejected commissions', 'affiliate-captain' ),
@@ -209,6 +210,7 @@ final class SettingsPage {
 				'fraud_max_order_minor' => __( 'Review orders above (net)', 'affiliate-captain' ),
 				'fraud_check_domains'   => __( 'Review orders with disposable or blocked e-mail domains', 'affiliate-captain' ),
 				'fraud_blocked_domains' => __( 'Additional blocked domains', 'affiliate-captain' ),
+				'reauth_required'       => __( 'Ask for the password again before payout files, marking payouts as paid, bank details and account links', 'affiliate-captain' ),
 				'default_rate_type'     => __( 'Default commission type', 'affiliate-captain' ),
 				'lifetime_enabled'      => __( 'Lifetime commissions: repeat purchases of referred customers go to the same partner', 'affiliate-captain' ),
 				'hold_start'            => __( 'Hold period starts', 'affiliate-captain' ),
@@ -217,6 +219,7 @@ final class SettingsPage {
 				'landing_page_id'       => __( 'Default landing page', 'affiliate-captain' ),
 				'promotion_guidelines'  => __( 'Promotion guidelines for partners', 'affiliate-captain' ),
 				'embed_disclosure_label' => __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ),
+				'auto_apply_coupon'     => __( 'Apply the partner\'s coupon automatically after a partner link', 'affiliate-captain' ),
 				'min_payout_minor'      => __( 'Minimum payout', 'affiliate-captain' ),
 				'payout_requests'       => __( 'Partners can request payouts in the partner area', 'affiliate-captain' ),
 				'payout_method_manual'  => __( 'Partners may choose another payment method (e.g. PayPal, Wise), paid manually', 'affiliate-captain' ),
@@ -278,12 +281,12 @@ final class SettingsPage {
 	 */
 	public static function tab_keys() {
 		return array(
-			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open' ),
+			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'code_requests' ),
 			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'report_admin', 'report_partners' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
-			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
+			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'reauth_required' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
-			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'promotion_guidelines' ),
+			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'auto_apply_coupon', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'einvoice_mail', 'einvoice_buyer_reference', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
 			'data'        => array( 'visit_retention_days', 'application_retention_days', 'pending_application_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
@@ -413,6 +416,7 @@ final class SettingsPage {
 		self::section( __( 'Applications & termination', 'affiliate-captain' ), 'program' );
 		self::checkbox( 'auto_approve', __( 'Approve applications automatically', 'affiliate-captain' ), $s );
 		self::select( 'terminated_open', __( 'Open commissions on termination', 'affiliate-captain' ), $s, array( 'pay' => __( 'Remain payable', 'affiliate-captain' ), 'reject' => __( 'Are rejected', 'affiliate-captain' ) ) );
+		self::checkbox( 'code_requests', __( 'Partners can request an own partner code (e.g. MARIA10) in the partner area', 'affiliate-captain' ), $s, __( 'Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page.', 'affiliate-captain' ) );
 		self::end();
 	}
 
@@ -513,6 +517,7 @@ final class SettingsPage {
 		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'affiliate-captain' ), $s );
 		$err = self::error_parts( 'trusted_proxies' );
 		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy.', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		self::checkbox( 'reauth_required', __( 'Ask for the password again before payout files, marking payouts as paid, bank details and account links', 'affiliate-captain' ), $s, __( 'Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too.', 'affiliate-captain' ) );
 		self::end();
 	}
 
@@ -583,6 +588,7 @@ final class SettingsPage {
 		self::page_select( 'landing_page_id', __( 'Default landing page', 'affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'affiliate-captain' ) );
 		self::text( 'default_disclosure', __( 'Default disclosure note', 'affiliate-captain' ), $s );
 		self::checkbox( 'embed_disclosure_label', __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ), $s, __( 'The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. "Advertisement"), so the label stays with the banner on the partner\'s website.', 'affiliate-captain' ) );
+		self::checkbox( 'auto_apply_coupon', __( 'Apply the partner\'s coupon automatically after a partner link', 'affiliate-captain' ), $s, __( 'WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an "individual use" coupon is not combined. Not for the partner\'s own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before.', 'affiliate-captain' ) );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'affiliate-captain' ) . '</p></td></tr>';
 		self::end();
 	}

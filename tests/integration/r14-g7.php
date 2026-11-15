@@ -70,14 +70,14 @@ $g7_columns = static function () use ( $wpdb, $g7_vt ) {
 	ksort( $cols );
 	return implode( ',', $cols );
 };
-check( 'R14-D1 schema 14: visits.affiliate_created covers campaign and sub-ID', array( 15, 'affiliate_id,created_at,campaign,sub_id' ), array( Installer::DB_VERSION, $g7_columns() ) );
+check( 'R14-D1 schema 14: visits.affiliate_created covers campaign and sub-ID', array( 16, 'affiliate_id,created_at,campaign,sub_id' ), array( Installer::DB_VERSION, $g7_columns() ) );
 q( "ALTER TABLE {$g7_vt} DROP KEY affiliate_created, ADD KEY affiliate_created (affiliate_id,created_at)" );
 Installer::verify_schema();
 $g7_warn = array_values( preg_grep( '/visits\.affiliate_created/', (array) get_option( 'wpac_schema_warnings' ) ) );
 check( 'R14-D1 key with the columns of schema 13: warning (not a blocker) that names both column lists', array( array(), 1, true ), array( Installer::verify_schema(), count( $g7_warn ), isset( $g7_warn[0] ) && 0 === strpos( $g7_warn[0], 'missing index ' . $g7_vt . '.affiliate_created (affiliate_id,created_at,campaign,sub_id; still affiliate_id,created_at;' ) ) );
 update_option( Installer::DB_OPTION, 13 );
 Installer::install_schema();
-check( 'R14-D1 migration 13 → 14 replaces the key online (DROP + ADD in one ALTER), no warning left', array( 15, 'affiliate_id,created_at,campaign,sub_id', array() ), array( (int) get_option( Installer::DB_OPTION ), $g7_columns(), array_values( preg_grep( '/^missing index /', (array) get_option( 'wpac_schema_warnings' ) ) ) ) );
+check( 'R14-D1 migration 13 → 14 replaces the key online (DROP + ADD in one ALTER), no warning left', array( Installer::DB_VERSION, 'affiliate_id,created_at,campaign,sub_id', array() ), array( (int) get_option( Installer::DB_OPTION ), $g7_columns(), array_values( preg_grep( '/^missing index /', (array) get_option( 'wpac_schema_warnings' ) ) ) ) );
 check( 'R14-D1 the replacement is one online statement (key never missing, no table copy)', true, false !== strpos( $g7_src( 'src/Core/Installer.php' ), '"ALTER TABLE {$name} {$drop}ADD KEY {$key} ({$columns}), ALGORITHM=INPLACE, LOCK=NONE"' ) );
 
 $g7_aff  = AffiliateRepository::create( array( 'name' => 'G7 Influencer', 'email' => 'g7-influencer@example.de', 'status' => 'active' ) );

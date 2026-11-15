@@ -212,7 +212,8 @@ if ( ! function_exists( 'wpac_get_affiliate' ) ) {
 	 * @since contract 1.3.0
 	 * @param int $id Partner ID.
 	 * @return array|null { id, user_id, group_id, status, status_reason, slug, name, email, website,
-	 *                        channel, created_at, updated_at, approved_at }, or null when unknown.
+	 *                        channel, created_at, updated_at, approved_at, referred_by (recruiting
+	 *                        partner, 0 = none; since 0.15.0) }, or null when unknown.
 	 */
 	function wpac_get_affiliate( $id ) {
 		return \WPAffiliateCaptain\Core\PublicApi::get_affiliate( $id );
@@ -224,7 +225,7 @@ if ( ! function_exists( 'wpac_get_affiliates' ) ) {
 	 * List partners.
 	 *
 	 * @since contract 1.3.0
-	 * @param array $args status, group, search, per_page (1–100, default 20), page, orderby
+	 * @param array $args status, group, referred_by (since 0.15.0), search, per_page (1–100, default 20), page, orderby
 	 *                    (id|name|status|created_at), order (asc|desc).
 	 * @return array|WP_Error { items (as wpac_get_affiliate()), total, page, per_page }
 	 */
@@ -261,11 +262,14 @@ if ( ! function_exists( 'wpac_get_commissions' ) ) {
 
 if ( ! function_exists( 'wpac_update_affiliate' ) ) {
 	/**
-	 * Change name, website, channel or group of a partner (validated like the admin form, audited).
+	 * Change name, website, channel, group or recruiting partner of a partner (validated like the
+	 * admin form, audited).
 	 *
 	 * @since contract 1.3.0
 	 * @param int   $id   Partner ID.
-	 * @param array $data name, website, channel, group (ID, 0 = none); other keys → WP_Error.
+	 * @param array $data name, website, channel, group (ID, 0 = none), referred_by (partner ID,
+	 *                    0 = none; existing partner, not the partner itself, no cycle; since 0.15.0);
+	 *                    other keys → WP_Error.
 	 * @return array|WP_Error The partner (as wpac_get_affiliate()).
 	 */
 	function wpac_update_affiliate( $id, array $data ) {

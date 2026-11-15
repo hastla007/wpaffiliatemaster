@@ -14,6 +14,7 @@ use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Tracking\RateLimiter;
 use WPAffiliateCaptain\Affiliates\Agreements;
 use WPAffiliateCaptain\Codes\CodeRepository;
+use WPAffiliateCaptain\Codes\CodeRequests;
 use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Iban;
@@ -533,6 +534,22 @@ final class Portal {
 			wp_safe_redirect( add_query_arg( 'wpac_msg', $msg, $redirect ) );
 			exit;
 		}
+		if ( 'code_request' === $action ) {
+			// Own code (e.g. MARIA10), works only after the operator's approval (since 0.15.0).
+			$wish   = isset( $_POST['wpac_code_wish'] ) ? sanitize_text_field( wp_unslash( $_POST['wpac_code_wish'] ) ) : '';
+			$result = \WPAffiliateCaptain\Codes\CodeRequests::request( $aff, $wish );
+			if ( is_wp_error( $result ) ) {
+				set_transient( 'wpac_portal_error_' . get_current_user_id(), $result->get_error_message(), 5 * MINUTE_IN_SECONDS );
+				set_transient( 'wpac_code_wish_' . get_current_user_id(), Db::cut( $wish, 64 ), 15 * MINUTE_IN_SECONDS );
+			}
+			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => is_wp_error( $result ) ? 'code_request_failed' : 'code_requested', 'wpac_tab' => 'links' ), $redirect ) . '#wpac-code-request' );
+			exit;
+		}
+		if ( 'code_request_withdraw' === $action ) {
+			$done = \WPAffiliateCaptain\Codes\CodeRequests::withdraw( $aff );
+			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => $done ? 'code_request_withdrawn' : 'code_request_failed', 'wpac_tab' => 'links' ), $redirect ) . '#wpac-code-request' );
+			exit;
+		}
 		if ( 'payout_request' === $action ) {
 			$result = PayoutRequests::request( $aff );
 			if ( is_wp_error( $result ) ) {
@@ -998,12 +1015,15 @@ final class Portal {
 			'link_failed'        => array( 'error', __( 'The link could not be sent. Please contact us.', 'affiliate-captain' ) ),
 			'maintenance'        => array( 'error', __( 'The partner area is being maintained; changes are possible again shortly.', 'affiliate-captain' ) ),
 			'change_review'      => array( 'success', __( 'Saved. Your new name or website is shown after our review.', 'affiliate-captain' ) ),
+			'code_requested'     => array( 'success', __( 'Thank you. Your code request was sent; the code works as soon as we have approved it. We will let you know by e-mail.', 'affiliate-captain' ) ),
+			'code_request_failed' => array( 'error', __( 'The code could not be requested.', 'affiliate-captain' ) ),
+			'code_request_withdrawn' => array( 'success', __( 'Your code request was withdrawn.', 'affiliate-captain' ) ),
 		);
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$key = isset( $_GET['wpac_msg'] ) ? sanitize_key( wp_unslash( $_GET['wpac_msg'] ) ) : '';
 		if ( isset( $messages[ $key ] ) ) {
 			$text = $messages[ $key ][1];
-			if ( in_array( $key, array( 'request_failed', 'objection_failed', 'account_failed' ), true ) ) {
+			if ( in_array( $key, array( 'request_failed', 'objection_failed', 'account_failed', 'code_request_failed' ), true ) ) {
 				// The actual reason (e.g. below the minimum, profile incomplete).
 				$detail = self::flash( 'wpac_portal_error_' . get_current_user_id() );
 				if ( $detail ) {
@@ -1257,6 +1277,7 @@ final class Portal {
 		if ( $code ) {
 			echo self::copy_field( add_query_arg( (string) Settings::get( 'referral_param' ), $code, home_url( '/' ) ), __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo self::link_snippet( add_query_arg( (string) Settings::get( 'referral_param' ), $code, home_url( '/' ) ), __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo self::link_discount( $aff, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			/* translators: %s: code */
 			echo '<p>' . esc_html( sprintf( __( 'Or tell customers your code %s – they enter it at checkout, no cookies needed.', 'affiliate-captain' ), $code ) ) . '</p>';
 		} else {
@@ -1584,6 +1605,7 @@ final class Portal {
 			echo '<h3>' . esc_html__( 'Your partner link', 'affiliate-captain' ) . '</h3>';
 			echo self::copy_field( $link, __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo self::link_snippet( $link, __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo self::link_discount( $aff, $main ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo '<p>' . esc_html__( 'Your partner code', 'affiliate-captain' ) . ': <strong class="wpac-code">' . esc_html( $main ) . '</strong> ';
 			echo '<span class="wpac-muted">' . esc_html__( 'Customers can enter it at checkout – it works without cookies.', 'affiliate-captain' ) . '</span></p>';
 
@@ -1630,6 +1652,7 @@ final class Portal {
 		echo '<h3>' . esc_html__( 'Your codes', 'affiliate-captain' ) . '</h3>';
 		if ( ! $codes ) {
 			echo '<p>' . esc_html__( 'No codes assigned yet.', 'affiliate-captain' ) . '</p>';
+			self::code_request_box( $aff );
 			return;
 		}
 		$labels = array( __( 'Code', 'affiliate-captain' ), __( 'Coupon', 'affiliate-captain' ), __( 'Used', 'affiliate-captain' ), __( 'Valid until', 'affiliate-captain' ), __( 'Status', 'affiliate-captain' ) );
@@ -1655,6 +1678,51 @@ final class Portal {
 			);
 		}
 		echo '</tbody></table>';
+		self::code_request_box( $aff );
+	}
+
+	/**
+	 * "Request your own code" (tab Links & codes): the open request with a withdraw button, the
+	 * last decision, or the form (CodeRequests, since 0.15.0).
+	 *
+	 * @param object $aff Partner.
+	 */
+	private static function code_request_box( $aff ) {
+		if ( ! CodeRequests::enabled() || ! isset( $aff->status ) || 'active' !== $aff->status ) {
+			return;
+		}
+		echo '<section class="wpac-code-request" id="wpac-code-request" aria-labelledby="wpac-code-request-title"><h3 id="wpac-code-request-title">' . esc_html__( 'Request your own code', 'affiliate-captain' ) . '</h3>';
+		$open = CodeRequests::open_for( (int) $aff->id );
+		if ( $open ) {
+			/* translators: 1: code, 2: date */
+			echo '<p>' . esc_html( sprintf( __( 'Your request for the code %1$s from %2$s is waiting for our review. The code works as soon as we have approved it.', 'affiliate-captain' ), $open->code, wp_date( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</p>';
+			echo '<form method="post" class="wpac-form">';
+			wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
+			echo '<input type="hidden" name="wpac_portal_action" value="code_request_withdraw"><button type="submit" class="wpac-button">' . esc_html__( 'Withdraw request', 'affiliate-captain' ) . '</button></form></section>';
+			return;
+		}
+		$last = CodeRequests::last_decided( (int) $aff->id );
+		if ( $last && 'rejected' === $last['status'] ) {
+			/* translators: 1: code, 2: reason */
+			echo '<p class="wpac-notice">' . esc_html( sprintf( __( 'Your request for the code %1$s was not approved. Reason: %2$s', 'affiliate-captain' ), (string) $last['code'], (string) $last['reason'] ) ) . '</p>';
+		}
+		$blocked = CodeRequests::blocked_reason( $aff );
+		if ( '' !== $blocked ) {
+			echo '<p class="wpac-muted">' . esc_html( CodeRequests::reason_message( $blocked, (int) $aff->id ) ) . '</p></section>';
+			return;
+		}
+		$max  = CodeRequests::max_length();
+		$kept = self::flash( 'wpac_code_wish_' . get_current_user_id() );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$failed = isset( $_GET['wpac_msg'] ) && 'code_request_failed' === sanitize_key( wp_unslash( $_GET['wpac_msg'] ) );
+		/* translators: 1: maximum length */
+		$help = sprintf( __( 'An easy-to-remember code such as your name plus a number (e.g. MARIA10). Letters A–Z, digits, "-" and "_", 3 to %1$d characters. It is added to your existing codes, which remain valid.', 'affiliate-captain' ), $max );
+		echo '<form method="post" class="wpac-form">';
+		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
+		echo '<input type="hidden" name="wpac_portal_action" value="code_request">';
+		echo '<p><label for="wpac_code_wish">' . esc_html__( 'Desired code', 'affiliate-captain' ) . '</label> <input type="text" id="wpac_code_wish" name="wpac_code_wish" required minlength="3" maxlength="' . (int) $max . '" pattern="[A-Za-z0-9][A-Za-z0-9_\-]*[A-Za-z0-9]" autocomplete="off" autocapitalize="characters" spellcheck="false" value="' . esc_attr( is_string( $kept ) ? $kept : '' ) . '" aria-describedby="wpac_code_wish_help' . ( $failed ? ' wpac-portal-error' : '' ) . '"' . ( $failed ? ' aria-invalid="true"' : '' ) . '></p>';
+		echo '<p class="wpac-muted" id="wpac_code_wish_help">' . esc_html( $help ) . '</p>';
+		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Request code', 'affiliate-captain' ) . '</button></p></form></section>';
 	}
 
 	/**
@@ -1688,6 +1756,20 @@ final class Portal {
 	public static function text_link_code( $link, $text = '' ) {
 		$text = '' !== (string) $text ? (string) $text : (string) get_bloginfo( 'name' );
 		return '<a href="' . esc_url( $link ) . '" rel="sponsored noopener">' . esc_html( '' !== $text ? $text : $link ) . '</a>';
+	}
+
+	/**
+	 * Line next to the partner link: the discount customers get through the link (automatic
+	 * coupon on); '' when there is nothing to show.
+	 *
+	 * @param object $aff  Partner.
+	 * @param string $code Partner code of the link.
+	 * @return string HTML.
+	 */
+	private static function link_discount( $aff, $code ) {
+		$row  = CodeRepository::find_by_code( (string) $code );
+		$text = \WPAffiliateCaptain\Integrations\WooCommerce\AutoCoupon::portal_text( (int) $aff->id, $row ? (int) $row->id : 0 );
+		return '' !== $text ? '<p class="wpac-link-discount">' . esc_html( $text ) . '</p>' : '';
 	}
 
 	/**

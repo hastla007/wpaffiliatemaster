@@ -12,6 +12,7 @@ namespace WPAffiliateCaptain\Codes;
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -113,8 +114,9 @@ final class CodeRepository {
 		}
 		$t = Db::table( 'partner_codes' );
 		if ( $affiliate_id ) {
+			// Never a requested code (CodeRequests): linking a coupon must not activate it unapproved.
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d AND (coupon_code = %s OR (coupon_code = '' AND code = %s)) ORDER BY id DESC LIMIT 1", $affiliate_id, $coupon, self::normalize( $coupon ) ) );
+			return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d AND status <> 'requested' AND (coupon_code = %s OR (coupon_code = '' AND code = %s)) ORDER BY id DESC LIMIT 1", $affiliate_id, $coupon, self::normalize( $coupon ) ) );
 		}
 		$status = $active_only ? " AND status = 'active'" : '';
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -137,17 +139,39 @@ final class CodeRepository {
 	/**
 	 * Codes of an affiliate.
 	 *
-	 * @param int $affiliate_id Affiliate.
+	 * @param int  $affiliate_id  Affiliate.
+	 * @param bool $with_requests Also codes requested by the partner and not approved yet
+	 *                            (CodeRequests; only for the privacy export).
 	 * @return array
 	 */
-	public static function for_affiliate( $affiliate_id ) {
+	public static function for_affiliate( $affiliate_id, $with_requests = false ) {
 		global $wpdb;
-		$t = Db::table( 'partner_codes' );
+		$t     = Db::table( 'partner_codes' );
+		$extra = $with_requests ? '' : " AND status <> 'requested'";
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d ORDER BY id ASC", $affiliate_id ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d{$extra} ORDER BY id ASC", $affiliate_id ) );
 	}
 
+		/** Option prefix (+ affiliate ID) of an explicitly chosen main code (row ID, not autoloaded). */
+	const MAIN_OPTION = 'wpac_main_code_';
+
 	/**
+	 * Make a code the partner's main code without blocking the others (printed links and coupons
+	 * with earlier codes keep crediting the partner).
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @param int $row_id       Code row of this partner (0 = back to the automatic order).
+	 * @return void
+	 */
+	public static function set_main( $affiliate_id, $row_id ) {
+		if ( (int) $row_id > 0 ) {
+			update_option( self::MAIN_OPTION . (int) $affiliate_id, (int) $row_id, false );
+		} else {
+			delete_option( self::MAIN_OPTION . (int) $affiliate_id );
+		}
+	}
+
+/**
 	 * Main (non-batch, valid) code of an affiliate.
 	 *
 	 * @param int $affiliate_id Affiliate.
@@ -161,6 +185,101 @@ final class CodeRepository {
 	}
 
 	/**
+	 * Row of the main code (see main_code()), or null.
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @return object|null
+	 */
+	public static function main_row( $affiliate_id ) {
+		return self::first_valid( (int) $affiliate_id, true );
+	}
+
+	/**
+	 * Words a code requested by a partner must not be (case-insensitive), besides the names
+	 * reserved for the referral parameter (Settings::reserved_param(), R14-T6).
+	 *
+	 * @param string $code Normalized code.
+	 * @return bool
+	 */
+	public static function reserved_code( $code ) {
+		$code  = self::normalize( $code );
+		$lower = strtolower( $code );
+		$words = array( 'ADMIN', 'ADMINISTRATOR', 'ROOT', 'SYSTEM', 'SUPPORT', 'TEST', 'DEMO', 'NULL', 'NONE', 'UNDEFINED', 'TRUE', 'FALSE', 'PARTNER', 'AFFILIATE', 'REF', 'CODE', 'COUPON', 'VOUCHER', 'GUTSCHEIN', 'DISCOUNT', 'RABATT', 'FREE', 'GRATIS', 'SHOP', 'STORE', 'WPAC' );
+		/**
+		 * Codes partners cannot request (upper case, A–Z 0–9 _ -).
+		 *
+		 * @since 0.15.0
+		 * @param string[] $words Reserved codes.
+		 */
+		$words = array_map( array( __CLASS__, 'normalize' ), (array) apply_filters( 'wpac_reserved_partner_codes', $words ) );
+		// "DEL-…" marks codes replaced after an erasure (Privacy::erase()).
+		if ( in_array( $code, $words, true ) || 0 === strpos( $code, 'DEL-' ) || 0 === strpos( $code, 'WPAC' ) ) {
+			return true;
+		}
+		return $lower === strtolower( (string) Settings::get( 'referral_param' ) ) || Settings::reserved_param( $lower );
+	}
+
+	/**
+	 * Check a new code chosen by a person (a partner's request, its approval): allowed characters,
+	 * length, reserved words and unique among partner codes (also requested ones and the form
+	 * without hyphen), linked coupons, WooCommerce coupons (a coupon with the same code would
+	 * credit the partner, see filter_coupon()) and the vanity slugs of other partners (a code
+	 * wins over a slug in filter_resolve(), so it would take over that partner's links).
+	 *
+	 * @param string $raw          Code as typed.
+	 * @param int    $affiliate_id Partner who gets the code (their own slug is fine).
+	 * @param int    $exclude_id   Code row that does not count (the request being approved).
+	 * @param int    $max          Maximum length.
+	 * @return string|\WP_Error Normalized code.
+	 */
+	public static function check_new_code( $raw, $affiliate_id = 0, $exclude_id = 0, $max = 64 ) {
+		$raw = trim( (string) $raw );
+		if ( '' === $raw ) {
+			return new \WP_Error( 'wpac_code_empty', __( 'Please enter a code.', 'affiliate-captain' ) );
+		}
+		if ( ! preg_match( '/^[A-Za-z0-9](?:[A-Za-z0-9_\-]*[A-Za-z0-9])?$/', $raw ) ) {
+			return new \WP_Error( 'wpac_code_chars', __( 'Only letters A–Z, digits, "-" and "_" are allowed (no spaces, umlauts or other characters), and the code must start and end with a letter or digit.', 'affiliate-captain' ) );
+		}
+		$code = self::normalize( $raw );
+		$max  = min( 64, max( 3, (int) $max ) );
+		if ( strlen( $code ) < 3 || strlen( $raw ) > $max ) {
+			/* translators: 1: minimum length, 2: maximum length */
+			return new \WP_Error( 'wpac_code_length', sprintf( __( 'The code must have between %1$d and %2$d characters.', 'affiliate-captain' ), 3, $max ) );
+		}
+		if ( self::reserved_code( $code ) ) {
+			return new \WP_Error( 'wpac_code_reserved', __( 'This code is reserved. Please choose another one.', 'affiliate-captain' ) );
+		}
+		$taken = new \WP_Error( 'wpac_code_taken', __( 'This code is already in use. Please choose another one.', 'affiliate-captain' ) );
+		$other = static function ( $row ) use ( $exclude_id ) {
+			return $row && (int) $row->id !== (int) $exclude_id;
+		};
+		if ( $other( self::find_by_code( $code ) ) ) {
+			return $taken;
+		}
+		if ( preg_match( '/^[A-Z0-9]{4}-[A-Z0-9]{4}$/', $code ) ) {
+			global $wpdb;
+			$t = Db::table( 'partner_codes' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$plain = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE code = %s", str_replace( '-', '', $code ) ) );
+			if ( $other( $plain ) ) {
+				return $taken; // Typed without hyphen, "ABCDEFGH" would find the existing code.
+			}
+		}
+		$coupon = self::normalize_coupon( $code );
+		if ( $other( self::find_by_coupon( $coupon, false ) ) ) {
+			return $taken;
+		}
+		if ( function_exists( 'wc_get_coupon_id_by_code' ) && wc_get_coupon_id_by_code( $coupon ) ) {
+			return $taken;
+		}
+		$slug = AffiliateRepository::find_by_slug( $code );
+		if ( $slug && (int) $slug->id !== (int) $affiliate_id ) {
+			return $taken;
+		}
+		return $code;
+	}
+
+	/**
 	 * First usable code of a partner (active, not expired, not used up), by ID.
 	 *
 	 * @param int  $affiliate_id Affiliate.
@@ -169,7 +288,19 @@ final class CodeRepository {
 	 */
 	private static function first_valid( $affiliate_id, $main_only = false ) {
 		global $wpdb;
-		$t     = Db::table( 'partner_codes' );
+		$t = Db::table( 'partner_codes' );
+		if ( $main_only ) {
+			// Main code chosen explicitly (e.g. an approved code request "make main code"): the
+			// earlier codes stay valid, only the displayed main code changes.
+			$preferred = (int) get_option( self::MAIN_OPTION . (int) $affiliate_id, 0 );
+			if ( $preferred > 0 ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d AND affiliate_id = %d AND batch = ''", $preferred, (int) $affiliate_id ) );
+				if ( $row && self::validate( $row ) ) {
+					return $row;
+				}
+			}
+		}
 		$extra = '';
 		$order = 'id ASC';
 		if ( $main_only ) {
@@ -474,7 +605,7 @@ final class CodeRepository {
 	public static function query( array $args = array() ) {
 		global $wpdb;
 		$t      = Db::table( 'partner_codes' );
-		$where  = '1=1';
+		$where  = "status <> 'requested'"; // Requests are listed apart (CodeRequests).
 		$params = array();
 		if ( ! empty( $args['affiliate_id'] ) ) {
 			$where   .= ' AND affiliate_id = %d';

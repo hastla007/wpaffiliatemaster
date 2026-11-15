@@ -460,6 +460,10 @@ final class Privacy {
 			'agreement.accepted'                  => array( 'version', 'hash' ),
 			'agreement.declined'                  => array( 'version', 'hash' ),
 			'code.exported'                       => array( 'count' ),
+			'code.requested'                      => array( 'code' ),
+			'code.request_withdrawn'              => array( 'code' ),
+			'code.request_approved'               => array( 'code' ),
+			'code.request_rejected'               => array( 'code', 'reason' ), // Sent to the partner by e-mail.
 			'commission.manual'                   => array( 'commission', 'amount', 'currency' ),
 			'commission.written_off'              => array( 'amount', 'currency' ),
 			'commission.repayment'                => array( 'amount', 'currency' ),
@@ -642,6 +646,8 @@ final class Privacy {
 				array( 'name' => __( 'Application', 'affiliate-captain' ), 'value' => (string) $aff->application_note ),
 				array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $aff->status ),
 				array( 'name' => __( 'Created', 'affiliate-captain' ), 'value' => $aff->created_at ),
+				// Only the ID of the recruiting partner: their name and address are another person's data.
+				array( 'name' => __( 'Recruited by (partner ID)', 'affiliate-captain' ), 'value' => ! empty( $aff->referred_by ) ? '#' . (int) $aff->referred_by : '—' ),
 			),
 		);
 		foreach ( CodeRepository::for_affiliate( $id ) as $c ) {
@@ -652,6 +658,23 @@ final class Privacy {
 				'data'        => array(
 					array( 'name' => __( 'Code', 'affiliate-captain' ), 'value' => $c->code ),
 					array( 'name' => __( 'Used', 'affiliate-captain' ), 'value' => (string) $c->usage_count ),
+				),
+			);
+		}
+		// Codes the partner requested (open, approved, rejected, withdrawn), since 0.15.0.
+		$req_labels = \WPAffiliateCaptain\Codes\CodeRequests::status_labels();
+		foreach ( \WPAffiliateCaptain\Codes\CodeRequests::history( $id ) as $n => $r ) {
+			$status  = isset( $r['status'] ) ? (string) $r['status'] : '';
+			$items[] = array(
+				'group_id'    => 'wpac-code-requests',
+				'group_label' => __( 'Requested partner codes', 'affiliate-captain' ),
+				'item_id'     => 'wpac-code-request-' . (int) $n,
+				'data'        => array(
+					array( 'name' => __( 'Code', 'affiliate-captain' ), 'value' => isset( $r['code'] ) ? (string) $r['code'] : '' ),
+					array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => isset( $req_labels[ $status ] ) ? $req_labels[ $status ] : $status ),
+					array( 'name' => __( 'Requested on', 'affiliate-captain' ), 'value' => isset( $r['requested_at'] ) ? (string) $r['requested_at'] : '' ),
+					array( 'name' => __( 'Decided on', 'affiliate-captain' ), 'value' => isset( $r['decided_at'] ) ? (string) $r['decided_at'] : '' ),
+					array( 'name' => __( 'Reason', 'affiliate-captain' ), 'value' => isset( $r['reason'] ) ? (string) $r['reason'] : '' ),
 				),
 			);
 		}
@@ -1121,6 +1144,8 @@ final class Privacy {
 		$messages = array();
 		$open     = self::has_open_items( (int) $aff->id );
 
+		// referred_by (recruiting partner) stays: a pseudonymous link between two partner IDs that
+		// sub-affiliate bookings of add-ons may depend on; nothing else about the recruiter is stored.
 		$wpdb->update(
 			Db::table( 'affiliates' ),
 			array(
@@ -1140,7 +1165,9 @@ final class Privacy {
 			),
 			array( 'id' => (int) $aff->id )
 		);
-		// Codes may be derived from the name (vanity codes) → replace them by neutral values.
+		// Requested codes (CodeRequests) are deleted with their history; the other codes may be
+		// derived from the name (vanity codes) → replace them by neutral values.
+		\WPAffiliateCaptain\Codes\CodeRequests::forget( (int) $aff->id );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'partner_codes' ) . " SET status = 'blocked', code = CONCAT('DEL-', id) WHERE affiliate_id = %d", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		self::delete_partner_visits( (int) $aff->id, (float) $visit_budget );
 		$wpdb->delete( Db::table( 'customer_links' ), array( 'affiliate_id' => (int) $aff->id ) );
@@ -1699,7 +1726,7 @@ final class Privacy {
 	 */
 	private static function forget_applicant_options( $id ) {
 		global $wpdb;
-		foreach ( array( 'wpac_vies_', 'wpac_prev_email_', 'wpac_public_change_', 'wpac_user_link_' ) as $prefix ) {
+		foreach ( array( 'wpac_vies_', 'wpac_prev_email_', 'wpac_public_change_', 'wpac_user_link_', \WPAffiliateCaptain\Codes\CodeRequests::HISTORY_PREFIX ) as $prefix ) {
 			delete_option( $prefix . $id );
 		}
 		delete_transient( 'wpac_email_change_' . $id );

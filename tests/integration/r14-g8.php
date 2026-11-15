@@ -80,7 +80,7 @@ $g8_keys = static function () use ( $wpdb, $g8_dt ) {
 $g8_k = $g8_keys();
 check(
 	'R14-D9 schema 15: visits_daily with unique (affiliate_id, day, campaign, sub_id) and a day index; listed in Db::TABLES',
-	array( 15, 15, true, array( 1 => 'affiliate_id', 2 => 'day', 3 => 'campaign', 4 => 'sub_id', 'unique' => true ), array( 1 => 'day', 'unique' => false ), 'date' ),
+	array( 16, 16, true, array( 1 => 'affiliate_id', 2 => 'day', 3 => 'campaign', 4 => 'sub_id', 'unique' => true ), array( 1 => 'day', 'unique' => false ), 'date' ),
 	array( Installer::DB_VERSION, WPAC_DB_VERSION, in_array( 'visits_daily', Db::TABLES, true ), isset( $g8_k['affiliate_day'] ) ? $g8_k['affiliate_day'] : null, isset( $g8_k['day'] ) ? $g8_k['day'] : null, strtolower( (string) $wpdb->get_var( "SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$g8_dt}' AND COLUMN_NAME = 'day'" ) ) )
 );
 q( "DROP TABLE {$g8_dt}" );
@@ -88,7 +88,7 @@ check( 'R14-D9 verify_schema reports a missing visits_daily table', array( 'miss
 update_option( Installer::DB_OPTION, 14 );
 $GLOBALS['test_scheduled'] = array();
 Installer::install_schema();
-check( 'R14-D9 migration 14 → 15 creates the table and schedules the backfill', array( 15, strtolower( $g8_dt ), array(), true ), array( (int) get_option( Installer::DB_OPTION ), strtolower( (string) $wpdb->get_var( "SHOW TABLES LIKE '{$g8_dt}'" ) ), // lower_case_table_names=1 returns lower case.
+check( 'R14-D9 migration 14 → 15 creates the table and schedules the backfill', array( Installer::DB_VERSION, strtolower( $g8_dt ), array(), true ), array( (int) get_option( Installer::DB_OPTION ), strtolower( (string) $wpdb->get_var( "SHOW TABLES LIKE '{$g8_dt}'" ) ), // lower_case_table_names=1 returns lower case.
  Installer::verify_schema(), in_array( VisitsDaily::HOOK, $GLOBALS['test_scheduled'], true ) ) );
 check( 'R14-D9 visits_daily is not a financial table (dropped on uninstall/site deletion even when booking records are kept)', false, in_array( 'visits_daily', Installer::FINANCIAL_TABLES, true ) );
 

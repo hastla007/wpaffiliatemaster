@@ -203,6 +203,83 @@ msgstr "Erledigt."
 msgid "Search: name, slug, e-mail or ID"
 msgstr "Suche: Name, Slug, E-Mail oder ID"
 
+msgid "This action changes where money goes or exports bank details. For your protection, please enter your password again. Afterwards such actions work without asking again for %d minute in this login session."
+msgid_plural "This action changes where money goes or exports bank details. For your protection, please enter your password again. Afterwards such actions work without asking again for %d minutes in this login session."
+msgstr[0] "Diese Aktion ändert, wohin Geld fließt, oder exportiert Bankdaten. Bitte geben Sie zu Ihrem Schutz Ihr Passwort erneut ein. Danach funktionieren solche Aktionen in dieser Login-Sitzung %d Minute lang ohne erneute Abfrage."
+msgstr[1] "Diese Aktion ändert, wohin Geld fließt, oder exportiert Bankdaten. Bitte geben Sie zu Ihrem Schutz Ihr Passwort erneut ein. Danach funktionieren solche Aktionen in dieser Login-Sitzung %d Minuten lang ohne erneute Abfrage."
+
+msgid "Confirm your password"
+msgstr "Passwort bestätigen"
+
+msgid "Too many attempts. Please wait 15 minutes and try again."
+msgstr "Zu viele Versuche. Bitte warten Sie 15 Minuten und versuchen Sie es dann erneut."
+
+msgid "The password is not correct."
+msgstr "Das Passwort ist nicht korrekt."
+
+msgid "Password confirmed. The action you started had expired and was not carried out; please start it again."
+msgstr "Passwort bestätigt. Die begonnene Aktion war abgelaufen und wurde nicht ausgeführt; bitte starten Sie sie erneut."
+
+msgid "Password confirmed."
+msgstr "Passwort bestätigt."
+
+msgid "The action you started has expired (after 5 minutes) or belongs to another login. Confirm your password and then start the action again."
+msgstr "Die begonnene Aktion ist abgelaufen (nach 5 Minuten) oder gehört zu einer anderen Anmeldung. Bestätigen Sie Ihr Passwort und starten Sie die Aktion anschließend erneut."
+
+msgid "Confirm your password and then start the action again."
+msgstr "Bestätigen Sie Ihr Passwort und starten Sie die Aktion anschließend erneut."
+
+msgid "Action: %s"
+msgstr "Aktion: %s"
+
+msgid "Password"
+msgstr "Passwort"
+
+msgid "Second factor"
+msgstr "Zweiter Faktor"
+
+msgid "Confirm and continue"
+msgstr "Bestätigen und fortfahren"
+
+msgid "Back without confirming"
+msgstr "Zurück ohne Bestätigung"
+
+msgid "Approve new bank details"
+msgstr "Neue Bankdaten freigeben"
+
+msgid "Link a WordPress account to a partner"
+msgstr "WordPress-Konto mit einem Partner verknüpfen"
+
+msgid "Unlink the WordPress account of a partner"
+msgstr "WordPress-Konto eines Partners trennen"
+
+msgid "Send the link to connect the account again"
+msgstr "Link zur Kontoverknüpfung erneut senden"
+
+msgid "Change the payout and tax details of a partner"
+msgstr "Auszahlungs- und Steuerdaten eines Partners ändern"
+
+msgid "Download SEPA XML"
+msgstr "SEPA-XML herunterladen"
+
+msgid "Download transfer list (CSV, any currency)"
+msgstr "Überweisungsliste herunterladen (CSV, jede Währung)"
+
+msgid "Download PayPal payouts file (CSV)"
+msgstr "PayPal-Auszahlungsdatei herunterladen (CSV)"
+
+msgid "Mark as paid"
+msgstr "Als bezahlt markieren"
+
+msgid "Switch off the password confirmation"
+msgstr "Passwortbestätigung ausschalten"
+
+msgid "The second factor (e.g. the code of your authenticator app) is not correct."
+msgstr "Der zweite Faktor (z. B. der Code Ihrer Authenticator-App) ist nicht korrekt."
+
+msgid "The second factor could not be confirmed."
+msgstr "Der zweite Faktor konnte nicht bestätigt werden."
+
 msgid "%d partner without the current acceptance is asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week)."
 msgid_plural "%d partners without the current acceptance are asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week)."
 msgstr[0] "%d Partner ohne aktuelle Zustimmung wird per E-Mail gebeten, die Bedingungen zu akzeptieren (Versand im Hintergrund; niemand erhält mehr als eine Erinnerung pro Woche)."
@@ -232,6 +309,11 @@ msgid "%d selected partner was skipped because it is not a pending application."
 msgid_plural "%d selected partners were skipped because they are not pending applications."
 msgstr[0] "%d ausgewählter Partner wurde übersprungen, da er keine offene Bewerbung ist."
 msgstr[1] "%d ausgewählte Partner wurden übersprungen, da sie keine offenen Bewerbungen sind."
+
+msgid "This partner recruited %d partner."
+msgid_plural "This partner recruited %d partners."
+msgstr[0] "Dieser Partner hat %d Partner geworben."
+msgstr[1] "Dieser Partner hat %d Partner geworben."
 
 msgid "%d active partner has not accepted the current partner terms yet; credit notes cannot be issued to them."
 msgid_plural "%d active partners have not accepted the current partner terms yet; credit notes cannot be issued to them."
@@ -271,6 +353,12 @@ msgstr "Der WordPress-Benutzer wurde getrennt. Der Partner behält alle Daten; e
 msgid "Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved."
 msgstr "Die E-Mail-Adresse eines Partners mit Zugang zum Partnerbereich oder mit Auszahlungsdaten kann nur mit der Berechtigung für Auszahlungen geändert werden. Es wurde nichts gespeichert."
 
+msgid "The recruiting partner does not exist."
+msgstr "Der werbende Partner existiert nicht."
+
+msgid "Nothing was saved."
+msgstr "Es wurde nichts gespeichert."
+
 msgid "Partner saved."
 msgstr "Partner gespeichert."
 
@@ -297,6 +385,72 @@ msgstr "Die Verarbeitung ist eingeschränkt: keine neuen Zuordnungen, keine Beri
 
 msgid "Decision saved; the partner was informed."
 msgstr "Entscheidung gespeichert; der Partner wurde informiert."
+
+msgid "Code %s approved and active; the partner was informed."
+msgstr "Code %s freigegeben und aktiv; der Partner wurde informiert."
+
+msgid "It is the main code now; the earlier codes stay valid."
+msgstr "Er ist jetzt der Hauptcode; die bisherigen Codes bleiben gültig."
+
+msgid "Code request rejected; the partner was informed."
+msgstr "Code-Antrag abgelehnt; der Partner wurde informiert."
+
+msgid "Requested partner codes"
+msgstr "Beantragte Partnercodes"
+
+msgid "The oldest %1$d of %2$d requests are shown."
+msgstr "Angezeigt werden die ältesten %1$d von %2$d Anträgen."
+
+msgid "Partner"
+msgstr "Partner"
+
+msgid "Requested code"
+msgstr "Beantragter Code"
+
+msgid "Current main code"
+msgstr "Aktueller Hauptcode"
+
+msgid "Approve"
+msgstr "Freigeben"
+
+msgid "Reject"
+msgstr "Ablehnen"
+
+msgid "coupon %s"
+msgstr "Gutschein %s"
+
+msgid "Make main code (the current main code %s stays valid)"
+msgstr "Zum Hauptcode machen (der bisherige Hauptcode %s bleibt gültig)"
+
+msgid "Make main code"
+msgstr "Zum Hauptcode machen"
+
+msgid "WooCommerce coupon"
+msgstr "WooCommerce-Gutschein"
+
+msgid "No coupon change"
+msgstr "Gutschein nicht ändern"
+
+msgid "Rename the coupon %1$s to %2$s and link it to the new code"
+msgstr "Gutschein %1$s in %2$s umbenennen und mit dem neuen Code verknüpfen"
+
+msgid "Create a WooCommerce coupon with this code:"
+msgstr "WooCommerce-Gutschein mit diesem Code anlegen:"
+
+msgid "Discount type"
+msgstr "Rabattart"
+
+msgid "Percentage discount"
+msgstr "Prozentualer Rabatt"
+
+msgid "Fixed cart discount"
+msgstr "Fester Warenkorbrabatt"
+
+msgid "Amount"
+msgstr "Betrag"
+
+msgid "Reason (sent to the partner)"
+msgstr "Begründung (wird an den Partner gesendet)"
 
 msgid "Code created."
 msgstr "Code angelegt."
@@ -439,12 +593,6 @@ msgstr "Letzter Grund"
 msgid "Application"
 msgstr "Bewerbung"
 
-msgid "Approve"
-msgstr "Freigeben"
-
-msgid "Reject"
-msgstr "Ablehnen"
-
 msgid "Pause"
 msgstr "Pausieren"
 
@@ -489,6 +637,15 @@ msgstr "Kein WordPress-Benutzer verknüpft: Der Partner kann sich noch nicht im 
 
 msgid "Vanity slug"
 msgstr "Kurzname (für Links)"
+
+msgid "Recruited by"
+msgstr "Geworben von"
+
+msgid "Open recruiting partner"
+msgstr "Werbenden Partner öffnen"
+
+msgid "The partner whose referral link this partner registered through. Stored for add-ons (e.g. sub-affiliate programs); the free plugin pays no commission for it."
+msgstr "Der Partner, über dessen Empfehlungslink sich dieser Partner registriert hat. Gespeichert für Add-ons (z. B. Sub-Affiliate-Programme); das kostenlose Plugin zahlt dafür keine Provision."
 
 msgid "Landing page"
 msgstr "Landingpage"
@@ -636,18 +793,6 @@ msgstr "Neuer Partnercode (aus dem Gutscheincode abgeleitet)"
 
 msgid "Empty coupon code = the selected partner code. The coupon must not exist in WooCommerce yet."
 msgstr "Leerer Gutscheincode = der gewählte Partnercode. Der Gutschein darf in WooCommerce noch nicht existieren."
-
-msgid "Discount type"
-msgstr "Rabattart"
-
-msgid "Percentage discount"
-msgstr "Prozentualer Rabatt"
-
-msgid "Fixed cart discount"
-msgstr "Fester Warenkorbrabatt"
-
-msgid "Amount"
-msgstr "Betrag"
 
 msgid "Individual use only"
 msgstr "Nur einzeln verwendbar"
@@ -1023,6 +1168,21 @@ msgstr "Gutschein verknüpft"
 msgid "Codes exported"
 msgstr "Codes exportiert"
 
+msgid "Own code requested by the partner"
+msgstr "Eigener Code vom Partner beantragt"
+
+msgid "Code request withdrawn by the partner"
+msgstr "Code-Antrag vom Partner zurückgezogen"
+
+msgid "Code request approved"
+msgstr "Code-Antrag freigegeben"
+
+msgid "Code request rejected"
+msgstr "Code-Antrag abgelehnt"
+
+msgid "Coupon renamed"
+msgstr "Gutschein umbenannt"
+
 msgid "Payment request sent"
 msgstr "Zahlungsaufforderung gesendet"
 
@@ -1179,6 +1339,12 @@ msgstr "Datenbank-Update hängt"
 msgid "Settings changed"
 msgstr "Einstellungen geändert"
 
+msgid "Password confirmed for a money-relevant action"
+msgstr "Passwort für eine geldrelevante Aktion bestätigt"
+
+msgid "Password confirmation failed"
+msgstr "Passwortbestätigung fehlgeschlagen"
+
 msgid "Maintenance mode switched"
 msgstr "Wartungsmodus umgeschaltet"
 
@@ -1305,6 +1471,9 @@ msgstr "Einstellungsbereich"
 msgid "Month"
 msgstr "Monat"
 
+msgid "Action"
+msgstr "Aktion"
+
 msgid "Moved"
 msgstr "Verschoben"
 
@@ -1313,6 +1482,15 @@ msgstr "versendet"
 
 msgid "failed"
 msgstr "fehlgeschlagen"
+
+msgid "wrong password"
+msgstr "falsches Passwort"
+
+msgid "second factor not confirmed"
+msgstr "zweiter Faktor nicht bestätigt"
+
+msgid "too many attempts"
+msgstr "zu viele Versuche"
 
 msgid "Data export"
 msgstr "Datenauskunft"
@@ -1337,9 +1515,6 @@ msgstr "Keine Einträge passen zu diesem Filter."
 
 msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
 msgstr "Noch keine Einträge. Änderungen an Partnern, Provisionen, Auszahlungen und Einstellungen werden hier aufgezeichnet."
-
-msgid "Partner"
-msgstr "Partner"
 
 msgid "Commission"
 msgstr "Provision"
@@ -1376,9 +1551,6 @@ msgstr "Geplante Aufgaben"
 
 msgid "All of \"%s\""
 msgstr "Alle von „%s“"
-
-msgid "Action"
-msgstr "Aktion"
 
 msgid "All actions"
 msgstr "Alle Aktionen"
@@ -2636,18 +2808,6 @@ msgstr "Sammelaktion für ausgewählte Auszahlungen"
 msgid "— Choose action —"
 msgstr "— Aktion wählen —"
 
-msgid "Download SEPA XML"
-msgstr "SEPA-XML herunterladen"
-
-msgid "Download transfer list (CSV, any currency)"
-msgstr "Überweisungsliste herunterladen (CSV, jede Währung)"
-
-msgid "Download PayPal payouts file (CSV)"
-msgstr "PayPal-Auszahlungsdatei herunterladen (CSV)"
-
-msgid "Mark as paid"
-msgstr "Als bezahlt markieren"
-
 msgid "Cancel"
 msgstr "Stornieren"
 
@@ -3203,6 +3363,9 @@ msgstr "Bewerbungen automatisch freigeben"
 msgid "Open commissions on termination"
 msgstr "Offene Provisionen bei Beendigung"
 
+msgid "Partners can request an own partner code (e.g. MARIA10) in the partner area"
+msgstr "Partner können im Partnerbereich einen eigenen Partnercode beantragen (z. B. MARIA10)"
+
 msgid "Sender name"
 msgstr "Absendername"
 
@@ -3242,6 +3405,9 @@ msgstr "Bestellungen mit Wegwerf- oder gesperrten E-Mail-Domains prüfen"
 msgid "Additional blocked domains"
 msgstr "Zusätzlich gesperrte Domains"
 
+msgid "Ask for the password again before payout files, marking payouts as paid, bank details and account links"
+msgstr "Passwort erneut abfragen vor Auszahlungsdateien, „Als bezahlt markieren“, Bankdaten und Kontoverknüpfungen"
+
 msgid "Default commission type"
 msgstr "Standard-Provisionsart"
 
@@ -3265,6 +3431,9 @@ msgstr "Werberichtlinien für Partner"
 
 msgid "Show the disclosure note visibly above the banner embed code"
 msgstr "Kennzeichnungshinweis sichtbar über dem Banner-Einbettungscode anzeigen"
+
+msgid "Apply the partner's coupon automatically after a partner link"
+msgstr "Gutschein des Partners nach einem Partnerlink automatisch einlösen"
 
 msgid "Partners can request payouts in the partner area"
 msgstr "Partner können Auszahlungen im Partnerbereich beantragen"
@@ -3374,6 +3543,9 @@ msgstr "Bleiben auszahlbar"
 msgid "Are rejected"
 msgstr "Werden abgelehnt"
 
+msgid "Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page."
+msgstr "Anträge werden wie von Ihnen angelegte Codes geprüft (Zeichen, Länge, reservierte Wörter, nicht schon als Code, Gutschein oder Partneradresse vergeben) und funktionieren erst, nachdem Sie sie auf der Seite „Partner“ freigegeben haben."
+
 msgid "Addresses"
 msgstr "Adressen"
 
@@ -3467,6 +3639,9 @@ msgstr "Missbrauchsschutz"
 msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
 msgstr "IP-Adressen oder Bereiche (CIDR) Ihres Reverse-Proxys oder CDN (z. B. Cloudflare). Nur bei diesen wird die Besucher-IP aus X-Forwarded-For gelesen (CF-Connecting-IP nur mit dem Filter wpac_client_ip_headers). Ohne Proxy leer lassen."
 
+msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
+msgstr "Bankdaten freigeben, ein Partnerkonto verknüpfen oder trennen, Auszahlungsdaten ändern, SEPA-, Überweisungs- oder PayPal-Dateien herunterladen und Auszahlungen als bezahlt markieren erfordern eine Passwortbestätigung, die 15 Minuten in der Login-Sitzung gilt (mit dem Plugin Two-Factor auch dessen zweiten Faktor). WP-CLI und die REST-API sind nicht betroffen. Auch das Ausschalten erfordert eine Bestätigung."
+
 msgid "One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies."
 msgstr "Einer pro Zeile: 1 Einheit der Währung = x %s. Provisionen und Auszahlungen werden nie umgerechnet; die Kurse dienen nur Berichten und dem Mindestbetrag in anderen Währungen."
 
@@ -3517,6 +3692,9 @@ msgstr "Fügen Sie [wpac_partner_welcome] ein, um „Empfohlen von …“ anzuze
 
 msgid "The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. \"Advertisement\"), so the label stays with the banner on the partner's website."
 msgstr "Der HTML-Code, den Partner für ein Banner kopieren, beginnt dann mit dem Kennzeichnungshinweis des Werbemittels (z. B. „Werbung“), sodass die Kennzeichnung auf der Website des Partners beim Banner bleibt."
+
+msgid "WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an \"individual use\" coupon is not combined. Not for the partner's own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before."
+msgstr "WooCommerce: Kommt ein Besucher über einen Partnerlink oder Kurzlink und hat der Partner einen verknüpften Gutschein, wird der Gutschein einmal in den Warenkorb gelegt (beim ersten Produkt, auch später in derselben Shop-Sitzung). WooCommerce prüft den Gutschein wie gewohnt (Ablaufdatum, Nutzungslimits, Mindestbestellwert); ein vom Kunden eingegebener Gutschein wird nie entfernt, und ein Gutschein „Nur einzeln verwendbar“ wird nicht kombiniert. Nicht bei eigenen Käufen des Partners, nicht bei pausierten oder gesperrten Partnern und nur mit einer Empfehlung, die nach Ihren Tracking- und Einwilligungseinstellungen erfasst wurde. Partner sehen den Rabatt neben ihrem Link. Die Bestellung wird wie bisher zugeordnet."
 
 msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
 msgstr "Erlaubte Aussagen, Kennzeichnungspflicht, verbotene Kanäle, Meldeweg bei Problemen. Wird im Partnerbereich angezeigt."
@@ -3728,6 +3906,18 @@ msgstr "Mit dieser E-Mail-Adresse existiert bereits ein Partnerkonto."
 msgid "The affiliate could not be saved."
 msgstr "Der Partner konnte nicht gespeichert werden."
 
+msgid "A partner cannot be their own recruiter."
+msgstr "Ein Partner kann nicht sein eigener Werber sein."
+
+msgid "The chosen recruiter was recruited (directly or indirectly) by this partner: that would form a cycle."
+msgstr "Der gewählte Werber wurde (direkt oder indirekt) von diesem Partner geworben: Das ergäbe einen Kreis."
+
+msgid "The chain of recruiters is too long."
+msgstr "Die Kette der Werber ist zu lang."
+
+msgid "Affiliate not found."
+msgstr "Partner nicht gefunden."
+
 msgid "The partner data could not be saved. Please try again; the previous data are unchanged."
 msgstr "Die Partnerdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut; die bisherigen Daten sind unverändert."
 
@@ -3742,9 +3932,6 @@ msgstr "[%s] Die E-Mail-Adresse Ihres Partnerkontos wurde geändert"
 
 msgid "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately."
 msgstr "Hallo,\n\ndie E-Mail-Adresse Ihres Partnerkontos wurde auf %s geändert. Wenn Sie das nicht waren, melden Sie sich bitte sofort bei uns."
-
-msgid "Affiliate not found."
-msgstr "Partner nicht gefunden."
 
 msgid "Invalid status."
 msgstr "Ungültiger Status."
@@ -3911,6 +4098,15 @@ msgstr "Änderung von Name oder Website freigegeben"
 msgid "Name or website change not approved"
 msgstr "Änderung von Name oder Website nicht freigegeben"
 
+msgid "Partner requested an own code (to you)"
+msgstr "Partner hat einen eigenen Code beantragt (an Sie)"
+
+msgid "Requested code approved"
+msgstr "Beantragter Code freigegeben"
+
+msgid "Requested code not approved"
+msgstr "Beantragter Code nicht freigegeben"
+
 msgid "Partner account paused"
 msgstr "Partnerkonto pausiert"
 
@@ -3926,8 +4122,14 @@ msgstr "Name Ihrer Website"
 msgid "Confirmation link"
 msgstr "Bestätigungslink"
 
+msgid "Partner link with the new code"
+msgstr "Partnerlink mit dem neuen Code"
+
 msgid "Partner link (start page with the partner code)"
 msgstr "Partnerlink (Startseite mit dem Partnercode)"
+
+msgid "Address of the list of open requests in the admin"
+msgstr "Adresse der Liste offener Anträge im Admin"
 
 msgid "Commission rate"
 msgstr "Provisionssatz"
@@ -4048,6 +4250,24 @@ msgstr "Hallo,\n\nIhr neuer Name bzw. Ihre neue Website für das Partnerprogramm
 
 msgid "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us."
 msgstr "Hallo,\n\ndie gewünschte Änderung von Name oder Website für das Partnerprogramm wurde nicht freigegeben. Die bisherigen Angaben bleiben. Bei Fragen melden Sie sich bitte bei uns."
+
+msgid "[%1$s] Partner requests the code %2$s"
+msgstr "[%1$s] Partner beantragt den Code %2$s"
+
+msgid "%1$s would like to use the code %2$s. The code works only after you approve it:\n\n%3$s"
+msgstr "%1$s möchte den Code %2$s verwenden. Der Code funktioniert erst, nachdem Sie ihn freigegeben haben:\n\n%3$s"
+
+msgid "[%s] Your new partner code"
+msgstr "[%s] Ihr neuer Partnercode"
+
+msgid "Hello %1$s,\n\nyour requested code %2$s was approved and works from now on – customers can enter it at checkout.\n\nYour partner link with the new code: %3$s\n\nAll your links and codes: %4$s"
+msgstr "Hallo %1$s,\n\nIhr beantragter Code %2$s wurde freigegeben und funktioniert ab sofort – Kunden können ihn auch an der Kasse eingeben.\n\nIhr Partnerlink mit dem neuen Code: %3$s\n\nAlle Ihre Links und Codes: %4$s"
+
+msgid "[%s] Your code request"
+msgstr "[%s] Ihr Code-Antrag"
+
+msgid "Hello %1$s,\n\nunfortunately we could not approve the code %2$s.\n\nReason: %3$s\n\nYour previous codes remain valid. You can request another code in your partner area: %4$s"
+msgstr "Hallo %1$s,\n\nleider können wir den Code %2$s nicht freigeben.\n\nBegründung: %3$s\n\nIhre bisherigen Codes bleiben gültig. Einen anderen Code können Sie in Ihrem Partnerbereich beantragen: %4$s"
 
 msgid "[%s] Your partner account has been paused"
 msgstr "[%s] Ihr Partnerkonto wurde pausiert"
@@ -4313,6 +4533,21 @@ msgstr "Ihre Partnerschaft ist beendet. Ihre Provisionen und Auszahlungen könne
 msgid "You already have a partner account."
 msgstr "Sie haben bereits ein Partnerkonto."
 
+msgid "Please enter a code."
+msgstr "Bitte geben Sie einen Code ein."
+
+msgid "Only letters A–Z, digits, \"-\" and \"_\" are allowed (no spaces, umlauts or other characters), and the code must start and end with a letter or digit."
+msgstr "Erlaubt sind nur die Buchstaben A–Z, Ziffern, „-“ und „_“ (keine Leerzeichen, Umlaute oder anderen Zeichen); der Code muss mit einem Buchstaben oder einer Ziffer beginnen und enden."
+
+msgid "The code must have between %1$d and %2$d characters."
+msgstr "Der Code muss zwischen %1$d und %2$d Zeichen lang sein."
+
+msgid "This code is reserved. Please choose another one."
+msgstr "Dieser Code ist reserviert. Bitte wählen Sie einen anderen."
+
+msgid "This code is already in use. Please choose another one."
+msgstr "Dieser Code ist bereits vergeben. Bitte wählen Sie einen anderen."
+
 msgid "Codes need at least 3 characters."
 msgstr "Codes benötigen mindestens 3 Zeichen."
 
@@ -4327,6 +4562,62 @@ msgstr "Es gibt keinen WooCommerce-Gutschein „%s“. Bitte legen Sie den Gutsc
 
 msgid "The coupon \"%1$s\" is already linked to partner \"%2$s\". Remove that link first."
 msgstr "Der Gutschein „%1$s“ ist bereits mit dem Partner „%2$s“ verknüpft. Entfernen Sie zuerst diese Verknüpfung."
+
+msgid "You can request %d code within 30 days. Please try again later."
+msgid_plural "You can request %d codes within 30 days. Please try again later."
+msgstr[0] "Sie können innerhalb von 30 Tagen %d Code beantragen. Bitte versuchen Sie es später erneut."
+msgstr[1] "Sie können innerhalb von 30 Tagen %d Codes beantragen. Bitte versuchen Sie es später erneut."
+
+msgid "Requests for own codes are switched off."
+msgstr "Anträge auf eigene Codes sind ausgeschaltet."
+
+msgid "Only active partners can request a code."
+msgstr "Nur aktive Partner können einen Code beantragen."
+
+msgid "You already have a code request waiting for review. Please wait for our decision or withdraw it first."
+msgstr "Sie haben bereits einen Code-Antrag, der auf unsere Prüfung wartet. Bitte warten Sie unsere Entscheidung ab oder ziehen Sie ihn zuerst zurück."
+
+msgid "The code could not be requested."
+msgstr "Der Code konnte nicht beantragt werden."
+
+msgid "This request was already decided or withdrawn."
+msgstr "Über diesen Antrag wurde bereits entschieden, oder er wurde zurückgezogen."
+
+msgid "The partner is no longer active. Please reject the request."
+msgstr "Der Partner ist nicht mehr aktiv. Bitte lehnen Sie den Antrag ab."
+
+msgid "Please reject the request with a short explanation."
+msgstr "Bitte lehnen Sie den Antrag mit einer kurzen Begründung ab."
+
+msgid "The current main code has no linked coupon that could be renamed."
+msgstr "Der aktuelle Hauptcode hat keinen verknüpften Gutschein, der umbenannt werden könnte."
+
+msgid "Coupons can only be changed while WooCommerce is active and with the right to edit coupons."
+msgstr "Gutscheine können nur bei aktivem WooCommerce und mit dem Recht zum Bearbeiten von Gutscheinen geändert werden."
+
+msgid "Please enter a discount greater than 0 (at most 100 for a percentage discount)."
+msgstr "Bitte geben Sie einen Rabatt größer als 0 ein (höchstens 100 bei prozentualem Rabatt)."
+
+msgid "The coupon was not created: %s"
+msgstr "Der Gutschein wurde nicht angelegt: %s"
+
+msgid "The coupon \"%s\" was not renamed: it no longer exists in WooCommerce."
+msgstr "Der Gutschein „%s“ wurde nicht umbenannt: Er existiert in WooCommerce nicht mehr."
+
+msgid "The coupon could not be renamed: %s"
+msgstr "Der Gutschein konnte nicht umbenannt werden: %s"
+
+msgid "Please enter a reason (it is sent to the partner)."
+msgstr "Bitte geben Sie eine Begründung ein (sie wird an den Partner gesendet)."
+
+msgid "Waiting for review"
+msgstr "Wartet auf Prüfung"
+
+msgid "Not approved"
+msgstr "Nicht freigegeben"
+
+msgid "Withdrawn"
+msgstr "Zurückgezogen"
 
 msgid "Booking #%d: chain broken (a booking was removed or reordered)."
 msgstr "Buchung #%d: Kette unterbrochen (eine Buchung wurde entfernt oder umsortiert)."
@@ -5075,6 +5366,15 @@ msgstr "Australien"
 msgid "New Zealand"
 msgstr "Neuseeland"
 
+msgid "Your partner discount (coupon %s) was applied automatically."
+msgstr "Ihr Partnerrabatt (Gutschein %s) wurde automatisch eingelöst."
+
+msgid "%s per product"
+msgstr "%s pro Produkt"
+
+msgid "Your link gives customers %1$s off: the coupon %2$s is applied to their cart automatically."
+msgstr "Ihr Link gibt Kunden %1$s Rabatt: Der Gutschein %2$s wird automatisch in ihren Warenkorb gelegt."
+
 msgid "Partner code (optional)"
 msgstr "Partnercode (optional)"
 
@@ -5110,9 +5410,6 @@ msgstr "Bitte geben Sie einen Gutscheincode ein."
 
 msgid "A WooCommerce coupon \"%s\" already exists. Link it in the code table instead, or choose another coupon code."
 msgstr "Ein WooCommerce-Gutschein „%s“ existiert bereits. Verknüpfen Sie ihn stattdessen in der Code-Tabelle oder wählen Sie einen anderen Gutscheincode."
-
-msgid "Please enter a discount greater than 0 (at most 100 for a percentage discount)."
-msgstr "Bitte geben Sie einen Rabatt größer als 0 ein (höchstens 100 bei prozentualem Rabatt)."
 
 msgid "Please enter a valid expiry date that is not in the past."
 msgstr "Bitte geben Sie ein gültiges Ablaufdatum ein, das nicht in der Vergangenheit liegt."
@@ -5173,6 +5470,9 @@ msgstr "Manuell zuordnen"
 
 msgid "Commission is created once the order is paid."
 msgstr "Die Provision wird angelegt, sobald die Bestellung bezahlt ist."
+
+msgid "Coupon %s was applied automatically after the partner link."
+msgstr "Gutschein %s wurde nach dem Partnerlink automatisch eingelöst."
 
 msgid "Lifetime customer of partner \"%1$s\" (since order %2$s)."
 msgstr "Lifetime-Kunde des Partners „%1$s“ (seit Bestellung %2$s)."
@@ -6174,6 +6474,12 @@ msgstr "Der Partnerbereich wird gerade gewartet; Änderungen sind in Kürze wied
 msgid "Saved. Your new name or website is shown after our review."
 msgstr "Gespeichert. Ihr neuer Name bzw. Ihre neue Website wird nach unserer Prüfung angezeigt."
 
+msgid "Thank you. Your code request was sent; the code works as soon as we have approved it. We will let you know by e-mail."
+msgstr "Vielen Dank. Ihr Code-Antrag wurde gesendet; der Code funktioniert, sobald wir ihn freigegeben haben. Wir informieren Sie per E-Mail."
+
+msgid "Your code request was withdrawn."
+msgstr "Ihr Code-Antrag wurde zurückgezogen."
+
 msgid "Our partner program terms have been updated."
 msgstr "Die Bedingungen unseres Partnerprogramms wurden aktualisiert."
 
@@ -6422,6 +6728,27 @@ msgstr "Noch keine Codes zugewiesen."
 
 msgid "Inactive"
 msgstr "Inaktiv"
+
+msgid "Request your own code"
+msgstr "Eigenen Code beantragen"
+
+msgid "Your request for the code %1$s from %2$s is waiting for our review. The code works as soon as we have approved it."
+msgstr "Ihr Antrag auf den Code %1$s vom %2$s wartet auf unsere Prüfung. Der Code funktioniert, sobald wir ihn freigegeben haben."
+
+msgid "Withdraw request"
+msgstr "Antrag zurückziehen"
+
+msgid "Your request for the code %1$s was not approved. Reason: %2$s"
+msgstr "Ihr Antrag auf den Code %1$s wurde nicht freigegeben. Begründung: %2$s"
+
+msgid "An easy-to-remember code such as your name plus a number (e.g. MARIA10). Letters A–Z, digits, \"-\" and \"_\", 3 to %1$d characters. It is added to your existing codes, which remain valid."
+msgstr "Ein leicht zu merkender Code, etwa Ihr Name mit einer Zahl (z. B. MARIA10). Buchstaben A–Z, Ziffern, „-“ und „_“, 3 bis %1$d Zeichen. Er kommt zu Ihren bisherigen Codes hinzu, die gültig bleiben."
+
+msgid "Desired code"
+msgstr "Wunschcode"
+
+msgid "Request code"
+msgstr "Code beantragen"
 
 msgid "HTML text link (marked rel=\"sponsored\")"
 msgstr "HTML-Textlink (gekennzeichnet mit rel=\"sponsored\")"
@@ -6793,6 +7120,15 @@ msgstr "wartet auf den Abschluss der Bestellung"
 msgid "active"
 msgstr "aktiv"
 
+msgid "Recruited by (partner ID)"
+msgstr "Geworben von (Partner-ID)"
+
+msgid "Requested on"
+msgstr "Beantragt am"
+
+msgid "Decided on"
+msgstr "Entschieden am"
+
 msgid "Payout requests"
 msgstr "Auszahlungsanträge"
 
@@ -6804,9 +7140,6 @@ msgstr "Frühere Steuerdaten"
 
 msgid "Requested change of the tax data (waiting for approval)"
 msgstr "Beantragte Änderung der Steuerdaten (wartet auf Freigabe)"
-
-msgid "Requested on"
-msgstr "Beantragt am"
 
 msgid "Name registered with VIES"
 msgstr "Bei VIES registrierter Name"
@@ -6999,6 +7332,9 @@ msgstr "Der Entwurf konnte nicht gespeichert werden. Bitte versuchen Sie es erne
 
 msgid "Only drafts can be approved."
 msgstr "Nur Entwürfe können freigegeben werden."
+
+msgid "Your discount: %1$s off with the coupon %2$s. If it is not in your cart automatically, enter it at checkout."
+msgstr "Ihr Rabatt: %1$s mit dem Gutschein %2$s. Falls er nicht automatisch im Warenkorb ist, geben Sie ihn an der Kasse ein."
 
 msgid "here is your summary for %s:"
 msgstr "hier ist Ihre Zusammenfassung für %s:"
@@ -7200,3 +7536,7 @@ msgstr "Bis"
 msgctxt "e-invoice link"
 msgid "(XML)"
 msgstr "(XML)"
+
+msgctxt "percentage discount"
+msgid "%s%%"
+msgstr "%s %%"

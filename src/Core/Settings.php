@@ -77,6 +77,7 @@ final class Settings {
 			'portal_page_id'          => 0,
 			'registration_page_id'    => 0,
 			'terminated_open'         => 'pay',      // pay|reject.
+			'code_requests'           => 1,          // Partners can request an own code in the partner area (since 0.15.0).
 			'admin_email'             => '',
 			// E-mails: sender ('' = WordPress default) and optional partner notices.
 			'mail_from_name'          => '',
@@ -93,6 +94,7 @@ final class Settings {
 			'default_disclosure'      => function_exists( 'did_action' ) && did_action( 'init' ) ? __( 'Advertisement', 'affiliate-captain' ) : 'Advertisement',
 			'promotion_guidelines'    => '',
 			'embed_disclosure_label'  => 1,          // Visible disclosure label above the banner embed code (R14-L3).
+			'auto_apply_coupon'       => 0,          // Apply the partner's linked WooCommerce coupon after a partner link (0.15.0).
 			// Payouts.
 			'min_payout_minor'        => 5000,
 			'payout_requests'         => 0,
@@ -124,6 +126,7 @@ final class Settings {
 			'fraud_max_refund_rate'   => 0,
 			'fraud_check_domains'     => 1,
 			'fraud_blocked_domains'   => '',
+			'reauth_required'         => 1, // Password confirmation before money-relevant admin actions (R14-P2).
 			// Reporting.
 			'report_admin'            => 1,
 			'report_partners'         => 0,
@@ -440,7 +443,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label', 'auto_apply_coupon', 'reauth_required', 'code_requests' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 

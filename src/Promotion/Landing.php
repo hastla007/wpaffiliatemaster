@@ -612,8 +612,15 @@ final class Landing {
 	 * @return string
 	 */
 	public static function welcome( $atts = array() ) {
-		/* translators: %s: partner name */
-		$atts  = shortcode_atts( array( 'text' => __( 'Recommended by %s', 'affiliate-captain' ) ), (array) $atts, 'wpac_partner_welcome' );
+		$atts  = shortcode_atts(
+			array(
+				/* translators: %s: partner name */
+				'text'     => __( 'Recommended by %s', 'affiliate-captain' ),
+				'discount' => '',
+			),
+			(array) $atts,
+			'wpac_partner_welcome'
+		);
 		// Visitor-specific output must not end up in a page cache (also when the box stays
 		// empty: the cached copy would be served to visitors with a partner link).
 		self::no_cache();
@@ -641,8 +648,9 @@ final class Landing {
 		if ( ! $aff ) {
 			return '';
 		}
-		$name = self::display_name( (string) $aff->name );
-		if ( '' === $name && ! $aff->landing_message ) {
+		$name     = self::display_name( (string) $aff->name );
+		$discount = in_array( strtolower( (string) $atts['discount'] ), array( '1', 'yes', 'true' ), true ) ? self::welcome_discount( $aff, $resolved ) : '';
+		if ( '' === $name && ! $aff->landing_message && '' === $discount ) {
 			return '';
 		}
 		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
@@ -656,7 +664,31 @@ final class Landing {
 		if ( $aff->landing_message ) {
 			$out .= '<p>' . nl2br( esc_html( $aff->landing_message ) ) . '</p>';
 		}
+		if ( '' !== $discount ) {
+			$out .= '<p class="wpac-welcome-discount">' . esc_html( $discount ) . '</p>';
+		}
 		return $out . '</div>';
+	}
+
+	/**
+	 * Discount line of the welcome box (attribute discount="1"): only with the automatic partner
+	 * coupon switched on and a usable coupon of this partner.
+	 *
+	 * @param object $aff      Partner.
+	 * @param array  $resolved Resolved code of the visit.
+	 * @return string
+	 */
+	private static function welcome_discount( $aff, array $resolved ) {
+		if ( ! \WPAffiliateCaptain\Integrations\WooCommerce\AutoCoupon::enabled() ) {
+			return '';
+		}
+		$coupon = \WPAffiliateCaptain\Integrations\WooCommerce\AutoCoupon::coupon_for( (int) $aff->id, isset( $resolved['code_id'] ) ? (int) $resolved['code_id'] : 0 );
+		$label  = '' !== $coupon ? \WPAffiliateCaptain\Integrations\WooCommerce\AutoCoupon::discount_label( $coupon ) : '';
+		if ( '' === $label ) {
+			return '';
+		}
+		/* translators: 1: discount, e.g. "10%" or "5,00 €", 2: coupon code */
+		return sprintf( __( 'Your discount: %1$s off with the coupon %2$s. If it is not in your cart automatically, enter it at checkout.', 'affiliate-captain' ), $label, strtoupper( $coupon ) );
 	}
 
 	/**
