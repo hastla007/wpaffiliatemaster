@@ -356,7 +356,7 @@ final class CommissionsPage {
 			printf(
 				'<tr><td>%s</td><td>%s</td><td>%s → %s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( Admin::date( $e->created_at, true ) ),
-				esc_html( self::event_label( (string) $e->event, $labels ) ),
+				esc_html( Ledger::LINK_EVENT === (string) $e->event && 0 === strpos( (string) $e->source_event_id, Ledger::LINK_PREFIX ) ? sprintf( /* translators: %d: commission ID */ __( 'Refers to commission #%d (information only)', 'affiliate-captain' ), (int) substr( (string) $e->source_event_id, strlen( Ledger::LINK_PREFIX ) ) ) : self::event_label( (string) $e->event, $labels ) ),
 				esc_html( $e->from_status ? ( isset( $labels[ $e->from_status ] ) ? $labels[ $e->from_status ] : $e->from_status ) : '·' ),
 				esc_html( isset( $labels[ $e->to_status ] ) ? $labels[ $e->to_status ] : $e->to_status ),
 				esc_html( Money::format( (int) $e->amount_minor, $c->currency ) ),
@@ -394,6 +394,7 @@ final class CommissionsPage {
 			'adjusted'        => __( 'Corrected (refund or reinstatement)', 'affiliate-captain' ),
 			'payout_assigned' => __( 'Added to a payout', 'affiliate-captain' ),
 			'payout_released' => __( 'Released from a cancelled payout', 'affiliate-captain' ),
+			'linked'          => __( 'Reference (information only)', 'affiliate-captain' ),
 		);
 		if ( isset( $labels[ $event ] ) ) {
 			return $labels[ $event ];
