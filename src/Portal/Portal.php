@@ -57,7 +57,7 @@ final class Portal {
 	const ACCOUNT_ITEM = 'wpac-partner-area';
 
 	/**
-	 * Register the portal stylesheet and script (also used by the blocks, see block.json "style").
+	 * Register the portal stylesheet and script (also used by the blocks, see block.json "editorStyle").
 	 */
 	public static function register_assets() {
 		wp_register_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );

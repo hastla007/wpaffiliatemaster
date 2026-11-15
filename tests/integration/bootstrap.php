@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 12 );
+define( 'WPAC_DB_VERSION', 13 );
 define( 'WPAC_CONTRACT_VERSION', '1.3.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -127,8 +127,8 @@ class Test_WPDB {
 		$row = $this->get_row( $sql, ARRAY_A );
 		return $row ? reset( $row ) : null;
 	}
-	public function get_col( $sql ) {
-		return array_map( function ( $r ) { return reset( $r ); }, $this->get_results( $sql, ARRAY_A ) );
+	public function get_col( $sql, $x = 0 ) {
+		return array_map( function ( $r ) use ( $x ) { $r = array_values( $r ); return isset( $r[ $x ] ) ? $r[ $x ] : null; }, $this->get_results( $sql, ARRAY_A ) );
 	}
 	private function where( array $where ) {
 		$parts = array();

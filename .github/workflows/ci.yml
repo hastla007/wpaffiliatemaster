@@ -25,6 +25,8 @@ jobs:
         php: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: ${{ matrix.php }}
@@ -170,6 +172,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y zbar-tools && pip install pillow
       - run: python3 tests/qr_decode_check.py
       - name: German translation complete and up to date
@@ -390,8 +394,16 @@ jobs:
           extensions: mysqli, sodium, dom, mbstring, gd, zip
           coverage: none
       - name: Install the previous release with test data
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          last="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
+          # The newest final release (vX.Y.Z, no -rc/-beta) other than the tag of this run: on
+          # a tag push the newest tag is the one being built, which would test X.Y.Z -> X.Y.Z.
+          current=""
+          if [ "$REF_TYPE" = "tag" ]; then current="$REF_NAME"; fi
+          last="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vxF "${current:-none}" | head -n 1)"
+          [ -n "$last" ] || { echo "No previous release tag found"; exit 1; }
           echo "Previous release: $last"
           git worktree add "$RUNNER_TEMP/old" "$last"
           WPAC_PLUGIN_SRC="$RUNNER_TEMP/old" tests/ci/install-wp.sh "$RUNNER_TEMP/wp"
@@ -449,6 +461,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       # Release on a pushed tag v*, or on a push to main for v<plugin version>
       # when that release does not exist yet (the tag is then created on this commit).
@@ -460,7 +473,15 @@ jobs:
           version_re='^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$'
           tag=""
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            tag="$GITHUB_REF_NAME"
+            # Only commits that are in main are released: a v* tag on an unmerged branch builds
+            # and tests, but publishes nothing.
+            git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+            if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              tag="$GITHUB_REF_NAME"
+            else
+              echo "::error::Tag $GITHUB_REF_NAME points to a commit that is not in main - no release."
+              exit 1
+            fi
           elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
             v="$(sed -n 's/^ \* Version: *\([0-9A-Za-z.\-]*\).*/\1/p' affiliate-captain.php)"
             if gh release view "v$v" >/dev/null 2>&1; then echo "Release v$v exists"; else tag="v$v"; fi
@@ -483,7 +504,10 @@ jobs:
         run: |
           zip="dist/affiliate-captain-${TAG#v}.zip"
           [ -f "$zip" ] || { echo "Tested ZIP $zip not found (version mismatch)"; ls dist; exit 1; }
-          sha256sum "$zip"
+          (cd dist && sha256sum "$(basename "$zip")" > "$(basename "$zip").sha256")
+          cat "$zip.sha256"
+          sha="$(cut -d' ' -f1 "$zip.sha256")"
           # Only the "== Changelog ==" section (the Upgrade Notice has the same "= x.y.z =" headings).
           notes="$(awk -v v="${TAG#v}" '/^== /{cl=($0 ~ /^== Changelog ==/); on=0; next} cl && $0 == "= " v " =" {on=1; next} on && /^= /{exit} on' readme.txt)"
-          gh release create "$TAG" "$zip" --target "$GITHUB_SHA" --title "Affiliate Captain ${TAG#v}" --notes "${notes:-Siehe readme.txt}"
+          printf -v notes '%s\n\nSHA-256 (%s): `%s`' "${notes:-Siehe readme.txt}" "$(basename "$zip")" "$sha"
+          gh release create "$TAG" "$zip" "$zip.sha256" --target "$GITHUB_SHA" --title "Affiliate Captain ${TAG#v}" --notes "$notes"

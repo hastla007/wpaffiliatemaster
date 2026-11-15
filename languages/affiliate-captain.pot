@@ -66,7 +66,7 @@ msgstr ""
 msgid "Audit log"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/AuditPage.php
+#: src/Admin/Admin.php src/Admin/Pages/AuditPage.php src/Admin/Pages/DashboardPage.php
 msgid "Settings"
 msgstr ""
 
@@ -704,7 +704,7 @@ msgstr ""
 msgid "Declined"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Date"
 msgstr ""
 
@@ -1801,7 +1801,7 @@ msgstr ""
 msgid "All of \"%s\""
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Privacy/Privacy.php
 msgid "Action"
 msgstr ""
 
@@ -1884,7 +1884,7 @@ msgstr ""
 msgid "Partner (name, e-mail or number)"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php
 msgid "Source"
 msgstr ""
 
@@ -2919,6 +2919,14 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "check"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Refused through the action hooks"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "These sales, refunds or reinstatements were sent through do_action() and refused by the validation. They were not booked and are not retried: please fix the sending integration and send them again."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -4353,6 +4361,10 @@ msgstr ""
 #. translators: %s: example URL with the link parameter
 #: src/Admin/Pages/SettingsPage.php
 msgid "Example: %s"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5921,6 +5933,15 @@ msgstr ""
 msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\"; on a network for every site)."
 msgstr ""
 
+#. translators: %d: number of refused payloads
+#: src/Core/Monitor.php
+msgid "An integration sends sales that are refused"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status)."
+msgstr ""
+
 #. translators: 1: step, 2: number of runs, 3: error
 #: src/Core/Monitor.php
 msgid "%1$s (failed %2$d times in a row: %3$s)"
@@ -5995,6 +6016,10 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "On a multisite network the command only runs the main site. Run it for every site, e.g.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}"
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -6673,6 +6698,24 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
+msgstr ""
+
+#. translators: %s: refund ID
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Refund #%s deleted in WooCommerce"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: a refund was deleted, but the partner commission could not be restored. Please save the order items again later."
+msgstr ""
+
+#. translators: 1: refund ID, 2: commission amount
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction)."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
@@ -8941,6 +8984,11 @@ msgstr ""
 
 #: src/Tracking/FraudCheck.php
 msgid "Review requested by the sales source (e.g. first order of the subscription under review)"
+msgstr ""
+
+#. translators: %s: name of the cache (plugin, host or proxy)
+#: src/Tracking/Tracker.php
+msgid "A page or edge cache was detected (%s). If it serves pages with partner links from the cache, the server never sees those clicks and no commission is recorded. Switch on \"Also record partner links via JavaScript\" (Settings → Tracking) or exclude the link parameter from the cache."
 msgstr ""
 
 #: src/Tracking/Tracker.php

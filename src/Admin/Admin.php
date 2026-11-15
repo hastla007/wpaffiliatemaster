@@ -352,6 +352,10 @@ final class Admin {
 		} else {
 			echo esc_html__( 'WordPress starts scheduled tasks only when someone visits the site; with few visits or when the server blocks requests to itself, they stall. Ask your host to set up a "cron job" that runs "wp cron event run --due-now" every 5 minutes.', 'affiliate-captain' );
 		}
+		if ( is_multisite() ) {
+			// R12-M31: without --url the command only runs the main site of the network.
+			echo ' ' . esc_html( \WPAffiliateCaptain\Core\Monitor::network_cron_hint() );
+		}
 		echo self::hide_link( 'cron', $state ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in hide_link().
 	}
 

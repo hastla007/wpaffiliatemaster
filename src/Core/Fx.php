@@ -14,6 +14,8 @@
 
 namespace WPAffiliateCaptain\Core;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Fx {
 
 	/**

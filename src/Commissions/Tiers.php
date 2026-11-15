@@ -22,6 +22,8 @@ namespace WPAffiliateCaptain\Commissions;
 
 use WPAffiliateCaptain\Core\Money;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Tiers {
 
 	/**

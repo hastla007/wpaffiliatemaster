@@ -268,6 +268,11 @@ final class DashboardPage {
 			echo '<div class="notice notice-error inline"><p><a href="' . esc_url( Admin::url( 'wpac-integrations', array( 'tab' => 'queue' ) ) ) . '">' . esc_html( sprintf( _n( '%d integration job failed', '%d integration jobs failed', $failed, 'affiliate-captain' ), $failed ) ) . '</a></p></div>';
 		}
 
+		$edge = \WPAffiliateCaptain\Tracking\Tracker::edge_cache_hint(); // R12-M30.
+		if ( '' !== $edge ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $edge ) . ' <a href="' . esc_url( Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ) . '">' . esc_html__( 'Settings', 'affiliate-captain' ) . '</a></p></div>';
+		}
+
 		if ( $unconverted ) {
 			/* translators: %s: currencies */
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Amounts in %s are not included in the money columns (no reference exchange rate in the settings).', 'affiliate-captain' ), implode( ', ', $unconverted ) ) ) . '</p></div>';

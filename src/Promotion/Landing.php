@@ -28,6 +28,8 @@ final class Landing {
 		add_action( 'template_redirect', array( __CLASS__, 'redirect' ), 1 );
 		add_shortcode( 'wpac_partner_welcome', array( __CLASS__, 'welcome' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'no_cache_welcome' ), 2 );
+		// Block themes: the template is known only now (before any output, R12-M29).
+		add_filter( 'template_include', array( __CLASS__, 'no_cache_template' ), 99 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush' ), 99 );
 		// Browsers must not prefetch/prerender /partner/slug/ (Speculation Rules, WP 6.8+): a
 		// prefetch is no click. Links with ?partner=… have a query string and are excluded by core.
@@ -70,9 +72,109 @@ final class Landing {
 	 * decided before any output (DONOTCACHEPAGE plus no-cache headers).
 	 */
 	public static function no_cache_welcome() {
-		if ( self::current_post_has( 'wpac_partner_welcome', 'wpac/partner-welcome' ) ) {
+		$found = self::current_post_has( 'wpac_partner_welcome', 'wpac/partner-welcome' ) || self::widgets_have( 'wpac_partner_welcome', 'wpac/partner-welcome' );
+		/**
+		 * Whether the current page shows personal content of the plugin (the welcome box) and
+		 * must not be cached. The plugin checks the content of the queried post, active widgets
+		 * and – in block themes – the template with its template parts; builders that keep
+		 * their layout elsewhere (e.g. in post meta) can say so here.
+		 *
+		 * @since 0.13.0
+		 * @param bool   $found     Found by the plugin's own checks.
+		 * @param string $shortcode Shortcode tag.
+		 * @param string $block     Block name.
+		 */
+		if ( apply_filters( 'wpac_needs_nocache', $found, 'wpac_partner_welcome', 'wpac/partner-welcome' ) ) {
 			self::no_cache();
 		}
+	}
+
+	/**
+	 * Block themes: the welcome box in the template or a template part (header, sidebar) of
+	 * the page. Runs at template_include, after the template was chosen and before output.
+	 *
+	 * @param string $template Template file.
+	 * @return string Unchanged.
+	 */
+	public static function no_cache_template( $template ) {
+		if ( ! defined( 'DONOTCACHEPAGE' ) && self::block_template_has( 'wpac_partner_welcome', 'wpac/partner-welcome' ) ) {
+			self::no_cache();
+		}
+		return $template;
+	}
+
+	/**
+	 * Whether the block template of the current request (or one of its template parts)
+	 * contains a shortcode or block. Only for block themes; false before template_include.
+	 *
+	 * @param string $shortcode Shortcode tag.
+	 * @param string $block     Block name.
+	 * @return bool
+	 */
+	public static function block_template_has( $shortcode, $block ) {
+		global $_wp_current_template_content;
+		if ( ! function_exists( 'wp_is_block_theme' ) || ! wp_is_block_theme() || ! is_string( $_wp_current_template_content ) || '' === $_wp_current_template_content ) {
+			return false;
+		}
+		$contents = array( $_wp_current_template_content );
+		if ( function_exists( 'get_block_template' ) && preg_match_all( '/<!--\s+wp:template-part\s+(\{[^}]*\})/', $_wp_current_template_content, $m ) ) {
+			foreach ( array_slice( array_unique( $m[1] ), 0, 10 ) as $json ) {
+				$attrs = json_decode( $json, true );
+				if ( ! is_array( $attrs ) || empty( $attrs['slug'] ) ) {
+					continue;
+				}
+				$theme = ! empty( $attrs['theme'] ) ? (string) $attrs['theme'] : get_stylesheet();
+				$part  = get_block_template( $theme . '//' . sanitize_key( (string) $attrs['slug'] ), 'wp_template_part' );
+				if ( $part && is_string( $part->content ) ) {
+					$contents[] = $part->content;
+				}
+			}
+		}
+		foreach ( $contents as $content ) {
+			if ( has_shortcode( $content, $shortcode ) || ( function_exists( 'has_block' ) && has_block( $block, $content ) ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether an active widget (block, text or custom HTML widget in a used sidebar) contains
+	 * a shortcode or block. Reads the widget options only (autoloaded).
+	 *
+	 * @param string $shortcode Shortcode tag.
+	 * @param string $block     Block name.
+	 * @return bool
+	 */
+	public static function widgets_have( $shortcode, $block ) {
+		if ( ! function_exists( 'wp_get_sidebars_widgets' ) ) {
+			return false;
+		}
+		$fields = array(
+			'block'       => 'content',
+			'text'        => 'text',
+			'custom_html' => 'content',
+		);
+		$stored = array();
+		foreach ( (array) wp_get_sidebars_widgets() as $sidebar => $ids ) {
+			if ( 'wp_inactive_widgets' === $sidebar || ! is_array( $ids ) ) {
+				continue;
+			}
+			foreach ( $ids as $id ) {
+				if ( ! preg_match( '/^(block|text|custom_html)-(\d+)$/', (string) $id, $m ) ) {
+					continue;
+				}
+				if ( ! isset( $stored[ $m[1] ] ) ) {
+					$stored[ $m[1] ] = (array) get_option( 'widget_' . $m[1], array() );
+				}
+				$widget  = isset( $stored[ $m[1] ][ (int) $m[2] ] ) ? (array) $stored[ $m[1] ][ (int) $m[2] ] : array();
+				$content = isset( $widget[ $fields[ $m[1] ] ] ) ? (string) $widget[ $fields[ $m[1] ] ] : '';
+				if ( '' !== $content && ( has_shortcode( $content, $shortcode ) || ( function_exists( 'has_block' ) && has_block( $block, $content ) ) ) ) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**

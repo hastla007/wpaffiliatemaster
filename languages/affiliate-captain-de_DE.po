@@ -2155,6 +2155,12 @@ msgstr "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)"
 msgid "check"
 msgstr "prüfen"
 
+msgid "Refused through the action hooks"
+msgstr "Über die Action-Hooks abgelehnt"
+
+msgid "These sales, refunds or reinstatements were sent through do_action() and refused by the validation. They were not booked and are not retried: please fix the sending integration and send them again."
+msgstr "Diese Verkäufe, Erstattungen oder Wiedergutschriften wurden über do_action() gesendet und von der Prüfung abgelehnt. Sie wurden nicht gebucht und werden nicht wiederholt: Bitte korrigieren Sie die sendende Integration und senden Sie sie erneut."
+
 msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
 msgstr "Keine offenen oder fehlgeschlagenen Aufträge. Verkäufe und Erstattungen, die nicht sofort gebucht werden können (z. B. bei einem Datenbankproblem), warten hier und werden automatisch wiederholt."
 
@@ -3201,6 +3207,9 @@ msgstr "Tracking & Zuordnung"
 
 msgid "Example: %s"
 msgstr "Beispiel: %s"
+
+msgid "The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it."
+msgstr "Der Block-Checkout zeigt das Partnercode-Feld erst ab WooCommerce 8.9; mit dieser Version zeigt es nur der klassische Checkout."
 
 msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
 msgstr "Nur wenn eine Shop-Sitzung besteht (ein Warenkorb) oder ein Produkt in den Warenkorb gelegt wird – ein Klick allein legt nie eine Sitzung an und setzt kein Cookie."
@@ -4295,6 +4304,12 @@ msgstr "Geplante Aufgaben sind seit über zwei Stunden nicht gelaufen"
 msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\"; on a network for every site)."
 msgstr "Provisionen werden nicht freigegeben und fehlgeschlagene Verkäufe nicht wiederholt. Richten Sie einen System-Cron ein („wp cron event run --due-now“; im Netzwerk für jede Website)."
 
+msgid "An integration sends sales that are refused"
+msgstr "Eine Integration sendet Verkäufe, die abgelehnt werden"
+
+msgid "Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status)."
+msgstr "Über die Action-Hooks gesendete und von der Prüfung abgelehnte Payloads: %d (Affiliate Captain → Integrationen → Systemstatus)."
+
 msgid "%1$s (failed %2$d times in a row: %3$s)"
 msgstr "%1$s (%2$d-mal in Folge fehlgeschlagen: %3$s)"
 
@@ -4348,6 +4363,9 @@ msgstr "Partnerprogramm ist im Wartungsmodus"
 
 msgid "Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait."
 msgstr "Verkäufe werden weiter erfasst, aber Freigaben, Auszahlungen, Mails und Änderungen im Partnerbereich warten."
+
+msgid "On a multisite network the command only runs the main site. Run it for every site, e.g.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}"
+msgstr "In einem Multisite-Netzwerk führt der Befehl nur die Hauptseite aus. Führen Sie ihn für jede Website aus, z. B.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}"
 
 msgid "Partner program (Affiliate Captain)"
 msgstr "Partnerprogramm (Affiliate Captain)"
@@ -4834,6 +4852,18 @@ msgstr "Bestellpositionen nach der Zahlung geändert"
 
 msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
 msgstr "Affiliate Captain: Die Partnerprovision wurde verringert, weil die Bestellpositionen geändert wurden."
+
+msgid "Refund #%s deleted in WooCommerce"
+msgstr "Erstattung #%s in WooCommerce gelöscht"
+
+msgid "Affiliate Captain: a refund was deleted, but the partner commission could not be restored. Please save the order items again later."
+msgstr "Affiliate Captain: Eine Erstattung wurde gelöscht, die Partnerprovision konnte aber nicht wiederhergestellt werden. Bitte speichern Sie die Bestellpositionen später erneut."
+
+msgid "Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again."
+msgstr "Affiliate Captain: Erstattung #%1$s wurde gelöscht; die dafür abgezogene Partnerprovision (%2$s) wurde wieder gebucht."
+
+msgid "Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction)."
+msgstr "Affiliate Captain: Eine Erstattung wurde gelöscht; die Partnerprovision wurde nicht automatisch wiederhergestellt (Provision in Prüfung, abgelehnt oder storniert). Soll der Partner sie zurückerhalten, buchen Sie eine Korrektur (Affiliate Captain → Provisionen → Provision → Korrektur)."
 
 msgid "Order items increased after payment"
 msgstr "Bestellpositionen nach der Zahlung erhöht"
@@ -6463,6 +6493,9 @@ msgstr "Auszahlungs-IBAN wird auch von einem anderen Partner verwendet"
 
 msgid "Review requested by the sales source (e.g. first order of the subscription under review)"
 msgstr "Prüfung von der Verkaufsquelle angefordert (z. B. Erstbestellung des Abos in Prüfung)"
+
+msgid "A page or edge cache was detected (%s). If it serves pages with partner links from the cache, the server never sees those clicks and no commission is recorded. Switch on \"Also record partner links via JavaScript\" (Settings → Tracking) or exclude the link parameter from the cache."
+msgstr "Ein Seiten- oder Edge-Cache wurde erkannt (%s). Liefert er Seiten mit Partnerlinks aus dem Cache, sieht der Server diese Klicks nie und es wird keine Provision erfasst. Schalten Sie „Partnerlinks zusätzlich per JavaScript erfassen“ ein (Einstellungen → Tracking) oder nehmen Sie den Link-Parameter vom Cache aus."
 
 msgid "Partner links (Affiliate Captain)"
 msgstr "Partnerlinks (Affiliate Captain)"

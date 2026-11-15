@@ -90,12 +90,77 @@ final class Audit {
 	public static function page( array $args = array() ) {
 		list( $where, $params ) = self::where( $args );
 		$paging                 = array(
-			'orderby' => isset( $args['orderby'] ) ? (string) $args['orderby'] : 'id',
-			'order'   => isset( $args['sort'] ) ? (string) $args['sort'] : 'desc',
-			'limit'   => isset( $args['limit'] ) ? (int) $args['limit'] : 50,
-			'offset'  => isset( $args['offset'] ) ? (int) $args['offset'] : 0,
+			'orderby'  => isset( $args['orderby'] ) ? (string) $args['orderby'] : 'id',
+			'order'    => isset( $args['sort'] ) ? (string) $args['sort'] : 'desc',
+			'limit'    => isset( $args['limit'] ) ? (int) $args['limit'] : 50,
+			'offset'   => isset( $args['offset'] ) ? (int) $args['offset'] : 0,
+			// Sorts along the indexes (action,created_at) and (object_type,object_id) – with the
+			// ID in the same direction – instead of a filesort over the whole table.
+			'ties'     => array(
+				'action'      => array( 'created_at' ),
+				'object_type' => array( 'object_id' ),
+			),
+			'tie_same' => true,
+			'count'    => false,
 		);
-		return Paged::fetch( Db::table( 'audit' ), $where, $params, $paging, self::sortable() );
+		list( $rows ) = Paged::fetch( Db::table( 'audit' ), $where, $params, $paging, self::sortable() );
+		return array( $rows, self::total( $where, $params ) );
+	}
+
+	/**
+	 * Number of entries for a filter, cached for a few minutes (COUNT(*) scans the whole table
+	 * on large logs). The newest ID is part of the key, so a new entry counts at once; only
+	 * the clean-up of old entries shows up late. One transient holds the last few counts.
+	 *
+	 * @param string $where  WHERE clause with placeholders.
+	 * @param array  $params Placeholder values.
+	 * @return int
+	 */
+	private static function total( $where, array $params ) {
+		global $wpdb;
+		$table = Db::table( 'audit' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$max   = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+		$key   = md5( $where . '|' . wp_json_encode( $params ) . '|' . $max );
+		$cache = get_transient( 'wpac_audit_totals' );
+		$cache = is_array( $cache ) ? $cache : array();
+		if ( isset( $cache[ $key ] ) ) {
+			return (int) $cache[ $key ];
+		}
+		$count = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+		$total = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count, $params ) ) : $wpdb->get_var( $count ) );
+		$cache = array_slice( array( $key => $total ) + $cache, 0, 10, true );
+		set_transient( 'wpac_audit_totals', $cache, 5 * MINUTE_IN_SECONDS );
+		return $total;
+	}
+
+	/**
+	 * IDs of the entries about one order, each from an indexed query: order events (object
+	 * "order" with the number as ID), events of its commissions (commissions.source_order_id),
+	 * and – searched in the details only among the few rows that can carry it – order events
+	 * with a non-numeric number and partner flags of the order.
+	 *
+	 * @param string $order Order number.
+	 * @return int[]
+	 */
+	private static function order_ids( $order ) {
+		global $wpdb;
+		$table = Db::table( 'audit' );
+		$cap   = 2000;
+		$ids   = array();
+		$like  = '%' . $wpdb->esc_like( '"order":"' . $order . '"' ) . '%';
+		$older = '%' . $wpdb->esc_like( '"order_id":"' . $order . '"' ) . '%'; // Older entries.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		if ( ctype_digit( $order ) ) {
+			$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE object_type = 'order' AND object_id = %d LIMIT %d", (int) $order, $cap ) ) );
+		}
+		$com = Db::table( 'commissions' );
+		$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT a.id FROM {$table} a INNER JOIN {$com} c ON a.object_type = 'commission' AND a.object_id = c.id WHERE c.source_order_id = %s LIMIT %d", $order, $cap ) ) );
+		$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE object_type = 'order' AND object_id = 0 AND ( details LIKE %s OR details LIKE %s ) LIMIT %d", $like, $older, $cap ) ) );
+		$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE action = 'attribution.flagged' AND ( details LIKE %s OR details LIKE %s ) LIMIT %d", $like, $older, $cap ) ) );
+		// phpcs:enable
+		return array_values( array_unique( array_map( 'intval', $ids ) ) );
 	}
 
 	/**
@@ -136,14 +201,14 @@ final class Audit {
 		}
 		if ( isset( $args['order'] ) && '' !== (string) $args['order'] ) {
 			// Everything about one order: order events, and events of its commissions.
-			$order    = Db::cut( (string) $args['order'], 64 );
-			$like     = '%' . $wpdb->esc_like( '"order":"' . $order . '"' ) . '%';
-			$older    = '%' . $wpdb->esc_like( '"order_id":"' . $order . '"' ) . '%'; // Older entries.
-			$where   .= " AND ( ( object_type = 'order' AND object_id = %d ) OR details LIKE %s OR details LIKE %s OR ( object_type = 'commission' AND object_id IN ( SELECT id FROM " . Db::table( 'commissions' ) . ' WHERE source_order_id = %s ) ) )';
-			$params[] = ctype_digit( $order ) ? (int) $order : -1;
-			$params[] = $like;
-			$params[] = $older;
-			$params[] = $order;
+			// The IDs come from indexed queries; a LIKE over all details took seconds on big logs.
+			$ids = self::order_ids( Db::cut( (string) $args['order'], 64 ) );
+			if ( $ids ) {
+				$where .= ' AND id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')';
+				$params = array_merge( $params, $ids );
+			} else {
+				$where .= ' AND 1=0';
+			}
 		}
 		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
 		if ( '' !== $search ) {

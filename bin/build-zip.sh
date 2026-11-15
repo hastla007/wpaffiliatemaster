@@ -21,6 +21,11 @@ if [ -n "${1:-}" ] && [ "${1#v}" != "$HEADER_VERSION" ]; then
 	echo "Version mismatch: expected ${1#v}, plugin is $HEADER_VERSION" >&2
 	exit 1
 fi
+# The release notes are taken from the changelog entry of the version: it must exist.
+if ! sed -n '/^== Changelog ==/,/^== /p' readme.txt | tr -d '\r' | grep -qxF "= $HEADER_VERSION ="; then
+	echo "readme.txt has no changelog entry \"= $HEADER_VERSION =\" under == Changelog ==" >&2
+	exit 1
+fi
 
 php tests/run.php
 
