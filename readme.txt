@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.12.0
+Stable tag: 0.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,7 +115,7 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
-= Unreleased =
+= 0.13.0 =
 Expert audit (8 reviewers); database schema 13 (indexes only):
 * Fixed: a payout claimed by a payment provider add-on can no longer be exported again (SEPA, transfer list, PayPal file) – it could have been paid twice; a claimed payout can be cancelled in the admin only 45 days after the claim (filter wpac_claim_cancel_after)
 * Fixed: a cancelled payout no longer gets a credit note without its cancellation document
@@ -264,6 +264,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.13.0 =
+Security and bookkeeping fixes from an expert audit (no double payouts of claimed payouts, correct VAT on correction credit notes, no credit note for cancelled payouts). Make a backup first; the database update to schema 13 only adds indexes.
 
 = 0.12.0 =
 Make a backup first; the database update to schema 12 (new table for correction credit notes) runs automatically. New: correction credit notes for paid payouts, automatic booking of raised order lines, coupon creation for partners, sortable admin lists and the add-on contract 1.3.0.
