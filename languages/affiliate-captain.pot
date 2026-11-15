@@ -2918,6 +2918,18 @@ msgid "Scheduled tasks active (hold period release, retries)"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored)."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php src/Core/Monitor.php
+msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "check"
 msgstr ""
 
@@ -6011,6 +6023,18 @@ msgid "Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "WPAC_CUSTOMER_KEY is ignored"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired)."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "WPAC_CUSTOMER_KEY was removed or changed"
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Partner program is in maintenance mode"
 msgstr ""
 
@@ -8485,6 +8509,13 @@ msgid_plural "The referral data of %d orders is retained until their partner com
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of log entries
+#: src/Privacy/Privacy.php
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: days
 #: src/Privacy/Privacy.php
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
@@ -8724,6 +8755,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "The restriction of processing could not be saved. Please restrict the partner manually on the partner page."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "The history of the partner's tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards."
 msgstr ""
 
 #: src/Privacy/Privacy.php

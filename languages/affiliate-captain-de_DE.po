@@ -2152,6 +2152,15 @@ msgstr "Partnerkonten: Buchungsketten intakt, Salden stimmen mit dem Provisionsl
 msgid "Scheduled tasks active (hold period release, retries)"
 msgstr "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)"
 
+msgid "Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php"
+msgstr "Kunden-Hashes verwenden WPAC_CUSTOMER_KEY aus der wp-config.php"
+
+msgid "WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored)."
+msgstr "WPAC_CUSTOMER_KEY wird ignoriert: Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel, und diese lassen sich nicht neu berechnen (E-Mail-Adressen werden nicht gespeichert)."
+
+msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links."
+msgstr "Die bestehenden Kunden-Bindungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanfragen finden ihre Bindungen nicht mehr."
+
 msgid "check"
 msgstr "prüfen"
 
@@ -4358,6 +4367,15 @@ msgstr "Kein eigener Schlüssel für Bankdaten"
 msgid "Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on the WordPress salts."
 msgstr "Tragen Sie WPAC_ENCRYPTION_KEY in die wp-config.php ein, damit Bankdaten nicht von den WordPress-Salts abhängen."
 
+msgid "WPAC_CUSTOMER_KEY is ignored"
+msgstr "WPAC_CUSTOMER_KEY wird ignoriert"
+
+msgid "Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired)."
+msgstr "Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel. Die E-Mail-Adressen der Kunden werden nicht gespeichert, daher lassen sich diese Hashes nicht mit dem Schlüssel aus der wp-config.php neu berechnen; der gespeicherte Schlüssel bleibt in Gebrauch. Die Konstante wird nur auf Websites ohne Kunden-Bindungen verwendet (z. B. bei Neuinstallationen oder nachdem alle Bindungen abgelaufen sind)."
+
+msgid "WPAC_CUSTOMER_KEY was removed or changed"
+msgstr "WPAC_CUSTOMER_KEY wurde entfernt oder geändert"
+
 msgid "Partner program is in maintenance mode"
 msgstr "Partnerprogramm ist im Wartungsmodus"
 
@@ -6127,6 +6145,11 @@ msgid_plural "The referral data of %d orders is retained until their partner com
 msgstr[0] "Die Empfehlungsangaben von %d Bestellung werden aufbewahrt, bis ihre Partnerprovision gebucht ist (automatische Wiederholung)."
 msgstr[1] "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung)."
 
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards."
+msgstr[0] "%d Protokolleintrag zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) wird als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; seine Verarbeitung ist eingeschränkt, seine Details werden danach gelöscht."
+msgstr[1] "%d Protokolleinträge zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) werden als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; ihre Verarbeitung ist eingeschränkt, ihre Details werden danach gelöscht."
+
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgstr[0] "Ein Affiliate-Cookie (wpac_ref, %d Tag) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
@@ -6304,6 +6327,9 @@ msgstr "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen
 
 msgid "The restriction of processing could not be saved. Please restrict the partner manually on the partner page."
 msgstr "Die Einschränkung der Verarbeitung konnte nicht gespeichert werden. Bitte schränken Sie den Partner manuell auf der Partnerseite ein."
+
+msgid "The history of the partner's tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards."
+msgstr "Der Verlauf der Steuerdaten des Partners (Steuerstatus, Land, USt-IdNr., Steuernummer und bis wann sie galten) wird für die gesetzliche Aufbewahrungsfrist aufbewahrt: Korrekturen von Gutschriften innerhalb dieser Frist müssen die zum Zeitpunkt der Leistung gültigen Steuerdaten verwenden. Danach wird er gelöscht."
 
 msgid "Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled."
 msgstr "Die Auszahlungsdaten wurden aufbewahrt, weil der Partner noch offene Provisionen oder Auszahlungen hat. Sie werden automatisch gelöscht, sobald alles abgerechnet ist."

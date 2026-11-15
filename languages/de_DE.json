@@ -45,6 +45,10 @@
   "%d Bewerbung wartet auf Prüfung",
   "%d Bewerbungen warten auf Prüfung"
  ],
+ "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards.": [
+  "%d Protokolleintrag zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) wird als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; seine Verarbeitung ist eingeschränkt, seine Details werden danach gelöscht.",
+  "%d Protokolleinträge zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) werden als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; ihre Verarbeitung ist eingeschränkt, ihre Details werden danach gelöscht."
+ ],
  "%d commission entered \"Needs review\" since the last notice.": [
   "Seit dem letzten Hinweis ist %d Provision auf „Prüfung nötig“ gesetzt worden.",
   "Seit dem letzten Hinweis sind %d Provisionen auf „Prüfung nötig“ gesetzt worden."
@@ -709,6 +713,8 @@
  "Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions.": "Aktuelle Beträge (%1$s): netto %2$s, USt %3$s, brutto %4$s. Die Differenz wird wie auf der Gutschrift besteuert und auf dem Partnerkonto gebucht: Ein Fehlbetrag wird mit der nächsten Auszahlung ausgezahlt, eine Überzahlung mit den nächsten Provisionen verrechnet.",
  "Current password (only needed to change your bank or payment details)": "Aktuelles Passwort (nur zum Ändern Ihrer Bank- oder Zahlungsangaben nötig)",
  "Current terms accepted": "Aktuelle Bedingungen akzeptiert",
+ "Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php": "Kunden-Hashes verwenden WPAC_CUSTOMER_KEY aus der wp-config.php",
+ "Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired).": "Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel. Die E-Mail-Adressen der Kunden werden nicht gespeichert, daher lassen sich diese Hashes nicht mit dem Schlüssel aus der wp-config.php neu berechnen; der gespeicherte Schlüssel bleibt in Gebrauch. Die Konstante wird nur auf Websites ohne Kunden-Bindungen verwendet (z. B. bei Neuinstallationen oder nachdem alle Bindungen abgelaufen sind).",
  "Customers can enter it at checkout – it works without cookies.": "Kunden können ihn an der Kasse eingeben – das funktioniert ohne Cookies.",
  "Cyprus": "Zypern",
  "Czechia": "Tschechien",
@@ -1973,6 +1979,7 @@
   "Die E-Mail wird im Hintergrund an %d aktiven Partner gesendet (Partner, die sich von Ankündigungen abgemeldet haben, werden übersprungen).",
   "Die E-Mail wird im Hintergrund an %d aktive Partner gesendet (Partner, die sich von Ankündigungen abgemeldet haben, werden übersprungen)."
  ],
+ "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.": "Die bestehenden Kunden-Bindungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanfragen finden ihre Bindungen nicht mehr.",
  "The export file could not be created.": "Die Exportdatei konnte nicht erstellt werden.",
  "The file contains no partners.": "Die Datei enthält keine Partner.",
  "The file has more than %d partners. Split it or use WP-CLI: wp wpac import partners <file>": "Die Datei enthält mehr als %d Partner. Teilen Sie sie auf oder nutzen Sie WP-CLI: wp wpac import partners <datei>",
@@ -1981,6 +1988,7 @@
  "The first line must contain the column names, including \"email\".": "Die erste Zeile muss die Spaltennamen enthalten, darunter „email“.",
  "The first order of the subscription has no partner, its commission was rejected or reversed, or the renewal period has ended.": "Die Erstbestellung des Abos hat keinen Partner, ihre Provision wurde abgelehnt oder storniert, oder der Verlängerungszeitraum ist abgelaufen.",
  "The form expired. Please try again.": "Das Formular ist abgelaufen. Bitte versuchen Sie es erneut.",
+ "The history of the partner's tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards.": "Der Verlauf der Steuerdaten des Partners (Steuerstatus, Land, USt-IdNr., Steuernummer und bis wann sie galten) wird für die gesetzliche Aufbewahrungsfrist aufbewahrt: Korrekturen von Gutschriften innerhalb dieser Frist müssen die zum Zeitpunkt der Leistung gültigen Steuerdaten verwenden. Danach wird er gelöscht.",
  "The import continues in batches. Keep this page open; if it stops, continue it with the button – nothing is imported twice.": "Der Import läuft in Etappen weiter. Lassen Sie diese Seite geöffnet; falls er stoppt, setzen Sie ihn mit der Schaltfläche fort – nichts wird doppelt importiert.",
  "The import progress could not be saved. Already imported partners are kept; continue the import to complete the rest.": "Der Importfortschritt konnte nicht gespeichert werden. Bereits importierte Partner bleiben erhalten; setzen Sie den Import fort, um den Rest abzuschließen.",
  "The integration of this job is not active right now (e.g. WooCommerce deactivated); it is retried later without using up attempts.": "Die Integration dieses Auftrags ist gerade nicht aktiv (z. B. WooCommerce deaktiviert); er wird später wiederholt, ohne Versuche zu verbrauchen.",
@@ -2217,6 +2225,9 @@
  "WARNING: the statements folder is publicly reachable (e.g. nginx ignores .htaccess). Define WPAC_STATEMENT_DIR outside the web root or block /wp-content/uploads/wpac-statements/.": "WARNUNG: Der Belegordner ist öffentlich erreichbar (z. B. ignoriert nginx die .htaccess). Definieren Sie WPAC_STATEMENT_DIR außerhalb des Webroots oder sperren Sie /wp-content/uploads/wpac-statements/.",
  "WP Consent API detected (marketing consent for the affiliate cookie)": "WP Consent API erkannt (Marketing-Einwilligung für das Affiliate-Cookie)",
  "WP-Cron is disabled (DISABLE_WP_CRON): set up a system cron that runs \"wp cron event run --due-now\" every few minutes.": "WP-Cron ist deaktiviert (DISABLE_WP_CRON): Richten Sie einen System-Cron ein, der alle paar Minuten „wp cron event run --due-now“ ausführt.",
+ "WPAC_CUSTOMER_KEY is ignored": "WPAC_CUSTOMER_KEY wird ignoriert",
+ "WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored).": "WPAC_CUSTOMER_KEY wird ignoriert: Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel, und diese lassen sich nicht neu berechnen (E-Mail-Adressen werden nicht gespeichert).",
+ "WPAC_CUSTOMER_KEY was removed or changed": "WPAC_CUSTOMER_KEY wurde entfernt oder geändert",
  "Waiting for confirmation of %s.": "Wartet auf Bestätigung von %s.",
  "Waiting for its sale": "Wartet auf den Verkauf",
  "Waiting for the next attempt": "Wartet auf den nächsten Versuch",
