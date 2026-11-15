@@ -209,6 +209,7 @@ final class SettingsPage {
 				'fraud_max_order_minor' => __( 'Review orders above (net)', 'affiliate-captain' ),
 				'fraud_check_domains'   => __( 'Review orders with disposable or blocked e-mail domains', 'affiliate-captain' ),
 				'fraud_blocked_domains' => __( 'Additional blocked domains', 'affiliate-captain' ),
+				'reauth_required'       => __( 'Ask for the password again before payout files, marking payouts as paid, bank details and account links', 'affiliate-captain' ),
 				'default_rate_type'     => __( 'Default commission type', 'affiliate-captain' ),
 				'lifetime_enabled'      => __( 'Lifetime commissions: repeat purchases of referred customers go to the same partner', 'affiliate-captain' ),
 				'hold_start'            => __( 'Hold period starts', 'affiliate-captain' ),
@@ -281,7 +282,7 @@ final class SettingsPage {
 			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open' ),
 			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'report_admin', 'report_partners' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
-			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
+			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'reauth_required' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'einvoice_mail', 'einvoice_buyer_reference', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
@@ -513,6 +514,7 @@ final class SettingsPage {
 		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'affiliate-captain' ), $s );
 		$err = self::error_parts( 'trusted_proxies' );
 		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy.', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		self::checkbox( 'reauth_required', __( 'Ask for the password again before payout files, marking payouts as paid, bank details and account links', 'affiliate-captain' ), $s, __( 'Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too.', 'affiliate-captain' ) );
 		self::end();
 	}
 
