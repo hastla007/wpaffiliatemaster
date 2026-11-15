@@ -269,14 +269,14 @@ Für Add-ons, die Auszahlungen über einen Zahlungsdienst ausführen (z. B. PayP
 | Funktion | Zweck |
 |---|---|
 | `wpac_get_payout( $payout_id )` | Auszahlung als Array oder `null`: `id`, `number`, `affiliate_id`, `status` (`pending`, `exported`, `paid`, `cancelled`), `currency`, `amount_minor`, `method` (`sepa`/`manual`), `paypal_email`, `claim`, `created_at`, `exported_at`, `paid_at`. `paypal_email` ist nur bei der Auszahlungsart „andere“ gefüllt, wenn die Zahlungsangaben eine E-Mail-Adresse enthalten (dieselbe Regel wie die PayPal-Datei), und nur solange die Auszahlung offen ist. Bankdaten werden nie geliefert. |
-| `wpac_get_payouts( $args )` | Liste, älteste zuerst. `status`, `method`, `affiliate_id`, `limit` (1–200, Standard 50). |
+| `wpac_get_payouts( $args )` | Liste, älteste zuerst. `status`, `method`, `affiliate_id`, `after_id`, `limit` (1–200, Standard 50). Blättern mit `after_id` (ID der letzten Auszahlung der vorigen Seite; liefert nur Auszahlungen mit größerer ID), bis die Liste leer ist. Der Filter `method` wirkt vor dem Limit: eine Seite enthält bis zu `limit` passende Auszahlungen. Ein unbekannter `status` oder `method` liefert eine leere Liste (kein `WP_Error`). |
 | `wpac_claim_payout( $payout_id, $provider )` | Reserviert eine **erstellte** Auszahlung für den Dienst (`$provider`: `a–z`, `0–9`, `_`, `-`, 2–20 Zeichen). Ergebnis: die Auszahlung mit `claim` (`API-<DIENST>-<ID>-<Zufall>`), Status `exported`. Abgelehnt (`WP_Error`): `wpac_payout_state` (nicht mehr „erstellt“, z. B. schon exportiert oder reserviert), `wpac_profile_changed` (Partner hat die Auszahlungsdaten nach dem Erstellen geändert), `wpac_statement` (Gutschrift fehlt), `wpac_provider`. |
 | `wpac_complete_payout( $payout_id, $claim, $reference )` | Nach erfolgreicher Zahlung: Auszahlung und Provisionen werden „bezahlt“, `wpac_payout_paid` und `wpac_commission_paid` feuern wie beim Markieren im Admin. Die Reservierung wird unter Zeilensperre geprüft. `$reference` (Transaktions- oder Batch-ID des Dienstes) steht im Audit-Log. Fehler: `wpac_claim`, `wpac_state`. |
 | `wpac_release_payout( $payout_id, $claim, $reason )` | Wenn der Dienst nicht gezahlt hat: die Auszahlung ist wieder „erstellt“ und kann exportiert oder neu reserviert werden. Fehler: `wpac_claim`. |
 
 Regeln:
 
-- Erst reservieren, dann zahlen. Eine reservierte Auszahlung nehmen weder die Exportdateien (SEPA, Überweisungsliste, PayPal-Datei) noch eine zweite Reservierung.
+- Erst reservieren, dann zahlen. Eine reservierte Auszahlung nehmen weder die Exportdateien (SEPA, Überweisungsliste, PayPal-Datei) – auch nicht mit „erneut exportieren“ (Fehler `wpac_claimed`) – noch eine zweite Reservierung.
 - Die Reservierungsnummer beim Dienst als Idempotenz-Schlüssel verwenden (z. B. `sender_batch_id` bei PayPal), damit eine Wiederholung nach einem Abbruch nicht doppelt zahlt.
 - Im Admin lässt sich eine reservierte Auszahlung in den ersten 7 Tagen nach der Reservierung nicht stornieren; danach nur mit der Bestätigung, dass der Dienst nicht gezahlt hat. Das Add-on gibt Auszahlungen, die der Dienst ablehnt, selbst mit `wpac_release_payout()` frei.
 - Jeder Schritt steht im Audit-Log (`payout.claimed`, `payout.provider_paid`, `payout.claim_released`).

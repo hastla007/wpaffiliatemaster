@@ -775,6 +775,12 @@ final class Statement {
 	/**
 	 * Generate and store the statement of a payout (only once).
 	 *
+	 * A cancelled payout only gets its credit note together with its cancellation document: when
+	 * cancel() allocated a cancellation number before the credit note was written (payout run
+	 * with the job queue), generate_storno() writes the credit note first and then the
+	 * cancellation. Without a cancellation number (cancelled by an earlier version) it gets none – a
+	 * credit note of a cancelled payout without its cancellation would count as turnover (R12-K2).
+	 *
 	 * @param int $payout_id Payout.
 	 * @return bool
 	 */
@@ -789,7 +795,7 @@ final class Statement {
 		try {
 			$p = PayoutService::find( $payout_id );
 			// Deleted after the retention period: never issued again (statement_file is empty then).
-			if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at ) {
+			if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at || ( 'cancelled' === (string) $p->status && '' === (string) $p->storno_number ) ) {
 				return false;
 			}
 			$bytes = self::build( $p );
@@ -811,7 +817,7 @@ final class Statement {
 			}
 			// Only if still without a file (compare-and-set).
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = '' AND statement_deleted_at IS NULL", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
+			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = '' AND statement_deleted_at IS NULL AND ( status <> 'cancelled' OR storno_number <> '' )", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
 			if ( 1 !== $done ) {
 				wp_delete_file( $path );
 				return false;
@@ -1113,6 +1119,18 @@ final class Statement {
 	 */
 	public static function generate_storno( $payout_id ) {
 		global $wpdb;
+		// The cancellation refers to the credit note: when the payout was cancelled before its
+		// credit note was written, write the credit note first (same order as for a credit note
+		// that already existed). Retried with the cancellation (generate_missing_stornos()).
+		$p = PayoutService::find( $payout_id );
+		if ( $p && '' !== (string) $p->storno_number && '' === (string) $p->storno_file && ! $p->statement_deleted_at && '' === (string) $p->statement_file && '' === (string) $p->statement_hash ) {
+			self::generate( (int) $payout_id );
+			$p = PayoutService::find( $payout_id );
+			if ( ! $p || '' === (string) $p->statement_file ) {
+				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
+				return false;
+			}
+		}
 		$owner = Db::lock( 'wpac_storno_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
 		if ( '' === $owner ) {
 			return false;

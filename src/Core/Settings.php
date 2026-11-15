@@ -767,6 +767,20 @@ final class Settings {
 				$out[ $k ] = $prefix;
 			}
 		}
+		// Credit notes, cancellations and correction credit notes each have their own sequence:
+		// the same prefix would give two documents with the same number (§ 14 UStG, R12-K7).
+		$prefix_keys = array( 'credit_prefix', 'storno_prefix', 'correction_prefix' );
+		$counts      = array_count_values( array_map( 'strval', array_intersect_key( $out, array_flip( $prefix_keys ) ) ) );
+		if ( max( $counts ) > 1 ) {
+			foreach ( $prefix_keys as $k ) {
+				if ( $counts[ (string) $out[ $k ] ] > 1 && ! isset( $errors[ $k ] ) ) {
+					$errors[ $k ] = __( 'The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number.', 'affiliate-captain' );
+				}
+			}
+			foreach ( $prefix_keys as $k ) {
+				$out[ $k ] = (string) $old( $k ); // Keep the stored prefixes.
+			}
+		}
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];
 		$out['debtor_bic']        = '';
 		if ( isset( $in['debtor_bic'] ) && '' !== trim( (string) $in['debtor_bic'] ) ) {
