@@ -129,6 +129,10 @@ Expert audit (8 reviewers); database schema 13 (indexes only):
 * Performance: portal.css only loads where the partner area or a block is shown; the statement sweep runs in cron instead of visitor requests; new indexes and cached totals for the audit log and commissions; reports cached for 10 minutes and cleared on bookings
 * Accessibility: labels for all admin form fields, autocomplete in the partner area, per-field registration errors, better contrast, payout method switch without JavaScript, announced notices
 * Admin: the payout export reloads the page only after the download started; payout run cut-off and month in the site time zone
+* Fixed (audit round 13, 9 reviewers): a deadlock or lock timeout in the middle of a booking is rolled back and retried instead of reporting success; order edits, refunds and refund deletions run under a per-order lock
+* Fixed: repayments and write-offs no longer count as taxable net on credit notes, the annual summary and the small business warning; a deleted refund gives back exactly what was deducted (also for fixed rates per piece); a partial refund of a raised line takes back the open increase first
+* Fixed: ambiguous amounts like "12,345" are refused instead of read as thousands; currencies use their real number of decimals (BTC 8)
+* Privacy: the personal data export no longer contains internal reasons or fraud markers and masks bank details; a changed customer key keeps old links and warns until confirmed; old commissions are pseudonymised after the retention period
 * Compatibility: all WooCommerce currencies accepted; refused payloads of the integration contract are listed under Integrations; hints for edge caches and multisite cron; read/write API validates arguments strictly
 
 = 0.12.0 =
@@ -266,7 +270,7 @@ Review of all modules (security, money, legal, operations, usability):
 == Upgrade Notice ==
 
 = 0.13.0 =
-Security and bookkeeping fixes from an expert audit (no double payouts of claimed payouts, correct VAT on correction credit notes, no credit note for cancelled payouts). Make a backup first; the database update to schema 13 only adds indexes.
+Security and bookkeeping fixes from an expert audit (no double payouts of claimed payouts, correct VAT on correction credit notes, no credit note for cancelled payouts). Make a backup first; the database update to schema 13 only adds indexes. On large sites it waits at most 10 seconds for table locks; an index that cannot be added online is retried later by cron (see Tools, System status).
 
 = 0.12.0 =
 Make a backup first; the database update to schema 12 (new table for correction credit notes) runs automatically. New: correction credit notes for paid payouts, automatic booking of raised order lines, coupon creation for partners, sortable admin lists and the add-on contract 1.3.0.
