@@ -73,7 +73,7 @@ final class PayoutsPage {
 					}
 					$minor = Money::parse_minor( $input, (string) $cp->currency, $problem );
 					if ( null === $minor ) {
-						Admin::back( 'precision' === $problem ? Admin::amount_error( $problem, (string) $cp->currency ) : __( 'Please enter the correct net amount (0 or more).', 'affiliate-captain' ), 'error' );
+						Admin::back( 'invalid' !== $problem ? Admin::amount_error( (string) $problem, (string) $cp->currency ) : __( 'Please enter the correct net amount (0 or more).', 'affiliate-captain' ), 'error' );
 					}
 					$todo[] = array( $minor, sanitize_text_field( (string) Admin::post( 'part' . $sfx ) ), (int) Admin::post( 'base_net' . $sfx, -1 ), $i );
 				}
@@ -98,8 +98,8 @@ final class PayoutsPage {
 					$kg       = Corrections::find( (int) $cid );
 					$issued[] = $kg ? $kg->number : '#' . (int) $cid;
 				}
-				/* translators: 1: correction number, 2: credit note number */
-				Admin::back( sprintf( __( 'Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed.', 'affiliate-captain' ), implode( ', ', $issued ), $cp->number ), 'success', Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => (int) $cp->id ) ) );
+				/* translators: 1: correction credit note number(s), comma separated, 2: credit note number */
+				Admin::back( sprintf( _n( 'Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed.', 'Correction credit notes %1$s for %2$s issued; the differences were booked to the partner account and the partner was informed.', count( $issued ), 'affiliate-captain' ), implode( ', ', $issued ), $cp->number ), 'success', Admin::url( 'wpac-payouts', array( 'action' => 'receipt', 'id' => (int) $cp->id ) ) );
 				break;
 
 			case 'correction_download':
@@ -115,7 +115,7 @@ final class PayoutsPage {
 			case 'payout_run':
 				$end      = sanitize_text_field( Admin::post( 'period_end' ) );
 				$currency = strtoupper( sanitize_key( Admin::post( 'currency' ) ) );
-				if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end ) || 3 !== strlen( $currency ) ) {
+				if ( ! PayoutService::is_date( $end ) || 3 !== strlen( $currency ) ) {
 					Admin::back( __( 'Please choose a period end and currency.', 'affiliate-captain' ), 'error' );
 				}
 				$run     = PayoutService::create_run( $end, $currency );
@@ -478,7 +478,11 @@ final class PayoutsPage {
 			return;
 		}
 		$currency = Admin::get( 'currency' ) ? strtoupper( Admin::get( 'currency' ) ) : (string) Settings::get( 'currency' );
-		$end      = Admin::get( 'period_end' ) ? Admin::get( 'period_end' ) : gmdate( 'Y-m-t', (int) strtotime( \WPAffiliateCaptain\Core\Db::local_month( -1 ) . '-01 00:00:00 UTC' ) ); // Last day of the previous month in the site time zone.
+		$end      = (string) Admin::get( 'period_end' );
+		if ( ! PayoutService::is_date( $end ) ) {
+			// No or no existing date ("2026-02-30"): last day of the previous month in the site time zone.
+			$end = gmdate( 'Y-m-t', (int) strtotime( \WPAffiliateCaptain\Core\Db::local_month( -1 ) . '-01 00:00:00 UTC' ) );
+		}
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Payouts', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
@@ -811,12 +815,19 @@ final class PayoutsPage {
 		Admin::form_open( 'payout_correction', 'wpac-correction' );
 		echo '<input type="hidden" name="payout_id" value="' . (int) $p->id . '"><input type="hidden" name="request_key" value="' . esc_attr( wp_generate_password( 32, false ) ) . '">';
 		echo '<fieldset><legend><strong>' . esc_html__( 'Issue correction credit note', 'affiliate-captain' ) . '</strong></legend>';
+		foreach ( $parts as $part ) {
+			if ( ! empty( $part['legacy'] ) ) {
+				// R13-N8: corrections of 0.12 corrected the whole credit note.
+				/* translators: %s: correction credit note number */
+				echo '<p class="description wpac-legacy-correction">' . esc_html( sprintf( __( 'Correction credit note %s was issued by an earlier version for the whole credit note (all VAT parts together). Further corrections start from its corrected total; please check the amounts before correcting again.', 'affiliate-captain' ), (string) $part['number'] ) ) . '</p>';
+			}
+		}
 		if ( 1 === count( $parts ) ) {
 			$part = reset( $parts );
 			echo '<input type="hidden" name="base_net" value="' . (int) $part['net'] . '"><input type="hidden" name="part" value="' . esc_attr( (string) key( $parts ) ) . '">';
 			/* translators: 1: document number, 2: net, 3: VAT, 4: gross */
 			echo '<p class="description">' . esc_html( sprintf( __( 'Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions.', 'affiliate-captain' ), $part['number'], Money::format( $part['net'], $p->currency ), Money::format( $part['vat'], $p->currency ), Money::format( $part['net'] + $part['vat'], $p->currency ) ) . ' (' . Corrections::part_label( $part ) . ')' ) . '</p>';
-			/* translators: %s: currency */
+			/* translators: %s: what the amount refers to: the currency (e.g. EUR) or, on a credit note with several parts, the VAT treatment or rate of the part */
 			echo '<p><label for="' . esc_attr( $fid ) . '-net">' . esc_html( sprintf( __( 'Correct net amount (%s)', 'affiliate-captain' ), $p->currency ) ) . '</label><br><input type="text" inputmode="decimal" required size="12" id="' . esc_attr( $fid ) . '-net" name="net"></p>';
 		} else {
 			// Several VAT treatments or rates (e.g. services before and after a change of the tax
@@ -837,7 +848,7 @@ final class PayoutsPage {
 					esc_attr( (string) $key ),
 					(int) $part['net'],
 					esc_attr( $fid . '-net-' . $i ),
-					/* translators: %s: VAT treatment or rate */
+					/* translators: %s: what the amount refers to: the currency (e.g. EUR) or, on a credit note with several parts, the VAT treatment or rate of the part */
 					esc_html( sprintf( __( 'Correct net amount (%s)', 'affiliate-captain' ), Corrections::part_label( $part ) ) )
 				);
 				++$i;
@@ -877,9 +888,11 @@ final class PayoutsPage {
 			)
 		) as $entry ) {
 			$d = json_decode( (string) $entry->details, true );
-			$d = is_array( $d ) ? $d : array();
-			/* translators: 1: order number, 2: date, 3: correction credit note numbers */
-			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice.', 'affiliate-captain' ), isset( $d['order'] ) ? (string) $d['order'] : '?', Admin::date( $entry->created_at ), isset( $d['corrections'] ) ? implode( ', ', (array) $d['corrections'] ) : '' ) ) . '</p></div>';
+			$d    = is_array( $d ) ? $d : array();
+			$kgs  = isset( $d['corrections'] ) ? array_map( 'strval', (array) $d['corrections'] ) : array();
+			/* translators: 1: order number, 2: date, 3: correction credit note number(s), comma separated */
+			$text = _n( 'Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice.', 'Order #%1$s was refunded or cancelled on %2$s, after correction credit notes %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit notes already covered this order; if so, issue a further correction credit note so the partner is not charged twice.', max( 1, count( $kgs ) ), 'affiliate-captain' );
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( $text, isset( $d['order'] ) ? (string) $d['order'] : '?', Admin::date( $entry->created_at ), implode( ', ', $kgs ) ) ) . '</p></div>';
 		}
 	}
 

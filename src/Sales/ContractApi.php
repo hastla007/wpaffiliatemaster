@@ -22,6 +22,7 @@ use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\IntegrationException;
 use WPAffiliateCaptain\Core\Jobs;
 use WPAffiliateCaptain\Core\Log;
+use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -314,28 +315,42 @@ final class ContractApi {
 	const CURRENCIES = 'AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VED VES VND VUV WST XAF XCD XCG XOF XPF YER ZAR ZMW ZWG ZWL';
 
 	/**
-	 * Currency codes accepted in payloads and as program currency: ISO 4217 plus every code
-	 * WooCommerce offers (e.g. IRT, BTC, GGP, JEP – a shop in such a currency must not lose its
-	 * sales with "invalid_currency"), then the filter.
+	 * Currency codes accepted in payloads and as program currency: ISO 4217 plus the codes
+	 * WooCommerce offers whose precision is known (Money::DECIMALS: BTC with 8 decimals, IRT, GGP,
+	 * JEP … – a shop in such a currency must not lose its sales with "invalid_currency"), then the
+	 * filter. A code without a known number of decimals is refused, also when the filter adds
+	 * it: it would be booked with 2 decimals (0.0045 BTC = no commission).
 	 *
 	 * @return string[]
 	 */
 	public static function currencies() {
-		$codes = explode( ' ', self::CURRENCIES );
-		if ( function_exists( 'get_woocommerce_currencies' ) ) {
+		$iso   = explode( ' ', self::CURRENCIES );
+		$codes = $iso;
+		// get_woocommerce_currencies() translates the names: before init (an add-on recording a
+		// sale in plugins_loaded) that loads WooCommerce's translations too early and keeps the
+		// English names in its static cache. The program currency is accepted meanwhile (R13-N10).
+		$early = function_exists( 'did_action' ) && ! did_action( 'init' ) && ! doing_action( 'init' );
+		if ( $early ) {
+			$codes[] = strtoupper( (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ) );
+		} elseif ( function_exists( 'get_woocommerce_currencies' ) ) {
 			foreach ( array_keys( (array) get_woocommerce_currencies() ) as $code ) {
-				$code = strtoupper( (string) $code );
-				if ( preg_match( '/^[A-Z]{3}$/', $code ) ) {
-					$codes[] = $code;
-				}
+				$codes[] = strtoupper( (string) $code );
 			}
 		}
 		/**
-		 * Currencies accepted in sale payloads and as program currency (three-letter codes).
+		 * Currencies accepted in sale payloads and as program currency (three-letter codes). Codes
+		 * outside ISO 4217 are kept only when Money::DECIMALS knows their precision.
 		 *
 		 * @param string[] $codes Codes (ISO 4217 and the WooCommerce currencies).
 		 */
-		return array_values( array_unique( array_map( 'strval', (array) apply_filters( 'wpac_contract_currencies', array_values( array_unique( $codes ) ) ) ) ) );
+		$codes = array_map( 'strval', (array) apply_filters( 'wpac_contract_currencies', array_values( array_unique( $codes ) ) ) );
+		$codes = array_filter(
+			$codes,
+			static function ( $code ) use ( $iso ) {
+				return 1 === preg_match( '/^[A-Z]{3}$/', $code ) && ( in_array( $code, $iso, true ) || Money::has_decimals( $code ) );
+			}
+		);
+		return array_values( array_unique( $codes ) );
 	}
 
 	/**

@@ -29,11 +29,11 @@ check( 'R12-M10 integration status lists refused action payloads', array( true, 
 check( 'R12-M10 rendered from the status tab', true, false !== strpos( (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Admin/Pages/IntegrationsPage.php' ), "self::render_status();\n\t\t\tself::render_rejected();" ) );
 
 // R12-M30: edge cache hint next to the beacon setting.
-$_SERVER['HTTP_CF_RAY'] = 'r12-render';
+$_SERVER['HTTP_X_VARNISH'] = 'r12-render';
 $_GET                   = array( 'page' => 'wpac-settings', 'tab' => 'tracking' );
 $r                      = r_render( array( SettingsPage::class, 'render' ) );
-unset( $_SERVER['HTTP_CF_RAY'] );
-check( 'R12-M30 settings (tracking) show the edge cache hint', array( true, array(), '' ), array( false !== strpos( $r[0], 'A page or edge cache was detected (Cloudflare)' ), $r[1], $r[2] ) );
+unset( $_SERVER['HTTP_X_VARNISH'] );
+check( 'R12-M30 settings (tracking) show the edge cache hint', array( true, array(), '' ), array( false !== strpos( $r[0], 'A page or edge cache was detected (Varnish/Proxy)' ), $r[1], $r[2] ) );
 // R12-N16: without WooCommerce 8.9 the block checkout hint (only when WooCommerce is active).
 check( 'R12-N16 block checkout hint shown when WooCommerce lacks the 8.9 field API', class_exists( 'WooCommerce' ) && ! function_exists( 'woocommerce_register_additional_checkout_field' ), false !== strpos( $r[0], 'from WooCommerce 8.9 on' ) );
 

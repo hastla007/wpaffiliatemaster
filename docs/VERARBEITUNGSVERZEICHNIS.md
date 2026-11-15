@@ -16,7 +16,7 @@ Vorlage für die Einträge, die Affiliate Captain betreffen. Die Werte in `{gesc
 | Daten | Partnercode, Kampagne, Zielseite, Zeitpunkt, Host der vorherigen Seite (nur mit Einwilligung), Bestellnummer und Nettobetrag; **keine IP-Adresse**; bei Folgekäufen ein verschlüsselter Hash von Kundenkonto/E-Mail |
 | Rechtsgrundlage | Art. 6 Abs. 1 lit. f DSGVO (Zuordnung ohne Cookie); Art. 6 Abs. 1 lit. a DSGVO, § 25 TDDDG (Affiliate-Cookie `wpac_ref`, Lesen der vorherigen Seite) |
 | Empfänger | Partner sehen nur Bestellnummer, Betrag und Status – keine Namen oder Kontaktdaten |
-| Löschfristen | Besuche {visit_retention_days} Tage; Cookie {cookie_days} Tage; Kundenverknüpfung {lifetime_days}; Zuordnungen (Bestellnummer, Partner, Kampagne, Sub-ID, Besuchs-ID) als Buchungsunterlage {retention_years} Jahre ab Ende des Kalenderjahres der letzten Buchung der Bestellung, danach tägliche Löschung (nicht während einer Betriebsprüfung oder Sperre); Referral-Angaben an der Bestellung (`_wpac_touch`) werden beim Löschantrag des Kunden entfernt, sobald die Bestellung zugeordnet ist |
+| Löschfristen | Besuche {visit_retention_days} Tage; Cookie {cookie_days} Tage; Kundenverknüpfung {lifetime_days}; Zuordnungen (Bestellnummer, Partner, Kampagne, Sub-ID, Besuchs-ID) als Buchungsunterlage {retention_years} Jahre ab Ende des Kalenderjahres der letzten Buchung der Bestellung, danach tägliche Löschung (nicht während einer Betriebsprüfung oder Sperre); anschließend werden die Provisionszeilen der Bestellung pseudonymisiert (Bestellnummer und Idempotenzschlüssel → Hash, Produkt, Beschreibung und Gründe der Statusänderungen gelöscht; Partner, Beträge und Daten bleiben für das Partnerkonto); Referral-Angaben an der Bestellung (`_wpac_touch`, eingegebener Partnercode `_wpac_partner_code`, manuelle Zuordnung `_wpac_manual_affiliate`) werden beim Löschantrag des Kunden entfernt, sobald die Bestellung zugeordnet ist oder nicht mehr zugeordnet werden kann; an noch unbezahlten, nicht zugeordneten Bestellungen bleiben sie (als aufbewahrt gemeldet) |
 
 ## 2. Partnerprogramm (Bewerbung, Partnerkonto, Kommunikation)
 
@@ -38,7 +38,7 @@ Vorlage für die Einträge, die Affiliate Captain betreffen. Die Werte in `{gesc
 | Daten | rechtlicher Name, Anschrift, Land, Steuerstatus, USt-IdNr./Steuernummer, Kontoinhaber, IBAN (verschlüsselt), BIC, bei „anderer Zahlungsweg“ die Zahlungsangaben (z. B. PayPal-Adresse, verschlüsselt), Provisionen, Auszahlungen, Gutschrift-PDFs, VIES-Prüfergebnis |
 | Rechtsgrundlage | Art. 6 Abs. 1 lit. b DSGVO; Art. 6 Abs. 1 lit. c DSGVO (§ 147 AO, § 14b UStG / § 132 BAO / Art. 958f OR) |
 | Empfänger | Hausbank (SEPA-Überweisung), {payment_providers}Steuerberatung, Finanzbehörden; EU-Kommission (VIES-Abfrage der USt-IdNr.) |
-| Löschfristen | {retention_years} Jahre ab Ende des Kalenderjahres; während einer Betriebsprüfung oder Sperre keine Löschung. Nach einem Löschantrag wird die Verarbeitung bis dahin eingeschränkt |
+| Löschfristen | {retention_years} Jahre ab Ende des Kalenderjahres; während einer Betriebsprüfung oder Sperre keine Löschung. Nach einem Löschantrag wird die Verarbeitung bis dahin eingeschränkt. Provisionszeilen werden danach nicht gelöscht, sondern pseudonymisiert, sobald nichts mehr offen ist (keine Bestellnummer, kein Produkt, keine Freitexte; Beträge bleiben für Saldo und Berichte) |
 
 ## 4. Änderungsprotokoll (Audit-Log)
 

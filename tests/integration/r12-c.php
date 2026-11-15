@@ -85,7 +85,7 @@ check(
 		$r12c[2],
 	)
 );
-check( 'R12-N6 admin scroll boxes are focusable named regions', true, false !== strpos( $r12c_js, "box.setAttribute( 'tabindex', '0' )" ) && false !== strpos( $r12c_js, "box.setAttribute( 'role', 'region' )" ) && false !== strpos( $r12c_js, "box.setAttribute( 'aria-label', label )" ) );
+check( 'R12-N6 admin scroll boxes are focusable named regions', true, false !== strpos( $r12c_js, "box.setAttribute( 'tabindex', '0' )" ) && false !== strpos( $r12c_js, "box.setAttribute( 'role', 'region' )" ) && false !== strpos( $r12c_js, "box.setAttribute( 'aria-label', box.getAttribute( 'data-wpac-label' ) )" ) );
 
 /* R12-M24 / N5: labels and placeholders in the admin -------------------------------------------- */
 $_GET = array( 'page' => 'wpac-commissions' );
@@ -255,8 +255,8 @@ check(
 	array( true, true, true, false, true ),
 	array(
 		false !== strpos( $r12c_css, '.wpac-field-error{color:#b71c1c;background:#fdecea' ),
-		false !== strpos( $r12c_css, '.wpac-negative{color:color-mix(in srgb,#c62828 55%,currentColor)}' ),
-		false !== strpos( $r12c_css, '--wpac-muted:color-mix(in srgb,currentColor 75%,#808080)' ),
+		false !== strpos( $r12c_css, '.wpac-negative{color:color-mix(in srgb,#c62828 50%,currentColor)}' ),
+		false !== strpos( $r12c_css, '--wpac-muted:color-mix(in srgb,currentColor 90%,#808080)' ),
 		false !== strpos( $r12c_src( 'assets/css/portal-rtl.css' ), '#f9a825' ),
 		false !== strpos( $r12c_src( 'assets/css/portal-rtl.css' ), 'border-right-color:#b26a00' ),
 	)

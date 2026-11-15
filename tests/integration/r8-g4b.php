@@ -212,13 +212,13 @@ $g4b_export = WPAffiliateCaptain\Privacy\Privacy::export( 'g4b-paypal@example.de
 $g4b_found  = false;
 foreach ( $g4b_export['data'] as $g4b_item ) {
 	foreach ( (array) $g4b_item['data'] as $g4b_d ) {
-		$g4b_found = $g4b_found || false !== strpos( (string) $g4b_d['value'], 'G4b.PayPal@Example.de' );
+		$g4b_found = $g4b_found || ( false !== strpos( (string) $g4b_d['value'], '@Example.de' ) && false === strpos( (string) $g4b_d['value'], 'G4b.PayPal@' ) ); // R13-K8: masked.
 	}
 }
 $g4b_row = new ReflectionMethod( WPAffiliateCaptain\Migration\ProgramExport::class, 'row' );
 $g4b_row->setAccessible( true );
 $g4b_prow = $g4b_row->invoke( null, 'payout_profiles', (array) ProfileRepository::get( $g4b_pp ), true );
-check( 'R5-W52 Art. 15 export and program export carry the method and payment details; record of processing names the provider', array( true, 'manual', true, true ), array( $g4b_found, $g4b_prow['payout_method'], false !== strpos( $g4b_prow['payment_details'], 'G4b.PayPal@' ), false !== strpos( WPAffiliateCaptain\Privacy\Privacy::ropa(), 'Zahlungsdienstleister' ) ) );
+check( 'R5-W52 Art. 15 export (masked, R13-K8) and program export carry the method and payment details; record of processing names the provider', array( true, 'manual', true, true ), array( $g4b_found, $g4b_prow['payout_method'], false !== strpos( $g4b_prow['payment_details'], 'G4b.PayPal@' ), false !== strpos( WPAffiliateCaptain\Privacy\Privacy::ropa(), 'Zahlungsdienstleister' ) ) );
 $g4b_kept = ProfileRepository::form_keep( array( 'payout_method' => 'manual', 'payment_details' => 'PayPal: geheim@example.de', 'iban' => 'DE89370400440532013000', 'legal_name' => 'X' ) );
 check( 'R5-W53 kept admin form: method kept, payment details only encrypted, no IBAN', array( 'manual', false, false, 'PayPal: geheim@example.de' ), array( $g4b_kept['payout_method'], false !== strpos( serialize( $g4b_kept ), 'geheim' ), isset( $g4b_kept['iban'] ), ProfileRepository::form_details( $g4b_kept ) ) );
 check( 'R5-O14 partner sees the stored payment details masked', 'PayPal: g4•••@Example.de / Kontonummer •••5678', ProfileRepository::mask_details( 'PayPal: g4b.paypal@Example.de / Kontonummer 12345678' ) );

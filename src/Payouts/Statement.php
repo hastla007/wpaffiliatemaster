@@ -474,6 +474,7 @@ final class Statement {
 			Vat::PRIVATE_PERSON => __( 'private individual, no VAT', 'affiliate-captain' ),
 		);
 		$groups = array();
+		$shown  = array();
 		foreach ( $blocks as $ref => $list ) {
 			if ( ! $list ) {
 				continue;
@@ -527,10 +528,13 @@ final class Statement {
 				$pdf->text( 545, $y, Money::format( $sign * (int) $item->amount_minor, $p->currency ), 9, false, 'right' );
 				$y   += 13 * $height;
 				$sum += (int) $item->amount_minor;
-				if ( 'kg' === $ref ) {
-					continue; // Settled correction credit notes: shown separately below, no VAT group.
+				if ( 'kg' === $ref || 'none' === $ref ) {
+					continue; // Settled correction credit notes, repayments, write-offs: lines of their own below, no VAT group.
 				}
-				$rate = $rate_of( $item );
+				$rate = Vat::rate_key( $rate_of( $item ) ); // "19" and "19.0" are one group (R13-N8).
+				if ( ! isset( $shown[ $rate ] ) ) {
+					$shown[ $rate ] = $rate_of( $item ); // Printed as stored.
+				}
 				$groups[ $rate ] = ( isset( $groups[ $rate ] ) ? $groups[ $rate ] : 0 ) + (int) $item->amount_minor;
 			}
 			if ( $ref && 'none' !== $ref && 'kg' !== $ref ) {
@@ -552,13 +556,19 @@ final class Statement {
 		$y     += 6;
 		// R12-M7: the gross differences of settled correction credit notes are no net amount of
 		// this document (their VAT is shown on the correction credit note): a line of their own.
-		$kg_sum = 0;
+		// R13-K2: repayments and write-offs (not taxable) are no net amount either.
+		$kg_sum   = 0;
+		$none_sum = 0;
 		foreach ( isset( $blocks['kg'] ) ? $blocks['kg'] : array() as $item ) {
 			$kg_sum += (int) $item->amount_minor;
 		}
-		$taxable = count( $items ) > ( isset( $blocks['kg'] ) ? count( $blocks['kg'] ) : 0 );
+		foreach ( isset( $blocks['none'] ) ? $blocks['none'] : array() as $item ) {
+			$none_sum += (int) $item->amount_minor;
+		}
+		$untaxed = ( isset( $blocks['kg'] ) ? count( $blocks['kg'] ) : 0 ) + ( isset( $blocks['none'] ) ? count( $blocks['none'] ) : 0 );
+		$taxable = count( $items ) > $untaxed;
 		$totals  = array(
-			array( __( 'Net amount', 'affiliate-captain' ), $sign * ( $net - $kg_sum ), false ),
+			array( __( 'Net amount', 'affiliate-captain' ), $sign * ( $net - $kg_sum - $none_sum ), false ),
 		);
 		$legacy = true;
 		foreach ( $items as $item ) {
@@ -569,7 +579,7 @@ final class Statement {
 		if ( $legacy || count( $groups ) <= 1 ) {
 			if ( (int) $p->vat_minor ) {
 				/* translators: %s: rate */
-				$totals[] = array( sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $legacy || ! $groups ? $p->vat_rate : (string) key( $groups ) ) ), $sign * (int) $p->vat_minor, false );
+				$totals[] = array( sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $legacy || ! $groups ? $p->vat_rate : (string) $shown[ key( $groups ) ] ) ), $sign * (int) $p->vat_minor, false );
 			} else {
 				$totals[] = array( __( 'VAT', 'affiliate-captain' ), 0, false );
 			}
@@ -577,14 +587,18 @@ final class Statement {
 			ksort( $groups );
 			foreach ( $groups as $rate => $group_net ) {
 				/* translators: 1: rate, 2: net amount */
-				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $rate ), Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
+				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $shown[ $rate ] ), Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
 			}
 		}
 		if ( ! $taxable ) {
-			$totals = array(); // Only settled correction credit notes: no net amount, no VAT.
+			$totals = array(); // Only settled corrections, repayments, write-offs: no net amount, no VAT.
+		}
+		// Lines of their own (wrapped: long labels must not run into the amount column).
+		if ( isset( $blocks['none'] ) ) {
+			$totals[] = array( __( 'Repayments and write-offs (not taxable)', 'affiliate-captain' ), $sign * $none_sum, false, true );
 		}
 		if ( $kg_sum ) {
-			$totals[] = array( __( 'Correction credit notes settled (gross, VAT shown there)', 'affiliate-captain' ), $sign * $kg_sum, false );
+			$totals[] = array( __( 'Correction credit notes settled (gross, VAT shown there)', 'affiliate-captain' ), $sign * $kg_sum, false, true );
 		}
 		if ( $storno ) {
 			$total_label = __( 'Total cancelled', 'affiliate-captain' );
@@ -595,9 +609,19 @@ final class Statement {
 		}
 		$totals[] = array( $total_label, $sign * (int) $p->amount_minor, true );
 		foreach ( $totals as $t ) {
-			$pdf->text( 330, $y, $t[0], 10, $t[2] );
-			$pdf->text( 545, $y, Money::format( $t[1], $p->currency ), 10, $t[2], 'right' );
-			$y += 15;
+			$amount = Money::format( $t[1], $p->currency );
+			$labels = array( $t[0] );
+			if ( ! empty( $t[3] ) ) {
+				// The first line ends before the amount; the rest may use the whole column.
+				$labels = Pdf::wrap( $t[0], 545 - 330 - 12 - Pdf::width( $amount, 10 ), 10 );
+				$first  = array_shift( $labels );
+				$labels = $labels ? array_merge( array( $first ), Pdf::wrap( implode( ' ', $labels ), 545 - 330, 10 ) ) : array( $first );
+			}
+			foreach ( $labels as $n => $label ) {
+				$pdf->text( 330, $y + 12 * $n, $label, 10, $t[2] );
+			}
+			$pdf->text( 545, $y, $amount, 10, $t[2], 'right' );
+			$y += 15 + 12 * ( count( $labels ) - 1 );
 		}
 		$y += 15;
 		if ( $self && ! $storno ) {
@@ -703,25 +727,39 @@ final class Statement {
 		};
 		// Differences of correction credit notes settled on a credit note are counted with the
 		// correction credit note (below), not a second time with the credit note that paid them.
-		$settled = array();
+		// Repayments and write-offs are no turnover either (R13-K2): shown on a line of their own.
+		$settled  = array();
+		$untaxed  = array();
+		$not_paid = array();
 		if ( $rows ) {
-			$it = Db::table( 'payout_items' );
-			$ct = Db::table( 'commissions' );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Integers only.
-			foreach ( (array) $wpdb->get_results( "SELECT i.payout_id, SUM(i.amount_minor) s FROM {$it} i JOIN {$ct} c ON c.id = i.commission_id WHERE c.kind = '" . Corrections::KIND . "' AND i.payout_id IN (" . implode( ',', array_map( 'intval', wp_list_pluck( $rows, 'id' ) ) ) . ') GROUP BY i.payout_id' ) as $s ) {
+			$it    = Db::table( 'payout_items' );
+			$ct    = Db::table( 'commissions' );
+			$ids   = array_map( 'intval', wp_list_pluck( $rows, 'id' ) );
+			$kinds = implode( ',', array_fill( 0, count( Vat::NON_TAXABLE_KINDS ), '%s' ) );
+			$in    = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Placeholders built above.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT i.payout_id, SUM(CASE WHEN c.kind = %s THEN i.amount_minor ELSE 0 END) s, SUM(CASE WHEN c.kind <> %s AND ( c.kind IN ({$kinds}) OR i.vat_mode = %s ) THEN i.amount_minor ELSE 0 END) u FROM {$it} i JOIN {$ct} c ON c.id = i.commission_id WHERE i.payout_id IN ({$in}) GROUP BY i.payout_id", array_merge( array( Corrections::KIND, Corrections::KIND ), Vat::NON_TAXABLE_KINDS, array( Vat::NONE ), $ids ) ) ) as $s ) {
 				$settled[ (int) $s->payout_id ] = (int) $s->s;
+				$untaxed[ (int) $s->payout_id ] = (int) $s->u;
 			}
 		}
 		foreach ( $rows as $p ) {
-			$kg  = isset( $settled[ (int) $p->id ] ) ? $settled[ (int) $p->id ] : 0;
-			$net = ( (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor ) - $kg;
-			$sum = (int) $p->amount_minor - $kg;
+			$kg   = isset( $settled[ (int) $p->id ] ) ? $settled[ (int) $p->id ] : 0;
+			$none = isset( $untaxed[ (int) $p->id ] ) ? $untaxed[ (int) $p->id ] : 0;
+			$net  = ( (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor ) - $kg - $none;
+			$sum  = (int) $p->amount_minor - $kg - $none;
+			// A cancellation only reduces the year when the credit note it cancels was issued: a
+			// credit note never written (its cancellation document failing for good, R13-N8)
+			// shows neither line instead of a lone minus.
+			$issued = '' !== (string) $p->statement_file || '' !== (string) $p->statement_hash;
 			if ( $p->statement_file && $p->created_at >= $from && $p->created_at <= $to ) {
 				$line( (string) $p->number, $date( $p->created_at ), $net, (int) $p->vat_minor, $sum, $p->currency );
+				$not_paid[ $p->currency ] = ( isset( $not_paid[ $p->currency ] ) ? $not_paid[ $p->currency ] : 0 ) + $none;
 			}
-			if ( $p->storno_at && $p->storno_at >= $from && $p->storno_at <= $to && (string) $p->storno_number ) {
+			if ( $issued && $p->storno_at && $p->storno_at >= $from && $p->storno_at <= $to && (string) $p->storno_number ) {
 				/* translators: %s: credit note number */
 				$line( (string) $p->storno_number . ' (' . sprintf( __( 'cancels %s', 'affiliate-captain' ), $p->number ) . ')', $date( $p->storno_at ), -$net, -(int) $p->vat_minor, -$sum, $p->currency );
+				$not_paid[ $p->currency ] = ( isset( $not_paid[ $p->currency ] ) ? $not_paid[ $p->currency ] : 0 ) - $none;
 			}
 		}
 		// Correction credit notes dated in the year: their difference changes the year's amounts.
@@ -747,6 +785,14 @@ final class Statement {
 			$pdf->text( 470, $y, Money::format( $s[1], $cur ), 10, true, 'right' );
 			$pdf->text( 545, $y, Money::format( $s[2], $cur ), 10, true, 'right' );
 			$y += 15;
+		}
+		foreach ( $not_paid as $cur => $amount ) {
+			if ( $amount ) {
+				// Settled with the credit notes, not part of the totals (no service).
+				$pdf->text( 50, $y, __( 'Repayments and write-offs (not taxable)', 'affiliate-captain' ), 9 );
+				$pdf->text( 545, $y, Money::format( $amount, $cur ), 9, false, 'right' );
+				$y += 13;
+			}
 		}
 		$y += 15;
 		foreach ( Pdf::wrap( __( 'This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records.', 'affiliate-captain' ), 495, 8 ) as $l ) {
@@ -809,14 +855,17 @@ final class Statement {
 	 * credit note of a cancelled payout without its cancellation would count as turnover (R12-K2).
 	 *
 	 * @param int $payout_id Payout.
+	 * @param int $wait      Seconds to wait while another request writes it (R13-N9; 0 = none).
 	 * @return bool
 	 */
-	public static function generate( $payout_id ) {
+	public static function generate( $payout_id, $wait = 0 ) {
 		global $wpdb;
+		self::$busy = false;
 		// Claim the payout: the payout run and the hourly cron (or two cron runs) must not both
 		// write a credit note for it (two files, the second overwriting the stored hash).
-		$owner = Db::lock( 'wpac_stmt_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
+		$owner = self::claim( 'wpac_stmt_' . (int) $payout_id, $wait );
 		if ( '' === $owner ) {
+			self::$busy = true; // Being written right now – not a write error (see was_busy()).
 			return false;
 		}
 		try {
@@ -863,6 +912,47 @@ final class Statement {
 		 */
 		do_action( 'wpac_statement_generated', (int) $payout_id, $path );
 		return true;
+	}
+
+	/** @var bool Whether the last generate() found the credit note being written by another request. */
+	private static $busy = false;
+
+	/**
+	 * Whether the last generate() returned false because another request is writing the same
+	 * credit note right now (e.g. the job queue right after a payout run) – then "check the
+	 * folder" would be the wrong advice: it is there in a moment.
+	 *
+	 * @return bool
+	 */
+	public static function was_busy() {
+		return self::$busy;
+	}
+
+	/**
+	 * Take a document lock, waiting up to $wait seconds while another request holds it (a
+	 * PDF takes a few seconds; the lock of a request that died expires after 10 minutes).
+	 *
+	 * @param string $name Lock name.
+	 * @param int    $wait Seconds (0 = try once).
+	 * @return string Owner ('' = still held by someone else).
+	 */
+	private static function claim( $name, $wait ) {
+		/**
+		 * Seconds to wait for a credit note or cancellation document that another request is
+		 * writing right now, before the caller reports "being generated, try again".
+		 *
+		 * @param int    $wait Default given by the caller (20–30 seconds; 0 for cron runs).
+		 * @param string $name Lock name.
+		 */
+		$wait     = $wait > 0 ? max( 0, (int) apply_filters( 'wpac_statement_lock_wait', (int) $wait, $name ) ) : 0;
+		$deadline = microtime( true ) + $wait;
+		while ( true ) {
+			$owner = Db::lock( $name, 10 * MINUTE_IN_SECONDS );
+			if ( '' !== $owner || microtime( true ) >= $deadline ) {
+				return $owner;
+			}
+			usleep( 250000 );
+		}
 	}
 
 	const RETRY_OPTION = 'wpac_statement_retry';
@@ -1151,14 +1241,18 @@ final class Statement {
 		// that already existed). Retried with the cancellation (generate_missing_stornos()).
 		$p = PayoutService::find( $payout_id );
 		if ( $p && '' !== (string) $p->storno_number && '' === (string) $p->storno_file && ! $p->statement_deleted_at && '' === (string) $p->statement_file && '' === (string) $p->statement_hash ) {
-			self::generate( (int) $payout_id );
+			// R13-N9: cancelled while the job queue writes its credit note – wait for it instead
+			// of an hour of back-off (and a cancellation alarm) for a lock that is just busy.
+			self::generate( (int) $payout_id, 30 );
 			$p = PayoutService::find( $payout_id );
 			if ( ! $p || '' === (string) $p->statement_file ) {
-				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
-				return false;
+				if ( ! self::$busy ) {
+					self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
+				}
+				return false; // Still busy: the next cron run (generate_missing_stornos()) writes it.
 			}
 		}
-		$owner = Db::lock( 'wpac_storno_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
+		$owner = self::claim( 'wpac_storno_' . (int) $payout_id, 30 );
 		if ( '' === $owner ) {
 			return false;
 		}

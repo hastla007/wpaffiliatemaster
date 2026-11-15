@@ -38,7 +38,7 @@ check( 'R12-M21 schema version 13 everywhere', array( 13, 13, 13 ), array( Insta
 check( 'R12-M21/M22 indexes on audit (action,created_at) and commissions (source_order_id)', array( true, true ), array( in_array( 'action_created', $r12_keys( 'audit' ), true ), in_array( 'source_order_id', $r12_keys( 'commissions' ), true ) ) );
 q( 'ALTER TABLE ' . Db::table( 'audit' ) . ' DROP INDEX action_created' );
 q( 'ALTER TABLE ' . Db::table( 'commissions' ) . ' DROP INDEX source_order_id' );
-check( 'R12-M21 verify_schema reports missing indexes', array( 'missing index ' . Db::table( 'commissions' ) . '.source_order_id', 'missing index ' . Db::table( 'audit' ) . '.action_created' ), Installer::verify_schema() );
+check( 'R12-M21 verify_schema reports missing indexes (R13-M8: as warnings, not blockers)', array( array(), array( 'missing index ' . Db::table( 'commissions' ) . '.source_order_id', 'missing index ' . Db::table( 'audit' ) . '.action_created' ) ), array( Installer::verify_schema(), array_values( array_map( static function ( $w ) { return strstr( $w, ' (', true ); }, preg_grep( '/^missing index /', (array) get_option( 'wpac_schema_warnings' ) ) ) ) ) );
 update_option( 'wpac_db_version', 12 );
 Installer::install_schema();
 check( 'R12-M21 migration 12 → 13 adds the indexes (dbDelta) and raises the version', array( true, true, 13, array() ), array( in_array( 'action_created', $r12_keys( 'audit' ), true ), in_array( 'source_order_id', $r12_keys( 'commissions' ), true ), (int) get_option( 'wpac_db_version' ), Installer::verify_schema() ) );
@@ -74,19 +74,19 @@ check( 'R12-M21 sort by action along the index (action, created_at, id same dire
 
 /* R12-M23: report cache with time buckets, emptied by bookings; REST uses it. ---------------- */
 Reports::register_hooks(); // Plugin::boot() is not run by the test runner.
-delete_transient( Reports::CACHE );
 $r12_from = gmdate( 'Y-m-01' );
 $r12_to   = gmdate( 'Y-m-d' );
 $r12_rep  = Reports::cached( 'partners', $r12_from, $r12_to );
-$r12_c1   = get_transient( Reports::CACHE );
+$r12_n1   = Reports::cache_name( 'partners', $r12_from, $r12_to );
+$r12_c1   = get_transient( $r12_n1 );
 q( 'INSERT INTO ' . t( 'visits' ) . " (affiliate_id, created_at) VALUES ({$r12_aff}, '" . Db::now() . "')" );
-check( 'R12-M23 a new visit does not create a new cache entry (same bucket)', array( $r12_rep, 1, $r12_c1 ), array( Reports::cached( 'partners', $r12_from, $r12_to ), count( $r12_c1['items'] ), get_transient( Reports::CACHE ) ) );
+check( 'R12-M23 a new visit does not create a new cache entry (same bucket)', array( $r12_rep, $r12_n1, true ), array( Reports::cached( 'partners', $r12_from, $r12_to ), Reports::cache_name( 'partners', $r12_from, $r12_to ), is_array( $r12_c1 ) && $r12_c1 === get_transient( $r12_n1 ) ) );
 Reports::cached( 'campaign', $r12_from, $r12_to );
-check( 'R12-M23 all reports share one transient', 2, count( get_transient( Reports::CACHE )['items'] ) );
+check( 'R12-M23/R13-N12 each report has its own transient', array( true, true ), array( $r12_n1 !== Reports::cache_name( 'campaign', $r12_from, $r12_to ), is_array( get_transient( Reports::cache_name( 'campaign', $r12_from, $r12_to ) ) ) ) );
 do_action( 'wpac_commission_created', 1 );
-check( 'R12-M23 a booking empties the report cache', false, get_transient( Reports::CACHE ) );
+check( 'R12-M23 a booking empties the report cache (R13-N12: new generation in the key)', array( false, false ), array( $r12_n1 === Reports::cache_name( 'partners', $r12_from, $r12_to ), get_transient( Reports::cache_name( 'partners', $r12_from, $r12_to ) ) ) );
 $r12_rest = \WPAffiliateCaptain\Rest\RestApi::report( new WP_REST_Request( array( 'view' => 'campaign', 'from' => $r12_from, 'to' => $r12_to ) ) );
-check( 'R12-M23 the REST report is served from the same cache', array( true, true ), array( is_array( $r12_rest['rows'] ), is_array( get_transient( Reports::CACHE ) ) && 1 === count( get_transient( Reports::CACHE )['items'] ) ) );
+check( 'R12-M23 the REST report is served from the same cache', array( true, true ), array( is_array( $r12_rest['rows'] ), is_array( get_transient( Reports::cache_name( 'campaign', $r12_from, $r12_to ) ) ) ) );
 check( 'R12-M23 no visit fingerprint in the key any more', false, false !== strpos( $r12_src( 'src/Reports/Reports.php' ), "'visits' => 'MAX(id)'" ) );
 
 /* R12-M8: a deleted WooCommerce refund books its deduction back. ---------------------------- */
@@ -191,6 +191,7 @@ $r12_b1 = Landing::block_template_has( 'wpac_partner_welcome', 'wpac/partner-wel
 $GLOBALS['r12_block_theme'] = true;
 $r12_b2 = Landing::block_template_has( 'wpac_partner_welcome', 'wpac/partner-welcome' );
 $GLOBALS['r12_parts'] = array();
+Landing::flush_template_scan(); // R13-N12: the scan is cached per template; saving a part renews it.
 $r12_b3 = Landing::block_template_has( 'wpac_partner_welcome', 'wpac/partner-welcome' );
 check( 'R12-M29 block theme: welcome box in a template part found; classic theme or without box not', array( false, true, false ), array( $r12_b1, $r12_b2, $r12_b3 ) );
 update_option( 'sidebars_widgets', array() );
@@ -204,13 +205,16 @@ unset( $GLOBALS['_wp_current_template_content'], $GLOBALS['r12_block_theme'] );
 /* R12-M30/M31: edge cache hint, multisite cron hint. ----------------------------------------- */
 $r12_keep = get_option( 'wpac_settings' );
 $_SERVER['HTTP_CF_RAY'] = 'r12-test';
-check( 'R12-M30 Cloudflare detected from the request, beacon recommended while it is off', array( 'Cloudflare', true ), array( Tracker::edge_cache(), false !== strpos( Tracker::edge_cache_hint(), 'Cloudflare' ) ) );
+check( 'R13-N10 a CF-Ray header alone is no cache sign', '', Tracker::edge_cache() );
+unset( $_SERVER['HTTP_CF_RAY'] );
+$_SERVER['HTTP_X_VARNISH'] = 'r12-test';
+check( 'R12-M30 Varnish detected from the request, beacon recommended while it is off', array( 'Varnish/Proxy', true ), array( Tracker::edge_cache(), false !== strpos( Tracker::edge_cache_hint(), 'Varnish/Proxy' ) ) );
 update_option( 'wpac_settings', array_merge( (array) $r12_keep, array( 'js_tracking' => 1 ) ) );
 WPAffiliateCaptain\Core\Settings::flush_cache();
 check( 'R12-M30 no hint once the beacon is on', '', Tracker::edge_cache_hint() );
 update_option( 'wpac_settings', $r12_keep );
 WPAffiliateCaptain\Core\Settings::flush_cache();
-unset( $_SERVER['HTTP_CF_RAY'] );
+unset( $_SERVER['HTTP_X_VARNISH'] );
 check( 'R12-M30 nothing detected without cache signs', '', Tracker::edge_cache() );
 check( 'R12-M31 network cron hint loops over the sites with --url', true, false !== strpos( WPAffiliateCaptain\Core\Monitor::network_cron_hint(), 'wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}' ) );
 check( 'R12-M31 admin notice and monitor use it on multisite', array( true, true ), array( false !== strpos( $r12_src( 'src/Admin/Admin.php' ), 'Monitor::network_cron_hint()' ), false !== strpos( $r12_src( 'src/Core/Monitor.php' ), "is_multisite() ? ' ' . self::network_cron_hint()" ) ) );

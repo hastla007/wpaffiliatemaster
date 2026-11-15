@@ -138,7 +138,7 @@ delete_option( TaxHistory::RATE_OPTION );
 /* R6-DD6 / R7-AD2: tax data changed by the partner wait for approval; format check. */
 $GLOBALS['test_mails'] = array();
 $g4_t = $g4_partner( array( 'tax_status' => 'private' ) );
-$g4_base = array( 'legal_name' => 'G4 T', 'address' => "Weg\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'G4', 'iban' => '' );
+$g4_base = array( 'legal_name' => 'G4 T', 'address' => "Weg\n24103 Kiel", 'country' => 'DE', 'account_holder' => 'G4', 'iban' => 'DE89370400440532013000' ); // R13-M5: a partner's bank transfer needs an IBAN.
 check( 'R6-DD6 VAT ID with a wrong format refused', 'wpac_vat_format', ( $e = ProfileRepository::save( $g4_t, $g4_base + array( 'tax_status' => 'business', 'vat_id' => 'DE12' ), 'partner' ) ) instanceof WP_Error ? $e->get_error_code() : 'ok' );
 check( 'R6-DD6 VAT ID of another country refused', 'wpac_vat_format', ( $e = ProfileRepository::save( $g4_t, $g4_base + array( 'tax_status' => 'business', 'vat_id' => 'ATU12345678' ), 'partner' ) ) instanceof WP_Error ? $e->get_error_code() : 'ok' );
 ProfileRepository::save( $g4_t, $g4_base + array( 'tax_status' => 'business', 'vat_id' => 'DE811111151' ), 'partner' );

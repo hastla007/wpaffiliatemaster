@@ -75,7 +75,7 @@ Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, com
 - `source`, `order_id`, `item_id`, `refund_id`: Text oder Zahl (keine Arrays), `order_id`/`item_id`/`refund_id` max. 64 Zeichen, `source` max. 40 (`a-z0-9_-`). Mehrbyte-Zeichen werden nie mitten im Zeichen gekürzt.
 - `item_id` muss innerhalb eines Verkaufs eindeutig sein (`duplicate_item`), höchstens 500 Positionen (`too_many_items`).
 - `net_minor`: Ganzzahl (auch als Ziffernstring oder ganzzahliger Float), höchstens 1 000 000 000 je Position; `"1e3"`, `12.5` oder größere Werte → `invalid_amount`.
-- `currency`: ISO-4217-Code oder ein Währungscode, den WooCommerce anbietet (z. B. IRT, BTC, GGP); Liste per Filter `wpac_contract_currencies` änderbar. Die Programmwährung in den Einstellungen lässt nur diese Codes zu.
+- `currency`: ISO-4217-Code oder ein Währungscode, den WooCommerce anbietet und dessen Nachkommastellen bekannt sind (z. B. IRT mit 0, BTC mit 8, GGP mit 2; `Money::DECIMALS`); Liste per Filter `wpac_contract_currencies` änderbar – Codes ohne bekannte Nachkommastellen werden auch dann abgelehnt. Die Programmwährung in den Einstellungen lässt nur diese Codes zu.
 - `paid_at`/`hold_until`: `Y-m-d H:i:s` (UTC), ISO 8601, `Ymd`, `YmdHis`, Unix-Zeit in Sekunden **oder Millisekunden**; Daten vor 2000 oder mehr als zehn Jahre in der Zukunft → `invalid_date`.
 - Fehler der Prüfung kommen als `WP_Error` (`wpac_<code>`, REST `400`) und werden nicht wiederholt.
 
@@ -155,7 +155,7 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_wc_base_cap` | `int $cap, WC_Order $order` | Obergrenze der Provisionsbasis einer Bestellung (Standard: Bestellsumme ohne Steuer, Versand, positive Gebühren und Geschenkkarten). |
 | `wpac_renewal_attribution` | `bool $ok, object $attr, WC_Order $renewal, int $first_order` | Ob eine Abo-Verlängerung noch an den Partner der Erstbestellung geht. |
 | `wpac_rule_precedence` | `string` | Vorrang der Regeln: `scope` (Partner vor Gruppe vor allen, Ausschlüsse gewinnen immer; Standard) oder `target` (Produkt vor Kategorie vor allen, Ausschlüsse konkurrieren wie Regeln). Einstellung „Regelvorrang“. |
-| `wpac_contract_currencies` | `string[]` | Akzeptierte Währungscodes. |
+| `wpac_contract_currencies` | `string[]` | Akzeptierte Währungscodes (nur ISO 4217 oder mit bekannten Nachkommastellen). |
 | `wpac_job_retention_days` | `array` | Aufbewahrung der Warteschlange in Tagen (`failed_sales` 0 = behalten, `failed` 180, `parked` 365, `superseded` 365, `done` 30). |
 | `wpac_hold_until` | `int $timestamp, array $sale` | Spätestes Garantie-/Widerrufsende; nur spätere Daten verlängern. |
 | `wpac_resolve_partner_code` | `?array $resolved, string $code, array $context` | Eigene Code-Auflösung vorschalten. |
@@ -186,8 +186,9 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_referral_captured` | `array $resolved, array $touch` |
 | `wpac_affiliate_attributed` | `string $order_id, int $affiliate_id, string $method, string $source` |
 | `wpac_commission_created` | `int $commission_id` – jede neue Buchung im Provisionskonto außer Erstattungs-Korrekturen: Verkauf, Bestellerhöhung, manuelle Buchung, Monatsbonus und Bonuskorrektur, Abschreibung (`writeoff`), Rückzahlung (`repayment`), Wiederherstellung (`reinstatement`), Korrekturgutschrift (`correction`; seit 1.3.0 für alle). Art über `wpac_get_commission( $id )['kind']`. |
-| `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` – Erstattung, Storno, Chargeback (Buchungsarten `refund`, `cancellation`, `chargeback`; dafür kein `wpac_commission_created`). |
-| `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` | `int $commission_id` |
+| `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` – Erstattung, Storno, Chargeback (Buchungsarten `refund`, `cancellation`, `chargeback`; dafür kein `wpac_commission_created`). Wird eine WooCommerce-Erstattung gelöscht, kommen die zurückgenommenen, noch nicht freigegebenen Erstattungszeilen mit `$refund['deleted'] = true`; bereits freigegebene bekommen eine Wiederherstellung (`reinstatement`, `wpac_commission_created`). |
+| `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` / `_review` | `int $commission_id` – `_review` feuert, wenn eine abgelehnte Provision zur Prüfung wieder geöffnet wird. |
+| `wpac_affiliate_erased` | `int $affiliate_id, bool $open` – nach der Löschung der personenbezogenen Daten eines Partners (Art. 17 DSGVO); Add-ons löschen ihre eigenen Daten des Partners. `$open`: offene Provisionen/Auszahlungen haben einen Teil der Löschung aufgeschoben. |
 | `wpac_payout_created` | `int $payout_id, int $affiliate_id` (siehe „Add-ons“) |
 | `wpac_payout_paid` | `int $payout_id` (auch nach `wpac_complete_payout()`) |
 | `wpac_payout_cancelled` | `int $payout_id` – nicht bezahlte Auszahlung storniert (auch eine reservierte und die alte Auszahlung beim Neuerstellen; seit 1.3.0). |
@@ -301,7 +302,7 @@ Regeln:
 
 Die Listen prüfen streng (seit 0.13.0): IDs, `page` und `per_page` sind ganze Zahlen ≥ 0 bzw. ≥ 1 (Integer oder reine Ziffernfolge); `-5`, `"abc"`, `1.5` oder Arrays ergeben `wpac_invalid_<argument>` statt stillschweigend „alle“. Ein Array als Wert eines Arguments (z. B. `status`) ergibt ebenfalls `wpac_invalid_<argument>`. Eine Seite hinter dem Ende liefert leere `items` mit der richtigen `total` (auch bei sehr großen Werten wie `PHP_INT_MAX`).
 
-Fehlercodes der Listen- und Schreibfunktionen: `wpac_not_found`, `wpac_invalid_<argument>` (z. B. `wpac_invalid_status`, `wpac_invalid_per_page`, `wpac_invalid_orderby`, `wpac_invalid_group`, `wpac_invalid_affiliate_id`, `wpac_invalid_website`), `wpac_invalid_field`, `wpac_invalid_name`, `wpac_too_long_<feld>`, `wpac_reason_required`, `wpac_amount`, `wpac_state`, `wpac_parent_open`, `wpac_conflict`, `wpac_restricted`, `wpac_db_error`. Auszahlungen liest `wpac_get_payout()`/`wpac_get_payouts()` (Abschnitt „Auszahlung über Zahlungsdienste“).
+Fehlercodes der Listen- und Schreibfunktionen: `wpac_not_found`, `wpac_invalid_<argument>` (z. B. `wpac_invalid_status`, `wpac_invalid_per_page`, `wpac_invalid_orderby`, `wpac_invalid_group`, `wpac_invalid_affiliate_id`, `wpac_invalid_website`), `wpac_invalid_field`, `wpac_invalid_name`, `wpac_too_long_<feld>`, `wpac_reason_required`, `wpac_amount`, `wpac_state`, `wpac_parent_open`, `wpac_conflict`, `wpac_restricted`, `wpac_db_error`, `wpac_affiliate_db` (`wpac_update_affiliate()`: Speichern in der Datenbank fehlgeschlagen, nichts geändert), `wpac_status_not_saved` (`wpac_set_affiliate_status()`: Status nicht gespeichert, nichts geändert). Die beiden letzten und `wpac_db_error` sind vorübergehend: erneut versuchen. Auszahlungen liest `wpac_get_payout()`/`wpac_get_payouts()` (Abschnitt „Auszahlung über Zahlungsdienste“).
 
 ## Mitgelieferte Adapter
 

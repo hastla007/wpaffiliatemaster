@@ -52,9 +52,21 @@ final class WooCommerce {
 		add_action( 'woocommerce_order_status_processing', array( OrderSync::class, 'sync_order' ) );
 		add_action( 'woocommerce_order_status_completed', array( OrderSync::class, 'sync_order' ) );
 		add_action( 'woocommerce_order_refunded', array( OrderSync::class, 'sync_refund' ), 10, 2 );
+		// R13-M1: the order stays locked from storing a refund until it is booked (or deleted).
+		add_action( 'woocommerce_create_refund', array( OrderSync::class, 'refund_creating' ), 10, 1 );
+		add_action( 'woocommerce_delete_order_refund', array( OrderSync::class, 'refund_creation_ended' ), 10, 0 );
+		add_action( 'shutdown', array( OrderSync::class, 'refund_creation_ended' ), 10, 0 );
 		add_action( 'wpac_refund_after_correction', array( OrderSync::class, 'refund_after_correction' ), 10, 3 );
-		// A deleted refund gives its deduction back (R12-M8).
+		// A deleted refund gives its deduction back (R12-M8), however it was deleted (R13-M7):
+		// admin screen, WooCommerce 11.3+ CRUD hook, or the parent captured before the deletion
+		// (WooCommerce 8.1+ CRUD filter, classic storage posts). Booked once per refund.
 		add_action( 'woocommerce_refund_deleted', array( OrderSync::class, 'refund_deleted' ), 10, 2 );
+		add_action( 'woocommerce_order_refund_deleted', array( OrderSync::class, 'order_refund_deleted' ), 10, 2 );
+		add_filter( 'woocommerce_pre_delete_order_refund', array( OrderSync::class, 'before_refund_delete' ), PHP_INT_MAX, 2 );
+		add_action( 'before_delete_post', array( OrderSync::class, 'before_post_delete' ), 0 );
+		add_action( 'woocommerce_before_delete_order', array( OrderSync::class, 'order_deleting' ), 0 );
+		add_action( 'woocommerce_delete_order_refund', array( OrderSync::class, 'refund_gone' ) );
+		add_action( 'deleted_post', array( OrderSync::class, 'refund_gone' ) );
 		add_action( 'woocommerce_order_status_refunded', array( OrderSync::class, 'full_reversal_refunded' ) );
 		add_action( 'woocommerce_order_status_cancelled', array( OrderSync::class, 'full_reversal_cancelled' ) );
 		// Evaluated at status change time, so filters from themes/snippets (loaded later) apply.

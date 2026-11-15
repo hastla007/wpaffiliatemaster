@@ -79,10 +79,25 @@ final class PayoutService {
 	 *
 	 * @param string $period_end Last day of the period (Y-m-d, local).
 	 * @return string UTC "Y-m-d H:i:s" (inclusive).
+	 * @throws IntegrationException For a date that does not exist ("2026-02-30" would roll over
+	 *                              to March and be stored as 0000-00-00 on the credit note).
 	 */
 	public static function cutoff( $period_end ) {
+		if ( ! self::is_date( $period_end ) ) {
+			throw new IntegrationException( 'invalid_date', esc_html__( 'Please choose a valid period end.', 'affiliate-captain' ) );
+		}
 		$range = Db::local_range( (string) $period_end, (string) $period_end );
 		return $range[1];
+	}
+
+	/**
+	 * Whether a value is an existing calendar date "Y-m-d" (checkdate(): no 2026-02-30).
+	 *
+	 * @param mixed $value Value.
+	 * @return bool
+	 */
+	public static function is_date( $value ) {
+		return is_string( $value ) && 1 === preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m ) && checkdate( (int) $m[2], (int) $m[3], (int) $m[1] );
 	}
 
 	/**
@@ -304,13 +319,14 @@ final class PayoutService {
 		$groups = array();
 		foreach ( $rows as $r ) {
 			$rate = $treat[ (int) $r->id ]['rate'];
-			if ( ! isset( $groups[ $rate ] ) ) {
-				$groups[ $rate ] = array(
+			$key  = Vat::rate_key( $rate ); // "19" and "19.0" are one group (R13-N8).
+			if ( ! isset( $groups[ $key ] ) ) {
+				$groups[ $key ] = array(
 					'rate' => $rate,
 					'net'  => 0,
 				);
 			}
-			$groups[ $rate ]['net'] += (int) $r->amount_minor;
+			$groups[ $key ]['net'] += (int) $r->amount_minor;
 		}
 		return $groups;
 	}
@@ -540,7 +556,9 @@ final class PayoutService {
 			self::$deferred[] = $fn;
 			return;
 		}
-		$fn();
+		// Inside a caller's transaction (e.g. PayoutRequests::process()) only after its COMMIT;
+		// right away otherwise.
+		Db::after_commit( $fn );
 	}
 
 	/**
@@ -713,6 +731,7 @@ final class PayoutService {
 				list( $from, $params ) = self::payable_sql( $currency, self::cutoff( $period_end ), $affiliate_id );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from} FOR UPDATE", $params ) );
+				Db::check( 'Locking the payable commissions' ); // R13-K1: an error is not "nothing payable".
 				$total = 0;
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
@@ -926,10 +945,12 @@ final class PayoutService {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN p.net_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN p.net_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", $cur_from, $cur_from, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// R12-M7: correction credit notes count with their net difference on their own date; the
 		// gross difference settled on a later credit note is not counted a second time there.
-		$it   = Db::table( 'payout_items' );
-		$ct   = Db::table( 'commissions' );
-		$kt   = Db::table( Corrections::TABLE );
-		$kg   = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN -i.amount_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN -i.amount_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id JOIN {$it} i ON i.payout_id = p.id AND i.released_at IS NULL JOIN {$ct} c ON c.id = i.commission_id AND c.kind = %s WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", $cur_from, $cur_from, Corrections::KIND, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// R13-K2: repayments and write-offs on a credit note are no turnover either.
+		$it    = Db::table( 'payout_items' );
+		$ct    = Db::table( 'commissions' );
+		$kt    = Db::table( Corrections::TABLE );
+		$kinds = implode( ',', array_fill( 0, count( Vat::NON_TAXABLE_KINDS ), '%s' ) );
+		$kg    = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN -i.amount_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN -i.amount_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id JOIN {$it} i ON i.payout_id = p.id AND i.released_at IS NULL JOIN {$ct} c ON c.id = i.commission_id AND ( c.kind IN ({$kinds}) OR i.vat_mode = %s ) WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", array_merge( array( $cur_from, $cur_from ), Vat::NON_TAXABLE_KINDS, array( Vat::NONE, $from, $to ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Kind placeholders built above.
 		$kd   = $wpdb->get_results( $wpdb->prepare( "SELECT k.affiliate_id, k.currency, SUM( CASE WHEN k.created_at < %s THEN k.net_minor - k.prev_net_minor ELSE 0 END ) prev_total, SUM( CASE WHEN k.created_at >= %s THEN k.net_minor - k.prev_net_minor ELSE 0 END ) cur_total FROM {$kt} k JOIN {$pp} f ON f.affiliate_id = k.affiliate_id WHERE f.tax_status = 'small_business' AND k.created_at BETWEEN %s AND %s GROUP BY k.affiliate_id, k.currency", $cur_from, $cur_from, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$sums = array();
 		foreach ( array_merge( (array) $rows, (array) $kg, (array) $kd ) as $r ) {
@@ -967,8 +988,14 @@ final class PayoutService {
 		if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at || ! in_array( (string) $p->status, array( 'pending', 'exported' ), true ) ) {
 			return null;
 		}
-		Statement::generate( (int) $id );
+		// R13-N9: written right now by another request (job queue after a payout run): wait a
+		// little, and if it is still busy say so – it is not a folder problem.
+		Statement::generate( (int) $id, 20 );
 		$p = self::find( $id );
+		if ( $p && '' === (string) $p->statement_file && Statement::was_busy() ) {
+			/* translators: %s: payout number */
+			return new \WP_Error( 'wpac_statement_busy', sprintf( __( 'The statement of payout %s is being generated right now. Please try again in a minute.', 'affiliate-captain' ), $p->number ) );
+		}
 		if ( $p && '' === (string) $p->statement_file ) {
 			/* translators: %s: payout number */
 			return new \WP_Error( 'wpac_statement', sprintf( __( 'The statement of payout %s could not be stored. Please check that the statement folder is writable and try again.', 'affiliate-captain' ), $p->number ) );
@@ -1135,22 +1162,33 @@ final class PayoutService {
 					if ( '' !== (string) $p->number || '' !== (string) $p->statement_file || '' !== (string) $p->statement_hash ) {
 						$storno = Sequence::number( (string) Settings::get( 'storno_prefix' ), 'storno', (int) wp_date( 'Y' ) );
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-						$wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET storno_number = %s, storno_at = %s WHERE id = %d", $storno, Db::now(), $id ) );
+						if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET storno_number = %s, storno_at = %s WHERE id = %d", $storno, Db::now(), $id ) ) ) {
+							throw new IntegrationException( 'db_error', esc_html__( 'The cancellation could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
+						}
 					}
-					foreach ( self::items( $id, true ) as $item ) {
-						Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
-					}
+					$items    = self::items( $id, true );
 					$released = 0;
-					foreach ( self::items( $id, true ) as $item ) {
+					foreach ( $items as $item ) {
 						$released += (int) $item->amount_minor;
 					}
-					\WPAffiliateCaptain\Commissions\Balance::post( (int) $p->affiliate_id, $p->currency, 'payout_cancelled', $released, 0, (int) $id, $p->number );
 					$it = Db::table( 'payout_items' );
 					$ct = Db::table( 'commissions' );
+					// R13-K1: commissions first, the partner account after them – the order of
+					// Ledger::record_refund() (commission → account). The other way round, a refund
+					// of a commission of this payout and the cancellation deadlock each other.
+					// Both UPDATEs are checked: a commission left on a cancelled payout would never
+					// be paid (payable rows need payout_id = 0) while the account counts it again.
 					// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$wpdb->query( $wpdb->prepare( "UPDATE {$it} SET released_at = %s, active_commission_id = NULL WHERE payout_id = %d AND released_at IS NULL", Db::now(), $id ) );
-					$wpdb->query( $wpdb->prepare( "UPDATE {$ct} SET payout_id = 0, updated_at = %s WHERE payout_id = %d AND status = 'approved'", Db::now(), $id ) );
+					$freed = $wpdb->query( $wpdb->prepare( "UPDATE {$ct} SET payout_id = 0, updated_at = %s WHERE payout_id = %d AND status = 'approved'", Db::now(), $id ) );
+					$unset = false === $freed ? false : $wpdb->query( $wpdb->prepare( "UPDATE {$it} SET released_at = %s, active_commission_id = NULL WHERE payout_id = %d AND released_at IS NULL", Db::now(), $id ) );
 					// phpcs:enable
+					if ( false === $freed || false === $unset ) {
+						throw new IntegrationException( 'db_error', esc_html__( 'The cancellation could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
+					}
+					foreach ( $items as $item ) {
+						Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
+					}
+					\WPAffiliateCaptain\Commissions\Balance::post( (int) $p->affiliate_id, $p->currency, 'payout_cancelled', $released, 0, (int) $id, $p->number );
 					self::reopen_request( $p );
 					return $p;
 				}
@@ -1598,16 +1636,18 @@ final class PayoutService {
 	 * The PayPal address is only filled for the manual method whose payment details contain an
 	 * e-mail address (the same rule as the PayPal payouts file); bank details never leave.
 	 *
-	 * @param object $p Payout row.
+	 * @param object                  $p      Payout row.
+	 * @param array<int, string>|null $emails PayPal addresses per affiliate, preloaded for a page (contract_list()); null loads the profile.
 	 * @return array
 	 */
-	public static function contract_view( $p ) {
+	public static function contract_view( $p, $emails = null ) {
 		$method = self::snapshot_method( $p );
 		$email  = '';
-		if ( ProfileRepository::METHOD_MANUAL === $method && in_array( (string) $p->status, array( 'pending', 'exported' ), true ) ) {
-			$profile = ProfileRepository::get( (int) $p->affiliate_id );
-			if ( $profile && ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
-				$email = ProfileRepository::paypal_email( ProfileRepository::payment_details( $profile ) );
+		if ( self::wants_paypal_email( $p, $method ) ) {
+			if ( is_array( $emails ) && array_key_exists( (int) $p->affiliate_id, $emails ) ) {
+				$email = $emails[ (int) $p->affiliate_id ];
+			} else {
+				$email = self::paypal_emails( array( (int) $p->affiliate_id ) )[ (int) $p->affiliate_id ];
 			}
 		}
 		$batch = (string) $p->sepa_batch;
@@ -1625,6 +1665,42 @@ final class PayoutService {
 			'exported_at'  => (string) $p->exported_at,
 			'paid_at'      => (string) $p->paid_at,
 		);
+	}
+
+	/**
+	 * Whether contract_view() shows the PayPal address of a payout (manual method, not paid yet).
+	 *
+	 * @param object $p      Payout row.
+	 * @param string $method Method from the snapshot.
+	 * @return bool
+	 */
+	private static function wants_paypal_email( $p, $method ) {
+		return ProfileRepository::METHOD_MANUAL === $method && in_array( (string) $p->status, array( 'pending', 'exported' ), true );
+	}
+
+	/**
+	 * PayPal addresses of several partners with one query and one decryption per partner (no
+	 * query per payout in wpac_get_payouts()).
+	 *
+	 * @param int[] $affiliate_ids Partners.
+	 * @return array<int, string> Address per partner ('' without manual profile or address).
+	 */
+	private static function paypal_emails( array $affiliate_ids ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $affiliate_ids ) ) ) );
+		$out = array_fill_keys( $ids, '' );
+		if ( ! $ids ) {
+			return $out;
+		}
+		$t = Db::table( 'payout_profiles' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery -- Table name; one %d per ID.
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ) );
+		foreach ( $rows as $profile ) {
+			if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
+				$out[ (int) $profile->affiliate_id ] = (string) ProfileRepository::paypal_email( ProfileRepository::payment_details( $profile ) );
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -1672,12 +1748,19 @@ final class PayoutService {
 		do {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name and fixed fragments ($where holds only literal conditions); values are placeholders.
 			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE " . implode( ' AND ', $where ) . ' AND id > %d ORDER BY id ASC LIMIT %d', array_merge( $params, array( $after, $limit ) ) ) );
+			$need = array();
+			foreach ( $rows as $p ) {
+				if ( self::wants_paypal_email( $p, self::snapshot_method( $p ) ) ) {
+					$need[] = (int) $p->affiliate_id;
+				}
+			}
+			$emails = self::paypal_emails( $need );
 			foreach ( $rows as $p ) {
 				$after = (int) $p->id;
 				if ( '' !== $method && self::snapshot_method( $p ) !== $method ) {
 					continue;
 				}
-				$out[] = self::contract_view( $p );
+				$out[] = self::contract_view( $p, $emails );
 				if ( count( $out ) >= $limit ) {
 					break 2;
 				}

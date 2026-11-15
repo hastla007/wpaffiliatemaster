@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.12.0
+Stable tag: 0.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,7 +115,7 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
-= Unreleased =
+= 0.13.0 =
 Expert audit (8 reviewers); database schema 13 (indexes only):
 * Fixed: a payout claimed by a payment provider add-on can no longer be exported again (SEPA, transfer list, PayPal file) – it could have been paid twice; a claimed payout can be cancelled in the admin only 45 days after the claim (filter wpac_claim_cancel_after)
 * Fixed: a cancelled payout no longer gets a credit note without its cancellation document
@@ -129,6 +129,11 @@ Expert audit (8 reviewers); database schema 13 (indexes only):
 * Performance: portal.css only loads where the partner area or a block is shown; the statement sweep runs in cron instead of visitor requests; new indexes and cached totals for the audit log and commissions; reports cached for 10 minutes and cleared on bookings
 * Accessibility: labels for all admin form fields, autocomplete in the partner area, per-field registration errors, better contrast, payout method switch without JavaScript, announced notices
 * Admin: the payout export reloads the page only after the download started; payout run cut-off and month in the site time zone
+* Fixed (audit round 13, 9 reviewers): a deadlock or lock timeout in the middle of a booking is rolled back and retried instead of reporting success; order edits, refunds and refund deletions run under a per-order lock
+* Fixed: repayments and write-offs no longer count as taxable net on credit notes, the annual summary and the small business warning; a deleted refund gives back exactly what was deducted (also for fixed rates per piece); a partial refund of a raised line takes back the open increase first
+* Fixed: ambiguous amounts like "12,345" are refused instead of read as thousands; currencies use their real number of decimals (BTC 8)
+* Privacy: the personal data export no longer contains internal reasons or fraud markers and masks bank details; a changed customer key keeps old links and warns until confirmed; old commissions are pseudonymised after the retention period
+* Add-ons: new action wpac_affiliate_erased after a partner erasure; wpac_commission_review and the error codes wpac_affiliate_db / wpac_status_not_saved are documented in the contract; wpac_get_payouts() loads payout profiles once per page
 * Compatibility: all WooCommerce currencies accepted; refused payloads of the integration contract are listed under Integrations; hints for edge caches and multisite cron; read/write API validates arguments strictly
 
 = 0.12.0 =
@@ -264,6 +269,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.13.0 =
+Audit fixes: no double payouts of claimed payouts, correct VAT on correction credit notes, safe retries after database deadlocks. Back up first; schema 13 only adds indexes (waits at most 10 s for locks, retried later by cron).
 
 = 0.12.0 =
 Make a backup first; the database update to schema 12 (new table for correction credit notes) runs automatically. New: correction credit notes for paid payouts, automatic booking of raised order lines, coupon creation for partners, sortable admin lists and the add-on contract 1.3.0.

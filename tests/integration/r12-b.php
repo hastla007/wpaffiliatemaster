@@ -181,9 +181,10 @@ $m20_again = StatementSweep::scheduled();
 remove_all_filters( 'wpac_statement_sweep_budget' );
 check( 'R12-M20 hourly cron sweeps when due (20 s budget, context cron), then waits for the interval', array( true, array( 20.0, 'cron' ), null ), array( is_array( $m20_run ), $m20_budget, $m20_again ) );
 check( 'R12-M20 hourly cron runs the sweep step', true, false !== strpos( $r12b_src( 'src/Core/Cron.php' ), "'hourly.statement_sweep', array( '\\WPAffiliateCaptain\\Payouts\\StatementSweep', 'scheduled' )" ) );
+file_put_contents( $k5_dir . '/zz-second-foreign-0002.pdf', '%PDF-1.4 second foreign' ); // R13-M10: one file per sweep always.
 check( 'R12-M20 a used-up budget stops the sweep (listing included) without deleting', array( false, 0 ), array( StatementSweep::run( 0.000001, true )['complete'], StatementSweep::run( 0.000001, true )['deleted'] ) );
 $m20_sweep = $r12b_src( 'src/Payouts/StatementSweep.php' );
-check( 'R12-M20 no OR across columns in the sweep queries', array( false, false ), array( false !== strpos( $m20_sweep, ' OR storno_file' ), false !== strpos( $m20_sweep, ' OR storno_hash' ) ) );
+check( 'R12-M20/R13-M10 sweep reads names and hashes once along the primary key (no IN() list per chunk)', array( false, true ), array( false !== strpos( $m20_sweep, ' IN ({$marks})' ), false !== strpos( $m20_sweep, 'WHERE id > %d AND ( {$where} ) ORDER BY id ASC LIMIT %d' ) ) );
 check( 'R12-M20 documentation: no request sweep, system cron on every server', array( true, true, false ), array( false !== strpos( $r12b_src( 'docs/HANDBOOK.md' ), 'wpac_statement_sweep_on_requests' ), false !== strpos( $r12b_src( 'README.md' ), 'Besucheraufrufe lösen keinen Sweep aus' ), false !== strpos( $r12b_src( 'README.md' ), 'bei eigenen Aufrufen' ) ) );
 remove_all_filters( 'wpac_statement_dir' );
 foreach ( (array) glob( $k5_dir . '/{,.}*', GLOB_BRACE ) as $k5_f ) {
@@ -317,9 +318,9 @@ check(
 		in_array( 'wpac-tax-history', $m16_groups, true ) && false !== strpos( $m16_flat, 'ATU12345678' ),
 		in_array( 'wpac-commission-events', $m16_groups, true ) && false !== strpos( $m16_flat, 'Storno durch Kunde M16' ),
 		false !== strpos( $m16_flat, 'Unsubscribed from these e-mails' ) && false !== strpos( $m16_flat, 'commission' ),
-		false !== strpos( $m16_flat, 'DE89370400440532013000' ),
+		false === strpos( $m16_flat, 'DE89370400440532013000' ) && false !== strpos( $m16_flat, '3000' ), // R13-K8: masked now.
 		false !== strpos( $m16_flat, 'payout_profile' ) || false !== strpos( $m16_flat, 'affiliate.' ),
-		false !== strpos( $r12b_src( 'docs/HANDBOOK.md' ), 'own payment details in full' ),
+		false !== strpos( $r12b_src( 'docs/HANDBOOK.md' ), 'reverses the "full IBAN"' ),
 	)
 );
 

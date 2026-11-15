@@ -37,15 +37,28 @@ final class Capabilities {
 
 	/**
 	 * Show the role name translated (at init, after the text domain is loaded): only the
-	 * in-memory names, the stored role keeps the untranslated name.
+	 * in-memory names, the stored role keeps the untranslated name. Both the list names and
+	 * the role data are set (role dropdowns and get_editable_roles() read the latter), again
+	 * after switch_to_blog() reloads the roles (wp_roles_init; R13-N10).
+	 *
+	 * @param \WP_Roles|null $roles Roles object (wp_roles_init), null = wp_roles().
 	 */
-	public static function translate_role_name() {
-		if ( ! function_exists( 'wp_roles' ) ) {
-			return;
+	public static function translate_role_name( $roles = null ) {
+		if ( ! is_object( $roles ) ) {
+			if ( ! function_exists( 'wp_roles' ) ) {
+				return;
+			}
+			$roles = wp_roles();
 		}
-		$roles = wp_roles();
+		if ( function_exists( 'did_action' ) && ! did_action( 'init' ) && ! doing_action( 'init' ) ) {
+			return; // Too early for translations (WordPress 6.7+ notice); init follows.
+		}
+		$name = __( 'Tax advisor (Affiliate Captain, read only)', 'affiliate-captain' );
 		if ( isset( $roles->role_names[ self::TAX_ADVISOR_ROLE ] ) ) {
-			$roles->role_names[ self::TAX_ADVISOR_ROLE ] = __( 'Tax advisor (Affiliate Captain, read only)', 'affiliate-captain' );
+			$roles->role_names[ self::TAX_ADVISOR_ROLE ] = $name;
+		}
+		if ( isset( $roles->roles[ self::TAX_ADVISOR_ROLE ] ) && is_array( $roles->roles[ self::TAX_ADVISOR_ROLE ] ) ) {
+			$roles->roles[ self::TAX_ADVISOR_ROLE ]['name'] = $name;
 		}
 	}
 

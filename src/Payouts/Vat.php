@@ -207,7 +207,7 @@ final class Vat {
 		$groups = array();
 		foreach ( $rows as $r ) {
 			$amount = (int) $r->amount_minor;
-			$rate   = isset( $treat[ (int) $r->id ] ) ? (string) $treat[ (int) $r->id ]['rate'] : '0';
+			$rate   = self::rate_key( isset( $treat[ (int) $r->id ] ) ? (string) $treat[ (int) $r->id ]['rate'] : '0' );
 			$net   += $amount;
 			$groups[ $rate ] = ( isset( $groups[ $rate ] ) ? $groups[ $rate ] : 0 ) + $amount;
 		}
@@ -216,6 +216,22 @@ final class Vat {
 			$vat += self::amount( $sum, (string) $rate );
 		}
 		return array( $net, $vat, $net + $vat );
+	}
+
+	/**
+	 * Grouping key of a VAT rate (R13-N8): "19", "19.0" and "19.00" are the same rate (number
+	 * format with 2 decimals, trailing zeros dropped, so existing keys such as "19" or "7.5" stay
+	 * as they are). Only for grouping and comparing; documents print the rate as stored.
+	 *
+	 * @param string $rate Rate.
+	 * @return string
+	 */
+	public static function rate_key( $rate ) {
+		$rate = trim( (string) $rate );
+		if ( ! is_numeric( $rate ) ) {
+			return $rate;
+		}
+		return rtrim( rtrim( number_format( (float) $rate, 2, '.', '' ), '0' ), '.' );
 	}
 
 	/**

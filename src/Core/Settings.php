@@ -415,7 +415,8 @@ final class Settings {
 		if ( isset( $in['currency'] ) ) {
 			$currency = strtoupper( trim( (string) $in['currency'] ) );
 			// Only codes the contract accepts: sales in another currency would all be refused.
-			if ( preg_match( '/^[A-Z]{3}$/', $currency ) && in_array( $currency, \WPAffiliateCaptain\Sales\ContractApi::currencies(), true ) ) {
+			// The stored currency stays valid (e.g. IRT while WooCommerce is inactive, R13-N10).
+			if ( preg_match( '/^[A-Z]{3}$/', $currency ) && ( $currency === $out['currency'] || in_array( $currency, \WPAffiliateCaptain\Sales\ContractApi::currencies(), true ) ) ) {
 				$out['currency'] = $currency;
 			} else {
 				$errors['currency'] = __( 'Please enter a three-letter currency code (ISO 4217, e.g. EUR).', 'affiliate-captain' );
@@ -488,13 +489,13 @@ final class Settings {
 				// Fixed default rate is entered as a decimal amount, stored as minor units. The form
 				// showed it in the stored currency: after a currency change it is converted.
 				$shown_in = $fx_change && 'fixed' === (string) $old( 'default_rate_type' ) ? $old_currency : $out['currency'];
-				$rate     = self::parse_amount( $in['default_rate'], $shown_in );
+				$rate     = self::parse_amount( $in['default_rate'], $shown_in, $problem );
 				$ok       = null !== $rate && (float) $rate >= 0;
 				if ( $ok ) {
 					$minor               = Money::to_minor( $rate, $shown_in );
 					$out['default_rate'] = (string) ( $shown_in !== $out['currency'] ? self::convert_minor( $minor, $shown_in, $out['currency'], $old_rates, $new_rates )[0] : $minor );
 				} else {
-					$errors['default_rate'] = __( 'Please enter an amount (e.g. 25 or 25,50).', 'affiliate-captain' );
+					$errors['default_rate'] = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 25 or 25,50).', 'affiliate-captain' );
 				}
 			} else {
 				$rate = self::parse_percent( $in['default_rate'] );
@@ -632,9 +633,10 @@ final class Settings {
 	private static function sanitize_amount_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['fraud_max_order_minor'] = isset( $out['fraud_max_order_minor'] ) ? $out['fraud_max_order_minor'] : 0; // Converted above after a currency change.
 		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
-			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'] );
+			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'], $problem );
 			if ( null === $max_order || (float) $max_order < 0 ) {
-				$errors['fraud_max_order']    = __( 'Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off).', 'affiliate-captain' );
+				/* translators: 1: example amount (1000), 2: the same amount in the site's number format (e.g. 1,000.00) */
+				$errors['fraud_max_order']    = 'ambiguous' === $problem ? self::ambiguous_amount() : sprintf( __( 'Please enter an amount (e.g. %1$s or %2$s; 0 = rule off).', 'affiliate-captain' ), '1000', number_format_i18n( 1000, 2 ) );
 				$out['fraud_max_order_minor'] = (int) $old( 'fraud_max_order_minor' );
 			} else {
 				$out['fraud_max_order_minor'] = Money::to_minor( $max_order, $out['currency'] );
@@ -644,9 +646,10 @@ final class Settings {
 
 		$out['min_payout_minor'] = isset( $out['min_payout_minor'] ) ? $out['min_payout_minor'] : $d['min_payout_minor'];
 		if ( isset( $in['min_payout'] ) ) {
-			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'], $out['currency'] );
+			$problem = '';
+			$min     = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'], $out['currency'], $problem );
 			if ( null === $min || (float) $min < 0 ) {
-				$errors['min_payout']    = __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'affiliate-captain' );
+				$errors['min_payout']    = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'affiliate-captain' );
 				$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
 			} else {
 				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
@@ -875,16 +878,28 @@ final class Settings {
 	}
 
 	/**
-	 * Parse an amount as typed by people: "25", "25 €", "€ 25,50", "1.000", "1.000,00 EUR",
-	 * "1,000.00". See Money::parse_amount(): grouped thousands are recognized, but for currencies
-	 * with three decimals (KWD …) "5.000" means 5 – the way the value is shown in the form.
+	 * Parse an amount as typed by people: "25", "25 €", "€ 25,50", "1.000,00 EUR", "1,000.00",
+	 * "1.000.000". See Money::parse_amount(): unambiguous thousands groups are recognized, a lone
+	 * group ("1.000") is refused as ambiguous, and for currencies with three decimals (KWD …)
+	 * "5.000" means 5 – the way the value is shown in the form.
 	 *
-	 * @param mixed  $raw      Input.
-	 * @param string $currency Currency of the amount ('' = no three-decimal rule).
+	 * @param mixed       $raw      Input.
+	 * @param string      $currency Currency of the amount ('' = unknown).
+	 * @param string|null $problem  Set to '' (fine), 'invalid' or 'ambiguous'.
 	 * @return string|null Normalized decimal or null.
 	 */
-	public static function parse_amount( $raw, $currency = '' ) {
-		return Money::parse_amount( (string) $raw, (string) $currency );
+	public static function parse_amount( $raw, $currency = '', &$problem = null ) {
+		return Money::parse_amount( (string) $raw, (string) $currency, $problem );
+	}
+
+	/**
+	 * Error for an amount with a lone thousands group ("1.000", "12,345"), see parse_amount().
+	 *
+	 * @return string
+	 */
+	private static function ambiguous_amount() {
+		/* translators: 1: example without grouping (1000), 2: the same amount with grouping and decimals in the site's number format (e.g. 1,000.00) */
+		return sprintf( __( 'The amount is ambiguous (thousands separator or decimal places?). Please write it as %1$s or %2$s.', 'affiliate-captain' ), '1000', number_format_i18n( 1000, 2 ) );
 	}
 
 	/**

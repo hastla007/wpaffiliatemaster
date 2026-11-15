@@ -59,15 +59,46 @@ final class CustomerLinks {
 		return defined( 'WPAC_CUSTOMER_KEY' ) && is_string( WPAC_CUSTOMER_KEY ) && strlen( WPAC_CUSTOMER_KEY ) >= 32 ? (string) WPAC_CUSTOMER_KEY : '';
 	}
 
+	/** Option: persistent "key changed" state (max_id = newest link made with the earlier key, fp = new fingerprint or '' when the constant was removed, since). */
+	const KEY_CHANGED = 'wpac_customer_key_changed';
+
+	/**
+	 * Fingerprint of a key: HMAC with the site's auth salt, so a database dump alone does not
+	 * allow guessing a weak WPAC_CUSTOMER_KEY offline (a plain sha256 would).
+	 *
+	 * @param string $key Key.
+	 * @return string
+	 */
+	public static function fingerprint( $key ) {
+		return hash_hmac( 'sha256', (string) $key, wp_salt( 'auth' ) );
+	}
+
+	/**
+	 * Whether a stored fingerprint belongs to a key (current HMAC form, or the plain sha256 of
+	 * releases up to 0.13).
+	 *
+	 * @param string $fp  Stored fingerprint.
+	 * @param string $key Key.
+	 * @return bool
+	 */
+	private static function fingerprint_matches( $fp, $key ) {
+		return '' !== $fp && ( hash_equals( $fp, self::fingerprint( $key ) ) || hash_equals( $fp, hash( 'sha256', (string) $key ) ) );
+	}
+
 	/**
 	 * Which key the hashes use. WPAC_CUSTOMER_KEY (wp-config.php, so a database dump alone does
 	 * not reverse the hashes) is only taken while no customer links exist yet, or when the
 	 * existing links were made with it: the e-mail addresses are not stored, so existing hashes
-	 * cannot be recomputed with a new key. Otherwise the stored key stays in use and
+	 * cannot be recalculated with a new key. Otherwise the stored key stays in use and
 	 * status() reports the constant as ignored.
 	 *
+	 * When the constant was changed or removed while links exist, the fingerprint of the earlier
+	 * key is never overwritten; a persistent "key changed" state (KEY_CHANGED) keeps the warning
+	 * until no link made with the earlier key remains, the earlier key is restored, or an admin
+	 * confirms the change (confirm_key_change()).
+	 *
 	 * @return array key, source (constant|option), ignored (constant set but not used),
-	 *               missing (links were made with the constant, which is no longer defined).
+	 *               missing (links were made with a key that is no longer defined).
 	 */
 	private static function key_state() {
 		if ( null !== self::$state ) {
@@ -84,38 +115,162 @@ final class CustomerLinks {
 			'missing' => false,
 		);
 		if ( '' !== $const ) {
-			$fp_new = hash( 'sha256', $const );
-			if ( hash_equals( $fp, $fp_new ) ) {
+			$fp_new = self::fingerprint( $const );
+			if ( self::fingerprint_matches( $fp, $const ) ) {
 				$state['source'] = 'constant';
+				if ( ! hash_equals( $fp, $fp_new ) ) {
+					update_option( self::CONSTANT_FP, $fp_new, false ); // Upgrade the plain sha256 of earlier releases.
+				}
+				delete_option( self::KEY_CHANGED ); // The earlier key is back (or never changed).
 			} elseif ( '' === $fp && '' !== $stored && self::has_links() ) {
 				// Existing hashes were made with the stored key: keep it, the constant is ignored.
 				$state['ignored'] = true;
-			} else {
-				// No hashes depend on the stored key (or the links were made with an earlier
-				// constant, which is gone either way): the constant takes over.
-				$state['missing'] = '' !== $fp && self::has_links();
+			} elseif ( '' !== $fp && self::old_links_remain( $fp_new ) ) {
+				// Links were made with an earlier constant: keep its fingerprint and warn until
+				// they are gone or an admin confirms. New links use the new constant.
+				$state['missing'] = true;
 				$state['source']  = 'constant';
+				delete_option( 'wpac_customer_key' );
+			} else {
+				// No hashes depend on another key: the constant takes over.
+				$state['source'] = 'constant';
 				update_option( self::CONSTANT_FP, $fp_new, false );
+				delete_option( self::KEY_CHANGED );
 				delete_option( 'wpac_customer_key' );
 			}
 		} elseif ( '' !== $fp ) {
 			// The constant was removed: existing hashes no longer match.
-			$state['missing'] = self::has_links();
+			$state['missing'] = self::old_links_remain( '' );
 			if ( ! $state['missing'] ) {
 				delete_option( self::CONSTANT_FP );
+				delete_option( self::KEY_CHANGED );
 			}
 		}
 		if ( 'constant' === $state['source'] ) {
 			$state['key'] = $const;
 		} else {
-			if ( '' === $stored ) {
-				$stored = bin2hex( random_bytes( 32 ) );
-				add_option( 'wpac_customer_key', $stored, '', false );
-			}
-			$state['key'] = $stored;
+			$state['key'] = '' !== $stored ? $stored : self::generate_key();
 		}
 		self::$state = $state;
 		return $state;
+	}
+
+	/**
+	 * Generate the stored key once. Two first requests at the same time must not end up with
+	 * different keys (the loser's hashes would never be found again). add_option() is no help:
+	 * WordPress writes it as an UPSERT, so the second request would overwrite the first key. The
+	 * key is created with INSERT IGNORE instead - only one insert wins - and both requests use
+	 * the value read back from the database.
+	 *
+	 * @return string
+	 */
+	private static function generate_key() {
+		global $wpdb;
+		$key = bin2hex( random_bytes( 32 ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", 'wpac_customer_key', $key ) );
+		wp_cache_delete( 'wpac_customer_key', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+		wp_cache_delete( 'alloptions', 'options' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$winner = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'wpac_customer_key' ) );
+		if ( is_string( $winner ) && strlen( $winner ) >= 32 ) {
+			return $winner;
+		}
+		update_option( 'wpac_customer_key', $key, false ); // Insert impossible (e.g. read-only replica lag): as before.
+		return $key;
+	}
+
+	/**
+	 * Whether links made with the earlier key still exist. The first time a change is noticed,
+	 * the newest link ID is recorded (links created afterwards use the new key and do not count).
+	 *
+	 * @param string $fp_new Fingerprint of the key now in use ('' = stored key, constant removed).
+	 * @return bool
+	 */
+	private static function old_links_remain( $fp_new ) {
+		global $wpdb;
+		$t       = Db::table( 'customer_links' );
+		$changed = get_option( self::KEY_CHANGED );
+		if ( ! is_array( $changed ) || ! isset( $changed['max_id'], $changed['fp'] ) || ! hash_equals( (string) $changed['fp'], (string) $fp_new ) ) {
+			// First notice of this change (or yet another key): all current links are old.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			$max = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$t}" );
+			if ( ! $max ) {
+				return false;
+			}
+			update_option(
+				self::KEY_CHANGED,
+				array(
+					'max_id' => $max,
+					'fp'     => (string) $fp_new,
+					'since'  => time(),
+				),
+				false
+			);
+			return true;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE id <= %d LIMIT 1", (int) $changed['max_id'] ) );
+	}
+
+	/**
+	 * The "key changed" state, for the admin: since (timestamp) and the number of links made
+	 * with the earlier key; null without a change.
+	 *
+	 * @return array|null
+	 */
+	public static function key_change() {
+		global $wpdb;
+		$changed = get_option( self::KEY_CHANGED );
+		if ( ! is_array( $changed ) || empty( $changed['max_id'] ) ) {
+			return null;
+		}
+		$t = Db::table( 'customer_links' );
+		return array(
+			'since' => (int) ( $changed['since'] ?? 0 ),
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			'links' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t} WHERE id <= %d", (int) $changed['max_id'] ) ),
+		);
+	}
+
+	/**
+	 * Admin confirms the changed key: the key now in use becomes the reference and the warning
+	 * ends. With $delete_old the links made with the earlier key are removed – they can no longer
+	 * be matched to a customer (not for lifetime commissions, not for access or erasure
+	 * requests). Without it they stay until they expire (e.g. only the WordPress salts changed
+	 * and the key itself is the same).
+	 *
+	 * @param bool $delete_old Delete the links made with the earlier key.
+	 * @return int Deleted links.
+	 */
+	public static function confirm_key_change( $delete_old ) {
+		global $wpdb;
+		$changed = get_option( self::KEY_CHANGED );
+		$deleted = 0;
+		if ( $delete_old && is_array( $changed ) && ! empty( $changed['max_id'] ) ) {
+			$t = Db::table( 'customer_links' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$deleted = (int) \WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( "DELETE FROM {$t} WHERE id <= %d", (int) $changed['max_id'] ), 2000, 100 );
+		}
+		$const = self::constant_key();
+		if ( '' !== $const ) {
+			update_option( self::CONSTANT_FP, self::fingerprint( $const ), false );
+		} else {
+			delete_option( self::CONSTANT_FP );
+		}
+		delete_option( self::KEY_CHANGED );
+		self::reset_key_cache();
+		\WPAffiliateCaptain\Core\Audit::log(
+			'customer_links.key_confirmed',
+			'settings',
+			0,
+			array(
+				'deleted' => $deleted,
+				'source'  => '' !== $const ? 'constant' : 'option',
+			)
+		);
+		return $deleted;
 	}
 
 	/**
