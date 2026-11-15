@@ -452,6 +452,11 @@ final class CodeRepository {
 		$t = Db::table( 'partner_codes' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE coupon_code = %s AND status = 'active' ORDER BY id DESC LIMIT 1", $coupon ) );
+		if ( $row && 'ok' !== \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::link_state( $row ) ) {
+			// The linked WooCommerce coupon no longer exists (deleted/renamed), or a coupon with
+			// that code belongs to another code row by its ID: the stale link credits nobody (R12-N14).
+			return null;
+		}
 		if ( ! $row && strtoupper( $coupon ) === self::normalize( $coupon ) ) {
 			// A coupon whose code equals a partner code also counts – only if the coupon has no
 			// characters normalize() would drop ("müller" must not match the code "MLLER").

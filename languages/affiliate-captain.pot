@@ -744,6 +744,10 @@ msgstr ""
 msgid "Link"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Link broken: this WooCommerce coupon no longer exists (deleted or renamed). Orders with this coupon code are not credited. Link the coupon again or remove the link."
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
 msgid "Active"
 msgstr ""
@@ -957,7 +961,7 @@ msgstr ""
 msgid "Account holder"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "IBAN"
 msgstr ""
 
@@ -1748,7 +1752,7 @@ msgstr ""
 msgid "Partner"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Portal/Portal.php src/Reports/MonthlyMail.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Portal/Portal.php src/Privacy/Privacy.php src/Reports/MonthlyMail.php
 msgid "Commission"
 msgstr ""
 
@@ -1797,7 +1801,7 @@ msgstr ""
 msgid "All of \"%s\""
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Privacy/Privacy.php
 msgid "Action"
 msgstr ""
 
@@ -2005,7 +2009,7 @@ msgstr ""
 msgid "Events"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Privacy/Privacy.php
 msgid "Event"
 msgstr ""
 
@@ -3942,6 +3946,10 @@ msgid "Keep rejected applications (days, 0 = forever)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Keep undecided applications (days, 0 = forever)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Max. orders per partner in 24 hours"
 msgstr ""
 
@@ -4536,6 +4544,10 @@ msgid "Afterwards name, e-mail and application data of rejected applicants witho
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr ""
 
@@ -4642,7 +4654,7 @@ msgstr ""
 msgid "Object"
 msgstr ""
 
-#: src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php
+#: src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Privacy/Privacy.php
 msgid "Details"
 msgstr ""
 
@@ -6400,6 +6412,10 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/CouponLink.php
 msgid "Please choose one of the codes of this partner."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "This partner code is blocked, expired or used up. Please choose an active code."
 msgstr ""
 
 #: src/Integrations/WooCommerce/CouponLink.php
@@ -8412,6 +8428,20 @@ msgstr ""
 msgid "In progress"
 msgstr ""
 
+#. translators: %d: number of orders
+#: src/Privacy/Privacy.php
+msgid "%d order of this customer is attributed to a partner (order number, partner, method, campaign). The attribution is retained as a booking record of the partner commission for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgid_plural "%d orders of this customer are attributed to a partner (order number, partner, method, campaign). The attributions are retained as booking records of the partner commissions for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of orders
+#: src/Privacy/Privacy.php
+msgid "The referral data of %d order is retained until its partner commission has been booked (automatic retry)."
+msgid_plural "The referral data of %d orders is retained until their partner commission has been booked (automatic retry)."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: days
 #: src/Privacy/Privacy.php
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
@@ -8461,6 +8491,20 @@ msgid_plural "rejected partner applications: %d days"
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: days
+#: src/Privacy/Privacy.php
+msgid "partner applications that were never decided: %d day"
+msgid_plural "partner applications that were never decided: %d days"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: years
+#: src/Privacy/Privacy.php
+msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order"
+msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order"
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: years
 #: src/Privacy/Privacy.php
 msgid "commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)"
@@ -8485,6 +8529,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Held until"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Commission status changes"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Change log entries about you"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8521,6 +8573,18 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Payout requests"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Earlier tax data"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Requested change of the tax data (waiting for approval)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Requested on"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8588,6 +8652,10 @@ msgid "Linked user account"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Unsubscribed from these e-mails"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Processing restricted since"
 msgstr ""
 
@@ -8601,10 +8669,6 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Requested new website (waiting for approval)"
-msgstr ""
-
-#: src/Privacy/Privacy.php
-msgid "Requested on"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8672,6 +8736,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "rejected partner applications: until deleted manually"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "partner applications that were never decided: until deleted manually"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "applications whose e-mail address was not confirmed: 2 days"
 msgstr ""
 
 #: src/Privacy/Privacy.php

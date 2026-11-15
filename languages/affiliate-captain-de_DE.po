@@ -547,6 +547,9 @@ msgstr "Gutscheincode"
 msgid "Link"
 msgstr "Link"
 
+msgid "Link broken: this WooCommerce coupon no longer exists (deleted or renamed). Orders with this coupon code are not credited. Link the coupon again or remove the link."
+msgstr "Verknüpfung defekt: Dieser WooCommerce-Gutschein existiert nicht mehr (gelöscht oder umbenannt). Bestellungen mit diesem Gutscheincode werden nicht gutgeschrieben. Verknüpfen Sie den Gutschein erneut oder entfernen Sie die Verknüpfung."
+
 msgid "Active"
 msgstr "Aktiv"
 
@@ -2893,6 +2896,9 @@ msgstr "Audit-Log aufbewahren (Tage, 0 = unbegrenzt)"
 msgid "Keep rejected applications (days, 0 = forever)"
 msgstr "Abgelehnte Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
 
+msgid "Keep undecided applications (days, 0 = forever)"
+msgstr "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
+
 msgid "Max. orders per partner in 24 hours"
 msgstr "Max. Bestellungen pro Partner in 24 Stunden"
 
@@ -3333,6 +3339,9 @@ msgstr "Aufbewahrungsfristen"
 
 msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
 msgstr "Danach werden Name, E-Mail und Bewerbungsdaten abgelehnter Bewerber ohne Provisionen anonymisiert."
+
+msgid "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgstr "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist gelöscht. Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht."
 
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr "Nachweise zu den Partnerbedingungen und buchungsrelevante Einträge werden so lange aufbewahrt wie die Gutschriften."
@@ -4642,6 +4651,9 @@ msgstr "Gutscheine können nur angelegt werden, solange WooCommerce aktiv ist."
 
 msgid "Please choose one of the codes of this partner."
 msgstr "Bitte wählen Sie einen der Codes dieses Partners."
+
+msgid "This partner code is blocked, expired or used up. Please choose an active code."
+msgstr "Dieser Partnercode ist gesperrt, abgelaufen oder aufgebraucht. Bitte wählen Sie einen aktiven Code."
 
 msgid "Please enter a coupon code."
 msgstr "Bitte geben Sie einen Gutscheincode ein."
@@ -6075,6 +6087,16 @@ msgstr "Überwiesen am %s"
 msgid "In progress"
 msgstr "In Bearbeitung"
 
+msgid "%d order of this customer is attributed to a partner (order number, partner, method, campaign). The attribution is retained as a booking record of the partner commission for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgid_plural "%d orders of this customer are attributed to a partner (order number, partner, method, campaign). The attributions are retained as booking records of the partner commissions for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgstr[0] "%d Bestellung dieses Kunden ist einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnung wird als Buchungsunterlage der Partnerprovision für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden."
+msgstr[1] "%d Bestellungen dieses Kunden sind einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnungen werden als Buchungsunterlagen der Partnerprovisionen für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden."
+
+msgid "The referral data of %d order is retained until its partner commission has been booked (automatic retry)."
+msgid_plural "The referral data of %d orders is retained until their partner commission has been booked (automatic retry)."
+msgstr[0] "Die Empfehlungsangaben von %d Bestellung werden aufbewahrt, bis ihre Partnerprovision gebucht ist (automatische Wiederholung)."
+msgstr[1] "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung)."
+
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgstr[0] "Ein Affiliate-Cookie (wpac_ref, %d Tag) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
@@ -6110,6 +6132,16 @@ msgid_plural "rejected partner applications: %d days"
 msgstr[0] "abgelehnte Partnerbewerbungen: %d Tag"
 msgstr[1] "abgelehnte Partnerbewerbungen: %d Tage"
 
+msgid "partner applications that were never decided: %d day"
+msgid_plural "partner applications that were never decided: %d days"
+msgstr[0] "nie entschiedene Partnerbewerbungen: %d Tag"
+msgstr[1] "nie entschiedene Partnerbewerbungen: %d Tage"
+
+msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order"
+msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order"
+msgstr[0] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+msgstr[1] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+
 msgid "commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)"
 msgid_plural "commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)"
 msgstr[0] "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten Partnerbedingungen: %d Jahr nach Ende des Kalenderjahres (gesetzliche Aufbewahrung; während einer Betriebsprüfung länger)"
@@ -6128,6 +6160,12 @@ msgstr "Provisionsbasis"
 
 msgid "Held until"
 msgstr "Gesperrt bis"
+
+msgid "Commission status changes"
+msgstr "Statusänderungen von Provisionen"
+
+msgid "Change log entries about you"
+msgstr "Einträge im Änderungsprotokoll zu Ihnen"
 
 msgid "Your orders credited to a partner"
 msgstr "Ihre einem Partner gutgeschriebenen Bestellungen"
@@ -6155,6 +6193,15 @@ msgstr "aktiv"
 
 msgid "Payout requests"
 msgstr "Auszahlungsanträge"
+
+msgid "Earlier tax data"
+msgstr "Frühere Steuerangaben"
+
+msgid "Requested change of the tax data (waiting for approval)"
+msgstr "Beantragte Änderung der Steuerangaben (wartet auf Freigabe)"
+
+msgid "Requested on"
+msgstr "Beantragt am"
 
 msgid "Name registered with VIES"
 msgstr "Bei VIES registrierter Name"
@@ -6204,6 +6251,9 @@ msgstr "Letzter Besuch"
 msgid "Linked user account"
 msgstr "Verknüpftes Benutzerkonto"
 
+msgid "Unsubscribed from these e-mails"
+msgstr "Von diesen E-Mails abgemeldet"
+
 msgid "Processing restricted since"
 msgstr "Verarbeitung eingeschränkt seit"
 
@@ -6215,9 +6265,6 @@ msgstr "Beantragter neuer öffentlicher Name (wartet auf Freigabe)"
 
 msgid "Requested new website (waiting for approval)"
 msgstr "Beantragte neue Website (wartet auf Freigabe)"
-
-msgid "Requested on"
-msgstr "Beantragt am"
 
 msgid "Previous e-mail address (security notices for 30 days)"
 msgstr "Vorherige E-Mail-Adresse (Sicherheitshinweise für 30 Tage)"
@@ -6266,6 +6313,12 @@ msgstr "Kundenverknüpfung mit dem empfehlenden Partner: bis zum Ende der Partne
 
 msgid "rejected partner applications: until deleted manually"
 msgstr "abgelehnte Partnerbewerbungen: bis zur manuellen Löschung"
+
+msgid "partner applications that were never decided: until deleted manually"
+msgstr "nie entschiedene Partnerbewerbungen: bis zur manuellen Löschung"
+
+msgid "applications whose e-mail address was not confirmed: 2 days"
+msgstr "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: 2 Tage"
 
 msgid "commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically"
 msgstr "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten Partnerbedingungen: gesetzliche Aufbewahrungsfrist, derzeit keine automatische Löschung"

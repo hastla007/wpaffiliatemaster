@@ -57,6 +57,7 @@ final class Settings {
 			'visit_retention_days'    => 90,
 			'audit_retention_days'    => 1095,
 			'application_retention_days' => 180,
+			'pending_application_days' => 365,     // Undecided applications are deleted after this (0 = never).
 			// Commissions.
 			'currency'                => 'EUR',
 			'exchange_rates'          => '',
@@ -273,6 +274,7 @@ final class Settings {
 	const INT_MAX = array(
 		'audit_retention_days'       => 36500,
 		'application_retention_days' => 36500,
+		'pending_application_days'   => 36500,
 		'visit_retention_days'       => 36500,
 		'fraud_max_orders_day'       => 1000000,
 		'fraud_min_click_seconds'    => 86400,
@@ -380,7 +382,7 @@ final class Settings {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'audit_retention_days', 'application_retention_days', 'pending_application_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			if ( ! isset( $in[ $int ] ) ) {
 				$out[ $int ] = $d[ $int ];
 				continue;

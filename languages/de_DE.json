@@ -114,6 +114,11 @@
   "%d Bestellung",
   "%d Bestellungen"
  ],
+ "%d order of this customer is attributed to a partner (order number, partner, method, campaign). The attribution is retained as a booking record of the partner commission for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details.": [
+  "%d Bestellung dieses Kunden ist einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnung wird als Buchungsunterlage der Partnerprovision für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden.",
+  "%d Bestellungen dieses Kunden sind einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnungen werden als Buchungsunterlagen der Partnerprovisionen für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden."
+ ],
+ "%d orders of this customer are attributed to a partner (order number, partner, method, campaign). The attributions are retained as booking records of the partner commissions for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details.": "%d Bestellungen dieses Kunden sind einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnungen werden als Buchungsunterlagen der Partnerprovisionen für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden.",
  "%d partner": [
   "%d Partner",
   "%d Partnern"
@@ -383,6 +388,7 @@
  "Application page and partner area page": "Bewerbungsseite und Partnerbereich",
  "Application pending": "Bewerbung offen",
  "Applications & termination": "Bewerbungen & Beendigung",
+ "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days.": "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist gelöscht. Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht.",
  "Applications via this form are currently not possible.": "Bewerbungen über dieses Formular sind derzeit nicht möglich.",
  "Applications waiting": "Offene Bewerbungen",
  "Applies to": "Gilt für",
@@ -515,6 +521,7 @@
  "Cannot be paid out right now": "Derzeit nicht auszahlbar",
  "Categories": "Kategorien",
  "Category IDs": "Kategorie-IDs",
+ "Change log entries about you": "Einträge im Änderungsprotokoll zu Ihnen",
  "Change note": "Änderungsnotiz",
  "Change of bank details refused (password missing or wrong)": "Änderung der Bankdaten abgelehnt (Passwort fehlt oder falsch)",
  "Change of public details approved": "Änderung der öffentlichen Angaben freigegeben",
@@ -567,6 +574,7 @@
  "Commission rejected": "Provision abgelehnt",
  "Commission reopened": "Provision wieder geöffnet",
  "Commission statement": "Provisionsabrechnung",
+ "Commission status changes": "Statusänderungen von Provisionen",
  "Commission: %1$s (%2$s, %3$s)": "Provision: %1$s (%2$s, %3$s)",
  "Commissions": "Provisionen",
  "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\").": "Provisionen werden nicht freigegeben und fehlgeschlagene Verkäufe nicht wiederholt. Richten Sie einen System-Cron ein (\"wp cron event run --due-now\").",
@@ -787,6 +795,7 @@
  "E-mails & reports": "E-Mails & Berichte",
  "E.g. 19 or 7,7 – \"%\" may be typed.": "Z. B. 19 oder 7,7 – „%“ darf mit eingegeben werden.",
  "Each tab saves only its own fields. Invalid values are not saved and are shown again with a message next to the field.": "Jeder Reiter speichert nur seine eigenen Felder. Ungültige Werte werden nicht gespeichert und mit einem Hinweis neben dem Feld erneut angezeigt.",
+ "Earlier tax data": "Frühere Steuerangaben",
  "Earnings per month": "Einnahmen pro Monat",
  "Edit": "Bearbeiten",
  "Edit rule": "Regel bearbeiten",
@@ -981,6 +990,7 @@
  "Keep rejected applications (days, 0 = forever)": "Abgelehnte Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)",
  "Keep statements (years, 0 = forever)": "Belege aufbewahren (Jahre, 0 = unbegrenzt)",
  "Keep the code from a partner link in the WooCommerce shop session": "Code aus einem Partnerlink in der WooCommerce-Shop-Sitzung halten",
+ "Keep undecided applications (days, 0 = forever)": "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)",
  "Keep visit data (days)": "Besuchsdaten aufbewahren (Tage)",
  "Key": "Schlüssel",
  "Landing page": "Landingpage",
@@ -1020,6 +1030,7 @@
  "Link": "Link",
  "Link WordPress user manually (user ID or e-mail address)": "WordPress-Benutzer manuell verknüpfen (Benutzer-ID oder E-Mail-Adresse)",
  "Link attribution": "Link-Zuordnung",
+ "Link broken: this WooCommerce coupon no longer exists (deleted or renamed). Orders with this coupon code are not credited. Link the coupon again or remove the link.": "Verknüpfung defekt: Dieser WooCommerce-Gutschein existiert nicht mehr (gelöscht oder umbenannt). Bestellungen mit diesem Gutscheincode werden nicht gutgeschrieben. Verknüpfen Sie den Gutschein erneut oder entfernen Sie die Verknüpfung.",
  "Link generator": "Link-Generator",
  "Link parameter": "Link-Parameter",
  "Link this WordPress user to the partner? Whoever can log in to the account then sees the partner area including payouts.": "Diesen WordPress-Benutzer mit dem Partner verknüpfen? Wer sich mit dem Konto anmelden kann, sieht dann den Partnerbereich einschließlich der Auszahlungen.",
@@ -1653,6 +1664,7 @@
  "Request payout of %s": "Auszahlung von %s beantragen",
  "Request rejected.": "Antrag abgelehnt.",
  "Requested": "Beantragt",
+ "Requested change of the tax data (waiting for approval)": "Beantragte Änderung der Steuerangaben (wartet auf Freigabe)",
  "Requested new e-mail address (not confirmed)": "Beantragte neue E-Mail-Adresse (nicht bestätigt)",
  "Requested new public name (waiting for approval)": "Beantragter neuer öffentlicher Name (wartet auf Freigabe)",
  "Requested new website (waiting for approval)": "Beantragte neue Website (wartet auf Freigabe)",
@@ -2031,6 +2043,11 @@
  "The previous attempt did not finish (timeout or fatal error).": "Der vorige Versuch wurde nicht abgeschlossen (Zeitüberschreitung oder schwerer Fehler).",
  "The private partner group \"%s\" opens only from a form in the content of a published page last saved by a partner manager.": "Die private Partnergruppe „%s“ öffnet sich nur über ein Formular im Inhalt einer veröffentlichten Seite, die zuletzt von einem Partnerverwalter gespeichert wurde.",
  "The program export needs the PHP extension \"zip\". Ask your hosting provider to enable it, or use the CSV exports of the individual lists.": "Der Programm-Export benötigt die PHP-Erweiterung „zip“. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie die CSV-Exporte der einzelnen Listen.",
+ "The referral data of %d order is retained until its partner commission has been booked (automatic retry).": [
+  "Die Empfehlungsangaben von %d Bestellung werden aufbewahrt, bis ihre Partnerprovision gebucht ist (automatische Wiederholung).",
+  "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung)."
+ ],
+ "The referral data of %d orders is retained until their partner commission has been booked (automatic retry).": "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung).",
  "The refund could not be processed and was queued for retry.": "Die Rückerstattung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant.",
  "The reinstatement could not be processed and was queued for retry.": "Die Wiederherstellung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant.",
  "The rejection could not be saved (database error). Nothing was changed; please try again.": "Die Ablehnung konnte nicht gespeichert werden (Datenbankfehler). Es wurde nichts geändert; bitte versuchen Sie es erneut.",
@@ -2100,6 +2117,7 @@
  "This objection was already handled, no longer exists or could not be saved; nothing was sent.": "Dieser Widerspruch wurde bereits bearbeitet, existiert nicht mehr oder konnte nicht gespeichert werden; es wurde nichts versendet.",
  "This order is not attributed yet; assign it instead.": "Diese Bestellung ist noch nicht zugeordnet; ordnen Sie sie stattdessen zu.",
  "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records.": "Diese Übersicht fasst Ihre Gutschriften und Stornos des Jahres zusammen. Sie ist selbst kein Steuerbeleg; das sind die Gutschriften. Bitte bewahren Sie diese auf.",
+ "This partner code is blocked, expired or used up. Please choose an active code.": "Dieser Partnercode ist gesperrt, abgelaufen oder aufgebraucht. Bitte wählen Sie einen aktiven Code.",
  "This partner is already linked to a WordPress user.": "Dieser Partner ist bereits mit einem WordPress-Benutzer verknüpft.",
  "This partner is not linked to a WordPress user.": "Dieser Partner ist mit keinem WordPress-Benutzer verknüpft.",
  "This payout cannot be marked as paid.": "Diese Auszahlung kann nicht als bezahlt markiert werden.",
@@ -2144,6 +2162,7 @@
  "United States": "Vereinigte Staaten",
  "Unknown action.": "Unbekannte Aktion.",
  "Unknown partner or currency.": "Unbekannter Partner oder unbekannte Währung.",
+ "Unsubscribed from these e-mails": "Von diesen E-Mails abgemeldet",
  "Until they run again, commissions are not released after the hold period, failed sales are not retried and report mails are not sent.": "Bis sie wieder laufen, werden Provisionen nach der Haltefrist nicht freigegeben, fehlgeschlagene Verkäufe nicht erneut versucht und Berichts-Mails nicht versendet.",
  "Unusually high order value": "Ungewöhnlich hoher Bestellwert",
  "Unusually many orders in 24 hours": "Ungewöhnlich viele Bestellungen in 24 Stunden",
@@ -2367,6 +2386,12 @@
  "affiliate cookie: %d days": "Affiliate-Cookie: %d Tage",
  "after an erasure request; kept only for the statutory retention": "nach einem Löschantrag; nur noch für die gesetzliche Aufbewahrung gespeichert",
  "after our review": "nach unserer Prüfung",
+ "applications whose e-mail address was not confirmed: 2 days": "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: 2 Tage",
+ "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order": [
+  "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
+  "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+ ],
+ "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order": "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
  "being reviewed": "wird geprüft",
  "cancellation": "Stornierung",
  "cancels %s": "storniert %s",
@@ -2447,6 +2472,12 @@
  "optional": "optional",
  "own terms": "eigene Bedingungen",
  "partner account and payout details after the partnership ended: deleted once the retention period of the last booking has passed (without bookings: after the period for rejected applications)": "Partnerkonto und Auszahlungsdaten nach Ende der Partnerschaft: gelöscht, sobald die Aufbewahrungsfrist der letzten Buchung abgelaufen ist (ohne Buchungen: nach der Frist für abgelehnte Bewerbungen)",
+ "partner applications that were never decided: %d day": [
+  "nie entschiedene Partnerbewerbungen: %d Tag",
+  "nie entschiedene Partnerbewerbungen: %d Tage"
+ ],
+ "partner applications that were never decided: %d days": "nie entschiedene Partnerbewerbungen: %d Tage",
+ "partner applications that were never decided: until deleted manually": "nie entschiedene Partnerbewerbungen: bis zur manuellen Löschung",
  "partner group \"%s\" does not exist": "Partnergruppe „%s“ existiert nicht",
  "partner group \"%s\" does not exist – create it first (needs the right to manage the program) or leave the cell empty": "Partnergruppe „%s“ existiert nicht – legen Sie sie zuerst an (erfordert das Recht, das Programm zu verwalten) oder lassen Sie die Zelle leer",
  "partner group #%s does not exist": "Partnergruppe #%s existiert nicht",

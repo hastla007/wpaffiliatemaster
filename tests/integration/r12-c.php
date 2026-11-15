@@ -213,14 +213,14 @@ $r12c_inst->setAccessible( true );
 $r12c_inst->setValue( null, 0 );
 $r12c_public = WPAffiliateCaptain\Affiliates\Groups::public_groups();
 set_transient(
-	'wpac_form_r12ctoken',
+	'wpac_regkeep_R12cTokenAbcdefghijk',
 	array(
 		'values' => array( 'wpac_name' => '', 'wpac_email' => 'x' ),
 		'field'  => 'wpac_name',
 		'errors' => array( 'wpac_name' => 'Please enter your name or company.', 'wpac_email' => 'Please enter a valid e-mail address.' ),
 	)
 );
-$_GET = array( 'wpac_err' => 'invalid', 'wpac_form' => 'r12ctoken' ) + ( $r12c_public ? array( 'wpac_group' => (string) (int) reset( $r12c_public )->id ) : array() );
+$_GET = array( 'wpac_err' => 'invalid', 'wpac_form' => 'R12cTokenAbcdefghijk' ) + ( $r12c_public ? array( 'wpac_group' => (string) (int) reset( $r12c_public )->id ) : array() );
 $r12c = r_render( array( Registration::class, 'render' ) );
 $html = $r12c[0];
 check(
@@ -243,8 +243,8 @@ $r12c = r_render( array( Registration::class, 'render' ) );
 check( 'R12-N7 "account exists": links to log in and to reset the password; spam error explains what to do', array( true, true, true ), array( false !== strpos( $r12c[0], 'Log in to the partner area</a>' ), false !== strpos( $r12c[0], 'action=lostpassword' ), false !== strpos( $r12c_src( 'src/Affiliates/Registration.php' ), 'Please reload the page and send the form again' ) ) );
 // Older kept state without the error list: the single field still points to the form message.
 $r12c_inst->setValue( null, 0 );
-set_transient( 'wpac_form_r12cold', array( 'values' => array( 'wpac_email' => 'x' ), 'field' => 'wpac_email' ) );
-$_GET = array( 'wpac_err' => 'invalid', 'wpac_form' => 'r12cold' ) + ( $r12c_public ? array( 'wpac_group' => (string) (int) reset( $r12c_public )->id ) : array() );
+set_transient( 'wpac_regkeep_R12cOldAbcdefghijklm', array( 'values' => array( 'wpac_email' => 'x' ), 'field' => 'wpac_email' ) );
+$_GET = array( 'wpac_err' => 'invalid', 'wpac_form' => 'R12cOldAbcdefghijklm' ) + ( $r12c_public ? array( 'wpac_group' => (string) (int) reset( $r12c_public )->id ) : array() );
 $r12c = r_render( array( Registration::class, 'render' ) );
 check( 'R12-M26 older kept state (no error list): field marked and linked to the form message', true, (bool) preg_match( '/id="wpac_email"[^>]*aria-invalid="true" aria-describedby="wpac-form-error" autofocus/', $r12c[0] ) );
 

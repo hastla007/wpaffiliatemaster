@@ -226,7 +226,10 @@ final class Portal {
 			)
 		);
 		foreach ( $list as $r ) {
-			$rows[] = array( self::day( $r->created_at ), 'wpac' === $r->source ? '' : (string) $r->source_order_id, $r->kind, $r->description, Money::to_decimal( (int) $r->base_minor, $r->currency ), $r->rate_type . ':' . $r->rate, Money::to_decimal( (int) $r->amount_minor, $r->currency ), $r->currency, $r->status, 'pending' === $r->status && $r->hold_until ? self::day( $r->hold_until ) : '' );
+			// Like the table and the REST API: the internal reason of corrections, write-offs and
+			// refunds (e.g. the shop's refund reason) is shown only as the kind label.
+			$product = in_array( $r->kind, array( 'sale', 'bonus' ), true ) ? (string) $r->description : self::kind_label( $r->kind );
+			$rows[]  = array( self::day( $r->created_at ), 'wpac' === $r->source ? '' : (string) $r->source_order_id, $r->kind, $product, Money::to_decimal( (int) $r->base_minor, $r->currency ), $r->rate_type . ':' . $r->rate, Money::to_decimal( (int) $r->amount_minor, $r->currency ), $r->currency, $r->status, 'pending' === $r->status && $r->hold_until ? self::day( $r->hold_until ) : '' );
 		}
 		return array( array( 'date', 'order', 'kind', 'product', 'base', 'rate', 'amount', 'currency', 'status', 'available_from' ), $rows );
 	}

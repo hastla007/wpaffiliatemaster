@@ -823,10 +823,17 @@ final class Corrections {
 	 * @return string|null|false Bytes, null = not available, false = integrity check failed.
 	 */
 	public static function stored_bytes( $c ) {
-		if ( '' === (string) $c->file || $c->file_deleted_at ) {
+		if ( '' === (string) $c->file ) {
 			return null;
 		}
 		$path = Statement::path( (string) $c->file );
+		// Deleted after the retention period (on any server: the database decides): never served or
+		// rebuilt, and a copy left on this server is deleted (R12-K5).
+		$now = self::find( (int) $c->id );
+		if ( $c->file_deleted_at || ! $now || $now->file_deleted_at ) {
+			StatementSweep::forget( $path, (string) $c->hash );
+			return null;
+		}
 		if ( is_readable( $path ) ) {
 			$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 			return hash_equals( (string) $c->hash, hash( 'sha256', $bytes ) ) ? $bytes : false;

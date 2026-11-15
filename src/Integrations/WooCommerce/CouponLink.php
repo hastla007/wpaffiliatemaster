@@ -61,7 +61,17 @@ final class CouponLink {
 		$code   = $coupon->get_code();
 		$linked = CodeRepository::find_by_coupon( $code, true );
 
+		if ( ! $linked ) {
+			// Renamed coupon: the code row linked by the coupon's ID follows the new code instead of
+			// staying on the old text (a later coupon with the old name must not credit the partner).
+			$by_id = self::linked_row( (int) $coupon_id );
+			if ( $by_id && 'active' === $by_id->status && CodeRepository::normalize_coupon( (string) $by_id->coupon_code ) !== CodeRepository::normalize_coupon( $code ) ) {
+				CodeRepository::set_coupon( (int) $by_id->id, $code );
+				$linked = CodeRepository::find( (int) $by_id->id );
+			}
+		}
 		if ( $linked && (int) $linked->affiliate_id === $aff_id ) {
+			self::remember( (int) $linked->id, $code );
 			return; // Unchanged.
 		}
 		if ( $linked ) {
@@ -77,24 +87,118 @@ final class CouponLink {
 		if ( $previous ) {
 			CodeRepository::set_coupon( (int) $previous->id, $code );
 			CodeRepository::set_status( (int) $previous->id, 'active' );
+			self::remember( (int) $previous->id, $code );
 			return;
 		}
 		// Coupon codes may contain characters partner codes cannot ("größe10", "лето20"): the partner
 		// code is derived (or random), the coupon itself is matched by the coupon column.
 		$created = CodeRepository::create( $aff_id, CodeRepository::code_for_coupon( $code ), array( 'coupon_code' => $code ) );
+		if ( ! is_wp_error( $created ) ) {
+			self::remember( (int) $created, $code );
+		}
 		if ( is_wp_error( $created ) && class_exists( '\\WC_Admin_Meta_Boxes' ) ) {
 			/* translators: %s: error message */
 			\WC_Admin_Meta_Boxes::add_error( sprintf( __( 'Affiliate Captain: the coupon was not linked to the partner: %s', 'affiliate-captain' ), $created->get_error_message() ) );
 		}
 	}
 
+	/** Coupon meta: ID of the partner code row the coupon is linked to (R12-N14). */
+	const META_CODE_ID = '_wpac_code_id';
+
 	/**
-	 * Whether coupons can be created from the partner page (WooCommerce active).
+	 * Whether coupons can be created from the partner page: WooCommerce active and the user may
+	 * publish coupons (a partner manager without WooCommerce rights must not create discounts).
 	 *
 	 * @return bool
 	 */
 	public static function can_create() {
-		return class_exists( 'WC_Coupon' ) && function_exists( 'wc_get_coupon_id_by_code' );
+		return class_exists( 'WC_Coupon' ) && function_exists( 'wc_get_coupon_id_by_code' ) && current_user_can( 'publish_shop_coupons' );
+	}
+
+	/**
+	 * Whether a partner code may be linked to a new coupon: active, not expired, not used up.
+	 *
+	 * @param object $row Code row.
+	 * @return bool
+	 */
+	public static function code_usable( $row ) {
+		if ( ! $row || 'active' !== $row->status ) {
+			return false;
+		}
+		if ( $row->expires_at && strtotime( $row->expires_at . ' UTC' ) < time() ) {
+			return false;
+		}
+		return ! ( (int) $row->usage_limit > 0 && (int) $row->usage_count >= (int) $row->usage_limit );
+	}
+
+	/**
+	 * Remember on the WooCommerce coupon which partner code row it is linked to (WooCommerce
+	 * CRUD). The link is then checked by the coupon's ID, not only by its code text.
+	 *
+	 * @param int    $code_id Partner code row.
+	 * @param string $coupon  Coupon code.
+	 */
+	public static function remember( $code_id, $coupon ) {
+		if ( ! function_exists( 'wc_get_coupon_id_by_code' ) || ! class_exists( 'WC_Coupon' ) || '' === (string) $coupon ) {
+			return;
+		}
+		$id = (int) wc_get_coupon_id_by_code( (string) $coupon );
+		if ( ! $id ) {
+			return;
+		}
+		try {
+			$wc = new \WC_Coupon( $id );
+			if ( (int) $wc->get_meta( self::META_CODE_ID ) !== (int) $code_id ) {
+				$wc->update_meta_data( self::META_CODE_ID, (int) $code_id );
+				$wc->save_meta_data();
+			}
+		} catch ( \Throwable $e ) {
+			return; // The link still works by the code text.
+		}
+	}
+
+	/**
+	 * Partner code row a coupon is linked to by its ID (meta), null when none.
+	 *
+	 * @param int $coupon_id Coupon ID.
+	 * @return object|null
+	 */
+	private static function linked_row( $coupon_id ) {
+		if ( ! $coupon_id || ! class_exists( 'WC_Coupon' ) ) {
+			return null;
+		}
+		try {
+			$code_id = (int) ( new \WC_Coupon( (int) $coupon_id ) )->get_meta( self::META_CODE_ID );
+		} catch ( \Throwable $e ) {
+			return null;
+		}
+		return $code_id ? CodeRepository::find( $code_id ) : null;
+	}
+
+	/**
+	 * State of the WooCommerce coupon a partner code row is linked to (WooCommerce active):
+	 * 'ok', 'missing' (no coupon with that code any more: deleted or renamed) or 'other' (a coupon
+	 * with that code exists but belongs to another code row by its ID, e.g. a new coupon with the
+	 * name of a deleted one). Without WooCommerce or without a link: 'ok'.
+	 *
+	 * @param object $row Code row.
+	 * @return string
+	 */
+	public static function link_state( $row ) {
+		if ( ! $row || '' === (string) $row->coupon_code || ! function_exists( 'wc_get_coupon_id_by_code' ) || ! class_exists( 'WC_Coupon' ) ) {
+			return 'ok';
+		}
+		$id = (int) wc_get_coupon_id_by_code( (string) $row->coupon_code );
+		if ( ! $id ) {
+			return 'missing';
+		}
+		try {
+			$code_id = (int) ( new \WC_Coupon( $id ) )->get_meta( self::META_CODE_ID );
+		} catch ( \Throwable $e ) {
+			return 'ok';
+		}
+		// Links made by older versions carry no ID: they count by the code text as before.
+		return ( ! $code_id || (int) $row->id === $code_id ) ? 'ok' : 'other';
 	}
 
 	/**
@@ -115,7 +219,8 @@ final class CouponLink {
 	 * @return array|\WP_Error { coupon_id, code_id, coupon }
 	 */
 	public static function create_for_partner( $affiliate_id, array $args ) {
-		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
+		// Creating a discount is a WooCommerce right: the partner right alone is not enough.
+		if ( ! current_user_can( Capabilities::MANAGE_AFFILIATES ) || ! current_user_can( 'publish_shop_coupons' ) ) {
 			return new \WP_Error( 'wpac_forbidden', __( 'You are not allowed to do this.', 'affiliate-captain' ) );
 		}
 		if ( ! self::can_create() ) {
@@ -130,6 +235,9 @@ final class CouponLink {
 		$row     = $code_id ? CodeRepository::find( $code_id ) : null;
 		if ( $code_id && ( ! $row || (int) $row->affiliate_id !== $affiliate_id ) ) {
 			return new \WP_Error( 'wpac_code_foreign', __( 'Please choose one of the codes of this partner.', 'affiliate-captain' ) );
+		}
+		if ( $row && ! self::code_usable( $row ) ) {
+			return new \WP_Error( 'wpac_code_unusable', __( 'This partner code is blocked, expired or used up. Please choose an active code.', 'affiliate-captain' ) );
 		}
 		$coupon = isset( $args['coupon_code'] ) ? trim( sanitize_text_field( (string) $args['coupon_code'] ) ) : '';
 		if ( '' === $coupon && $row ) {
@@ -192,6 +300,10 @@ final class CouponLink {
 			$created = CodeRepository::create( $affiliate_id, CodeRepository::code_for_coupon( $coupon ), array( 'coupon_code' => $coupon ) );
 			$ok      = ! is_wp_error( $created );
 			$code_id = $ok ? (int) $created : 0;
+		}
+		if ( $ok ) {
+			$wc->update_meta_data( self::META_CODE_ID, (int) ( $row ? $row->id : $code_id ) );
+			$wc->save_meta_data();
 		}
 		if ( ! $ok ) {
 			$wc->delete( true ); // Never leave a coupon that discounts without crediting the partner.
