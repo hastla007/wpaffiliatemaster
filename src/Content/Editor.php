@@ -55,7 +55,9 @@ final class Editor {
 			wp_set_script_translations( 'wpac-blocks', 'affiliate-captain', WPAC_DIR . 'languages' );
 		}
 		if ( ! wp_style_is( 'wpac-portal', 'registered' ) ) {
-			// block.json "style": the portal stylesheet in the editor preview and in the head of the page.
+			// block.json "editorStyle": the portal stylesheet in the editor. On the site each render
+			// callback enqueues it only where a block is shown ("style" loaded it on every page of
+			// classic themes, R12-M19).
 			\WPAffiliateCaptain\Portal\Portal::register_assets();
 		}
 		$dir = WPAC_DIR . 'blocks/';

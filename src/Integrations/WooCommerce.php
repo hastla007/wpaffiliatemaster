@@ -52,6 +52,8 @@ final class WooCommerce {
 		add_action( 'woocommerce_order_status_processing', array( OrderSync::class, 'sync_order' ) );
 		add_action( 'woocommerce_order_status_completed', array( OrderSync::class, 'sync_order' ) );
 		add_action( 'woocommerce_order_refunded', array( OrderSync::class, 'sync_refund' ), 10, 2 );
+		// A deleted refund gives its deduction back (R12-M8).
+		add_action( 'woocommerce_refund_deleted', array( OrderSync::class, 'refund_deleted' ), 10, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( OrderSync::class, 'full_reversal_refunded' ) );
 		add_action( 'woocommerce_order_status_cancelled', array( OrderSync::class, 'full_reversal_cancelled' ) );
 		// Evaluated at status change time, so filters from themes/snippets (loaded later) apply.

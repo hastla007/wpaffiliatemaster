@@ -11,7 +11,11 @@ Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 
 ## 2. GitHub-Release
 
-Tag `vX.Y.Z` pushen (oder Merge nach `main` mit neuer Version). Die CI baut das ZIP mit `bin/build-zip.sh` (Dateiauswahl = alles außer `.distignore`; das Skript bricht ab, wenn Laufzeitdateien fehlen oder Entwicklerdateien wie `README.md`, `tests/`, `languages/de_DE.json` enthalten sind), lässt alle Jobs laufen (inkl. „Minimum versions“ und „Plugin Check“) und veröffentlicht genau das getestete ZIP.
+Tag `vX.Y.Z` pushen (oder Merge nach `main` mit neuer Version). Die CI baut das ZIP mit `bin/build-zip.sh` (Dateiauswahl = alles außer `.distignore`; das Skript bricht ab, wenn Laufzeitdateien fehlen oder Entwicklerdateien wie `README.md`, `tests/`, `languages/de_DE.json` enthalten sind, und wenn `readme.txt` keinen Changelog-Eintrag `= X.Y.Z =` für die Version hat), lässt alle Jobs laufen (inkl. „Minimum versions“ und „Plugin Check“) und veröffentlicht genau das getestete ZIP mit seiner SHA-256-Prüfsumme (Datei `affiliate-captain-X.Y.Z.zip.sha256` als Asset und in den Release-Notizen).
+
+- Ein Tag-Release wird nur veröffentlicht, wenn der getaggte Commit in `main` enthalten ist (`git merge-base --is-ancestor`); Tags auf nicht gemergten Branches bauen und testen, veröffentlichen aber nichts.
+- Der Upgrade-Job testet das Update von der **vorigen** Release-Version (neuester `vX.Y.Z`-Tag ohne Vorabversionen wie `-rc1` und ohne den Tag des laufenden Builds).
+- Tag pushen **oder** nach `main` mergen – nicht beides für dieselbe Version: der zweite Lauf scheitert an `gh release create` (das Release existiert schon).
 
 ## 3. Deploy nach WordPress.org (SVN)
 
@@ -19,7 +23,7 @@ Workflow `.github/workflows/wordpress-org-deploy.yml` – **nur manuell** (Actio
 
 | Eingabe | Bedeutung |
 |---|---|
-| `tag` | vorhandener Release-Tag, z. B. `v0.11.0` (die CI dieses Tags muss grün sein) |
+| `tag` | vorhandener Release-Tag, z. B. `v0.11.0` (die CI dieses Tags muss grün sein, sonst bricht der Workflow ab) |
 | `slug` | der von WordPress.org vergebene Slug (siehe `docs/FREE-PREMIUM.md`, Abschnitt Name/Slug) |
 | `dry_run` | Standard **an**: bereitet den SVN-Commit vor, sendet ihn aber nicht. Erst nach einem erfolgreichen Probelauf mit `false` wiederholen. |
 
@@ -28,9 +32,17 @@ Voraussetzungen:
 - Repository-Secrets (oder Secrets der Umgebung `wordpress-org`) **`SVN_USERNAME`** und **`SVN_PASSWORD`** (WordPress.org-Benutzer mit Commit-Recht auf das Plugin; das SVN-Passwort aus dem WordPress.org-Profil, nicht das Login-Passwort). Ohne beide Secrets tut der Workflow nichts außer einer Warnung.
 - Empfohlen: in den Repository-Einstellungen für die Umgebung `wordpress-org` „Required reviewers“ setzen, damit jeder Deploy freigegeben werden muss.
 
-Ablauf: Tag auschecken → `bin/build-zip.sh <tag>` (Versionen, Unit-Tests, Dateiauswahl) → `10up/action-wordpress-plugin-deploy` (auf Commit-SHA gepinnt, Version 2.3.0) kopiert alle Dateien außer `.distignore` nach `trunk/`, legt `tags/<version>/` an und spiegelt `.wordpress-org/` (ohne die README) nach `assets/`.
+Der Workflow bricht ab, wenn es für den Commit des Tags keinen erfolgreichen CI-Lauf (`ci.yml`, Tag-Push oder Merge nach `main`) oder kein GitHub-Release des Tags gibt (Job-Token mit `actions: read`, kein zusätzliches Secret). Er baut das ZIP aus demselben Tag mit demselben Skript neu (gleiche Dateiauswahl, nicht byte-identisch wegen der Zeitstempel) – nicht das getestete Release-ZIP selbst; die Prüfsumme des veröffentlichten ZIPs steht im GitHub-Release (`.sha256`).
+
+Ablauf: Tag auschecken → `bin/build-zip.sh <tag>` (Versionen, Changelog-Eintrag, Unit-Tests, Dateiauswahl) → `10up/action-wordpress-plugin-deploy` (auf Commit-SHA gepinnt, Version 2.3.0) kopiert alle Dateien außer `.distignore` nach `trunk/`, legt `tags/<version>/` an und spiegelt `.wordpress-org/` (ohne die README) nach `assets/`.
 
 Bilder für `assets/` (Banner, Icons, Screenshots): siehe `.wordpress-org/README.md`. Die Reihenfolge der Screenshots muss zum Abschnitt `== Screenshots ==` in `readme.txt` passen.
+
+## 3a. Rollback eines Releases
+
+- GitHub: das Release auf „Pre-release“ setzen oder löschen; den Tag nicht neu vergeben (Nutzer und der Upgrade-Job orientieren sich an den Tags). Eine Korrektur erscheint als neue Patch-Version.
+- WordPress.org: `Stable tag` in `trunk/readme.txt` auf die vorige Version zurücksetzen (SVN), damit neue Installationen sie erhalten; bereits aktualisierte Seiten bekommen erst die nächste Version.
+- Hat das Release das Schema geändert, gilt für Betreiber HANDBOOK §15 (Downgrade nur zusammen mit dem Datenbank-Backup; die alte Version migriert nicht zurück). In den Release-Notizen der Korrekturversion darauf hinweisen.
 
 ## 4. Vor der ersten Einreichung
 

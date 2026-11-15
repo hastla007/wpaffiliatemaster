@@ -42,7 +42,13 @@ final class Monitor {
 
 		$out['cron']   = self::cron_running()
 			? array( 'good', __( 'Scheduled tasks are running', 'affiliate-captain' ), '' )
-			: array( 'critical', __( 'Scheduled tasks have not run for over two hours', 'affiliate-captain' ), __( 'Commissions are not released and failed sales are not retried. Set up a system cron ("wp cron event run --due-now"; on a network for every site).', 'affiliate-captain' ) );
+			: array( 'critical', __( 'Scheduled tasks have not run for over two hours', 'affiliate-captain' ), __( 'Commissions are not released and failed sales are not retried. Set up a system cron ("wp cron event run --due-now"; on a network for every site).', 'affiliate-captain' ) . ( is_multisite() ? ' ' . self::network_cron_hint() : '' ) );
+
+		$rejected = \WPAffiliateCaptain\Sales\ContractApi::rejected();
+		if ( $rejected && (int) $rejected[0]['time'] > time() - 7 * DAY_IN_SECONDS ) {
+			/* translators: %d: number of refused payloads */
+			$out['contract_rejected'] = array( 'recommended', __( 'An integration sends sales that are refused', 'affiliate-captain' ), sprintf( __( 'Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status).', 'affiliate-captain' ), count( $rejected ) ) );
+		}
 
 		$failed_steps = Cron::failures();
 		if ( $failed_steps ) {
@@ -112,6 +118,16 @@ final class Monitor {
 
 	/** Option: result of the daily check of pending data migrations (Cron step "migrations"). */
 	const MIGRATION_STATUS = 'wpac_migration_status';
+
+	/**
+	 * Cron command for a network: "wp cron event run" without --url only runs the main site,
+	 * the other sites would never release commissions or migrate their tables (R12-M31).
+	 *
+	 * @return string Plain text.
+	 */
+	public static function network_cron_hint() {
+		return __( 'On a multisite network the command only runs the main site. Run it for every site, e.g.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}', 'affiliate-captain' );
+	}
 
 	/**
 	 * Whether the scheduled tasks run – the one definition used by Site Health, the admin notice,

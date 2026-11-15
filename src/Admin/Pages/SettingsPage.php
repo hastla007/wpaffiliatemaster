@@ -295,8 +295,12 @@ final class SettingsPage {
 			self::text( 'currency', __( 'Program currency', 'affiliate-captain' ), $s, $desc );
 			return;
 		}
-		$options = array();
+		$options  = array();
+		$accepted = \WPAffiliateCaptain\Sales\ContractApi::currencies();
 		foreach ( (array) get_woocommerce_currencies() as $code => $name ) {
+			if ( ! in_array( strtoupper( (string) $code ), $accepted, true ) ) {
+				continue; // Removed by the filter wpac_contract_currencies: sales would be refused.
+			}
 			/* translators: 1: currency name, 2: ISO code */
 			$options[ (string) $code ] = sprintf( __( '%1$s (%2$s)', 'affiliate-captain' ), html_entity_decode( (string) $name, ENT_QUOTES, 'UTF-8' ), $code );
 		}
@@ -432,6 +436,9 @@ final class SettingsPage {
 		self::section( __( 'Tracking & attribution', 'affiliate-captain' ), 'tracking' );
 		self::text( 'referral_param', __( 'Link parameter', 'affiliate-captain' ), $s, sprintf( /* translators: %s: example URL with the link parameter */ __( 'Example: %s', 'affiliate-captain' ), home_url( '/?' . $s['referral_param'] . '=CODE' ) ) );
 		self::checkbox( 'checkout_field', __( 'Show partner code field at checkout (classic + blocks)', 'affiliate-captain' ), $s );
+		if ( class_exists( 'WooCommerce' ) && ! function_exists( 'woocommerce_register_additional_checkout_field' ) ) {
+			self::desc_row( __( 'The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it.', 'affiliate-captain' ) );
+		}
 		self::checkbox( 'use_wc_session', __( 'Keep the code from a partner link in the WooCommerce shop session', 'affiliate-captain' ), $s, __( 'Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie.', 'affiliate-captain' ) );
 		self::select(
 			'cookie_mode',
@@ -449,6 +456,10 @@ final class SettingsPage {
 		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'affiliate-captain' ), $s );
 		self::text( 'cookie_domain', __( 'Cookie domain', 'affiliate-captain' ), $s, __( 'Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both.', 'affiliate-captain' ) );
 		self::checkbox( 'js_tracking', __( 'Also record partner links via JavaScript (for full-page caches/CDNs)', 'affiliate-captain' ), $s, __( 'Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare "Cache Everything"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice.', 'affiliate-captain' ) );
+		$edge = \WPAffiliateCaptain\Tracking\Tracker::edge_cache_hint();
+		if ( '' !== $edge ) {
+			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html( $edge ) . '</p></div></td></tr>';
+		}
 		self::number( 'visit_log_percent', __( 'Record link visits (%)', 'affiliate-captain' ), $s, __( '100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected.', 'affiliate-captain' ) );
 		self::select( 'touch_model', __( 'Link attribution', 'affiliate-captain' ), $s, array( 'last' => __( 'Last touch', 'affiliate-captain' ), 'first' => __( 'First touch', 'affiliate-captain' ) ) );
 		self::checkbox( 'coupon_priority', __( 'Affiliate coupon has priority over partner links', 'affiliate-captain' ), $s );

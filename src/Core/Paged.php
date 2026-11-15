@@ -17,7 +17,10 @@ final class Paged {
 	 * @param string   $table    Full table name.
 	 * @param string   $where    WHERE clause with placeholders.
 	 * @param array    $params   Placeholder values.
-	 * @param array    $args     limit (0 = all), offset, orderby, order.
+	 * @param array    $args     limit (0 = all), offset, orderby, order; ties (orderby => further
+	 *                           columns sorted in the same direction, from the whitelist) and
+	 *                           tie_same (true: the ID tie-breaker follows the direction), so a
+	 *                           sort can run along an index instead of a filesort.
 	 * @param string[] $sortable Columns allowed for orderby (whitelist).
 	 * @return array [ rows, total ]
 	 */
@@ -39,7 +42,17 @@ final class Paged {
 			$total = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count, $params ) ) : $wpdb->get_var( $count ) );
 		}
 		$limit = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
-		$sql   = "SELECT * FROM {$table} WHERE {$where} ORDER BY {$orderby} {$order}" . ( 'id' !== $orderby ? ', id DESC' : '' );
+		$by    = "{$orderby} {$order}";
+		if ( 'id' !== $orderby ) {
+			$ties = isset( $args['ties'][ $orderby ] ) ? (array) $args['ties'][ $orderby ] : array();
+			foreach ( $ties as $tie ) {
+				if ( in_array( $tie, $sortable, true ) || preg_match( '/^[a-z_]+$/', (string) $tie ) ) {
+					$by .= ', ' . $tie . ' ' . $order;
+				}
+			}
+			$by .= ', id ' . ( empty( $args['tie_same'] ) ? 'DESC' : $order );
+		}
+		$sql   = "SELECT * FROM {$table} WHERE {$where} ORDER BY {$by}";
 		if ( $limit > 0 ) {
 			$sql     .= ' LIMIT %d OFFSET %d';
 			$params[] = $limit;

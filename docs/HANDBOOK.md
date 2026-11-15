@@ -20,12 +20,18 @@ Contents
 12. [Monitoring](#12-monitoring)
 13. [Troubleshooting](#13-troubleshooting)
 14. [Uninstalling](#14-uninstalling)
+15. [Downgrade and rollback](#15-downgrade-and-rollback)
 
 ---
 
 ## 1. Requirements and setup
 
-**Requirements:** WordPress 6.3 or newer, PHP 7.4 or newer with the extensions `sodium` (encryption of bank details) and `dom` (SEPA XML), optionally `zip` (program export). MySQL/MariaDB with InnoDB tables (bookings run in transactions). WooCommerce is optional (8.0 or newer; the partner code field in the block checkout needs 8.9).
+**Requirements:** WordPress 6.3 or newer, PHP 7.4 or newer with the extensions `sodium` (encryption of bank details) and `dom` (SEPA XML), optionally `zip` (program export). MySQL/MariaDB with InnoDB tables (bookings run in transactions). WooCommerce is optional (8.0 or newer; the partner code field in the block checkout needs 8.9 – with 8.0 to 8.8 only the classic checkout shows it, and Settings → Tracking says so).
+
+**Database replicas and clusters.** The plugin protects parallel bookings of the same order (a refund webhook arriving while the sale is being booked, two cron runs) with MySQL user locks (`GET_LOCK`, `IS_USED_LOCK`, `RELEASE_LOCK`). These locks live on the server of the connection:
+- With a read/write split (HyperDB, LudicrousDB, ProxySQL with read replicas) all queries of the plugin tables must go to the primary – at least the lock functions and the reads right after them. Configure the plugin's tables (`{prefix}wpac_*`) and the lock functions as "write" in the splitter; otherwise a lock taken on the primary is invisible to a check that runs on a replica.
+- Galera/Percona XtraDB Cluster: user locks are local to the node and not replicated, and `pxc_strict_mode=ENFORCING` may refuse them. Send all writes of the site to one node (the usual single-writer setup); with several writers parallel requests for the same order are not serialised.
+- The migration lock is an option row (not a user lock) and works everywhere.
 
 **Before you activate** – add to `wp-config.php`:
 
@@ -67,7 +73,7 @@ On a multisite network `wp cron event run` only reaches the main site. Run it fo
 */5 * * * * cd /path/to/wordpress && wp site list --field=url | xargs -I{} wp cron event run --due-now --quiet --url={}
 ```
 
-(or `wp wpac cron hourly --network` hourly and `wp wpac cron daily --network` daily).
+(or `wp wpac cron hourly --network` hourly and `wp wpac cron daily --network` daily). Without the loop, the other sites of the network neither release commissions nor finish a database update after a plugin update – the admin notice and Site Health show the command with the loop on a network.
 
 **Copies of the site.** When the site address changes (staging copy, clone, backup restored on another domain), maintenance mode is switched on automatically and a notice explains it: the copy sends no report mails, alarms, VIES requests or payouts to real partners. After a real move of the site, switch maintenance mode off under Settings → Data & maintenance. The filter `wpac_clone_protection` (return `false`) turns the detection off.
 
@@ -97,7 +103,9 @@ A sale is attributed to a partner by (in this order): a manual assignment by an 
 
 **Consent given after the landing.** Most visitors answer the consent banner after the page has loaded. On a landing page that was captured without consent, a small script (handle `wpac-beacon`) waits for the WP Consent API event `wp_listen_for_consent_change` and, when marketing consent is given, sends the referral again (`POST /wp-json/wpac/v1/touch` with `consent: true`), which sets the cookie without counting a second visit. Banners without WP Consent API support call `window.wpacConsentGranted()` after consent. If the visitor gives consent only on a later page, the referral is still kept when the first product is put into the cart from the landing page (the cart fallback reads the referring page and then also sets the cookie with consent).
 
-**Page caches.** Pages opened with the link parameter are sent with `DONOTCACHEPAGE` and no-cache headers, which WP Rocket, LiteSpeed Cache, W3 Total Cache, WP Super Cache and most hosting caches respect. Check that your cache does **not** ignore query strings for the link parameter (some caches strip unknown parameters such as `partner`). The `/partner/slug/` redirect and the public code check `GET /wpac/v1/codes/{code}` are always sent as not cacheable. Prefetch/prerender requests (Speculation Rules, `Sec-Purpose: prefetch`) for partner links are declined (503) and `/partner/*` is excluded from WordPress' speculative loading, so only real clicks count.
+**Page caches.** Pages opened with the link parameter are sent with `DONOTCACHEPAGE` and no-cache headers, which WP Rocket, LiteSpeed Cache, W3 Total Cache, WP Super Cache and most hosting caches respect. Check that your cache does **not** ignore query strings for the link parameter (some caches strip unknown parameters such as `partner`). When the dashboard detects a caching plugin, a host cache or a proxy (Cloudflare, Varnish) while JavaScript tracking is off, it recommends the beacon mode below (filter `wpac_edge_cache` to name or hide the cache).
+
+**Welcome box and caches.** Pages showing the partner welcome box (block or `[wpac_partner_welcome]`) are sent as not cacheable. The plugin finds the box in the content of the page, in active widgets (block, text and custom HTML widgets) and – in block themes – in the template and its template parts. Builders that store the layout elsewhere (e.g. Elementor data in post meta) are not checked: return `true` from the filter `wpac_needs_nocache` for those pages, or exclude them from the cache. The `/partner/slug/` redirect and the public code check `GET /wpac/v1/codes/{code}` are always sent as not cacheable. Prefetch/prerender requests (Speculation Rules, `Sec-Purpose: prefetch`) for partner links are declined (503) and `/partner/*` is excluded from WordPress' speculative loading, so only real clicks count.
 
 **CDNs and edge caches** (Cloudflare APO, Varnish, Fastly) may serve the cached page anyway. Then enable Settings → Tracking → "Also record partner links via JavaScript": a small inline script with the handle **`wpac-beacon`** reports the link to `POST /wp-json/wpac/v1/touch`. Pages with partner links then stay cacheable for guests (no `DONOTCACHEPAGE`): the script records every guest visit, logged-in users are captured on the server. In optimisation plugins exclude `wpac-beacon` from "Delay JavaScript", "Combine/minify inline JavaScript" and lazy-loading of scripts, and make sure `/wp-json/wpac/v1/touch` is not cached or blocked by a firewall rule. A visit of the same browser (address + user agent) is counted once per minute; canonical redirects and reloads do not count twice. Visits of administrators and of the partner on their own link are not counted.
 
@@ -298,3 +306,12 @@ Before contacting support, collect: `wp wpac support` (anonymized), `wp wpac hea
 ## 14. Uninstalling
 
 Deactivating keeps everything. Deleting the plugin removes settings, partners and visits only if "Delete all data when the plugin is deleted" is on – and even then keeps commission, payout and credit note records that are still within the statutory retention period. The partners table is kept with them, pseudonymised ("Deleted partner", no contact data), because the records refer to its partner numbers. If you install the plugin again, these numbers stay reserved, so a new partner never gets a former partner's number, credit notes or balance; "Delete all data" is then off. The pages created by the setup assistant (application, partner area, landing page) are moved to the trash when they still contain the plugin's block. To delete the kept records once the period has ended, upload the plugin again (do not activate it) and run `wp eval-file wp-content/plugins/affiliate-captain/tools/purge-retained.php` (folder `wp-affiliate-captain` for versions up to 0.10). On large networks delete the plugin with `wp plugin uninstall affiliate-captain` (no time limit): in a request whose time limit cannot be lifted, the uninstall stops after 80 % of `max_execution_time` (filter `wpac_uninstall_time_budget`, seconds, 0 = no limit) and records the sites it did not reach in the network option `wpac_uninstall_incomplete`. Export the program (section 10) before you delete the plugin.
+
+## 15. Downgrade and rollback
+
+Every update with a database change (see "Upgrade Notice" in the readme) raises the schema version. An older plugin version leaves a newer schema untouched and shows a notice "The database belongs to a newer version" – it does not migrate back, and code that does not know the new tables or columns may write incomplete records. A rollback therefore means:
+
+1. Before the update: a database backup (all `{prefix}wpac_*` tables and the `wpac_*` options) and a copy of the statement folder (`WPAC_STATEMENT_DIR` or `uploads/wpac-statements`).
+2. Rollback: switch on maintenance mode, install the old plugin version, restore the database backup **and** the statement folder from the same point in time. Bookings, payouts and credit notes made since the update are lost with it – book them again or stay on the new version and report the problem.
+3. Only installing the old version (without restoring the backup) is a stopgap: it keeps working on the newer schema, but tables it does not know are left behind. Example: 0.12 added `{prefix}wpac_payout_corrections` (correction credit notes, PDFs in the statement folder). Deleting 0.11 afterwards with "Delete all data" does not remove that table and those PDFs; delete them by hand once their retention period has ended, or install the newer version again and uninstall that one.
+4. Index-only schema changes (e.g. 0.13: indexes on the audit log and the order number of commissions) are harmless for an older version: it ignores them.

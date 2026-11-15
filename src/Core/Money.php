@@ -10,6 +10,8 @@
 
 namespace WPAffiliateCaptain\Core;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Money {
 
 	/** Currencies whose minor unit differs from 2 decimals. */

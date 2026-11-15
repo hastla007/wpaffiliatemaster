@@ -1031,6 +1031,78 @@ final class OrderSync {
 	}
 
 	/**
+	 * A refund was deleted in the order edit screen (e.g. a typo): the deduction booked for it
+	 * is given back. The current order (without that refund) is the target, as for raised
+	 * lines: Ledger::record_increase() books the difference with the rate of the sale,
+	 * idempotent per booked base, so a repeated hook books nothing. A refund still waiting in
+	 * the job queue is closed instead. The order note says what happened.
+	 *
+	 * @param int $refund_id Deleted refund.
+	 * @param int $order_id  Order.
+	 */
+	public static function refund_deleted( $refund_id, $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( ! $order || is_a( $order, 'WC_Order_Refund' ) ) {
+			return;
+		}
+		Jobs::supersede_refunds( WooCommerce::SOURCE, (string) $order_id, array( (string) $refund_id ) );
+		if ( ! $order->is_paid() || ! Ledger::attribution_for( WooCommerce::SOURCE, (string) $order_id ) ) {
+			return;
+		}
+		$payload = self::payload( $order );
+		if ( ! $payload['items'] ) {
+			return;
+		}
+		try {
+			$sale   = ContractApi::normalize_sale( $payload );
+			$result = Ledger::record_increase(
+				array(
+					'contract' => $sale['contract'],
+					'source'   => WooCommerce::SOURCE,
+					'order_id' => (string) $order_id,
+					'currency' => $sale['currency'],
+					'items'    => $sale['items'],
+					/* translators: %s: refund ID */
+					'reason'   => sprintf( __( 'Refund #%s deleted in WooCommerce', 'affiliate-captain' ), (string) (int) $refund_id ),
+				)
+			);
+		} catch ( \Throwable $e ) {
+			Log::error(
+				'WooCommerce refund deletion not booked',
+				array(
+					'order'   => (int) $order_id,
+					'refund'  => (int) $refund_id,
+					'message' => \WPAffiliateCaptain\Core\Db::cut( $e->getMessage(), 300 ),
+				)
+			);
+			$order->add_order_note( __( 'Affiliate Captain: a refund was deleted, but the partner commission could not be restored. Please save the order items again later.', 'affiliate-captain' ) );
+			return;
+		}
+		if ( 'booked' === $result['status'] ) {
+			Audit::log(
+				'commission.refund_deleted',
+				'order',
+				(int) $order_id,
+				array(
+					'source' => WooCommerce::SOURCE,
+					'refund' => (string) (int) $refund_id,
+					'amount' => (int) $result['amount_minor'],
+				)
+			);
+			$order->add_order_note(
+				sprintf(
+					/* translators: 1: refund ID, 2: commission amount */
+					__( 'Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again.', 'affiliate-captain' ),
+					(string) (int) $refund_id,
+					Money::format( (int) $result['amount_minor'], (string) $payload['currency'] )
+				)
+			);
+		} elseif ( 'skipped' === $result['status'] ) {
+			$order->add_order_note( __( 'Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction).', 'affiliate-captain' ) );
+		}
+	}
+
+	/**
 	 * Book raised and added lines of a paid order (Ledger::record_increase()) and say in an
 	 * order note what was booked, or why nothing was.
 	 *

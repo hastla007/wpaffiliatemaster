@@ -53,7 +53,7 @@ add_action( 'wpac_loaded', function () {
 } );
 ```
 
-Alternativ ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_sale', $payload );` (ohne Rückgabewert).
+Alternativ ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_sale', $payload );` (ohne Rückgabewert). Abgelehnte Payloads (Prüfungsfehler wie `invalid_currency`) werden ins Log geschrieben und unter **Integrationen → Systemstatus** sowie im Website-Zustand angezeigt; wiederholt werden sie nicht. Wer das Ergebnis braucht, ruft die Funktion auf.
 
 Weitere optionale Felder:
 
@@ -75,7 +75,7 @@ Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, com
 - `source`, `order_id`, `item_id`, `refund_id`: Text oder Zahl (keine Arrays), `order_id`/`item_id`/`refund_id` max. 64 Zeichen, `source` max. 40 (`a-z0-9_-`). Mehrbyte-Zeichen werden nie mitten im Zeichen gekürzt.
 - `item_id` muss innerhalb eines Verkaufs eindeutig sein (`duplicate_item`), höchstens 500 Positionen (`too_many_items`).
 - `net_minor`: Ganzzahl (auch als Ziffernstring oder ganzzahliger Float), höchstens 1 000 000 000 je Position; `"1e3"`, `12.5` oder größere Werte → `invalid_amount`.
-- `currency`: ISO-4217-Code (Liste per Filter `wpac_contract_currencies` erweiterbar).
+- `currency`: ISO-4217-Code oder ein Währungscode, den WooCommerce anbietet (z. B. IRT, BTC, GGP); Liste per Filter `wpac_contract_currencies` änderbar. Die Programmwährung in den Einstellungen lässt nur diese Codes zu.
 - `paid_at`/`hold_until`: `Y-m-d H:i:s` (UTC), ISO 8601, `Ymd`, `YmdHis`, Unix-Zeit in Sekunden **oder Millisekunden**; Daten vor 2000 oder mehr als zehn Jahre in der Zukunft → `invalid_date`.
 - Fehler der Prüfung kommen als `WP_Error` (`wpac_<code>`, REST `400`) und werden nicht wiederholt.
 
@@ -298,7 +298,9 @@ Regeln:
 | `wpac_set_commission_status( $id, $status, $reason )` | `approved` oder `rejected` über die Regeln des Kontos (Sperrfrist, Prüfung, Korrekturen, Auszahlungen; Ablehnen nur mit Grund). Eine Provision „Prüfung nötig“ in der Sperrfrist wird – wie im Admin – erst „ausstehend“. Rückgabe: die Provision. Audit `commission.status` (`from`, `to`, `reason`, `via: api`). |
 | `wpac_create_adjustment( $affiliate_id, $amount_minor, $currency, $reason )` | Manuelle Buchung (Cent als Ganzzahl, ≠ 0, negativ = Abzug), sofort freigegeben und mit der nächsten Auszahlung fällig; `wpac_commission_created` feuert nach dem Commit. Rückgabe: die Buchung. Audit `commission.manual`. |
 
-Fehlercodes der Listen- und Schreibfunktionen: `wpac_not_found`, `wpac_invalid_<argument>` (z. B. `wpac_invalid_status`, `wpac_invalid_per_page`, `wpac_invalid_orderby`, `wpac_invalid_group`, `wpac_invalid_website`), `wpac_invalid_field`, `wpac_invalid_name`, `wpac_too_long_<feld>`, `wpac_reason_required`, `wpac_amount`, `wpac_state`, `wpac_parent_open`, `wpac_conflict`, `wpac_restricted`, `wpac_db_error`. Auszahlungen liest `wpac_get_payout()`/`wpac_get_payouts()` (Abschnitt „Auszahlung über Zahlungsdienste“).
+Die Listen prüfen streng (seit 0.13.0): IDs, `page` und `per_page` sind ganze Zahlen ≥ 0 bzw. ≥ 1 (Integer oder reine Ziffernfolge); `-5`, `"abc"`, `1.5` oder Arrays ergeben `wpac_invalid_<argument>` statt stillschweigend „alle“. Ein Array als Wert eines Arguments (z. B. `status`) ergibt ebenfalls `wpac_invalid_<argument>`. Eine Seite hinter dem Ende liefert leere `items` mit der richtigen `total` (auch bei sehr großen Werten wie `PHP_INT_MAX`).
+
+Fehlercodes der Listen- und Schreibfunktionen: `wpac_not_found`, `wpac_invalid_<argument>` (z. B. `wpac_invalid_status`, `wpac_invalid_per_page`, `wpac_invalid_orderby`, `wpac_invalid_group`, `wpac_invalid_affiliate_id`, `wpac_invalid_website`), `wpac_invalid_field`, `wpac_invalid_name`, `wpac_too_long_<feld>`, `wpac_reason_required`, `wpac_amount`, `wpac_state`, `wpac_parent_open`, `wpac_conflict`, `wpac_restricted`, `wpac_db_error`. Auszahlungen liest `wpac_get_payout()`/`wpac_get_payouts()` (Abschnitt „Auszahlung über Zahlungsdienste“).
 
 ## Mitgelieferte Adapter
 

@@ -134,11 +134,35 @@ final class Reports {
 		return is_array( $rows ) ? array_values( $rows ) : array();
 	}
 
+	/** Transient with the cached admin reports (one entry per report, few entries). */
+	const CACHE = 'wpac_reports';
+
+	/** Lifetime of a cached report; visits show up after at most this long. */
+	const CACHE_TTL = 600;
+
 	/**
-	 * Report for admin screens, cached until the data changes: the dashboard shows the same
-	 * report on every visit (KPIs and table), and the aggregates scan the whole period. The cache
-	 * key contains a fingerprint of the newest commission, visit and attribution (indexed MAX()
-	 * lookups) and of the currency settings, so a new sale or refund shows at once.
+	 * Hooks: bookings empty the report cache.
+	 */
+	public static function register_hooks() {
+		foreach ( array( 'wpac_commission_created', 'wpac_commission_adjusted', 'wpac_commission_approved', 'wpac_commission_rejected', 'wpac_commission_paid', 'wpac_commission_pending', 'wpac_commission_review', 'wpac_payout_created', 'wpac_payout_cancelled' ) as $hook ) {
+			add_action( $hook, array( self::class, 'flush_cache' ), 99, 0 );
+		}
+	}
+
+	/**
+	 * Drop all cached reports (after a booking).
+	 */
+	public static function flush_cache() {
+		delete_transient( self::CACHE );
+	}
+
+	/**
+	 * Report for admin screens and the REST route, cached for a few minutes: the dashboard shows
+	 * the same report on every visit (KPIs and table), and the aggregates scan the whole period.
+	 * The key holds a time bucket (CACHE_TTL), a fingerprint of the newest commission (indexed
+	 * MAX() lookups, so a sale or refund shows at once) and the currency settings. New visits
+	 * show up with the next bucket – they no longer make every click a cache miss. All reports
+	 * share one transient (a few entries), bookings delete it.
 	 *
 	 * @param string $kind partners|content_id|campaign.
 	 * @param string $from Y-m-d (local).
@@ -148,25 +172,31 @@ final class Reports {
 	public static function cached( $kind, $from, $to ) {
 		global $wpdb;
 		$state = array( $kind, $from, $to, (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ), wp_json_encode( Fx::rates() ), function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '', function_exists( 'determine_locale' ) ? determine_locale() : '' ); // Labels such as "(no campaign)" are translated.
-		foreach ( array( 'commissions' => 'MAX(id), MAX(updated_at)', 'visits' => 'MAX(id)', 'attributions' => 'MAX(id)' ) as $table => $expr ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- constants only.
-			$state[] = wp_json_encode( $wpdb->get_row( "SELECT {$expr} FROM " . Db::table( $table ) ) );
-		}
-		$key = 'wpac_report_' . md5( implode( '|', $state ) );
-		$hit = get_transient( $key );
+		$table   = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- constants only.
+		$state[] = wp_json_encode( $wpdb->get_row( "SELECT MAX(id), MAX(updated_at) FROM {$table}" ) );
+		$bucket  = (int) floor( time() / self::CACHE_TTL );
+		$key     = md5( implode( '|', $state ) );
+		$cache   = get_transient( self::CACHE );
+		$cache   = is_array( $cache ) && isset( $cache['bucket'] ) && $bucket === (int) $cache['bucket'] ? $cache : array( 'bucket' => $bucket, 'items' => array() );
+		$hit     = isset( $cache['items'][ $key ] ) ? $cache['items'][ $key ] : null;
 		if ( is_array( $hit ) && isset( $hit['rows'], $hit['unconverted'] ) ) {
 			self::$unconverted = (array) $hit['unconverted'];
 			return (array) $hit['rows'];
 		}
-		$rows = 'partners' === $kind ? self::partners( $from, $to ) : self::by_dimension( $kind, $from, $to );
-		set_transient(
-			$key,
+		$rows           = 'partners' === $kind ? self::partners( $from, $to ) : self::by_dimension( $kind, $from, $to );
+		$cache['items'] = array_slice(
 			array(
-				'rows'        => $rows,
-				'unconverted' => self::$unconverted,
-			),
-			10 * MINUTE_IN_SECONDS
+				$key => array(
+					'rows'        => $rows,
+					'unconverted' => self::$unconverted,
+				),
+			) + (array) $cache['items'],
+			0,
+			8,
+			true
 		);
+		set_transient( self::CACHE, $cache, self::CACHE_TTL );
 		return $rows;
 	}
 

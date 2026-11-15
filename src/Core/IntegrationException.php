@@ -7,6 +7,8 @@
 
 namespace WPAffiliateCaptain\Core;
 
+defined( 'ABSPATH' ) || exit;
+
 class IntegrationException extends \RuntimeException {
 
 	/** @var string */

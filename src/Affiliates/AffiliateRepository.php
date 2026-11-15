@@ -1019,7 +1019,8 @@ final class AffiliateRepository {
 		$cut = (string) preg_replace( '/%[0-9a-f]?$/i', '', substr( $slug, 0, $max ) );
 		if ( preg_match( '/(?:%[0-9a-f]{2})+$/i', $cut, $m ) ) {
 			$bytes = rawurldecode( $m[0] );
-			while ( '' !== $bytes && ! mb_check_encoding( $bytes, 'UTF-8' ) ) {
+			// Without mbstring: a PCRE /u match fails on invalid UTF-8 (R12-N12).
+			while ( '' !== $bytes && ! ( function_exists( 'mb_check_encoding' ) ? mb_check_encoding( $bytes, 'UTF-8' ) : 1 === preg_match( '//u', $bytes ) ) ) {
 				$bytes = substr( $bytes, 0, -1 );
 			}
 			$encoded = '';

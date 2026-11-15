@@ -29,25 +29,68 @@ defined( 'ABSPATH' ) || exit;
 final class ContractApi {
 
 	public static function register_hooks() {
+		// The action path has no return value: refused payloads are logged and listed in the
+		// integration status (R12-M10), otherwise such a sale would vanish without a trace.
 		add_action(
 			'wpac_v1_record_sale',
 			static function ( $payload ) {
-				self::record_sale( (array) $payload );
+				self::action_result( 'wpac_v1_record_sale', $payload, self::record_sale( (array) $payload ) );
 			}
 		);
 		add_action(
 			'wpac_v1_record_refund',
 			static function ( $payload ) {
-				self::record_refund( (array) $payload );
+				self::action_result( 'wpac_v1_record_refund', $payload, self::record_refund( (array) $payload ) );
 			}
 		);
 		add_action(
 			'wpac_v1_record_reinstatement',
 			static function ( $payload ) {
-				self::record_reinstatement( (array) $payload );
+				self::action_result( 'wpac_v1_record_reinstatement', $payload, self::record_reinstatement( (array) $payload ) );
 			}
 		);
 		add_filter( 'wpac_run_job', array( __CLASS__, 'run_job' ), 10, 3 );
+	}
+
+	/** Transient with the latest payloads refused on the action path (newest first). */
+	const REJECTED = 'wpac_contract_rejected';
+
+	/**
+	 * Result of a call through the action hooks: errors are logged and remembered for the
+	 * integration status. Queued payloads are not errors (the retry queue shows them).
+	 *
+	 * @param string          $hook    Action name.
+	 * @param mixed           $payload Payload as sent.
+	 * @param array|\WP_Error $result  Result.
+	 */
+	public static function action_result( $hook, $payload, $result ) {
+		if ( ! is_wp_error( $result ) || 'wpac_queued' === $result->get_error_code() ) {
+			return;
+		}
+		$p     = is_array( $payload ) ? $payload : array();
+		$entry = array(
+			'time'    => time(),
+			'hook'    => (string) $hook,
+			'source'  => isset( $p['source'] ) && is_scalar( $p['source'] ) ? Db::cut( sanitize_key( (string) $p['source'] ), 40 ) : '',
+			'order'   => isset( $p['order_id'] ) && is_scalar( $p['order_id'] ) ? Db::cut( sanitize_text_field( (string) $p['order_id'] ), 64 ) : '',
+			'code'    => (string) $result->get_error_code(),
+			'message' => Db::cut( sanitize_text_field( $result->get_error_message() ), 300 ),
+		);
+		Log::warning( 'Payload refused on the contract action path', $entry );
+		$list = get_transient( self::REJECTED );
+		$list = is_array( $list ) ? $list : array();
+		array_unshift( $list, $entry );
+		set_transient( self::REJECTED, array_slice( $list, 0, 20 ), 30 * DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Latest payloads refused on the action path (newest first).
+	 *
+	 * @return array[]
+	 */
+	public static function rejected() {
+		$list = get_transient( self::REJECTED );
+		return is_array( $list ) ? $list : array();
 	}
 
 	/**
@@ -268,7 +311,32 @@ final class ContractApi {
 	const MAX_ITEMS = 500;
 
 	/** ISO 4217 currency codes accepted by the contract. */
-	const CURRENCIES = 'AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VES VND VUV WST XAF XCD XOF XPF YER ZAR ZMW ZWL';
+	const CURRENCIES = 'AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL BSD BTN BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VED VES VND VUV WST XAF XCD XCG XOF XPF YER ZAR ZMW ZWG ZWL';
+
+	/**
+	 * Currency codes accepted in payloads and as program currency: ISO 4217 plus every code
+	 * WooCommerce offers (e.g. IRT, BTC, GGP, JEP – a shop in such a currency must not lose its
+	 * sales with "invalid_currency"), then the filter.
+	 *
+	 * @return string[]
+	 */
+	public static function currencies() {
+		$codes = explode( ' ', self::CURRENCIES );
+		if ( function_exists( 'get_woocommerce_currencies' ) ) {
+			foreach ( array_keys( (array) get_woocommerce_currencies() ) as $code ) {
+				$code = strtoupper( (string) $code );
+				if ( preg_match( '/^[A-Z]{3}$/', $code ) ) {
+					$codes[] = $code;
+				}
+			}
+		}
+		/**
+		 * Currencies accepted in sale payloads and as program currency (three-letter codes).
+		 *
+		 * @param string[] $codes Codes (ISO 4217 and the WooCommerce currencies).
+		 */
+		return array_values( array_unique( array_map( 'strval', (array) apply_filters( 'wpac_contract_currencies', array_values( array_unique( $codes ) ) ) ) ) );
+	}
 
 	/**
 	 * A reference (order, item or refund ID) as string: scalars only, never arrays/objects
@@ -331,13 +399,7 @@ final class ContractApi {
 			throw new IntegrationException( 'missing_reference', 'source and order_id are required' );
 		}
 		$currency = isset( $p['currency'] ) && is_scalar( $p['currency'] ) ? strtoupper( trim( (string) $p['currency'] ) ) : '';
-		/**
-		 * Currencies accepted in sale payloads (ISO 4217 codes).
-		 *
-		 * @param string[] $codes Codes.
-		 */
-		$currencies = (array) apply_filters( 'wpac_contract_currencies', explode( ' ', self::CURRENCIES ) );
-		if ( ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! in_array( $currency, $currencies, true ) ) {
+		if ( ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! in_array( $currency, self::currencies(), true ) ) {
 			throw new IntegrationException( 'invalid_currency', 'currency must be an ISO 4217 code' );
 		}
 		if ( empty( $p['items'] ) || ! is_array( $p['items'] ) ) {
