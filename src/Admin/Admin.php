@@ -28,6 +28,7 @@ final class Admin {
 	public static function register_hooks() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_post_wpac', array( __CLASS__, 'dispatch' ) );
+		Reauth::register_hooks(); // Password confirmation before money-relevant actions (R14-P2).
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'setup_notice' ) );
 		add_action( 'admin_init', array( __CLASS__, 'activation_redirect' ) );
@@ -793,6 +794,12 @@ final class Admin {
 		list( $class, $cap ) = $routes[ $do ];
 		if ( ! current_user_can( $cap ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'affiliate-captain' ), 403 );
+		}
+		// Money-relevant actions need a recent password confirmation (R14-P2): the request is kept
+		// and carried out after the confirmation step.
+		$reauth = Reauth::action_key( $do );
+		if ( Reauth::required( $reauth ) && ! Reauth::confirmed() ) {
+			Reauth::challenge( $reauth );
 		}
 		try {
 			call_user_func( array( $class, 'handle' ), $do );

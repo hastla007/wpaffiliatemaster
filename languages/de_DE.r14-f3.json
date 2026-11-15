@@ -1,0 +1,33 @@
+{
+ "Action: %s": "Aktion: %s",
+ "Approve new bank details": "Neue Bankdaten freigeben",
+ "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too.": "Bankdaten freigeben, ein Partnerkonto verknüpfen oder trennen, Auszahlungsdaten ändern, SEPA-, Überweisungs- oder PayPal-Dateien herunterladen und Auszahlungen als bezahlt markieren erfordern eine Passwortbestätigung, die 15 Minuten in der Login-Sitzung gilt (mit dem Plugin Two-Factor auch dessen zweiten Faktor). WP-CLI und die REST-API sind nicht betroffen. Auch das Ausschalten erfordert eine Bestätigung.",
+ "Ask for the password again before payout files, marking payouts as paid, bank details and account links": "Passwort erneut abfragen vor Auszahlungsdateien, „Als bezahlt markieren“, Bankdaten und Kontoverknüpfungen",
+ "Back without confirming": "Zurück ohne Bestätigung",
+ "Change the payout and tax details of a partner": "Auszahlungs- und Steuerdaten eines Partners ändern",
+ "Confirm and continue": "Bestätigen und fortfahren",
+ "Confirm your password": "Passwort bestätigen",
+ "Confirm your password and then start the action again.": "Bestätigen Sie Ihr Passwort und starten Sie die Aktion anschließend erneut.",
+ "Link a WordPress account to a partner": "WordPress-Konto mit einem Partner verknüpfen",
+ "Password": "Passwort",
+ "Password confirmation failed": "Passwortbestätigung fehlgeschlagen",
+ "Password confirmed for a money-relevant action": "Passwort für eine geldrelevante Aktion bestätigt",
+ "Password confirmed.": "Passwort bestätigt.",
+ "Password confirmed. The action you started had expired and was not carried out; please start it again.": "Passwort bestätigt. Die begonnene Aktion war abgelaufen und wurde nicht ausgeführt; bitte starten Sie sie erneut.",
+ "Second factor": "Zweiter Faktor",
+ "Send the link to connect the account again": "Link zur Kontoverknüpfung erneut senden",
+ "Switch off the password confirmation": "Passwortbestätigung ausschalten",
+ "The action you started has expired (after 5 minutes) or belongs to another login. Confirm your password and then start the action again.": "Die begonnene Aktion ist abgelaufen (nach 5 Minuten) oder gehört zu einer anderen Anmeldung. Bestätigen Sie Ihr Passwort und starten Sie die Aktion anschließend erneut.",
+ "The password is not correct.": "Das Passwort ist nicht korrekt.",
+ "The second factor (e.g. the code of your authenticator app) is not correct.": "Der zweite Faktor (z. B. der Code Ihrer Authenticator-App) ist nicht korrekt.",
+ "The second factor could not be confirmed.": "Der zweite Faktor konnte nicht bestätigt werden.",
+ "This action changes where money goes or exports bank details. For your protection, please enter your password again. Afterwards such actions work without asking again for %d minute in this login session.": [
+  "Diese Aktion ändert, wohin Geld fließt, oder exportiert Bankdaten. Bitte geben Sie zu Ihrem Schutz Ihr Passwort erneut ein. Danach funktionieren solche Aktionen in dieser Login-Sitzung %d Minute lang ohne erneute Abfrage.",
+  "Diese Aktion ändert, wohin Geld fließt, oder exportiert Bankdaten. Bitte geben Sie zu Ihrem Schutz Ihr Passwort erneut ein. Danach funktionieren solche Aktionen in dieser Login-Sitzung %d Minuten lang ohne erneute Abfrage."
+ ],
+ "Too many attempts. Please wait 15 minutes and try again.": "Zu viele Versuche. Bitte warten Sie 15 Minuten und versuchen Sie es dann erneut.",
+ "Unlink the WordPress account of a partner": "WordPress-Konto eines Partners trennen",
+ "second factor not confirmed": "zweiter Faktor nicht bestätigt",
+ "too many attempts": "zu viele Versuche",
+ "wrong password": "falsches Passwort"
+}

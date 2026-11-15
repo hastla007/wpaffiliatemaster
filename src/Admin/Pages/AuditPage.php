@@ -124,6 +124,8 @@ final class AuditPage {
 				'rule.deleted'                      => __( 'Rule deleted', 'affiliate-captain' ),
 				'schema.stuck'                      => __( 'Database update stuck', 'affiliate-captain' ),
 				'settings.updated'                  => __( 'Settings changed', 'affiliate-captain' ),
+				'security.reauth_confirmed'         => __( 'Password confirmed for a money-relevant action', 'affiliate-captain' ),
+				'security.reauth_failed'            => __( 'Password confirmation failed', 'affiliate-captain' ),
 				'settings.maintenance'              => __( 'Maintenance mode switched', 'affiliate-captain' ),
 				'setup.pages_created'               => __( 'Pages created', 'affiliate-captain' ),
 				'statement.generated'               => __( 'Credit note created', 'affiliate-captain' ),
@@ -196,6 +198,7 @@ final class AuditPage {
 			'tab'             => __( 'Settings section', 'affiliate-captain' ),
 			'month'           => __( 'Month', 'affiliate-captain' ),
 			'number'          => _x( 'Number', 'document number', 'affiliate-captain' ),
+			'action'          => __( 'Action', 'affiliate-captain' ),
 			'payouts'         => __( 'Payouts', 'affiliate-captain' ),
 			'moved'           => __( 'Moved', 'affiliate-captain' ),
 		);
@@ -206,6 +209,12 @@ final class AuditPage {
 			'mail'          => array(
 				'sent'   => __( 'sent', 'affiliate-captain' ),
 				'failed' => __( 'failed', 'affiliate-captain' ),
+			),
+			'action'        => array_combine( \WPAffiliateCaptain\Admin\Reauth::ACTIONS, array_map( array( \WPAffiliateCaptain\Admin\Reauth::class, 'action_label' ), \WPAffiliateCaptain\Admin\Reauth::ACTIONS ) ),
+			'reason'        => array(
+				'password'      => __( 'wrong password', 'affiliate-captain' ),
+				'second_factor' => __( 'second factor not confirmed', 'affiliate-captain' ),
+				'rate_limited'  => __( 'too many attempts', 'affiliate-captain' ),
 			),
 			'type'          => array(
 				'export'   => __( 'Data export', 'affiliate-captain' ),
@@ -319,6 +328,7 @@ final class AuditPage {
 			'job'        => __( 'Job', 'affiliate-captain' ),
 			'report'     => __( 'Report', 'affiliate-captain' ),
 			'settings'   => __( 'Settings', 'affiliate-captain' ),
+			'user'       => __( 'WordPress user', 'affiliate-captain' ),
 			'setup'      => __( 'Setup', 'affiliate-captain' ),
 			'cron'       => __( 'Scheduled tasks', 'affiliate-captain' ),
 		);

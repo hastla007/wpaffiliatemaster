@@ -125,6 +125,7 @@ final class Settings {
 			'fraud_max_refund_rate'   => 0,
 			'fraud_check_domains'     => 1,
 			'fraud_blocked_domains'   => '',
+			'reauth_required'         => 1, // Password confirmation before money-relevant admin actions (R14-P2).
 			// Reporting.
 			'report_admin'            => 1,
 			'report_partners'         => 0,
@@ -441,7 +442,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label', 'auto_apply_coupon' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label', 'auto_apply_coupon', 'reauth_required' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
