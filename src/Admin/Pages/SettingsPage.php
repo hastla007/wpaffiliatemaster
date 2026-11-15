@@ -226,6 +226,8 @@ final class SettingsPage {
 				'operator_vat_id'       => __( 'Your VAT ID', 'affiliate-captain' ),
 				'vies_check'            => __( 'VIES check: verify partner VAT IDs with the EU Commission', 'affiliate-captain' ),
 				'operator_tax_number'   => __( 'Your tax number (if no VAT ID)', 'affiliate-captain' ),
+				'einvoice_mail'         => __( 'Send e-invoice (XML) with the credit note e-mail', 'affiliate-captain' ),
+				'einvoice_buyer_reference' => __( 'Buyer reference on e-invoices (e.g. Leitweg-ID)', 'affiliate-captain' ),
 				'debtor_name'           => __( 'Company account holder (SEPA)', 'affiliate-captain' ),
 				'remittance_prefix'     => __( 'Remittance text prefix', 'affiliate-captain' ),
 				'report_admin'          => __( 'Monthly summary e-mail to the operator', 'affiliate-captain' ),
@@ -282,7 +284,7 @@ final class SettingsPage {
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'promotion_guidelines' ),
-			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
+			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'einvoice_mail', 'einvoice_buyer_reference', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
 			'data'        => array( 'visit_retention_days', 'application_retention_days', 'pending_application_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
 		);
@@ -620,6 +622,21 @@ final class SettingsPage {
 		self::text( 'correction_prefix', __( 'Prefix correction credit note numbers', 'affiliate-captain' ), $s, __( 'Correction credit notes of paid payouts, e.g. KG-2026-000001.', 'affiliate-captain' ) );
 		self::end();
 
+		self::section( __( 'Electronic invoice (EN 16931)', 'affiliate-captain' ), 'payouts' );
+		self::select(
+			'einvoice_mail',
+			__( 'Send e-invoice (XML) with the credit note e-mail', 'affiliate-captain' ),
+			$s,
+			array(
+				'auto' => __( 'Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)', 'affiliate-captain' ),
+				'on'   => __( 'Always', 'affiliate-captain' ),
+				'off'  => __( 'Never (download only)', 'affiliate-captain' ),
+			),
+			__( 'Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy.', 'affiliate-captain' )
+		);
+		self::text( 'einvoice_buyer_reference', __( 'Buyer reference on e-invoices (e.g. Leitweg-ID)', 'affiliate-captain' ), $s, __( 'Optional. Empty: the document number is used.', 'affiliate-captain' ) );
+		self::end();
+
 		self::section( __( 'VAT ID check (VIES)', 'affiliate-captain' ), 'payouts' );
 		self::checkbox( 'vies_check', __( 'VIES check: verify partner VAT IDs with the EU Commission', 'affiliate-captain' ), $s, __( 'Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts.', 'affiliate-captain' ) );
 		self::end();
@@ -770,14 +787,17 @@ final class SettingsPage {
 	 * @param string $label   Label.
 	 * @param array  $s       Settings.
 	 * @param array  $options Options.
+	 * @param string $desc    Description.
 	 */
-	private static function select( $key, $label, $s, array $options ) {
+	private static function select( $key, $label, $s, array $options, $desc = '' ) {
 		$err = self::error_parts( $key );
 		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]"%3$s>', esc_attr( $key ), esc_html( $label ), $err[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		foreach ( $options as $v => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $v ), selected( self::shown( $key, $s[ $key ] ), (string) $v, false ), esc_html( $l ) );
 		}
-		echo '</select>' . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		echo '</select>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc );
+		echo '</td></tr>';
 	}
 
 	/**

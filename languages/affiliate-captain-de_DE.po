@@ -2687,6 +2687,9 @@ msgstr "Netto korrigiert"
 msgid "Difference (gross)"
 msgstr "Differenz (brutto)"
 
+msgid "Electronic invoice (EN 16931 XML)"
+msgstr "E-Rechnung (EN 16931, XML)"
+
 msgid "deleted after the retention period"
 msgstr "nach Ablauf der Aufbewahrungsfrist gelöscht"
 
@@ -2701,6 +2704,9 @@ msgstr "Alle Auszahlungen"
 
 msgid "Download PDF statement"
 msgstr "Beleg (PDF) herunterladen"
+
+msgid "E-invoice (XML)"
+msgstr "E-Rechnung (XML)"
 
 msgid "Download cancellation %s"
 msgstr "Storno %s herunterladen"
@@ -3242,6 +3248,12 @@ msgstr "VIES-Prüfung: USt-IdNr. der Partner bei der EU-Kommission prüfen"
 msgid "Your tax number (if no VAT ID)"
 msgstr "Ihre Steuernummer (falls keine USt-IdNr.)"
 
+msgid "Send e-invoice (XML) with the credit note e-mail"
+msgstr "E-Rechnung (XML) mit der Gutschrift-E-Mail senden"
+
+msgid "Buyer reference on e-invoices (e.g. Leitweg-ID)"
+msgstr "Käuferreferenz auf E-Rechnungen (z. B. Leitweg-ID)"
+
 msgid "Company account holder (SEPA)"
 msgstr "Kontoinhaber Firmenkonto (SEPA)"
 
@@ -3487,6 +3499,24 @@ msgstr "Die Nummern sind pro Jahr lückenlos, z. B. GS-2026-000001."
 
 msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
 msgstr "Korrekturgutschriften zu bezahlten Auszahlungen, z. B. KG-2026-000001."
+
+msgid "Electronic invoice (EN 16931)"
+msgstr "Elektronische Rechnung (EN 16931)"
+
+msgid "Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)"
+msgstr "Automatisch: für Partner mit deutscher Umsatzsteuer auf der Gutschrift (inländische regelbesteuerte Unternehmen)"
+
+msgid "Always"
+msgstr "Immer"
+
+msgid "Never (download only)"
+msgstr "Nie (nur Download)"
+
+msgid "Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy."
+msgstr "Jede Gutschrift, Korrekturgutschrift und jedes Storno lässt sich neben dem PDF auch als E-Rechnung herunterladen (UN/CEFACT-CII-XML nach EN 16931; XRechnung-Profil, wenn alle dafür nötigen Angaben vorliegen), im Partnerbereich und hier. Ab 2027/2028 brauchen inländische regelbesteuerte Partner sie: Das XML ist dann die Rechnung, das PDF eine Sichtkopie."
+
+msgid "Optional. Empty: the document number is used."
+msgstr "Optional. Leer: Es wird die Belegnummer verwendet."
 
 msgid "VAT ID check (VIES)"
 msgstr "Prüfung der USt-IdNr. (VIES)"
@@ -5443,6 +5473,63 @@ msgstr "Der Beleg ist nicht (mehr) verfügbar."
 msgid "The stored statement failed the integrity check."
 msgstr "Der gespeicherte Beleg hat die Integritätsprüfung nicht bestanden."
 
+msgid "Correction of credit note %1$s of %2$s"
+msgstr "Korrektur zur Gutschrift %1$s vom %2$s"
+
+msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
+msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung. Der Partner kann der Gutschrift widersprechen (§14 Abs. 2 S. 3 UStG) – sie gilt dann nicht mehr als Rechnung und wir stellen eine korrigierte Gutschrift aus. Widersprüche sind im Partnerbereich möglich."
+
+msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billing, Art. 224 MwStSystRL); der Partner stellt keine eigene Rechnung. Der Partner kann widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
+
+msgid "Cancellation of credit note %s"
+msgstr "Storno zur Gutschrift %s"
+
+msgid "Correction of credit notes (Gutschrift)"
+msgstr "Berichtigung von Gutschriften (Korrekturbeleg)"
+
+msgid "Correction of credit notes"
+msgstr "Berichtigung von Gutschriften"
+
+msgid "Credit note (Gutschrift)"
+msgstr "Gutschrift"
+
+msgid "Credit note (self-billing)"
+msgstr "Gutschrift (Self-Billing)"
+
+msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
+msgstr "Dieser Beleg rechnet Berichtigungen früherer Gutschriften (Erstattungen und Stornierungen vermittelter Bestellungen) mit der erhaltenen Rückzahlung bzw. der abgeschriebenen Forderung ab. Er mindert Nettobeträge und USt der oben genannten Gutschriften; es wird nichts überwiesen."
+
+msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
+msgstr "Dieses Dokument storniert die oben genannte Gutschrift vollständig. Die Provisionen stehen für eine spätere Auszahlung zur Verfügung."
+
+msgid "Repayments, write-offs and settled correction credit notes (%s) are no service and not subject to VAT; they are shown as the amount already settled, so the amount due equals the payout amount."
+msgstr "Rückzahlungen, Abschreibungen und verrechnete Korrekturgutschriften (%s) sind keine Leistung und nicht umsatzsteuerbar; sie sind als bereits verrechneter Betrag ausgewiesen, sodass der Zahlbetrag dem Auszahlungsbetrag entspricht."
+
+msgid "Balance (settled, no transfer)"
+msgstr "Saldo (ausgeglichen, keine Überweisung)"
+
+msgid "Paid by the issuer of this credit note (recipient of the service) by transfer with the payout; the partner does not have to pay anything."
+msgstr "Zahlung durch den Aussteller dieser Gutschrift (Leistungsempfänger) per Überweisung mit der Auszahlung; der Partner muss nichts zahlen."
+
+msgid "Net amount before (%1$s): %2$s; corrected net amount: %3$s"
+msgstr "Nettobetrag bisher (%1$s): %2$s; berichtigter Nettobetrag: %3$s"
+
+msgid "This XML file is the electronic invoice (EN 16931) of the document; the PDF with the same content is a visual copy."
+msgstr "Diese XML-Datei ist die elektronische Rechnung (EN 16931) des Belegs; das PDF gleichen Inhalts ist eine Sichtkopie."
+
+msgid "SEPA credit transfer"
+msgstr "SEPA-Überweisung"
+
+msgid "Other payment method as agreed with the partner"
+msgstr "Andere, mit dem Partner vereinbarte Zahlungsart"
+
+msgid "SEPA credit transfer to the partner's account %s"
+msgstr "SEPA-Überweisung auf das Konto des Partners %s"
+
+msgid "There is no electronic invoice for this document (no self-billing credit note, no taxable line, or deleted after the retention period)."
+msgstr "Zu diesem Beleg gibt es keine E-Rechnung (keine Gutschrift im Gutschriftverfahren, keine steuerbare Position oder nach Ablauf der Aufbewahrungsfrist gelöscht)."
+
 msgid "This credit note cannot be objected to."
 msgstr "Dieser Gutschrift kann nicht widersprochen werden."
 
@@ -5770,21 +5857,6 @@ msgstr "Rückzahlungen des Partners und abgeschriebene Forderungen sind keine Le
 msgid "Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service."
 msgstr "Positionen mit unterschiedlicher umsatzsteuerlicher Behandlung: Jede Behandlung gilt für die Positionen, bei denen sie angegeben ist. Berichtigungen früherer Gutschriften behalten die Behandlung der ursprünglichen Gutschrift; Provisionen die zum Leistungszeitpunkt gültige Behandlung."
 
-msgid "Cancellation of credit note %s"
-msgstr "Storno zur Gutschrift %s"
-
-msgid "Correction of credit notes (Gutschrift)"
-msgstr "Berichtigung von Gutschriften (Korrekturbeleg)"
-
-msgid "Correction of credit notes"
-msgstr "Berichtigung von Gutschriften"
-
-msgid "Credit note (Gutschrift)"
-msgstr "Gutschrift"
-
-msgid "Credit note (self-billing)"
-msgstr "Gutschrift (Self-Billing)"
-
 msgid "Cancellation number"
 msgstr "Stornonummer"
 
@@ -5794,17 +5866,11 @@ msgstr "Belegnummer"
 msgid "Cancels"
 msgstr "Storniert"
 
-msgid "Other payment method as agreed with the partner"
-msgstr "Andere, mit dem Partner vereinbarte Zahlungsart"
-
 msgid "Repayments and write-offs (not taxable)"
 msgstr "Rückzahlungen und Abschreibungen (nicht steuerbar)"
 
 msgid "Correction credit notes settled (VAT shown on the correction credit note)"
 msgstr "Ausgeglichene Korrekturgutschriften (USt auf der Korrekturgutschrift ausgewiesen)"
-
-msgid "Correction of credit note %1$s of %2$s"
-msgstr "Korrektur zur Gutschrift %1$s vom %2$s"
 
 msgid "Correction net (%s)"
 msgstr "Korrektur netto (%s)"
@@ -5821,23 +5887,8 @@ msgstr "Ausgeglichene Korrekturgutschriften (brutto, USt dort ausgewiesen)"
 msgid "Total cancelled"
 msgstr "Storniert gesamt"
 
-msgid "Balance (settled, no transfer)"
-msgstr "Saldo (ausgeglichen, keine Überweisung)"
-
-msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
-msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung. Der Partner kann der Gutschrift widersprechen (§14 Abs. 2 S. 3 UStG) – sie gilt dann nicht mehr als Rechnung und wir stellen eine korrigierte Gutschrift aus. Widersprüche sind im Partnerbereich möglich."
-
-msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
-msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billing, Art. 224 MwStSystRL); der Partner stellt keine eigene Rechnung. Der Partner kann widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
-
-msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
-msgstr "Dieser Beleg rechnet Berichtigungen früherer Gutschriften (Erstattungen und Stornierungen vermittelter Bestellungen) mit der erhaltenen Rückzahlung bzw. der abgeschriebenen Forderung ab. Er mindert Nettobeträge und USt der oben genannten Gutschriften; es wird nichts überwiesen."
-
 msgid "Correction credit notes settled: the amounts are the gross differences of the correction credit notes named, whose VAT is shown there; no VAT is added on this document."
 msgstr "Ausgeglichene Korrekturgutschriften: Die Beträge sind die Bruttodifferenzen der genannten Korrekturgutschriften, deren Umsatzsteuer dort ausgewiesen ist; auf diesem Beleg wird keine Umsatzsteuer hinzugerechnet."
-
-msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
-msgstr "Dieses Dokument storniert die oben genannte Gutschrift vollständig. Die Provisionen stehen für eine spätere Auszahlung zur Verfügung."
 
 msgid "Annual overview %d"
 msgstr "Jahresübersicht %d"
@@ -7031,3 +7082,7 @@ msgstr "Von"
 msgctxt "date range end"
 msgid "To"
 msgstr "Bis"
+
+msgctxt "e-invoice link"
+msgid "(XML)"
+msgstr "(XML)"

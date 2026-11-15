@@ -588,5 +588,34 @@ foreach ( array( 'XCG', 'ZWG', 'VED', 'SLE', 'EUR', 'USD', 'MRU', 'IRR' ) as $k7
 }
 check( 'R13-K7 ISO 4217 minor units of the contract list (0, 3 and 2 decimals incl. XCG/ZWG/VED)', array(), $k7_odd );
 
+/* R14-L1: e-invoice XML without WordPress (VAT categories, totals, business rule checks). */
+use WPAffiliateCaptain\Payouts\EInvoice;
+check( 'R14-L1 VAT categories of the treatments', array( array( 'S', '19' ), array( 'S', '7.5' ), array( 'Z', '0' ), array( 'AE', '0' ), array( 'E', '0' ), array( 'O', '' ) ), array( EInvoice::category( 'standard', '19.00' ), EInvoice::category( 'standard', '7.5' ), EInvoice::category( 'standard', '0' ), EInvoice::category( 'reverse_charge', '0' ), EInvoice::category( 'small_business', '0' ), EInvoice::category( 'private', '0' ) ) );
+$l1_doc = array(
+	'number'          => 'GS-2026-000009',
+	'type'            => '389',
+	'issue_date'      => '20261115',
+	'currency'        => 'EUR',
+	'buyer_reference' => 'GS-2026-000009',
+	'seller'          => array( 'id' => '9', 'name' => 'Partner', 'lines' => array( 'Kai 5' ), 'postcode' => '24103', 'city' => 'Kiel', 'country' => 'DE', 'vat_id' => 'DE123456789', 'tax_number' => '', 'email' => 'p@example.de', 'phone' => '' ),
+	'buyer'           => array( 'name' => 'Shop', 'lines' => array( 'Hafen 1' ), 'postcode' => '20457', 'city' => 'Hamburg', 'country' => 'DE', 'vat_id' => 'DE999999999', 'email' => 'b@example.de' ),
+	'lines'           => array(
+		array( 'name' => 'A', 'note' => '', 'net' => 3333, 'category' => 'S', 'rate' => '19' ),
+		array( 'name' => 'B', 'note' => '', 'net' => 3333, 'category' => 'S', 'rate' => '19' ),
+		array( 'name' => 'C', 'note' => '', 'net' => -1000, 'category' => 'AE', 'rate' => '0' ),
+	),
+	'exemptions'      => array( 'AE' => array( 'Reverse charge', 'VATEX-EU-AE' ) ),
+	'prepaid'         => 500,
+	'payment'         => array( 'code' => 'ZZZ', 'info' => 'SEPA' ),
+	'terms'           => 'With the payout',
+);
+$l1_t = EInvoice::totals( $l1_doc );
+check( 'R14-L1 totals: VAT per category and rate on the summed basis, due = total − paid amount', array( 5666, 1267, 6933, 6433 ), array( $l1_t['lines'], $l1_t['tax'], $l1_t['grand'], $l1_t['due'] ) );
+check( 'R14-L1 XML passes the business rules; EN 16931 profile without seller phone', array( array(), EInvoice::EN16931 ), array( EInvoice::check( EInvoice::xml( $l1_doc ) ), EInvoice::profile( $l1_doc ) ) );
+$l1_doc['seller']['phone'] = '+49 1';
+check( 'R14-L1 XRechnung profile with all its data, still valid', array( array(), EInvoice::XRECHNUNG ), array( EInvoice::check( EInvoice::xml( $l1_doc ) ), EInvoice::profile( $l1_doc ) ) );
+$l1_doc['payment'] = array( 'code' => '58', 'info' => 'SEPA' );
+check( 'R14-L1 checker: SEPA credit transfer without IBAN (BR-61)', array( 'BR-61' ), array_keys( EInvoice::check( EInvoice::xml( $l1_doc ) ) ) );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

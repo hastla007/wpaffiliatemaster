@@ -114,6 +114,8 @@ final class Settings {
 			'credit_prefix'           => 'GS',
 			'storno_prefix'           => 'ST',
 			'correction_prefix'       => 'KG', // Correction credit notes of paid payouts.
+			'einvoice_mail'           => 'auto', // E-invoice (EN 16931 XML) with the credit note mail: auto|on|off (R14-L1).
+			'einvoice_buyer_reference' => '',    // Buyer reference (e.g. Leitweg-ID) on e-invoices; '' = document number.
 			'vies_check'              => 0, // Check partner VAT IDs with the EU Commission's VIES service (external request).
 			// Fraud rules (0 = off).
 			'fraud_max_orders_day'    => 0,
@@ -826,6 +828,8 @@ final class Settings {
 		$out['operator_address']    = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
 		$out['operator_vat_id']     = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
 		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
+		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', array( 'auto', 'on', 'off' ), $d );
+		$out['einvoice_buyer_reference'] = isset( $in['einvoice_buyer_reference'] ) ? substr( trim( sanitize_text_field( (string) $in['einvoice_buyer_reference'] ) ), 0, 100 ) : '';
 		foreach ( array( 'credit_prefix', 'storno_prefix', 'correction_prefix' ) as $k ) {
 			$out[ $k ] = $d[ $k ];
 			if ( ! isset( $in[ $k ] ) ) {

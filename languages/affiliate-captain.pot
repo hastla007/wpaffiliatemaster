@@ -1689,7 +1689,7 @@ msgstr ""
 msgid "Currency"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/CommissionsTable.php src/Payouts/EInvoice.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Order"
 msgstr ""
 
@@ -2002,7 +2002,7 @@ msgstr ""
 msgid "Reopen for review"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/EInvoice.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Correction"
 msgstr ""
 
@@ -3657,6 +3657,10 @@ msgstr ""
 msgid "Difference (gross)"
 msgstr ""
 
+#: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+msgid "Electronic invoice (EN 16931 XML)"
+msgstr ""
+
 #: src/Admin/Pages/PayoutsPage.php
 msgid "deleted after the retention period"
 msgstr ""
@@ -3675,6 +3679,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Download PDF statement"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "E-invoice (XML)"
 msgstr ""
 
 #. translators: %s: cancellation number
@@ -4412,6 +4420,14 @@ msgid "Your tax number (if no VAT ID)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Send e-invoice (XML) with the credit note e-mail"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Buyer reference on e-invoices (e.g. Leitweg-ID)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Company account holder (SEPA)"
 msgstr ""
 
@@ -4743,6 +4759,30 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Electronic invoice (EN 16931)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Always"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Never (download only)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Optional. Empty: the document number is used."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php src/Privacy/Privacy.php
@@ -7413,11 +7453,11 @@ msgstr ""
 msgid "This form was already sent: correction credit note %1$s was issued with the corrected net amount %2$s. The new amount was not booked; open the correction form again to correct the credit note further."
 msgstr ""
 
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "Correction credit note (Gutschrift)"
 msgstr ""
 
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "Correction credit note (self-billing)"
 msgstr ""
 
@@ -7445,7 +7485,7 @@ msgstr ""
 msgid "Corrects credit note"
 msgstr ""
 
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "Replaces correction"
 msgstr ""
 
@@ -7453,7 +7493,7 @@ msgstr ""
 msgid "Service"
 msgstr ""
 
-#: src/Payouts/Corrections.php src/Payouts/Statement.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php src/Payouts/Statement.php
 msgid "Referral of customers (affiliate commission)"
 msgstr ""
 
@@ -7469,7 +7509,7 @@ msgstr ""
 msgid "Tax number of the partner"
 msgstr ""
 
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "Reason for the correction"
 msgstr ""
 
@@ -7492,17 +7532,17 @@ msgid "VAT rate of the corrected credit note: %s %%"
 msgstr ""
 
 #. translators: %s: amount
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "The difference of %s is credited to the partner account and paid with the next payout."
 msgstr ""
 
 #. translators: %s: amount
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "The overpayment of %s is debited to the partner account and offset against the next commissions."
 msgstr ""
 
 #. translators: 1: credit note number, 2: VAT treatment or rate
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "This correction concerns only the part of credit note %1$s with %2$s; the other parts of the credit note are unchanged."
 msgstr ""
 
@@ -7511,11 +7551,11 @@ msgstr ""
 msgid "Repayments, write-offs and settled correction credit notes on credit note %1$s (%2$s) are not taxable and not part of the amounts above."
 msgstr ""
 
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
 msgstr ""
 
-#: src/Payouts/Corrections.php
+#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
 msgid "This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document."
 msgstr ""
 
@@ -7534,6 +7574,87 @@ msgstr ""
 
 #: src/Payouts/Corrections.php src/Payouts/Statement.php
 msgid "The stored statement failed the integrity check."
+msgstr ""
+
+#. translators: 1: credit note number, 2: date
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Correction of credit note %1$s of %2$s"
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr ""
+
+#. translators: %s: original document number
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Cancellation of credit note %s"
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Correction of credit notes (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Correction of credit notes"
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Credit note (Gutschrift)"
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Credit note (self-billing)"
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Payouts/EInvoice.php
+msgid "Repayments, write-offs and settled correction credit notes (%s) are no service and not subject to VAT; they are shown as the amount already settled, so the amount due equals the payout amount."
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Balance (settled, no transfer)"
+msgstr ""
+
+#: src/Payouts/EInvoice.php
+msgid "Paid by the issuer of this credit note (recipient of the service) by transfer with the payout; the partner does not have to pay anything."
+msgstr ""
+
+#. translators: 1: document number, 2: net amount before, 3: corrected net amount
+#: src/Payouts/EInvoice.php
+msgid "Net amount before (%1$s): %2$s; corrected net amount: %3$s"
+msgstr ""
+
+#: src/Payouts/EInvoice.php
+msgid "This XML file is the electronic invoice (EN 16931) of the document; the PDF with the same content is a visual copy."
+msgstr ""
+
+#: src/Payouts/EInvoice.php
+msgid "SEPA credit transfer"
+msgstr ""
+
+#: src/Payouts/EInvoice.php src/Payouts/Statement.php
+msgid "Other payment method as agreed with the partner"
+msgstr ""
+
+#. translators: %s: masked IBAN
+#: src/Payouts/EInvoice.php
+msgid "SEPA credit transfer to the partner's account %s"
+msgstr ""
+
+#: src/Payouts/EInvoice.php
+msgid "There is no electronic invoice for this document (no self-billing credit note, no taxable line, or deleted after the retention period)."
 msgstr ""
 
 #: src/Payouts/Objections.php
@@ -7994,27 +8115,6 @@ msgstr ""
 msgid "Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service."
 msgstr ""
 
-#. translators: %s: original document number
-#: src/Payouts/Statement.php
-msgid "Cancellation of credit note %s"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Correction of credit notes (Gutschrift)"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Correction of credit notes"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Credit note (Gutschrift)"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Credit note (self-billing)"
-msgstr ""
-
 #: src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Cancellation number"
 msgstr ""
@@ -8028,20 +8128,11 @@ msgid "Cancels"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "Other payment method as agreed with the partner"
-msgstr ""
-
-#: src/Payouts/Statement.php
 msgid "Repayments and write-offs (not taxable)"
 msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "Correction credit notes settled (VAT shown on the correction credit note)"
-msgstr ""
-
-#. translators: 1: credit note number, 2: date
-#: src/Payouts/Statement.php
-msgid "Correction of credit note %1$s of %2$s"
 msgstr ""
 
 #. translators: %s: VAT treatment
@@ -8068,27 +8159,7 @@ msgid "Total cancelled"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "Balance (settled, no transfer)"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred."
-msgstr ""
-
-#: src/Payouts/Statement.php
 msgid "Correction credit notes settled: the amounts are the gross differences of the correction credit notes named, whose VAT is shown there; no VAT is added on this document."
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "This document cancels the credit note named above in full. The commissions remain available for a later payout."
 msgstr ""
 
 #. translators: %d: year
@@ -9764,4 +9835,9 @@ msgstr ""
 #: blocks/src
 msgctxt "date range end"
 msgid "To"
+msgstr ""
+
+#: blocks/src
+msgctxt "e-invoice link"
+msgid "(XML)"
 msgstr ""
