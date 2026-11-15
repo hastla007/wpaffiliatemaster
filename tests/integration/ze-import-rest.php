@@ -62,10 +62,14 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		public function __construct( array $params = array(), array $headers = array() ) { $this->params = $params; $this->headers = array_change_key_case( $headers ); }
 		public function get_header( $k ) { $k = strtolower( $k ); return $this->headers[ $k ] ?? null; }
 		public function get_json_params() { return $this->params; }
-		#[\ReturnTypeWillChange] public function offsetExists( $k ) { return isset( $this->params[ $k ] ); }
-		#[\ReturnTypeWillChange] public function offsetGet( $k ) { return $this->params[ $k ] ?? null; }
-		#[\ReturnTypeWillChange] public function offsetSet( $k, $v ) { $this->params[ $k ] = $v; }
-		#[\ReturnTypeWillChange] public function offsetUnset( $k ) { unset( $this->params[ $k ] ); }
+		#[\ReturnTypeWillChange]
+		public function offsetExists( $k ) { return isset( $this->params[ $k ] ); }
+		#[\ReturnTypeWillChange]
+		public function offsetGet( $k ) { return $this->params[ $k ] ?? null; }
+		#[\ReturnTypeWillChange]
+		public function offsetSet( $k, $v ) { $this->params[ $k ] = $v; }
+		#[\ReturnTypeWillChange]
+		public function offsetUnset( $k ) { unset( $this->params[ $k ] ); }
 	}
 }
 
