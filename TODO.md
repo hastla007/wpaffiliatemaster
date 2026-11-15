@@ -930,3 +930,13 @@ Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,p
 - [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance / Feature]** – **R14-D9 Tagesaggregation der Visits (`visits_daily`)** → **Erledigt:** Tabelle `visits_daily` (Schema 15), Live-Upsert ohne Doppelzählung, fortsetzbarer Backfill, Berichte/Portal/Monatsmail lesen die Aggregation (Rohdaten bis der Backfill fertig ist), Löschung bei Partnerlöschung und Aufbewahrung, Kampagnentabelle im Portal mit 25 Zeilen je Seite. Zählt geloggte Visits (keine Hochrechnung beim Sampling).
   - *Problem:* Berichte über lange Zeiträume lesen weiter Rohzeilen; die Kampagnentabelle im Portal ist nicht paginiert (Transient > 1 MB wird mit Memcached nicht gespeichert).
   - *Lösung:* Tabelle `visits_daily` (Partner, lokaler Tag, Kampagne, Sub-ID, Anzahl) mit Backfill, Sampling-Faktor, Löschung bei Partnerlöschung/Retention und Uninstall; Kampagnentabelle paginieren.
+
+
+## Suite-Integration: Form Captain und Review Captain (15.11.2026)
+
+- [ ] Vor einer Form-Captain-Anbindung prüfen, ob der eigene Affiliate-Bewerbungsablauf genügt; keine doppelte Partnerregistrierung oder parallele Datenspeicherung einführen.
+- [ ] Falls Formularübergabe umgesetzt wird: versionierten API-Endpunkt/Service mit Capability-Check, Nonce/CSRF-Schutz im Aufrufer, Idempotenz und Audit definieren; standardmäßig nur `pending`, niemals automatische Freigabe oder Provisionsanlage.
+- [ ] Mit Review Captain ein read-only Aggregatmodell für Partner-/Kampagnenqualität spezifizieren: Mindeststichprobe, Zeitraum, Lösch-/Widerrufsfolgen und freigegebene Quellen dokumentieren.
+- [ ] Keine Review-Einladung aus `wpac_commission_created`, `wpac_affiliate_attributed` oder einem Provisionstatuswechsel auslösen; keine Reviewtexte, Kundendaten oder Käufer-E-Mails an Partner weitergeben.
+- [ ] Verkaufsquellen für Voucher, Pass und WooCommerce mit bestehender Affiliate-Idempotenz abgleichen und Deduplizierung im E2E nachweisen.
+- **Abnahme:** Eine Bewertung ändert niemals Provisionen; Affiliate-Berichte enthalten keine personenbezogenen Review- oder Käuferdaten.
