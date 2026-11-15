@@ -52,7 +52,7 @@ check(
 	array(
 		false !== strpos( $f1_src( 'docs/CONTRACT.md' ), '`wpac_auto_apply_coupon`' ),
 		false !== strpos( $f1_src( 'docs/HANDBOOK.md' ), 'Apply the partner\'s coupon automatically' ),
-		false !== strpos( $f1_src( 'languages/de_DE.r14-f1.json' ), 'Your link gives customers %1$s off' ),
+		false !== strpos( $f1_src( 'languages/de_DE.json' ), 'Your link gives customers %1$s off' ),
 	)
 );
 
