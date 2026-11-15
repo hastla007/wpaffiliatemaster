@@ -4778,6 +4778,12 @@ msgstr "Eine Landingpage ist nicht veröffentlicht"
 msgid "Landing links of partners lead to the default landing page or the home page instead, as long as these pages are in the trash, drafts or private. Page IDs: %s"
 msgstr "Landing-Links der Partner führen stattdessen auf die Standard-Landingpage bzw. die Startseite, solange diese Seiten im Papierkorb liegen, Entwürfe oder privat sind. Seiten-IDs: %s"
 
+msgid "Expired rate-limit counters pile up"
+msgstr "Abgelaufene Rate-Limit-Zähler stauen sich"
+
+msgid "The clean-up of the rate-limit table has not caught up for over six hours: new visitors write counters faster than they can be deleted. Use a shared persistent object cache (e.g. Redis) for the counters; the table then stays empty."
+msgstr "Die Bereinigung der Rate-Limit-Tabelle hängt seit über sechs Stunden hinterher: Neue Besucher schreiben Zähler schneller, als sie gelöscht werden können. Nutzen Sie für die Zähler einen gemeinsamen persistenten Object Cache (z. B. Redis); die Tabelle bleibt dann leer."
+
 msgid "Partner program is in maintenance mode"
 msgstr "Partnerprogramm ist im Wartungsmodus"
 
@@ -7036,6 +7042,9 @@ msgstr "Werbemittel „%1$s“ (v%2$d)"
 msgid "JavaScript tracking is disabled."
 msgstr "JavaScript-Erfassung ist deaktiviert."
 
+msgid "Invalid parameter."
+msgstr "Ungültiger Parameter."
+
 msgid "The sale could not be processed and was queued for retry."
 msgstr "Der Verkauf konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant."
 
@@ -7119,6 +7128,18 @@ msgstr "Objekt-Cache ist auf jedem Server lokal"
 
 msgid "Rate-limit counters use the database table instead (a per-server cache would multiply every limit)."
 msgstr "Die Zähler der Ratenbegrenzung nutzen stattdessen die Datenbanktabelle (ein Cache je Server würde jede Grenze vervielfachen)."
+
+msgid "Partner links are not recorded: the beacon is blocked"
+msgstr "Partnerlinks werden nicht erfasst: Der Beacon ist blockiert"
+
+msgid "JavaScript tracking is on, so guests' visits are only recorded by the beacon in the browser. A test request without login to the REST route wpac/v1/touch and to admin-ajax.php was refused (e.g. by a security plugin that disables the REST API for guests, or a firewall rule on /wp-json/). Every referral of a guest is lost until the route is allowed for guests (or JavaScript tracking is turned off)."
+msgstr "Das JavaScript-Tracking ist aktiv, daher erfasst nur der Beacon im Browser die Besuche von Gästen. Eine Testanfrage ohne Anmeldung an die REST-Route wpac/v1/touch und an admin-ajax.php wurde abgelehnt (z. B. durch ein Sicherheits-Plugin, das die REST-API für Gäste sperrt, oder eine Firewall-Regel auf /wp-json/). Jede Empfehlung eines Gasts geht verloren, bis die Route für Gäste freigegeben ist (oder das JavaScript-Tracking ausgeschaltet wird)."
+
+msgid "The REST API is blocked for guests; the beacon uses admin-ajax.php"
+msgstr "Die REST-API ist für Gäste gesperrt; der Beacon nutzt admin-ajax.php"
+
+msgid "A test request without login to the REST route wpac/v1/touch was refused (security plugin or firewall rule on /wp-json/). The beacon falls back to admin-ajax.php, which costs an extra request per landing. Allow the route wpac/v1/touch for guests to avoid it."
+msgstr "Eine Testanfrage ohne Anmeldung an die REST-Route wpac/v1/touch wurde abgelehnt (Sicherheits-Plugin oder Firewall-Regel auf /wp-json/). Der Beacon weicht auf admin-ajax.php aus, das kostet je Landing eine zusätzliche Anfrage. Geben Sie die Route wpac/v1/touch für Gäste frei, um das zu vermeiden."
 
 msgctxt "block title"
 msgid "Recommended partner targets"

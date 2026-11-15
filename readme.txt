@@ -116,7 +116,7 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 == Changelog ==
 
 = Unreleased =
-Expert audit round 14 (12 perspectives):
+Expert audit round 14 (12 perspectives); database schema 14 (one index widened online):
 * New: credit notes, correction credit notes and cancellations as electronic invoice (EN 16931 CII XML; XRechnung 3.0 profile when all its data are known) – download next to every PDF in the partner area and admin, optional attachment to the partner e-mail (setting "Send e-invoice", automatic for domestic VAT-registered partners), Leitweg-ID setting, filters wpac_einvoice_xml / wpac_einvoice_data
 * New: e-mail templates in the admin (Affiliate Captain → E-mail templates): subject and text of every partner e-mail with placeholders ({name}, {link}, {code}, {rate}, {portal_url}, {amount} …), reset to default, test send, optional simple HTML layout with plain-text part; the approval/welcome e-mail contains partner link, code and commission rate
 * Security: linking, disconnecting and re-sending the account link, changing the e-mail of a partner with portal access or payout details and the VIES check need the payout permission; new bank details entered within 30 days after an e-mail change or account link wait for approval; partner (also at the previous address) and admin are informed
@@ -132,6 +132,10 @@ Expert audit round 14 (12 perspectives):
 * Partner area: tier bonus explained in plain words with a progress bar; copyable HTML text link with rel="sponsored noopener"; labelling duty with channel examples and an optional visible disclosure label in banner embed codes; status-specific messages for pending, rejected and terminated applicants
 * Privacy: consent banner status is only green with a connected banner (handbook recipes for Borlabs, Complianz, Real Cookie Banner, Usercentrics, CCM19, Cookiebot); customers' right to object in the privacy policy text; record of processing activities corrected, English template; terms proof covers the rendered page; notice for cookie lifetimes above 395 days
 * Terms template: independence (§ 89b HGB), credit note format incl. e-invoice, small business status, labelling duty, data protection roles
+* Performance (database schema 14): partner statistics by campaign and sub-ID are answered from a widened visit index (changed online, without locking the table) and cached for 10 minutes per partner and period; the editor's "Partner traffic" box is cached; the report cache generation is no longer autoloaded
+* Performance: the rate-limit clean-up continues with a time budget until no expired counter is left; the monitor warns when it falls behind
+* Privacy: erasing a partner with millions of link visits deletes them in short batches; the WordPress eraser continues page by page and a background task finishes the rest
+* Tracking: the beacon route stays reachable when security plugins block the REST API for guests, falls back to admin-ajax.php, and Site Health and the monitor report a blocked beacon; reloads no longer resend the beacon; the WooCommerce cart is only loaded for visitors with a shop session; the beacon is excluded from "delay JavaScript" in WP Rocket, LiteSpeed Cache, Perfmatters and FlyingPress
 * Dev: CI checks deprecations and notices, integration tests on PHP 7.4 and 8.4, smoke test on PHP 8.4, PHPStan level 3
 
 = 0.13.0 =

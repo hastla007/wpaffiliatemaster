@@ -751,7 +751,7 @@ Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,p
   - *Problem:* Gutschriften gibt es nur als PDF (`Statement.php:295 ff.`). Ab 01.01.2027 (Vorjahresumsatz > 800.000 €) bzw. 01.01.2028 (alle) brauchen inländische regelbesteuerte Partner eine E-Rechnung nach EN 16931; sonst ist ihr Vorsteuerabzug gefährdet. Vertriebshindernis im DACH-Raum.
   - *Lösung:* Gutschrift zusätzlich als ZUGFeRD/Factur-X (EN16931-Profil, PDF/A-3 mit eingebettetem CII-XML) oder XRechnung-CII erzeugen; Hook für das Pro-Add-on. Sofort: Klausel zur Zustimmung zum PDF-Format in der Bedingungsvorlage.
 
-- [ ] **[PRIO: HOCH]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D1 Portal-Statistik „Kampagnen“ ohne passenden Index und ohne Cache (repro)**
+- [x] **[PRIO: HOCH]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D1 Portal-Statistik „Kampagnen“ ohne passenden Index und ohne Cache (repro)** → **Erledigt:** Index `visits.affiliate_created` online auf `(affiliate_id, created_at, campaign, sub_id)` erweitert (Schema 14, nicht blockierend mit Retry); `verify_schema()` prüft Schlüsselspalten; Portal-Statistik 10 min je Partner/Zeitraum gecacht (`Reports::partner_cached`). Tagesaggregation `visits_daily` → R14-D9.
   - *Problem:* `Reports::partner_campaigns()` (`Reports.php:500`, aus `Portal.php:1340`): Partner mit 1 Mio. Visits in 30 Tagen wartet 54 s, 90 Tage 163 s (Index `affiliate_created` + temporäre Tabelle + Filesort); jedes Neuladen startet die Abfrage neu, ein Partner kann die DB auslasten. `partner_summary()` 0,33 s je Aufruf, ungecacht.
   - *Lösung:* Index `affiliate_created` auf `(affiliate_id, created_at, campaign, sub_id)` erweitern (Online-Migration wie R13-M8); Portal-Ergebnisse 10 min als Transient je Partner/Zeitraum cachen; Tagesaggregation `visits_daily` (Partner, Tag, Kampagne, Sub-ID, Anzahl) für Berichte.
 
@@ -813,15 +813,15 @@ Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,p
   - *Problem:* Texte nur über Filter `wpac_mail`, reiner Klartext, keine Platzhalter, kein Testversand, keine Du/Sie-Wahl. AffiliateWP, SliceWP, Solid Affiliate bieten das; Freigabe-Mail enthält weder Partnerlink noch Code noch Provisionssatz.
   - *Lösung:* Vorlageneditor je Mailtyp mit Platzhaltern (`{name}`, `{link}`, `{code}`, `{rate}` …), HTML-Layout, Testversand, Du/Sie; Freigabe-Mail mit Link, Code, Satz. (Kandidat für Pro.)
 
-- [ ] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D2 Rate-Limit-Purge löscht höchstens 1 Mio. Zeilen je Lauf (repro, R7-DB11 unvollständig)**
+- [x] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D2 Rate-Limit-Purge löscht höchstens 1 Mio. Zeilen je Lauf (repro, R7-DB11 unvollständig)** → **Erledigt:** Zeitbudget 20 s, Fortsetzungsevent `wpac_purge_rate_limits`, Monitor-Warnung bei > 6 h Rückstand.
   - *Problem:* `RateLimiter::purge()` mit `delete_in_batches(…, 5000, 200)` ohne Fortsetzung: von 1,5 Mio. Zeilen blieben 500 000 stehen. Ab ~139 neuen Klicks/s wächst die Tabelle unbegrenzt (500 Klicks/s → ~62 Mio. Zeilen/Tag, ~8 GB).
   - *Lösung:* Zeitbudget mit Fortsetzungs-Event (wie `purge_visits()`), bis nichts Abgelaufenes mehr übrig ist.
 
-- [ ] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Performance / Legal]** – **R14-D3 DSGVO-Partnerlöschung löscht alle Visits in einer Transaktion (repro)**
+- [x] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Performance / Legal]** – **R14-D3 DSGVO-Partnerlöschung löscht alle Visits in einer Transaktion (repro)** → **Erledigt:** `Privacy::delete_partner_visits()` in Batches mit Budget, Rest per Event `wpac_erase_visits`, Eraser meldet `done => false`.
   - *Problem:* `Privacy.php:1009` `$wpdb->delete(visits, affiliate_id)` ohne Batches: 3 Mio. Zeilen 18 min 53 s; der Admin-AJAX-Eraser läuft vorher in den Timeout; ebenso `Retention.php:172`.
   - *Lösung:* `delete_in_batches` mit Budget, Rest über `wpac_erasure_pending`/Cron; Eraser meldet `done => false` bis fertig.
 
-- [ ] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Bug]** – **R14-D4 Beacon-Modus scheitert unbemerkt, wenn REST für Gäste gesperrt ist**
+- [x] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Bug]** – **R14-D4 Beacon-Modus scheitert unbemerkt, wenn REST für Gäste gesperrt ist** → **Erledigt:** `rest_authentication_errors`-Ausnahme für `wpac/v1/touch`, Fallback `admin-ajax.php?action=wpac_touch`, Probe in Site Health und Monitor.
   - *Problem:* Mit `js_tracking` erfassen Gast-Requests serverseitig nichts (`beacon_only()`); sperren „Disable REST API“, Perfmatters, Solid Security oder eine WAF `/wp-json/` für Gäste, geht jede Zuordnung verloren. Keine Prüfung, keine Ausnahme.
   - *Lösung:* Loopback-Probe auf `/wpac/v1/touch` in Site Health und Monitor; Ausnahme für die eigene Route über `rest_authentication_errors`; Fallback über `admin-ajax.php`.
 
@@ -911,18 +911,22 @@ Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,p
   - *Problem:* Gegenüber AffiliateWP/SliceWP/Solid Affiliate fehlen: Auszahlung per API (PayPal Payouts/Stripe Connect – Pro-Kandidat), Auszahlung als Shop-Guthaben, Gutschein automatisch per Partnerlink einlösen und Rabatt im Portal zeigen, öffentlicher Konditionen-Block, Produkt-Deep-Links mit Suche und Provision je Produkt, Verlaufsdiagramm mit Vorperiodenvergleich und offene Verbindlichkeiten im Dashboard, Leaderboard und Meilenstein-Mails, Wunschcode auf Antrag, Sub-Affiliates (Hook „geworben von“ im Vertrag), ausgehende Webhooks im Kern, erneute Anmeldung/2FA vor Admin-Aktionen mit Geldfluss.
   - *Lösung:* Je Punkt Free/Pro festlegen (`docs/FREE-PREMIUM.md`) und priorisieren; E-Rechnung (R14-L1) als Alleinstellungsmerkmal.
 
-- [ ] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D5 Report-Cache-Generation als Autoload-Option bei jedem Buchungsereignis**
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D5 Report-Cache-Generation als Autoload-Option bei jedem Buchungsereignis** → **Erledigt:** `autoload=false`, höchstens eine Erhöhung je Request.
   - *Problem:* `Reports.php:161` `update_option(CACHE_GEN, …, true)` je Provisionsereignis (auch einzeln in `approve_due`); mit persistentem Object Cache wird `alloptions` jedes Mal geleert.
   - *Lösung:* `autoload=false`, höchstens eine Erhöhung je Request (Flag + `shutdown`).
 
-- [ ] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D6 Editor-Metabox mit Partner-Traffic ohne Cache (repro)**
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D6 Editor-Metabox mit Partner-Traffic ohne Cache (repro)** → **Erledigt:** `Reports::content_cached()`.
   - *Problem:* `Editor.php:264` → `Reports::for_content()` 1,84 s bei jedem Öffnen einer Seite mit 3 Mio. Visits.
   - *Lösung:* Transient je Seite (10 min, Generationsnummer).
 
-- [ ] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Performance]** – **R14-D7 Beacon sendet bei jedem Seitenaufruf**
+- [x] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Performance]** – **R14-D7 Beacon sendet bei jedem Seitenaufruf** → **Erledigt:** `sessionStorage`-Guard je Tab, `wc_load_cart()` nur mit WooCommerce-Session-Cookie.
   - *Problem:* Jedes Neuladen/Zurück auf eine URL mit `?partner=` löst einen ungecachten REST-Request aus, inkl. `wc_load_cart()` für jeden Gast (`RestApi.php:72`).
   - *Lösung:* Guard über `sessionStorage` (je Code/URL einmal pro Sitzung); `wc_load_cart()` nur mit vorhandenem WooCommerce-Session-Cookie.
 
-- [ ] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Bug]** – **R14-D8 „Delay JS“ von Caching-Plugins verzögert den Beacon**
+- [x] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Bug]** – **R14-D8 „Delay JS“ von Caching-Plugins verzögert den Beacon** → **Erledigt:** Ausschlüsse für WP Rocket, LiteSpeed, Perfmatters, FlyingPress; `data-no-optimize`, `data-no-defer`, `data-cfasync="false"`, `nowprocket`.
   - *Problem:* WP Rocket, LiteSpeed, Perfmatters, FlyingPress führen das Inline-Skript erst bei Interaktion aus; Besuche ohne Interaktion fehlen.
   - *Lösung:* Ausnahmen über `rocket_delay_js_exclusions`, `litespeed_optm_js_defer_exc`, `perfmatters_delay_js_exclusions`, dazu `data-no-optimize="1"` / `data-cfasync="false"` am Skript.
+
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance / Feature]** – **R14-D9 Tagesaggregation der Visits (`visits_daily`)**
+  - *Problem:* Berichte über lange Zeiträume lesen weiter Rohzeilen; die Kampagnentabelle im Portal ist nicht paginiert (Transient > 1 MB wird mit Memcached nicht gespeichert).
+  - *Lösung:* Tabelle `visits_daily` (Partner, lokaler Tag, Kampagne, Sub-ID, Anzahl) mit Backfill, Sampling-Faktor, Löschung bei Partnerlöschung/Retention und Uninstall; Kampagnentabelle paginieren.

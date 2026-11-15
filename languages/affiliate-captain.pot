@@ -6595,6 +6595,14 @@ msgid "Landing links of partners lead to the default landing page or the home pa
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "Expired rate-limit counters pile up"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The clean-up of the rate-limit table has not caught up for over six hours: new visitors write counters faster than they can be deleted. Use a shared persistent object cache (e.g. Redis) for the counters; the table then stays empty."
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Partner program is in maintenance mode"
 msgstr ""
 
@@ -9753,6 +9761,10 @@ msgstr ""
 msgid "JavaScript tracking is disabled."
 msgstr ""
 
+#: src/Rest/RestApi.php
+msgid "Invalid parameter."
+msgstr ""
+
 #: src/Sales/ContractApi.php
 msgid "The sale could not be processed and was queued for retry."
 msgstr ""
@@ -9865,6 +9877,22 @@ msgstr ""
 
 #: src/Tracking/Tracker.php
 msgid "Rate-limit counters use the database table instead (a per-server cache would multiply every limit)."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Partner links are not recorded: the beacon is blocked"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "JavaScript tracking is on, so guests' visits are only recorded by the beacon in the browser. A test request without login to the REST route wpac/v1/touch and to admin-ajax.php was refused (e.g. by a security plugin that disables the REST API for guests, or a firewall rule on /wp-json/). Every referral of a guest is lost until the route is allowed for guests (or JavaScript tracking is turned off)."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "The REST API is blocked for guests; the beacon uses admin-ajax.php"
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "A test request without login to the REST route wpac/v1/touch was refused (security plugin or firewall rule on /wp-json/). The beacon falls back to admin-ajax.php, which costs an extra request per landing. Allow the route wpac/v1/touch for guests to avoid it."
 msgstr ""
 
 #: assets/js/blocks.js
