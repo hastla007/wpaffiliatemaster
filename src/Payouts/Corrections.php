@@ -121,7 +121,7 @@ final class Corrections {
 			}
 			$rate = '' !== (string) $item->vat_rate ? (string) $item->vat_rate : (string) $p->vat_rate;
 			$rate = Vat::STANDARD === $mode ? $rate : '0';
-			$key  = $mode . '|' . $rate;
+			$key  = $mode . '|' . Vat::rate_key( $rate ); // "19" and "19.0" are one part (R13-N8).
 			if ( ! isset( $parts[ $key ] ) ) {
 				$parts[ $key ] = array(
 					'mode'   => $mode,
@@ -140,7 +140,13 @@ final class Corrections {
 		// what the next correction of that part starts from. An older correction whose treatment
 		// matches no line keeps a part of its own, so its amounts are not lost.
 		foreach ( $list as $c ) {
-			$key           = (string) $c->vat_mode . '|' . (string) $c->vat_rate;
+			if ( count( $parts ) > 1 && self::legacy( $c ) ) {
+				// R13-N8: a correction of 0.12 corrected the whole credit note (all parts, with the
+				// main treatment): its corrected total replaces the parts – summing it with the other
+				// parts would count them twice. Flagged for the form.
+				$parts = array();
+			}
+			$key           = (string) $c->vat_mode . '|' . Vat::rate_key( (string) $c->vat_rate );
 			$parts[ $key ] = array(
 				'mode'   => (string) $c->vat_mode,
 				'rate'   => (string) $c->vat_rate,
@@ -148,8 +154,23 @@ final class Corrections {
 				'vat'    => (int) $c->vat_minor,
 				'number' => (string) $c->number,
 			);
+			if ( self::legacy( $c ) ) {
+				$parts[ $key ]['legacy'] = true;
+			}
 		}
 		return $parts;
+	}
+
+	/**
+	 * Whether a correction was issued before corrections were made per part (0.12): it corrected
+	 * the whole credit note. Newer corrections store the number of parts with the document data.
+	 *
+	 * @param object $c Correction.
+	 * @return bool
+	 */
+	public static function legacy( $c ) {
+		$snap = json_decode( (string) $c->operator_snapshot, true );
+		return ! is_array( $snap ) || ! array_key_exists( 'parts', $snap );
 	}
 
 	/**
@@ -310,12 +331,14 @@ final class Corrections {
 		if ( '' === $reason ) {
 			return new \WP_Error( 'wpac_reason_required', __( 'Please enter a reason.', 'affiliate-captain' ) );
 		}
-		if ( $net_minor < 0 || $net_minor > \WPAffiliateCaptain\Sales\ContractApi::MAX_MINOR ) {
+		if ( abs( $net_minor ) > \WPAffiliateCaptain\Sales\ContractApi::MAX_MINOR ) {
 			return new \WP_Error( 'wpac_amount', __( 'Please enter the correct net amount (0 or more).', 'affiliate-captain' ) );
 		}
 		$done = self::by_key( $request_key );
 		if ( $done ) {
-			return (int) $done->id; // Submitted twice: already issued.
+			// Submitted twice: already issued. With another amount (R13-M9: back in the browser,
+			// changed, sent again) that is said instead of reporting the old document as new.
+			return (int) $done->net_minor === $net_minor ? (int) $done->id : self::already( $done );
 		}
 		$blocked = self::blocked( PayoutService::find( (int) $payout_id ) );
 		if ( '' !== $blocked ) {
@@ -333,12 +356,20 @@ final class Corrections {
 					}
 					$done = self::by_key( $request_key );
 					if ( $done ) {
+						if ( (int) $done->net_minor !== $net_minor ) {
+							throw new IntegrationException( 'already', esc_html( self::already( $done )->get_error_message() ) );
+						}
 						return (int) $done->id;
 					}
 					$a = self::amounts( $p, $net_minor, (string) $part );
 					if ( null === $a ) {
 						// Never fall back to the credit note's main treatment: each part keeps its own.
 						throw new IntegrationException( 'part', esc_html__( 'This credit note has parts with different VAT treatments or rates. Please correct each part separately (one correction credit note per part, with the corrected net amount of that part).', 'affiliate-captain' ) );
+					}
+					if ( $net_minor < 0 && $a['prev_net'] >= 0 ) {
+						// Negative only where the part is negative (R13-N8: e.g. corrections of an
+						// earlier credit note on this one).
+						throw new IntegrationException( 'amount', esc_html__( 'Please enter the correct net amount (0 or more).', 'affiliate-captain' ) );
 					}
 					if ( $base_net >= 0 && (int) $base_net !== $a['prev_net'] ) {
 						throw new IntegrationException( 'changed', esc_html__( 'The credit note was corrected in the meantime. Please check the current amounts and try again; nothing was booked.', 'affiliate-captain' ) );
@@ -438,7 +469,7 @@ final class Corrections {
 				}
 			);
 		} catch ( IntegrationException $e ) {
-			if ( in_array( $e->error_code, array( 'state', 'changed', 'same', 'part' ), true ) ) {
+			if ( in_array( $e->error_code, array( 'state', 'changed', 'same', 'part', 'amount', 'already' ), true ) ) {
 				return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 			}
 			$done = self::by_key( $request_key ); // A parallel submission with the same key won.
@@ -490,6 +521,24 @@ final class Corrections {
 		$t = Db::table( self::TABLE );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return '' === (string) $key ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE request_key = %s", (string) $key ) );
+	}
+
+	/**
+	 * Error for a form submitted again with another amount: the correction issued with it (R13-M9).
+	 *
+	 * @param object $done Correction issued with the request key.
+	 * @return \WP_Error
+	 */
+	private static function already( $done ) {
+		return new \WP_Error(
+			'wpac_already',
+			sprintf(
+				/* translators: 1: correction credit note number, 2: corrected net amount */
+				__( 'This form was already sent: correction credit note %1$s was issued with the corrected net amount %2$s. The new amount was not booked; open the correction form again to correct the credit note further.', 'affiliate-captain' ),
+				(string) $done->number,
+				Money::format( (int) $done->net_minor, (string) $done->currency )
+			)
+		);
 	}
 
 	/**

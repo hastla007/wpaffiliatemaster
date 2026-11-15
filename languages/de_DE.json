@@ -311,6 +311,7 @@
  "Affiliate Captain: lifetime partner binding of the customer removed.": "Affiliate Captain: Lifetime-Partnerbindung des Kunden entfernt.",
  "Affiliate Captain: reassignment failed: %s": "Affiliate Captain: Neuzuordnung fehlgeschlagen: %s",
  "Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again.": "Affiliate Captain: Erstattung #%1$s wurde gelöscht; die dafür abgezogene Partnerprovision (%2$s) wurde wieder gebucht.",
+ "Affiliate Captain: refund #%s was deleted; no partner commission had been deducted for it, so nothing was booked again.": "Affiliate Captain: Erstattung #%s wurde gelöscht; dafür war keine Partnerprovision abgezogen worden, daher wurde nichts wieder gebucht.",
  "Affiliate Captain: some database tables use an outdated storage engine.": "Affiliate Captain: Einige Datenbanktabellen verwenden eine veraltete Speicher-Engine.",
  "Affiliate Captain: some tables do not use InnoDB, so bookings cannot run in transactions. Please convert them (ALTER TABLE … ENGINE=InnoDB).": "Affiliate Captain: Einige Tabellen nutzen nicht InnoDB, daher laufen Buchungen nicht in Transaktionen. Bitte umstellen (ALTER TABLE … ENGINE=InnoDB).",
  "Affiliate Captain: the bank details of %1$d partners cannot be decrypted (partner IDs %2$s). They get no payouts until they enter them again.": "Affiliate Captain: Die Bankdaten von %1$d Partnern lassen sich nicht entschlüsseln (Partner-IDs %2$s). Sie erhalten keine Auszahlungen, bis sie die Daten erneut eingeben.",
@@ -642,6 +643,7 @@
   "Korrekturgutschrift %1$s zu %2$s ausgestellt; die Differenz wurde auf dem Partnerkonto gebucht und der Partner informiert.",
   "Korrekturgutschriften %1$s zu %2$s ausgestellt; die Differenzen wurden auf dem Partnerkonto gebucht und der Partner informiert."
  ],
+ "Correction credit note %s was issued by an earlier version for the whole credit note (all VAT parts together). Further corrections start from its corrected total; please check the amounts before correcting again.": "Die Korrekturgutschrift %s wurde von einer früheren Version für die ganze Gutschrift ausgestellt (alle USt-Teile zusammen). Weitere Korrekturen gehen von ihrem korrigierten Gesamtbetrag aus; bitte prüfen Sie die Beträge, bevor Sie erneut korrigieren.",
  "Correction credit note (Gutschrift)": "Korrekturgutschrift (Gutschrift)",
  "Correction credit note (self-billing)": "Korrekturgutschrift (Self-Billing)",
  "Correction credit note could not be written": "Korrekturgutschrift konnte nicht geschrieben werden",
@@ -2147,6 +2149,7 @@
  "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.": "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billing, Art. 224 MwStSystRL); der Partner stellt keine eigene Rechnung. Der Partner kann widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich.",
  "This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred.": "Dieser Beleg rechnet Berichtigungen früherer Gutschriften (Erstattungen und Stornierungen vermittelter Bestellungen) mit der erhaltenen Rückzahlung bzw. der abgeschriebenen Forderung ab. Er mindert Nettobeträge und USt der oben genannten Gutschriften; es wird nichts überwiesen.",
  "This e-mail address is already used by another partner account.": "Diese E-Mail-Adresse wird bereits von einem anderen Partnerkonto verwendet.",
+ "This form was already sent: correction credit note %1$s was issued with the corrected net amount %2$s. The new amount was not booked; open the correction form again to correct the credit note further.": "Dieses Formular wurde bereits abgeschickt: Die Korrekturgutschrift %1$s wurde mit dem korrigierten Nettobetrag %2$s ausgestellt. Der neue Betrag wurde nicht gebucht; öffnen Sie das Korrekturformular erneut, um die Gutschrift weiter zu korrigieren.",
  "This host only passes allow-listed cookies to WordPress; \"%s\" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref.": "Dieser Hoster leitet nur freigegebene Cookies an WordPress weiter; „%s“ kommt nie an. Benennen Sie es mit dem Filter wpac_cookie_name um, z. B. in STYXKEY_wpac_ref.",
  "This job is running or already done and was not started again.": "Dieser Auftrag läuft gerade oder ist erledigt und wurde nicht erneut gestartet.",
  "This link is not valid.": "Dieser Link ist ungültig.",

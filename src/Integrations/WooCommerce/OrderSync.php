@@ -1181,16 +1181,46 @@ final class OrderSync {
 	}
 
 	/**
-	 * A refund was deleted in the order edit screen (e.g. a typo): the deduction booked for it
-	 * is given back. The current order (without that refund) is the target, as for raised
-	 * lines: Ledger::record_increase() books the difference with the rate of the sale,
-	 * idempotent per booked base, so a repeated hook books nothing. A refund still waiting in
-	 * the job queue is closed instead. The order note says what happened.
+	 * Refunds deleted in this request (several hooks report the same deletion).
+	 *
+	 * @var array<int, bool>
+	 */
+	private static $deleted_refunds = array();
+
+	/**
+	 * Parent orders of refunds about to be deleted (captured before the deletion, read after it).
+	 *
+	 * @var array<int, int>
+	 */
+	private static $deleting_refunds = array();
+
+	/**
+	 * Orders being deleted in this request: their refunds go with them (no reinstatement).
+	 *
+	 * @var array<int, bool>
+	 */
+	private static $deleting_orders = array();
+
+	/**
+	 * A refund was deleted (order edit screen, REST API, ERP/POS connectors through the CRUD
+	 * classes): the deduction booked for it is given back exactly as it was booked
+	 * (Ledger::reverse_refund(), from the stored refund rows – also for fixed rates per piece),
+	 * idempotent per refund, so several hooks for the same deletion book it once. A refund still
+	 * waiting in the job queue is closed instead. The order note says what happened.
+	 *
+	 * Hooks: woocommerce_refund_deleted (admin screen), woocommerce_order_refund_deleted
+	 * (WooCommerce 11.3+, both order storages), and woocommerce_delete_order_refund /
+	 * deleted_post with the parent captured before the deletion (older versions).
 	 *
 	 * @param int $refund_id Deleted refund.
 	 * @param int $order_id  Order.
 	 */
 	public static function refund_deleted( $refund_id, $order_id ) {
+		$refund_id = (int) $refund_id;
+		$order_id  = (int) $order_id;
+		if ( ! $refund_id || ! $order_id || isset( self::$deleted_refunds[ $refund_id ] ) || isset( self::$deleting_orders[ $order_id ] ) ) {
+			return;
+		}
 		if ( ! Jobs::lock_order( WooCommerce::SOURCE, (string) $order_id ) ) {
 			self::busy_note( $order_id );
 			return;
@@ -1213,60 +1243,134 @@ final class OrderSync {
 		if ( ! $order || is_a( $order, 'WC_Order_Refund' ) ) {
 			return;
 		}
+		self::$deleted_refunds[ $refund_id ] = true;
 		Jobs::supersede_refunds( WooCommerce::SOURCE, (string) $order_id, array( (string) $refund_id ) );
-		if ( ! $order->is_paid() || ! Ledger::attribution_for( WooCommerce::SOURCE, (string) $order_id ) ) {
-			return;
+		if ( ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) ) {
+			return; // No commission for this order: nothing was deducted.
 		}
-		$payload = self::payload( $order );
-		if ( ! $payload['items'] ) {
-			return;
-		}
+		/* translators: %s: refund ID */
+		$reason = sprintf( __( 'Refund #%s deleted in WooCommerce', 'affiliate-captain' ), (string) $refund_id );
 		try {
-			$sale   = ContractApi::normalize_sale( $payload );
-			$result = Ledger::record_increase(
-				array(
-					'contract' => $sale['contract'],
-					'source'   => WooCommerce::SOURCE,
-					'order_id' => (string) $order_id,
-					'currency' => $sale['currency'],
-					'items'    => $sale['items'],
-					/* translators: %s: refund ID */
-					'reason'   => sprintf( __( 'Refund #%s deleted in WooCommerce', 'affiliate-captain' ), (string) (int) $refund_id ),
-				)
-			);
+			$result = Ledger::reverse_refund( WooCommerce::SOURCE, (string) $order_id, (string) $refund_id, $reason );
+			$extra  = null;
+			if ( $result['reduced'] && $order->is_paid() ) {
+				// The refund took back an increase that was not released yet (R13-K4): the order
+				// without it is the target again (Ledger::record_increase(), at the rate of the sale).
+				$payload = self::payload( $order );
+				if ( $payload['items'] ) {
+					$sale  = ContractApi::normalize_sale( $payload );
+					$extra = Ledger::record_increase(
+						array(
+							'contract' => $sale['contract'],
+							'source'   => WooCommerce::SOURCE,
+							'order_id' => (string) $order_id,
+							'currency' => $sale['currency'],
+							'items'    => $sale['items'],
+							'reason'   => $reason,
+						)
+					);
+				}
+			}
 		} catch ( \Throwable $e ) {
+			unset( self::$deleted_refunds[ $refund_id ] );
 			Log::error(
 				'WooCommerce refund deletion not booked',
 				array(
-					'order'   => (int) $order_id,
-					'refund'  => (int) $refund_id,
+					'order'   => $order_id,
+					'refund'  => $refund_id,
 					'message' => \WPAffiliateCaptain\Core\Db::cut( $e->getMessage(), 300 ),
 				)
 			);
 			$order->add_order_note( __( 'Affiliate Captain: a refund was deleted, but the partner commission could not be restored. Please save the order items again later.', 'affiliate-captain' ) );
 			return;
 		}
-		if ( 'booked' === $result['status'] ) {
-			Audit::log(
-				'commission.refund_deleted',
-				'order',
-				(int) $order_id,
-				array(
-					'source' => WooCommerce::SOURCE,
-					'refund' => (string) (int) $refund_id,
-					'amount' => (int) $result['amount_minor'],
-				)
-			);
+		$amount = (int) $result['amount_minor'] + ( $extra && 'booked' === $extra['status'] ? (int) $extra['amount_minor'] : 0 );
+		if ( $amount > 0 ) {
 			$order->add_order_note(
 				sprintf(
 					/* translators: 1: refund ID, 2: commission amount */
 					__( 'Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again.', 'affiliate-captain' ),
-					(string) (int) $refund_id,
-					Money::format( (int) $result['amount_minor'], (string) $payload['currency'] )
+					(string) $refund_id,
+					Money::format( $amount, (string) $order->get_currency() )
 				)
 			);
-		} elseif ( 'skipped' === $result['status'] ) {
+		} elseif ( 'skipped' === $result['status'] || ( $extra && 'skipped' === $extra['status'] ) ) {
 			$order->add_order_note( __( 'Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction).', 'affiliate-captain' ) );
+		} elseif ( 'none' === $result['status'] && ! $result['reduced'] ) {
+			$order->add_order_note(
+				sprintf(
+					/* translators: %s: refund ID */
+					__( 'Affiliate Captain: refund #%s was deleted; no partner commission had been deducted for it, so nothing was booked again.', 'affiliate-captain' ),
+					(string) $refund_id
+				)
+			);
+		}
+	}
+
+	/**
+	 * WooCommerce 11.3+: woocommerce_order_refund_deleted (order ID first; not fired while the
+	 * order itself is deleted).
+	 *
+	 * @param int $order_id  Order.
+	 * @param int $refund_id Deleted refund.
+	 */
+	public static function order_refund_deleted( $order_id, $refund_id ) {
+		self::refund_deleted( (int) $refund_id, (int) $order_id );
+	}
+
+	/**
+	 * Filter woocommerce_pre_delete_order_refund (WooCommerce 8.1+, any order storage): remember
+	 * the parent order of a refund about to be deleted; booked once it is gone. Returns the
+	 * filter value unchanged.
+	 *
+	 * @param mixed  $check  Null to go ahead with the deletion.
+	 * @param object $refund Refund.
+	 * @return mixed
+	 */
+	public static function before_refund_delete( $check, $refund = null ) {
+		if ( null === $check && is_object( $refund ) && method_exists( $refund, 'get_id' ) && method_exists( $refund, 'get_parent_id' ) && $refund->get_id() ) {
+			self::$deleting_refunds[ (int) $refund->get_id() ] = (int) $refund->get_parent_id();
+		}
+		return $check;
+	}
+
+	/**
+	 * Classic order storage (also wp_delete_post() on a refund): remember the parent order of a
+	 * refund post about to be deleted, and mark orders being deleted (their refunds go with them).
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function before_post_delete( $post_id ) {
+		if ( ! function_exists( 'get_post_type' ) ) {
+			return;
+		}
+		$type = get_post_type( $post_id );
+		if ( 'shop_order_refund' === $type && function_exists( 'wp_get_post_parent_id' ) ) {
+			self::$deleting_refunds[ (int) $post_id ] = (int) wp_get_post_parent_id( $post_id );
+		} elseif ( 'shop_order' === $type ) {
+			self::$deleting_orders[ (int) $post_id ] = true;
+		}
+	}
+
+	/**
+	 * An order is about to be deleted (HPOS): its refunds are deleted with it.
+	 *
+	 * @param int $order_id Order.
+	 */
+	public static function order_deleting( $order_id ) {
+		self::$deleting_orders[ (int) $order_id ] = true;
+	}
+
+	/**
+	 * A refund was deleted (woocommerce_delete_order_refund, deleted_post): book it with the
+	 * parent order captured before the deletion.
+	 *
+	 * @param int $refund_id Deleted refund (or post).
+	 */
+	public static function refund_gone( $refund_id ) {
+		$refund_id = (int) $refund_id;
+		if ( ! empty( self::$deleting_refunds[ $refund_id ] ) ) {
+			self::refund_deleted( $refund_id, self::$deleting_refunds[ $refund_id ] );
 		}
 	}
 

@@ -815,6 +815,13 @@ final class PayoutsPage {
 		Admin::form_open( 'payout_correction', 'wpac-correction' );
 		echo '<input type="hidden" name="payout_id" value="' . (int) $p->id . '"><input type="hidden" name="request_key" value="' . esc_attr( wp_generate_password( 32, false ) ) . '">';
 		echo '<fieldset><legend><strong>' . esc_html__( 'Issue correction credit note', 'affiliate-captain' ) . '</strong></legend>';
+		foreach ( $parts as $part ) {
+			if ( ! empty( $part['legacy'] ) ) {
+				// R13-N8: corrections of 0.12 corrected the whole credit note.
+				/* translators: %s: correction credit note number */
+				echo '<p class="description wpac-legacy-correction">' . esc_html( sprintf( __( 'Correction credit note %s was issued by an earlier version for the whole credit note (all VAT parts together). Further corrections start from its corrected total; please check the amounts before correcting again.', 'affiliate-captain' ), (string) $part['number'] ) ) . '</p>';
+			}
+		}
 		if ( 1 === count( $parts ) ) {
 			$part = reset( $parts );
 			echo '<input type="hidden" name="base_net" value="' . (int) $part['net'] . '"><input type="hidden" name="part" value="' . esc_attr( (string) key( $parts ) ) . '">';
