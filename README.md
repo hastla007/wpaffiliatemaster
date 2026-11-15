@@ -116,6 +116,17 @@ composer lint
 
 Struktur: `src/Core` (inkl. `Paged` für Listenabfragen) (Lifecycle, Schema, Geld, Krypto, Jobs, Audit), `src/Affiliates`, `src/Codes`, `src/Tracking`, `src/Commissions`, `src/Sales` (öffentlicher Vertrag), `src/Integrations/WooCommerce.php` + `src/Integrations/WooCommerce/` (CheckoutField, OrderSync, OrderMetaBox, CouponLink), `src/Payouts`, `src/Portal`, `src/Admin` (+ `Tables/` mit WP_List_Table), `src/Privacy`.
 
+
+## Captain-Suite-Integration
+
+Affiliate Captain bleibt System of Record für Partner, Attribution, Provisionsledger, Auszahlungen und Partnerstatus. Die bestehenden Version-1.3-Verträge und Verkaufsadapter für WooCommerce, Pass Captain und Voucher Captain bleiben die einzige Grundlage für Provisionen. Neue Suite-Anbindungen müssen dieselbe Verkaufsquelle/Idempotenz nutzen; ein paralleler Voucher- und WooCommerce-Event darf keinen doppelten Verkauf buchen.
+
+Form Captain kann später Partnerbewerbungen oder ergänzende Angaben erfassen. Das ist optional, weil Affiliate Captain bereits einen eigenen Bewerbungs-/Partnerablauf besitzt. Eine Übergabe darf höchstens einen Partner im Status `pending` anlegen; Freigabe, Ablehnung, Code-Erzeugung und Provisionsregeln bleiben in Affiliate Captain. Der aktuelle öffentliche Vertrag hat keine allgemeine Formular-zu-Partner-Anlage; dafür wäre eine eng begrenzte, berechtigte und auditierte Erweiterung erforderlich.
+
+Review Captain darf weder Verkaufs- noch Provisionsereignisse als Einladungsauslöser interpretieren. Reviews beeinflussen keine Provisionen. Eine spätere Verknüpfung ist read-only und aggregiert: nur freigegebene Kennzahlen nach Mindeststichprobe und Zeitraum, mit Partner-/Kampagnenreferenz, ohne einzelne Reviewtexte, Kundendaten oder Käufer-E-Mail. Review Captain bleibt Eigentümer von Einladungen und Rezensionen.
+
+
+
 ## Noch offen (nächste Schritte)
 
 - Live-Test mit HPOS aus und Classic-Checkout (HPOS an und Blocks-Checkout sind auf WordPress 7.1 / WooCommerce 11.3 getestet).
