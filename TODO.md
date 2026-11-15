@@ -927,6 +927,6 @@ Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,p
   - *Problem:* WP Rocket, LiteSpeed, Perfmatters, FlyingPress führen das Inline-Skript erst bei Interaktion aus; Besuche ohne Interaktion fehlen.
   - *Lösung:* Ausnahmen über `rocket_delay_js_exclusions`, `litespeed_optm_js_defer_exc`, `perfmatters_delay_js_exclusions`, dazu `data-no-optimize="1"` / `data-cfasync="false"` am Skript.
 
-- [ ] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance / Feature]** – **R14-D9 Tagesaggregation der Visits (`visits_daily`)**
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance / Feature]** – **R14-D9 Tagesaggregation der Visits (`visits_daily`)** → **Erledigt:** Tabelle `visits_daily` (Schema 15), Live-Upsert ohne Doppelzählung, fortsetzbarer Backfill, Berichte/Portal/Monatsmail lesen die Aggregation (Rohdaten bis der Backfill fertig ist), Löschung bei Partnerlöschung und Aufbewahrung, Kampagnentabelle im Portal mit 25 Zeilen je Seite. Zählt geloggte Visits (keine Hochrechnung beim Sampling).
   - *Problem:* Berichte über lange Zeiträume lesen weiter Rohzeilen; die Kampagnentabelle im Portal ist nicht paginiert (Transient > 1 MB wird mit Memcached nicht gespeichert).
   - *Lösung:* Tabelle `visits_daily` (Partner, lokaler Tag, Kampagne, Sub-ID, Anzahl) mit Backfill, Sampling-Faktor, Löschung bei Partnerlöschung/Retention und Uninstall; Kampagnentabelle paginieren.
