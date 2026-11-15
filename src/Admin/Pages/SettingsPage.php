@@ -217,6 +217,7 @@ final class SettingsPage {
 				'landing_page_id'       => __( 'Default landing page', 'affiliate-captain' ),
 				'promotion_guidelines'  => __( 'Promotion guidelines for partners', 'affiliate-captain' ),
 				'embed_disclosure_label' => __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ),
+				'auto_apply_coupon'     => __( 'Apply the partner\'s coupon automatically after a partner link', 'affiliate-captain' ),
 				'min_payout_minor'      => __( 'Minimum payout', 'affiliate-captain' ),
 				'payout_requests'       => __( 'Partners can request payouts in the partner area', 'affiliate-captain' ),
 				'payout_method_manual'  => __( 'Partners may choose another payment method (e.g. PayPal, Wise), paid manually', 'affiliate-captain' ),
@@ -283,7 +284,7 @@ final class SettingsPage {
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
-			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'promotion_guidelines' ),
+			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'auto_apply_coupon', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'einvoice_mail', 'einvoice_buyer_reference', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
 			'data'        => array( 'visit_retention_days', 'application_retention_days', 'pending_application_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
@@ -583,6 +584,7 @@ final class SettingsPage {
 		self::page_select( 'landing_page_id', __( 'Default landing page', 'affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'affiliate-captain' ) );
 		self::text( 'default_disclosure', __( 'Default disclosure note', 'affiliate-captain' ), $s );
 		self::checkbox( 'embed_disclosure_label', __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ), $s, __( 'The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. "Advertisement"), so the label stays with the banner on the partner\'s website.', 'affiliate-captain' ) );
+		self::checkbox( 'auto_apply_coupon', __( 'Apply the partner\'s coupon automatically after a partner link', 'affiliate-captain' ), $s, __( 'WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an "individual use" coupon is not combined. Not for the partner\'s own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before.', 'affiliate-captain' ) );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'affiliate-captain' ) . '</p></td></tr>';
 		self::end();
 	}

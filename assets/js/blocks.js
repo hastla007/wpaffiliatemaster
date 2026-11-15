@@ -8,6 +8,7 @@
 	var PanelBody = wp.components.PanelBody;
 	var TextControl = wp.components.TextControl;
 	var SelectControl = wp.components.SelectControl;
+	var ToggleControl = wp.components.ToggleControl;
 	var data = window.wpacBlocks || { groups: [] };
 	var Placeholder = wp.components.Placeholder;
 
@@ -74,6 +75,12 @@
 							label: __( 'Text (%s = partner name)', 'affiliate-captain' ),
 							value: props.attributes.text,
 							onChange: function ( v ) { props.setAttributes( { text: v } ); }
+						} ),
+						el( ToggleControl, {
+							label: __( 'Show the partner discount', 'affiliate-captain' ),
+							help: __( 'Shows the discount of the partner\'s coupon when the coupon is applied automatically (Settings → Promotion).', 'affiliate-captain' ),
+							checked: !! props.attributes.showDiscount,
+							onChange: function ( v ) { props.setAttributes( { showDiscount: v } ); }
 						} )
 					)
 				),

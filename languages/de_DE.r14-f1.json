@@ -1,0 +1,12 @@
+{
+ "Apply the partner's coupon automatically after a partner link": "Gutschein des Partners nach einem Partnerlink automatisch einlösen",
+ "WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an \"individual use\" coupon is not combined. Not for the partner's own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before.": "WooCommerce: Kommt ein Besucher über einen Partnerlink oder Kurzlink und hat der Partner einen verknüpften Gutschein, wird der Gutschein einmal in den Warenkorb gelegt (beim ersten Produkt, auch später in derselben Shop-Sitzung). WooCommerce prüft den Gutschein wie gewohnt (Ablaufdatum, Nutzungslimits, Mindestbestellwert); ein vom Kunden eingegebener Gutschein wird nie entfernt, und ein Gutschein „Nur einzeln verwendbar“ wird nicht kombiniert. Nicht bei eigenen Käufen des Partners, nicht bei pausierten oder gesperrten Partnern und nur mit einer Empfehlung, die nach Ihren Tracking- und Einwilligungseinstellungen erfasst wurde. Partner sehen den Rabatt neben ihrem Link. Die Bestellung wird wie bisher zugeordnet.",
+ "Your partner discount (coupon %s) was applied automatically.": "Ihr Partnerrabatt (Gutschein %s) wurde automatisch eingelöst.",
+ "percentage discount\u0004%s%%": "%s %%",
+ "%s per product": "%s pro Produkt",
+ "Your link gives customers %1$s off: the coupon %2$s is applied to their cart automatically.": "Ihr Link gibt Kunden %1$s Rabatt: Der Gutschein %2$s wird automatisch in ihren Warenkorb gelegt.",
+ "Your discount: %1$s off with the coupon %2$s. If it is not in your cart automatically, enter it at checkout.": "Ihr Rabatt: %1$s mit dem Gutschein %2$s. Falls er nicht automatisch im Warenkorb ist, geben Sie ihn an der Kasse ein.",
+ "Coupon %s was applied automatically after the partner link.": "Gutschein %s wurde nach dem Partnerlink automatisch eingelöst.",
+ "Show the partner discount": "Partnerrabatt anzeigen",
+ "Shows the discount of the partner's coupon when the coupon is applied automatically (Settings → Promotion).": "Zeigt den Rabatt des Partnergutscheins, wenn der Gutschein automatisch eingelöst wird (Einstellungen → Werbung)."
+}
