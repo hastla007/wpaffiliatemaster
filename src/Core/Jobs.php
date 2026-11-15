@@ -232,7 +232,7 @@ final class Jobs {
 					'attempts'        => $attempts,
 					'next_attempt_at' => Db::now( time() + $delay ),
 					'last_error_code' => Db::cut( $code, 64 ),
-					'last_error'      => Db::cut( Log::plain( $e->getMessage() ), 255 ),
+					'last_error'      => Db::cut( Log::mask_error( Log::plain( $e->getMessage() ) ), 255 ),
 					'updated_at'      => Db::now(),
 				),
 				array( 'id' => (int) $job->id )

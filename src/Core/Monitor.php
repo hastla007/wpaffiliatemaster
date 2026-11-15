@@ -114,7 +114,7 @@ final class Monitor {
 		if ( $customer['ignored'] ) {
 			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY is ignored', 'affiliate-captain' ), __( 'Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired).', 'affiliate-captain' ) );
 		} elseif ( $customer['missing'] ) {
-			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY was removed or changed', 'affiliate-captain' ), __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.', 'affiliate-captain' ) );
+			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY was removed or changed', 'affiliate-captain' ), __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links. This warning stays until the earlier key is back, the old links are gone, or you confirm the change under Integrations → System status.', 'affiliate-captain' ) );
 		}
 
 		if ( Settings::get( 'maintenance_mode' ) ) {

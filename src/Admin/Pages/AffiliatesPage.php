@@ -245,7 +245,12 @@ final class AffiliatesPage {
 				if ( is_wp_error( $check ) ) {
 					Admin::back( $check->get_error_message(), 'error' );
 				}
+				$before = CodeRepository::find( absint( Admin::post( 'code_id' ) ) );
 				CodeRepository::set_coupon( absint( Admin::post( 'code_id' ) ), sanitize_text_field( Admin::post( 'coupon_code' ) ) );
+				if ( $before && '' !== (string) $before->coupon_code && CodeRepository::normalize_coupon( (string) $before->coupon_code ) !== CodeRepository::normalize_coupon( sanitize_text_field( Admin::post( 'coupon_code' ) ) ) ) {
+					// Unlinked or moved to another coupon: the old coupon forgets the row (R13-M2).
+					\WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::forget_code( (int) $before->id, (string) $before->coupon_code );
+				}
 				\WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::remember( absint( Admin::post( 'code_id' ) ), sanitize_text_field( Admin::post( 'coupon_code' ) ) );
 				Admin::back( __( 'Coupon link updated.', 'affiliate-captain' ) );
 				break;

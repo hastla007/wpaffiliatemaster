@@ -20,9 +20,25 @@ if ( ! class_exists( 'WC_Coupon', false ) ) {
 	class WC_Coupon {
 		public $id    = 0;
 		public $props = array();
+		public function __construct( $id = 0 ) {
+			// Loading an existing coupon by ID (R13-M2: its meta is read and written).
+			if ( is_numeric( $id ) && (int) $id && isset( $GLOBALS['test_wc_coupon_data'][ (int) $id ] ) ) {
+				$this->id    = (int) $id;
+				$this->props = $GLOBALS['test_wc_coupon_data'][ (int) $id ];
+			}
+		}
 		public function __call( $name, $args ) {
 			if ( 0 === strpos( $name, 'set_' ) ) {
 				$this->props[ substr( $name, 4 ) ] = $args[0];
+			}
+			if ( 'get_meta' === $name ) {
+				return $GLOBALS['test_wc_coupon_meta'][ $this->id ][ $args[0] ] ?? '';
+			}
+			if ( 'update_meta_data' === $name && $this->id ) {
+				$GLOBALS['test_wc_coupon_meta'][ $this->id ][ $args[0] ] = $args[1];
+			}
+			if ( 'delete_meta_data' === $name ) {
+				unset( $GLOBALS['test_wc_coupon_meta'][ $this->id ][ $args[0] ] );
 			}
 			return null;
 		}

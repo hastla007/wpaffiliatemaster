@@ -197,8 +197,8 @@ final class Privacy {
 			// Change log entries about the partner (account, payout details, codes, terms …).
 			$lists[] = array(
 				'table'  => Db::table( 'audit' ),
-				'where'  => "object_type = 'affiliate' AND object_id = %d",
-				'params' => array( $id ),
+				'where'  => "object_type = 'affiliate' AND object_id = %d AND action IN (" . implode( ',', array_fill( 0, count( self::audit_export_fields() ), '%s' ) ) . ')',
+				'params' => array_merge( array( $id ), array_keys( self::audit_export_fields() ) ),
 				'item'   => array( __CLASS__, 'audit_item' ),
 			);
 		}
@@ -227,6 +227,11 @@ final class Privacy {
 	 * @return array
 	 */
 	public static function commission_item( $r ) {
+		// Same mapping as the partner area: refunds, write-offs and manual bookings carry the shop's
+		// or the operator's free text (e.g. a refund reason naming the customer, Art. 15(4) GDPR),
+		// so only sales and bonuses show their description, everything else its label.
+		$kind        = (string) $r->kind;
+		$description = in_array( $kind, array( 'sale', 'bonus' ), true ) ? (string) $r->description : sprintf( '%s (%s)', __( 'Correction', 'affiliate-captain' ), \WPAffiliateCaptain\Commissions\Ledger::kind_label( $kind ) );
 		return array(
 			'group_id'    => 'wpac-commissions',
 			'group_label' => __( 'Commissions', 'affiliate-captain' ),
@@ -234,8 +239,8 @@ final class Privacy {
 			'data'        => array(
 				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $r->created_at ),
 				array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => $r->source . ' #' . $r->source_order_id ),
-				array( 'name' => __( 'Type', 'affiliate-captain' ), 'value' => (string) $r->kind ),
-				array( 'name' => __( 'Description', 'affiliate-captain' ), 'value' => (string) $r->description ),
+				array( 'name' => __( 'Type', 'affiliate-captain' ), 'value' => \WPAffiliateCaptain\Commissions\Ledger::kind_label( $kind ) ),
+				array( 'name' => __( 'Description', 'affiliate-captain' ), 'value' => $description ),
 				array( 'name' => __( 'Commission base', 'affiliate-captain' ), 'value' => Money::format( (int) $r->base_minor, $r->currency ) ),
 				array( 'name' => __( 'Amount', 'affiliate-captain' ), 'value' => Money::format( (int) $r->amount_minor, $r->currency ) ),
 				array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $r->status ),
@@ -260,9 +265,53 @@ final class Privacy {
 				array( 'name' => __( 'Commission', 'affiliate-captain' ), 'value' => '#' . (int) $e->commission_id ),
 				array( 'name' => __( 'Event', 'affiliate-captain' ), 'value' => (string) $e->event ),
 				array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => trim( (string) $e->from_status . ' → ' . (string) $e->to_status, ' →' ) ),
-				array( 'name' => __( 'Reason', 'affiliate-captain' ), 'value' => (string) $e->reason ),
+				array( 'name' => __( 'Reason', 'affiliate-captain' ), 'value' => self::export_event_reason( $e ) ),
 			),
 		);
+	}
+
+	/**
+	 * Reason of a commission status change as the partner may see it (Art. 15(4) GDPR): fraud
+	 * notes ("review: …", hidden in the partner area as well) and the free texts of refunds,
+	 * increases, write-offs and manual bookings (the shop's refund reason can name the customer)
+	 * become a neutral label; a rejection reason is shown as in the partner area.
+	 *
+	 * @param object $e Event row.
+	 * @return string
+	 */
+	public static function export_event_reason( $e ) {
+		$reason = trim( (string) $e->reason );
+		if ( '' === $reason ) {
+			return '';
+		}
+		if ( 0 === strpos( $reason, 'review:' ) ) {
+			return __( 'Checked by the operator before approval', 'affiliate-captain' );
+		}
+		$prefix = strtolower( (string) strtok( $reason, ': ' ) );
+		$labels = array(
+			'refund'                => 'refund',
+			'cancellation'          => 'cancellation',
+			'chargeback'            => 'chargeback',
+			'increase'              => 'increase',
+			'reinstatement'         => 'reinstatement',
+			'manual'                => 'adjustment',
+			'write-off'             => 'writeoff',
+			'repayment'             => 'repayment',
+			'correction'            => 'correction',
+			'tier_bonus'            => 'bonus',
+			'tier_bonus_correction' => 'bonus',
+		);
+		if ( isset( $labels[ $prefix ] ) ) {
+			return \WPAffiliateCaptain\Commissions\Ledger::kind_label( $labels[ $prefix ] );
+		}
+		if ( in_array( (string) $e->event, array( 'payout_assigned', 'payout_released' ), true ) ) {
+			// Credit note number only (a cancellation reason is internal).
+			return (string) strtok( $reason, ':' );
+		}
+		if ( 'rejected' === (string) $e->to_status ) {
+			return $reason; // Shown in the partner area as well.
+		}
+		return __( 'Internal note (not shown)', 'affiliate-captain' );
 	}
 
 	/**
@@ -272,6 +321,16 @@ final class Privacy {
 	 * @return array
 	 */
 	public static function audit_item( $a ) {
+		$allowed = self::audit_export_fields();
+		$details = array();
+		if ( isset( $allowed[ (string) $a->action ] ) ) {
+			$all = json_decode( (string) $a->details, true );
+			foreach ( $allowed[ (string) $a->action ] as $field ) {
+				if ( is_array( $all ) && array_key_exists( $field, $all ) ) {
+					$details[ $field ] = $all[ $field ];
+				}
+			}
+		}
 		return array(
 			'group_id'    => 'wpac-audit',
 			'group_label' => __( 'Change log entries about you', 'affiliate-captain' ),
@@ -279,8 +338,58 @@ final class Privacy {
 			'data'        => array(
 				array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => (string) $a->created_at ),
 				array( 'name' => __( 'Action', 'affiliate-captain' ), 'value' => (string) $a->action ),
-				array( 'name' => __( 'Details', 'affiliate-captain' ), 'value' => (string) $a->details ),
+				array( 'name' => __( 'Details', 'affiliate-captain' ), 'value' => $details ? (string) wp_json_encode( $details, JSON_UNESCAPED_UNICODE ) : '' ),
 			),
+		);
+	}
+
+	/**
+	 * Change log entries the export contains, with the detail fields safe for the partner
+	 * (positive list, Art. 15(4) GDPR). Not listed - and so not exported - are e.g. fraud flags
+	 * (attribution.flagged), the IDs of other partners with the same IBAN
+	 * (payout_profile.iban_shared), order and customer references and database errors.
+	 *
+	 * @return array action => detail fields
+	 */
+	public static function audit_export_fields() {
+		return array(
+			'affiliate.created'                   => array( 'status' ),
+			'affiliate.updated'                   => array( 'fields' ),
+			'affiliate.status'                    => array( 'from', 'to', 'reason' ),
+			'affiliate.email_changed'             => array(),
+			'affiliate.public_change_requested'   => array(),
+			'affiliate.public_change_approved'    => array(),
+			'affiliate.public_change_rejected'    => array(),
+			'affiliate.user_link_requested'       => array(),
+			'affiliate.user_linked'               => array( 'user' ),
+			'affiliate.user_unlinked'             => array( 'user' ),
+			'agreement.accepted'                  => array( 'version', 'hash' ),
+			'agreement.declined'                  => array( 'version', 'hash' ),
+			'code.exported'                       => array( 'count' ),
+			'commission.manual'                   => array( 'commission', 'amount', 'currency' ),
+			'commission.written_off'              => array( 'amount', 'currency' ),
+			'commission.repayment'                => array( 'amount', 'currency' ),
+			'commission.dunning'                  => array( 'level', 'amount', 'currency' ),
+			'customer_links.removed'              => array( 'count' ),
+			'customer_links.unlinked'             => array( 'count' ),
+			'mail.subscribed'                     => array( 'type' ),
+			'mail.unsubscribed'                   => array( 'type' ),
+			'payout_profile.updated'              => array( 'tax_status', 'payout_method', 'iban_changed', 'details_changed' ),
+			'payout_profile.password_refused'     => array(),
+			'payout_profile.tax_changed'          => array( 'old', 'new' ),
+			'payout_profile.tax_change_requested' => array( 'old', 'new' ),
+			'payout_profile.tax_change_approved'  => array( 'old', 'new' ),
+			'payout_profile.tax_change_rejected'  => array( 'new' ),
+			'payout_profile.vies_checked'         => array( 'status', 'consultation' ),
+			'payout_request.created'              => array( 'amount', 'currency' ),
+			'payout_request.rejected'             => array( 'reason' ), // Sent to the partner by e-mail.
+			'privacy.request'                     => array( 'type' ),
+			'privacy.restricted'                  => array( 'kind' ),
+			'privacy.restriction_lifted'          => array(),
+			'privacy.profile_deleted'             => array(),
+			'privacy.erased'                      => array(),
+			'privacy.retention_expired'           => array(),
+			'privacy.retention_anonymised'        => array(),
 		);
 	}
 
@@ -501,20 +610,28 @@ final class Privacy {
 					'value' => (string) $v,
 				);
 			}
-			// Art. 15 GDPR: the person gets their own payment details in full - the IBAN as well as the
-			// details of another payment method (in lists and documents the IBAN stays masked).
+			// The export file lies unencrypted in the uploads folder (public URL with a random name,
+			// e-mailed link, backups), so the IBAN and the details of another payment method are
+			// masked here like everywhere else (R13-K8; reverses R12-M16's full IBAN). The note says
+			// where the complete details are available.
 			$iban = ProfileRepository::iban( $profile );
 			if ( null !== $iban && '' !== $iban ) {
 				$data[] = array(
 					'name'  => __( 'IBAN', 'affiliate-captain' ),
-					'value' => $iban,
+					'value' => \WPAffiliateCaptain\Core\Iban::mask( (string) $profile->iban_last4, (string) $profile->iban_country ),
 				);
 			}
 			$details = ProfileRepository::payment_details( $profile );
 			if ( null !== $details ) {
 				$data[] = array(
 					'name'  => __( 'Payment details', 'affiliate-captain' ),
-					'value' => $details,
+					'value' => ProfileRepository::mask_details( $details ),
+				);
+			}
+			if ( ( null !== $iban && '' !== $iban ) || null !== $details ) {
+				$data[] = array(
+					'name'  => __( 'Note', 'affiliate-captain' ),
+					'value' => __( 'Bank and payment details are stored encrypted and are masked in this file, which is not encrypted. You can check and change them in the partner area (payout details); on request the operator tells you the complete details stored.', 'affiliate-captain' ),
 				);
 			}
 			$items[] = array(
@@ -524,7 +641,7 @@ final class Privacy {
 				'data'        => $data,
 			);
 		}
-		// Earlier tax data (kept for later correction credit notes) and a pending change.
+		// Earlier tax data (decide the VAT of payouts of earlier services) and a pending change.
 		foreach ( \WPAffiliateCaptain\Payouts\TaxHistory::profile( $id ) as $n => $h ) {
 			$tdata = array();
 			foreach ( (array) $h as $k => $v ) {
@@ -749,7 +866,9 @@ final class Privacy {
 			);
 		}
 		$messages   = array_merge( $customer_messages, self::erase_partner( $aff ) );
-		$messages[] = __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'affiliate-captain' );
+		$messages[] = null === Retention::cutoff()
+			? __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted. They are not deleted automatically while the retention period is set to "keep forever" or a tax audit / legal hold is active.', 'affiliate-captain' )
+			: __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'affiliate-captain' );
 		Audit::log( 'privacy.erased', 'affiliate', (int) $aff->id );
 
 		return array(
@@ -775,17 +894,38 @@ final class Privacy {
 		$orders  = self::customer_orders( $email, $user, $links );
 		$removed = false;
 		$kept    = 0;
+		$unpaid  = 0;
+		// Referral snapshot, the partner code the customer typed in and a manual assignment by an
+		// admin (R13-N3): only read to attribute the order.
+		$keys = array( \WPAffiliateCaptain\Integrations\WooCommerce::META_TOUCH, \WPAffiliateCaptain\Integrations\WooCommerce::META_CODE, \WPAffiliateCaptain\Integrations\WooCommerce::META_MANUAL, \WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::META_MANUAL_OWN );
 		foreach ( $orders as $order_id ) {
 			$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) $order_id ) : null;
-			if ( ! $order || ! method_exists( $order, 'get_meta' ) || '' === $order->get_meta( \WPAffiliateCaptain\Integrations\WooCommerce::META_TOUCH ) ) {
+			if ( ! $order || ! method_exists( $order, 'get_meta' ) ) {
+				continue;
+			}
+			$present = array();
+			foreach ( $keys as $key ) {
+				if ( ! in_array( $order->get_meta( $key ), array( '', null, false, 0, '0' ), true ) ) {
+					$present[] = $key;
+				}
+			}
+			if ( ! $present ) {
 				continue;
 			}
 			$source = \WPAffiliateCaptain\Integrations\WooCommerce::SOURCE;
-			if ( ! \WPAffiliateCaptain\Commissions\Ledger::attribution_for( $source, (string) $order_id ) && \WPAffiliateCaptain\Core\Jobs::sale_pending( $source, (string) $order_id ) ) {
-				++$kept; // The booking of the order waits for a retry that reads the snapshot.
-				continue;
+			if ( ! \WPAffiliateCaptain\Commissions\Ledger::attribution_for( $source, (string) $order_id ) ) {
+				if ( \WPAffiliateCaptain\Core\Jobs::sale_pending( $source, (string) $order_id ) ) {
+					++$kept; // The booking of the order waits for a retry that reads the snapshot.
+					continue;
+				}
+				if ( self::order_awaits_payment( $order ) ) {
+					++$unpaid; // Attributed once it is paid (VVT: removed once the order is attributed).
+					continue;
+				}
 			}
-			$order->delete_meta_data( \WPAffiliateCaptain\Integrations\WooCommerce::META_TOUCH );
+			foreach ( $present as $key ) {
+				$order->delete_meta_data( $key );
+			}
 			$order->save_meta_data();
 			$removed = true;
 		}
@@ -811,7 +951,25 @@ final class Privacy {
 			/* translators: %d: number of orders */
 			$messages[] = sprintf( _n( 'The referral data of %d order is retained until its partner commission has been booked (automatic retry).', 'The referral data of %d orders is retained until their partner commission has been booked (automatic retry).', $kept, 'affiliate-captain' ), $kept );
 		}
-		return array( $removed, $messages, $attributed > 0 || $kept > 0 );
+		if ( $unpaid ) {
+			/* translators: %d: number of orders */
+			$messages[] = sprintf( _n( 'The referral data of %d order that is not paid yet (referral, partner code entered, manual assignment) is retained: it is needed to credit the partner once the order is paid. Run the erasure again after payment or cancellation to remove it.', 'The referral data of %d orders that are not paid yet (referral, partner code entered, manual assignment) is retained: it is needed to credit the partner once the orders are paid. Run the erasure again after payment or cancellation to remove it.', $unpaid, 'affiliate-captain' ), $unpaid );
+		}
+		return array( $removed, $messages, $attributed > 0 || $kept > 0 || $unpaid > 0 );
+	}
+
+	/**
+	 * Whether an order can still be paid and then attributed (not paid yet, not cancelled, failed
+	 * or refunded). Orders without these methods count as settled.
+	 *
+	 * @param object $order Order.
+	 * @return bool
+	 */
+	private static function order_awaits_payment( $order ) {
+		if ( ! method_exists( $order, 'is_paid' ) || $order->is_paid() ) {
+			return false;
+		}
+		return ! ( method_exists( $order, 'has_status' ) && $order->has_status( array( 'cancelled', 'failed', 'refunded', 'trash' ) ) );
 	}
 
 	/**
@@ -881,33 +1039,93 @@ final class Privacy {
 		$expired   = null === $cutoff ? '' : $wpdb->prepare( ' OR created_at < %s', $cutoff );
 		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery -- Table name and constant conditions; values are placeholders.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$audit} SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%' AND ( NOT {$financial}{$expired} )", $aff->id ) );
-		$kept = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$audit} WHERE object_type = 'affiliate' AND object_id = %d AND details IS NOT NULL AND {$financial}", $aff->id ) );
+		// Entries under the booking-relevant prefixes that are no booking records (refused or failed
+		// changes, other partners with the same IBAN, free-text rejection reasons) are not retained.
+		$not_records = self::AUDIT_NOT_RECORDS;
+		$wpdb->query( $wpdb->prepare( "UPDATE {$audit} SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action IN (" . implode( ',', array_fill( 0, count( $not_records ), '%s' ) ) . ')', array_merge( array( (int) $aff->id ), $not_records ) ) );
+		// The retained ones keep what the booking needs, pseudonymised (R13-N2): tax IDs masked,
+		// names, addresses and free texts removed.
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, details FROM {$audit} WHERE object_type = 'affiliate' AND object_id = %d AND details IS NOT NULL AND {$financial}", $aff->id ) );
 		// phpcs:enable
-		if ( $kept ) {
-			$messages[] = sprintf(
-				/* translators: %d: number of log entries */
-				_n(
-					'%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards.',
-					'%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards.',
-					$kept,
-					'affiliate-captain'
-				),
-				$kept
-			);
+		foreach ( $rows as $row ) {
+			$details = json_decode( (string) $row->details, true );
+			$clean   = is_array( $details ) ? self::pseudonymise_details( $details ) : null;
+			$wpdb->update( $audit, array( 'details' => $clean ? wp_json_encode( $clean ) : null ), array( 'id' => (int) $row->id ) );
 		}
-		if ( \WPAffiliateCaptain\Payouts\TaxHistory::profile( (int) $aff->id ) && \WPAffiliateCaptain\Payouts\TaxHistory::retained( (int) $aff->id ) ) {
-			$messages[] = __( 'The history of the partner\'s tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards.', 'affiliate-captain' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$kept = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$audit} WHERE object_type = 'affiliate' AND object_id = %d AND details IS NOT NULL AND {$financial}", $aff->id ) );
+		if ( $kept ) {
+			$messages[] = null === $cutoff
+				? sprintf(
+					/* translators: %d: number of log entries */
+					_n(
+						'%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted. It is not deleted automatically while the retention period is set to "keep forever" or a tax audit / legal hold is active.',
+						'%d change log entries about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) are retained as booking-relevant records, pseudonymised (tax IDs masked, names, addresses and free texts removed); their processing is restricted. They are not deleted automatically while the retention period is set to "keep forever" or a tax audit / legal hold is active.',
+						$kept,
+						'affiliate-captain'
+					),
+					$kept
+				)
+				: sprintf(
+					/* translators: %d: number of log entries */
+					_n(
+						'%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record for the statutory retention period, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted and its details are deleted afterwards.',
+						'%d change log entries about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) are retained as booking-relevant records for the statutory retention period, pseudonymised (tax IDs masked, names, addresses and free texts removed); their processing is restricted and their details are deleted afterwards.',
+						$kept,
+						'affiliate-captain'
+					),
+					$kept
+				);
 		}
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache();
 
 		if ( $open ) {
 			// Deleted automatically once everything is settled (daily cron).
 			update_option( 'wpac_erasure_pending', array_values( array_unique( array_merge( (array) get_option( 'wpac_erasure_pending', array() ), array( (int) $aff->id ) ) ) ), false );
-			$messages[] = __( 'Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled.', 'affiliate-captain' );
+			$messages[] = __( 'Payout details and the history of the tax data were retained because the partner still has open commissions or payouts (the VAT of these payouts depends on the tax data valid at the time of the service). They are deleted automatically once everything is settled.', 'affiliate-captain' );
 		} else {
-			ProfileRepository::delete( (int) $aff->id );
+			ProfileRepository::delete( (int) $aff->id ); // With the history of the tax data.
 		}
 		return $messages;
+	}
+
+	/** Change log actions under the booking-relevant prefixes that are no booking records. */
+	const AUDIT_NOT_RECORDS = array( 'payout_profile.save_failed', 'payout_profile.password_refused', 'payout_profile.iban_shared', 'payout_request.rejected' );
+
+	/**
+	 * Pseudonymise the details of a retained change log entry (R13-N2): tax IDs are masked (kept
+	 * recognisable for the booking: first two and last three characters), names, addresses,
+	 * e-mail addresses, free texts, error texts and other partners' IDs are removed.
+	 *
+	 * @param array $details Details.
+	 * @return array
+	 */
+	public static function pseudonymise_details( array $details ) {
+		$drop = array( 'legal_name', 'address', 'account_holder', 'name', 'email', 'reason', 'note', 'error', 'partners', 'text' );
+		$out  = array();
+		foreach ( $details as $key => $value ) {
+			if ( in_array( (string) $key, $drop, true ) ) {
+				continue;
+			}
+			if ( is_array( $value ) ) {
+				$value = self::pseudonymise_details( $value );
+			} elseif ( in_array( (string) $key, array( 'vat_id', 'tax_number', 'consultation' ), true ) && '' !== (string) $value ) {
+				$value = self::mask_tax_id( (string) $value );
+			}
+			$out[ $key ] = $value;
+		}
+		return $out;
+	}
+
+	/**
+	 * Mask a tax ID: "DE123456789" → "DE•••789".
+	 *
+	 * @param string $id Tax ID.
+	 * @return string
+	 */
+	public static function mask_tax_id( $id ) {
+		$id = (string) preg_replace( '/\s+/', '', $id );
+		return strlen( $id ) > 6 ? substr( $id, 0, 2 ) . '•••' . substr( $id, -3 ) : '•••';
 	}
 
 	/**
@@ -1053,7 +1271,7 @@ final class Privacy {
 		$periods[] = __( 'applications whose e-mail address was not confirmed: 2 days', 'affiliate-captain' );
 		if ( $years > 0 ) {
 			/* translators: %d: years */
-			$periods[] = sprintf( _n( 'attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order', 'attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order', $years, 'affiliate-captain' ), $years );
+			$periods[] = sprintf( _n( 'attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)', 'attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)', $years, 'affiliate-captain' ), $years );
 		}
 		/* translators: %d: years */
 		$periods[] = $years > 0 ? sprintf( _n( 'commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)', 'commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)', $years, 'affiliate-captain' ), $years ) : __( 'commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically', 'affiliate-captain' );
@@ -1167,19 +1385,7 @@ final class Privacy {
 	 * @return int Number anonymised.
 	 */
 	public static function purge_rejected_applications() {
-		global $wpdb;
-		$days = (int) Settings::get( 'application_retention_days' );
-		if ( $days <= 0 ) {
-			return 0;
-		}
-		$a = Db::table( 'affiliates' );
-		$c = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT a.id FROM {$a} a WHERE a.status = 'rejected' AND a.status_reason <> 'privacy_erasure' AND a.updated_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.affiliate_id = a.id ) LIMIT 50", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
-		foreach ( $ids as $id ) {
-			self::erase_applicant( (int) $id );
-		}
-		return count( $ids );
+		return self::purge_applications( 'rejected', (int) Settings::get( 'application_retention_days' ) );
 	}
 
 	/**
@@ -1192,19 +1398,44 @@ final class Privacy {
 	 * @return int Number anonymised.
 	 */
 	public static function purge_pending_applications() {
+		return self::purge_applications( 'pending', (int) Settings::get( 'pending_application_days' ) );
+	}
+
+	/**
+	 * Anonymise the applications of a status older than $days, in batches until none is left or
+	 * the daily run's time budget is used up (the rest follows in the next run of the rest, R13-N4:
+	 * a backlog of thousands no longer takes weeks at 50 a day). Applicants whose processing is
+	 * restricted (Art. 18 GDPR, e.g. kept for legal claims) are skipped.
+	 *
+	 * @param string $status rejected|pending.
+	 * @param int    $days   Period in days (0 = never).
+	 * @return int Number anonymised.
+	 */
+	private static function purge_applications( $status, $days ) {
 		global $wpdb;
-		$days = (int) Settings::get( 'pending_application_days' );
 		if ( $days <= 0 ) {
 			return 0;
 		}
-		$a = Db::table( 'affiliates' );
-		$c = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT a.id FROM {$a} a WHERE a.status = 'pending' AND a.status_reason <> 'privacy_erasure' AND a.updated_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.affiliate_id = a.id ) LIMIT 50", Db::now( time() - $days * DAY_IN_SECONDS ) ) );
-		$n   = 0;
-		foreach ( $ids as $id ) {
-			if ( self::erase_applicant( (int) $id ) ) {
-				++$n;
+		$a      = Db::table( 'affiliates' );
+		$c      = Db::table( 'commissions' );
+		$before = Db::now( time() - $days * DAY_IN_SECONDS );
+		$last   = 0;
+		$n      = 0;
+		for ( $round = 0; $round < 200; $round++ ) {
+			if ( $round > 0 && \WPAffiliateCaptain\Core\Cron::over_budget() ) {
+				\WPAffiliateCaptain\Core\Cron::mark_unfinished();
+				break;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT a.id FROM {$a} a WHERE a.id > %d AND a.status = %s AND a.status_reason <> 'privacy_erasure' AND a.updated_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.affiliate_id = a.id ) ORDER BY a.id ASC LIMIT 50", $last, $status, $before ) );
+			foreach ( $ids as $id ) {
+				$last = max( $last, (int) $id );
+				if ( self::erase_applicant( (int) $id ) ) {
+					++$n;
+				}
+			}
+			if ( count( $ids ) < 50 ) {
+				break;
 			}
 		}
 		return $n;
@@ -1225,6 +1456,9 @@ final class Privacy {
 		if ( ! $aff || ! in_array( $aff->status, array( 'rejected', 'pending' ), true ) ) {
 			return false;
 		}
+		if ( Restriction::is_restricted( (int) $aff->id ) ) {
+			return false; // Art. 18 GDPR: the data must be kept (e.g. for legal claims), not deleted.
+		}
 		$c = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$c} WHERE affiliate_id = %d", $aff->id ) ) ) {
@@ -1240,6 +1474,7 @@ final class Privacy {
 				'application_note' => '',
 				'application_data' => null,
 				'landing_message'  => null,
+				'landing_page_id'  => 0,
 				'slug'             => 'deleted-' . (int) $aff->id,
 				'user_id'          => 0,
 				'status'           => 'rejected', // A never decided application ends as rejected.
@@ -1256,8 +1491,34 @@ final class Privacy {
 		Retention::delete_agreements( (int) $aff->id );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d", $aff->id ) );
+		self::forget_applicant_options( (int) $aff->id );
 		AffiliateRepository::clear_cache( (int) $aff->id );
 		Audit::log( 'privacy.applicant_erased', 'affiliate', (int) $aff->id, array( 'was' => (string) $aff->status ) );
 		return true;
+	}
+
+	/**
+	 * Leftovers of an applicant or rejected ex-partner outside the partner row (R13-N4): VIES
+	 * result, previous e-mail address, requested public change, account-link token, pending e-mail
+	 * change, payment reminders and the mail opt-out.
+	 *
+	 * @param int $id Partner ID.
+	 */
+	private static function forget_applicant_options( $id ) {
+		global $wpdb;
+		foreach ( array( 'wpac_vies_', 'wpac_prev_email_', 'wpac_public_change_', 'wpac_user_link_' ) as $prefix ) {
+			delete_option( $prefix . $id );
+		}
+		delete_transient( 'wpac_email_change_' . $id );
+		\WPAffiliateCaptain\Core\Pending::delete( 'email_change_' . $id );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'wpac_dunning_' . $id . '_' ) . '%' ) ) as $option ) {
+			delete_option( (string) $option );
+		}
+		$optout = get_option( \WPAffiliateCaptain\Affiliates\Notifications::OPTOUT_OPTION, array() );
+		if ( is_array( $optout ) && isset( $optout[ $id ] ) ) {
+			unset( $optout[ $id ] );
+			update_option( \WPAffiliateCaptain\Affiliates\Notifications::OPTOUT_OPTION, $optout, false );
+		}
 	}
 }

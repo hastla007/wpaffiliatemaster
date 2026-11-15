@@ -515,7 +515,7 @@ final class AffiliateRepository {
 		$saved = $wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id, 'status' => $aff->status ) );
 		self::clear_cache( $id );
 		if ( ! $saved ) {
-			Log::error( 'Partner status could not be saved', array( 'affiliate' => (int) $id, 'to' => $status, 'error' => (string) $wpdb->last_error ) );
+			Log::error( 'Partner status could not be saved', array( 'affiliate' => (int) $id, 'to' => $status, 'error' => Log::mask_error( (string) $wpdb->last_error ) ) );
 			return new \WP_Error( 'wpac_status_not_saved', __( 'The status could not be saved (database error or changed meanwhile). Nothing was changed; please try again.', 'affiliate-captain' ) );
 		}
 		Audit::log(

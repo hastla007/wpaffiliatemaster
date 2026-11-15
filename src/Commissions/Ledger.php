@@ -137,6 +137,16 @@ final class Ledger {
 				'reason'         => 'already_processed',
 			);
 		}
+		if ( ! $round && self::pseudonymised_order( (string) $sale['source'], (string) $sale['order_id'] ) ) {
+			// Booked long ago; past the retention period its attribution was deleted and the order
+			// number pseudonymised (Retention::pseudonymise_commissions()): still a duplicate.
+			return array(
+				'status'         => 'duplicate',
+				'attribution_id' => 0,
+				'commission_ids' => array(),
+				'reason'         => 'already_processed',
+			);
+		}
 
 		$resolved = AttributionResolver::resolve( $sale );
 		if ( ! $resolved['attribution'] ) {
@@ -1937,8 +1947,24 @@ final class Ledger {
 	public static function find_by_key( $key ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
+		// Also the pseudonymised key of a booking past the retention period (R13-M3).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE idempotency_key = %s", $key ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE idempotency_key IN (%s, %s) LIMIT 1", $key, \WPAffiliateCaptain\Privacy\Retention::pseudonym_key( $key ) ) );
+	}
+
+	/**
+	 * Whether commissions of an order exist under its pseudonym (past the retention period, see
+	 * Retention::pseudonymise_commissions()).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order.
+	 * @return bool
+	 */
+	public static function pseudonymised_order( $source, $order_id ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$t} WHERE source = %s AND source_order_id = %s LIMIT 1", $source, \WPAffiliateCaptain\Privacy\Retention::pseudonym( $source . ':' . $order_id ) ) );
 	}
 
 	/**
