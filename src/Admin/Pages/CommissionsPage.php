@@ -77,7 +77,7 @@ final class CommissionsPage {
 			$minor    = Money::parse_minor( ltrim( trim( (string) Admin::post( 'amount' ) ), '-' ), $currency, $problem );
 			$negative = 0 === strpos( trim( (string) Admin::post( 'amount' ) ), '-' );
 			if ( null === $minor ) {
-				Admin::back( 'precision' === $problem ? Admin::amount_error( $problem, $currency ) : __( 'Please enter a valid amount (e.g. 25 or -12,50).', 'affiliate-captain' ), 'error' );
+				Admin::back( Admin::amount_error( (string) $problem, $currency ), 'error' );
 			}
 			$minor  = $minor * ( $negative ? -1 : 1 );
 			$result = Ledger::manual_adjustment( absint( Admin::post( 'affiliate_id' ) ), $currency, $minor, sanitize_text_field( Admin::post( 'reason' ) ), $parent );

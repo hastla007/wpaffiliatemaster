@@ -214,7 +214,7 @@ check( 'R5-W66 focus ring with enough contrast', array( false, true ), array( fa
 check( 'R5-O38 notices outside the wrapper have the accent', true, false !== strpos( $g9_css, '.wpac-portal,.wpac-form,.wpac-notice,.wpac-welcome{--wpac-accent' ) );
 check( 'R5-W65 copy button restores the original label', array( true, false ), array( false !== strpos( $g9_js, "btn.setAttribute( 'data-wpac-label', btn.textContent )" ), false !== strpos( $g9_js, 'var label = btn.textContent;' ) ) );
 check( 'R5-O40 copy buttons named for screen readers', true, false !== strpos( $g9_portal, "__( 'Copy: %s', 'affiliate-captain' )" ) );
-check( 'R5-W64 code table with caption, scope and data-label', true, false !== strpos( $g9_portal, "esc_html__( 'Your codes', 'affiliate-captain' ) . '</caption>" ) && false !== strpos( $g9_portal, '<tr role="row"><td role="cell" data-label="%6$s"><code>%1$s</code>' ) );
+check( 'R5-W64 code table with caption, scope and data-label', true, false !== strpos( $g9_portal, "esc_html__( 'Your codes', 'affiliate-captain' ) . '</caption>" ) && false !== strpos( $g9_portal, '<tr role="row"><td role="cell" data-label="%6$s"><span class="wpac-cell-label" aria-hidden="true">%6$s: </span><code>%1$s</code>' ) );
 check( 'R5-O53 short link and QR code with explanation in "Links & codes"', true, false !== strpos( $g9_portal, "esc_html__( 'Short link and QR code', 'affiliate-captain' )" ) );
 check( 'R7-PU9 terms with version and date in the overview and the account tab', 2, substr_count( $g9_portal, '$line = self::terms_line( $aff );' ) );
 check( 'R5-W58 "being reviewed" card and hint', true, false !== strpos( $g9_portal, "__( 'Being reviewed', 'affiliate-captain' )" ) );

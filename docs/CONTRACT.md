@@ -75,7 +75,7 @@ Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, com
 - `source`, `order_id`, `item_id`, `refund_id`: Text oder Zahl (keine Arrays), `order_id`/`item_id`/`refund_id` max. 64 Zeichen, `source` max. 40 (`a-z0-9_-`). Mehrbyte-Zeichen werden nie mitten im Zeichen gekürzt.
 - `item_id` muss innerhalb eines Verkaufs eindeutig sein (`duplicate_item`), höchstens 500 Positionen (`too_many_items`).
 - `net_minor`: Ganzzahl (auch als Ziffernstring oder ganzzahliger Float), höchstens 1 000 000 000 je Position; `"1e3"`, `12.5` oder größere Werte → `invalid_amount`.
-- `currency`: ISO-4217-Code oder ein Währungscode, den WooCommerce anbietet (z. B. IRT, BTC, GGP); Liste per Filter `wpac_contract_currencies` änderbar. Die Programmwährung in den Einstellungen lässt nur diese Codes zu.
+- `currency`: ISO-4217-Code oder ein Währungscode, den WooCommerce anbietet und dessen Nachkommastellen bekannt sind (z. B. IRT mit 0, BTC mit 8, GGP mit 2; `Money::DECIMALS`); Liste per Filter `wpac_contract_currencies` änderbar – Codes ohne bekannte Nachkommastellen werden auch dann abgelehnt. Die Programmwährung in den Einstellungen lässt nur diese Codes zu.
 - `paid_at`/`hold_until`: `Y-m-d H:i:s` (UTC), ISO 8601, `Ymd`, `YmdHis`, Unix-Zeit in Sekunden **oder Millisekunden**; Daten vor 2000 oder mehr als zehn Jahre in der Zukunft → `invalid_date`.
 - Fehler der Prüfung kommen als `WP_Error` (`wpac_<code>`, REST `400`) und werden nicht wiederholt.
 
@@ -155,7 +155,7 @@ Links mit `?partner=CODE` werden automatisch erfasst. Ein Connector kann `partne
 | `wpac_wc_base_cap` | `int $cap, WC_Order $order` | Obergrenze der Provisionsbasis einer Bestellung (Standard: Bestellsumme ohne Steuer, Versand, positive Gebühren und Geschenkkarten). |
 | `wpac_renewal_attribution` | `bool $ok, object $attr, WC_Order $renewal, int $first_order` | Ob eine Abo-Verlängerung noch an den Partner der Erstbestellung geht. |
 | `wpac_rule_precedence` | `string` | Vorrang der Regeln: `scope` (Partner vor Gruppe vor allen, Ausschlüsse gewinnen immer; Standard) oder `target` (Produkt vor Kategorie vor allen, Ausschlüsse konkurrieren wie Regeln). Einstellung „Regelvorrang“. |
-| `wpac_contract_currencies` | `string[]` | Akzeptierte Währungscodes. |
+| `wpac_contract_currencies` | `string[]` | Akzeptierte Währungscodes (nur ISO 4217 oder mit bekannten Nachkommastellen). |
 | `wpac_job_retention_days` | `array` | Aufbewahrung der Warteschlange in Tagen (`failed_sales` 0 = behalten, `failed` 180, `parked` 365, `superseded` 365, `done` 30). |
 | `wpac_hold_until` | `int $timestamp, array $sale` | Spätestes Garantie-/Widerrufsende; nur spätere Daten verlängern. |
 | `wpac_resolve_partner_code` | `?array $resolved, string $code, array $context` | Eigene Code-Auflösung vorschalten. |

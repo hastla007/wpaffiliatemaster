@@ -46,8 +46,12 @@ final class Monitor {
 
 		$rejected = \WPAffiliateCaptain\Sales\ContractApi::rejected();
 		if ( $rejected && (int) $rejected[0]['time'] > time() - 7 * DAY_IN_SECONDS ) {
-			/* translators: %d: number of refused payloads */
-			$out['contract_rejected'] = array( 'recommended', __( 'An integration sends sales that are refused', 'affiliate-captain' ), sprintf( __( 'Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status).', 'affiliate-captain' ), count( $rejected ) ) );
+			$out['contract_rejected'] = array(
+				'recommended',
+				__( 'An integration sends sales that are refused', 'affiliate-captain' ),
+				/* translators: %d: number of refused payloads */
+				sprintf( __( 'Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status).', 'affiliate-captain' ), count( $rejected ) ),
+			);
 		}
 
 		$failed_steps = Cron::failures();
