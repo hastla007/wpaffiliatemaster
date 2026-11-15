@@ -33,6 +33,31 @@ class Test_WPDB {
 	public function suppress_errors( $s = true ) { $old = $this->suppress; $this->suppress = (bool) $s; return $old; }
 	/** @var mysqli */
 	public $db;
+	/** @var mysqli Same connection under the name of the real wpdb (Db::fatal_error() reads its errno). */
+	public $dbh;
+	/**
+	 * Opt-in: behave like the real wpdb on errors – get_results()/get_row()/get_var()/get_col()
+	 * return []/null instead of throwing (R13-K1: the default throwing mode hides the class of
+	 * bugs where code goes on after a failed locking read).
+	 *
+	 * @var bool
+	 */
+	public $real_errors = false;
+	/**
+	 * Optional callback run before every query (tests interleave a second connection with it):
+	 * function ( string $sql ) {}.
+	 *
+	 * @var callable|null
+	 */
+	public $before_query = null;
+	/** Like wpdb::query(): the "query" filter runs first; an empty result is not executed. */
+	private function filtered( $sql ) {
+		$sql = apply_filters( 'query', $sql );
+		if ( $sql && $this->before_query ) {
+			call_user_func( $this->before_query, $sql );
+		}
+		return $sql;
+	}
 
 	public function __construct() {
 		mysqli_report( MYSQLI_REPORT_OFF );
@@ -59,6 +84,7 @@ class Test_WPDB {
 			exit( 2 );
 		}
 		$this->db->set_charset( 'utf8mb4' );
+		$this->dbh = $this->db;
 		// Real options table for code that writes to it directly (e.g. the monthly report claim).
 		$this->options = $this->prefix . 'options';
 		$this->db->query( "CREATE TABLE IF NOT EXISTS {$this->options} ( option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT, option_name varchar(191) NOT NULL, option_value longtext NOT NULL, autoload varchar(20) NOT NULL DEFAULT 'yes', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name) )" );
@@ -86,6 +112,11 @@ class Test_WPDB {
 		);
 	}
 	public function query( $sql ) {
+		$sql = $this->filtered( $sql );
+		if ( ! $sql ) {
+			$this->insert_id = 0;
+			return false;
+		}
 		$r = $this->db->query( $sql );
 		$this->last_error = $this->db->error;
 		if ( false === $r ) {
@@ -101,10 +132,19 @@ class Test_WPDB {
 		return $this->db->affected_rows;
 	}
 	public function get_results( $sql, $output = OBJECT ) {
+		$sql = $this->filtered( $sql );
+		if ( ! $sql ) {
+			return array();
+		}
 		$r = $this->db->query( $sql );
 		$this->last_error = $this->db->error;
 		if ( ! $r instanceof mysqli_result ) {
-			if ( $this->db->error ) { throw new RuntimeException( $this->db->error . ' in ' . $sql ); }
+			if ( $this->db->error ) {
+				if ( $this->real_errors ) {
+					return array(); // Like wpdb: the error is in last_error, the result is empty.
+				}
+				throw new RuntimeException( $this->db->error . ' in ' . $sql );
+			}
 			return array();
 		}
 		$out = array();
@@ -128,7 +168,7 @@ class Test_WPDB {
 		return $row ? reset( $row ) : null;
 	}
 	public function get_col( $sql, $x = 0 ) {
-		return array_map( function ( $r ) use ( $x ) { $r = array_values( $r ); return isset( $r[ $x ] ) ? $r[ $x ] : null; }, $this->get_results( $sql, ARRAY_A ) );
+		return array_map( function ( $r ) use ( $x ) { $r = array_values( $r ); return isset( $r[ $x ] ) ? $r[ $x ] : null; }, (array) $this->get_results( $sql, ARRAY_A ) );
 	}
 	private function where( array $where ) {
 		$parts = array();

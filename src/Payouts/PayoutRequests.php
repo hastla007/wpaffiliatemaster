@@ -228,8 +228,29 @@ final class PayoutRequests {
 			return new \WP_Error( 'wpac_profile', $blocked );
 		}
 		try {
-			$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, wp_date( 'Y-m-d' ), $r->currency ); // Today in the site's time zone (cut-off, R12-M6).
+			// R13-N9: "Execute" and "Reject" clicked at the same time. The request row stays locked
+			// until the payout is committed and the request settled with it: a parallel reject()
+			// waits and then finds it processed – and a request rejected first is not paid.
+			$payout_id = Db::transaction(
+				static function () use ( $wpdb, $id, $r ) {
+					$t = Db::table( 'payout_requests' );
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$t} WHERE id = %d FOR UPDATE", (int) $id ) );
+					Db::check( 'Locking the payout request' );
+					if ( 'requested' !== (string) $status ) {
+						throw new \WPAffiliateCaptain\Core\IntegrationException( 'request_handled', 'The request was handled meanwhile.' );
+					}
+					$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, wp_date( 'Y-m-d' ), $r->currency ); // Today in the site's time zone (cut-off, R12-M6).
+					if ( $payout_id ) {
+						self::fulfil( (int) $r->affiliate_id, (int) $payout_id, (string) $r->currency ); // Under the lock (again after the COMMIT: no-op).
+					}
+					return $payout_id;
+				}
+			);
 		} catch ( \Throwable $e ) {
+			if ( $e instanceof \WPAffiliateCaptain\Core\IntegrationException && 'request_handled' === $e->error_code ) {
+				return new \WP_Error( 'wpac_state', __( 'This request was already handled.', 'affiliate-captain' ) );
+			}
 			if ( $e instanceof \WPAffiliateCaptain\Core\IntegrationException && in_array( $e->error_code, array( 'operator_data', 'not_eligible' ), true ) ) {
 				// A missing precondition (e.g. your address or VAT ID): the message says what to fix.
 				return new \WP_Error( 'wpac_payout', $e->getMessage() );

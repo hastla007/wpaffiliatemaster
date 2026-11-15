@@ -601,6 +601,7 @@ final class Ledger {
 					// Lock the original commission so parallel saves/refunds are serialized.
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$parent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d FOR UPDATE", $rows[ $item_id ]->id ) );
+					Db::check( 'Locking commission ' . (int) $rows[ $item_id ]->id ); // R13-K1: an error is no "nothing to do".
 					if ( ! $parent || ! in_array( $parent->status, array( 'pending', 'approved', 'paid' ), true ) ) {
 						continue;
 					}
@@ -846,7 +847,9 @@ final class Ledger {
 		$t   = Db::table( 'commissions' );
 		$ids = array();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE parent_id = %d AND kind = 'increase' AND status IN ('pending','review') AND payout_id = 0 FOR UPDATE", (int) $id ) ) as $inc_id ) {
+		$open = (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE parent_id = %d AND kind = 'increase' AND status IN ('pending','review') AND payout_id = 0 FOR UPDATE", (int) $id ) );
+		Db::check( 'Locking the open increases of commission ' . (int) $id ); // R13-K1.
+		foreach ( $open as $inc_id ) {
 			if ( self::transition( (int) $inc_id, 'rejected', Db::cut( $reason, 191 ), 0, 0, null, false ) ) {
 				$ids[] = (int) $inc_id;
 			}
@@ -938,6 +941,7 @@ final class Ledger {
 					// Lock the original commission so parallel refunds/chargebacks are serialized.
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$parent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d FOR UPDATE", $by_item[ $item_id ]->id ) );
+					Db::check( 'Locking commission ' . (int) $by_item[ $item_id ]->id ); // R13-K1: never skip a line on a DB error.
 					if ( ! $parent || 'rejected' === $parent->status ) {
 						continue;
 					}
