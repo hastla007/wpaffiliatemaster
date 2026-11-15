@@ -67,6 +67,7 @@ final class Reports {
 					SUM(CASE WHEN kind = 'sale' AND status <> 'rejected' THEN base_minor ELSE 0 END) revenue,
 					SUM(CASE WHEN kind = 'sale' AND status <> 'rejected' THEN amount_minor ELSE 0 END) commission,
 					SUM(CASE WHEN kind IN ('refund','cancellation','chargeback','reinstatement','adjustment','increase','correction') AND status <> 'rejected' THEN amount_minor ELSE 0 END) corrections,
+					SUM(CASE WHEN kind IN ('refund','cancellation','chargeback','reinstatement') AND status <> 'rejected' THEN amount_minor ELSE 0 END) refunds,
 					SUM(CASE WHEN kind = 'bonus' AND status <> 'rejected' THEN amount_minor ELSE 0 END) bonus,
 					SUM(CASE WHEN kind = 'writeoff' AND status <> 'rejected' THEN amount_minor ELSE 0 END) writeoffs
 				FROM {$c} WHERE created_at BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id, currency",
@@ -89,6 +90,7 @@ final class Reports {
 				'revenue'      => 0,
 				'commission'   => 0,
 				'corrections'  => 0,
+				'refunds'      => 0,
 				'bonus'        => 0,
 				'writeoffs'    => 0,
 				'refund_rate'  => 0,
@@ -99,7 +101,7 @@ final class Reports {
 			if ( ! isset( $rows[ $id ] ) ) {
 				$rows[ $id ] = $init( $id );
 			}
-			foreach ( array( 'revenue', 'commission', 'corrections', 'bonus', 'writeoffs' ) as $k ) {
+			foreach ( array( 'revenue', 'commission', 'corrections', 'refunds', 'bonus', 'writeoffs' ) as $k ) {
 				self::add( $rows[ $id ], $k, (int) $m->$k, $m->currency );
 			}
 		}
@@ -112,7 +114,9 @@ final class Reports {
 			}
 		}
 		foreach ( $rows as &$r ) {
-			$r['refund_rate'] = $r['commission'] > 0 ? round( abs( $r['corrections'] ) * 100 / $r['commission'], 1 ) : 0;
+			// Only reversals count (the kinds of FraudCheck::refund_stats()): a manual increase or a
+			// positive correction must not hide refunds (R14-U5).
+			$r['refund_rate'] = $r['commission'] > 0 ? round( abs( min( 0, $r['refunds'] ) ) * 100 / $r['commission'], 1 ) : 0;
 		}
 		unset( $r );
 		usort(
@@ -369,17 +373,20 @@ final class Reports {
 	 * @param int    $affiliate_id Partner.
 	 * @param string $start        From (Y-m-d H:i:s, UTC).
 	 * @param string $end          To (Y-m-d H:i:s, UTC).
-	 * @return array[] source, source_order_id, created_at
+	 * @return array[] source, source_order_id, created_at, click (brought by a click on a partner link)
 	 */
 	private static function partner_sales( $affiliate_id, $start, $end ) {
 		global $wpdb;
-		$c = Db::table( 'commissions' );
+		$c  = Db::table( 'commissions' );
+		$at = Db::table( 'attributions' );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT c.source, c.source_order_id, MIN(s.created_at) created_at,
-					SUM(c.amount_minor) net, SUM(CASE WHEN c.kind = 'sale' THEN c.amount_minor ELSE 0 END) gross
-				FROM {$c} c JOIN (
+					SUM(c.amount_minor) net, SUM(CASE WHEN c.kind = 'sale' THEN c.amount_minor ELSE 0 END) gross,
+					MAX(a.method) method
+				FROM {$c} c LEFT JOIN {$at} a ON a.source = c.source AND a.source_order_id = c.source_order_id AND a.affiliate_id = c.affiliate_id
+				JOIN (
 					SELECT source, source_order_id, MIN(created_at) created_at FROM {$c}
 					WHERE affiliate_id = %d AND kind = 'sale' AND status <> 'rejected' AND created_at BETWEEN %s AND %s
 					GROUP BY source, source_order_id
@@ -400,6 +407,7 @@ final class Reports {
 					'source'          => (string) $r->source,
 					'source_order_id' => (string) $r->source_order_id,
 					'created_at'      => (string) $r->created_at,
+					'click'           => in_array( (string) $r->method, self::CLICK_METHODS, true ),
 				);
 			}
 		}
@@ -407,39 +415,67 @@ final class Reports {
 	}
 
 	/**
+	 * Methods of an attribution that come from a click on a partner link (a visit): only these
+	 * orders count for the conversion rate; coupon or code sales have no visit (R14-U6).
+	 */
+	const CLICK_METHODS = array( 'link', 'cookie', 'app' );
+
+	/**
 	 * Statistics of one partner for the partner area: visits, sales, conversion rate and the
 	 * commissions earned in the period per currency (amounts in the booking currency, no conversion).
 	 *
+	 * Days are the site's local days (time zone in the WordPress settings); stored times are UTC
+	 * (R14-U1). The conversion rate only counts sales brought by a click and is null without
+	 * visits (R14-U6).
+	 *
 	 * @param int    $affiliate_id Partner.
-	 * @param string $from         Y-m-d.
-	 * @param string $to           Y-m-d.
-	 * @return array visits, sales, conversion, earned (currency => minor)
+	 * @param string $from         Y-m-d (local).
+	 * @param string $to           Y-m-d (local).
+	 * @return array visits, sales, click_sales, conversion (float|null), earned (currency => minor)
 	 */
 	public static function partner_summary( $affiliate_id, $from, $to ) {
 		global $wpdb;
-		$start = $from . ' 00:00:00';
-		$end   = $to . ' 23:59:59';
-		$v     = Db::table( 'visits' );
-		$c     = Db::table( 'commissions' );
+		list( $start, $end ) = Db::local_range( $from, $to );
+		$v                   = Db::table( 'visits' );
+		$c                   = Db::table( 'commissions' );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$visits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s", $affiliate_id, $start, $end ) );
 		$earned = $wpdb->get_results( $wpdb->prepare( "SELECT currency, SUM(amount_minor) total FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at BETWEEN %s AND %s GROUP BY currency", $affiliate_id, $start, $end ) );
 		// phpcs:enable
-		$sales = count( self::partner_sales( (int) $affiliate_id, $start, $end ) );
+		$sales = self::partner_sales( (int) $affiliate_id, $start, $end );
+		$click = count( array_filter( wp_list_pluck( $sales, 'click' ) ) );
 		$money = array();
 		foreach ( (array) $earned as $e ) {
 			$money[ (string) $e->currency ] = (int) $e->total;
 		}
 		return array(
-			'visits'     => $visits,
-			'sales'      => $sales,
-			'conversion' => $visits > 0 ? round( $sales * 100 / $visits, 1 ) : 0,
-			'earned'     => $money,
+			'visits'      => $visits,
+			'sales'       => count( $sales ),
+			'click_sales' => $click,
+			'conversion'  => $visits > 0 ? round( $click * 100 / $visits, 1 ) : null,
+			'earned'      => $money,
 		);
 	}
 
 	/**
+	 * A stored UTC time in the site's time zone (R14-U1).
+	 *
+	 * @param string $utc    Y-m-d H:i:s (UTC).
+	 * @param string $format Date format, e.g. Y-m or Y-m-d.
+	 * @return string
+	 */
+	public static function local_time( $utc, $format = 'Y-m-d' ) {
+		$ts = strtotime( $utc . ' UTC' );
+		if ( false === $ts ) {
+			return substr( (string) $utc, 0, strlen( gmdate( $format, 0 ) ) );
+		}
+		$tz = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		return ( new \DateTimeImmutable( '@' . $ts ) )->setTimezone( $tz )->format( $format );
+	}
+
+	/**
 	 * Monthly figures of one partner (newest first): sales and commissions earned per currency.
+	 * Months are the site's local months, like the monthly tier bonus (R14-U1).
 	 *
 	 * @param int $affiliate_id Partner.
 	 * @param int $months       Number of months including the current one.
@@ -448,26 +484,28 @@ final class Reports {
 	public static function partner_months( $affiliate_id, $months = 12 ) {
 		global $wpdb;
 		$months = max( 1, min( 36, (int) $months ) );
-		$first  = gmdate( 'Y-m-01', (int) strtotime( gmdate( 'Y-m-01' ) . ' -' . ( $months - 1 ) . ' months' ) );
-		$start  = $first . ' 00:00:00';
-		$end    = gmdate( 'Y-m-d' ) . ' 23:59:59';
 		$out    = array();
 		for ( $i = 0; $i < $months; $i++ ) {
-			$out[ gmdate( 'Y-m', (int) strtotime( gmdate( 'Y-m-01' ) . ' -' . $i . ' months' ) ) ] = array(
+			$out[ Db::local_month( -$i ) ] = array(
 				'sales'  => 0,
 				'earned' => array(),
 			);
 		}
-		$c = Db::table( 'commissions' );
+		list( $start ) = Db::month_range( Db::local_month( 1 - $months ) );
+		list( , $end ) = Db::month_range( Db::local_month( 0 ) );
+		$c             = Db::table( 'commissions' );
+		// Sums per UTC minute; PHP puts them into local months (offsets change with DST, some are :30).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT LEFT(created_at, 7) m, currency, SUM(amount_minor) total FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at BETWEEN %s AND %s GROUP BY m, currency", $affiliate_id, $start, $end ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT LEFT(created_at, 16) h, currency, SUM(amount_minor) total FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at BETWEEN %s AND %s GROUP BY h, currency", $affiliate_id, $start, $end ) );
 		foreach ( (array) $rows as $r ) {
-			if ( isset( $out[ $r->m ] ) ) {
-				$out[ $r->m ]['earned'][ (string) $r->currency ] = (int) $r->total;
+			$m = self::local_time( $r->h . ':00', 'Y-m' );
+			if ( isset( $out[ $m ] ) ) {
+				$cur                         = (string) $r->currency;
+				$out[ $m ]['earned'][ $cur ] = ( isset( $out[ $m ]['earned'][ $cur ] ) ? $out[ $m ]['earned'][ $cur ] : 0 ) + (int) $r->total;
 			}
 		}
 		foreach ( self::partner_sales( (int) $affiliate_id, $start, $end ) as $s ) {
-			$m = substr( $s['created_at'], 0, 7 );
+			$m = self::local_time( $s['created_at'], 'Y-m' );
 			if ( isset( $out[ $m ] ) ) {
 				++$out[ $m ]['sales'];
 			}
@@ -487,16 +525,16 @@ final class Reports {
 	 */
 	public static function partner_campaigns( $affiliate_id, $from, $to ) {
 		global $wpdb;
-		$start = $from . ' 00:00:00';
-		$end   = $to . ' 23:59:59';
-		$v     = Db::table( 'visits' );
-		$at    = Db::table( 'attributions' );
-		$c     = Db::table( 'commissions' );
+		list( $start, $end ) = Db::local_range( $from, $to );
+		$v                   = Db::table( 'visits' );
+		$at                  = Db::table( 'attributions' );
+		$c                   = Db::table( 'commissions' );
+		$methods             = "'" . implode( "','", self::CLICK_METHODS ) . "'";
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT campaign, sub_id, COUNT(*) n FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s GROUP BY campaign, sub_id", $affiliate_id, $start, $end ) );
 		$sales  = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT a.campaign, a.sub_id, c.currency, COUNT(DISTINCT a.id) orders, SUM(COALESCE(c.amount_minor,0)) commission
+				"SELECT a.campaign, a.sub_id, c.currency, COUNT(DISTINCT a.id) orders, COUNT(DISTINCT CASE WHEN a.method IN ({$methods}) THEN a.id END) click_orders, SUM(COALESCE(c.amount_minor,0)) commission
 				FROM {$at} a LEFT JOIN {$c} c ON c.source = a.source AND c.source_order_id = a.source_order_id AND c.affiliate_id = a.affiliate_id AND c.status <> 'rejected' AND c.kind <> 'bonus'
 				WHERE a.affiliate_id = %d AND a.created_at BETWEEN %s AND %s GROUP BY a.campaign, a.sub_id, c.currency",
 				$affiliate_id,
@@ -513,7 +551,8 @@ final class Reports {
 				'label'      => self::campaign_label( (string) $campaign ),
 				'visits'     => 0,
 				'orders'     => 0,
-				'conversion' => 0,
+				'clicked'    => 0,
+				'conversion' => null,
 				'commission' => array(),
 			);
 		};
@@ -529,14 +568,17 @@ final class Reports {
 			if ( ! isset( $rows[ $k ] ) ) {
 				$rows[ $k ] = $init( $s->campaign, $s->sub_id );
 			}
-			$rows[ $k ]['orders'] += (int) $s->orders;
+			$rows[ $k ]['orders']  += (int) $s->orders;
+			$rows[ $k ]['clicked'] += (int) $s->click_orders;
 			if ( null !== $s->currency && '' !== (string) $s->currency ) {
 				$cur                                = (string) $s->currency;
 				$rows[ $k ]['commission'][ $cur ]   = ( isset( $rows[ $k ]['commission'][ $cur ] ) ? $rows[ $k ]['commission'][ $cur ] : 0 ) + (int) $s->commission;
 			}
 		}
 		foreach ( $rows as &$r ) {
-			$r['conversion'] = $r['visits'] > 0 ? round( $r['orders'] * 100 / $r['visits'], 1 ) : 0;
+			// Only orders from a click, and no rate without visits (R14-U6).
+			$r['conversion'] = $r['visits'] > 0 ? round( $r['clicked'] * 100 / $r['visits'], 1 ) : null;
+			unset( $r['clicked'] );
 		}
 		unset( $r );
 		usort(

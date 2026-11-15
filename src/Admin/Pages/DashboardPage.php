@@ -28,7 +28,7 @@ final class DashboardPage {
 		if ( 'setup_pages' === $do ) {
 			list( $created, $failed ) = self::create_pages();
 			if ( $failed ) {
-				Admin::back( __( 'Some pages could not be created. Please create them yourself with the blocks "Partner application" and "Partner area" and select them in the settings.', 'affiliate-captain' ), 'error', Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ), $failed );
+				Admin::back( __( 'Some pages could not be created. Please create them yourself with the blocks "Partner application form" and "Partner area" and select them in the settings.', 'affiliate-captain' ), 'error', Admin::url( 'wpac-settings', array( 'tab' => 'program' ) ), $failed );
 			}
 			if ( ! $created ) {
 				Admin::back( __( 'All pages already exist – nothing was created.', 'affiliate-captain' ), 'info' );

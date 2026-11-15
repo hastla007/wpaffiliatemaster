@@ -1903,7 +1903,10 @@ final class PayoutService {
 	/**
 	 * List payouts.
 	 *
-	 * @param array $args affiliate_id, status, search, limit, offset, orderby (whitelisted), order.
+	 * @param array $args affiliate_id, status, search, from/to (local days of created_at, Y-m-d),
+	 *                    portal (bool: only what the partner area lists – no cancelled payout
+	 *                    without cancellation document, R14-U2), limit, offset, orderby
+	 *                    (whitelisted), order.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -1918,6 +1921,17 @@ final class PayoutService {
 		if ( ! empty( $args['status'] ) ) {
 			$where   .= ' AND status = %s';
 			$params[] = $args['status'];
+		}
+		$from = isset( $args['from'] ) && is_string( $args['from'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $args['from'] ) ? $args['from'] : '';
+		$to   = isset( $args['to'] ) && is_string( $args['to'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $args['to'] ) ? $args['to'] : '';
+		if ( '' !== $from || '' !== $to ) {
+			list( $start, $end ) = Db::local_range( '' !== $from ? $from : '1970-01-02', '' !== $to ? $to : '9999-12-30' );
+			$where              .= ' AND created_at BETWEEN %s AND %s';
+			$params[]            = $start;
+			$params[]            = $end;
+		}
+		if ( ! empty( $args['portal'] ) ) {
+			$where .= " AND NOT ( status = 'cancelled' AND COALESCE(storno_file, '') = '' )";
 		}
 		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
 		if ( '' !== $search ) {
