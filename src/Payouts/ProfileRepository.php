@@ -635,7 +635,9 @@ final class ProfileRepository {
 	}
 
 	/**
-	 * Delete bank details (privacy eraser).
+	 * Delete bank details (privacy eraser). The tax data history stays while corrections of the
+	 * partner's credit notes are still possible within the retention period (it is deleted when
+	 * the partner's records expire, see TaxHistory::delete_unless_retained()).
 	 *
 	 * @param int $affiliate_id Affiliate.
 	 */
@@ -643,6 +645,6 @@ final class ProfileRepository {
 		global $wpdb;
 		$wpdb->delete( Db::table( 'payout_profiles' ), array( 'affiliate_id' => (int) $affiliate_id ) );
 		self::note_shared_iban( (int) $affiliate_id, array() );
-		TaxHistory::delete( (int) $affiliate_id );
+		TaxHistory::delete_unless_retained( (int) $affiliate_id );
 	}
 }

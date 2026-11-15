@@ -32,6 +32,11 @@ Kostenlos und vollständig: Das Plugin enthält keine Lizenzprüfung und keine g
    define( 'WPAC_ENCRYPTION_KEY', '…' );
    ```
    Ohne diesen Schlüssel wird er aus den WordPress-Salts abgeleitet – ein Salt-Wechsel macht gespeicherte Bankdaten dann unlesbar.
+   Optional bei Lifetime-Provisionen: eigener Schlüssel für die Kunden-Hashes (mindestens 32 Zeichen), damit ein Datenbank-Dump allein die Hashes nicht per Wörterbuch umkehrbar macht:
+   ```php
+   define( 'WPAC_CUSTOMER_KEY', '…' );
+   ```
+   Er wird nur verwendet, solange noch keine Kunden-Bindungen bestehen (Neuinstallation oder alle Bindungen abgelaufen) – bestehende Hashes lassen sich ohne gespeicherte E-Mail-Adressen nicht neu berechnen; dann bleibt der gespeicherte Schlüssel aktiv und Website-Zustand meldet die Konstante als ignoriert. Später nicht mehr ändern oder entfernen.
 8. Seiten-Caches: Seiten mit Bewerbungsformular oder Partner-Begrüßung (Shortcode oder Block im Seiteninhalt) und Links mit Partnerparameter werden vor der Ausgabe als nicht cachebar markiert (`DONOTCACHEPAGE` + `Cache-Control: no-cache`; mit „Partnerlinks per JavaScript erfassen“ bleiben Partnerlink-Seiten für Gäste cachebar, der Beacon erfasst sie). Steht ein Formular oder die Begrüßung nur in einem Widget/Theme-Template oder ignoriert der Cache/CDN diese Header, die Seiten im Cache-Plugin bzw. CDN ausschließen. „JavaScript verzögern/kombinieren“: das Skript-Handle `wpac-beacon` (Partnerlinks per JavaScript) vom Verzögern ausnehmen; das Skript ist auf allen Seiten gleich, seitenbezogene Werte stehen in `<script type="application/json" id="wpac-beacon-data">`.
 9. Mehrsprachig (WPML/Polylang): Landingpage-, Partnerbereich- und Bewerbungslinks werden auf die Übersetzung der Seite umgestellt; E-Mails an Partner gehen in der Sprache ihres WordPress-Kontos, sonst in der Website-Sprache (mit WPML/Polylang die Standardsprache, nicht die Sprache der gerade aufgerufenen Seite); Gutschriften ebenso in der Standardsprache.
 

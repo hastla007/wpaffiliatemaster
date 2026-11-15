@@ -115,6 +115,8 @@ final class CommissionsTable extends \WP_List_Table {
 				'offset'  => ( $this->get_pagenum() - 1 ) * $per,
 				'orderby' => sanitize_key( Admin::get( 'orderby' ) ),
 				'order'   => sanitize_key( Admin::get( 'order' ) ),
+				// Without a filter the total of the whole table is cached briefly (exact when filtered).
+				'count'   => 'cached',
 			)
 		);
 		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
