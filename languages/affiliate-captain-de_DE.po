@@ -380,7 +380,7 @@ msgid "Approved"
 msgstr "Freigegeben"
 
 msgid "Paid"
-msgstr "Ausgezahlt"
+msgstr "Bezahlt"
 
 msgid "Commissions of this partner"
 msgstr "Provisionen dieses Partners"
@@ -677,7 +677,7 @@ msgid "Credit notes with VAT or reverse charge to this partner are blocked until
 msgstr "Gutschriften mit USt oder Reverse Charge an diesen Partner sind gesperrt, bis die USt-IdNr. korrigiert ist."
 
 msgid "VIES refused your own VAT ID (Settings → Payouts): no consultation number until it is corrected."
-msgstr "VIES hat Ihre eigene USt-IdNr. abgelehnt (Einstellungen → Auszahlungen): keine Bestätigungsnummer, bis sie korrigiert ist."
+msgstr "VIES hat Ihre eigene USt-IdNr. abgelehnt (Einstellungen → Auszahlungen): keine Abfragenummer, bis sie korrigiert ist."
 
 msgid "%1$s: %2$s (checked %3$s%4$s)"
 msgstr "%1$s: %2$s (geprüft %3$s%4$s)"
@@ -2419,6 +2419,12 @@ msgstr "Auszahlungen suchen"
 msgid "Read-only view: you can open the payouts and download credit notes and cancellations, but not create, export or change payouts."
 msgstr "Nur-Lese-Ansicht: Sie können Auszahlungen öffnen und Gutschriften und Stornobelege herunterladen, aber keine Auszahlungen anlegen, exportieren oder ändern."
 
+msgid "The download is taking longer than expected. Once it has finished, refresh the page to see the new status."
+msgstr "Der Download dauert länger als erwartet. Sobald er abgeschlossen ist, aktualisieren Sie die Seite, um den neuen Status zu sehen."
+
+msgid "Refresh page"
+msgstr "Seite aktualisieren"
+
 msgid "Bulk action for selected payouts"
 msgstr "Sammelaktion für ausgewählte Auszahlungen"
 
@@ -2720,6 +2726,9 @@ msgstr "Bewerber können diese Gruppe wählen"
 msgid "Additional application fields"
 msgstr "Zusätzliche Bewerbungsfelder"
 
+msgid "school_name|School name|text|required\nstudents|Students per year|number"
+msgstr "schulname|Name der Schule|text|required\nschueler|Schüler pro Jahr|number"
+
 msgid "One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox."
 msgstr "Ein Feld pro Zeile: schlüssel|Bezeichnung|Typ|required – Typen: text (Text), textarea (mehrzeilig), url, number (Zahl), checkbox (Kontrollkästchen)."
 
@@ -2783,8 +2792,14 @@ msgstr "Rückwirkend (ganzer Monat)"
 msgid "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)"
 msgstr "Schwelle:Bonus %%\n1000:2\n5000:3   (Umsatz in %s oder Anzahl Bestellungen)"
 
+msgid "One step per line as threshold:bonus in percent, e.g. 1000:2 – the threshold is the monthly net revenue in %s or the number of orders (see basis)."
+msgstr "Eine Stufe pro Zeile als Schwelle:Bonus in Prozent, z. B. 1000:2 – die Schwelle ist der monatliche Nettoumsatz in %s oder die Anzahl der Bestellungen (siehe Basis)."
+
 msgid "Last closed month: %s."
 msgstr "Zuletzt abgeschlossener Monat: %s."
+
+msgid "Month to close"
+msgstr "Abzuschließender Monat"
 
 msgid "Book monthly bonuses now? Refunds after this point will not change the bonus."
 msgstr "Monatsboni jetzt buchen? Spätere Rückerstattungen ändern den Bonus nicht mehr."
@@ -3595,7 +3610,7 @@ msgstr "[%1$s] Änderung der Steuerdaten von %2$s wartet auf Ihre Freigabe"
 msgid "[%1$s] Tax data of %2$s changed"
 msgstr "[%1$s] Steuerdaten von %2$s geändert"
 
-msgid "The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
 msgstr "Die Änderung wirkt sich auf die USt der Gutschriften aus. Sie gilt erst nach Ihrer Freigabe (vorher verdiente Provisionen behalten die bisherige Behandlung). Bitte prüfen Sie die Angaben (z. B. die USt-IdNr. per VIES):"
 
 msgid "The change applies to commissions earned from now on. Details:"
@@ -3757,6 +3772,15 @@ msgstr "[%s] Ihre Partnerbewerbung"
 msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
 msgstr "Hallo %1$s,\n\nleider können wir Ihre Bewerbung derzeit nicht annehmen.\n\n%2$s"
 
+msgid "Please enter your name or company."
+msgstr "Bitte geben Sie Ihren Namen oder Ihre Firma ein."
+
+msgid "Please fill in \"%s\"."
+msgstr "Bitte füllen Sie „%s“ aus."
+
+msgid "Please accept the partner program terms."
+msgstr "Bitte akzeptieren Sie die Partnerbedingungen."
+
 msgid "The confirmation link is invalid or has expired. Please apply again."
 msgstr "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte bewerben Sie sich erneut."
 
@@ -3777,6 +3801,12 @@ msgstr "Vielen Dank! Ihr Partnerkonto ist aktiv. Die Zugangsdaten erhalten Sie p
 
 msgid "Thank you for your application! We will review it and get back to you by e-mail."
 msgstr "Vielen Dank für Ihre Bewerbung! Wir prüfen sie und melden uns per E-Mail."
+
+msgid "Log in to the partner area"
+msgstr "Im Partnerbereich anmelden"
+
+msgid "Forgot your password?"
+msgstr "Passwort vergessen?"
 
 msgid "The partner group #%d set in this form no longer exists."
 msgstr "Die in diesem Formular festgelegte Partnergruppe #%d existiert nicht mehr."
@@ -3802,14 +3832,11 @@ msgstr "Sie haben bereits ein Partnerkonto."
 msgid "The form expired. Please try again."
 msgstr "Das Formular ist abgelaufen. Bitte versuchen Sie es erneut."
 
-msgid "Your submission could not be processed."
-msgstr "Ihre Eingabe konnte nicht verarbeitet werden."
+msgid "Your submission could not be processed. Please reload the page and send the form again; if this happens again, contact us directly."
+msgstr "Ihre Eingabe konnte nicht verarbeitet werden. Bitte laden Sie die Seite neu und senden Sie das Formular erneut; falls das wieder passiert, wenden Sie sich bitte direkt an uns."
 
 msgid "Too many attempts. Please try again later."
 msgstr "Zu viele Versuche. Bitte versuchen Sie es später erneut."
-
-msgid "Please accept the partner program terms."
-msgstr "Bitte akzeptieren Sie die Partnerbedingungen."
 
 msgid "Please fill in all required fields."
 msgstr "Bitte füllen Sie alle Pflichtfelder aus."
@@ -3829,6 +3856,9 @@ msgstr "Mit * markierte Felder sind Pflichtfelder."
 msgid "Application as: %s"
 msgstr "Bewerbung als: %s"
 
+msgid "Choose another partner type"
+msgstr "Andere Partnerart wählen"
+
 msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
 msgstr "Kanal (z. B. Instagram, YouTube, Newsletter, Schule)"
 
@@ -3840,6 +3870,9 @@ msgstr "Ich akzeptiere die %1$s (Version %2$s)."
 
 msgid "partner program terms"
 msgstr "Partnerbedingungen"
+
+msgid "(opens in a new tab)"
+msgstr "(öffnet in neuem Tab)"
 
 msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
 msgstr "Wir verwenden Ihre Angaben, um Ihre Bewerbung zu prüfen und nach einer Freigabe das Partnerprogramm mit Ihnen durchzuführen (Vertrag, Art. 6 Abs. 1 lit. b DSGVO). Abgelehnte Bewerbungen werden nach der in unserer Datenschutzerklärung genannten Frist gelöscht."
@@ -5826,7 +5859,7 @@ msgstr "Für Auszahlung verfügbar: %s"
 msgid "Payout requested on %s – in progress."
 msgstr "Auszahlung beantragt am %s – in Bearbeitung."
 
-msgid "Your payout request of %1$s was not processed: %2$s"
+msgid "Your payout request from %1$s was not processed: %2$s"
 msgstr "Ihr Auszahlungsantrag vom %1$s wurde nicht bearbeitet: %2$s"
 
 msgid "Request payout of %s"
@@ -5937,14 +5970,17 @@ msgstr "Die EU-Datenbank VIES war zur Prüfung Ihrer USt-IdNr. nicht erreichbar;
 msgid "Tax number (if you have no VAT ID)"
 msgstr "Steuernummer (falls keine USt-IdNr.)"
 
-msgid "stored"
-msgstr "gespeichert"
+msgid "IBAN (stored: %s)"
+msgstr "IBAN (gespeichert: %s)"
 
 msgid "Leave empty to keep"
 msgstr "Leer lassen, um beizubehalten"
 
 msgid "BIC (optional)"
 msgstr "BIC (optional)"
+
+msgid "Payment details (stored: %s)"
+msgstr "Zahlungsangaben (gespeichert: %s)"
 
 msgid "Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually."
 msgstr "Wohin und wie wir Ihre Provision senden sollen (z. B. PayPal-Adresse, Wise oder ausländisches Bankkonto). Diese Auszahlungen zahlen wir manuell."
@@ -5954,6 +5990,9 @@ msgstr "Aktuelles Passwort (nur zum Ändern Ihrer Bank- oder Zahlungsangaben nö
 
 msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
 msgstr "Ihre Bank- und Zahlungsangaben werden verschlüsselt gespeichert und nur für Provisionsauszahlungen verwendet."
+
+msgid "%s%%"
+msgstr "%s %%"
 
 msgid "E-mail for notifications"
 msgstr "E-Mail für Benachrichtigungen"

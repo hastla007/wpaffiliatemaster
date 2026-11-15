@@ -3289,6 +3289,14 @@ msgid "Read-only view: you can open the payouts and download credit notes and ca
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "The download is taking longer than expected. Once it has finished, refresh the page to see the new status."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Refresh page"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Bulk action for selected payouts"
 msgstr ""
 
@@ -3698,6 +3706,10 @@ msgid "Additional application fields"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "school_name|School name|text|required\nstudents|Students per year|number"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox."
 msgstr ""
 
@@ -3782,9 +3794,18 @@ msgstr ""
 msgid "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)"
 msgstr ""
 
+#. translators: %s: currency
+#: src/Admin/Pages/RulesPage.php
+msgid "One step per line as threshold:bonus in percent, e.g. 1000:2 – the threshold is the monthly net revenue in %s or the number of orders (see basis)."
+msgstr ""
+
 #. translators: %s: last closed month
 #: src/Admin/Pages/RulesPage.php
 msgid "Last closed month: %s."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Month to close"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4656,7 +4677,7 @@ msgstr ""
 msgid "Rejected"
 msgstr ""
 
-#: src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
+#: src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "Please enter a valid e-mail address."
 msgstr ""
 
@@ -4906,7 +4927,7 @@ msgid "[%1$s] Tax data of %2$s changed"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
@@ -5158,6 +5179,19 @@ msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this ti
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Please enter your name or company."
+msgstr ""
+
+#. translators: %s: field label
+#: src/Affiliates/Registration.php
+msgid "Please fill in \"%s\"."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Please accept the partner program terms."
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "The confirmation link is invalid or has expired. Please apply again."
 msgstr ""
 
@@ -5183,6 +5217,14 @@ msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Thank you for your application! We will review it and get back to you by e-mail."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Log in to the partner area"
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Forgot your password?"
 msgstr ""
 
 #. translators: %d: group ID
@@ -5221,15 +5263,11 @@ msgid "The form expired. Please try again."
 msgstr ""
 
 #: src/Affiliates/Registration.php
-msgid "Your submission could not be processed."
+msgid "Your submission could not be processed. Please reload the page and send the form again; if this happens again, contact us directly."
 msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Too many attempts. Please try again later."
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "Please accept the partner program terms."
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -5258,6 +5296,10 @@ msgid "Application as: %s"
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Choose another partner type"
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
 msgstr ""
 
@@ -5273,6 +5315,10 @@ msgstr ""
 
 #: src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "partner program terms"
+msgstr ""
+
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "(opens in a new tab)"
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -8056,7 +8102,7 @@ msgstr ""
 
 #. translators: 1: date, 2: reason
 #: src/Portal/Portal.php
-msgid "Your payout request of %1$s was not processed: %2$s"
+msgid "Your payout request from %1$s was not processed: %2$s"
 msgstr ""
 
 #. translators: %s: amount
@@ -8208,8 +8254,9 @@ msgstr ""
 msgid "Tax number (if you have no VAT ID)"
 msgstr ""
 
+#. translators: %s: masked IBAN, e.g. DE** **** 1234
 #: src/Portal/Portal.php
-msgid "stored"
+msgid "IBAN (stored: %s)"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -8218,6 +8265,11 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "BIC (optional)"
+msgstr ""
+
+#. translators: %s: masked payment details
+#: src/Portal/Portal.php
+msgid "Payment details (stored: %s)"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -8230,6 +8282,11 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
+msgstr ""
+
+#. translators: %s: number with one decimal, e.g. 12.5
+#: src/Portal/Portal.php
+msgid "%s%%"
 msgstr ""
 
 #: src/Portal/Portal.php
