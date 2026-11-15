@@ -115,6 +115,25 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
+= Unreleased =
+Expert audit round 14 (12 perspectives):
+* New: credit notes, correction credit notes and cancellations as electronic invoice (EN 16931 CII XML; XRechnung 3.0 profile when all its data are known) – download next to every PDF in the partner area and admin, optional attachment to the partner e-mail (setting "Send e-invoice", automatic for domestic VAT-registered partners), Leitweg-ID setting, filters wpac_einvoice_xml / wpac_einvoice_data
+* New: e-mail templates in the admin (Affiliate Captain → E-mail templates): subject and text of every partner e-mail with placeholders ({name}, {link}, {code}, {rate}, {portal_url}, {amount} …), reset to default, test send, optional simple HTML layout with plain-text part; the approval/welcome e-mail contains partner link, code and commission rate
+* Security: linking, disconnecting and re-sending the account link, changing the e-mail of a partner with portal access or payout details and the VIES check need the payout permission; new bank details entered within 30 days after an e-mail change or account link wait for approval; partner (also at the previous address) and admin are informed
+* Security: no code validity oracle via consent script, cookie or landing status; IP limit for unknown codes
+* Fixed: unsubscribe links only act after confirmation (mail scanners no longer unsubscribe partners); one-click unsubscribe (RFC 8058) for Gmail/Yahoo
+* Fixed: the self-referral address check compares whole words and the exact house number (neighbours no longer lose their commission)
+* Fixed: unpublished landing pages and links of paused, terminated or unknown partners lead to the default landing page instead of a 404; new monitor check
+* Fixed: partner statistics, monthly table and CSV export use the site time zone; the date filter of the partner payouts tab works
+* Fixed: partners whose partnership ended can update their payout details while money is open
+* Fixed: refund rate counts only refunds, cancellations and chargebacks; conversion rate counts only sales from link clicks and shows "—" without visits
+* Fixed: after a reinstall, stale coupon and order meta no longer point to new partners; uninstall and tools/purge-retained.php handle deleted network sites and pending scheduled tasks
+* SEO: "noindex, follow" for pages with partner parameters, the partner area and confirmation pages; landing redirects pass on all utm_* parameters and click IDs; bot filter extended; reserved names are refused as referral parameter
+* Partner area: tier bonus explained in plain words with a progress bar; copyable HTML text link with rel="sponsored noopener"; labelling duty with channel examples and an optional visible disclosure label in banner embed codes; status-specific messages for pending, rejected and terminated applicants
+* Privacy: consent banner status is only green with a connected banner (handbook recipes for Borlabs, Complianz, Real Cookie Banner, Usercentrics, CCM19, Cookiebot); customers' right to object in the privacy policy text; record of processing activities corrected, English template; terms proof covers the rendered page; notice for cookie lifetimes above 395 days
+* Terms template: independence (§ 89b HGB), credit note format incl. e-invoice, small business status, labelling duty, data protection roles
+* Dev: CI checks deprecations and notices, integration tests on PHP 7.4 and 8.4, smoke test on PHP 8.4, PHPStan level 3
+
 = 0.13.0 =
 Expert audit (8 reviewers); database schema 13 (indexes only):
 * Fixed: a payout claimed by a payment provider add-on can no longer be exported again (SEPA, transfer list, PayPal file) – it could have been paid twice; a claimed payout can be cancelled in the admin only 45 days after the claim (filter wpac_claim_cancel_after)
