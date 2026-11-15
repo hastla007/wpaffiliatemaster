@@ -138,7 +138,7 @@ if ( ! function_exists( 'wpac_get_payouts' ) ) {
 	 * Payouts, oldest first (contract 1.3.0).
 	 *
 	 * @since 0.12.0
-	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual), affiliate_id, limit (1–200, default 50).
+	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual), affiliate_id, after_id (cursor: only payouts with a greater ID), limit (1–200, default 50). Unknown status or method: empty list.
 	 * @return array[] As wpac_get_payout().
 	 */
 	function wpac_get_payouts( array $args = array() ) {

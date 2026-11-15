@@ -62,8 +62,8 @@ $r11_c = wpac_claim_payout( $r11_p1, 'paypal' );
 $r11_claim = is_array( $r11_c ) ? $r11_c['claim'] : '';
 check( 'R11 claim: payout is exported under an API claim', array( 'exported', 1 ), array( (string) PayoutService::find( $r11_p1 )->status, preg_match( '/^API-PAYPAL-' . $r11_p1 . '-[A-Z0-9]{6}$/', $r11_claim ) ) );
 check( 'R11 claim: a second claim is refused', 'wpac_payout_state', r11_code( wpac_claim_payout( $r11_p1, 'stripe' ) ) );
-check( 'R11 claim: the PayPal payouts file does not take a claimed payout again', 'wpac_reexport', r11_code( PayoutService::paypal_csv( array( $r11_p1 ) ) ) );
-check( 'R11 claim: the transfer list does not take a claimed payout again', 'wpac_reexport', r11_code( PayoutService::transfer_csv( array( $r11_p1 ) ) ) );
+check( 'R11 claim: the PayPal payouts file does not take a claimed payout again', 'wpac_claimed', r11_code( PayoutService::paypal_csv( array( $r11_p1 ) ) ) );
+check( 'R11 claim: the transfer list does not take a claimed payout again', 'wpac_claimed', r11_code( PayoutService::transfer_csv( array( $r11_p1 ) ) ) );
 check( 'R11 claim is in the audit log', 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . t( 'audit' ) . " WHERE action = 'payout.claimed' AND object_id = %d", $r11_p1 ) ) );
 
 // Complete: only with the right claim, then the payout and its commissions are paid.

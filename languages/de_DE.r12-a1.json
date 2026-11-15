@@ -1,0 +1,4 @@
+{
+ "Payout %1$s is being paid through a payment provider (reference %2$s) and cannot be exported. The add-on that claimed it gives it back when the provider does not pay it.": "Auszahlung %1$s wird gerade über einen Zahlungsdienst ausgezahlt (Referenz %2$s) und kann nicht exportiert werden. Das Add-on, das sie reserviert hat, gibt sie zurück, wenn der Zahlungsdienst nicht zahlt.",
+ "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number.": "Die Präfixe für Gutschriften, Stornobelege und Korrekturgutschriften müssen sich voneinander unterscheiden – sonst erhalten zwei Belege dieselbe Nummer."
+}

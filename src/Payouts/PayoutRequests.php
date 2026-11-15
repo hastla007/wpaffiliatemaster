@@ -228,7 +228,7 @@ final class PayoutRequests {
 			return new \WP_Error( 'wpac_profile', $blocked );
 		}
 		try {
-			$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, gmdate( 'Y-m-d' ), $r->currency );
+			$payout_id = PayoutService::create_for_affiliate( (int) $r->affiliate_id, wp_date( 'Y-m-d' ), $r->currency ); // Today in the site's time zone (cut-off, R12-M6).
 		} catch ( \Throwable $e ) {
 			if ( $e instanceof \WPAffiliateCaptain\Core\IntegrationException && in_array( $e->error_code, array( 'operator_data', 'not_eligible' ), true ) ) {
 				// A missing precondition (e.g. your address or VAT ID): the message says what to fix.
