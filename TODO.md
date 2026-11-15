@@ -952,3 +952,13 @@ Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,p
 - [x] **[PRIO: NIEDRIG]** | **[Add-on-Vertrag]** | **[Kategorie: Feature]** – **P15-3 Portal-URL und Absender für Add-on-Mails** → **Erledigt:** `wpac_portal_url()` und `wpac_mail_sender()` (gleicher Helfer wie `Notifications::send()`).
   - *Problem:* Add-ons mit eigenen Mails kennen weder die Portal-URL noch den Absender aus den Kern-Einstellungen.
   - *Lösung:* Vertragsfunktionen `wpac_portal_url( $affiliate_id = 0 )` (Sprache des Partners) und `wpac_mail_sender()` (Name/Adresse wie in `Notifications::send()`, inkl. Filter `wpac_mail_from_name`); dokumentiert.
+
+### Workflow Captain Provider-Vertrag
+
+- [ ] AFF-WF-01 – Adapter auf CONTRACT v1.3 aufbauen und Workflow-spezifische SemVer-, Envelope-, Capability- und Fehlerregeln veröffentlichen; keine privaten Tabellen oder Klassen.
+- [ ] AFF-WF-02 – Post-Commit-Ereignisse für Partnerstatus, Verkaufszuordnung, Provision, Korrektur/Refund, Auszahlung und Werbemittel mit stabilen IDs und redigierter Payload anbieten; keine Käufer-E-Mail, Reviewtexte, IBAN oder Zahlungsgeheimnisse.
+- [ ] AFF-WF-03 – Read-Actions für Partner-/Kampagnenstatus und aggregierte Kennzahlen definieren. Keine automatische Freigabe, Provision, Refund oder Auszahlung. Manuelle Anpassung nur über bestehendes wpac_create_adjustment mit Grund, Capability, Adminbestätigung, Idempotenz und Audit.
+- [ ] AFF-WF-04 – Kanonische Umsatzquelle WooCommerce/Voucher/Pass dokumentieren und bestehende Order-/Item-/Refund-Idempotenz erhalten; Workflow-Events dürfen keine zweite Provision auslösen.
+- [ ] AFF-WF-05 – Native Partner-, Verkaufs- und Payout-Prozesse bleiben Affiliate-eigen; nur ausdrücklich freigegebene Folgekommunikation/Benachrichtigung darf Workflow übernehmen. Fehlender Workflow darf Ledger nicht beeinflussen.
+- [ ] AFF-WF-06 – Vertragsfixtures für Replay, parallele Verkäufe/Refunds, Multisite, Datenlöschung, Pro-Recht fehlt/abgelaufen und Payload-Redaction ergänzen.
+- Abnahme: Workflow kann Benachrichtigungen und Reports auslösen, aber keine Provision doppelt buchen und keine Auszahlung starten.
