@@ -42,7 +42,13 @@ final class Monitor {
 
 		$out['cron']   = self::cron_running()
 			? array( 'good', __( 'Scheduled tasks are running', 'affiliate-captain' ), '' )
-			: array( 'critical', __( 'Scheduled tasks have not run for over two hours', 'affiliate-captain' ), __( 'Commissions are not released and failed sales are not retried. Set up a system cron ("wp cron event run --due-now"; on a network for every site).', 'affiliate-captain' ) );
+			: array( 'critical', __( 'Scheduled tasks have not run for over two hours', 'affiliate-captain' ), __( 'Commissions are not released and failed sales are not retried. Set up a system cron ("wp cron event run --due-now"; on a network for every site).', 'affiliate-captain' ) . ( is_multisite() ? ' ' . self::network_cron_hint() : '' ) );
+
+		$rejected = \WPAffiliateCaptain\Sales\ContractApi::rejected();
+		if ( $rejected && (int) $rejected[0]['time'] > time() - 7 * DAY_IN_SECONDS ) {
+			/* translators: %d: number of refused payloads */
+			$out['contract_rejected'] = array( 'recommended', __( 'An integration sends sales that are refused', 'affiliate-captain' ), sprintf( __( 'Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status).', 'affiliate-captain' ), count( $rejected ) ) );
+		}
 
 		$failed_steps = Cron::failures();
 		if ( $failed_steps ) {
@@ -104,6 +110,13 @@ final class Monitor {
 			? array( 'good', __( 'Own encryption key for bank details', 'affiliate-captain' ), '' )
 			: array( 'recommended', __( 'No own encryption key for bank details', 'affiliate-captain' ), __( 'Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on the WordPress salts.', 'affiliate-captain' ) );
 
+		$customer = \WPAffiliateCaptain\Tracking\CustomerLinks::key_status();
+		if ( $customer['ignored'] ) {
+			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY is ignored', 'affiliate-captain' ), __( 'Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired).', 'affiliate-captain' ) );
+		} elseif ( $customer['missing'] ) {
+			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY was removed or changed', 'affiliate-captain' ), __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.', 'affiliate-captain' ) );
+		}
+
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			$out['maintenance'] = array( 'recommended', __( 'Partner program is in maintenance mode', 'affiliate-captain' ), __( 'Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait.', 'affiliate-captain' ) );
 		}
@@ -112,6 +125,16 @@ final class Monitor {
 
 	/** Option: result of the daily check of pending data migrations (Cron step "migrations"). */
 	const MIGRATION_STATUS = 'wpac_migration_status';
+
+	/**
+	 * Cron command for a network: "wp cron event run" without --url only runs the main site,
+	 * the other sites would never release commissions or migrate their tables (R12-M31).
+	 *
+	 * @return string Plain text.
+	 */
+	public static function network_cron_hint() {
+		return __( 'On a multisite network the command only runs the main site. Run it for every site, e.g.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}', 'affiliate-captain' );
+	}
 
 	/**
 	 * Whether the scheduled tasks run – the one definition used by Site Health, the admin notice,
@@ -388,6 +411,7 @@ final class Monitor {
 				'DISABLE_WP_CRON'          => $yes( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ),
 				'WPAC_ENCRYPTION_KEY'      => $yes( Crypto::has_dedicated_key() ),
 				'WPAC_STATEMENT_DIR'       => $yes( defined( 'WPAC_STATEMENT_DIR' ) ),
+				'WPAC_CUSTOMER_KEY'        => \WPAffiliateCaptain\Tracking\CustomerLinks::key_status()['source'],
 				'statements_public'        => true === \WPAffiliateCaptain\Payouts\Statement::publicly_accessible() ? 'yes' : 'no/unknown',
 				'trusted_proxies'          => (string) count( $proxy ),
 			),

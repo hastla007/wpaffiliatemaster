@@ -699,7 +699,7 @@ final class RestApi {
 	public static function report( \WP_REST_Request $r ) {
 		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['from'] ) ? (string) $r['from'] : wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
 		$to   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['to'] ) ? (string) $r['to'] : wp_date( 'Y-m-d' );
-		$rows = 'partners' === $r['view'] ? Reports::partners( $from, $to ) : Reports::by_dimension( 'content' === $r['view'] ? 'content_id' : 'campaign', $from, $to );
+		$rows = Reports::cached( 'partners' === $r['view'] ? 'partners' : ( 'content' === $r['view'] ? 'content_id' : 'campaign' ), $from, $to ); // Shared with the dashboard (R12-M23).
 		return array(
 			'from'        => $from,
 			'to'          => $to,

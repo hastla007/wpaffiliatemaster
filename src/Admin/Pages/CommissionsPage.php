@@ -74,12 +74,12 @@ final class CommissionsPage {
 			$parent   = absint( Admin::post( 'parent_id', 0 ) );
 			$currency = strtoupper( sanitize_key( Admin::post( 'currency' ) ) );
 			$currency = '' !== $currency ? $currency : strtoupper( (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ) );
-			$decimal  = Money::normalize_decimal( ltrim( trim( (string) Admin::post( 'amount' ) ), '-' ) );
+			$minor    = Money::parse_minor( ltrim( trim( (string) Admin::post( 'amount' ) ), '-' ), $currency, $problem );
 			$negative = 0 === strpos( trim( (string) Admin::post( 'amount' ) ), '-' );
-			if ( null === $decimal ) {
-				Admin::back( __( 'Please enter a valid amount (e.g. 25 or -12,50).', 'affiliate-captain' ), 'error' );
+			if ( null === $minor ) {
+				Admin::back( 'precision' === $problem ? Admin::amount_error( $problem, $currency ) : __( 'Please enter a valid amount (e.g. 25 or -12,50).', 'affiliate-captain' ), 'error' );
 			}
-			$minor  = Money::to_minor( $decimal, $currency ) * ( $negative ? -1 : 1 );
+			$minor  = $minor * ( $negative ? -1 : 1 );
 			$result = Ledger::manual_adjustment( absint( Admin::post( 'affiliate_id' ) ), $currency, $minor, sanitize_text_field( Admin::post( 'reason' ) ), $parent );
 			if ( is_wp_error( $result ) ) {
 				Admin::back( $result->get_error_message(), 'error' );
@@ -232,8 +232,8 @@ final class CommissionsPage {
 		}
 		echo '</select> ';
 		echo '<label class="screen-reader-text" for="wpac-filter-partner">' . esc_html__( 'Partner', 'affiliate-captain' ) . '</label><input type="search" id="wpac-filter-partner" name="affiliate_id" placeholder="' . esc_attr__( 'Partner (name, e-mail or number)', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'affiliate_id' ) ) . '" size="24"> ';
-		echo '<input type="text" name="source" placeholder="' . esc_attr__( 'Source', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['source'] ) . '" size="12"> ';
-		echo '<input type="text" name="order_id" placeholder="' . esc_attr__( 'Order', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['order_id'] ) . '" size="8"> ';
+		echo '<label class="screen-reader-text" for="wpac-filter-source">' . esc_html__( 'Source', 'affiliate-captain' ) . '</label><input type="text" id="wpac-filter-source" name="source" placeholder="' . esc_attr__( 'Source', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['source'] ) . '" size="12"> ';
+		echo '<label class="screen-reader-text" for="wpac-filter-order">' . esc_html__( 'Order', 'affiliate-captain' ) . '</label><input type="text" id="wpac-filter-order" name="order_id" placeholder="' . esc_attr__( 'Order', 'affiliate-captain' ) . '" value="' . esc_attr( $filters['order_id'] ) . '" size="8"> ';
 		echo '<label>' . esc_html_x( 'From', 'date range start', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $filters['from'] ) . '"></label> ';
 		echo '<label>' . esc_html_x( 'To', 'date range end', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $filters['to'] ) . '"></label> ';
 		echo '<button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button></form>';
@@ -249,7 +249,7 @@ final class CommissionsPage {
 			echo '<details class="wpac-manual"><summary>' . esc_html__( 'Manual booking (commission, bonus or deduction)', 'affiliate-captain' ) . '</summary>';
 			Admin::form_open( 'commission_manual' );
 			echo '<p><label>' . esc_html__( 'Partner ID', 'affiliate-captain' ) . ' <input type="number" name="affiliate_id" min="1" required class="small-text"></label> ';
-			echo '<label>' . esc_html__( 'Amount (negative = deduction)', 'affiliate-captain' ) . ' <input type="text" name="amount" required size="8" placeholder="25,00"></label> ';
+			echo '<label>' . esc_html__( 'Amount (negative = deduction)', 'affiliate-captain' ) . ' <input type="text" name="amount" required size="8" placeholder="' . esc_attr( number_format_i18n( 25, 2 ) ) . '"></label> ';
 			echo '<label>' . esc_html__( 'Currency', 'affiliate-captain' ) . ' <input type="text" name="currency" size="4" maxlength="3" value="' . esc_attr( (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ) ) . '"></label> ';
 			echo '<label>' . esc_html__( 'Reason (shown to the partner)', 'affiliate-captain' ) . ' <input type="text" name="reason" required class="regular-text"></label> ';
 			echo '<button class="button" data-wpac-confirm="' . esc_attr__( 'Book this amount for the partner? It is approved at once and paid with the next payout.', 'affiliate-captain' ) . '">' . esc_html__( 'Book', 'affiliate-captain' ) . '</button></p></form></details>';
@@ -345,7 +345,7 @@ final class CommissionsPage {
 			echo '<h2>' . esc_html__( 'Correction', 'affiliate-captain' ) . '</h2>';
 			Admin::form_open( 'commission_manual' );
 			echo '<input type="hidden" name="parent_id" value="' . (int) $c->id . '"><input type="hidden" name="affiliate_id" value="' . (int) $c->affiliate_id . '"><input type="hidden" name="currency" value="' . esc_attr( $c->currency ) . '">';
-			echo '<label>' . esc_html__( 'Amount (negative = deduction)', 'affiliate-captain' ) . ' <input type="text" name="amount" required size="8" placeholder="-5,00"></label> ';
+			echo '<label>' . esc_html__( 'Amount (negative = deduction)', 'affiliate-captain' ) . ' <input type="text" name="amount" required size="8" placeholder="' . esc_attr( number_format_i18n( -5, 2 ) ) . '"></label> ';
 			echo '<label>' . esc_html__( 'Reason (shown to the partner)', 'affiliate-captain' ) . ' <input type="text" name="reason" required class="regular-text"></label> ';
 			echo '<button class="button" data-wpac-confirm="' . esc_attr__( 'Book this correction? Approved commissions change the payable balance at once.', 'affiliate-captain' ) . '">' . esc_html__( 'Book correction', 'affiliate-captain' ) . '</button></form>';
 		}

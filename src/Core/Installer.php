@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 12;
+	const DB_VERSION = 13;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -744,6 +744,23 @@ final class Installer {
 				$problems[] = 'missing column ' . $name . '.' . $missing;
 			}
 		}
+		// v13: indexes the order filters and the audit log sort rely on (dbDelta adds them).
+		$indexes = array(
+			'commissions' => array( 'source_order_id' ),
+			'audit'       => array( 'action_created' ),
+		);
+		foreach ( $indexes as $table => $keys ) {
+			$name = Db::table( $table );
+			if ( ! isset( $have[ strtolower( $name ) ] ) ) {
+				continue;
+			}
+			$real = (string) $have[ strtolower( $name ) ]->t;
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			$found_keys = array_map( 'strtolower', array_map( 'strval', (array) $wpdb->get_col( "SHOW INDEX FROM `{$real}`", 2 ) ) );
+			foreach ( array_diff( $keys, $found_keys ) as $missing ) {
+				$problems[] = 'missing index ' . $name . '.' . $missing;
+			}
+		}
 		foreach ( $have as $row ) {
 			if ( $row->e && 'innodb' !== strtolower( (string) $row->e ) ) {
 				// Not a blocker (the data is there), but without InnoDB there are no transactions.
@@ -1127,6 +1144,7 @@ final class Installer {
 			UNIQUE KEY idempotency_key (idempotency_key),
 			KEY affiliate_status (affiliate_id,status),
 			KEY source_order (source,source_order_id),
+			KEY source_order_id (source_order_id),
 			KEY parent_id (parent_id),
 			KEY status_hold (status,hold_until),
 			KEY payout_id (payout_id),
@@ -1314,6 +1332,7 @@ final class Installer {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY object (object_type,object_id),
+			KEY action_created (action,created_at),
 			KEY created_at (created_at)
 		) $c;";
 	}

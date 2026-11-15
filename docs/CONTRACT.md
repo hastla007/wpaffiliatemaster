@@ -53,7 +53,7 @@ add_action( 'wpac_loaded', function () {
 } );
 ```
 
-Alternativ ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_sale', $payload );` (ohne Rückgabewert).
+Alternativ ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_sale', $payload );` (ohne Rückgabewert). Abgelehnte Payloads (Prüfungsfehler wie `invalid_currency`) werden ins Log geschrieben und unter **Integrationen → Systemstatus** sowie im Website-Zustand angezeigt; wiederholt werden sie nicht. Wer das Ergebnis braucht, ruft die Funktion auf.
 
 Weitere optionale Felder:
 
@@ -75,7 +75,7 @@ Rückgabe: `array( status => created|duplicate|unattributed, attribution_id, com
 - `source`, `order_id`, `item_id`, `refund_id`: Text oder Zahl (keine Arrays), `order_id`/`item_id`/`refund_id` max. 64 Zeichen, `source` max. 40 (`a-z0-9_-`). Mehrbyte-Zeichen werden nie mitten im Zeichen gekürzt.
 - `item_id` muss innerhalb eines Verkaufs eindeutig sein (`duplicate_item`), höchstens 500 Positionen (`too_many_items`).
 - `net_minor`: Ganzzahl (auch als Ziffernstring oder ganzzahliger Float), höchstens 1 000 000 000 je Position; `"1e3"`, `12.5` oder größere Werte → `invalid_amount`.
-- `currency`: ISO-4217-Code (Liste per Filter `wpac_contract_currencies` erweiterbar).
+- `currency`: ISO-4217-Code oder ein Währungscode, den WooCommerce anbietet (z. B. IRT, BTC, GGP); Liste per Filter `wpac_contract_currencies` änderbar. Die Programmwährung in den Einstellungen lässt nur diese Codes zu.
 - `paid_at`/`hold_until`: `Y-m-d H:i:s` (UTC), ISO 8601, `Ymd`, `YmdHis`, Unix-Zeit in Sekunden **oder Millisekunden**; Daten vor 2000 oder mehr als zehn Jahre in der Zukunft → `invalid_date`.
 - Fehler der Prüfung kommen als `WP_Error` (`wpac_<code>`, REST `400`) und werden nicht wiederholt.
 
@@ -192,6 +192,7 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_payout_paid` | `int $payout_id` (auch nach `wpac_complete_payout()`) |
 | `wpac_payout_cancelled` | `int $payout_id` – nicht bezahlte Auszahlung storniert (auch eine reservierte und die alte Auszahlung beim Neuerstellen; seit 1.3.0). |
 | `wpac_correction_generated` | `int $correction_id, string $path` – Korrekturgutschrift erzeugt (siehe „Add-ons“). |
+| `wpac_refund_after_correction` | `array $refund, string $credit_note, string[] $corrections` – Erstattung/Storno einer Bestellung abgezogen, deren Gutschrift bereits eine Korrekturgutschrift hat (die die Erstattung schon enthalten kann); die WooCommerce-Integration schreibt eine Bestellnotiz. Buchung unverändert. |
 | `wpac_affiliate_created` | `int $affiliate_id, string $status` |
 | `wpac_affiliate_status_changed` | `int $affiliate_id, string $new, string $old` |
 
@@ -269,16 +270,16 @@ Für Add-ons, die Auszahlungen über einen Zahlungsdienst ausführen (z. B. PayP
 | Funktion | Zweck |
 |---|---|
 | `wpac_get_payout( $payout_id )` | Auszahlung als Array oder `null`: `id`, `number`, `affiliate_id`, `status` (`pending`, `exported`, `paid`, `cancelled`), `currency`, `amount_minor`, `method` (`sepa`/`manual`), `paypal_email`, `claim`, `created_at`, `exported_at`, `paid_at`. `paypal_email` ist nur bei der Auszahlungsart „andere“ gefüllt, wenn die Zahlungsangaben eine E-Mail-Adresse enthalten (dieselbe Regel wie die PayPal-Datei), und nur solange die Auszahlung offen ist. Bankdaten werden nie geliefert. |
-| `wpac_get_payouts( $args )` | Liste, älteste zuerst. `status`, `method`, `affiliate_id`, `limit` (1–200, Standard 50). |
+| `wpac_get_payouts( $args )` | Liste, älteste zuerst. `status`, `method`, `affiliate_id`, `after_id`, `limit` (1–200, Standard 50). Blättern mit `after_id` (ID der letzten Auszahlung der vorigen Seite; liefert nur Auszahlungen mit größerer ID), bis die Liste leer ist. Der Filter `method` wirkt vor dem Limit: eine Seite enthält bis zu `limit` passende Auszahlungen. Ein unbekannter `status` oder `method` liefert eine leere Liste (kein `WP_Error`). |
 | `wpac_claim_payout( $payout_id, $provider )` | Reserviert eine **erstellte** Auszahlung für den Dienst (`$provider`: `a–z`, `0–9`, `_`, `-`, 2–20 Zeichen). Ergebnis: die Auszahlung mit `claim` (`API-<DIENST>-<ID>-<Zufall>`), Status `exported`. Abgelehnt (`WP_Error`): `wpac_payout_state` (nicht mehr „erstellt“, z. B. schon exportiert oder reserviert), `wpac_profile_changed` (Partner hat die Auszahlungsdaten nach dem Erstellen geändert), `wpac_statement` (Gutschrift fehlt), `wpac_provider`. |
 | `wpac_complete_payout( $payout_id, $claim, $reference )` | Nach erfolgreicher Zahlung: Auszahlung und Provisionen werden „bezahlt“, `wpac_payout_paid` und `wpac_commission_paid` feuern wie beim Markieren im Admin. Die Reservierung wird unter Zeilensperre geprüft. `$reference` (Transaktions- oder Batch-ID des Dienstes) steht im Audit-Log. Fehler: `wpac_claim`, `wpac_state`. |
 | `wpac_release_payout( $payout_id, $claim, $reason )` | Wenn der Dienst nicht gezahlt hat: die Auszahlung ist wieder „erstellt“ und kann exportiert oder neu reserviert werden. Fehler: `wpac_claim`. |
 
 Regeln:
 
-- Erst reservieren, dann zahlen. Eine reservierte Auszahlung nehmen weder die Exportdateien (SEPA, Überweisungsliste, PayPal-Datei) noch eine zweite Reservierung.
+- Erst reservieren, dann zahlen. Eine reservierte Auszahlung nehmen weder die Exportdateien (SEPA, Überweisungsliste, PayPal-Datei) – auch nicht mit „erneut exportieren“ (Fehler `wpac_claimed`) – noch eine zweite Reservierung.
 - Die Reservierungsnummer beim Dienst als Idempotenz-Schlüssel verwenden (z. B. `sender_batch_id` bei PayPal), damit eine Wiederholung nach einem Abbruch nicht doppelt zahlt.
-- Im Admin lässt sich eine reservierte Auszahlung in den ersten 7 Tagen nach der Reservierung nicht stornieren; danach nur mit der Bestätigung, dass der Dienst nicht gezahlt hat. Das Add-on gibt Auszahlungen, die der Dienst ablehnt, selbst mit `wpac_release_payout()` frei.
+- Im Admin lässt sich eine reservierte Auszahlung in den ersten 45 Tagen nach der Reservierung nicht stornieren (Filter `wpac_claim_cancel_after`, Sekunden; Zahlungsdienste wie PayPal halten offene Auszahlungen bis zu 30–40 Tage); danach nur mit der Bestätigung, dass der Dienst nicht gezahlt hat – vorher im Konto des Zahlungsdienstes prüfen. Das Add-on gibt Auszahlungen, die der Dienst ablehnt, selbst mit `wpac_release_payout()` frei.
 - Jeder Schritt steht im Audit-Log (`payout.claimed`, `payout.provider_paid`, `payout.claim_released`).
 
 ## Lese- und Schreib-API (1.3.0)
@@ -298,7 +299,9 @@ Regeln:
 | `wpac_set_commission_status( $id, $status, $reason )` | `approved` oder `rejected` über die Regeln des Kontos (Sperrfrist, Prüfung, Korrekturen, Auszahlungen; Ablehnen nur mit Grund). Eine Provision „Prüfung nötig“ in der Sperrfrist wird – wie im Admin – erst „ausstehend“. Rückgabe: die Provision. Audit `commission.status` (`from`, `to`, `reason`, `via: api`). |
 | `wpac_create_adjustment( $affiliate_id, $amount_minor, $currency, $reason )` | Manuelle Buchung (Cent als Ganzzahl, ≠ 0, negativ = Abzug), sofort freigegeben und mit der nächsten Auszahlung fällig; `wpac_commission_created` feuert nach dem Commit. Rückgabe: die Buchung. Audit `commission.manual`. |
 
-Fehlercodes der Listen- und Schreibfunktionen: `wpac_not_found`, `wpac_invalid_<argument>` (z. B. `wpac_invalid_status`, `wpac_invalid_per_page`, `wpac_invalid_orderby`, `wpac_invalid_group`, `wpac_invalid_website`), `wpac_invalid_field`, `wpac_invalid_name`, `wpac_too_long_<feld>`, `wpac_reason_required`, `wpac_amount`, `wpac_state`, `wpac_parent_open`, `wpac_conflict`, `wpac_restricted`, `wpac_db_error`. Auszahlungen liest `wpac_get_payout()`/`wpac_get_payouts()` (Abschnitt „Auszahlung über Zahlungsdienste“).
+Die Listen prüfen streng (seit 0.13.0): IDs, `page` und `per_page` sind ganze Zahlen ≥ 0 bzw. ≥ 1 (Integer oder reine Ziffernfolge); `-5`, `"abc"`, `1.5` oder Arrays ergeben `wpac_invalid_<argument>` statt stillschweigend „alle“. Ein Array als Wert eines Arguments (z. B. `status`) ergibt ebenfalls `wpac_invalid_<argument>`. Eine Seite hinter dem Ende liefert leere `items` mit der richtigen `total` (auch bei sehr großen Werten wie `PHP_INT_MAX`).
+
+Fehlercodes der Listen- und Schreibfunktionen: `wpac_not_found`, `wpac_invalid_<argument>` (z. B. `wpac_invalid_status`, `wpac_invalid_per_page`, `wpac_invalid_orderby`, `wpac_invalid_group`, `wpac_invalid_affiliate_id`, `wpac_invalid_website`), `wpac_invalid_field`, `wpac_invalid_name`, `wpac_too_long_<feld>`, `wpac_reason_required`, `wpac_amount`, `wpac_state`, `wpac_parent_open`, `wpac_conflict`, `wpac_restricted`, `wpac_db_error`. Auszahlungen liest `wpac_get_payout()`/`wpac_get_payouts()` (Abschnitt „Auszahlung über Zahlungsdienste“).
 
 ## Mitgelieferte Adapter
 

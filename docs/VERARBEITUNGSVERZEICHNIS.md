@@ -16,7 +16,7 @@ Vorlage für die Einträge, die Affiliate Captain betreffen. Die Werte in `{gesc
 | Daten | Partnercode, Kampagne, Zielseite, Zeitpunkt, Host der vorherigen Seite (nur mit Einwilligung), Bestellnummer und Nettobetrag; **keine IP-Adresse**; bei Folgekäufen ein verschlüsselter Hash von Kundenkonto/E-Mail |
 | Rechtsgrundlage | Art. 6 Abs. 1 lit. f DSGVO (Zuordnung ohne Cookie); Art. 6 Abs. 1 lit. a DSGVO, § 25 TDDDG (Affiliate-Cookie `wpac_ref`, Lesen der vorherigen Seite) |
 | Empfänger | Partner sehen nur Bestellnummer, Betrag und Status – keine Namen oder Kontaktdaten |
-| Löschfristen | Besuche {visit_retention_days} Tage; Cookie {cookie_days} Tage; Kundenverknüpfung {lifetime_days}; Zuordnungen als Buchungsunterlage {retention_years} Jahre |
+| Löschfristen | Besuche {visit_retention_days} Tage; Cookie {cookie_days} Tage; Kundenverknüpfung {lifetime_days}; Zuordnungen (Bestellnummer, Partner, Kampagne, Sub-ID, Besuchs-ID) als Buchungsunterlage {retention_years} Jahre ab Ende des Kalenderjahres der letzten Buchung der Bestellung, danach tägliche Löschung (nicht während einer Betriebsprüfung oder Sperre); Referral-Angaben an der Bestellung (`_wpac_touch`) werden beim Löschantrag des Kunden entfernt, sobald die Bestellung zugeordnet ist |
 
 ## 2. Partnerprogramm (Bewerbung, Partnerkonto, Kommunikation)
 
@@ -27,7 +27,7 @@ Vorlage für die Einträge, die Affiliate Captain betreffen. Die Werte in `{gesc
 | Daten | Name/Firma, E-Mail, Website, Kanal, Bewerbungsangaben, Partnercodes, akzeptierte AGB (Version, Zeitpunkt, Text) |
 | Rechtsgrundlage | Art. 6 Abs. 1 lit. b DSGVO (Vertrag / vorvertragliche Maßnahmen) |
 | Empfänger | keine; Auftragsverarbeiter: Hosting, ggf. E-Mail-Versand |
-| Löschfristen | abgelehnte Bewerbungen {application_retention_days} Tage; Partnerdaten nach Vertragsende, soweit keine Aufbewahrungspflicht besteht; AGB-Nachweise so lange wie die Gutschriften |
+| Löschfristen | unbestätigte Bewerbungen (E-Mail nicht bestätigt) 2 Tage; nie entschiedene Bewerbungen {pending_application_days} Tage; abgelehnte Bewerbungen {application_retention_days} Tage; Partnerdaten nach Vertragsende, soweit keine Aufbewahrungspflicht besteht; AGB-Nachweise so lange wie die Gutschriften |
 
 ## 3. Provisionen, Gutschriften und Auszahlungen
 

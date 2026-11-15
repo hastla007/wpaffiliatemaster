@@ -23,5 +23,5 @@
 		}
 	},
 	"editorScript": "wpac-blocks",
-	"style": "wpac-portal"
+	"editorStyle": "wpac-portal"
 }

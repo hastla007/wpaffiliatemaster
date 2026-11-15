@@ -14,6 +14,8 @@ namespace WPAffiliateCaptain\Payouts;
 
 use WPAffiliateCaptain\Core\Money;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Vat {
 
 	/** Treatment modes. */

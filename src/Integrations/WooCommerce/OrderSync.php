@@ -1031,6 +1031,78 @@ final class OrderSync {
 	}
 
 	/**
+	 * A refund was deleted in the order edit screen (e.g. a typo): the deduction booked for it
+	 * is given back. The current order (without that refund) is the target, as for raised
+	 * lines: Ledger::record_increase() books the difference with the rate of the sale,
+	 * idempotent per booked base, so a repeated hook books nothing. A refund still waiting in
+	 * the job queue is closed instead. The order note says what happened.
+	 *
+	 * @param int $refund_id Deleted refund.
+	 * @param int $order_id  Order.
+	 */
+	public static function refund_deleted( $refund_id, $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( ! $order || is_a( $order, 'WC_Order_Refund' ) ) {
+			return;
+		}
+		Jobs::supersede_refunds( WooCommerce::SOURCE, (string) $order_id, array( (string) $refund_id ) );
+		if ( ! $order->is_paid() || ! Ledger::attribution_for( WooCommerce::SOURCE, (string) $order_id ) ) {
+			return;
+		}
+		$payload = self::payload( $order );
+		if ( ! $payload['items'] ) {
+			return;
+		}
+		try {
+			$sale   = ContractApi::normalize_sale( $payload );
+			$result = Ledger::record_increase(
+				array(
+					'contract' => $sale['contract'],
+					'source'   => WooCommerce::SOURCE,
+					'order_id' => (string) $order_id,
+					'currency' => $sale['currency'],
+					'items'    => $sale['items'],
+					/* translators: %s: refund ID */
+					'reason'   => sprintf( __( 'Refund #%s deleted in WooCommerce', 'affiliate-captain' ), (string) (int) $refund_id ),
+				)
+			);
+		} catch ( \Throwable $e ) {
+			Log::error(
+				'WooCommerce refund deletion not booked',
+				array(
+					'order'   => (int) $order_id,
+					'refund'  => (int) $refund_id,
+					'message' => \WPAffiliateCaptain\Core\Db::cut( $e->getMessage(), 300 ),
+				)
+			);
+			$order->add_order_note( __( 'Affiliate Captain: a refund was deleted, but the partner commission could not be restored. Please save the order items again later.', 'affiliate-captain' ) );
+			return;
+		}
+		if ( 'booked' === $result['status'] ) {
+			Audit::log(
+				'commission.refund_deleted',
+				'order',
+				(int) $order_id,
+				array(
+					'source' => WooCommerce::SOURCE,
+					'refund' => (string) (int) $refund_id,
+					'amount' => (int) $result['amount_minor'],
+				)
+			);
+			$order->add_order_note(
+				sprintf(
+					/* translators: 1: refund ID, 2: commission amount */
+					__( 'Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again.', 'affiliate-captain' ),
+					(string) (int) $refund_id,
+					Money::format( (int) $result['amount_minor'], (string) $payload['currency'] )
+				)
+			);
+		} elseif ( 'skipped' === $result['status'] ) {
+			$order->add_order_note( __( 'Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction).', 'affiliate-captain' ) );
+		}
+	}
+
+	/**
 	 * Book raised and added lines of a paid order (Ledger::record_increase()) and say in an
 	 * order note what was booked, or why nothing was.
 	 *
@@ -1097,6 +1169,26 @@ final class OrderSync {
 				);
 			}
 		}
+	}
+
+	/**
+	 * Order note when a refund was deducted although the credit note of the commission already
+	 * has a correction credit note (R12-M2, hook wpac_refund_after_correction).
+	 *
+	 * @param array  $refund      Normalized refund.
+	 * @param string $credit_note Credit note number.
+	 * @param array  $corrections Correction credit note numbers.
+	 */
+	public static function refund_after_correction( $refund, $credit_note, $corrections ) {
+		if ( ! is_array( $refund ) || WooCommerce::SOURCE !== (string) $refund['source'] || ! function_exists( 'wc_get_order' ) ) {
+			return;
+		}
+		$order = wc_get_order( (int) $refund['order_id'] );
+		if ( ! $order ) {
+			return;
+		}
+		/* translators: 1: credit note number, 2: correction credit note numbers */
+		$order->add_order_note( sprintf( __( 'Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice.', 'affiliate-captain' ), (string) $credit_note, implode( ', ', (array) $corrections ) ) );
 	}
 
 	/**

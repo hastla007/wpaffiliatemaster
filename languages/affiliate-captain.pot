@@ -66,7 +66,7 @@ msgstr ""
 msgid "Audit log"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/AuditPage.php
+#: src/Admin/Admin.php src/Admin/Pages/AuditPage.php src/Admin/Pages/DashboardPage.php
 msgid "Settings"
 msgstr ""
 
@@ -235,6 +235,15 @@ msgstr ""
 
 #: src/Admin/Admin.php
 msgid "Hide until something changes"
+msgstr ""
+
+#. translators: 1: number of decimals, 2: currency
+#: src/Admin/Admin.php
+msgid "The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked)."
+msgstr ""
+
+#: src/Admin/Admin.php
+msgid "Please enter a valid amount (e.g. 25 or 1.000,50)."
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -695,7 +704,7 @@ msgstr ""
 msgid "Declined"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Date"
 msgstr ""
 
@@ -733,6 +742,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
 msgid "Link"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Link broken: this WooCommerce coupon no longer exists (deleted or renamed). Orders with this coupon code are not credited. Link the coupon again or remove the link."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
@@ -948,7 +961,7 @@ msgstr ""
 msgid "Account holder"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/PayoutService.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "IBAN"
 msgstr ""
 
@@ -1739,7 +1752,7 @@ msgstr ""
 msgid "Partner"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Portal/Portal.php src/Reports/MonthlyMail.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Portal/Portal.php src/Privacy/Privacy.php src/Reports/MonthlyMail.php
 msgid "Commission"
 msgstr ""
 
@@ -1788,7 +1801,7 @@ msgstr ""
 msgid "All of \"%s\""
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Privacy/Privacy.php
 msgid "Action"
 msgstr ""
 
@@ -1871,7 +1884,7 @@ msgstr ""
 msgid "Partner (name, e-mail or number)"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php
 msgid "Source"
 msgstr ""
 
@@ -1996,7 +2009,7 @@ msgstr ""
 msgid "Events"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Privacy/Privacy.php
 msgid "Event"
 msgstr ""
 
@@ -2905,7 +2918,27 @@ msgid "Scheduled tasks active (hold period release, retries)"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored)."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php src/Core/Monitor.php
+msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "check"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Refused through the action hooks"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "These sales, refunds or reinstatements were sent through do_action() and refused by the validation. They were not booked and are not retried: please fix the sending integration and send them again."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -3080,6 +3113,11 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Please tick the confirmation box: the correction credit note gets a number and cannot be changed afterwards."
+msgstr ""
+
+#. translators: 1: issued correction numbers, 2: error message
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Issued: %1$s. The next part was not corrected: %2$s"
 msgstr ""
 
 #. translators: 1: correction number, 2: credit note number
@@ -3289,6 +3327,14 @@ msgid "Read-only view: you can open the payouts and download credit notes and ca
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "The download is taking longer than expected. Once it has finished, refresh the page to see the new status."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Refresh page"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Bulk action for selected payouts"
 msgstr ""
 
@@ -3358,8 +3404,47 @@ msgid "Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is
 msgstr ""
 
 #. translators: %s: currency
+#. translators: %s: VAT treatment or rate
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Correct net amount (%s)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "This credit note has parts with different VAT treatments or rates. Enter the correct taxable net amount for each part you want to change (leave the others empty); each changed part gets its own correction credit note."
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Part"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Net"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Privacy/Privacy.php
+msgid "VAT"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "Gross"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "Document"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correct net amount"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Not taxable and not part of the amounts above: repayments, write-offs and settled correction credit notes on this credit note (%s)."
+msgstr ""
+
+#. translators: %s: list of order numbers
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Orders on this credit note: %s. A later refund or cancellation of these orders is deducted from the partner account automatically – do not include it in a correction credit note, or the partner is charged twice."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -3368,6 +3453,11 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible)."
+msgstr ""
+
+#. translators: 1: order number, 2: date, 3: correction credit note numbers
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Privacy/Privacy.php
@@ -3447,10 +3537,6 @@ msgstr ""
 #. translators: %s: rate
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
 msgid "plus VAT %s %%"
-msgstr ""
-
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Privacy/Privacy.php
-msgid "VAT"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
@@ -3698,6 +3784,10 @@ msgid "Additional application fields"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "school_name|School name|text|required\nstudents|Students per year|number"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox."
 msgstr ""
 
@@ -3782,9 +3872,18 @@ msgstr ""
 msgid "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)"
 msgstr ""
 
+#. translators: %s: currency
+#: src/Admin/Pages/RulesPage.php
+msgid "One step per line as threshold:bonus in percent, e.g. 1000:2 – the threshold is the monthly net revenue in %s or the number of orders (see basis)."
+msgstr ""
+
 #. translators: %s: last closed month
 #: src/Admin/Pages/RulesPage.php
 msgid "Last closed month: %s."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Month to close"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -3864,6 +3963,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Keep rejected applications (days, 0 = forever)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Keep undecided applications (days, 0 = forever)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4273,6 +4376,10 @@ msgid "Example: %s"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
 msgstr ""
 
@@ -4461,6 +4568,10 @@ msgid "Afterwards name, e-mail and application data of rejected applicants witho
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr ""
 
@@ -4567,7 +4678,7 @@ msgstr ""
 msgid "Object"
 msgstr ""
 
-#: src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php
+#: src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Privacy/Privacy.php
 msgid "Details"
 msgstr ""
 
@@ -4656,7 +4767,7 @@ msgstr ""
 msgid "Rejected"
 msgstr ""
 
-#: src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
+#: src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "Please enter a valid e-mail address."
 msgstr ""
 
@@ -4906,7 +5017,7 @@ msgid "[%1$s] Tax data of %2$s changed"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
@@ -5158,6 +5269,19 @@ msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this ti
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Please enter your name or company."
+msgstr ""
+
+#. translators: %s: field label
+#: src/Affiliates/Registration.php
+msgid "Please fill in \"%s\"."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Please accept the partner program terms."
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "The confirmation link is invalid or has expired. Please apply again."
 msgstr ""
 
@@ -5183,6 +5307,14 @@ msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Thank you for your application! We will review it and get back to you by e-mail."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Log in to the partner area"
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Forgot your password?"
 msgstr ""
 
 #. translators: %d: group ID
@@ -5221,15 +5353,11 @@ msgid "The form expired. Please try again."
 msgstr ""
 
 #: src/Affiliates/Registration.php
-msgid "Your submission could not be processed."
+msgid "Your submission could not be processed. Please reload the page and send the form again; if this happens again, contact us directly."
 msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Too many attempts. Please try again later."
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "Please accept the partner program terms."
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -5258,6 +5386,10 @@ msgid "Application as: %s"
 msgstr ""
 
 #: src/Affiliates/Registration.php
+msgid "Choose another partner type"
+msgstr ""
+
+#: src/Affiliates/Registration.php
 msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
 msgstr ""
 
@@ -5273,6 +5405,10 @@ msgstr ""
 
 #: src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "partner program terms"
+msgstr ""
+
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "(opens in a new tab)"
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -5809,6 +5945,15 @@ msgstr ""
 msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\"; on a network for every site)."
 msgstr ""
 
+#. translators: %d: number of refused payloads
+#: src/Core/Monitor.php
+msgid "An integration sends sales that are refused"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status)."
+msgstr ""
+
 #. translators: 1: step, 2: number of runs, 3: error
 #: src/Core/Monitor.php
 msgid "%1$s (failed %2$d times in a row: %3$s)"
@@ -5878,11 +6023,27 @@ msgid "Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "WPAC_CUSTOMER_KEY is ignored"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired)."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "WPAC_CUSTOMER_KEY was removed or changed"
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Partner program is in maintenance mode"
 msgstr ""
 
 #: src/Core/Monitor.php
 msgid "Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "On a multisite network the command only runs the main site. Run it for every site, e.g.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}"
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -6106,6 +6267,10 @@ msgid "Please enter 1 to 8 letters or digits (e.g. GS)."
 msgstr ""
 
 #: src/Core/Settings.php
+msgid "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number."
+msgstr ""
+
+#: src/Core/Settings.php
 msgid "This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it."
 msgstr ""
 
@@ -6296,6 +6461,10 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/CouponLink.php
 msgid "Please choose one of the codes of this partner."
+msgstr ""
+
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "This partner code is blocked, expired or used up. Please choose an active code."
 msgstr ""
 
 #: src/Integrations/WooCommerce/CouponLink.php
@@ -6555,6 +6724,24 @@ msgstr ""
 msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
 msgstr ""
 
+#. translators: %s: refund ID
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Refund #%s deleted in WooCommerce"
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: a refund was deleted, but the partner commission could not be restored. Please save the order items again later."
+msgstr ""
+
+#. translators: 1: refund ID, 2: commission amount
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction)."
+msgstr ""
+
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Order items increased after payment"
 msgstr ""
@@ -6578,6 +6765,11 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later."
+msgstr ""
+
+#. translators: 1: credit note number, 2: correction credit note numbers
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
@@ -6713,6 +6905,23 @@ msgstr ""
 msgid "the status \"%1$s\" could not be set: %2$s – the partner is pending; change the status on the partner page"
 msgstr ""
 
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "reverse charge"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "small business, no VAT"
+msgstr ""
+
+#: src/Payouts/Corrections.php src/Payouts/Statement.php
+msgid "private individual, no VAT"
+msgstr ""
+
+#. translators: %s: VAT rate
+#: src/Payouts/Corrections.php
+msgid "VAT %s %%"
+msgstr ""
+
 #: src/Payouts/Corrections.php
 msgid "Only paid payouts get a correction credit note; cancel an unpaid payout instead."
 msgstr ""
@@ -6723,6 +6932,14 @@ msgstr ""
 
 #: src/Payouts/Corrections.php src/Payouts/PayoutService.php
 msgid "Affiliate not found"
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "This credit note contains no taxable commissions (only settled correction credit notes, repayments or write-offs), so there is nothing to correct on it. Correct the credit note the amounts came from instead."
+msgstr ""
+
+#: src/Payouts/Corrections.php
+msgid "This credit note has parts with different VAT treatments or rates. Please correct each part separately (one correction credit note per part, with the corrected net amount of that part)."
 msgstr ""
 
 #: src/Payouts/Corrections.php
@@ -6740,6 +6957,11 @@ msgstr ""
 #. translators: 1: correction credit note number, 2: credit note number, 3: reason
 #: src/Payouts/Corrections.php
 msgid "We have issued correction credit note %1$s for credit note %2$s (in your partner area under Payouts): %3$s"
+msgstr ""
+
+#. translators: 1: correction credit note number, 2: credit note number, 3: reason
+#: src/Payouts/Corrections.php
+msgid "We have issued correction credit note %1$s for credit note %2$s: %3$s. The document is still being created; we will send it to you by e-mail as soon as it is ready."
 msgstr ""
 
 #: src/Payouts/Corrections.php
@@ -6802,14 +7024,6 @@ msgstr ""
 msgid "Reason for the correction"
 msgstr ""
 
-#: src/Payouts/Corrections.php src/Payouts/Statement.php
-msgid "Net"
-msgstr ""
-
-#: src/Payouts/Corrections.php src/Payouts/Statement.php
-msgid "Gross"
-msgstr ""
-
 #. translators: %s: document number
 #: src/Payouts/Corrections.php
 msgid "Previously (%s)"
@@ -6836,6 +7050,16 @@ msgstr ""
 #. translators: %s: amount
 #: src/Payouts/Corrections.php
 msgid "The overpayment of %s is debited to the partner account and offset against the next commissions."
+msgstr ""
+
+#. translators: 1: credit note number, 2: VAT treatment or rate
+#: src/Payouts/Corrections.php
+msgid "This correction concerns only the part of credit note %1$s with %2$s; the other parts of the credit note are unchanged."
+msgstr ""
+
+#. translators: 1: credit note number, 2: amount
+#: src/Payouts/Corrections.php
+msgid "Repayments, write-offs and settled correction credit notes on credit note %1$s (%2$s) are not taxable and not part of the amounts above."
 msgstr ""
 
 #: src/Payouts/Corrections.php
@@ -7111,9 +7335,9 @@ msgstr ""
 msgid "Only unpaid payouts can be cancelled."
 msgstr ""
 
-#. translators: 1: payout number, 2: claim reference
+#. translators: 1: payout number, 2: claim reference, 3: number of days
 #: src/Payouts/PayoutService.php
-msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here 7 days after the claim, after checking in the account of the payment provider that it was not paid."
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here %3$d days after the claim, after checking in the account of the payment provider that it was not paid."
 msgstr ""
 
 #. translators: 1: payout number, 2: claim reference
@@ -7142,6 +7366,11 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details)."
+msgstr ""
+
+#. translators: 1: payout number, 2: claim reference
+#: src/Payouts/PayoutService.php
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s) and cannot be exported. The add-on that claimed it gives it back when the provider does not pay it."
 msgstr ""
 
 #. translators: %s: payout number
@@ -7345,18 +7574,6 @@ msgid "Other payment method as agreed with the partner"
 msgstr ""
 
 #: src/Payouts/Statement.php
-msgid "reverse charge"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "small business, no VAT"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "private individual, no VAT"
-msgstr ""
-
-#: src/Payouts/Statement.php
 msgid "Repayments and write-offs (not taxable)"
 msgstr ""
 
@@ -7382,6 +7599,10 @@ msgstr ""
 #. translators: 1: rate, 2: net amount
 #: src/Payouts/Statement.php
 msgid "VAT %1$s %% on %2$s"
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "Correction credit notes settled (gross, VAT shown there)"
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -7419,10 +7640,6 @@ msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "partner program"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Document"
 msgstr ""
 
 #. translators: %s: credit note number
@@ -8047,7 +8264,7 @@ msgstr ""
 
 #. translators: 1: date, 2: reason
 #: src/Portal/Portal.php
-msgid "Your payout request of %1$s was not processed: %2$s"
+msgid "Your payout request from %1$s was not processed: %2$s"
 msgstr ""
 
 #. translators: %s: amount
@@ -8199,8 +8416,9 @@ msgstr ""
 msgid "Tax number (if you have no VAT ID)"
 msgstr ""
 
+#. translators: %s: masked IBAN, e.g. DE** **** 1234
 #: src/Portal/Portal.php
-msgid "stored"
+msgid "IBAN (stored: %s)"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -8209,6 +8427,11 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "BIC (optional)"
+msgstr ""
+
+#. translators: %s: masked payment details
+#: src/Portal/Portal.php
+msgid "Payment details (stored: %s)"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -8221,6 +8444,11 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
+msgstr ""
+
+#. translators: %s: number with one decimal, e.g. 12.5
+#: src/Portal/Portal.php
+msgid "%s%%"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -8266,6 +8494,27 @@ msgstr ""
 #: src/Portal/Portal.php
 msgid "In progress"
 msgstr ""
+
+#. translators: %d: number of orders
+#: src/Privacy/Privacy.php
+msgid "%d order of this customer is attributed to a partner (order number, partner, method, campaign). The attribution is retained as a booking record of the partner commission for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgid_plural "%d orders of this customer are attributed to a partner (order number, partner, method, campaign). The attributions are retained as booking records of the partner commissions for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of orders
+#: src/Privacy/Privacy.php
+msgid "The referral data of %d order is retained until its partner commission has been booked (automatic retry)."
+msgid_plural "The referral data of %d orders is retained until their partner commission has been booked (automatic retry)."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of log entries
+#: src/Privacy/Privacy.php
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards."
+msgstr[0] ""
+msgstr[1] ""
 
 #. translators: %d: days
 #: src/Privacy/Privacy.php
@@ -8316,6 +8565,20 @@ msgid_plural "rejected partner applications: %d days"
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: days
+#: src/Privacy/Privacy.php
+msgid "partner applications that were never decided: %d day"
+msgid_plural "partner applications that were never decided: %d days"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: years
+#: src/Privacy/Privacy.php
+msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order"
+msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order"
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: years
 #: src/Privacy/Privacy.php
 msgid "commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)"
@@ -8340,6 +8603,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Held until"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Commission status changes"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Change log entries about you"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8376,6 +8647,18 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Payout requests"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Earlier tax data"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Requested change of the tax data (waiting for approval)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Requested on"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8443,6 +8726,10 @@ msgid "Linked user account"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Unsubscribed from these e-mails"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Processing restricted since"
 msgstr ""
 
@@ -8459,10 +8746,6 @@ msgid "Requested new website (waiting for approval)"
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Requested on"
-msgstr ""
-
-#: src/Privacy/Privacy.php
 msgid "Previous e-mail address (security notices for 30 days)"
 msgstr ""
 
@@ -8472,6 +8755,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "The restriction of processing could not be saved. Please restrict the partner manually on the partner page."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "The history of the partner's tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8527,6 +8814,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "rejected partner applications: until deleted manually"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "partner applications that were never decided: until deleted manually"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "applications whose e-mail address was not confirmed: 2 days"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8724,6 +9019,11 @@ msgstr ""
 
 #: src/Tracking/FraudCheck.php
 msgid "Review requested by the sales source (e.g. first order of the subscription under review)"
+msgstr ""
+
+#. translators: %s: name of the cache (plugin, host or proxy)
+#: src/Tracking/Tracker.php
+msgid "A page or edge cache was detected (%s). If it serves pages with partner links from the cache, the server never sees those clicks and no commission is recorded. Switch on \"Also record partner links via JavaScript\" (Settings → Tracking) or exclude the link parameter from the cache."
 msgstr ""
 
 #: src/Tracking/Tracker.php

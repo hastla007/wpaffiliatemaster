@@ -200,4 +200,39 @@ final class TaxHistory {
 		delete_option( 'wpac_tax_history_' . (int) $affiliate_id );
 		self::clear_pending( $affiliate_id );
 	}
+
+	/**
+	 * Whether the tax history of a partner is still needed: corrections of credit notes within
+	 * the retention period use the tax data valid at the time of the service (at()). Needed
+	 * while the partner has commissions or payouts that are not all past the retention period
+	 * (with "keep forever" or during a tax audit / legal hold: always).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return bool
+	 */
+	public static function retained( $affiliate_id ) {
+		global $wpdb;
+		$c = Db::table( 'commissions' );
+		$p = Db::table( 'payouts' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$bookings = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT EXISTS ( SELECT 1 FROM {$c} WHERE affiliate_id = %d ) OR EXISTS ( SELECT 1 FROM {$p} WHERE affiliate_id = %d )", $affiliate_id, $affiliate_id ) );
+		return $bookings && ! \WPAffiliateCaptain\Privacy\Retention::partner_expired( (int) $affiliate_id );
+	}
+
+	/**
+	 * Delete the tax history of a partner unless it is still needed (retained()); a pending
+	 * change request is always dropped. The rest goes when the partner's records expire
+	 * (Retention::scrub_ledger_texts()).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return bool Whether the history was deleted.
+	 */
+	public static function delete_unless_retained( $affiliate_id ) {
+		if ( self::retained( (int) $affiliate_id ) ) {
+			self::clear_pending( $affiliate_id );
+			return false;
+		}
+		self::delete( $affiliate_id );
+		return true;
+	}
 }

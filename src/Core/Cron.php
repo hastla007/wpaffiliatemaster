@@ -40,6 +40,9 @@ final class Cron {
 		add_action(
 			\WPAffiliateCaptain\Payouts\Vies::HOOK,
 			static function ( $affiliate_id ) {
+				if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $affiliate_id ) ) {
+					return; // Restricted after the check was scheduled (Art. 18 GDPR, R12-N17).
+				}
 				\WPAffiliateCaptain\Payouts\Vies::check( $affiliate_id );
 			}
 		);
@@ -101,6 +104,10 @@ final class Cron {
 			Installer::alert_if_stuck();
 			return; // A migration is running or failed: no bookings against the old schema.
 		}
+		// Retention deletion of local copies of deleted credit notes on the server that runs the
+		// cron (throttled per server by its marker file, within a time budget; R12-M20). A deletion,
+		// so it does not wait for the maintenance mode.
+		self::run_step( 'hourly.statement_sweep', array( '\WPAffiliateCaptain\Payouts\StatementSweep', 'scheduled' ) );
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			return; // Maintenance: approvals, documents and retries wait (sales are still recorded).
 		}
@@ -252,6 +259,8 @@ final class Cron {
 			'customer_links'        => array( array( '\WPAffiliateCaptain\Tracking\CustomerLinks', 'purge_expired' ), false ),
 			'pending_erasures'      => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'finish_pending_erasures' ), false ),
 			'rejected_applications' => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_rejected_applications' ), false ),
+			'pending_applications'  => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_pending_applications' ), false ),
+			'attributions'          => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_attributions' ), false ),
 			'expired_options'       => array( array( '\WPAffiliateCaptain\Privacy\Privacy', 'purge_expired_options' ), false ),
 			'erased'                => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_erased' ), false ),
 			'ended_partners'        => array( array( '\WPAffiliateCaptain\Privacy\Retention', 'purge_ended' ), false ),
@@ -408,7 +417,7 @@ final class Cron {
 		// Walk the old entries once by ID range instead of repeating "DELETE … LIMIT": each LIMIT
 		// batch would scan all kept (booking-relevant) rows again before it finds deletable ones.
 		// The position is kept for the rest of a daily run that ran out of time.
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery, WordPress.DB.PreparedSQL.NotPrepared
 		$state = get_option( self::AUDIT_CURSOR );
 		$from  = is_array( $state ) && isset( $state['day'], $state['id'] ) && gmdate( 'Y-m-d' ) === $state['day'] ? (int) $state['id'] : (int) $wpdb->get_var( "SELECT COALESCE(MIN(id),0) FROM {$audit}" );
 		$upto  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$audit} WHERE created_at < %s ORDER BY created_at DESC, id DESC LIMIT 1", $before ) );
@@ -420,7 +429,7 @@ final class Cron {
 				return;
 			}
 			// Table name and the LIKE patterns are constants; the dates and IDs are placeholders.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$audit} WHERE id >= %d AND id < %d AND created_at < %s AND action NOT LIKE 'agreement.%%' AND ( ( action NOT LIKE 'payout.%%' AND action NOT LIKE 'statement.%%' AND action NOT LIKE 'payout_profile.%%' AND action NOT LIKE 'payout_request.%%' AND action NOT LIKE 'commission.%%' AND action NOT LIKE 'balance.%%' AND action NOT LIKE 'tier.%%' ) OR created_at < %s )", $from, $from + $step, $before, $financial ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$audit} WHERE id >= %d AND id < %d AND created_at < %s AND action NOT LIKE 'agreement.%%' AND ( NOT " . Audit::financial_sql() . ' OR created_at < %s )', $from, $from + $step, $before, $financial ) );
 			$from += $step;
 		}
 		// phpcs:enable

@@ -57,6 +57,7 @@ final class Settings {
 			'visit_retention_days'    => 90,
 			'audit_retention_days'    => 1095,
 			'application_retention_days' => 180,
+			'pending_application_days' => 365,     // Undecided applications are deleted after this (0 = never).
 			// Commissions.
 			'currency'                => 'EUR',
 			'exchange_rates'          => '',
@@ -273,6 +274,7 @@ final class Settings {
 	const INT_MAX = array(
 		'audit_retention_days'       => 36500,
 		'application_retention_days' => 36500,
+		'pending_application_days'   => 36500,
 		'visit_retention_days'       => 36500,
 		'fraud_max_orders_day'       => 1000000,
 		'fraud_min_click_seconds'    => 86400,
@@ -380,7 +382,7 @@ final class Settings {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'audit_retention_days', 'application_retention_days', 'pending_application_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			if ( ! isset( $in[ $int ] ) ) {
 				$out[ $int ] = $d[ $int ];
 				continue;
@@ -412,7 +414,8 @@ final class Settings {
 		$out['currency'] = self::get( 'currency' ) ? (string) self::get( 'currency' ) : $d['currency'];
 		if ( isset( $in['currency'] ) ) {
 			$currency = strtoupper( trim( (string) $in['currency'] ) );
-			if ( preg_match( '/^[A-Z]{3}$/', $currency ) ) {
+			// Only codes the contract accepts: sales in another currency would all be refused.
+			if ( preg_match( '/^[A-Z]{3}$/', $currency ) && in_array( $currency, \WPAffiliateCaptain\Sales\ContractApi::currencies(), true ) ) {
 				$out['currency'] = $currency;
 			} else {
 				$errors['currency'] = __( 'Please enter a three-letter currency code (ISO 4217, e.g. EUR).', 'affiliate-captain' );
@@ -767,6 +770,20 @@ final class Settings {
 				$out[ $k ] = $prefix;
 			}
 		}
+		// Credit notes, cancellations and correction credit notes each have their own sequence:
+		// the same prefix would give two documents with the same number (§ 14 UStG, R12-K7).
+		$prefix_keys = array( 'credit_prefix', 'storno_prefix', 'correction_prefix' );
+		$counts      = array_count_values( array_map( 'strval', array_intersect_key( $out, array_flip( $prefix_keys ) ) ) );
+		if ( max( $counts ) > 1 ) {
+			foreach ( $prefix_keys as $k ) {
+				if ( $counts[ (string) $out[ $k ] ] > 1 && ! isset( $errors[ $k ] ) ) {
+					$errors[ $k ] = __( 'The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number.', 'affiliate-captain' );
+				}
+			}
+			foreach ( $prefix_keys as $k ) {
+				$out[ $k ] = (string) $old( $k ); // Keep the stored prefixes.
+			}
+		}
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];
 		$out['debtor_bic']        = '';
 		if ( isset( $in['debtor_bic'] ) && '' !== trim( (string) $in['debtor_bic'] ) ) {
@@ -832,7 +849,9 @@ final class Settings {
 		}
 		$base = (float) $rates[ $new ];
 		$fmt  = static function ( $value ) {
-			$text = rtrim( rtrim( sprintf( '%.6F', $value ), '0' ), '.' );
+			// 12 significant digits (R12-N2: no rounding to 6 decimals, small rates keep their value).
+			$dec  = $value > 0 ? (int) max( 0, min( 18, 11 - (int) floor( log10( $value ) ) ) ) : 6;
+			$text = rtrim( rtrim( sprintf( '%.' . $dec . 'F', $value ), '0' ), '.' );
 			return '0' === $text || '' === $text ? '0.000001' : $text;
 		};
 		$out = array( $old => $fmt( 1 / $base ) );

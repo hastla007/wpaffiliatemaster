@@ -57,7 +57,7 @@ final class Portal {
 	const ACCOUNT_ITEM = 'wpac-partner-area';
 
 	/**
-	 * Register the portal stylesheet and script (also used by the blocks, see block.json "style").
+	 * Register the portal stylesheet and script (also used by the blocks, see block.json "editorStyle").
 	 */
 	public static function register_assets() {
 		wp_register_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
@@ -226,7 +226,10 @@ final class Portal {
 			)
 		);
 		foreach ( $list as $r ) {
-			$rows[] = array( self::day( $r->created_at ), 'wpac' === $r->source ? '' : (string) $r->source_order_id, $r->kind, $r->description, Money::to_decimal( (int) $r->base_minor, $r->currency ), $r->rate_type . ':' . $r->rate, Money::to_decimal( (int) $r->amount_minor, $r->currency ), $r->currency, $r->status, 'pending' === $r->status && $r->hold_until ? self::day( $r->hold_until ) : '' );
+			// Like the table and the REST API: the internal reason of corrections, write-offs and
+			// refunds (e.g. the shop's refund reason) is shown only as the kind label.
+			$product = in_array( $r->kind, array( 'sale', 'bonus' ), true ) ? (string) $r->description : self::kind_label( $r->kind );
+			$rows[]  = array( self::day( $r->created_at ), 'wpac' === $r->source ? '' : (string) $r->source_order_id, $r->kind, $product, Money::to_decimal( (int) $r->base_minor, $r->currency ), $r->rate_type . ':' . $r->rate, Money::to_decimal( (int) $r->amount_minor, $r->currency ), $r->currency, $r->status, 'pending' === $r->status && $r->hold_until ? self::day( $r->hold_until ) : '' );
 		}
 		return array( array( 'date', 'order', 'kind', 'product', 'base', 'rate', 'amount', 'currency', 'status', 'available_from' ), $rows );
 	}
@@ -883,7 +886,7 @@ final class Portal {
 		$field = $multi
 			? '<textarea readonly class="wpac-copy" rows="4" id="' . esc_attr( $id ) . '">' . esc_textarea( $value ) . '</textarea>'
 			: '<input type="text" readonly class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $value ) . '">';
-		return '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label><div class="wpac-copy-row">' . $field . '<button type="button" class="wpac-copy-btn" data-wpac-copy="' . esc_attr( $id ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: what is copied */ __( 'Copy: %s', 'affiliate-captain' ), $label ) ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
+		return '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label><div class="wpac-copy-row">' . $field . '<button type="button" class="wpac-copy-btn" hidden data-wpac-copy="' . esc_attr( $id ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: what is copied */ __( 'Copy: %s', 'affiliate-captain' ), $label ) ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
 	}
 
 	/**
@@ -988,7 +991,10 @@ final class Portal {
 					$text .= ' ' . $detail;
 				}
 			}
-			printf( '<div class="wpac-notice wpac-notice--%s" role="%s" id="wpac-portal-error">%s</div>', esc_attr( $messages[ $key ][0] ), 'error' === $messages[ $key ][0] ? 'alert' : 'status', esc_html( $text ) );
+			// A live region present at page load is not announced: portal.js moves the focus to a
+			// success message (tabindex=-1, data-wpac-focus); errors focus their field (autofocus).
+			$is_error = 'error' === $messages[ $key ][0];
+			printf( '<div class="wpac-notice wpac-notice--%s" role="%s" id="wpac-portal-error"%s>%s</div>', esc_attr( $messages[ $key ][0] ), $is_error ? 'alert' : 'status', $is_error ? '' : ' tabindex="-1" data-wpac-focus', esc_html( $text ) );
 		}
 	}
 
@@ -1008,7 +1014,7 @@ final class Portal {
 		printf(
 			/* translators: 1: link, 2: version */
 			esc_html__( 'I accept the %1$s (version %2$s).', 'affiliate-captain' ),
-			'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '</a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			esc_html( $terms['version'] )
 		);
 		echo '</label> <button type="submit" class="wpac-button">' . esc_html__( 'Accept', 'affiliate-captain' ) . '</button></form>';
@@ -1058,7 +1064,8 @@ final class Portal {
 	}
 
 	/**
-	 * Period of the statistics: last 7/30/90/365 days, this month or last month (UTC days).
+	 * Period of the statistics: last 7/30/90/365 days, this month or last month. The calendar
+	 * days are those of the site time zone, so "this month" switches at local midnight.
 	 *
 	 * @param string   $key Period key.
 	 * @param int|null $now Time (tests).
@@ -1066,17 +1073,19 @@ final class Portal {
 	 */
 	public static function period( $key, $now = null ) {
 		$now   = null === $now ? time() : (int) $now;
-		$today = gmdate( 'Y-m-d', $now );
+		$tz    = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		$local = ( new \DateTimeImmutable( '@' . $now ) )->setTimezone( $tz );
+		$today = $local->format( 'Y-m-d' );
 		$key   = (string) $key;
 		if ( 'month' === $key ) {
-			return array( 'key' => $key, 'from' => gmdate( 'Y-m-01', $now ), 'to' => $today );
+			return array( 'key' => $key, 'from' => $local->format( 'Y-m-01' ), 'to' => $today );
 		}
 		if ( 'last_month' === $key ) {
-			$first = strtotime( gmdate( 'Y-m-01', $now ) . ' 00:00:00 UTC' );
-			return array( 'key' => $key, 'from' => gmdate( 'Y-m-01', $first - DAY_IN_SECONDS ), 'to' => gmdate( 'Y-m-d', $first - DAY_IN_SECONDS ) );
+			$prev = $local->modify( 'first day of last month' );
+			return array( 'key' => $key, 'from' => $prev->format( 'Y-m-01' ), 'to' => $prev->format( 'Y-m-t' ) );
 		}
 		$days = in_array( $key, array( '7', '30', '90', '365' ), true ) ? (int) $key : 30;
-		return array( 'key' => (string) $days, 'from' => gmdate( 'Y-m-d', $now - ( $days - 1 ) * DAY_IN_SECONDS ), 'to' => $today );
+		return array( 'key' => (string) $days, 'from' => $local->modify( '-' . ( $days - 1 ) . ' days' )->format( 'Y-m-d' ), 'to' => $today );
 	}
 
 	/**
@@ -1143,7 +1152,7 @@ final class Portal {
 			return '';
 		}
 		$latest = Agreements::latest( (int) $aff->id );
-		$link   = '<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'Partner program terms', 'affiliate-captain' ) . '</a>';
+		$link   = '<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'Partner program terms', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
 		if ( $latest ) {
 			/* translators: 1: link, 2: version, 3: date */
 			return sprintf( esc_html__( '%1$s – accepted version %2$s on %3$s.', 'affiliate-captain' ), $link, esc_html( (string) $latest->version ), esc_html( wp_date( get_option( 'date_format' ), strtotime( $latest->created_at . ' UTC' ) ) ) );
@@ -1166,7 +1175,7 @@ final class Portal {
 		$cards = array(
 			__( 'Link visits (30 days)', 'affiliate-captain' )  => number_format_i18n( $summary['visits'] ),
 			__( 'Sales (30 days)', 'affiliate-captain' )        => number_format_i18n( $summary['sales'] ),
-			__( 'Conversion rate (30 days)', 'affiliate-captain' ) => number_format_i18n( $summary['conversion'], 1 ) . ' %',
+			__( 'Conversion rate (30 days)', 'affiliate-captain' ) => self::percent( $summary['conversion'] ),
 			__( 'Pending (hold period)', 'affiliate-captain' )  => self::money_list( self::sum_statuses( $totals, array( 'pending' ) ) ),
 		);
 		if ( array_filter( $review ) ) {
@@ -1275,7 +1284,7 @@ final class Portal {
 			array(
 				__( 'Link visits', 'affiliate-captain' )     => number_format_i18n( $s['visits'] ),
 				__( 'Sales', 'affiliate-captain' )           => number_format_i18n( $s['sales'] ),
-				__( 'Conversion rate', 'affiliate-captain' ) => number_format_i18n( $s['conversion'], 1 ) . ' %',
+				__( 'Conversion rate', 'affiliate-captain' ) => self::percent( $s['conversion'] ),
 				__( 'Commission earned', 'affiliate-captain' ) => self::money_list( $s['earned'] ),
 			) as $label => $value
 		) {
@@ -1309,10 +1318,10 @@ final class Portal {
 			}
 			echo '</div>';
 		}
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Earnings per month', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html__( 'Month', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Sales', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Commission earned', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Earnings per month', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">' . esc_html__( 'Month', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Sales', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Commission earned', 'affiliate-captain' ) . '</th></tr></thead><tbody role="rowgroup">';
 		foreach ( array_reverse( $months, true ) as $ym => $m ) {
 			printf(
-				'<tr><th scope="row" data-label="%4$s">%1$s</th><td data-label="%5$s">%2$s</td><td data-label="%6$s">%3$s</td></tr>',
+				'<tr role="row"><th scope="row" role="rowheader" data-label="%4$s">%1$s</th><td role="cell" data-label="%5$s">%2$s</td><td role="cell" data-label="%6$s">%3$s</td></tr>',
 				esc_html( date_i18n( 'F Y', strtotime( $ym . '-15 12:00:00 UTC' ) ) ),
 				esc_html( number_format_i18n( $m['sales'] ) ),
 				esc_html( self::money_list( $m['earned'] ) ),
@@ -1330,16 +1339,16 @@ final class Portal {
 			return;
 		}
 		$labels = array( __( 'Campaign', 'affiliate-captain' ), __( 'Sub-ID', 'affiliate-captain' ), __( 'Link visits', 'affiliate-captain' ), __( 'Sales', 'affiliate-captain' ), __( 'Conversion rate', 'affiliate-captain' ), __( 'Commission', 'affiliate-captain' ) );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'By campaign and sub-ID', 'affiliate-captain' ) . '</caption><thead><tr>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'By campaign and sub-ID', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row">';
 		foreach ( $labels as $l ) {
-			echo '<th scope="col">' . esc_html( $l ) . '</th>';
+			echo '<th scope="col" role="columnheader">' . esc_html( $l ) . '</th>';
 		}
-		echo '</tr></thead><tbody>';
+		echo '</tr></thead><tbody role="rowgroup">';
 		foreach ( $rows as $r ) {
-			$cells = array( $r['label'], '' !== $r['sub_id'] ? $r['sub_id'] : '—', number_format_i18n( $r['visits'] ), number_format_i18n( $r['orders'] ), number_format_i18n( $r['conversion'], 1 ) . ' %', $r['commission'] ? self::money_list( $r['commission'] ) : '—' );
-			echo '<tr>';
+			$cells = array( $r['label'], '' !== $r['sub_id'] ? $r['sub_id'] : '—', number_format_i18n( $r['visits'] ), number_format_i18n( $r['orders'] ), self::percent( $r['conversion'] ), $r['commission'] ? self::money_list( $r['commission'] ) : '—' );
+			echo '<tr role="row">';
 			foreach ( $cells as $i => $cell ) {
-				echo '<td data-label="' . esc_attr( $labels[ $i ] ) . '">' . esc_html( $cell ) . '</td>';
+				echo '<td role="cell" data-label="' . esc_attr( $labels[ $i ] ) . '">' . esc_html( $cell ) . '</td>';
 			}
 			echo '</tr>';
 		}
@@ -1464,15 +1473,16 @@ final class Portal {
 			echo '<form method="get" class="wpac-form wpac-form--inline">';
 			self::hidden_args( array( 'target', 'campaign', 'source', 'sub' ) );
 			echo '<input type="hidden" name="wpac_tab" value="links">';
-			echo '<label>' . esc_html__( 'Target page on our website', 'affiliate-captain' ) . ' <input type="text" inputmode="url" name="target" value="' . esc_attr( $raw ) . '" placeholder="' . esc_attr( home_url( '/' ) ) . '"></label> ';
+			$target = '' !== $raw ? self::own_page_url( $raw ) : '';
+			$bad    = '' !== $raw && '' === $target;
+			echo '<label>' . esc_html__( 'Target page on our website', 'affiliate-captain' ) . ' <input type="text" inputmode="url" name="target" value="' . esc_attr( $raw ) . '" placeholder="' . esc_attr( home_url( '/' ) ) . '"' . ( $bad ? ' aria-invalid="true" aria-describedby="wpac-link-error"' : '' ) . '></label> ';
 			echo '<label>' . esc_html__( 'Campaign (optional)', 'affiliate-captain' ) . ' <input type="text" name="campaign" value="' . esc_attr( $campaign ) . '"></label> ';
 			echo '<label>' . esc_html__( 'Source (optional, e.g. newsletter)', 'affiliate-captain' ) . ' <input type="text" name="source" value="' . esc_attr( $source ) . '"></label> ';
 			echo '<label>' . esc_html__( 'Sub-ID (optional, your own tracking value)', 'affiliate-captain' ) . ' <input type="text" name="sub" maxlength="100" value="' . esc_attr( $sub ) . '"></label> ';
 			echo '<button type="submit" class="wpac-button">' . esc_html__( 'Generate', 'affiliate-captain' ) . '</button></form>';
 			if ( '' !== $raw ) {
-				$target = self::own_page_url( $raw );
-				if ( '' === $target ) {
-					echo '<div class="wpac-notice wpac-notice--error" role="alert">' . esc_html__( 'Only pages of this website can be linked.', 'affiliate-captain' ) . '</div>';
+				if ( $bad ) {
+					echo '<div class="wpac-notice wpac-notice--error" role="alert" id="wpac-link-error">' . esc_html__( 'Only pages of this website can be linked.', 'affiliate-captain' ) . '</div>';
 				} else {
 					$generated = self::generated_link( esc_url_raw( $target ), $main, $campaign, $source, $sub );
 					echo self::copy_field( $generated, __( 'Generated link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -1490,15 +1500,15 @@ final class Portal {
 			return;
 		}
 		$labels = array( __( 'Code', 'affiliate-captain' ), __( 'Coupon', 'affiliate-captain' ), __( 'Used', 'affiliate-captain' ), __( 'Valid until', 'affiliate-captain' ), __( 'Status', 'affiliate-captain' ) );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your codes', 'affiliate-captain' ) . '</caption><thead><tr>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Your codes', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row">';
 		foreach ( $labels as $l ) {
-			echo '<th scope="col">' . esc_html( $l ) . '</th>';
+			echo '<th scope="col" role="columnheader">' . esc_html( $l ) . '</th>';
 		}
-		echo '</tr></thead><tbody>';
+		echo '</tr></thead><tbody role="rowgroup">';
 		foreach ( $codes as $c ) {
 			$valid = (bool) CodeRepository::validate( $c );
 			printf(
-				'<tr><td data-label="%6$s"><code>%1$s</code></td><td data-label="%7$s">%2$s</td><td data-label="%8$s">%3$s</td><td data-label="%9$s">%4$s</td><td data-label="%10$s">%5$s</td></tr>',
+				'<tr role="row"><td role="cell" data-label="%6$s"><code>%1$s</code></td><td role="cell" data-label="%7$s">%2$s</td><td role="cell" data-label="%8$s">%3$s</td><td role="cell" data-label="%9$s">%4$s</td><td role="cell" data-label="%10$s">%5$s</td></tr>',
 				esc_html( $c->code ),
 				esc_html( $c->coupon_code ? strtoupper( $c->coupon_code ) : '—' ),
 				esc_html( (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) ),
@@ -1526,6 +1536,18 @@ final class Portal {
 	 */
 	public static function embed_code( $link, $src, $w, $h, $title ) {
 		return '<a href="' . esc_url( $link ) . '" rel="sponsored noopener" target="_blank"><img src="' . esc_url( $src ) . '"' . ( $w && $h ? ' width="' . (int) $w . '" height="' . (int) $h . '"' : '' ) . ' alt="' . esc_attr( $title ) . '"></a>';
+	}
+
+	/**
+	 * Alt text for the embed code on partner sites: the alternative text of the image in the media
+	 * library, else the site name – never the internal title of the creative (R12-N8).
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return string
+	 */
+	public static function embed_alt( $attachment_id ) {
+		$alt = trim( (string) get_post_meta( (int) $attachment_id, '_wp_attachment_image_alt', true ) );
+		return '' !== $alt ? $alt : (string) get_bloginfo( 'name' );
 	}
 
 	/**
@@ -1573,8 +1595,8 @@ final class Portal {
 						/* translators: 1: width, 2: height */
 						echo esc_html( sprintf( __( 'Size: %1$d × %2$d pixels', 'affiliate-captain' ), (int) $w, (int) $h ) ) . ' · ';
 					}
-					echo '<a href="' . esc_url( $src ) . '" target="_blank" rel="noopener">' . esc_html__( 'View original', 'affiliate-captain' ) . '</a> · <a href="' . esc_url( $src ) . '" download>' . esc_html__( 'Download image', 'affiliate-captain' ) . '</a></p>';
-					echo self::copy_field( self::embed_code( $link, $src, (int) $w, (int) $h, $c->title ), __( 'Embed code (HTML)', 'affiliate-captain' ) . ': ' . $c->title, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					echo '<a href="' . esc_url( $src ) . '" target="_blank" rel="noopener">' . esc_html__( 'View original', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a> · <a href="' . esc_url( $src ) . '" download>' . esc_html__( 'Download image', 'affiliate-captain' ) . '</a></p>';
+					echo self::copy_field( self::embed_code( $link, $src, (int) $w, (int) $h, self::embed_alt( (int) $c->attachment_id ) ), __( 'Embed code (HTML)', 'affiliate-captain' ) . ': ' . $c->title, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 				echo self::copy_field( $link, __( 'Link', 'affiliate-captain' ) . ': ' . $c->title ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			}
@@ -1650,11 +1672,11 @@ final class Portal {
 		}
 		$reasons = self::rejection_reasons( $rows );
 		$cols    = array( __( 'Date', 'affiliate-captain' ), __( 'Order', 'affiliate-captain' ), __( 'Product', 'affiliate-captain' ), __( 'Base', 'affiliate-captain' ), __( 'Rate', 'affiliate-captain' ), __( 'Amount', 'affiliate-captain' ), __( 'Status', 'affiliate-captain' ), __( 'Available from', 'affiliate-captain' ) );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your commissions', 'affiliate-captain' ) . '</caption><thead><tr>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Your commissions', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row">';
 		foreach ( $cols as $col ) {
-			echo '<th scope="col">' . esc_html( $col ) . '</th>';
+			echo '<th scope="col" role="columnheader">' . esc_html( $col ) . '</th>';
 		}
-		echo '</tr></thead><tbody>';
+		echo '</tr></thead><tbody role="rowgroup">';
 		foreach ( $rows as $r ) {
 			$product = in_array( $r->kind, array( 'sale', 'bonus' ), true ) ? $r->description : sprintf( '%s (%s)', __( 'Correction', 'affiliate-captain' ), self::kind_label( $r->kind ) );
 			$status  = self::status( $r->status, isset( $labels[ $r->status ] ) ? $labels[ $r->status ] : $r->status );
@@ -1680,9 +1702,9 @@ final class Portal {
 				$status,
 				esc_html( $available ),
 			);
-			echo '<tr>';
+			echo '<tr role="row">';
 			foreach ( $cells as $i => $cell ) {
-				echo '<td data-label="' . esc_attr( $cols[ $i ] ) . '">' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				echo '<td role="cell" data-label="' . esc_attr( $cols[ $i ] ) . '">' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 			}
 			echo '</tr>';
 		}
@@ -1725,7 +1747,7 @@ final class Portal {
 				$last = PayoutRequests::last_rejected( (int) $aff->id );
 				if ( $last ) {
 					/* translators: 1: date, 2: reason */
-					echo '<div class="wpac-notice wpac-notice--error">' . esc_html( sprintf( __( 'Your payout request of %1$s was not processed: %2$s', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $last->created_at . ' UTC' ) ), $last->note ) ) . '</div>';
+					echo '<div class="wpac-notice wpac-notice--error">' . esc_html( sprintf( __( 'Your payout request from %1$s was not processed: %2$s', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $last->created_at . ' UTC' ) ), $last->note ) ) . '</div>';
 				}
 				$can = PayoutRequests::can_request( $aff );
 				if ( true === $can ) {
@@ -1755,7 +1777,7 @@ final class Portal {
 			return;
 		}
 		self::list_filter_form( 'payouts', $labels, $filters );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your payouts', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Period until', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Your payouts', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Period until', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</th></tr></thead><tbody role="rowgroup">';
 		$kgs = \WPAffiliateCaptain\Payouts\Corrections::for_payouts( wp_list_pluck( $rows, 'id' ) );
 		foreach ( $rows as $p ) {
 			if ( 'cancelled' === $p->status && ! $p->storno_file ) {
@@ -1775,7 +1797,7 @@ final class Portal {
 				}
 			}
 			printf(
-				'<tr><td data-label="%6$s">%1$s</td><td data-label="%7$s">%2$s</td><td data-label="%8$s">%3$s</td><td data-label="%9$s">%4$s</td><td data-label="%10$s">%5$s</td></tr>',
+				'<tr role="row"><td role="cell" data-label="%6$s">%1$s</td><td role="cell" data-label="%7$s">%2$s</td><td role="cell" data-label="%8$s">%3$s</td><td role="cell" data-label="%9$s">%4$s</td><td role="cell" data-label="%10$s">%5$s</td></tr>',
 				esc_html( $p->number ),
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $p->period_end ) ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
@@ -1905,9 +1927,9 @@ final class Portal {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $v( 'tax_status' ), $key, false ), esc_html( $label ) );
 		}
 		echo '</select></p>';
-		self::input( 'legal_name', __( 'Name / company for the statement', 'affiliate-captain' ), $v( 'legal_name' ), true );
-		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'affiliate-captain' ) . ' *</label><textarea id="wpac_address" name="wpac_address" rows="3" required>' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
-		self::input( 'country', __( 'Country (ISO code, e.g. DE)', 'affiliate-captain' ), $v( 'country' ), true, 'maxlength="2"' );
+		self::input( 'legal_name', __( 'Name / company for the statement', 'affiliate-captain' ), $v( 'legal_name' ), true, 'autocomplete="name"' );
+		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'affiliate-captain' ) . ' *</label><textarea id="wpac_address" name="wpac_address" rows="3" required autocomplete="street-address">' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
+		self::input( 'country', __( 'Country (ISO code, e.g. DE)', 'affiliate-captain' ), $v( 'country' ), true, 'maxlength="2" autocomplete="country"' );
 		self::input( 'vat_id', __( 'VAT ID (businesses)', 'affiliate-captain' ), $v( 'vat_id' ) );
 		$tax_pending = \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id );
 		if ( $tax_pending ) {
@@ -1938,16 +1960,22 @@ final class Portal {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $method, $key, false ), esc_html( $label ) );
 		}
 		echo '</select></p>';
-		echo '<div class="wpac-method-sepa"' . ( $manual ? ' hidden' : '' ) . '>';
-		self::input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), ! $manual );
-		self::input( 'iban', __( 'IBAN', 'affiliate-captain' ) . ( $masked ? ' (' . __( 'stored', 'affiliate-captain' ) . ': ' . $masked . ')' : '' ), '', ! $masked && ! $manual, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
+		// Both sections are visible without JavaScript (the select decides on saving); portal.js
+		// hides the one of the other method.
+		echo '<div class="wpac-method-sepa">';
+		self::input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), ! $manual, 'autocomplete="name"' );
+		/* translators: %s: masked IBAN, e.g. DE** **** 1234 */
+		self::input( 'iban', $masked ? sprintf( __( 'IBAN (stored: %s)', 'affiliate-captain' ), $masked ) : __( 'IBAN', 'affiliate-captain' ), '', ! $masked && ! $manual, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
 		self::input( 'bic', __( 'BIC (optional)', 'affiliate-captain' ), $v( 'bic' ) );
 		echo '</div>';
 		$has_details = ProfileRepository::METHOD_MANUAL === $stored_method;
 		// The partner sees what is stored (masked like the IBAN), not only "stored".
 		$stored_details = $has_details ? ProfileRepository::payment_details( $p ) : null;
-		$details_label  = __( 'Payment details', 'affiliate-captain' ) . ( null !== $stored_details && '' !== $stored_details ? ' (' . __( 'stored', 'affiliate-captain' ) . ': ' . ProfileRepository::mask_details( str_replace( array( "\r\n", "\r", "\n" ), ' / ', $stored_details ) ) . ')' : '' );
-		echo '<div class="wpac-method-manual"' . ( $manual ? '' : ' hidden' ) . '><p><label for="wpac_payment_details">' . esc_html( $details_label ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off"' . ( $manual && ! $has_details ? ' required' : '' ) . ' placeholder="' . esc_attr( $has_details ? __( 'Leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
+		$details_label  = null !== $stored_details && '' !== $stored_details
+			/* translators: %s: masked payment details */
+			? sprintf( __( 'Payment details (stored: %s)', 'affiliate-captain' ), ProfileRepository::mask_details( str_replace( array( "\r\n", "\r", "\n" ), ' / ', $stored_details ) ) )
+			: __( 'Payment details', 'affiliate-captain' );
+		echo '<div class="wpac-method-manual"><p><label for="wpac_payment_details">' . esc_html( $details_label ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off"' . ( $manual && ! $has_details ? ' required' : '' ) . ' placeholder="' . esc_attr( $has_details ? __( 'Leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
 		echo '<p class="wpac-muted">' . esc_html__( 'Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually.', 'affiliate-captain' ) . '</p></div>';
 		if ( $p && '' !== (string) $p->iban_encrypted ) {
 			// Needed only when the IBAN, the payment details or the method change (checked on saving).
@@ -1955,6 +1983,17 @@ final class Portal {
 		}
 		echo '<p class="wpac-muted">' . esc_html__( 'Your bank and payment details are stored encrypted and are only used for commission payouts.', 'affiliate-captain' ) . '</p>';
 		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'affiliate-captain' ) . '</button></p></form>';
+	}
+
+	/**
+	 * A percentage with one decimal; the translators decide on the spacing (e.g. "12.5%").
+	 *
+	 * @param float $value Value.
+	 * @return string
+	 */
+	private static function percent( $value ) {
+		/* translators: %s: number with one decimal, e.g. 12.5 */
+		return sprintf( __( '%s%%', 'affiliate-captain' ), number_format_i18n( (float) $value, 1 ) );
 	}
 
 	/**
@@ -1992,13 +2031,13 @@ final class Portal {
 		echo '<form method="post" class="wpac-form">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="account">';
-		self::input( 'acc_name', __( 'Name / company', 'affiliate-captain' ), (string) $aff->name, true, 'maxlength="190"' );
+		self::input( 'acc_name', __( 'Name / company', 'affiliate-captain' ), (string) $aff->name, true, 'maxlength="190" autocomplete="name"' );
 		printf( '<p><label for="wpac_acc_email">%1$s *</label><input type="email" id="wpac_acc_email" name="wpac_acc_email" value="%2$s" required autocomplete="email"></p>', esc_html__( 'E-mail for notifications', 'affiliate-captain' ), esc_attr( (string) $aff->email ) );
 		if ( is_array( $pending ) ) {
 			/* translators: %s: e-mail */
 			echo '<p class="wpac-muted">' . esc_html( sprintf( __( 'Waiting for confirmation of %s.', 'affiliate-captain' ), $pending['email'] ) ) . '</p>';
 		}
-		printf( '<p><label for="wpac_acc_website">%1$s</label><input type="url" id="wpac_acc_website" name="wpac_acc_website" value="%2$s" maxlength="255"></p>', esc_html__( 'Website', 'affiliate-captain' ), esc_attr( (string) $aff->website ) );
+		printf( '<p><label for="wpac_acc_website">%1$s</label><input type="url" id="wpac_acc_website" name="wpac_acc_website" value="%2$s" maxlength="255" autocomplete="url"></p>', esc_html__( 'Website', 'affiliate-captain' ), esc_attr( (string) $aff->website ) );
 		self::input( 'acc_channel', __( 'Channel (e.g. blog, Instagram, sailing school)', 'affiliate-captain' ), (string) $aff->channel, false, 'maxlength="255"' );
 		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'affiliate-captain' ) . '</button></p></form>';
 

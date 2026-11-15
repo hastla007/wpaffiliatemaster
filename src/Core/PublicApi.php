@@ -47,6 +47,10 @@ final class PublicApi {
 	 * @return array|\WP_Error { items, total, page, per_page }
 	 */
 	public static function get_affiliates( array $args = array() ) {
+		$bad = self::non_scalar( $args, array( 'status', 'group', 'search', 'per_page', 'page', 'orderby', 'order' ) );
+		if ( $bad ) {
+			return $bad;
+		}
 		$status = isset( $args['status'] ) ? (string) $args['status'] : '';
 		if ( '' !== $status && ! in_array( $status, AffiliateRepository::STATUSES, true ) ) {
 			return self::invalid( 'status' );
@@ -56,10 +60,11 @@ final class PublicApi {
 			'search' => isset( $args['search'] ) && is_scalar( $args['search'] ) ? Db::cut( trim( sanitize_text_field( (string) $args['search'] ) ), 100 ) : '',
 		);
 		if ( isset( $args['group'] ) && '' !== (string) $args['group'] ) {
-			if ( ! is_numeric( $args['group'] ) || (int) $args['group'] < 0 ) {
+			$group = self::whole( $args['group'] );
+			if ( null === $group ) {
 				return self::invalid( 'group' );
 			}
-			$query['group_id'] = (int) $args['group'];
+			$query['group_id'] = $group;
 		}
 		$paging = self::paging( $args, array( 'id', 'name', 'status', 'created_at' ) );
 		if ( is_wp_error( $paging ) ) {
@@ -88,6 +93,18 @@ final class PublicApi {
 	 * @return array|\WP_Error { items, total, page, per_page }
 	 */
 	public static function get_commissions( array $args = array() ) {
+		$bad = self::non_scalar( $args, array( 'affiliate_id', 'status', 'kind', 'from', 'to', 'per_page', 'page', 'orderby', 'order' ) );
+		if ( $bad ) {
+			return $bad;
+		}
+		$affiliate = 0;
+		if ( isset( $args['affiliate_id'] ) && '' !== (string) $args['affiliate_id'] ) {
+			// Strict: "-5" or "abc" must not turn into 0 (= all partners).
+			$affiliate = self::whole( $args['affiliate_id'] );
+			if ( null === $affiliate ) {
+				return self::invalid( 'affiliate_id' );
+			}
+		}
 		$status = isset( $args['status'] ) ? (string) $args['status'] : '';
 		if ( '' !== $status && ! in_array( $status, Ledger::STATUSES, true ) ) {
 			return self::invalid( 'status' );
@@ -97,7 +114,7 @@ final class PublicApi {
 			return self::invalid( 'kind' );
 		}
 		$query = array(
-			'affiliate_id' => isset( $args['affiliate_id'] ) ? max( 0, (int) $args['affiliate_id'] ) : 0,
+			'affiliate_id' => $affiliate,
 			'status'       => $status,
 			'kind'         => $kind,
 		);
@@ -112,7 +129,8 @@ final class PublicApi {
 		if ( is_wp_error( $paging ) ) {
 			return $paging;
 		}
-		list( $rows, $total ) = Ledger::query( $query + $paging['query'] );
+		// Without a filter the total of the whole table is cached briefly (exact when filtered).
+		list( $rows, $total ) = Ledger::query( $query + $paging['query'] + array( 'count' => 'cached' ) );
 		return self::page( array_map( array( __CLASS__, 'commission_data' ), (array) $rows ), $total, $paging );
 	}
 
@@ -316,14 +334,17 @@ final class PublicApi {
 	 * @return array|\WP_Error { page, per_page, query }
 	 */
 	private static function paging( array $args, array $sortable ) {
-		$per_page = isset( $args['per_page'] ) ? (int) $args['per_page'] : 20;
-		$page     = isset( $args['page'] ) ? (int) $args['page'] : 1;
-		if ( $per_page < 1 || $per_page > self::MAX_PER_PAGE ) {
+		$per_page = isset( $args['per_page'] ) ? self::whole( $args['per_page'] ) : 20;
+		$page     = isset( $args['page'] ) ? self::whole( $args['page'] ) : 1;
+		if ( null === $per_page || $per_page < 1 || $per_page > self::MAX_PER_PAGE ) {
 			return self::invalid( 'per_page' );
 		}
-		if ( $page < 1 ) {
+		if ( null === $page || $page < 1 ) {
 			return self::invalid( 'page' );
 		}
+		// A page far beyond the end stays beyond it (empty items): (page - 1) * per_page must not
+		// overflow into a float that is cut back to page 1.
+		$offset = $page - 1 > intdiv( PHP_INT_MAX, $per_page ) - 1 ? PHP_INT_MAX : ( $page - 1 ) * $per_page;
 		$orderby = isset( $args['orderby'] ) ? (string) $args['orderby'] : 'id';
 		if ( ! in_array( $orderby, $sortable, true ) ) {
 			return self::invalid( 'orderby' );
@@ -337,11 +358,45 @@ final class PublicApi {
 			'per_page' => $per_page,
 			'query'    => array(
 				'limit'   => $per_page,
-				'offset'  => ( $page - 1 ) * $per_page,
+				'offset'  => $offset,
 				'orderby' => $orderby,
 				'order'   => $order,
 			),
 		);
+	}
+
+	/**
+	 * A whole number ≥ 0: integers, or strings of digits only. Everything else (negative
+	 * numbers, "abc", "1.5", "1e3", floats, booleans, arrays) is null.
+	 *
+	 * @param mixed $value Value.
+	 * @return int|null
+	 */
+	private static function whole( $value ) {
+		if ( is_int( $value ) ) {
+			return $value >= 0 ? $value : null;
+		}
+		if ( is_string( $value ) && preg_match( '/^\d{1,18}$/', trim( $value ) ) ) {
+			return (int) trim( $value );
+		}
+		return null;
+	}
+
+	/**
+	 * Error for the first argument that is set but not a scalar (arrays, objects): they would
+	 * become "Array" in a query.
+	 *
+	 * @param array    $args Caller arguments.
+	 * @param string[] $keys Arguments to check.
+	 * @return \WP_Error|null
+	 */
+	private static function non_scalar( array $args, array $keys ) {
+		foreach ( $keys as $key ) {
+			if ( isset( $args[ $key ] ) && ! is_scalar( $args[ $key ] ) ) {
+				return self::invalid( $key );
+			}
+		}
+		return null;
 	}
 
 	/**

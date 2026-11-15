@@ -126,6 +126,17 @@ final class Statement {
 		if ( true !== $exposed ) {
 			$exposed = self::probe_verdict( $code, $body, self::control_reachable( $upload ) );
 		}
+		if ( false === $exposed ) {
+			// Dotfiles too (the sweep marker .wpac-sweep): some servers block *.txt/*.pdf by rule
+			// but serve hidden files (R12-K5).
+			$dot = '.wpac-probe-' . wp_generate_password( 12, false );
+			file_put_contents( $dir . '/' . $dot, 'wpac' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			$res = wp_remote_get( trailingslashit( $upload['baseurl'] ) . 'wpac-statements/' . $dot, array( 'timeout' => 5 ) );
+			wp_delete_file( $dir . '/' . $dot );
+			if ( ! is_wp_error( $res ) && true === self::probe_verdict( (int) wp_remote_retrieve_response_code( $res ), (string) wp_remote_retrieve_body( $res ), true ) ) {
+				$exposed = true;
+			}
+		}
 		if ( null === $exposed ) {
 			set_transient( 'wpac_statement_probe', 'unknown', HOUR_IN_SECONDS );
 			$memo = null;
@@ -516,6 +527,9 @@ final class Statement {
 				$pdf->text( 545, $y, Money::format( $sign * (int) $item->amount_minor, $p->currency ), 9, false, 'right' );
 				$y   += 13 * $height;
 				$sum += (int) $item->amount_minor;
+				if ( 'kg' === $ref ) {
+					continue; // Settled correction credit notes: shown separately below, no VAT group.
+				}
 				$rate = $rate_of( $item );
 				$groups[ $rate ] = ( isset( $groups[ $rate ] ) ? $groups[ $rate ] : 0 ) + (int) $item->amount_minor;
 			}
@@ -536,8 +550,15 @@ final class Statement {
 		}
 		$pdf->line( 50, $y - 6, 545, $y - 6 );
 		$y     += 6;
-		$totals = array(
-			array( __( 'Net amount', 'affiliate-captain' ), $sign * $net, false ),
+		// R12-M7: the gross differences of settled correction credit notes are no net amount of
+		// this document (their VAT is shown on the correction credit note): a line of their own.
+		$kg_sum = 0;
+		foreach ( isset( $blocks['kg'] ) ? $blocks['kg'] : array() as $item ) {
+			$kg_sum += (int) $item->amount_minor;
+		}
+		$taxable = count( $items ) > ( isset( $blocks['kg'] ) ? count( $blocks['kg'] ) : 0 );
+		$totals  = array(
+			array( __( 'Net amount', 'affiliate-captain' ), $sign * ( $net - $kg_sum ), false ),
 		);
 		$legacy = true;
 		foreach ( $items as $item ) {
@@ -558,6 +579,12 @@ final class Statement {
 				/* translators: 1: rate, 2: net amount */
 				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $rate ), Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
 			}
+		}
+		if ( ! $taxable ) {
+			$totals = array(); // Only settled correction credit notes: no net amount, no VAT.
+		}
+		if ( $kg_sum ) {
+			$totals[] = array( __( 'Correction credit notes settled (gross, VAT shown there)', 'affiliate-captain' ), $sign * $kg_sum, false );
 		}
 		if ( $storno ) {
 			$total_label = __( 'Total cancelled', 'affiliate-captain' );
@@ -775,6 +802,12 @@ final class Statement {
 	/**
 	 * Generate and store the statement of a payout (only once).
 	 *
+	 * A cancelled payout only gets its credit note together with its cancellation document: when
+	 * cancel() allocated a cancellation number before the credit note was written (payout run
+	 * with the job queue), generate_storno() writes the credit note first and then the
+	 * cancellation. Without a cancellation number (cancelled by an earlier version) it gets none – a
+	 * credit note of a cancelled payout without its cancellation would count as turnover (R12-K2).
+	 *
 	 * @param int $payout_id Payout.
 	 * @return bool
 	 */
@@ -789,7 +822,7 @@ final class Statement {
 		try {
 			$p = PayoutService::find( $payout_id );
 			// Deleted after the retention period: never issued again (statement_file is empty then).
-			if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at ) {
+			if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at || ( 'cancelled' === (string) $p->status && '' === (string) $p->storno_number ) ) {
 				return false;
 			}
 			$bytes = self::build( $p );
@@ -811,7 +844,7 @@ final class Statement {
 			}
 			// Only if still without a file (compare-and-set).
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = '' AND statement_deleted_at IS NULL", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
+			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = '' AND statement_deleted_at IS NULL AND ( status <> 'cancelled' OR storno_number <> '' )", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
 			if ( 1 !== $done ) {
 				wp_delete_file( $path );
 				return false;
@@ -1113,6 +1146,18 @@ final class Statement {
 	 */
 	public static function generate_storno( $payout_id ) {
 		global $wpdb;
+		// The cancellation refers to the credit note: when the payout was cancelled before its
+		// credit note was written, write the credit note first (same order as for a credit note
+		// that already existed). Retried with the cancellation (generate_missing_stornos()).
+		$p = PayoutService::find( $payout_id );
+		if ( $p && '' !== (string) $p->storno_number && '' === (string) $p->storno_file && ! $p->statement_deleted_at && '' === (string) $p->statement_file && '' === (string) $p->statement_hash ) {
+			self::generate( (int) $payout_id );
+			$p = PayoutService::find( $payout_id );
+			if ( ! $p || '' === (string) $p->statement_file ) {
+				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
+				return false;
+			}
+		}
 		$owner = Db::lock( 'wpac_storno_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
 		if ( '' === $owner ) {
 			return false;

@@ -46,6 +46,66 @@ final class Tracker {
 	}
 
 	/**
+	 * Name of a page or edge cache detected on this site ('' = none found): caching plugins and
+	 * hosts known to serve pages from a cache, and proxy headers (Cloudflare, Varnish) of the
+	 * current request. Such caches may answer ?partner=… without PHP, so the server never sees
+	 * the click – the JavaScript beacon (setting js_tracking) records it anyway. Cheap: constants,
+	 * classes and request headers only.
+	 *
+	 * @return string
+	 */
+	public static function edge_cache() {
+		$found = '';
+		$known = array(
+			'WP_ROCKET_VERSION'     => 'WP Rocket',
+			'LSCWP_V'               => 'LiteSpeed Cache',
+			'W3TC'                  => 'W3 Total Cache',
+			'WPCACHEHOME'           => 'WP Super Cache',
+			'CLOUDFLARE_PLUGIN_DIR' => 'Cloudflare',
+			'KINSTAMU_VERSION'      => 'Kinsta',
+			'WPE_APIKEY'            => 'WP Engine',
+		);
+		foreach ( $known as $constant => $name ) {
+			if ( defined( $constant ) ) {
+				$found = $name;
+				break;
+			}
+		}
+		if ( '' === $found && ( class_exists( 'SiteGround_Optimizer\Supercacher\Supercacher' ) || class_exists( 'WpeCommon' ) ) ) {
+			$found = class_exists( 'WpeCommon' ) ? 'WP Engine' : 'SiteGround';
+		}
+		if ( '' === $found && ! empty( $_SERVER['HTTP_CF_RAY'] ) ) {
+			$found = 'Cloudflare';
+		} elseif ( '' === $found && ( ! empty( $_SERVER['HTTP_X_VARNISH'] ) || ! empty( $_SERVER['HTTP_X_CACHE'] ) ) ) {
+			$found = 'Varnish/Proxy';
+		}
+		/**
+		 * Detected page or edge cache ('' = none): shows the recommendation of the beacon mode.
+		 *
+		 * @since 0.13.0
+		 * @param string $found Name of the cache.
+		 */
+		return (string) apply_filters( 'wpac_edge_cache', $found );
+	}
+
+	/**
+	 * Hint for the dashboard and the settings: a cache was detected and the beacon is off.
+	 *
+	 * @return string Plain text ('' = nothing to say).
+	 */
+	public static function edge_cache_hint() {
+		if ( Settings::get( 'js_tracking' ) ) {
+			return '';
+		}
+		$cache = self::edge_cache();
+		if ( '' === $cache ) {
+			return '';
+		}
+		/* translators: %s: name of the cache (plugin, host or proxy) */
+		return sprintf( __( 'A page or edge cache was detected (%s). If it serves pages with partner links from the cache, the server never sees those clicks and no commission is recorded. Switch on "Also record partner links via JavaScript" (Settings → Tracking) or exclude the link parameter from the cache.', 'affiliate-captain' ), $cache );
+	}
+
+	/**
 	 * Capture the referral parameter.
 	 */
 	public static function capture() {
@@ -774,22 +834,27 @@ final class Tracker {
 			}
 		}
 		$path = isset( $extra['path'] ) ? (string) $extra['path'] : ( isset( $_SERVER['REQUEST_URI'] ) ? wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '' );
-		$wpdb->insert(
-			Db::table( 'visits' ),
-			array(
-				'affiliate_id'  => (int) $resolved['affiliate_id'],
-				'code_id'       => (int) $resolved['code_id'],
-				'campaign'      => $touch['campaign'],
-				'utm_source'    => Db::cut( isset( $extra['utm_source'] ) ? (string) $extra['utm_source'] : '', 100 ),
-				'utm_medium'    => Db::cut( isset( $extra['utm_medium'] ) ? (string) $extra['utm_medium'] : '', 100 ),
-				'referrer_host' => $ref_host,
-				'landing_path'  => Db::cut( (string) $path, 255 ),
-				'content_id'    => (int) $touch['content_id'],
-				'sub_id'        => isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '',
-				'created_at'    => Db::now(),
+		// A prepared INSERT instead of $wpdb->insert(): that one asks the server for the column
+		// charsets (SHOW FULL COLUMNS) once per request – on every partner click (R12-N9). The
+		// values are cut to the column lengths and valid UTF-8 (sanitized) already.
+		$table = Db::table( 'visits' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$ok = $wpdb->query(
+			$wpdb->prepare(
+				"INSERT INTO {$table} (affiliate_id, code_id, campaign, utm_source, utm_medium, referrer_host, landing_path, content_id, sub_id, created_at) VALUES (%d, %d, %s, %s, %s, %s, %s, %d, %s, %s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				(int) $resolved['affiliate_id'],
+				(int) $resolved['code_id'],
+				Db::cut( (string) $touch['campaign'], 100 ),
+				Db::cut( isset( $extra['utm_source'] ) ? (string) $extra['utm_source'] : '', 100 ),
+				Db::cut( isset( $extra['utm_medium'] ) ? (string) $extra['utm_medium'] : '', 100 ),
+				(string) $ref_host,
+				Db::cut( (string) $path, 255 ),
+				(int) $touch['content_id'],
+				Db::cut( isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '', 100 ),
+				Db::now()
 			)
 		);
-		return (int) $wpdb->insert_id;
+		return $ok ? (int) $wpdb->insert_id : 0;
 	}
 
 	/**

@@ -55,7 +55,9 @@ final class Editor {
 			wp_set_script_translations( 'wpac-blocks', 'affiliate-captain', WPAC_DIR . 'languages' );
 		}
 		if ( ! wp_style_is( 'wpac-portal', 'registered' ) ) {
-			// block.json "style": the portal stylesheet in the editor preview and in the head of the page.
+			// block.json "editorStyle": the portal stylesheet in the editor. On the site each render
+			// callback enqueues it only where a block is shown ("style" loaded it on every page of
+			// classic themes, R12-M19).
 			\WPAffiliateCaptain\Portal\Portal::register_assets();
 		}
 		$dir = WPAC_DIR . 'blocks/';
@@ -372,7 +374,7 @@ final class Editor {
 			if ( $code ) {
 				$id   = 'wpac-target-' . (int) $p->ID . '-' . ( ++$i );
 				/* translators: %s: page title */
-				$out .= '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( sprintf( __( 'Your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '</label><div class="wpac-copy-row"><input type="text" readonly dir="ltr" class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $link ) . '"><button type="button" class="wpac-copy-btn" data-wpac-copy="' . esc_attr( $id ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
+				$out .= '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( sprintf( __( 'Your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '</label><div class="wpac-copy-row"><input type="text" readonly dir="ltr" class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $link ) . '"><button type="button" class="wpac-copy-btn" hidden data-wpac-copy="' . esc_attr( $id ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
 			}
 			$out .= '</li>';
 		}

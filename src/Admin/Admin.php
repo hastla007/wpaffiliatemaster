@@ -352,6 +352,10 @@ final class Admin {
 		} else {
 			echo esc_html__( 'WordPress starts scheduled tasks only when someone visits the site; with few visits or when the server blocks requests to itself, they stall. Ask your host to set up a "cron job" that runs "wp cron event run --due-now" every 5 minutes.', 'affiliate-captain' );
 		}
+		if ( is_multisite() ) {
+			// R12-M31: without --url the command only runs the main site of the network.
+			echo ' ' . esc_html( \WPAffiliateCaptain\Core\Monitor::network_cron_hint() );
+		}
 		echo self::hide_link( 'cron', $state ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in hide_link().
 	}
 
@@ -440,7 +444,7 @@ final class Admin {
 		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['ids'] ) || $cache['state'] !== $state ) {
 			$ids = array();
 			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
+			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( wp_date( 'Y-m-d' ), $currency ) as $row ) {
 				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
 					$ids[] = array( (int) $row['affiliate']->id, isset( $row['code'] ) ? (string) $row['code'] : '' );
 				}
@@ -680,6 +684,21 @@ final class Admin {
 	}
 
 	/**
+	 * Message for an amount Money::parse_minor() refused (nothing is rounded silently).
+	 *
+	 * @param string $problem  'precision' or 'invalid'.
+	 * @param string $currency Currency.
+	 * @return string
+	 */
+	public static function amount_error( $problem, $currency ) {
+		if ( 'precision' === $problem ) {
+			/* translators: 1: number of decimals, 2: currency */
+			return sprintf( __( 'The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked).', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Money::decimals( $currency ), $currency );
+		}
+		return __( 'Please enter a valid amount (e.g. 25 or 1.000,50).', 'affiliate-captain' );
+	}
+
+	/**
 	 * Route admin-post actions to page handlers.
 	 */
 	public static function dispatch() {
@@ -707,6 +726,7 @@ final class Admin {
 			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'broadcast_send'    => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statements_move'   => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'restriction'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),

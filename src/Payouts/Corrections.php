@@ -96,55 +96,172 @@ final class Corrections {
 	}
 
 	/**
-	 * Amounts the next correction of a payout starts from: the latest correction, or the
-	 * original credit note.
+	 * Taxable parts of a paid credit note with the amounts a correction starts from, one per VAT
+	 * treatment and rate (key "mode|rate", as the credit note computes its VAT): the net of the
+	 * commissions on the credit note with the treatment frozen on each line (time of the
+	 * service), or the corrected amounts of the latest correction of that part. Repayments,
+	 * write-offs and settled correction credit notes (Vat::NON_TAXABLE_KINDS) are not taxable and
+	 * belong to no part.
 	 *
 	 * @param object     $p    Payout.
 	 * @param array|null $list Corrections of the payout (oldest first; null = load).
-	 * @return array [ net, vat, gross, document number ]
+	 * @return array key => [ mode, rate, net, vat, number ] (number: the document the amounts are from).
+	 */
+	public static function parts( $p, $list = null ) {
+		$list  = null === $list ? self::for_payout( (int) $p->id ) : $list;
+		$parts = array();
+		foreach ( (array) PayoutService::items( (int) $p->id, true ) as $item ) {
+			if ( in_array( (string) $item->kind, Vat::NON_TAXABLE_KINDS, true ) ) {
+				continue;
+			}
+			// Lines of early credit notes carry no treatment: the credit note's own.
+			$mode = '' !== (string) $item->vat_mode ? (string) $item->vat_mode : (string) $p->vat_mode;
+			if ( Vat::NONE === $mode ) {
+				continue;
+			}
+			$rate = '' !== (string) $item->vat_rate ? (string) $item->vat_rate : (string) $p->vat_rate;
+			$rate = Vat::STANDARD === $mode ? $rate : '0';
+			$key  = $mode . '|' . $rate;
+			if ( ! isset( $parts[ $key ] ) ) {
+				$parts[ $key ] = array(
+					'mode'   => $mode,
+					'rate'   => $rate,
+					'net'    => 0,
+					'vat'    => 0,
+					'number' => (string) $p->number,
+				);
+			}
+			$parts[ $key ]['net'] += (int) $item->amount_minor;
+		}
+		foreach ( array_keys( $parts ) as $key ) {
+			$parts[ $key ]['vat'] = Vat::amount( $parts[ $key ]['net'], $parts[ $key ]['rate'] );
+		}
+		// Each correction corrects one part (its treatment and rate): its corrected amounts are
+		// what the next correction of that part starts from. An older correction whose treatment
+		// matches no line keeps a part of its own, so its amounts are not lost.
+		foreach ( $list as $c ) {
+			$key           = (string) $c->vat_mode . '|' . (string) $c->vat_rate;
+			$parts[ $key ] = array(
+				'mode'   => (string) $c->vat_mode,
+				'rate'   => (string) $c->vat_rate,
+				'net'    => (int) $c->net_minor,
+				'vat'    => (int) $c->vat_minor,
+				'number' => (string) $c->number,
+			);
+		}
+		return $parts;
+	}
+
+	/**
+	 * Taxable amounts of a payout as they stand now, summed over its parts (see parts(); a
+	 * correction always corrects one part).
+	 *
+	 * @param object     $p    Payout.
+	 * @param array|null $list Corrections of the payout (oldest first; null = load).
+	 * @return array [ net, vat, gross, number of the latest document ]
 	 */
 	public static function base( $p, $list = null ) {
 		$list = null === $list ? self::for_payout( (int) $p->id ) : $list;
-		$last = $list ? end( $list ) : null;
-		if ( $last ) {
-			return array( (int) $last->net_minor, (int) $last->vat_minor, (int) $last->net_minor + (int) $last->vat_minor, (string) $last->number );
+		$net  = 0;
+		$vat  = 0;
+		foreach ( self::parts( $p, $list ) as $part ) {
+			$net += $part['net'];
+			$vat += $part['vat'];
 		}
-		$net = (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor;
-		return array( $net, (int) $p->vat_minor, $net + (int) $p->vat_minor, (string) $p->number );
+		$last = $list ? end( $list ) : null;
+		return array( $net, $vat, $net + $vat, $last ? (string) $last->number : (string) $p->number );
 	}
 
 	/**
-	 * VAT rate the difference is taxed with: the treatment frozen on the original credit note
-	 * (no VAT for reverse charge, small businesses and private individuals).
+	 * Label of a taxable part (VAT treatment and rate) for forms and documents.
 	 *
-	 * @param object $p Payout.
+	 * @param array $part Part (parts()).
 	 * @return string
 	 */
-	public static function rate( $p ) {
-		return Vat::STANDARD === (string) $p->vat_mode ? (string) $p->vat_rate : '0';
+	public static function part_label( array $part ) {
+		$labels = array(
+			Vat::REVERSE_CHARGE => __( 'reverse charge', 'affiliate-captain' ),
+			Vat::SMALL_BUSINESS => __( 'small business, no VAT', 'affiliate-captain' ),
+			Vat::PRIVATE_PERSON => __( 'private individual, no VAT', 'affiliate-captain' ),
+		);
+		if ( isset( $labels[ $part['mode'] ] ) ) {
+			return $labels[ $part['mode'] ];
+		}
+		/* translators: %s: VAT rate */
+		return sprintf( __( 'VAT %s %%', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( (string) $part['rate'] ) );
 	}
 
 	/**
-	 * Amounts of a correction to a corrected net amount.
+	 * Amounts of a correction of one taxable part to a corrected net amount. The VAT is always
+	 * computed on the corrected net of the part (never as the VAT before plus the VAT of the
+	 * difference, which would add up rounding over several corrections).
 	 *
-	 * @param object $p   Payout.
-	 * @param int    $net Corrected net amount.
-	 * @return array prev_net, prev_vat, net, vat, diff_net, diff_vat, diff_gross, base_number
+	 * @param object     $p    Payout.
+	 * @param int        $net  Corrected taxable net amount of the part.
+	 * @param string     $part Part key ("mode|rate"); '' = the only part of the credit note.
+	 * @param array|null $list Corrections of the payout (null = load).
+	 * @return array|null part, mode, rate, parts, prev_net, prev_vat, net, vat, diff_net, diff_vat,
+	 *                    diff_gross, base_number; null when the part is unknown or ambiguous.
 	 */
-	public static function amounts( $p, $net ) {
-		list( $prev_net, $prev_vat, , $number ) = self::base( $p );
-		$diff_net = (int) $net - $prev_net;
-		$diff_vat = Vat::amount( $diff_net, self::rate( $p ) );
+	public static function amounts( $p, $net, $part = '', $list = null ) {
+		$parts = self::parts( $p, $list );
+		$key   = (string) $part;
+		if ( '' === $key && 1 === count( $parts ) ) {
+			$key = (string) key( $parts );
+		}
+		if ( '' === $key || ! isset( $parts[ $key ] ) ) {
+			return null;
+		}
+		$g   = $parts[ $key ];
+		$vat = Vat::amount( (int) $net, (string) $g['rate'] );
 		return array(
-			'prev_net'    => $prev_net,
-			'prev_vat'    => $prev_vat,
+			'part'        => $key,
+			'mode'        => (string) $g['mode'],
+			'rate'        => (string) $g['rate'],
+			'parts'       => count( $parts ),
+			'prev_net'    => (int) $g['net'],
+			'prev_vat'    => (int) $g['vat'],
 			'net'         => (int) $net,
-			'vat'         => $prev_vat + $diff_vat,
-			'diff_net'    => $diff_net,
-			'diff_vat'    => $diff_vat,
-			'diff_gross'  => $diff_net + $diff_vat,
-			'base_number' => $number,
+			'vat'         => $vat,
+			'diff_net'    => (int) $net - (int) $g['net'],
+			'diff_vat'    => $vat - (int) $g['vat'],
+			'diff_gross'  => (int) $net + $vat - (int) $g['net'] - (int) $g['vat'],
+			'base_number' => (string) $g['number'],
 		);
+	}
+
+	/**
+	 * Amounts on a credit note that are not taxable (repayments, write-offs, settled correction
+	 * credit notes): no correction changes them.
+	 *
+	 * @param object $p Payout.
+	 * @return int
+	 */
+	public static function untaxed( $p ) {
+		$sum = 0;
+		foreach ( (array) PayoutService::items( (int) $p->id, true ) as $item ) {
+			if ( in_array( (string) $item->kind, Vat::NON_TAXABLE_KINDS, true ) || Vat::NONE === (string) $item->vat_mode ) {
+				$sum += (int) $item->amount_minor;
+			}
+		}
+		return $sum;
+	}
+
+	/**
+	 * Orders whose commissions are on a credit note (source order IDs). A later refund of these
+	 * orders is deducted again automatically – the correction form says so (R12-M2).
+	 *
+	 * @param object $p Payout.
+	 * @return string[]
+	 */
+	public static function orders( $p ) {
+		$out = array();
+		foreach ( (array) PayoutService::items( (int) $p->id, true ) as $item ) {
+			if ( 'wpac' !== (string) $item->source && '' !== (string) $item->source_order_id && ! in_array( (string) $item->kind, Vat::NON_TAXABLE_KINDS, true ) ) {
+				$out[ (string) $item->source_order_id ] = true;
+			}
+		}
+		return array_map( 'strval', array_keys( $out ) );
 	}
 
 	/**
@@ -163,6 +280,9 @@ final class Corrections {
 		if ( ! AffiliateRepository::find( (int) $p->affiliate_id ) ) {
 			return __( 'Affiliate not found', 'affiliate-captain' );
 		}
+		if ( ! self::parts( $p ) ) {
+			return __( 'This credit note contains no taxable commissions (only settled correction credit notes, repayments or write-offs), so there is nothing to correct on it. Correct the credit note the amounts came from instead.', 'affiliate-captain' );
+		}
 		return PayoutService::operator_missing();
 	}
 
@@ -170,15 +290,18 @@ final class Corrections {
 	 * Issue a correction credit note for a paid payout and book the difference.
 	 *
 	 * @param int    $payout_id   Payout (paid).
-	 * @param int    $net_minor   Corrected net amount (minor units, not negative).
+	 * @param int    $net_minor   Corrected taxable net amount of the part (minor units, not negative).
 	 * @param string $reason      Reason (required; printed on the document, shown to the partner).
 	 * @param string $request_key One-time key of the form (a repeated submission returns the
 	 *                            correction issued with it instead of booking again).
-	 * @param int    $base_net    Net amount the form showed as "before" (-1 = do not check): if
-	 *                            another correction was issued meanwhile, nothing is booked.
+	 * @param int    $base_net    Net amount of the part the form showed as "before" (-1 = do not
+	 *                            check): if another correction was issued meanwhile, nothing is booked.
+	 * @param string $part        Taxable part to correct (key of parts(), "mode|rate"); '' = the
+	 *                            only part. A credit note with several VAT treatments or rates is
+	 *                            corrected part by part (one correction credit note each).
 	 * @return int|\WP_Error Correction ID.
 	 */
-	public static function create( $payout_id, $net_minor, $reason, $request_key = '', $base_net = -1 ) {
+	public static function create( $payout_id, $net_minor, $reason, $request_key = '', $base_net = -1, $part = '' ) {
 		global $wpdb;
 		$reason      = trim( sanitize_textarea_field( (string) $reason ) );
 		$net_minor   = (int) $net_minor;
@@ -200,7 +323,7 @@ final class Corrections {
 		}
 		try {
 			$id = Db::transaction(
-				static function () use ( $wpdb, $payout_id, $net_minor, $reason, $request_key, $base_net ) {
+				static function () use ( $wpdb, $payout_id, $net_minor, $reason, $request_key, $base_net, $part ) {
 					$pt = Db::table( 'payouts' );
 					// The payout row serializes corrections of the same credit note.
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -212,14 +335,22 @@ final class Corrections {
 					if ( $done ) {
 						return (int) $done->id;
 					}
-					$a = self::amounts( $p, $net_minor );
+					$a = self::amounts( $p, $net_minor, (string) $part );
+					if ( null === $a ) {
+						// Never fall back to the credit note's main treatment: each part keeps its own.
+						throw new IntegrationException( 'part', esc_html__( 'This credit note has parts with different VAT treatments or rates. Please correct each part separately (one correction credit note per part, with the corrected net amount of that part).', 'affiliate-captain' ) );
+					}
 					if ( $base_net >= 0 && (int) $base_net !== $a['prev_net'] ) {
 						throw new IntegrationException( 'changed', esc_html__( 'The credit note was corrected in the meantime. Please check the current amounts and try again; nothing was booked.', 'affiliate-captain' ) );
 					}
-					if ( 0 === $a['diff_net'] ) {
+					if ( 0 === $a['diff_net'] && 0 === $a['diff_vat'] ) {
 						throw new IntegrationException( 'same', esc_html__( 'The corrected net amount equals the current one: there is nothing to correct. If the credit note is correct, explain this to the partner instead.', 'affiliate-captain' ) );
 					}
 					$snapshot = self::operator_snapshot();
+					// What the document says about the rest of the credit note (only printed on
+					// corrections that store it: older documents are rebuilt byte for byte).
+					$snapshot['parts']   = (int) $a['parts'];
+					$snapshot['untaxed'] = self::untaxed( $p );
 					$number   = Sequence::number( (string) Settings::get( 'correction_prefix' ), 'correction', (int) wp_date( 'Y' ) );
 					$now      = Db::now();
 					$ct       = Db::table( 'commissions' );
@@ -273,8 +404,8 @@ final class Corrections {
 							'prev_vat_minor'    => $a['prev_vat'],
 							'net_minor'         => $a['net'],
 							'vat_minor'         => $a['vat'],
-							'vat_mode'          => (string) $p->vat_mode,
-							'vat_rate'          => self::rate( $p ),
+							'vat_mode'          => $a['mode'],
+							'vat_rate'          => $a['rate'],
 							'reason'            => Db::cut( $reason, 1000 ),
 							'commission_id'     => $cid,
 							'request_key'       => $request_key,
@@ -298,6 +429,8 @@ final class Corrections {
 							'net'        => $a['diff_net'],
 							'vat'        => $a['diff_vat'],
 							'gross'      => $a['diff_gross'],
+							'vat_mode'   => $a['mode'],
+							'vat_rate'   => $a['rate'],
 							'reason'     => Db::cut( $reason, 300 ),
 						)
 					);
@@ -305,7 +438,7 @@ final class Corrections {
 				}
 			);
 		} catch ( IntegrationException $e ) {
-			if ( in_array( $e->error_code, array( 'state', 'changed', 'same' ), true ) ) {
+			if ( in_array( $e->error_code, array( 'state', 'changed', 'same', 'part' ), true ) ) {
 				return new \WP_Error( 'wpac_' . $e->error_code, $e->getMessage() );
 			}
 			$done = self::by_key( $request_key ); // A parallel submission with the same key won.
@@ -318,20 +451,30 @@ final class Corrections {
 			\WPAffiliateCaptain\Core\Log::exception( 'Correction credit note could not be issued', $e, array( 'payout' => (int) $payout_id ) );
 			return new \WP_Error( 'wpac_db_error', __( 'The correction credit note could not be saved (database error). Nothing was booked; please try again.', 'affiliate-captain' ) );
 		}
-		$c = self::find( (int) $id );
-		if ( $c && '' === (string) $c->file ) {
-			self::generate( (int) $id );
-			// The objection (if any) is handled by this document; the partner is told where to find it.
-			$p = PayoutService::find( (int) $c->payout_id );
-			$o = Objections::for_payout( (int) $c->payout_id );
-			if ( $p && $o && 'open' === $o['status'] ) {
-				Objections::resolve(
-					(int) $c->payout_id,
-					/* translators: 1: correction credit note number, 2: credit note number, 3: reason */
-					sprintf( __( 'We have issued correction credit note %1$s for credit note %2$s (in your partner area under Payouts): %3$s', 'affiliate-captain' ), $c->number, $p->number, $reason ),
-					(int) $c->id
-				);
+		// The booking is committed: from here on nothing may report the correction as failed (a
+		// missing document is written again by the hourly cron).
+		try {
+			$c = self::find( (int) $id );
+			if ( $c && '' === (string) $c->file ) {
+				$written = self::generate( (int) $id );
+				// The objection (if any) is handled by this document; the partner is told where to
+				// find it – or, while the file could not be written yet, that it follows by e-mail.
+				$p = PayoutService::find( (int) $c->payout_id );
+				$o = Objections::for_payout( (int) $c->payout_id );
+				if ( $p && $o && 'open' === $o['status'] ) {
+					Objections::resolve(
+						(int) $c->payout_id,
+						$written
+							/* translators: 1: correction credit note number, 2: credit note number, 3: reason */
+							? sprintf( __( 'We have issued correction credit note %1$s for credit note %2$s (in your partner area under Payouts): %3$s', 'affiliate-captain' ), $c->number, $p->number, $reason )
+							/* translators: 1: correction credit note number, 2: credit note number, 3: reason */
+							: sprintf( __( 'We have issued correction credit note %1$s for credit note %2$s: %3$s. The document is still being created; we will send it to you by e-mail as soon as it is ready.', 'affiliate-captain' ), $c->number, $p->number, $reason ),
+						(int) $c->id
+					);
+				}
 			}
+		} catch ( \Throwable $e ) {
+			\WPAffiliateCaptain\Core\Log::exception( 'Correction credit note issued, follow-up step failed', $e, array( 'correction' => (int) $id ) );
 		}
 		return (int) $id;
 	}
@@ -522,9 +665,24 @@ final class Corrections {
 			? sprintf( __( 'The difference of %s is credited to the partner account and paid with the next payout.', 'affiliate-captain' ), Money::format( $diff, $cur ) )
 			/* translators: %s: amount */
 			: sprintf( __( 'The overpayment of %s is debited to the partner account and offset against the next commissions.', 'affiliate-captain' ), Money::format( -$diff, $cur ) );
+		// Scope of the correction (stored with corrections since R12-K3; older documents unchanged).
+		$scope = array();
+		if ( isset( $op['parts'] ) && (int) $op['parts'] > 1 ) {
+			$part    = array(
+				'mode' => (string) $c->vat_mode,
+				'rate' => (string) $c->vat_rate,
+			);
+			/* translators: 1: credit note number, 2: VAT treatment or rate */
+			$scope[] = sprintf( __( 'This correction concerns only the part of credit note %1$s with %2$s; the other parts of the credit note are unchanged.', 'affiliate-captain' ), $orig_no, self::part_label( $part ) );
+		}
+		if ( ! empty( $op['untaxed'] ) ) {
+			/* translators: 1: credit note number, 2: amount */
+			$scope[] = sprintf( __( 'Repayments, write-offs and settled correction credit notes on credit note %1$s (%2$s) are not taxable and not part of the amounts above.', 'affiliate-captain' ), $orig_no, Money::format( (int) $op['untaxed'], $cur ) );
+		}
 		$notes = array_filter(
 			array(
 				$settle,
+				implode( "\n", $scope ),
 				Statement::vat_note( (string) $c->vat_mode, $country ),
 				$self ? ( 'DE' === $country
 					? __( 'This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note.', 'affiliate-captain' )
@@ -665,10 +823,17 @@ final class Corrections {
 	 * @return string|null|false Bytes, null = not available, false = integrity check failed.
 	 */
 	public static function stored_bytes( $c ) {
-		if ( '' === (string) $c->file || $c->file_deleted_at ) {
+		if ( '' === (string) $c->file ) {
 			return null;
 		}
 		$path = Statement::path( (string) $c->file );
+		// Deleted after the retention period (on any server: the database decides): never served or
+		// rebuilt, and a copy left on this server is deleted (R12-K5).
+		$now = self::find( (int) $c->id );
+		if ( $c->file_deleted_at || ! $now || $now->file_deleted_at ) {
+			StatementSweep::forget( $path, (string) $c->hash );
+			return null;
+		}
 		if ( is_readable( $path ) ) {
 			$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 			return hash_equals( (string) $c->hash, hash( 'sha256', $bytes ) ) ? $bytes : false;

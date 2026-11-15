@@ -290,7 +290,13 @@ final class Db {
 		$queued             = self::$after_commit;
 		self::$after_commit = array();
 		foreach ( $queued as $cb ) {
-			$cb();
+			// The booking is committed: a failing listener (mail, hook of an add-on) must neither
+			// make it look failed nor stop the callbacks after it.
+			try {
+				$cb();
+			} catch ( \Throwable $e ) {
+				Log::exception( 'Callback after a committed booking failed', $e );
+			}
 		}
 		return $result;
 	}

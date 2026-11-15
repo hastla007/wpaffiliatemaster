@@ -243,6 +243,7 @@ final class IntegrationsPage {
 		if ( 'status' === $tab ) {
 			self::migration_notices();
 			self::render_status();
+			self::render_rejected();
 		} elseif ( 'queue' === $tab ) {
 			self::render_queue();
 		} else {
@@ -295,10 +296,43 @@ final class IntegrationsPage {
 			array( ! \WPAffiliateCaptain\Commissions\Balance::verify_all( 200 ), __( 'Partner accounts: booking chains intact and balances match the commission ledger', 'affiliate-captain' ) ),
 			array( \WPAffiliateCaptain\Core\Monitor::cron_running(), __( 'Scheduled tasks active (hold period release, retries)', 'affiliate-captain' ) ),
 		);
+		if ( defined( 'WPAC_CUSTOMER_KEY' ) ) {
+			$customer = \WPAffiliateCaptain\Tracking\CustomerLinks::key_status();
+			$checks[] = 'constant' === $customer['source'] && ! $customer['missing']
+				? array( true, __( 'Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php', 'affiliate-captain' ) )
+				: array( false, $customer['ignored'] ? __( 'WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored).', 'affiliate-captain' ) : __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.', 'affiliate-captain' ) );
+		}
 		foreach ( $checks as $c ) {
 			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '"><span aria-hidden="true">' . ( $c[0] ? '✔' : '!' ) . '</span> ' . esc_html( $c[1] ) . '<span class="screen-reader-text"> – ' . esc_html( $c[0] ? __( 'OK', 'affiliate-captain' ) : __( 'check', 'affiliate-captain' ) ) . '</span></li>';
 		}
 		echo '</ul>';
+	}
+
+	/**
+	 * Payloads refused on the action path of the contract (do_action( 'wpac_v1_record_sale' )
+	 * etc.), which gives the sender no return value (R12-M10).
+	 */
+	private static function render_rejected() {
+		$list = ContractApi::rejected();
+		if ( ! $list ) {
+			return;
+		}
+		echo '<h2>' . esc_html__( 'Refused through the action hooks', 'affiliate-captain' ) . '</h2>';
+		echo '<p>' . esc_html__( 'These sales, refunds or reinstatements were sent through do_action() and refused by the validation. They were not booked and are not retried: please fix the sending integration and send them again.', 'affiliate-captain' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Action', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Source', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Order', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Error', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $list as $e ) {
+			$e = wp_parse_args( (array) $e, array( 'time' => 0, 'hook' => '', 'source' => '', 'order' => '', 'code' => '', 'message' => '' ) );
+			printf(
+				'<tr><td>%s</td><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code> %s</td></tr>',
+				esc_html( Admin::date( gmdate( 'Y-m-d H:i:s', (int) $e['time'] ), true ) ),
+				esc_html( (string) $e['hook'] ),
+				esc_html( '' !== (string) $e['source'] ? (string) $e['source'] : '—' ),
+				esc_html( '' !== (string) $e['order'] ? (string) $e['order'] : '—' ),
+				esc_html( (string) $e['code'] ),
+				esc_html( (string) $e['message'] )
+			);
+		}
+		echo '</tbody></table>';
 	}
 
 	/**

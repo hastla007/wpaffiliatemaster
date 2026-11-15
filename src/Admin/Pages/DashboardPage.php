@@ -231,7 +231,7 @@ final class DashboardPage {
 		$counts   = AffiliateRepository::count_by_status();
 		$rows     = Reports::cached( 'partners', $from, $to ); // Same report for KPIs and table, cached until the data changes.
 		$view     = in_array( Admin::get( 'view' ), array( 'content', 'campaign' ), true ) ? Admin::get( 'view' ) : 'partners';
-		$failed   = count( Jobs::query( 'failed' ) );
+		$failed   = Jobs::count( 'failed' ); // COUNT query: the list itself stops at 100.
 
 		$sum = array(
 			'visits'      => 0,
@@ -266,6 +266,11 @@ final class DashboardPage {
 		if ( $failed ) {
 			/* translators: %d: count */
 			echo '<div class="notice notice-error inline"><p><a href="' . esc_url( Admin::url( 'wpac-integrations', array( 'tab' => 'queue' ) ) ) . '">' . esc_html( sprintf( _n( '%d integration job failed', '%d integration jobs failed', $failed, 'affiliate-captain' ), $failed ) ) . '</a></p></div>';
+		}
+
+		$edge = \WPAffiliateCaptain\Tracking\Tracker::edge_cache_hint(); // R12-M30.
+		if ( '' !== $edge ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $edge ) . ' <a href="' . esc_url( Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ) . '">' . esc_html__( 'Settings', 'affiliate-captain' ) . '</a></p></div>';
 		}
 
 		if ( $unconverted ) {

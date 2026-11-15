@@ -62,8 +62,8 @@ $r11_c = wpac_claim_payout( $r11_p1, 'paypal' );
 $r11_claim = is_array( $r11_c ) ? $r11_c['claim'] : '';
 check( 'R11 claim: payout is exported under an API claim', array( 'exported', 1 ), array( (string) PayoutService::find( $r11_p1 )->status, preg_match( '/^API-PAYPAL-' . $r11_p1 . '-[A-Z0-9]{6}$/', $r11_claim ) ) );
 check( 'R11 claim: a second claim is refused', 'wpac_payout_state', r11_code( wpac_claim_payout( $r11_p1, 'stripe' ) ) );
-check( 'R11 claim: the PayPal payouts file does not take a claimed payout again', 'wpac_reexport', r11_code( PayoutService::paypal_csv( array( $r11_p1 ) ) ) );
-check( 'R11 claim: the transfer list does not take a claimed payout again', 'wpac_reexport', r11_code( PayoutService::transfer_csv( array( $r11_p1 ) ) ) );
+check( 'R11 claim: the PayPal payouts file does not take a claimed payout again', 'wpac_claimed', r11_code( PayoutService::paypal_csv( array( $r11_p1 ) ) ) );
+check( 'R11 claim: the transfer list does not take a claimed payout again', 'wpac_claimed', r11_code( PayoutService::transfer_csv( array( $r11_p1 ) ) ) );
 check( 'R11 claim is in the audit log', 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . t( 'audit' ) . " WHERE action = 'payout.claimed' AND object_id = %d", $r11_p1 ) ) );
 
 // Complete: only with the right claim, then the payout and its commissions are paid.
@@ -108,12 +108,19 @@ PayoutService::cancel( $r11_p6, 'test' );
 check( 'R11 a cancelled payout cannot be claimed', 'wpac_payout_state', r11_code( wpac_claim_payout( $r11_p6, 'paypal' ) ) );
 check( 'R11 contract version is 1.3.0', '1.3.0', wpac_contract_version() );
 
-// Cancelling a claimed payout in the admin: refused for 7 days (the provider may be paying it),
+// Cancelling a claimed payout in the admin: refused for 45 days (filter wpac_claim_cancel_after) (the provider may be paying it),
 // then only with the confirmation that the provider did not pay it.
 $r11_p7 = r11_payout( $r11_pp, 'r11-7' );
 $r11_c7 = wpac_claim_payout( $r11_p7, 'paypal' );
 check( 'R11 a fresh claim cannot be cancelled in the admin, even with confirmation', array( 'wpac_claimed', 'exported' ), array( r11_code( PayoutService::cancel( $r11_p7, 'test', true ) ), (string) PayoutService::find( $r11_p7 )->status ) );
-$wpdb->query( 'UPDATE ' . t( 'payouts' ) . " SET exported_at = '" . gmdate( 'Y-m-d H:i:s', time() - 8 * DAY_IN_SECONDS ) . "' WHERE id = " . (int) $r11_p7 );
+$wpdb->query( 'UPDATE ' . t( 'payouts' ) . " SET exported_at = '" . gmdate( 'Y-m-d H:i:s', time() - 46 * DAY_IN_SECONDS ) . "' WHERE id = " . (int) $r11_p7 );
 $r11_x7 = PayoutService::cancel( $r11_p7, 'test' );
-check( 'R11 after 7 days: confirmation required, the message names the payment provider, not the bank', array( 'wpac_exported', true ), array( r11_code( $r11_x7 ), is_wp_error( $r11_x7 ) && false !== strpos( $r11_x7->get_error_message(), $r11_c7['claim'] ) ) );
-check( 'R11 after 7 days with confirmation the claimed payout is cancelled; the old claim cannot pay it', array( true, 'cancelled', 'wpac_state' ), array( PayoutService::cancel( $r11_p7, 'test', true ), (string) PayoutService::find( $r11_p7 )->status, r11_code( wpac_complete_payout( $r11_p7, $r11_c7['claim'], 'late' ) ) ) );
+check( 'R11 after 45 days: confirmation required, the message names the payment provider, not the bank', array( 'wpac_exported', true ), array( r11_code( $r11_x7 ), is_wp_error( $r11_x7 ) && false !== strpos( $r11_x7->get_error_message(), $r11_c7['claim'] ) ) );
+check( 'R11 after 45 days with confirmation the claimed payout is cancelled; the old claim cannot pay it', array( true, 'cancelled', 'wpac_state' ), array( PayoutService::cancel( $r11_p7, 'test', true ), (string) PayoutService::find( $r11_p7 )->status, r11_code( wpac_complete_payout( $r11_p7, $r11_c7['claim'], 'late' ) ) ) );
+
+// Cancellation guard for claimed payouts: 45 days by default, adjustable by filter, never below one day.
+check( 'R11 claim cancel guard defaults to 45 days', 45 * DAY_IN_SECONDS, PayoutService::claim_cancel_after() );
+$r11_f = static function () { return 60; };
+add_filter( 'wpac_claim_cancel_after', $r11_f );
+check( 'R11 claim cancel guard is never below one day', DAY_IN_SECONDS, PayoutService::claim_cancel_after() );
+remove_filter( 'wpac_claim_cancel_after', $r11_f );

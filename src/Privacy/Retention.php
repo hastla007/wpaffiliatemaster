@@ -210,7 +210,41 @@ final class Retention {
 		update_option( \WPAffiliateCaptain\Payouts\Objections::OPTION, $objections, false );
 		// Change log of the partner's payouts (e.g. the reason of a cancellation).
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'payout' AND object_id IN (SELECT id FROM {$p} WHERE affiliate_id = %d)", $affiliate_id ) );
+		// Change log of the partner's payout details and requests, kept unchanged by the erasure
+		// during the retention period (acceptance records go with delete_agreements()).
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%'", $affiliate_id ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
+		// The tax data history was only needed for corrections within the retention period.
+		\WPAffiliateCaptain\Payouts\TaxHistory::delete( (int) $affiliate_id );
 		// phpcs:enable
+	}
+
+	/**
+	 * Daily: attributions (order number, partner, method, campaign, sub ID, visit ID) are booking
+	 * records only as long as the commissions of their order: once the attribution and every
+	 * commission of the order are past the retention period and nothing of it is open any more, the
+	 * attribution row is deleted (storage limitation, R12-M13). Nothing is deleted during a tax
+	 * audit / legal hold or with "keep forever" (cutoff() is null). The commissions themselves keep
+	 * their amounts (statistics before the cutoff lose the campaign breakdown).
+	 *
+	 * @return int Rows deleted.
+	 */
+	public static function purge_attributions() {
+		global $wpdb;
+		$cutoff = self::cutoff();
+		if ( null === $cutoff ) {
+			return 0;
+		}
+		$at = Db::table( 'attributions' );
+		$c  = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names; values are placeholders.
+		$sql = $wpdb->prepare( "DELETE FROM {$at} WHERE created_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.source = {$at}.source AND c.source_order_id = {$at}.source_order_id AND ( c.updated_at >= %s OR c.status IN ('pending','review') OR ( c.status = 'approved' AND c.payout_id = 0 ) ) )", $cutoff, $cutoff );
+		/**
+		 * Attribution rows deleted per statement (one short transaction each).
+		 *
+		 * @param int $batch Rows (default 1000).
+		 */
+		$batch = max( 1, (int) apply_filters( 'wpac_attribution_purge_batch', 1000 ) );
+		return \WPAffiliateCaptain\Core\Cron::delete_in_batches( $sql, $batch, 50 );
 	}
 
 	/**

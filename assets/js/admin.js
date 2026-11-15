@@ -142,19 +142,68 @@ document.addEventListener( 'click', function ( e ) {
 		}, 250 );
 	} );
 } )();
-/* Payout bulk action: a file download ends without a page change – reload the list afterwards,
-   so the new status and the message about the download are shown. */
+/* Payout bulk action: a file download ends without a page change. The form sends a token; the
+   download response sets the cookie wpac_dl_<token> (PayoutsPage::download_started()). Only once
+   it is there is the list reloaded (new status, message about the download), so a reload never
+   cancels a download that has not started yet. If it takes too long, a "Refresh page" link is
+   shown instead. Without JavaScript the download works the same; the status shows on refresh. */
 document.addEventListener( 'submit', function ( e ) {
 	var form = e.target;
 	if ( ! form.classList || ! form.classList.contains( 'wpac-bulk-form' ) ) {
 		return;
 	}
 	var s = form.querySelector( '[name="bulk_action"]' );
-	if ( s && [ 'sepa', 'csv', 'paypal' ].indexOf( s.value ) > -1 && ! e.defaultPrevented ) {
-		window.setTimeout( function () {
-			window.location.reload();
-		}, 2500 );
+	if ( ! s || [ 'sepa', 'csv', 'paypal' ].indexOf( s.value ) === -1 || e.defaultPrevented ) {
+		return;
 	}
+	var token = '';
+	while ( token.length < 24 ) {
+		token += Math.random().toString( 36 ).slice( 2 );
+	}
+	token = token.slice( 0, 24 ).replace( /[^a-z0-9]/g, '0' );
+	var field = form.querySelector( 'input[name="wpac_dl_token"]' );
+	if ( ! field ) {
+		field = document.createElement( 'input' );
+		field.type = 'hidden';
+		field.name = 'wpac_dl_token';
+		form.appendChild( field );
+	}
+	field.value = token;
+	var name = 'wpac_dl_' + token + '=';
+	var started = Date.now();
+	var hinted = false;
+	var timer = window.setInterval( function () {
+		if ( ( '; ' + document.cookie ).indexOf( '; ' + name ) > -1 ) {
+			window.clearInterval( timer );
+			var dir = window.location.pathname.replace( /[^\/]*$/, '' ) || '/';
+			[ dir, dir.replace( /\/$/, '' ) || '/' ].forEach( function ( path ) {
+				document.cookie = name + '; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=' + path;
+			} );
+			window.setTimeout( function () {
+				window.location.reload();
+			}, 1000 );
+			return;
+		}
+		var waited = Date.now() - started;
+		if ( ! hinted && waited > 30000 ) {
+			// Still waiting for the server: offer a manual refresh, keep watching for the download.
+			hinted = true;
+			var box = document.querySelector( '.wpac-download-status' );
+			if ( box ) {
+				var p = document.createElement( 'p' );
+				var a = document.createElement( 'a' );
+				p.textContent = box.getAttribute( 'data-wpac-download-wait' ) + ' ';
+				a.href = window.location.href;
+				a.textContent = box.getAttribute( 'data-wpac-download-refresh' );
+				p.appendChild( a );
+				box.className += ' notice notice-info inline';
+				box.appendChild( p );
+			}
+		}
+		if ( waited > 600000 ) {
+			window.clearInterval( timer );
+		}
+	}, 500 );
 } );
 /* Wide tables scroll inside their own box instead of widening the page (small screens). */
 document.addEventListener( 'DOMContentLoaded', function () {
@@ -164,6 +213,13 @@ document.addEventListener( 'DOMContentLoaded', function () {
 		}
 		var box = document.createElement( 'div' );
 		box.className = 'wpac-table-scroll';
+		// Keyboard users can scroll the box (focusable region named after the table).
+		var caption = table.querySelector( 'caption' );
+		var heading = document.querySelector( '.wrap h1' );
+		var label = ( caption && caption.textContent.trim() ) || table.getAttribute( 'aria-label' ) || ( heading && heading.textContent.trim() ) || document.title;
+		box.setAttribute( 'tabindex', '0' );
+		box.setAttribute( 'role', 'region' );
+		box.setAttribute( 'aria-label', label );
 		table.parentNode.insertBefore( box, table );
 		box.appendChild( table );
 	} );

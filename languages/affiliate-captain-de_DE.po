@@ -176,6 +176,12 @@ msgstr "Zur Einrichtungs-Checkliste"
 msgid "Hide until something changes"
 msgstr "Ausblenden, bis sich etwas ändert"
 
+msgid "The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked)."
+msgstr "Der Betrag hat mehr als %1$d Nachkommastellen, die es bei %2$s nicht gibt. Bitte geben Sie ihn genau ein (es wurde nichts gerundet oder gebucht)."
+
+msgid "Please enter a valid amount (e.g. 25 or 1.000,50)."
+msgstr "Bitte geben Sie einen gültigen Betrag ein (z. B. 25 oder 1.000,50)."
+
 msgid "The link has expired. Please go back and try again."
 msgstr "Der Link ist abgelaufen. Bitte gehen Sie zurück und versuchen Sie es erneut."
 
@@ -380,7 +386,7 @@ msgid "Approved"
 msgstr "Freigegeben"
 
 msgid "Paid"
-msgstr "Ausgezahlt"
+msgstr "Bezahlt"
 
 msgid "Commissions of this partner"
 msgstr "Provisionen dieses Partners"
@@ -541,6 +547,9 @@ msgstr "Gutscheincode"
 msgid "Link"
 msgstr "Link"
 
+msgid "Link broken: this WooCommerce coupon no longer exists (deleted or renamed). Orders with this coupon code are not credited. Link the coupon again or remove the link."
+msgstr "Verknüpfung defekt: Dieser WooCommerce-Gutschein existiert nicht mehr (gelöscht oder umbenannt). Bestellungen mit diesem Gutscheincode werden nicht gutgeschrieben. Verknüpfen Sie den Gutschein erneut oder entfernen Sie die Verknüpfung."
+
 msgid "Active"
 msgstr "Aktiv"
 
@@ -677,7 +686,7 @@ msgid "Credit notes with VAT or reverse charge to this partner are blocked until
 msgstr "Gutschriften mit USt oder Reverse Charge an diesen Partner sind gesperrt, bis die USt-IdNr. korrigiert ist."
 
 msgid "VIES refused your own VAT ID (Settings → Payouts): no consultation number until it is corrected."
-msgstr "VIES hat Ihre eigene USt-IdNr. abgelehnt (Einstellungen → Auszahlungen): keine Bestätigungsnummer, bis sie korrigiert ist."
+msgstr "VIES hat Ihre eigene USt-IdNr. abgelehnt (Einstellungen → Auszahlungen): keine Abfragenummer, bis sie korrigiert ist."
 
 msgid "%1$s: %2$s (checked %3$s%4$s)"
 msgstr "%1$s: %2$s (geprüft %3$s%4$s)"
@@ -2143,8 +2152,23 @@ msgstr "Partnerkonten: Buchungsketten intakt, Salden stimmen mit dem Provisionsl
 msgid "Scheduled tasks active (hold period release, retries)"
 msgstr "Geplante Aufgaben aktiv (Freigabe nach Haltefrist, Wiederholungen)"
 
+msgid "Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php"
+msgstr "Kunden-Hashes verwenden WPAC_CUSTOMER_KEY aus der wp-config.php"
+
+msgid "WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored)."
+msgstr "WPAC_CUSTOMER_KEY wird ignoriert: Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel, und diese lassen sich nicht neu berechnen (E-Mail-Adressen werden nicht gespeichert)."
+
+msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links."
+msgstr "Die bestehenden Kunden-Bindungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanfragen finden ihre Bindungen nicht mehr."
+
 msgid "check"
 msgstr "prüfen"
+
+msgid "Refused through the action hooks"
+msgstr "Über die Action-Hooks abgelehnt"
+
+msgid "These sales, refunds or reinstatements were sent through do_action() and refused by the validation. They were not booked and are not retried: please fix the sending integration and send them again."
+msgstr "Diese Verkäufe, Erstattungen oder Wiedergutschriften wurden über do_action() gesendet und von der Prüfung abgelehnt. Sie wurden nicht gebucht und werden nicht wiederholt: Bitte korrigieren Sie die sendende Integration und senden Sie sie erneut."
 
 msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
 msgstr "Keine offenen oder fehlgeschlagenen Aufträge. Verkäufe und Erstattungen, die nicht sofort gebucht werden können (z. B. bei einem Datenbankproblem), warten hier und werden automatisch wiederholt."
@@ -2271,6 +2295,9 @@ msgstr "Bitte geben Sie den richtigen Nettobetrag ein (0 oder mehr)."
 
 msgid "Please tick the confirmation box: the correction credit note gets a number and cannot be changed afterwards."
 msgstr "Bitte setzen Sie das Bestätigungshäkchen: Die Korrekturgutschrift erhält eine Nummer und kann danach nicht mehr geändert werden."
+
+msgid "Issued: %1$s. The next part was not corrected: %2$s"
+msgstr "Ausgestellt: %1$s. Der nächste Teil wurde nicht korrigiert: %2$s"
 
 msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
 msgstr "Korrekturgutschrift %1$s zu %2$s ausgestellt; die Differenz wurde auf dem Partnerkonto gebucht und der Partner informiert."
@@ -2419,6 +2446,12 @@ msgstr "Auszahlungen suchen"
 msgid "Read-only view: you can open the payouts and download credit notes and cancellations, but not create, export or change payouts."
 msgstr "Nur-Lese-Ansicht: Sie können Auszahlungen öffnen und Gutschriften und Stornobelege herunterladen, aber keine Auszahlungen anlegen, exportieren oder ändern."
 
+msgid "The download is taking longer than expected. Once it has finished, refresh the page to see the new status."
+msgstr "Der Download dauert länger als erwartet. Sobald er abgeschlossen ist, aktualisieren Sie die Seite, um den neuen Status zu sehen."
+
+msgid "Refresh page"
+msgstr "Seite aktualisieren"
+
 msgid "Bulk action for selected payouts"
 msgstr "Sammelaktion für ausgewählte Auszahlungen"
 
@@ -2473,11 +2506,41 @@ msgstr "Aktuelle Beträge (%1$s): netto %2$s, USt %3$s, brutto %4$s. Die Differe
 msgid "Correct net amount (%s)"
 msgstr "Richtiger Nettobetrag (%s)"
 
+msgid "This credit note has parts with different VAT treatments or rates. Enter the correct taxable net amount for each part you want to change (leave the others empty); each changed part gets its own correction credit note."
+msgstr "Diese Gutschrift hat Teile mit unterschiedlicher umsatzsteuerlicher Behandlung oder unterschiedlichen Steuersätzen. Geben Sie für jeden Teil, den Sie ändern möchten, den richtigen steuerbaren Nettobetrag ein (die übrigen bleiben leer); jeder geänderte Teil erhält eine eigene Korrektur-Gutschrift."
+
+msgid "Part"
+msgstr "Teil"
+
+msgid "Net"
+msgstr "Netto"
+
+msgid "VAT"
+msgstr "USt"
+
+msgid "Gross"
+msgstr "Brutto"
+
+msgid "Document"
+msgstr "Beleg"
+
+msgid "Correct net amount"
+msgstr "Richtiger Nettobetrag"
+
+msgid "Not taxable and not part of the amounts above: repayments, write-offs and settled correction credit notes on this credit note (%s)."
+msgstr "Nicht steuerbar und nicht Teil der obigen Beträge: Rückzahlungen, Abschreibungen und verrechnete Korrektur-Gutschriften auf dieser Gutschrift (%s)."
+
+msgid "Orders on this credit note: %s. A later refund or cancellation of these orders is deducted from the partner account automatically – do not include it in a correction credit note, or the partner is charged twice."
+msgstr "Bestellungen auf dieser Gutschrift: %s. Eine spätere Erstattung oder Stornierung dieser Bestellungen wird automatisch vom Partnerkonto abgezogen – nehmen Sie sie nicht in eine Korrektur-Gutschrift auf, sonst wird dem Partner doppelt abgezogen."
+
 msgid "Reason (printed on the correction credit note and sent to the partner)"
 msgstr "Grund (wird auf die Korrekturgutschrift gedruckt und dem Partner gesendet)"
 
 msgid "Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible)."
 msgstr "Nummerierte Korrekturgutschrift ausstellen und die Differenz buchen (nicht rückgängig zu machen; eine weitere Korrektur ist möglich)."
+
+msgid "Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
+msgstr "Bestellung #%1$s wurde am %2$s erstattet oder storniert, nach der Korrektur-Gutschrift %3$s. Die Erstattung wurde automatisch vom Partnerkonto abgezogen. Bitte prüfen Sie, ob die Korrektur-Gutschrift diese Bestellung bereits berücksichtigt hat; falls ja, stellen Sie eine weitere Korrektur-Gutschrift aus, damit dem Partner nicht doppelt abgezogen wird."
 
 msgid "Correction credit notes"
 msgstr "Korrekturgutschriften"
@@ -2535,9 +2598,6 @@ msgstr "Nettobetrag"
 
 msgid "plus VAT %s %%"
 msgstr "zzgl. USt %s %%"
-
-msgid "VAT"
-msgstr "USt"
 
 msgid "Total payout"
 msgstr "Auszahlungsbetrag"
@@ -2720,6 +2780,9 @@ msgstr "Bewerber können diese Gruppe wählen"
 msgid "Additional application fields"
 msgstr "Zusätzliche Bewerbungsfelder"
 
+msgid "school_name|School name|text|required\nstudents|Students per year|number"
+msgstr "schulname|Name der Schule|text|required\nschueler|Schüler pro Jahr|number"
+
 msgid "One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox."
 msgstr "Ein Feld pro Zeile: schlüssel|Bezeichnung|Typ|required – Typen: text (Text), textarea (mehrzeilig), url, number (Zahl), checkbox (Kontrollkästchen)."
 
@@ -2783,8 +2846,14 @@ msgstr "Rückwirkend (ganzer Monat)"
 msgid "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)"
 msgstr "Schwelle:Bonus %%\n1000:2\n5000:3   (Umsatz in %s oder Anzahl Bestellungen)"
 
+msgid "One step per line as threshold:bonus in percent, e.g. 1000:2 – the threshold is the monthly net revenue in %s or the number of orders (see basis)."
+msgstr "Eine Stufe pro Zeile als Schwelle:Bonus in Prozent, z. B. 1000:2 – die Schwelle ist der monatliche Nettoumsatz in %s oder die Anzahl der Bestellungen (siehe Basis)."
+
 msgid "Last closed month: %s."
 msgstr "Zuletzt abgeschlossener Monat: %s."
+
+msgid "Month to close"
+msgstr "Abzuschließender Monat"
 
 msgid "Book monthly bonuses now? Refunds after this point will not change the bonus."
 msgstr "Monatsboni jetzt buchen? Spätere Rückerstattungen ändern den Bonus nicht mehr."
@@ -2841,6 +2910,9 @@ msgstr "Audit-Log aufbewahren (Tage, 0 = unbegrenzt)"
 
 msgid "Keep rejected applications (days, 0 = forever)"
 msgstr "Abgelehnte Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
+
+msgid "Keep undecided applications (days, 0 = forever)"
+msgstr "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
 
 msgid "Max. orders per partner in 24 hours"
 msgstr "Max. Bestellungen pro Partner in 24 Stunden"
@@ -3145,6 +3217,9 @@ msgstr "Tracking & Zuordnung"
 msgid "Example: %s"
 msgstr "Beispiel: %s"
 
+msgid "The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it."
+msgstr "Der Block-Checkout zeigt das Partnercode-Feld erst ab WooCommerce 8.9; mit dieser Version zeigt es nur der klassische Checkout."
+
 msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
 msgstr "Nur wenn eine Shop-Sitzung besteht (ein Warenkorb) oder ein Produkt in den Warenkorb gelegt wird – ein Klick allein legt nie eine Sitzung an und setzt kein Cookie."
 
@@ -3282,6 +3357,9 @@ msgstr "Aufbewahrungsfristen"
 
 msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
 msgstr "Danach werden Name, E-Mail und Bewerbungsdaten abgelehnter Bewerber ohne Provisionen anonymisiert."
+
+msgid "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgstr "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist gelöscht. Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht."
 
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr "Nachweise zu den Partnerbedingungen und buchungsrelevante Einträge werden so lange aufbewahrt wie die Gutschriften."
@@ -3595,7 +3673,7 @@ msgstr "[%1$s] Änderung der Steuerdaten von %2$s wartet auf Ihre Freigabe"
 msgid "[%1$s] Tax data of %2$s changed"
 msgstr "[%1$s] Steuerdaten von %2$s geändert"
 
-msgid "The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
 msgstr "Die Änderung wirkt sich auf die USt der Gutschriften aus. Sie gilt erst nach Ihrer Freigabe (vorher verdiente Provisionen behalten die bisherige Behandlung). Bitte prüfen Sie die Angaben (z. B. die USt-IdNr. per VIES):"
 
 msgid "The change applies to commissions earned from now on. Details:"
@@ -3757,6 +3835,15 @@ msgstr "[%s] Ihre Partnerbewerbung"
 msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
 msgstr "Hallo %1$s,\n\nleider können wir Ihre Bewerbung derzeit nicht annehmen.\n\n%2$s"
 
+msgid "Please enter your name or company."
+msgstr "Bitte geben Sie Ihren Namen oder Ihre Firma ein."
+
+msgid "Please fill in \"%s\"."
+msgstr "Bitte füllen Sie „%s“ aus."
+
+msgid "Please accept the partner program terms."
+msgstr "Bitte akzeptieren Sie die Partnerbedingungen."
+
 msgid "The confirmation link is invalid or has expired. Please apply again."
 msgstr "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte bewerben Sie sich erneut."
 
@@ -3777,6 +3864,12 @@ msgstr "Vielen Dank! Ihr Partnerkonto ist aktiv. Die Zugangsdaten erhalten Sie p
 
 msgid "Thank you for your application! We will review it and get back to you by e-mail."
 msgstr "Vielen Dank für Ihre Bewerbung! Wir prüfen sie und melden uns per E-Mail."
+
+msgid "Log in to the partner area"
+msgstr "Im Partnerbereich anmelden"
+
+msgid "Forgot your password?"
+msgstr "Passwort vergessen?"
 
 msgid "The partner group #%d set in this form no longer exists."
 msgstr "Die in diesem Formular festgelegte Partnergruppe #%d existiert nicht mehr."
@@ -3802,14 +3895,11 @@ msgstr "Sie haben bereits ein Partnerkonto."
 msgid "The form expired. Please try again."
 msgstr "Das Formular ist abgelaufen. Bitte versuchen Sie es erneut."
 
-msgid "Your submission could not be processed."
-msgstr "Ihre Eingabe konnte nicht verarbeitet werden."
+msgid "Your submission could not be processed. Please reload the page and send the form again; if this happens again, contact us directly."
+msgstr "Ihre Eingabe konnte nicht verarbeitet werden. Bitte laden Sie die Seite neu und senden Sie das Formular erneut; falls das wieder passiert, wenden Sie sich bitte direkt an uns."
 
 msgid "Too many attempts. Please try again later."
 msgstr "Zu viele Versuche. Bitte versuchen Sie es später erneut."
-
-msgid "Please accept the partner program terms."
-msgstr "Bitte akzeptieren Sie die Partnerbedingungen."
 
 msgid "Please fill in all required fields."
 msgstr "Bitte füllen Sie alle Pflichtfelder aus."
@@ -3829,6 +3919,9 @@ msgstr "Mit * markierte Felder sind Pflichtfelder."
 msgid "Application as: %s"
 msgstr "Bewerbung als: %s"
 
+msgid "Choose another partner type"
+msgstr "Andere Partnerart wählen"
+
 msgid "Channel (e.g. Instagram, YouTube, newsletter, school)"
 msgstr "Kanal (z. B. Instagram, YouTube, Newsletter, Schule)"
 
@@ -3840,6 +3933,9 @@ msgstr "Ich akzeptiere die %1$s (Version %2$s)."
 
 msgid "partner program terms"
 msgstr "Partnerbedingungen"
+
+msgid "(opens in a new tab)"
+msgstr "(öffnet in neuem Tab)"
 
 msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
 msgstr "Wir verwenden Ihre Angaben, um Ihre Bewerbung zu prüfen und nach einer Freigabe das Partnerprogramm mit Ihnen durchzuführen (Vertrag, Art. 6 Abs. 1 lit. b DSGVO). Abgelehnte Bewerbungen werden nach der in unserer Datenschutzerklärung genannten Frist gelöscht."
@@ -4217,6 +4313,12 @@ msgstr "Geplante Aufgaben sind seit über zwei Stunden nicht gelaufen"
 msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\"; on a network for every site)."
 msgstr "Provisionen werden nicht freigegeben und fehlgeschlagene Verkäufe nicht wiederholt. Richten Sie einen System-Cron ein („wp cron event run --due-now“; im Netzwerk für jede Website)."
 
+msgid "An integration sends sales that are refused"
+msgstr "Eine Integration sendet Verkäufe, die abgelehnt werden"
+
+msgid "Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status)."
+msgstr "Über die Action-Hooks gesendete und von der Prüfung abgelehnte Payloads: %d (Affiliate Captain → Integrationen → Systemstatus)."
+
 msgid "%1$s (failed %2$d times in a row: %3$s)"
 msgstr "%1$s (%2$d-mal in Folge fehlgeschlagen: %3$s)"
 
@@ -4265,11 +4367,23 @@ msgstr "Kein eigener Schlüssel für Bankdaten"
 msgid "Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on the WordPress salts."
 msgstr "Tragen Sie WPAC_ENCRYPTION_KEY in die wp-config.php ein, damit Bankdaten nicht von den WordPress-Salts abhängen."
 
+msgid "WPAC_CUSTOMER_KEY is ignored"
+msgstr "WPAC_CUSTOMER_KEY wird ignoriert"
+
+msgid "Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired)."
+msgstr "Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel. Die E-Mail-Adressen der Kunden werden nicht gespeichert, daher lassen sich diese Hashes nicht mit dem Schlüssel aus der wp-config.php neu berechnen; der gespeicherte Schlüssel bleibt in Gebrauch. Die Konstante wird nur auf Websites ohne Kunden-Bindungen verwendet (z. B. bei Neuinstallationen oder nachdem alle Bindungen abgelaufen sind)."
+
+msgid "WPAC_CUSTOMER_KEY was removed or changed"
+msgstr "WPAC_CUSTOMER_KEY wurde entfernt oder geändert"
+
 msgid "Partner program is in maintenance mode"
 msgstr "Partnerprogramm ist im Wartungsmodus"
 
 msgid "Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait."
 msgstr "Verkäufe werden weiter erfasst, aber Freigaben, Auszahlungen, Mails und Änderungen im Partnerbereich warten."
+
+msgid "On a multisite network the command only runs the main site. Run it for every site, e.g.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}"
+msgstr "In einem Multisite-Netzwerk führt der Befehl nur die Hauptseite aus. Führen Sie ihn für jede Website aus, z. B.: wp site list --field=url | xargs -I {} wp cron event run --due-now --url={}"
 
 msgid "Partner program (Affiliate Captain)"
 msgstr "Partnerprogramm (Affiliate Captain)"
@@ -4427,6 +4541,9 @@ msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 99 ein (z. B. 19 oder 7
 msgid "Please enter 1 to 8 letters or digits (e.g. GS)."
 msgstr "Bitte geben Sie 1 bis 8 Buchstaben oder Ziffern ein (z. B. GS)."
 
+msgid "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number."
+msgstr "Die Präfixe für Gutschriften, Stornobelege und Korrekturgutschriften müssen sich voneinander unterscheiden – sonst erhalten zwei Belege dieselbe Nummer."
+
 msgid "This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it."
 msgstr "Diese BIC ist ungültig (8 oder 11 Zeichen, z. B. COBADEFFXXX). Lassen Sie das Feld leer, wenn Sie sie nicht kennen."
 
@@ -4570,6 +4687,9 @@ msgstr "Gutscheine können nur angelegt werden, solange WooCommerce aktiv ist."
 
 msgid "Please choose one of the codes of this partner."
 msgstr "Bitte wählen Sie einen der Codes dieses Partners."
+
+msgid "This partner code is blocked, expired or used up. Please choose an active code."
+msgstr "Dieser Partnercode ist gesperrt, abgelaufen oder aufgebraucht. Bitte wählen Sie einen aktiven Code."
 
 msgid "Please enter a coupon code."
 msgstr "Bitte geben Sie einen Gutscheincode ein."
@@ -4751,6 +4871,18 @@ msgstr "Bestellpositionen nach der Zahlung geändert"
 msgid "Affiliate Captain: the partner commission was reduced because the order items were changed."
 msgstr "Affiliate Captain: Die Partnerprovision wurde verringert, weil die Bestellpositionen geändert wurden."
 
+msgid "Refund #%s deleted in WooCommerce"
+msgstr "Erstattung #%s in WooCommerce gelöscht"
+
+msgid "Affiliate Captain: a refund was deleted, but the partner commission could not be restored. Please save the order items again later."
+msgstr "Affiliate Captain: Eine Erstattung wurde gelöscht, die Partnerprovision konnte aber nicht wiederhergestellt werden. Bitte speichern Sie die Bestellpositionen später erneut."
+
+msgid "Affiliate Captain: refund #%1$s was deleted; the partner commission deducted for it (%2$s) was booked again."
+msgstr "Affiliate Captain: Erstattung #%1$s wurde gelöscht; die dafür abgezogene Partnerprovision (%2$s) wurde wieder gebucht."
+
+msgid "Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction)."
+msgstr "Affiliate Captain: Eine Erstattung wurde gelöscht; die Partnerprovision wurde nicht automatisch wiederhergestellt (Provision in Prüfung, abgelehnt oder storniert). Soll der Partner sie zurückerhalten, buchen Sie eine Korrektur (Affiliate Captain → Provisionen → Provision → Korrektur)."
+
 msgid "Order items increased after payment"
 msgstr "Bestellpositionen nach der Zahlung erhöht"
 
@@ -4768,6 +4900,9 @@ msgstr "Affiliate Captain: Die Partnerprovision konnte noch nicht wiederhergeste
 
 msgid "Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later."
 msgstr "Affiliate Captain: Die Partnerprovision konnte nicht wiederhergestellt werden. Bitte ändern Sie den Bestellstatus später erneut."
+
+msgid "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
+msgstr "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrektur-Gutschrift(en) %2$s. Bitte prüfen Sie, ob die Korrektur diese Bestellung schon berücksichtigt hat (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
 
 msgid "Order paid again (chargeback won or cancellation reversed)"
 msgstr "Bestellung wieder bezahlt (Rückbuchung gewonnen oder Stornierung aufgehoben)"
@@ -4856,6 +4991,18 @@ msgstr "die Provisionsregel wurde nicht angelegt – legen Sie sie unter Provisi
 msgid "the status \"%1$s\" could not be set: %2$s – the partner is pending; change the status on the partner page"
 msgstr "der Status „%1$s“ konnte nicht gesetzt werden: %2$s – der Partner ist ausstehend; ändern Sie den Status auf der Partnerseite"
 
+msgid "reverse charge"
+msgstr "Reverse Charge"
+
+msgid "small business, no VAT"
+msgstr "Kleinunternehmer, keine USt"
+
+msgid "private individual, no VAT"
+msgstr "Privatperson, keine USt"
+
+msgid "VAT %s %%"
+msgstr "USt %s %%"
+
 msgid "Only paid payouts get a correction credit note; cancel an unpaid payout instead."
 msgstr "Nur bezahlte Auszahlungen erhalten eine Korrekturgutschrift; stornieren Sie eine unbezahlte Auszahlung stattdessen."
 
@@ -4864,6 +5011,12 @@ msgstr "Zu dieser Auszahlung ist keine Gutschrift gespeichert (noch nicht ausges
 
 msgid "Affiliate not found"
 msgstr "Partner nicht gefunden"
+
+msgid "This credit note contains no taxable commissions (only settled correction credit notes, repayments or write-offs), so there is nothing to correct on it. Correct the credit note the amounts came from instead."
+msgstr "Diese Gutschrift enthält keine steuerbaren Provisionen (nur verrechnete Korrektur-Gutschriften, Rückzahlungen oder Abschreibungen), daher gibt es an ihr nichts zu korrigieren. Korrigieren Sie stattdessen die Gutschrift, aus der die Beträge stammen."
+
+msgid "This credit note has parts with different VAT treatments or rates. Please correct each part separately (one correction credit note per part, with the corrected net amount of that part)."
+msgstr "Diese Gutschrift hat Teile mit unterschiedlicher umsatzsteuerlicher Behandlung oder unterschiedlichen Steuersätzen. Bitte korrigieren Sie jeden Teil einzeln (eine Korrektur-Gutschrift je Teil, mit dem richtigen Nettobetrag dieses Teils)."
 
 msgid "The credit note was corrected in the meantime. Please check the current amounts and try again; nothing was booked."
 msgstr "Die Gutschrift wurde zwischenzeitlich korrigiert. Bitte prüfen Sie die aktuellen Beträge und versuchen Sie es erneut; es wurde nichts gebucht."
@@ -4876,6 +5029,9 @@ msgstr "Die Korrekturgutschrift konnte nicht gespeichert werden (Datenbankfehler
 
 msgid "We have issued correction credit note %1$s for credit note %2$s (in your partner area under Payouts): %3$s"
 msgstr "Wir haben zur Gutschrift %2$s die Korrekturgutschrift %1$s ausgestellt (in Ihrem Partnerbereich unter „Auszahlungen“): %3$s"
+
+msgid "We have issued correction credit note %1$s for credit note %2$s: %3$s. The document is still being created; we will send it to you by e-mail as soon as it is ready."
+msgstr "Wir haben zur Gutschrift %2$s die Korrektur-Gutschrift %1$s ausgestellt: %3$s. Das Dokument wird noch erstellt; wir senden es Ihnen per E-Mail, sobald es fertig ist."
 
 msgid "Correction credit note (Gutschrift)"
 msgstr "Korrekturgutschrift (Gutschrift)"
@@ -4922,12 +5078,6 @@ msgstr "Steuernummer des Partners"
 msgid "Reason for the correction"
 msgstr "Grund der Korrektur"
 
-msgid "Net"
-msgstr "Netto"
-
-msgid "Gross"
-msgstr "Brutto"
-
 msgid "Previously (%s)"
 msgstr "Bisher (%s)"
 
@@ -4945,6 +5095,12 @@ msgstr "Die Differenz von %s wird dem Partnerkonto gutgeschrieben und mit der n�
 
 msgid "The overpayment of %s is debited to the partner account and offset against the next commissions."
 msgstr "Die Überzahlung von %s wird dem Partnerkonto belastet und mit den nächsten Provisionen verrechnet."
+
+msgid "This correction concerns only the part of credit note %1$s with %2$s; the other parts of the credit note are unchanged."
+msgstr "Diese Korrektur betrifft nur den Teil der Gutschrift %1$s mit %2$s; die übrigen Teile der Gutschrift bleiben unverändert."
+
+msgid "Repayments, write-offs and settled correction credit notes on credit note %1$s (%2$s) are not taxable and not part of the amounts above."
+msgstr "Rückzahlungen, Abschreibungen und verrechnete Korrektur-Gutschriften auf der Gutschrift %1$s (%2$s) sind nicht steuerbar und nicht Teil der obigen Beträge."
 
 msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
 msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (§ 14 Abs. 2 UStG); die Änderung der Beträge ist eine Berichtigung nach § 17 UStG. Der Partner kann ihr wie der Gutschrift widersprechen."
@@ -5141,8 +5297,8 @@ msgstr "Diese Auszahlung kann nicht als bezahlt markiert werden."
 msgid "Only unpaid payouts can be cancelled."
 msgstr "Nur nicht bezahlte Auszahlungen können storniert werden."
 
-msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here 7 days after the claim, after checking in the account of the payment provider that it was not paid."
-msgstr "Auszahlung %1$s wird gerade über einen Zahlungsdienst ausgezahlt (Referenz %2$s). Das Add-on, das sie reserviert hat, gibt sie zurück, wenn der Zahlungsdienst nicht zahlt. Hier stornieren lässt sie sich erst 7 Tage nach der Reservierung, nachdem Sie im Konto des Zahlungsdienstes geprüft haben, dass nicht gezahlt wurde."
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here %3$d days after the claim, after checking in the account of the payment provider that it was not paid."
+msgstr "Auszahlung %1$s wird gerade über einen Zahlungsdienst ausgezahlt (Referenz %2$s). Das Add-on, das sie reserviert hat, gibt sie zurück, wenn der Zahlungsdienst nicht zahlt. Hier stornieren lässt sie sich erst %3$d Tage nach der Reservierung, nachdem Sie im Konto des Zahlungsdienstes geprüft haben, dass nicht gezahlt wurde."
 
 msgid "Payout %1$s was handed to a payment provider (reference %2$s). Confirm that the provider did not pay it before cancelling – otherwise the commissions could be paid twice."
 msgstr "Auszahlung %1$s wurde an einen Zahlungsdienst übergeben (Referenz %2$s). Bestätigen Sie vor dem Stornieren, dass der Zahlungsdienst nicht gezahlt hat – sonst könnten die Provisionen doppelt ausgezahlt werden."
@@ -5161,6 +5317,9 @@ msgstr "Der Partner hat seine Auszahlungsdaten nach dem Anlegen der Auszahlung %
 
 msgid "None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details)."
 msgstr "Keine der ausgewählten Auszahlungen geht an eine PayPal-Adresse (andere Auszahlungsart mit einer E-Mail-Adresse in den Zahlungsangaben)."
+
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s) and cannot be exported. The add-on that claimed it gives it back when the provider does not pay it."
+msgstr "Auszahlung %1$s wird gerade über einen Zahlungsdienst ausgezahlt (Referenz %2$s) und kann nicht exportiert werden. Das Add-on, das sie reserviert hat, gibt sie zurück, wenn der Zahlungsdienst nicht zahlt."
 
 msgid "Payment details for payout %s are missing or cannot be decrypted."
 msgstr "Die Zahlungsangaben für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
@@ -5309,15 +5468,6 @@ msgstr "Storniert"
 msgid "Other payment method as agreed with the partner"
 msgstr "Andere, mit dem Partner vereinbarte Zahlungsart"
 
-msgid "reverse charge"
-msgstr "Reverse Charge"
-
-msgid "small business, no VAT"
-msgstr "Kleinunternehmer, keine USt"
-
-msgid "private individual, no VAT"
-msgstr "Privatperson, keine USt"
-
 msgid "Repayments and write-offs (not taxable)"
 msgstr "Rückzahlungen und Abschreibungen (nicht steuerbar)"
 
@@ -5335,6 +5485,9 @@ msgstr "Korrektur netto (USt %s %%)"
 
 msgid "VAT %1$s %% on %2$s"
 msgstr "USt %1$s %% auf %2$s"
+
+msgid "Correction credit notes settled (gross, VAT shown there)"
+msgstr "Verrechnete Korrektur-Gutschriften (brutto, USt dort ausgewiesen)"
 
 msgid "Total cancelled"
 msgstr "Storniert gesamt"
@@ -5362,9 +5515,6 @@ msgstr "Jahresübersicht %d"
 
 msgid "partner program"
 msgstr "Partnerprogramm"
-
-msgid "Document"
-msgstr "Beleg"
 
 msgid "cancels %s"
 msgstr "storniert %s"
@@ -5820,7 +5970,7 @@ msgstr "Für Auszahlung verfügbar: %s"
 msgid "Payout requested on %s – in progress."
 msgstr "Auszahlung beantragt am %s – in Bearbeitung."
 
-msgid "Your payout request of %1$s was not processed: %2$s"
+msgid "Your payout request from %1$s was not processed: %2$s"
 msgstr "Ihr Auszahlungsantrag vom %1$s wurde nicht bearbeitet: %2$s"
 
 msgid "Request payout of %s"
@@ -5931,14 +6081,17 @@ msgstr "Die EU-Datenbank VIES war zur Prüfung Ihrer USt-IdNr. nicht erreichbar;
 msgid "Tax number (if you have no VAT ID)"
 msgstr "Steuernummer (falls keine USt-IdNr.)"
 
-msgid "stored"
-msgstr "gespeichert"
+msgid "IBAN (stored: %s)"
+msgstr "IBAN (gespeichert: %s)"
 
 msgid "Leave empty to keep"
 msgstr "Leer lassen, um beizubehalten"
 
 msgid "BIC (optional)"
 msgstr "BIC (optional)"
+
+msgid "Payment details (stored: %s)"
+msgstr "Zahlungsangaben (gespeichert: %s)"
 
 msgid "Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually."
 msgstr "Wohin und wie wir Ihre Provision senden sollen (z. B. PayPal-Adresse, Wise oder ausländisches Bankkonto). Diese Auszahlungen zahlen wir manuell."
@@ -5948,6 +6101,9 @@ msgstr "Aktuelles Passwort (nur zum Ändern Ihrer Bank- oder Zahlungsangaben nö
 
 msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
 msgstr "Ihre Bank- und Zahlungsangaben werden verschlüsselt gespeichert und nur für Provisionsauszahlungen verwendet."
+
+msgid "%s%%"
+msgstr "%s %%"
 
 msgid "E-mail for notifications"
 msgstr "E-Mail für Benachrichtigungen"
@@ -5978,6 +6134,21 @@ msgstr "Überwiesen am %s"
 
 msgid "In progress"
 msgstr "In Bearbeitung"
+
+msgid "%d order of this customer is attributed to a partner (order number, partner, method, campaign). The attribution is retained as a booking record of the partner commission for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgid_plural "%d orders of this customer are attributed to a partner (order number, partner, method, campaign). The attributions are retained as booking records of the partner commissions for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details."
+msgstr[0] "%d Bestellung dieses Kunden ist einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnung wird als Buchungsunterlage der Partnerprovision für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden."
+msgstr[1] "%d Bestellungen dieses Kunden sind einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnungen werden als Buchungsunterlagen der Partnerprovisionen für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden."
+
+msgid "The referral data of %d order is retained until its partner commission has been booked (automatic retry)."
+msgid_plural "The referral data of %d orders is retained until their partner commission has been booked (automatic retry)."
+msgstr[0] "Die Empfehlungsangaben von %d Bestellung werden aufbewahrt, bis ihre Partnerprovision gebucht ist (automatische Wiederholung)."
+msgstr[1] "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung)."
+
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards."
+msgstr[0] "%d Protokolleintrag zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) wird als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; seine Verarbeitung ist eingeschränkt, seine Details werden danach gelöscht."
+msgstr[1] "%d Protokolleinträge zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) werden als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; ihre Verarbeitung ist eingeschränkt, ihre Details werden danach gelöscht."
 
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
@@ -6014,6 +6185,16 @@ msgid_plural "rejected partner applications: %d days"
 msgstr[0] "abgelehnte Partnerbewerbungen: %d Tag"
 msgstr[1] "abgelehnte Partnerbewerbungen: %d Tage"
 
+msgid "partner applications that were never decided: %d day"
+msgid_plural "partner applications that were never decided: %d days"
+msgstr[0] "nie entschiedene Partnerbewerbungen: %d Tag"
+msgstr[1] "nie entschiedene Partnerbewerbungen: %d Tage"
+
+msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order"
+msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order"
+msgstr[0] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+msgstr[1] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+
 msgid "commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)"
 msgid_plural "commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)"
 msgstr[0] "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten Partnerbedingungen: %d Jahr nach Ende des Kalenderjahres (gesetzliche Aufbewahrung; während einer Betriebsprüfung länger)"
@@ -6032,6 +6213,12 @@ msgstr "Provisionsbasis"
 
 msgid "Held until"
 msgstr "Gesperrt bis"
+
+msgid "Commission status changes"
+msgstr "Statusänderungen von Provisionen"
+
+msgid "Change log entries about you"
+msgstr "Einträge im Änderungsprotokoll zu Ihnen"
 
 msgid "Your orders credited to a partner"
 msgstr "Ihre einem Partner gutgeschriebenen Bestellungen"
@@ -6059,6 +6246,15 @@ msgstr "aktiv"
 
 msgid "Payout requests"
 msgstr "Auszahlungsanträge"
+
+msgid "Earlier tax data"
+msgstr "Frühere Steuerangaben"
+
+msgid "Requested change of the tax data (waiting for approval)"
+msgstr "Beantragte Änderung der Steuerangaben (wartet auf Freigabe)"
+
+msgid "Requested on"
+msgstr "Beantragt am"
 
 msgid "Name registered with VIES"
 msgstr "Bei VIES registrierter Name"
@@ -6108,6 +6304,9 @@ msgstr "Letzter Besuch"
 msgid "Linked user account"
 msgstr "Verknüpftes Benutzerkonto"
 
+msgid "Unsubscribed from these e-mails"
+msgstr "Von diesen E-Mails abgemeldet"
+
 msgid "Processing restricted since"
 msgstr "Verarbeitung eingeschränkt seit"
 
@@ -6120,9 +6319,6 @@ msgstr "Beantragter neuer öffentlicher Name (wartet auf Freigabe)"
 msgid "Requested new website (waiting for approval)"
 msgstr "Beantragte neue Website (wartet auf Freigabe)"
 
-msgid "Requested on"
-msgstr "Beantragt am"
-
 msgid "Previous e-mail address (security notices for 30 days)"
 msgstr "Vorherige E-Mail-Adresse (Sicherheitshinweise für 30 Tage)"
 
@@ -6131,6 +6327,9 @@ msgstr "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen
 
 msgid "The restriction of processing could not be saved. Please restrict the partner manually on the partner page."
 msgstr "Die Einschränkung der Verarbeitung konnte nicht gespeichert werden. Bitte schränken Sie den Partner manuell auf der Partnerseite ein."
+
+msgid "The history of the partner's tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards."
+msgstr "Der Verlauf der Steuerdaten des Partners (Steuerstatus, Land, USt-IdNr., Steuernummer und bis wann sie galten) wird für die gesetzliche Aufbewahrungsfrist aufbewahrt: Korrekturen von Gutschriften innerhalb dieser Frist müssen die zum Zeitpunkt der Leistung gültigen Steuerdaten verwenden. Danach wird er gelöscht."
 
 msgid "Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled."
 msgstr "Die Auszahlungsdaten wurden aufbewahrt, weil der Partner noch offene Provisionen oder Auszahlungen hat. Sie werden automatisch gelöscht, sobald alles abgerechnet ist."
@@ -6170,6 +6369,12 @@ msgstr "Kundenverknüpfung mit dem empfehlenden Partner: bis zum Ende der Partne
 
 msgid "rejected partner applications: until deleted manually"
 msgstr "abgelehnte Partnerbewerbungen: bis zur manuellen Löschung"
+
+msgid "partner applications that were never decided: until deleted manually"
+msgstr "nie entschiedene Partnerbewerbungen: bis zur manuellen Löschung"
+
+msgid "applications whose e-mail address was not confirmed: 2 days"
+msgstr "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: 2 Tage"
 
 msgid "commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically"
 msgstr "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten Partnerbedingungen: gesetzliche Aufbewahrungsfrist, derzeit keine automatische Löschung"
@@ -6314,6 +6519,9 @@ msgstr "Auszahlungs-IBAN wird auch von einem anderen Partner verwendet"
 
 msgid "Review requested by the sales source (e.g. first order of the subscription under review)"
 msgstr "Prüfung von der Verkaufsquelle angefordert (z. B. Erstbestellung des Abos in Prüfung)"
+
+msgid "A page or edge cache was detected (%s). If it serves pages with partner links from the cache, the server never sees those clicks and no commission is recorded. Switch on \"Also record partner links via JavaScript\" (Settings → Tracking) or exclude the link parameter from the cache."
+msgstr "Ein Seiten- oder Edge-Cache wurde erkannt (%s). Liefert er Seiten mit Partnerlinks aus dem Cache, sieht der Server diese Klicks nie und es wird keine Provision erfasst. Schalten Sie „Partnerlinks zusätzlich per JavaScript erfassen“ ein (Einstellungen → Tracking) oder nehmen Sie den Link-Parameter vom Cache aus."
 
 msgid "Partner links (Affiliate Captain)"
 msgstr "Partnerlinks (Affiliate Captain)"
