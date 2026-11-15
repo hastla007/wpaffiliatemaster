@@ -270,7 +270,7 @@ Review of all modules (security, money, legal, operations, usability):
 == Upgrade Notice ==
 
 = 0.13.0 =
-Security and bookkeeping fixes from an expert audit (no double payouts of claimed payouts, correct VAT on correction credit notes, no credit note for cancelled payouts). Make a backup first; the database update to schema 13 only adds indexes. On large sites it waits at most 10 seconds for table locks; an index that cannot be added online is retried later by cron (see Tools, System status).
+Audit fixes: no double payouts of claimed payouts, correct VAT on correction credit notes, safe retries after database deadlocks. Back up first; schema 13 only adds indexes (waits at most 10 s for locks, retried later by cron).
 
 = 0.12.0 =
 Make a backup first; the database update to schema 12 (new table for correction credit notes) runs automatically. New: correction credit notes for paid payouts, automatic booking of raised order lines, coupon creation for partners, sortable admin lists and the add-on contract 1.3.0.
