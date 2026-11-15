@@ -145,6 +145,15 @@ final class Creatives {
 			'disclosure'    => sanitize_text_field( isset( $in['disclosure'] ) && '' !== trim( $in['disclosure'] ) ? $in['disclosure'] : Settings::get( 'default_disclosure' ) ),
 			'group_id'      => absint( isset( $in['group_id'] ) ? $in['group_id'] : 0 ),
 		);
+		// The target page is checked like in the link generator (R14-T9): also with or without "www.",
+		// another letter case or a host inside the cookie domain; stored normalized.
+		if ( '' !== $data['landing_url'] ) {
+			$own = \WPAffiliateCaptain\Portal\Portal::own_page_url( $data['landing_url'] );
+			if ( '' === $own ) {
+				return new \WP_Error( 'wpac_url', __( 'The target page must be on this website.', 'affiliate-captain' ) );
+			}
+			$data['landing_url'] = esc_url_raw( $own );
+		}
 		// Column limits: wpdb refuses the whole INSERT for a longer value (no draft would be saved).
 		foreach ( array(
 			'title'       => array( 190, __( 'Title', 'affiliate-captain' ) ),
@@ -165,9 +174,6 @@ final class Creatives {
 		}
 		if ( 'text' === $type && '' === $data['content'] ) {
 			return new \WP_Error( 'wpac_content', __( 'Please enter the text.', 'affiliate-captain' ) );
-		}
-		if ( $data['landing_url'] && wp_parse_url( $data['landing_url'], PHP_URL_HOST ) !== wp_parse_url( home_url(), PHP_URL_HOST ) ) {
-			return new \WP_Error( 'wpac_url', __( 'The target page must be on this website.', 'affiliate-captain' ) );
 		}
 		return $data;
 	}

@@ -35,7 +35,7 @@ final class Agreements {
 		return array(
 			'page_id' => $page_id,
 			'version' => $version,
-			'hash'    => $post ? hash( 'sha256', $post->post_title . "\n" . $post->post_content ) : '',
+			'hash'    => $post ? self::hash_of( $post ) : '',
 			'url'     => $post ? get_permalink( $post ) : '',
 		);
 	}
@@ -53,10 +53,66 @@ final class Agreements {
 			return false;
 		}
 		$post = get_post( (int) $terms['page_id'] );
-		if ( ! $post || hash( 'sha256', $post->post_title . "\n" . $post->post_content ) !== $terms['hash'] ) {
+		if ( ! $post || self::hash_of( $post ) !== $terms['hash'] ) {
 			return false;
 		}
-		return (bool) add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => $post->post_content, 'page_id' => (int) $post->ID, 'stored_at' => Db::now() ), '', false );
+		// The rendered text is the proof (R14-L6); the block source is kept to restore the layout.
+		return (bool) add_option( 'wpac_terms_text_' . $terms['hash'], array( 'title' => $post->post_title, 'content' => self::rendered_text( $post ), 'source' => $post->post_content, 'page_id' => (int) $post->ID, 'stored_at' => Db::now() ), '', false );
+	}
+
+	/** @var bool Whether a terms page is being rendered (shortcodes on it may ask for the terms). */
+	private static $rendering = false;
+
+	/**
+	 * Version hash of a terms page: over the title and the rendered text (R14-L6), so a change of
+	 * a synced pattern or of a shortcode's output on the page changes the hash too.
+	 *
+	 * @param object $post Terms page.
+	 * @return string SHA-256.
+	 */
+	public static function hash_of( $post ) {
+		return hash( 'sha256', $post->post_title . "\n" . self::rendered_text( $post ) );
+	}
+
+	/**
+	 * Text of a terms page as partners read it: blocks (with synced patterns) and shortcodes
+	 * rendered, tags removed, whitespace normalised.
+	 *
+	 * @param object $post Terms page.
+	 * @return string
+	 */
+	public static function rendered_text( $post ) {
+		$raw = (string) $post->post_content;
+		// A shortcode on the terms page that asks for the terms again gets the unrendered text (no
+		// recursion).
+		if ( self::$rendering ) {
+			return self::plain( $raw );
+		}
+		$html            = $raw;
+		self::$rendering = true;
+		try {
+			if ( function_exists( 'do_blocks' ) ) {
+				$html = do_blocks( $html );
+			}
+			if ( function_exists( 'do_shortcode' ) ) {
+				$html = do_shortcode( $html );
+			}
+		} finally {
+			self::$rendering = false;
+		}
+		return self::plain( $html );
+	}
+
+	/**
+	 * HTML to plain text: tags removed, entities decoded, whitespace normalised.
+	 *
+	 * @param string $html HTML.
+	 * @return string
+	 */
+	private static function plain( $html ) {
+		$text = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $html ) : trim( strip_tags( preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', $html ) ) );  // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags -- fallback outside WordPress only.
+		$text = trim( (string) preg_replace( '/[ \t]*\R\s*/u', "\n", (string) preg_replace( '/[ \t\x{00A0}]+/u', ' ', html_entity_decode( $text, ENT_QUOTES, 'UTF-8' ) ) ) );
+		return $text;
 	}
 
 	/**

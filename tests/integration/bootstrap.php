@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 13 );
+define( 'WPAC_DB_VERSION', 15 );
 define( 'WPAC_CONTRACT_VERSION', '1.3.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -89,8 +89,10 @@ class Test_WPDB {
 		$this->options = $this->prefix . 'options';
 		$this->db->query( "CREATE TABLE IF NOT EXISTS {$this->options} ( option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT, option_name varchar(191) NOT NULL, option_value longtext NOT NULL, autoload varchar(20) NOT NULL DEFAULT 'yes', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name) )" );
 		$this->db->query( "TRUNCATE TABLE {$this->options}" );
+		$this->postmeta = $this->prefix . 'postmeta'; // Name only (uninstall.php checks whether it exists).
 	}
 	public $options = 'wp_options';
+	public $postmeta = 'wp_postmeta';
 	public $rows_affected = 0;
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
 	public function get_blog_prefix( $id = null ) { return $this->prefix; }
@@ -304,6 +306,31 @@ class WP_Error {
 	public function add_data( $d ) { $this->data = $d; }
 }
 
+// R14-A4: deprecations raised in the plugin's own code (src/, uninstall.php) fail the run, on every
+// PHP version of the CI matrix. Silenced ones (@) and those of the stand-ins/tests are ignored.
+$GLOBALS['wpac_test_deprecations'] = array();
+set_error_handler(
+	static function ( $no, $str, $file = '', $line = 0 ) {
+		if ( ! ( $no & ( E_DEPRECATED | E_USER_DEPRECATED ) ) ) {
+			return false; // Everything else: PHP's normal handling.
+		}
+		$real = (string) realpath( (string) $file );
+		$own  = '' !== $real && ( 0 === strpos( $real, (string) realpath( WPAC_DIR . 'src' ) . '/' ) || (string) realpath( WPAC_DIR . 'uninstall.php' ) === $real );
+		if ( $own && ( error_reporting() & E_WARNING ) ) { // Not silenced with @ (which masks E_WARNING).
+			$GLOBALS['wpac_test_deprecations'][] = $str . ' in ' . substr( $real, strlen( (string) realpath( WPAC_DIR ) ) + 1 ) . ':' . (int) $line;
+		}
+		return true;
+	}
+);
+register_shutdown_function(
+	static function () {
+		if ( $GLOBALS['wpac_test_deprecations'] && empty( $GLOBALS['wpac_test_deprecations_reported'] ) ) {
+			fwrite( STDERR, "\nDeprecations from the plugin's code:\n  " . implode( "\n  ", array_unique( $GLOBALS['wpac_test_deprecations'] ) ) . "\n" );
+			exit( 1 );
+		}
+	}
+);
+
 spl_autoload_register(
 	static function ( $class ) {
 		$prefix = 'WPAffiliateCaptain\\';
@@ -378,6 +405,20 @@ function get_post( $id ) {
 	return null;
 }
 function _x( $t, $c = '', $d = '' ) { return $t; }
+// Post status: published unless a test says otherwise ($GLOBALS['test_post_status'][ id ], or the
+// older $GLOBALS['g10_post_status'] of r8-g10.php, where unknown posts have no status).
+if ( ! function_exists( 'get_post_status' ) ) {
+	function get_post_status( $id ) {
+		$id = (int) ( is_object( $id ) ? $id->ID : $id );
+		if ( isset( $GLOBALS['test_post_status'] ) && array_key_exists( $id, $GLOBALS['test_post_status'] ) ) {
+			return $GLOBALS['test_post_status'][ $id ];
+		}
+		if ( isset( $GLOBALS['g10_post_status'] ) ) {
+			return $GLOBALS['g10_post_status'][ $id ] ?? false;
+		}
+		return $id > 0 ? 'publish' : false;
+	}
+}
 
 // HTTP: tests set $GLOBALS['test_http'] = function ( $url, $args ) { return array( 'body' => '...' ); }.
 if ( ! function_exists( 'wp_remote_post' ) ) {
@@ -405,3 +446,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspec
 // Multisite stand-ins (tests switch $GLOBALS['test_multisite'] / $GLOBALS['test_blog_id']).
 if ( ! function_exists( 'is_multisite' ) ) { function is_multisite() { return ! empty( $GLOBALS['test_multisite'] ); } }
 if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return isset( $GLOBALS['test_blog_id'] ) ? (int) $GLOBALS['test_blog_id'] : 1; } }
+// Most tests write visits straight into the visits table (not through the tracker), so the daily
+// aggregate (R14-D9) would miss them: reports read the raw visits unless a test switches
+// $GLOBALS['test_visits_daily'] on (r14-g8.php).
+add_filter( 'wpac_visits_daily_ready', static function ( $ready ) { return $ready && ! empty( $GLOBALS['test_visits_daily'] ); } );

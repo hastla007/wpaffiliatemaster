@@ -26,6 +26,29 @@ final class Consent {
 	}
 
 	/**
+	 * How marketing consent reaches the plugin (R14-L2). The WP Consent API alone is not enough:
+	 * it only counts once a consent banner has registered a consent type (cookie_allowed()), and
+	 * window.wpacConsentGranted() is checked again on the server – banners without WP Consent API
+	 * support need the PHP filter wpac_has_marketing_consent.
+	 *
+	 * @return array { api: bool WP Consent API installed, banner: bool a banner registered a
+	 *               consent type, filter: bool wpac_has_marketing_consent is hooked,
+	 *               connected: bool consent can reach the plugin, needed: bool cookie_mode is "consent" }
+	 */
+	public static function integration_status() {
+		$api    = function_exists( 'wp_has_consent' ) && function_exists( 'wp_get_consent_type' );
+		$banner = $api && function_exists( 'wp_get_consent_type' ) && '' !== (string) wp_get_consent_type();
+		$filter = function_exists( 'has_filter' ) && false !== has_filter( 'wpac_has_marketing_consent' );
+		return array(
+			'api'       => $api,
+			'banner'    => $banner,
+			'filter'    => $filter,
+			'connected' => $banner || $filter,
+			'needed'    => 'consent' === Settings::get( 'cookie_mode' ),
+		);
+	}
+
+	/**
 	 * Whether the affiliate cookie may be set/read.
 	 *
 	 * @return bool

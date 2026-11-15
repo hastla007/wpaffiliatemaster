@@ -25,8 +25,9 @@ final class SettingsPage {
 		if ( 'ropa_download' === $do ) {
 			nocache_headers();
 			header( 'Content-Type: text/markdown; charset=utf-8' );
-			header( 'Content-Disposition: attachment; filename="verarbeitungsverzeichnis-affiliate.md"' );
-			echo \WPAffiliateCaptain\Privacy\Privacy::ropa(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
+			$lang = \WPAffiliateCaptain\Privacy\Privacy::ropa_language();
+			header( 'Content-Disposition: attachment; filename="' . ( 'de' === $lang ? 'verarbeitungsverzeichnis-affiliate.md' : 'record-of-processing-affiliate.md' ) . '"' );
+			echo \WPAffiliateCaptain\Privacy\Privacy::ropa( $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
 			exit;
 		}
 		if ( 'settings_save' !== $do ) {
@@ -124,6 +125,17 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Warning for a cookie lifetime beyond what is usually proportionate (R14-L8).
+	 *
+	 * @param int $days Cookie lifetime.
+	 * @return string
+	 */
+	public static function cookie_days_warning( $days ) {
+		/* translators: 1: configured cookie lifetime in days, 2: advised maximum in days */
+		return sprintf( __( 'A cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days, about 13 months). Choose a shorter lifetime unless you have documented reasons; the lifetime must also be stated in your consent banner.', 'affiliate-captain' ), (int) $days, \WPAffiliateCaptain\Core\Settings::COOKIE_DAYS_ADVISED );
+	}
+
+	/**
 	 * Labels of the validated fields (form field name => label) for error messages.
 	 *
 	 * @return array
@@ -204,6 +216,7 @@ final class SettingsPage {
 				'rule_precedence'       => __( 'Rule precedence', 'affiliate-captain' ),
 				'landing_page_id'       => __( 'Default landing page', 'affiliate-captain' ),
 				'promotion_guidelines'  => __( 'Promotion guidelines for partners', 'affiliate-captain' ),
+				'embed_disclosure_label' => __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ),
 				'min_payout_minor'      => __( 'Minimum payout', 'affiliate-captain' ),
 				'payout_requests'       => __( 'Partners can request payouts in the partner area', 'affiliate-captain' ),
 				'payout_method_manual'  => __( 'Partners may choose another payment method (e.g. PayPal, Wise), paid manually', 'affiliate-captain' ),
@@ -213,6 +226,8 @@ final class SettingsPage {
 				'operator_vat_id'       => __( 'Your VAT ID', 'affiliate-captain' ),
 				'vies_check'            => __( 'VIES check: verify partner VAT IDs with the EU Commission', 'affiliate-captain' ),
 				'operator_tax_number'   => __( 'Your tax number (if no VAT ID)', 'affiliate-captain' ),
+				'einvoice_mail'         => __( 'Send e-invoice (XML) with the credit note e-mail', 'affiliate-captain' ),
+				'einvoice_buyer_reference' => __( 'Buyer reference on e-invoices (e.g. Leitweg-ID)', 'affiliate-captain' ),
 				'debtor_name'           => __( 'Company account holder (SEPA)', 'affiliate-captain' ),
 				'remittance_prefix'     => __( 'Remittance text prefix', 'affiliate-captain' ),
 				'report_admin'          => __( 'Monthly summary e-mail to the operator', 'affiliate-captain' ),
@@ -268,8 +283,8 @@ final class SettingsPage {
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
-			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
-			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
+			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'promotion_guidelines' ),
+			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'einvoice_mail', 'einvoice_buyer_reference', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
 			'data'        => array( 'visit_retention_days', 'application_retention_days', 'pending_application_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
 		);
@@ -454,7 +469,10 @@ final class SettingsPage {
 		if ( 'always' === $s['cookie_mode'] ) {
 			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html__( 'An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use "Only with marketing consent" unless your shop is outside the EU and you checked the local law.', 'affiliate-captain' ) . '</p></div></td></tr>';
 		}
-		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'affiliate-captain' ), $s );
+		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'affiliate-captain' ), $s, __( 'Named in the privacy policy text and in the cookie details for your consent banner. Data protection authorities consider up to 13 months (395 days) proportionate for consent-based cookies.', 'affiliate-captain' ) );
+		if ( (int) $s['cookie_days'] > \WPAffiliateCaptain\Core\Settings::COOKIE_DAYS_ADVISED ) {
+			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html( self::cookie_days_warning( (int) $s['cookie_days'] ) ) . '</p></div></td></tr>';
+		}
 		self::text( 'cookie_domain', __( 'Cookie domain', 'affiliate-captain' ), $s, __( 'Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both.', 'affiliate-captain' ) );
 		self::checkbox( 'js_tracking', __( 'Also record partner links via JavaScript (for full-page caches/CDNs)', 'affiliate-captain' ), $s, __( 'Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare "Cache Everything"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice.', 'affiliate-captain' ) );
 		$edge = \WPAffiliateCaptain\Tracking\Tracker::edge_cache_hint();
@@ -564,6 +582,7 @@ final class SettingsPage {
 		self::text( 'landing_prefix', __( 'Landing page path', 'affiliate-captain' ), $s, sprintf( /* translators: %s: example URL of a partner landing page */ __( 'Partner landing URLs look like %s', 'affiliate-captain' ), home_url( '/' . $s['landing_prefix'] . '/partner-slug/' ) ) );
 		self::page_select( 'landing_page_id', __( 'Default landing page', 'affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'affiliate-captain' ) );
 		self::text( 'default_disclosure', __( 'Default disclosure note', 'affiliate-captain' ), $s );
+		self::checkbox( 'embed_disclosure_label', __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ), $s, __( 'The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. "Advertisement"), so the label stays with the banner on the partner\'s website.', 'affiliate-captain' ) );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'affiliate-captain' ) . '</p></td></tr>';
 		self::end();
 	}
@@ -601,6 +620,21 @@ final class SettingsPage {
 		self::text( 'credit_prefix', __( 'Prefix credit note numbers', 'affiliate-captain' ), $s, __( 'Numbers are gapless per year, e.g. GS-2026-000001.', 'affiliate-captain' ) );
 		self::text( 'storno_prefix', __( 'Prefix cancellation numbers', 'affiliate-captain' ), $s );
 		self::text( 'correction_prefix', __( 'Prefix correction credit note numbers', 'affiliate-captain' ), $s, __( 'Correction credit notes of paid payouts, e.g. KG-2026-000001.', 'affiliate-captain' ) );
+		self::end();
+
+		self::section( __( 'Electronic invoice (EN 16931)', 'affiliate-captain' ), 'payouts' );
+		self::select(
+			'einvoice_mail',
+			__( 'Send e-invoice (XML) with the credit note e-mail', 'affiliate-captain' ),
+			$s,
+			array(
+				'auto' => __( 'Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)', 'affiliate-captain' ),
+				'on'   => __( 'Always', 'affiliate-captain' ),
+				'off'  => __( 'Never (download only)', 'affiliate-captain' ),
+			),
+			__( 'Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy.', 'affiliate-captain' )
+		);
+		self::text( 'einvoice_buyer_reference', __( 'Buyer reference on e-invoices (e.g. Leitweg-ID)', 'affiliate-captain' ), $s, __( 'Optional. Empty: the document number is used.', 'affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'VAT ID check (VIES)', 'affiliate-captain' ), 'payouts' );
@@ -753,14 +787,17 @@ final class SettingsPage {
 	 * @param string $label   Label.
 	 * @param array  $s       Settings.
 	 * @param array  $options Options.
+	 * @param string $desc    Description.
 	 */
-	private static function select( $key, $label, $s, array $options ) {
+	private static function select( $key, $label, $s, array $options, $desc = '' ) {
 		$err = self::error_parts( $key );
 		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]"%3$s>', esc_attr( $key ), esc_html( $label ), $err[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		foreach ( $options as $v => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $v ), selected( self::shown( $key, $s[ $key ] ), (string) $v, false ), esc_html( $l ) );
 		}
-		echo '</select>' . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		echo '</select>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc );
+		echo '</td></tr>';
 	}
 
 	/**

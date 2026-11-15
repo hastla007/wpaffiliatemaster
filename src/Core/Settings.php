@@ -92,6 +92,7 @@ final class Settings {
 			// Translated once translations can load (before "init" WordPress warns about early loading).
 			'default_disclosure'      => function_exists( 'did_action' ) && did_action( 'init' ) ? __( 'Advertisement', 'affiliate-captain' ) : 'Advertisement',
 			'promotion_guidelines'    => '',
+			'embed_disclosure_label'  => 1,          // Visible disclosure label above the banner embed code (R14-L3).
 			// Payouts.
 			'min_payout_minor'        => 5000,
 			'payout_requests'         => 0,
@@ -113,6 +114,8 @@ final class Settings {
 			'credit_prefix'           => 'GS',
 			'storno_prefix'           => 'ST',
 			'correction_prefix'       => 'KG', // Correction credit notes of paid payouts.
+			'einvoice_mail'           => 'auto', // E-invoice (EN 16931 XML) with the credit note mail: auto|on|off (R14-L1).
+			'einvoice_buyer_reference' => '',    // Buyer reference (e.g. Leitweg-ID) on e-invoices; '' = document number.
 			'vies_check'              => 0, // Check partner VAT IDs with the EU Commission's VIES service (external request).
 			// Fraud rules (0 = off).
 			'fraud_max_orders_day'    => 0,
@@ -268,6 +271,13 @@ final class Settings {
 	}
 
 	/**
+	 * Longest cookie lifetime (days) that data protection authorities usually consider
+	 * proportionate for a consent-based cookie, about 13 months (R14-L8). Longer values are
+	 * allowed but warned about.
+	 */
+	const COOKIE_DAYS_ADVISED = 395;
+
+	/**
 	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
 	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
 	 */
@@ -323,6 +333,54 @@ final class Settings {
 	}
 
 	/**
+	 * Whether a name cannot be the referral parameter (R14-T6): a public query variable of
+	 * WordPress (also those of post types and taxonomies), a WooCommerce parameter, a campaign
+	 * parameter or click ID, or a parameter of the plugin.
+	 *
+	 * @param string $param Parameter name (lower case).
+	 * @return bool
+	 */
+	public static function reserved_param( $param ) {
+		$param    = (string) $param;
+		$reserved = array(
+			// WP::$public_query_vars (core, without registered post types/taxonomies).
+			'm', 'p', 'posts', 'w', 'cat', 'withcomments', 'withoutcomments', 's', 'search', 'exact', 'sentence', 'calendar', 'page', 'paged', 'more', 'tb', 'pb', 'author', 'order', 'orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'tag', 'feed', 'author_name', 'pagename', 'page_id', 'error', 'attachment', 'attachment_id', 'subpost', 'subpost_id', 'preview', 'robots', 'favicon', 'taxonomy', 'term', 'cpage', 'post_type', 'embed', 'sitemap', 'sitemap-subtype', 'sitemap-stylesheet', 'rest_route', 'static', 'lang', 'p_id', 'preview_id', 'preview_nonce', 'customize_changeset_uuid', 'action', 'redirect_to', 'loggedout', 'replytocom',
+			// WooCommerce.
+			'add-to-cart', 'quantity', 'variation_id', 'product', 'product_cat', 'product_tag', 'product_shipping_class', 'wc-ajax', 'wc-api', 'remove_item', 'removed_item', 'undo_item', 'key', 'order', 'order-pay', 'order-received', 'pay_for_order', 'coupon_code', 'min_price', 'max_price', 'rating_filter', 'filter', 'query_type', 'wc_order_attribution',
+			// Campaign parameters and click IDs.
+			'utm_campaign', 'utm_source', 'utm_medium', 'utm_content', 'utm_term', 'utm_id',
+			// The plugin.
+			\WPAffiliateCaptain\Tracking\Tracker::sub_param(), \WPAffiliateCaptain\Promotion\Landing::QUERY_VAR,
+		);
+		$reserved = array_merge( $reserved, \WPAffiliateCaptain\Promotion\Landing::CLICK_IDS );
+		if ( isset( $GLOBALS['wp'] ) && is_object( $GLOBALS['wp'] ) && isset( $GLOBALS['wp']->public_query_vars ) ) {
+			$reserved = array_merge( $reserved, (array) $GLOBALS['wp']->public_query_vars );
+		}
+		if ( function_exists( 'get_post_types' ) ) {
+			foreach ( get_post_types( array(), 'objects' ) as $type ) {
+				if ( ! empty( $type->query_var ) && is_string( $type->query_var ) ) {
+					$reserved[] = $type->query_var;
+				}
+			}
+		}
+		if ( function_exists( 'get_taxonomies' ) ) {
+			foreach ( get_taxonomies( array(), 'objects' ) as $tax ) {
+				if ( ! empty( $tax->query_var ) && is_string( $tax->query_var ) ) {
+					$reserved[] = $tax->query_var;
+				}
+			}
+		}
+		/**
+		 * Names that cannot be used as the referral parameter.
+		 *
+		 * @since 0.14.0
+		 * @param string[] $reserved Names.
+		 */
+		$reserved = (array) apply_filters( 'wpac_reserved_referral_params', $reserved );
+		return in_array( $param, $reserved, true ) || 0 === strpos( $param, 'wpac_' ) || 0 === strpos( $param, 'utm_' ) || 0 === strpos( $param, 'filter_' ) || 0 === strpos( $param, 'query_type_' );
+	}
+
+	/**
 	 * Sanitize and validate raw input from the settings form.
 	 *
 	 * Invalid input is never replaced silently: the field keeps its stored value and an error
@@ -353,6 +411,10 @@ final class Settings {
 			} elseif ( ! preg_match( '/^[a-z0-9_\-]+$/', $param ) ) {
 				$errors['referral_param'] = __( 'Only lowercase letters, digits, "-" and "_" are allowed.', 'affiliate-captain' );
 				$out['referral_param']    = $old( 'referral_param' );
+			} elseif ( $param !== $old( 'referral_param' ) && self::reserved_param( $param ) ) {
+				// R14-T6: "p", "s", "page", "add-to-cart", "sub" … would break pages or every partner link.
+				$errors['referral_param'] = __( 'This name is already used by WordPress, WooCommerce, campaign tracking or the plugin itself. Please choose another one, e.g. "ref" or "partner".', 'affiliate-captain' );
+				$out['referral_param']    = $old( 'referral_param' );
 			} else {
 				$out['referral_param'] = $param;
 			}
@@ -378,7 +440,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
@@ -406,6 +468,12 @@ final class Settings {
 		if ( 100 < $out['fraud_max_refund_rate'] && ! isset( $errors['fraud_max_refund_rate'] ) ) {
 			$errors['fraud_max_refund_rate'] = __( 'Please enter a percentage between 0 and 100.', 'affiliate-captain' );
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
+		}
+
+		if ( isset( $in['cookie_days'] ) && ! isset( $errors['cookie_days'] ) && $out['cookie_days'] > self::COOKIE_DAYS_ADVISED ) {
+			// R14-L8: allowed (non-EU shops, documented reasons), but not silently.
+			/* translators: 1: configured cookie lifetime in days, 2: advised maximum in days */
+			$notices['cookie_days'] = sprintf( __( 'Saved, but please check: a cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days).', 'affiliate-captain' ), $out['cookie_days'], self::COOKIE_DAYS_ADVISED );
 		}
 
 		self::sanitize_operator_country( $in, $out, $errors, $notices, $old );
@@ -760,6 +828,8 @@ final class Settings {
 		$out['operator_address']    = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
 		$out['operator_vat_id']     = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
 		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
+		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', array( 'auto', 'on', 'off' ), $d );
+		$out['einvoice_buyer_reference'] = isset( $in['einvoice_buyer_reference'] ) ? substr( trim( sanitize_text_field( (string) $in['einvoice_buyer_reference'] ) ), 0, 100 ) : '';
 		foreach ( array( 'credit_prefix', 'storno_prefix', 'correction_prefix' ) as $k ) {
 			$out[ $k ] = $d[ $k ];
 			if ( ! isset( $in[ $k ] ) ) {

@@ -740,3 +740,193 @@ Neun Prüfer (Sicherheit, QA, Performance, Geld/Steuer, Datenschutz, Frontend/Ba
 - [x] **R13-N12 — Performance klein:** Bericht-Cache als ein Transient mit 8 Berichten (bis MB, Memcached-Limit 1 MB, 0 % Treffer bei 9 Ansichten) → ein Transient je Bericht mit Generationsnummer (`Reports.php:188–199`); Audit-Bestellfilter verliert `payout.refund_after_correction` (`Audit.php:153–167`); Audit-Freitextsuche weiter 2–3,4 s bei 1 Mio. Zeilen (`Audit.php:223`, Zeitraum begrenzen/FULLTEXT); Template-Scan der Begrüßung lädt in Block-Themes bei jedem Aufruf alle Template-Parts (`Landing.php:99–127`, Ergebnis je Template cachen); Sweep läuft im Stundenlauf vor Jobs/Freigaben (`Cron.php:110`, an das Ende oder eigenes Event); `purge_attributions` scannt behaltene Zeilen erneut (`Retention.php:231`, Cursor). → **Erledigt:** Transient je Bericht mit Generation, Audit-Filter/90-Tage-Suche, Template-Cache, Sweep zuletzt, Cursor in purge_attributions.
 - [x] **R13-N13 — Rest aus R12-N20/R13-N11:** `composer.lock` einchecken, Prüfsummen für Downloads in `install-wp.sh` und redis-cache pinnen; geänderte CI-Workflows (Upgrade-Matrix mit v0.10.0) in GitHub Actions verifizieren. → **Erledigt:** `composer.lock` eingecheckt (12 Pakete auf Commits gepinnt), CI nutzt `composer install` + `composer validate --strict` + `composer audit --locked`; WordPress-Archiv gegen die veröffentlichte SHA-1 geprüft, WooCommerce und redis-cache nach dem Entpacken Datei für Datei gegen die offiziellen SHA-256-Prüfsummen von WordPress.org (`tests/ci/verify-plugin.php`).
 - [x] **R13-P1 — Wünsche aus dem Pro-Audit (Runde 2):** `wpac_commission_review` im Vertrag, Fehlercodes `wpac_affiliate_db`/`wpac_status_not_saved` dokumentiert, N+1 in `PayoutService::contract_view()` (Profile seitenweise per `IN (…)`), neue Action `wpac_affiliate_erased( $affiliate_id, $open )` nach `erase_partner()`. → **Erledigt** (Test `tests/integration/r13-pro.php`).
+
+## Audit-Panel (2026-11-15, Runde 14, 12 Experten, Stand 0.13.0)
+
+Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,perf,track,ux,legal}.md`. Hinweis: Affiliate Captain ist ein Partnerprogramm auf Händlerseite; Publisher-Themen (Produktboxen, Amazon PA-API, Preisalarme, Link-Cloaking, Schema.org-Produkte) treffen nicht zu.
+
+### Hoch
+
+- [x] **[PRIO: HOCH]** | **[Experte #10/#12]** | **[Kategorie: Legal / Feature]** – **R14-L1 E-Rechnung für Gutschriften (ZUGFeRD/XRechnung)** → **Erledigt:** `EInvoice`: CII-XML nach EN 16931 (XRechnung 3.0, wenn alle Daten vorliegen) für Gutschrift (389), Korrekturgutschrift (384), Storno (381); Download neben jedem PDF, optional als Mail-Anhang (`einvoice_mail`), Leitweg-ID-Einstellung, Filter `wpac_einvoice_xml`/`_data`, Regelprüfung. Kein ZUGFeRD (PDF-Writer ohne PDF/A-3); KoSIT-Validierung durch Betreiber empfohlen.
+  - *Problem:* Gutschriften gibt es nur als PDF (`Statement.php:295 ff.`). Ab 01.01.2027 (Vorjahresumsatz > 800.000 €) bzw. 01.01.2028 (alle) brauchen inländische regelbesteuerte Partner eine E-Rechnung nach EN 16931; sonst ist ihr Vorsteuerabzug gefährdet. Vertriebshindernis im DACH-Raum.
+  - *Lösung:* Gutschrift zusätzlich als ZUGFeRD/Factur-X (EN16931-Profil, PDF/A-3 mit eingebettetem CII-XML) oder XRechnung-CII erzeugen; Hook für das Pro-Add-on. Sofort: Klausel zur Zustimmung zum PDF-Format in der Bedingungsvorlage.
+
+- [x] **[PRIO: HOCH]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D1 Portal-Statistik „Kampagnen“ ohne passenden Index und ohne Cache (repro)** → **Erledigt:** Index `visits.affiliate_created` online auf `(affiliate_id, created_at, campaign, sub_id)` erweitert (Schema 14, nicht blockierend mit Retry); `verify_schema()` prüft Schlüsselspalten; Portal-Statistik 10 min je Partner/Zeitraum gecacht (`Reports::partner_cached`). Tagesaggregation `visits_daily` → R14-D9.
+  - *Problem:* `Reports::partner_campaigns()` (`Reports.php:500`, aus `Portal.php:1340`): Partner mit 1 Mio. Visits in 30 Tagen wartet 54 s, 90 Tage 163 s (Index `affiliate_created` + temporäre Tabelle + Filesort); jedes Neuladen startet die Abfrage neu, ein Partner kann die DB auslasten. `partner_summary()` 0,33 s je Aufruf, ungecacht.
+  - *Lösung:* Index `affiliate_created` auf `(affiliate_id, created_at, campaign, sub_id)` erweitern (Online-Migration wie R13-M8); Portal-Ergebnisse 10 min als Transient je Partner/Zeitraum cachen; Tagesaggregation `visits_daily` (Partner, Tag, Kampagne, Sub-ID, Anzahl) für Berichte.
+
+### Mittel
+
+- [x] **[PRIO: MITTEL]** | **[Experte #2]** | **[Kategorie: Security]** – **R14-S1 Partner-Manager kann Auszahlungen umleiten (repro, R5-W17 unvollständig)** → **Erledigt:** Routen Verknüpfen/Trennen/Link senden und E-Mail-Änderung bei Partnern mit Konto/Auszahlungsdaten nur mit `MANAGE_PAYOUTS`; Mails an alte/neue Adresse und Admin; neue Bankdaten bis 30 Tage nach Verknüpfung/E-Mail-Wechsel warten auf Freigabe (`bank_approve`/`bank_reject`).
+  - *Problem:* Wer nur `wpac_manage_affiliates` hat, ändert die Partner-E-Mail (`AffiliatesPage.php:113–119`), trennt den WP-Benutzer, verknüpft sein eigenes Konto (`same_email` ist dann wahr, `AffiliateRepository.php:766–768`) und ändert im Portal die IBAN. Umgeht die bewusste `MANAGE_PAYOUTS`-Pflicht für Bankdaten; `unlink_user()` benachrichtigt niemanden; Variante über „Link erneut senden“ ohne Admin-Mail.
+  - *Lösung:* Routen `user_link_resend`, `user_link_manual`, `user_unlink` (`Admin.php:725/731–733`) auf `MANAGE_PAYOUTS`; E-Mail-Änderung bei Partnern mit verknüpftem Konto oder Auszahlungsprofil nur mit `MANAGE_PAYOUTS`; beim Trennen/Verknüpfen alte und neue Adresse sowie Admin benachrichtigen; Bankdatenänderung bis 30 Tage nach Verknüpfung/E-Mail-Wechsel nur mit Freigabe.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #1]** | **[Kategorie: Bug]** – **R14-A1 Alte ID-Verweise zeigen nach Neuinstallation auf neue Partner (repro)** → **Erledigt:** uninstall löscht `_wpac_code_id` und ohne Aufbewahrung `_wpac_manual_*`; `coupon_save` folgt nur passenden Codezeilen.
+  - *Problem:* `uninstall.php:93` löscht `partner_codes` (und ohne Aufbewahrung `affiliates`), IDs beginnen neu bei 1. Gutschein-Meta `_wpac_code_id` und Bestell-Meta `_wpac_manual_affiliate`/`_wpac_manual_own` bleiben. Speichern eines alten Gutscheins sperrt den Code eines neuen Partners (`CouponLink::coupon_save()` :62–66); eine Altbestellung, die bezahlt wird, bucht auf den neuen Partner mit gleicher ID (`OrderSync.php:322/450`).
+  - *Lösung:* In `uninstall.php` immer `delete_post_meta_by_key('_wpac_code_id')`; ohne Aufbewahrung `_wpac_manual_*` aus postmeta und `wc_orders_meta` löschen; in `coupon_save` einer Codezeile nur folgen, wenn `wc_get_coupon_id_by_code($row->coupon_code)` 0 oder dieser Gutschein ist.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #11/#1]** | **[Kategorie: Legal / Bug]** – **R14-A2 Multisite: aufbewahrte Daten werden nie gelöscht** → **Erledigt:** `wpac_uninstall_deleted_sites()` räumt gelöschte Sites nach Frist; `tools/purge-retained.php` prüft alle Sites.
+  - *Problem:* `tools/purge-retained.php:35/41` prüft `wpac_retained_after_uninstall` nur auf der Hauptsite (Shop auf Untersite → „No retained data“). Weder Tool noch `uninstall.php` räumen `wpac_retained_sites`, `uploads/wpac-retained/site-N` und `wp_N_wpac_*`-Tabellen gelöschter Sites; das macht nur der Tages-Cron, solange das Plugin aktiv ist. Verstoß gegen Speicherbegrenzung (Art. 5 Abs. 1 e DSGVO).
+  - *Lösung:* Tool prüft das Flag über alle Sites inkl. `wpac_retained_sites`; `uninstall.php` bekommt im Multisite-Zweig die Fristprüfung für gelöschte Sites nach dem Vorbild von `Installer::drop_orphaned_tables()`.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: Bug]** – **R14-T1 Selbstempfehlungs-Prüfung trifft Nachbarn (repro)** → **Erledigt:** Vergleich auf ganze Wörter, Hausnummer exakt.
+  - *Problem:* `AttributionResolver.php:291–292` sucht die Straße des Kunden ohne Leerzeichen als Teilstring in der Partneradresse. „Am Markt 1“ ↔ „Am Markt 15“, „Hauptstr. 2“ ↔ „Hauptstraße 21“, „Ring 1“ ↔ „Ring 1a“ gelten als Selbstempfehlung; mit Standard `self_referral=block` keine Provision.
+  - *Lösung:* Vergleich auf ganze Wörter mit Leerzeichen-Grenzen (`strpos( ' '.$words.' ', ' '.comparable($addr, true).' ' )`), Hausnummer exakt.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #5/#9]** | **[Kategorie: Bug]** – **R14-T2 Nicht veröffentlichte Landingpage macht alle Kurzlinks zu 404** → **Erledigt:** `Locale::page_url()` nur veröffentlichte Seiten, Rückfall Standardseite/Startseite; Monitor-Prüfung `landing_pages`.
+  - *Problem:* `Landing::target_url()` → `Locale::page_url()` (`Locale.php:222–225`) nutzt `get_permalink()` ohne Statusprüfung. Papierkorb/Entwurf/privat → `/partner/slug/` leitet per 302 auf 404; Besuch wird trotzdem gezählt, keine Warnung.
+  - *Lösung:* Nur `publish` akzeptieren, sonst Standardseite/Startseite; Monitor-Prüfung „Landingpage nicht erreichbar“.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: Performance / SEO]** – **R14-T3 Seiten mit `?partner=`/`sub`/`utm_*` sind indexierbar** → **Erledigt:** `wp_robots` → `noindex, follow` bei Referral-Parametern (Filter `wpac_noindex`).
+  - *Problem:* Kein `wp_robots`, kein `X-Robots-Tag`, kein Canonical; Core-Canonical nur auf Einzelseiten. Duplikate, Crawl-Budget; die Willkommensbox („Empfohlen von <Name>“) kann Partnernamen in den Index bringen.
+  - *Lösung:* `wp_robots`-Filter: `noindex, follow`, sobald der Referral-Parameter in der URL steht; robots.txt nicht sperren (sonst sieht Google das noindex nicht).
+
+- [x] **[PRIO: MITTEL]** | **[Experte #7/#8]** | **[Kategorie: Bug]** – **R14-U1 Partner-Statistik rechnet in UTC (repro, R12-N8 unvollständig)** → **Erledigt:** `Db::local_range()` in Partner-Statistik, Monate nach Ortszeit, CSV-Tag lokal.
+  - *Problem:* `Reports::partner_summary` (:420–421), `partner_campaigns` (:490–491), `partner_months` (:451–456, `gmdate`) vergleichen UTC-`created_at` mit lokalen Datumsgrenzen; Admin und Provisionsliste nutzen `Db::local_range()`. Provision am 01.11. 00:30 Ortszeit erscheint im Portal im Oktober; CSV (`Portal::day()`) ebenso.
+  - *Lösung:* `list($start,$end) = Db::local_range($from,$to);` in beiden Methoden, Monatsschlüssel über `Db::month_range()`, `Portal::day()` in Ortszeit.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #7]** | **[Kategorie: Bug]** – **R14-U2 Datumsfilter im Portal-Reiter „Auszahlungen“ wirkt nicht (repro)** → **Erledigt:** `from`/`to` in `PayoutService::query()`, Hinweis bei leerem Ergebnis, Ausschluss in SQL.
+  - *Problem:* `Portal.php:1770–1777` übergibt `from`/`to` nicht an `PayoutService::query()`; CSV filtert. Leerer Statusfilter zeigt leere Tabelle ohne Hinweis; stornierte Auszahlungen ohne Storno-PDF werden per `continue` übersprungen, zählen aber im Pager.
+  - *Lösung:* `from`/`to` mit `Db::local_range` in die Abfrage; Ausschluss in die WHERE-Bedingung; Hinweis bei leerem Filterergebnis.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #7/#8]** | **[Kategorie: Bug / UX]** – **R14-U3 Gekündigte Partner können Zahlungsdaten nicht pflegen** → **Erledigt:** `Portal::payout_open()`: Zahlungsdaten bei offenem Geld erlaubt.
+  - *Problem:* `Portal.php:716–720` lässt für beendete Partner nur `commissions`, `payouts`, `privacy`; `handle_post()` (:412) lehnt `profile` ab, obwohl der Docblock (:723) Zahlungsdaten zusichert. Bei veralteter IBAN hängt die letzte Auszahlung.
+  - *Lösung:* Reiter und Aktion `profile` bei offenem Saldo oder offenen Auszahlungen erlauben; Docblock korrigieren.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #8]** | **[Kategorie: UX / Feature]** – **R14-U4 Staffelbonus für Partner unverständlich, kein Fortschritt** → **Erledigt:** `TierService::partner_text()` und Fortschrittsbalken.
+  - *Problem:* `Portal.php:1136–1141` zeigt das Admin-Format aus `TierService::steps_text()` („1.000,00 EUR → +2 %“, bei Bestellungen „5 → +2 %“ ohne Einheit); Modus, Bezugsgröße und Monatsstand fehlen.
+  - *Lösung:* Eigener Partnertext („Ab 5 Bestellungen im Monat +2 % auf alle Verkäufe des Monats“) und Fortschrittsbalken für den laufenden Monat.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal / UX]** – **R14-L2 Consent-Anbindung: falsches Grün, unvollständige Anleitung** → **Erledigt:** `Consent::integration_status()`, ehrlicher Status, Warnung in Site Health/Checkliste, Rezepte je Banner und Cookie-Tabelle im HANDBOOK.
+  - *Problem:* `IntegrationsPage.php:296` meldet „WP Consent API detected“, sobald `wp_has_consent` existiert; `Consent.php:45` wertet sie nur aus, wenn ein Banner einen Consent-Typ setzt. HANDBOOK:107 nennt nur `window.wpacConsentGranted()`, `store_touch()` (`Tracker.php:460`) prüft aber erneut `Consent::cookie_allowed()` – ohne PHP-Filter `wpac_has_marketing_consent` kein Cookie. Borlabs/Usercentrics/CCM19-Händler verlieren still Zuordnungen.
+  - *Lösung:* Status über `wp_get_consent_type()`/`has_filter()` prüfen; Warnung in `tracking_problems()` und Setup-Checkliste; Rezepte je Banner und Cookie-Angaben (Name, Zweck, Laufzeit) im HANDBOOK.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – **R14-L3 Werbekennzeichnung fehlt bei Partnerlinks** → **Erledigt:** Kennzeichnungshinweis im Portal, sichtbares Label im Banner-Code (`embed_disclosure_label`), Klausel in der Vorlage.
+  - *Problem:* Portal-Reiter „Links & Codes“ (`Portal.php:1451–1540`) ohne Kennzeichnungshinweis, obwohl Kurzlinks für Social Media empfohlen werden. § 5a Abs. 4 UWG, § 6 DDG; Haftung des Händlers nach § 8 Abs. 2 UWG.
+  - *Lösung:* Hinweis im Portal („Kennzeichne Beiträge mit Partnerlinks als Werbung/Anzeige“) mit Beispielen je Kanal; optional Pflichthäkchen bei Freigabe; Pflichtklausel in der Bedingungsvorlage.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – **R14-L4 Datenschutztext nennt das Widerspruchsrecht der Kunden nicht** → **Erledigt:** Widerspruchsrecht der Kunden im Datenschutztext.
+  - *Problem:* `Privacy.php:1310` nennt Rechte nur für Partner; Kunden fehlt der Hinweis auf Art. 21 (Art. 13 Abs. 2 lit. b, Art. 21 Abs. 4) für Zuordnung ohne Cookie und Lifetime-Verknüpfung (berechtigtes Interesse). Umsetzung existiert (`OrderMetaBox`, `wp wpac customer unlink`).
+  - *Lösung:* Absatz zum Widerspruchsrecht der Kunden im Textvorschlag inkl. Kontaktweg.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #12/#8]** | **[Kategorie: Feature]** – **R14-P1 E-Mail-Vorlagen im Admin bearbeitbar** → **Erledigt:** Admin-Seite „E-Mail-Vorlagen“ (19 Partner-Mails, Platzhalter, Testversand, HTML-Layout mit Textfassung); Freigabe-/Willkommens-Mail mit Link, Code, Satz. Offen: Monatsmail, sonstige Mails, Vorlage je Sprache.
+  - *Problem:* Texte nur über Filter `wpac_mail`, reiner Klartext, keine Platzhalter, kein Testversand, keine Du/Sie-Wahl. AffiliateWP, SliceWP, Solid Affiliate bieten das; Freigabe-Mail enthält weder Partnerlink noch Code noch Provisionssatz.
+  - *Lösung:* Vorlageneditor je Mailtyp mit Platzhaltern (`{name}`, `{link}`, `{code}`, `{rate}` …), HTML-Layout, Testversand, Du/Sie; Freigabe-Mail mit Link, Code, Satz. (Kandidat für Pro.)
+
+- [x] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D2 Rate-Limit-Purge löscht höchstens 1 Mio. Zeilen je Lauf (repro, R7-DB11 unvollständig)** → **Erledigt:** Zeitbudget 20 s, Fortsetzungsevent `wpac_purge_rate_limits`, Monitor-Warnung bei > 6 h Rückstand.
+  - *Problem:* `RateLimiter::purge()` mit `delete_in_batches(…, 5000, 200)` ohne Fortsetzung: von 1,5 Mio. Zeilen blieben 500 000 stehen. Ab ~139 neuen Klicks/s wächst die Tabelle unbegrenzt (500 Klicks/s → ~62 Mio. Zeilen/Tag, ~8 GB).
+  - *Lösung:* Zeitbudget mit Fortsetzungs-Event (wie `purge_visits()`), bis nichts Abgelaufenes mehr übrig ist.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Performance / Legal]** – **R14-D3 DSGVO-Partnerlöschung löscht alle Visits in einer Transaktion (repro)** → **Erledigt:** `Privacy::delete_partner_visits()` in Batches mit Budget, Rest per Event `wpac_erase_visits`, Eraser meldet `done => false`.
+  - *Problem:* `Privacy.php:1009` `$wpdb->delete(visits, affiliate_id)` ohne Batches: 3 Mio. Zeilen 18 min 53 s; der Admin-AJAX-Eraser läuft vorher in den Timeout; ebenso `Retention.php:172`.
+  - *Lösung:* `delete_in_batches` mit Budget, Rest über `wpac_erasure_pending`/Cron; Eraser meldet `done => false` bis fertig.
+
+- [x] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Bug]** – **R14-D4 Beacon-Modus scheitert unbemerkt, wenn REST für Gäste gesperrt ist** → **Erledigt:** `rest_authentication_errors`-Ausnahme für `wpac/v1/touch`, Fallback `admin-ajax.php?action=wpac_touch`, Probe in Site Health und Monitor.
+  - *Problem:* Mit `js_tracking` erfassen Gast-Requests serverseitig nichts (`beacon_only()`); sperren „Disable REST API“, Perfmatters, Solid Security oder eine WAF `/wp-json/` für Gäste, geht jede Zuordnung verloren. Keine Prüfung, keine Ausnahme.
+  - *Lösung:* Loopback-Probe auf `/wpac/v1/touch` in Site Health und Monitor; Ausnahme für die eigene Route über `rest_authentication_errors`; Fallback über `admin-ajax.php`.
+
+### Niedrig
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #2]** | **[Kategorie: Security]** – **R14-S2 Code-Gültigkeits-Orakel ohne Rate-Limit (repro)** → **Erledigt:** Consent-Script unabhängig vom Code; IP-Limit `code_miss` für unbekannte Codes/Slugs; ungültige Slugs 302 wie gültige.
+  - *Problem:* Bei Standardeinstellungen enthält `GET /?partner=X` das Beacon-Script nur bei gültigem Code (`Tracker.php:378–386`), mit `cookie_mode=always` verrät `Set-Cookie` dasselbe; `/partner/{slug}/` antwortet 302 vs. 404 (`Landing.php:385–414`). Umgeht `rest_code`/`code_check`-Limits; relevant für Wunschcodes, Slugs, identische Gutscheincodes.
+  - *Lösung:* Consent-Script unabhängig vom Prüfergebnis ausliefern; IP-Limit für unbekannte Codes in `capture_code()`; ungültige Slugs gleich beantworten wie gültige (302 auf Standardseite).
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #2/#6]** | **[Kategorie: Bug / Legal]** – **R14-S3 Abmeldelink wirkt beim GET, kein One-Click nach RFC 8058** → **Erledigt:** GET zeigt Bestätigung, Opt-out per POST; `List-Unsubscribe-Post: List-Unsubscribe=One-Click`.
+  - *Problem:* `Notifications.php:647–661` setzt das Opt-out beim Aufruf; Mail-Scanner (Safe Links) melden Partner unbemerkt ab. Nur `List-Unsubscribe`, kein `List-Unsubscribe-Post` (:702) – Gmail/Yahoo verlangen One-Click.
+  - *Lösung:* GET zeigt Bestätigungsseite mit POST-Formular; Header `List-Unsubscribe-Post: List-Unsubscribe=One-Click` und POST-Handler.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #2]** | **[Kategorie: Security / Legal]** – **R14-S4 Steuerberater-Rolle kann VIES-Prüfung auslösen, Admin-Pfad ignoriert Art. 18** → **Erledigt:** Route `vies_check` mit `MANAGE_PAYOUTS`; `Vies::check()` fragt bei Art.-18-Einschränkung nicht an.
+  - *Problem:* `Admin.php:728` (`vies_check`) verlangt nur `VIEW_TAX_DATA`; `AffiliatesPage.php:303` ruft `Vies::check()` ohne `Restriction::is_restricted()`. „Nur lesen“-Rolle löst Übermittlung an die EU aus, „invalid“ sperrt Auszahlungen.
+  - *Lösung:* Route auf `MANAGE_PAYOUTS`; Einschränkungsprüfung in `Vies::check()` selbst.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #11]** | **[Kategorie: Bug]** – **R14-A3 Lücken in uninstall.php** → **Erledigt:** `_wpac_form_groups` und AS-Aufgaben per SQL gelöscht.
+  - *Problem:* Post-Meta `_wpac_form_groups` (`Registration.php:30`) bleibt; Action-Scheduler-Aufgaben werden nur gelöscht, wenn WooCommerce beim Löschen aktiv ist (`uninstall.php:240`).
+  - *Lösung:* `delete_post_meta_by_key('_wpac_form_groups')`; AS-Aufgaben per SQL über `actionscheduler_actions`/`actionscheduler_groups` (Gruppe `wp-affiliate-captain`) löschen, wenn die Tabellen existieren.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #11]** | **[Kategorie: Bug / QA]** – **R14-A4 CI-Lücken: PHP 8.4 und Deprecations** → **Erledigt:** Smoke erkennt Deprecated/Notice; Integration auf PHP 7.4 und 8.4, Job `latest-php`; Deprecation-Handler in den Integrationstests; PHPStan Level 3 mit Baseline.
+  - *Problem:* `tests/ci/smoke.php:151` übersieht `PHP Deprecated`/`PHP Notice` (auch `_load_textdomain_just_in_time`); Integration/E2E/Multisite/Upgrade nur auf PHP 8.3; Integrations-Runner wertet Deprecations nicht als Fehler; PHPStan Level 1.
+  - *Lösung:* Muster um `Deprecated|Notice` erweitern; Matrix um 7.4 und 8.4 (mindestens Smoke auf 8.4); Fehler-Handler in `tests/integration/bootstrap.php` für `src/`; PHPStan Level 3 mit Baseline.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #5/#9]** | **[Kategorie: Bug]** – **R14-T4 Kurzlink pausierter/beendeter Partner endet in 404** → **Erledigt:** `Landing::redirect_url()`: 302 auf Standard-Landingpage ohne Code.
+  - *Problem:* `Landing.php:344–353, 398–404`; ein `?partner=`-Link desselben Partners öffnet die Seite normal.
+  - *Lösung:* 302 auf die Standard-Landingpage (ohne Zuordnung).
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #5]** | **[Kategorie: Bug]** – **R14-T5 Lücken im Bot-Filter (repro)** → **Erledigt:** Kennungen ergänzt, URL im User-Agent = Bot.
+  - *Problem:* `Tracker.php:879–884` zählt u. a. Google-InspectionTool, Mediapartners-Google, Google-Read-Aloud, facebookcatalog, Embedly, Feedly, ia_archiver, python-httpx, PostmanRuntime, Snapchat, Censys, Expanse als Menschen.
+  - *Lösung:* Kennungen ergänzen; allgemeine Regel „URL im User-Agent = Bot“.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #5]** | **[Kategorie: Bug]** – **R14-T6 Referral-Parameter darf reservierte Namen belegen** → **Erledigt:** `Settings::reserved_param()` (Query-Vars, WooCommerce, utm_*, Klick-IDs).
+  - *Problem:* `Settings.php:348–358` erlaubt `p`, `s`, `name`, `page`, `add-to-cart`, `sub` – dann brechen Seiten bzw. alle Partnerlinks.
+  - *Lösung:* Abgleich mit `$wp->public_query_vars`, WooCommerce-Parametern und eigenen Parametern; ablehnen mit Meldung.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #5]** | **[Kategorie: Feature]** – **R14-T7 Kurzlink-Weiterleitung verwirft Parameter** → **Erledigt:** `Landing::passthrough_args()` reicht utm_* und Klick-IDs weiter.
+  - *Problem:* `Landing.php:435–446` reicht `utm_content`, `utm_term`, gclid, fbclid, msclkid nicht weiter.
+  - *Lösung:* Filterbare Liste weiterzureichender Parameter (Standard: alle `utm_*` und gängige Klick-IDs).
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #9]** | **[Kategorie: SEO]** – **R14-T8 Partnerportal-Seite ohne `noindex`** → **Erledigt:** noindex für Portal- und Bestätigungsseiten.
+  - *Problem:* Portal-Seite (`portal_page_id`) ist indexierbar (WooCommerce setzt das für „Mein Konto“ selbst).
+  - *Lösung:* `wp_robots` mit `noindex, follow` für die Portal- (und Bestätigungs-)Seiten.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #9/#7]** | **[Kategorie: UX]** – **R14-T9 Werbemittel-Zielseite per exaktem Host-Vergleich geprüft** → **Erledigt:** Prüfung über `Portal::own_page_url()`.
+  - *Problem:* `Creatives.php:169` lehnt www/ohne-www, Großschreibung und die Cookie-Domain ab, obwohl der Link-Generator (`Portal::own_page_url()`) sie annimmt.
+  - *Lösung:* `Portal::own_page_url()` für die Prüfung verwenden.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #9/#8]** | **[Kategorie: Feature]** – **R14-T10 HTML-Textlink mit `rel="sponsored"` im Portal** → **Erledigt:** `Portal::text_link_code()` mit kopierbarem Snippet.
+  - *Problem:* Link-Generator und Text-Werbemittel liefern nur nackte URLs; Partner setzen Links ohne `rel="sponsored"`.
+  - *Lösung:* Kopierbares Snippet `<a href="…" rel="sponsored noopener">…</a>` neben jeder URL.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #7]** | **[Kategorie: Bug]** – **R14-U5 Erstattungsquote im Dashboard verrechnet positive Korrekturen** → **Erledigt:** Erstattungsquote nur aus Erstattungsarten.
+  - *Problem:* `Reports.php:69/115` zählt `adjustment`, `increase`, `correction` mit und rechnet `abs(corrections)/commission`; 100 € Provision, −50 € Erstattung, +50 € Bonus → 0 % statt 50 %. `FraudCheck.php:183` nutzt nur Erstattungsarten.
+  - *Lösung:* Eigene Erstattungssumme mit denselben Arten wie `refund_stats()`.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #8]** | **[Kategorie: UX]** – **R14-U6 Konversionsrate „0,0 %“ bzw. > 100 % bei Verkäufen ohne Klicks** → **Erledigt:** Konversion nur aus Klick-Verkäufen, „—“ ohne Besuche.
+  - *Problem:* Gutscheinverkäufe zählen mit; bei 0 Besuchen erscheint 0,0 %.
+  - *Lösung:* Bei 0 Besuchen „—“; Konversion nur aus Verkäufen mit Klick-Zuordnung.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #7]** | **[Kategorie: UX]** – **R14-U7 Falsche Meldungen für abgelehnte/wartende Bewerber** → **Erledigt:** `Registration::account_notice()` je Status.
+  - *Problem:* `Registration.php:808–813` sagt „You already have a partner account“ mit Portal-Link für jeden Status; beim Absenden (:181) „account … already exists“.
+  - *Lösung:* Eigene Meldung je Status; bei Ablehnung kein Portal-Link.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #7]** | **[Kategorie: UX]** – **R14-U8 Kleinigkeiten Oberfläche** → **Erledigt:** aria-labels und Live-Region im Editor, Blockname, keine Nullwerte, Container-Query.
+  - *Problem:* Kopier-Buttons in `Editor::render_targets()` (:372) ohne `aria-label`, außerhalb des Portals keine Live-Region `#wpac-live`; Blockname in `DashboardPage.php:31` weicht von `block.json` ab; Konditionen zeigen „Mindestauszahlung 0,00 EUR“/„Haltefrist 0 Tage“; 8-Spalten-Tabellen schalten erst unter 600 px auf Karten.
+  - *Lösung:* `aria-label` je Ziel und Live-Region; Namen angleichen; Nullwerte ausblenden; Container-Query bzw. `overflow-x`-Wrapper.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – **R14-L5 Verarbeitungsverzeichnis ungenau** → **Erledigt:** Verarbeitungsverzeichnis korrigiert, englische Vorlage, übersetzbare Einheiten.
+  - *Problem:* „verschlüsselter Hash“ (R5-O15 nicht nachgezogen); „Partner sehen nur Bestellnummer, Betrag, Status“ (tatsächlich auch Produkt, Datum, Basis, Sub-ID); falscher Menüpfad, auch `readme.txt:91`; JS-Beacon, WooCommerce-Sitzung und Tabelle `rate_limits` fehlen; Vorlage nur Deutsch, „Tage“ fest (`Privacy.php:1213`).
+  - *Lösung:* `docs/VERARBEITUNGSVERZEICHNIS.md` und Vorlage korrigieren, übersetzbar machen.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – **R14-L6 AGB-Nachweis lückenhaft bei Mustern und Shortcodes** → **Erledigt:** Hash über den gerenderten Text, Text gespeichert.
+  - *Problem:* `Agreements.php:38/56` hasht den rohen `post_content`; bei synchronisierten Blöcken/Shortcodes ist der akzeptierte Wortlaut später nicht belegbar.
+  - *Lösung:* Gerenderten Text (`do_blocks`/`do_shortcode`, ohne Tags) hashen und als Version speichern.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – **R14-L7 Lücken in der Bedingungsvorlage** → **Erledigt:** Klauseln § 89b HGB, Gutschriftformat/E-Rechnung, Kleinunternehmerstatus, Kennzeichnung, Datenschutzrollen; „anwaltlich prüfen lassen“.
+  - *Problem:* `DashboardPage.php:111`: kein Ausschluss Handelsvertreter (§ 89b HGB), keine Datenschutz-Rollenklärung, keine konkrete Kennzeichnungspflicht, keine Zustimmung zum Gutschriftformat, keine Meldepflicht bei Wechsel des Kleinunternehmerstatus.
+  - *Lösung:* Klauseln in der Vorlage ergänzen (mit Hinweis „rechtlich prüfen lassen“).
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – **R14-L8 Cookie-Laufzeit bis 3650 Tage ohne Hinweis** → **Erledigt:** Hinweis über 395 Tagen.
+  - *Problem:* `Settings.php:283` erlaubt bis 10 Jahre.
+  - *Lösung:* Hinweis ab > 395 Tagen oder Obergrenze; Laufzeit im Cookie-Text nennen.
+
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #12/#8/#6/#2]** | **[Kategorie: Feature]** – **R14-P2 Wettbewerbslücken (Produktentscheidung, Free/Pro)**
+  - *Problem:* Gegenüber AffiliateWP/SliceWP/Solid Affiliate fehlen: Auszahlung per API (PayPal Payouts/Stripe Connect – Pro-Kandidat), Auszahlung als Shop-Guthaben, Gutschein automatisch per Partnerlink einlösen und Rabatt im Portal zeigen, öffentlicher Konditionen-Block, Produkt-Deep-Links mit Suche und Provision je Produkt, Verlaufsdiagramm mit Vorperiodenvergleich und offene Verbindlichkeiten im Dashboard, Leaderboard und Meilenstein-Mails, Wunschcode auf Antrag, Sub-Affiliates (Hook „geworben von“ im Vertrag), ausgehende Webhooks im Kern, erneute Anmeldung/2FA vor Admin-Aktionen mit Geldfluss.
+  - *Lösung:* Je Punkt Free/Pro festlegen (`docs/FREE-PREMIUM.md`) und priorisieren; E-Rechnung (R14-L1) als Alleinstellungsmerkmal.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D5 Report-Cache-Generation als Autoload-Option bei jedem Buchungsereignis** → **Erledigt:** `autoload=false`, höchstens eine Erhöhung je Request.
+  - *Problem:* `Reports.php:161` `update_option(CACHE_GEN, …, true)` je Provisionsereignis (auch einzeln in `approve_due`); mit persistentem Object Cache wird `alloptions` jedes Mal geleert.
+  - *Lösung:* `autoload=false`, höchstens eine Erhöhung je Request (Flag + `shutdown`).
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance]** – **R14-D6 Editor-Metabox mit Partner-Traffic ohne Cache (repro)** → **Erledigt:** `Reports::content_cached()`.
+  - *Problem:* `Editor.php:264` → `Reports::for_content()` 1,84 s bei jedem Öffnen einer Seite mit 3 Mio. Visits.
+  - *Lösung:* Transient je Seite (10 min, Generationsnummer).
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Performance]** – **R14-D7 Beacon sendet bei jedem Seitenaufruf** → **Erledigt:** `sessionStorage`-Guard je Tab, `wc_load_cart()` nur mit WooCommerce-Session-Cookie.
+  - *Problem:* Jedes Neuladen/Zurück auf eine URL mit `?partner=` löst einen ungecachten REST-Request aus, inkl. `wc_load_cart()` für jeden Gast (`RestApi.php:72`).
+  - *Lösung:* Guard über `sessionStorage` (je Code/URL einmal pro Sitzung); `wc_load_cart()` nur mit vorhandenem WooCommerce-Session-Cookie.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Bug]** – **R14-D8 „Delay JS“ von Caching-Plugins verzögert den Beacon** → **Erledigt:** Ausschlüsse für WP Rocket, LiteSpeed, Perfmatters, FlyingPress; `data-no-optimize`, `data-no-defer`, `data-cfasync="false"`, `nowprocket`.
+  - *Problem:* WP Rocket, LiteSpeed, Perfmatters, FlyingPress führen das Inline-Skript erst bei Interaktion aus; Besuche ohne Interaktion fehlen.
+  - *Lösung:* Ausnahmen über `rocket_delay_js_exclusions`, `litespeed_optm_js_defer_exc`, `perfmatters_delay_js_exclusions`, dazu `data-no-optimize="1"` / `data-cfasync="false"` am Skript.
+
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Performance / Feature]** – **R14-D9 Tagesaggregation der Visits (`visits_daily`)** → **Erledigt:** Tabelle `visits_daily` (Schema 15), Live-Upsert ohne Doppelzählung, fortsetzbarer Backfill, Berichte/Portal/Monatsmail lesen die Aggregation (Rohdaten bis der Backfill fertig ist), Löschung bei Partnerlöschung und Aufbewahrung, Kampagnentabelle im Portal mit 25 Zeilen je Seite. Zählt geloggte Visits (keine Hochrechnung beim Sampling).
+  - *Problem:* Berichte über lange Zeiträume lesen weiter Rohzeilen; die Kampagnentabelle im Portal ist nicht paginiert (Transient > 1 MB wird mit Memcached nicht gespeichert).
+  - *Lösung:* Tabelle `visits_daily` (Partner, lokaler Tag, Kampagne, Sub-ID, Anzahl) mit Backfill, Sampling-Faktor, Löschung bei Partnerlöschung/Retention und Uninstall; Kampagnentabelle paginieren.

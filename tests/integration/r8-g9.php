@@ -101,7 +101,7 @@ Ledger::reject( $g9_rej, 'test' );
 wpac_record_refund( array( 'source' => 'g9', 'order_id' => 'g9-3', 'refund_id' => 'g9-r3', 'type' => 'refund', 'reason' => 'test', 'full' => true ) );
 $g9_sum = Reports::partner_summary( $g9_aff, $g9_today, $g9_today );
 check( 'R7-PU3 sales count neither rejected nor fully refunded orders', 2, $g9_sum['sales'] );
-check( 'R7-PU3 conversion rate = sales / visits', array( 4, 50.0 ), array( $g9_sum['visits'], $g9_sum['conversion'] ) );
+check( 'R7-PU3 conversion rate = click sales / visits (R14-U6: the code sale g9-4 has no click)', array( 4, 25.0 ), array( $g9_sum['visits'], $g9_sum['conversion'] ) );
 check( 'R7-PU3 / R7-PU1 earnings per booking currency (refund corrected, USD separate)', array( 'EUR' => 1000, 'USD' => 4000 ), $g9_sum['earned'] );
 $g9_months = Reports::partner_months( $g9_aff, 12 );
 check( 'R7-PU3 monthly table: 12 months, current month first with sales and earnings', array( 12, gmdate( 'Y-m' ), 2, array( 'EUR' => 1000, 'USD' => 4000 ) ), array( count( $g9_months ), key( $g9_months ), $g9_months[ gmdate( 'Y-m' ) ]['sales'], $g9_months[ gmdate( 'Y-m' ) ]['earned'] ) );

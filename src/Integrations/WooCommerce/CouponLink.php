@@ -67,6 +67,12 @@ final class CouponLink {
 			// Only a row that is still linked to a coupon follows: a row whose link was removed on the
 			// partner page (empty coupon_code) must not be linked again - and then blocked (R13-M2).
 			$by_id = self::linked_row( (int) $coupon_id );
+			// A rename only when the row's coupon text finds no other coupon: a stale meta (e.g. row
+			// IDs given anew after a reinstallation) must not take over another coupon's row (R14-A1).
+			$owner = $by_id && function_exists( 'wc_get_coupon_id_by_code' ) ? (int) wc_get_coupon_id_by_code( (string) $by_id->coupon_code ) : 0;
+			if ( $owner && (int) $coupon_id !== $owner ) {
+				$by_id = null;
+			}
 			if ( $by_id && 'active' === $by_id->status && '' !== (string) $by_id->coupon_code && CodeRepository::normalize_coupon( (string) $by_id->coupon_code ) !== CodeRepository::normalize_coupon( $code ) ) {
 				CodeRepository::set_coupon( (int) $by_id->id, $code );
 				$linked = CodeRepository::find( (int) $by_id->id );

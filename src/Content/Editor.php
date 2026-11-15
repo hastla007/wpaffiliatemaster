@@ -261,7 +261,7 @@ final class Editor {
 			echo '<p><strong>' . esc_html__( 'Partner deep link', 'affiliate-captain' ) . '</strong><br><code style="word-break:break-all">' . esc_html( $link ) . '</code></p>';
 		}
 		if ( current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
-			$stats = Reports::for_content( (int) $post->ID, 90 );
+			$stats = Reports::content_cached( (int) $post->ID, 90 );
 			echo '<p><strong>' . esc_html__( 'Partner traffic (90 days)', 'affiliate-captain' ) . '</strong><br>';
 			$visits   = (int) $stats['visits'];
 			$partners = (int) $stats['partners'];
@@ -360,8 +360,19 @@ final class Editor {
 			if ( $code ) {
 				wp_enqueue_script( 'wpac-portal', WPAC_URL . 'assets/js/portal.js', array(), WPAC_VERSION, true );
 			}
+			if ( $code && function_exists( 'wp_localize_script' ) ) {
+				wp_localize_script(
+					'wpac-portal',
+					'wpacPortal',
+					array(
+						'copied' => __( 'Copied to the clipboard.', 'affiliate-captain' ),
+						'failed' => __( 'Please copy the text manually.', 'affiliate-captain' ),
+					)
+				);
+			}
 		}
-		$out = '<div class="wpac-portal wpac-targets"><h3>' . esc_html__( 'Recommended target pages', 'affiliate-captain' ) . '</h3><ul>';
+		// Own live region: success or failure of the copy buttons is announced here too (R14-U8).
+		$out = '<div class="wpac-portal wpac-targets"><h3>' . esc_html__( 'Recommended target pages', 'affiliate-captain' ) . '</h3>' . ( $code ? '<p class="wpac-sr wpac-live" aria-live="polite"></p>' : '' ) . '<ul>';
 		$i   = 0;
 		foreach ( $targets as $p ) {
 			$url  = get_permalink( $p );
@@ -374,7 +385,7 @@ final class Editor {
 			if ( $code ) {
 				$id   = 'wpac-target-' . (int) $p->ID . '-' . ( ++$i );
 				/* translators: %s: page title */
-				$out .= '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( sprintf( __( 'Your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '</label><div class="wpac-copy-row"><input type="text" readonly dir="ltr" class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $link ) . '"><button type="button" class="wpac-copy-btn" hidden data-wpac-copy="' . esc_attr( $id ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
+				$out .= '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( sprintf( __( 'Your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '</label><div class="wpac-copy-row"><input type="text" readonly dir="ltr" class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $link ) . '"><button type="button" class="wpac-copy-btn" hidden data-wpac-copy="' . esc_attr( $id ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: page title */ __( 'Copy your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
 			}
 			$out .= '</li>';
 		}

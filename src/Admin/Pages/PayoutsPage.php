@@ -15,6 +15,7 @@ use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Payouts\Corrections;
+use WPAffiliateCaptain\Payouts\EInvoice;
 use WPAffiliateCaptain\Payouts\PayoutRequests;
 use WPAffiliateCaptain\Payouts\PayoutService;
 use WPAffiliateCaptain\Payouts\Statement;
@@ -109,6 +110,9 @@ final class PayoutsPage {
 					wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
 				}
 				\WPAffiliateCaptain\Core\Audit::log( 'statement.correction_downloaded', 'payout', (int) $kg->payout_id, array( 'correction' => (int) $kg->id ) );
+				if ( self::xml_requested() ) {
+					EInvoice::send_correction( $kg ); // E-invoice of the same document (R14-L1).
+				}
 				Corrections::send( $kg );
 				break;
 
@@ -184,6 +188,9 @@ final class PayoutsPage {
 				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				$storno = ! empty( $_GET['storno'] );
 				\WPAffiliateCaptain\Core\Audit::log( $storno ? 'statement.storno_downloaded' : 'statement.downloaded', 'payout', (int) $p->id );
+				if ( self::xml_requested() ) {
+					EInvoice::send_payout( $p, $storno ); // E-invoice of the same document (R14-L1).
+				}
 				if ( $storno ) {
 					Statement::send_storno( $p );
 				}
@@ -762,38 +769,58 @@ final class PayoutsPage {
 	/**
 	 * Admin download URL of a statement.
 	 *
-	 * @param int $id Payout.
+	 * @param int    $id     Payout.
+	 * @param bool   $storno Cancellation document.
+	 * @param string $format '' = PDF, 'xml' = e-invoice.
 	 * @return string
 	 */
-	public static function statement_url( $id, $storno = false ) {
+	public static function statement_url( $id, $storno = false, $format = '' ) {
 		return add_query_arg(
-			array(
-				'action'      => 'wpac',
-				'do'          => 'statement_download',
-				'id'          => (int) $id,
-				'storno'      => $storno ? 1 : 0,
-				'_wpac_nonce' => wp_create_nonce( 'wpac_statement_download' ),
+			array_filter(
+				array(
+					'action'      => 'wpac',
+					'do'          => 'statement_download',
+					'id'          => (int) $id,
+					'storno'      => $storno ? 1 : 0,
+					'format'      => 'xml' === $format ? 'xml' : '',
+					'_wpac_nonce' => wp_create_nonce( 'wpac_statement_download' ),
+				),
+				static function ( $v ) {
+					return '' !== $v;
+				}
 			),
 			admin_url( 'admin-post.php' )
 		);
 	}
 
 	/**
+	 * Whether a download asks for the e-invoice (XML) instead of the PDF.
+	 *
+	 * @return bool
+	 */
+	private static function xml_requested() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified in dispatch().
+		return isset( $_GET['format'] ) && 'xml' === sanitize_key( wp_unslash( $_GET['format'] ) );
+	}
+
+	/**
 	 * Admin download URL of a correction credit note.
 	 *
-	 * @param int $id Correction.
+	 * @param int    $id     Correction.
+	 * @param string $format '' = PDF, 'xml' = e-invoice.
 	 * @return string
 	 */
-	public static function correction_url( $id ) {
-		return add_query_arg(
-			array(
-				'action'      => 'wpac',
-				'do'          => 'correction_download',
-				'id'          => (int) $id,
-				'_wpac_nonce' => wp_create_nonce( 'wpac_correction_download' ),
-			),
-			admin_url( 'admin-post.php' )
+	public static function correction_url( $id, $format = '' ) {
+		$args = array(
+			'action'      => 'wpac',
+			'do'          => 'correction_download',
+			'id'          => (int) $id,
+			'_wpac_nonce' => wp_create_nonce( 'wpac_correction_download' ),
 		);
+		if ( 'xml' === $format ) {
+			$args['format'] = 'xml';
+		}
+		return add_query_arg( $args, admin_url( 'admin-post.php' ) );
 	}
 
 	/**
@@ -915,6 +942,9 @@ final class PayoutsPage {
 				$name = esc_html( $kg->number );
 				if ( $tax && '' !== (string) $kg->file ) {
 					$name = '<a href="' . esc_url( self::correction_url( (int) $kg->id ) ) . '">' . $name . '</a>';
+					if ( EInvoice::correction_available( $kg ) ) {
+						$name .= ' <a href="' . esc_url( self::correction_url( (int) $kg->id, 'xml' ) ) . '" title="' . esc_attr__( 'Electronic invoice (EN 16931 XML)', 'affiliate-captain' ) . '">' . esc_html_x( '(XML)', 'e-invoice link', 'affiliate-captain' ) . '</a>';
+					}
 				} elseif ( $kg->file_deleted_at ) {
 					$name .= ' <small>(' . esc_html__( 'deleted after the retention period', 'affiliate-captain' ) . ')</small>';
 				}
@@ -962,9 +992,15 @@ final class PayoutsPage {
 		echo '<p class="wpac-noprint"><a href="' . esc_url( Admin::url( 'wpac-payouts' ) ) . '">&larr; ' . esc_html__( 'All payouts', 'affiliate-captain' ) . '</a>';
 		if ( $p->statement_file && current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 			echo ' · <a class="button button-primary" href="' . esc_url( self::statement_url( (int) $p->id ) ) . '">' . esc_html__( 'Download PDF statement', 'affiliate-captain' ) . '</a> <small>SHA-256 ' . esc_html( substr( $p->statement_hash, 0, 16 ) ) . '…</small>';
+			if ( EInvoice::available( $p ) ) {
+				echo ' <a class="button" href="' . esc_url( self::statement_url( (int) $p->id, false, 'xml' ) ) . '">' . esc_html__( 'E-invoice (XML)', 'affiliate-captain' ) . '</a>';
+			}
 			if ( $p->storno_file ) {
 				/* translators: %s: cancellation number */
 				echo ' · <a class="button" href="' . esc_url( self::statement_url( (int) $p->id, true ) ) . '">' . esc_html( sprintf( __( 'Download cancellation %s', 'affiliate-captain' ), $p->storno_number ) ) . '</a>';
+				if ( EInvoice::available( $p, true ) ) {
+					echo ' <a class="button" href="' . esc_url( self::statement_url( (int) $p->id, true, 'xml' ) ) . '">' . esc_html__( 'E-invoice (XML)', 'affiliate-captain' ) . '</a>';
+				}
 			}
 		} elseif ( $p->statement_deleted_at ) {
 			echo ' · ' . esc_html__( 'Statement deleted after the retention period.', 'affiliate-captain' );

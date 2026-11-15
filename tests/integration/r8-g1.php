@@ -261,7 +261,9 @@ $_COOKIE[ LOGGED_IN_COOKIE ] = 'kunde|123|token|hash';
 RestApi::touch( new WP_REST_Request( array( 'code' => $g1ca ) ) );
 $g1_logged = $GLOBALS['g1_cart_loads'];
 unset( $_COOKIE[ LOGGED_IN_COOKIE ] );
+$_COOKIE['wp_woocommerce_session_g1'] = 'g1'; // R14-D7: only guests with a shop session.
 RestApi::touch( new WP_REST_Request( array( 'code' => $g1ca ) ) );
+unset( $_COOKIE['wp_woocommerce_session_g1'] );
 check( 'R6-CC1 session only loaded for guests (logged-in: none, guest: once)', array( 0, 1 ), array( $g1_logged, $GLOBALS['g1_cart_loads'] ) );
 
 /* R6-CC4 / R7-DB2 / R5-W47: proxies and limits ---------------------------------------------------- */

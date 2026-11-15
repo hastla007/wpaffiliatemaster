@@ -808,9 +808,7 @@ final class Registration {
 		if ( $user->exists() ) {
 			$aff = AffiliateRepository::find_by_user( $user->ID );
 			if ( $aff ) {
-				$portal = (int) Settings::get( 'portal_page_id' );
-				$link   = $portal ? ' <a href="' . esc_url( Notifications::portal_url() ) . '">' . esc_html__( 'Go to partner area', 'affiliate-captain' ) . '</a>' : '';
-				return '<div class="wpac-notice">' . esc_html__( 'You already have a partner account.', 'affiliate-captain' ) . $link . '</div>';
+				return self::account_notice( $aff );
 			}
 		}
 
@@ -966,5 +964,31 @@ final class Registration {
 		<?php
 		self::$suffix = '';
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Notice for a logged-in user who already has a partner account, by its status (R14-U7):
+	 * an application under review or a rejected one is not "a partner account", and a rejected
+	 * applicant gets no link to a partner area they cannot use.
+	 *
+	 * @param object $aff Partner.
+	 * @return string HTML.
+	 */
+	public static function account_notice( $aff ) {
+		$portal = (int) Settings::get( 'portal_page_id' ) ? ' <a href="' . esc_url( Notifications::portal_url() ) . '">' . esc_html__( 'Go to partner area', 'affiliate-captain' ) . '</a>' : '';
+		$admin  = (string) Settings::get( 'admin_email' );
+		$admin  = is_email( $admin ) ? $admin : (string) get_option( 'admin_email' );
+		/* translators: %s: e-mail link */
+		$contact = ' ' . sprintf( esc_html__( 'Questions? Contact us at %s.', 'affiliate-captain' ), '<a href="mailto:' . esc_attr( $admin ) . '">' . esc_html( $admin ) . '</a>' );
+		switch ( (string) $aff->status ) {
+			case 'pending':
+				return '<div class="wpac-notice" role="status">' . esc_html__( 'Your application is being reviewed. We will notify you by e-mail.', 'affiliate-captain' ) . '</div>';
+			case 'rejected':
+				return '<div class="wpac-notice">' . esc_html__( 'Your application was not accepted.', 'affiliate-captain' ) . $contact . '</div>';
+			case 'terminated':
+				return '<div class="wpac-notice">' . esc_html__( 'Your partnership has ended. You can still see your commissions and payouts and download your credit notes.', 'affiliate-captain' ) . $portal . $contact . '</div>';
+			default:
+				return '<div class="wpac-notice">' . esc_html__( 'You already have a partner account.', 'affiliate-captain' ) . $portal . '</div>';
+		}
 	}
 }

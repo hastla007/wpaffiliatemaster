@@ -58,6 +58,7 @@ final class Admin {
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
 		// Daily work first, technical pages and settings last (R5-O46).
 		Pages\ImportExportPage::menu();
+		Pages\MailTemplatesPage::menu(); // R14-P1.
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
 		$audit = add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
 		$settings = add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
@@ -725,12 +726,14 @@ final class Admin {
 			'affiliate_update'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'affiliate_status'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'public_change'     => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'vies_check'        => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'vies_check'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Sends data to the EU; "invalid" blocks payouts (R14-S4).
 			'tax_approve'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'tax_reject'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
-			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'bank_approve'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'bank_reject'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
+			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
+			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'broadcast_send'    => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
@@ -775,6 +778,11 @@ final class Admin {
 			'job_retry_all'     => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'job_dismiss'       => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_save'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			// E-mail templates (R14-P1).
+			'mail_template_save'  => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_template_reset' => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_template_test'  => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_layout_save'    => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'ropa_download'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),

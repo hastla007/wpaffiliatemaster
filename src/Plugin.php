@@ -59,6 +59,7 @@ final class Plugin {
 		\WPAffiliateCaptain\Tracking\Consent::register_hooks();
 		Registration::register_hooks();
 		\WPAffiliateCaptain\Affiliates\Notifications::register_hooks();
+		\WPAffiliateCaptain\Payouts\EInvoice::register_hooks(); // E-invoice XML with the credit note mails (R14-L1).
 		\WPAffiliateCaptain\Reports\Reports::register_hooks(); // Bookings empty the report cache (R12-M23).
 		\WPAffiliateCaptain\Commissions\ReviewAlert::register_hooks(); // Review count cache and digest mail (R5-W58).
 		Portal::register_hooks();

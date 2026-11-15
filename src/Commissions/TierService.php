@@ -372,18 +372,21 @@ final class TierService {
 	 * @param int    $affiliate_id Partner.
 	 * @param string $month        YYYY-MM.
 	 * @param string $currency     Currency.
+	 * @param bool   $open         Also count orders still in the hold period or under review
+	 *                             (progress of the running month in the partner area, R14-U4).
 	 * @return array
 	 */
-	private static function orders( $affiliate_id, $month, $currency ) {
+	private static function orders( $affiliate_id, $month, $currency, $open = false ) {
 		global $wpdb;
-		$c = Db::table( 'commissions' );
+		$c        = Db::table( 'commissions' );
+		$statuses = $open ? "'pending','review','approved','paid'" : "'approved','paid'"; // Constant fragment, no input.
 		list( $start, $end ) = self::range( $month );
 		// All currencies: orders in another currency count with their value in the program currency
 		// (reference rate); without a rate they cannot be valued and are left out. Only the orders
 		// sold in the month are read (index affiliate_created), not the partner's whole history;
 		// their later corrections (refunds etc., created later) are included.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.source, c.source_order_id, c.currency, SUM(c.base_minor) AS revenue, MIN(CASE WHEN c.kind = 'sale' THEN c.created_at END) AS sold_at FROM {$c} c INNER JOIN ( SELECT DISTINCT source, source_order_id FROM {$c} WHERE affiliate_id = %d AND kind = 'sale' AND created_at BETWEEN %s AND %s ) m ON m.source = c.source AND m.source_order_id = c.source_order_id WHERE c.affiliate_id = %d AND c.status IN ('approved','paid') AND c.kind <> 'bonus' GROUP BY c.source, c.source_order_id, c.currency HAVING sold_at BETWEEN %s AND %s ORDER BY sold_at ASC", $affiliate_id, $start, $end, $affiliate_id, $start, $end ), ARRAY_A );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.source, c.source_order_id, c.currency, SUM(c.base_minor) AS revenue, MIN(CASE WHEN c.kind = 'sale' THEN c.created_at END) AS sold_at FROM {$c} c INNER JOIN ( SELECT DISTINCT source, source_order_id FROM {$c} WHERE affiliate_id = %d AND kind = 'sale' AND created_at BETWEEN %s AND %s ) m ON m.source = c.source AND m.source_order_id = c.source_order_id WHERE c.affiliate_id = %d AND c.status IN ({$statuses}) AND c.kind <> 'bonus' GROUP BY c.source, c.source_order_id, c.currency HAVING sold_at BETWEEN %s AND %s ORDER BY sold_at ASC", $affiliate_id, $start, $end, $affiliate_id, $start, $end ), ARRAY_A );
 		$out  = array();
 		foreach ( $rows as $row ) {
 			if ( strtoupper( (string) $row['currency'] ) !== strtoupper( (string) $currency ) ) {
@@ -652,5 +655,87 @@ final class TierService {
 			$out[] = ( 'orders' === $plan->basis ? (int) $s['threshold'] : Money::format( (int) $s['threshold'], $currency ) ) . ' → +' . \WPAffiliateCaptain\Core\Locale::percent( $s['rate'] );
 		}
 		return implode( ', ', $out );
+	}
+
+	/**
+	 * Steps in the partner's language: what counts (orders or net sales per local month), from
+	 * when and on what the extra rate is paid (marginal: only above the step; retroactive: on
+	 * the whole month), e.g. "From 5 orders in a month: +2 % of the net value of all orders of
+	 * that month" (R14-U4).
+	 *
+	 * @param object $plan     Plan.
+	 * @param string $currency Program currency.
+	 * @return string[] One sentence per step.
+	 */
+	public static function partner_text( $plan, $currency ) {
+		$steps = json_decode( (string) $plan->steps, true );
+		$out   = array();
+		foreach ( (array) $steps as $s ) {
+			if ( ! is_array( $s ) || ! isset( $s['threshold'], $s['rate'] ) ) {
+				continue;
+			}
+			$rate = '+' . \WPAffiliateCaptain\Core\Locale::percent( $s['rate'] );
+			if ( 'orders' === $plan->basis ) {
+				$n     = (int) $s['threshold'];
+				$out[] = 'retroactive' === $plan->mode
+					/* translators: 1: number of orders, 2: extra rate, e.g. +2 % */
+					? sprintf( _n( 'From %1$s order in a month: %2$s of the net value of all orders of that month', 'From %1$s orders in a month: %2$s of the net value of all orders of that month', $n, 'affiliate-captain' ), number_format_i18n( $n ), $rate )
+					/* translators: 1: number of the order, 2: extra rate, e.g. +2 % */
+					: sprintf( __( 'From order no. %1$s in a month: %2$s of the net value of this and every further order of that month', 'affiliate-captain' ), number_format_i18n( $n ), $rate );
+			} else {
+				$amount = Money::format( (int) $s['threshold'], $currency );
+				$out[]  = 'retroactive' === $plan->mode
+					/* translators: 1: amount, 2: extra rate, e.g. +2 % */
+					? sprintf( __( 'From %1$s net sales in a month: %2$s of all net sales of that month', 'affiliate-captain' ), $amount, $rate )
+					/* translators: 1: amount, 2: extra rate, e.g. +2 % */
+					: sprintf( __( 'From %1$s net sales in a month: %2$s of the net sales above this amount', 'affiliate-captain' ), $amount, $rate );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Progress of a partner in the running local month: orders or net sales so far (including
+	 * orders still in the hold period), the step reached and the next step (R14-U4).
+	 *
+	 * @param object $aff  Partner.
+	 * @param object $plan Plan (plan_for()).
+	 * @return array|null basis, measure, reached (step|null), next (step|null); null without steps.
+	 */
+	public static function progress( $aff, $plan ) {
+		$steps = json_decode( (string) $plan->steps, true );
+		$steps = array_values(
+			array_filter(
+				(array) $steps,
+				static function ( $s ) {
+					return is_array( $s ) && isset( $s['threshold'], $s['rate'] );
+				}
+			)
+		);
+		if ( ! $steps ) {
+			return null;
+		}
+		usort(
+			$steps,
+			static function ( $a, $b ) {
+				return (int) $a['threshold'] <=> (int) $b['threshold'];
+			}
+		);
+		$orders  = self::orders( (int) $aff->id, Db::local_month( 0 ), strtoupper( (string) Settings::get( 'currency' ) ), true );
+		$result  = Tiers::bonus( $orders, $steps, $plan->basis, $plan->mode );
+		$measure = 'orders' === $plan->basis ? (int) $result['orders'] : (int) $result['revenue'];
+		$next    = null;
+		foreach ( $steps as $s ) {
+			if ( $measure < (int) $s['threshold'] ) {
+				$next = $s;
+				break;
+			}
+		}
+		return array(
+			'basis'   => 'orders' === $plan->basis ? 'orders' : 'revenue',
+			'measure' => $measure,
+			'reached' => $result['reached'],
+			'next'    => $next,
+		);
 	}
 }

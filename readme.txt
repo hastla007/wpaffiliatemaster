@@ -88,7 +88,7 @@ Yes. Network activation sets up every site (in batches for large networks), new 
 
 = Is it GDPR compliant? =
 
-The plugin is built for data minimisation: no IP addresses for attribution, cookie only with consent, customers are never shown to partners, lifetime links store only a keyed hash, bank details are encrypted, retention periods delete old data automatically, and personal data export and erasure (including restriction of processing for records that must be kept) are connected to the WordPress privacy tools. It adds a suggested text to the privacy policy guide and ships a record of processing activities template (Settings → Reports & data). Whether your setup is compliant depends on your situation – have it reviewed by your data protection advisor.
+The plugin is built for data minimisation: no IP addresses for attribution, cookie only with consent, partners never see customer names, e-mail or addresses (only order number, product, date, amounts, status and their own sub-ID), lifetime links store only a keyed hash, bank details are encrypted, retention periods delete old data automatically, and personal data export and erasure (including restriction of processing for records that must be kept) are connected to the WordPress privacy tools. It adds a suggested text to the privacy policy guide and ships a record of processing activities template (Settings → Data & maintenance). Whether your setup is compliant depends on your situation – have it reviewed by your data protection advisor.
 
 = Does it work with Pass Captain and Voucher Captain? =
 
@@ -114,6 +114,30 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= Unreleased =
+Expert audit round 14 (12 perspectives); database schema 15 (one index widened online, new table visits_daily):
+* New: credit notes, correction credit notes and cancellations as electronic invoice (EN 16931 CII XML; XRechnung 3.0 profile when all its data are known) – download next to every PDF in the partner area and admin, optional attachment to the partner e-mail (setting "Send e-invoice", automatic for domestic VAT-registered partners), Leitweg-ID setting, filters wpac_einvoice_xml / wpac_einvoice_data
+* New: e-mail templates in the admin (Affiliate Captain → E-mail templates): subject and text of every partner e-mail with placeholders ({name}, {link}, {code}, {rate}, {portal_url}, {amount} …), reset to default, test send, optional simple HTML layout with plain-text part; the approval/welcome e-mail contains partner link, code and commission rate
+* Security: linking, disconnecting and re-sending the account link, changing the e-mail of a partner with portal access or payout details and the VIES check need the payout permission; new bank details entered within 30 days after an e-mail change or account link wait for approval; partner (also at the previous address) and admin are informed
+* Security: no code validity oracle via consent script, cookie or landing status; IP limit for unknown codes
+* Fixed: unsubscribe links only act after confirmation (mail scanners no longer unsubscribe partners); one-click unsubscribe (RFC 8058) for Gmail/Yahoo
+* Fixed: the self-referral address check compares whole words and the exact house number (neighbours no longer lose their commission)
+* Fixed: unpublished landing pages and links of paused, terminated or unknown partners lead to the default landing page instead of a 404; new monitor check
+* Fixed: partner statistics, monthly table and CSV export use the site time zone; the date filter of the partner payouts tab works
+* Fixed: partners whose partnership ended can update their payout details while money is open
+* Fixed: refund rate counts only refunds, cancellations and chargebacks; conversion rate counts only sales from link clicks and shows "—" without visits
+* Fixed: after a reinstall, stale coupon and order meta no longer point to new partners; uninstall and tools/purge-retained.php handle deleted network sites and pending scheduled tasks
+* SEO: "noindex, follow" for pages with partner parameters, the partner area and confirmation pages; landing redirects pass on all utm_* parameters and click IDs; bot filter extended; reserved names are refused as referral parameter
+* Partner area: tier bonus explained in plain words with a progress bar; copyable HTML text link with rel="sponsored noopener"; labelling duty with channel examples and an optional visible disclosure label in banner embed codes; status-specific messages for pending, rejected and terminated applicants
+* Privacy: consent banner status is only green with a connected banner (handbook recipes for Borlabs, Complianz, Real Cookie Banner, Usercentrics, CCM19, Cookiebot); customers' right to object in the privacy policy text; record of processing activities corrected, English template; terms proof covers the rendered page; notice for cookie lifetimes above 395 days
+* Terms template: independence (§ 89b HGB), credit note format incl. e-invoice, small business status, labelling duty, data protection roles
+* Performance (database schema 14): partner statistics by campaign and sub-ID are answered from a widened visit index (changed online, without locking the table) and cached for 10 minutes per partner and period; the editor's "Partner traffic" box is cached; the report cache generation is no longer autoloaded
+* Performance: daily aggregation of partner link visits (table visits_daily): partner area, admin reports and monthly e-mails read visit counts per partner, day, campaign and sub-ID from a few rows instead of millions; existing visits are added in the background, until then the raw data are used; deleted on partner erasure and after the retention period; the campaign table in the partner area shows 25 rows per page
+* Performance: the rate-limit clean-up continues with a time budget until no expired counter is left; the monitor warns when it falls behind
+* Privacy: erasing a partner with millions of link visits deletes them in short batches; the WordPress eraser continues page by page and a background task finishes the rest
+* Tracking: the beacon route stays reachable when security plugins block the REST API for guests, falls back to admin-ajax.php, and Site Health and the monitor report a blocked beacon; reloads no longer resend the beacon; the WooCommerce cart is only loaded for visitors with a shop session; the beacon is excluded from "delay JavaScript" in WP Rocket, LiteSpeed Cache, Perfmatters and FlyingPress
+* Dev: CI checks deprecations and notices, integration tests on PHP 7.4 and 8.4, smoke test on PHP 8.4, PHPStan level 3
 
 = 0.13.0 =
 Expert audit (8 reviewers); database schema 13 (indexes only):

@@ -86,3 +86,17 @@
 	.wpac-table td { display: block; border: 0; padding: .15em 0; }
 	.wpac-table td .wpac-cell-label { display: inline; font-weight: 600; }
 }
+/* Narrow content columns (block themes, sidebars): the tab is a size container, so wide tables
+   also switch to cards when the column – not the viewport – is narrow (R14-U8). */
+.wpac-tab { container-type: inline-size; }
+@container (max-width: 640px) {
+	.wpac-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+	.wpac-table tr { display: block; border-bottom: 1px solid var(--wpac-border); padding: .5em 0; }
+	.wpac-table td { display: block; border: 0; padding: .15em 0; }
+	.wpac-table td .wpac-cell-label { display: inline; font-weight: 600; }
+}
+/* Monthly bonus: progress towards the next step (R14-U4). */
+.wpac-tier progress { display: block; width: 100%; max-width: 30em; height: 1em; margin: 0 0 .5em; accent-color: var(--wpac-accent, #0b6e99); }
+/* HTML text link snippet next to a partner link (R14-T10). */
+.wpac-snippet { margin: .25em 0 1em; }
+.wpac-snippet summary { cursor: pointer; font-size: .9em; }

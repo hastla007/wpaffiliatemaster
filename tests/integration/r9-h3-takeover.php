@@ -79,10 +79,14 @@ function wp_delete_file( $f ) {}
 
 /** Records the queries of the old copy's uninstall routine. */
 class H3_Recording_WPDB {
-	public $prefix  = 'wp_';
-	public $options = 'wp_options';
-	public $queries = array();
+	public $prefix      = 'wp_';
+	public $base_prefix = 'wp_';
+	public $options     = 'wp_options';
+	public $postmeta    = 'wp_postmeta';
+	public $queries     = array();
 	public function get_blog_prefix( $id = null ) { return 'wp_'; }
+	public function esc_like( $t ) { return addcslashes( $t, '_%\\' ); }
+	public function get_col( $q, $x = 0 ) { $this->queries[] = $q; return array(); }
 	public function prepare( $q, ...$a ) { return vsprintf( str_replace( array( '%s', '%d' ), array( "'%s'", '%d' ), $q ), $a ); }
 	public function query( $q ) { $this->queries[] = $q; return 0; }
 	public function get_var( $q ) { $this->queries[] = $q; return 0 === strpos( $q, 'SHOW TABLES' ) ? 'wp_wpac_payouts' : 0; }

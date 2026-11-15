@@ -26,9 +26,6 @@ final class Tracker {
 	const COOKIE      = 'wpac_ref';
 	const SESSION_KEY = 'wpac_ref';
 
-	/** @var bool Whether this request already captured a referral. */
-	private static $captured_now = false;
-
 	/** @var array Cookies written in this request (name, value, options) – for diagnostics and tests. */
 	private static $written = array();
 
@@ -42,7 +39,56 @@ final class Tracker {
 		add_filter( 'wp_consent_api_registered_' . plugin_basename( WPAC_FILE ), '__return_true' );
 		// Expired rate-limit counters are removed every hour (not once a day).
 		add_action( 'wpac_hourly', array( RateLimiter::class, 'hourly_purge' ) );
+		add_action( RateLimiter::PURGE_HOOK, array( RateLimiter::class, 'hourly_purge' ), 10, 0 );
 		add_filter( 'site_status_tests', array( __CLASS__, 'site_status_tests' ) );
+		// "Delay JS" of caching plugins would run the beacon only on the first interaction:
+		// visits without one were never reported (R14-D8). Keyword exclusions per plugin, plus
+		// attributes on the script tags (wp_inline_script_attributes / wp_script_attributes).
+		foreach ( array( 'rocket_delay_js_exclusions', 'litespeed_optm_js_defer_exc', 'litespeed_optm_js_delay_exc', 'perfmatters_delay_js_exclusions', 'flying_press_exclude_from_delay:js', 'flying_press_exclude_from_defer:js' ) as $hook ) {
+			add_filter( $hook, array( __CLASS__, 'delay_js_exclusions' ) );
+		}
+		add_filter( 'wp_inline_script_attributes', array( __CLASS__, 'beacon_script_attributes' ), 10, 2 );
+		add_filter( 'wp_script_attributes', array( __CLASS__, 'beacon_script_attributes' ), 10, 1 );
+		add_action( 'wpac_hourly', array( __CLASS__, 'refresh_touch_probe' ) );
+	}
+
+	/** Keyword that identifies the beacon script for "delay JS" exclusion lists. */
+	const BEACON_KEYWORD = 'wpacBeacon';
+
+	/**
+	 * Add the beacon to an exclusion list of a "delay/defer JS" feature (WP Rocket, LiteSpeed,
+	 * Perfmatters, FlyingPress match keywords against the script tag and its content).
+	 *
+	 * @param mixed $list Exclusions.
+	 * @return array
+	 */
+	public static function delay_js_exclusions( $list ) {
+		$list = is_array( $list ) ? $list : ( is_string( $list ) && '' !== $list ? array( $list ) : array() );
+		if ( ! in_array( self::BEACON_KEYWORD, $list, true ) ) {
+			$list[] = self::BEACON_KEYWORD;
+		}
+		return $list;
+	}
+
+	/**
+	 * Attributes of the beacon's script tags that keep optimisers from delaying or bundling it:
+	 * data-no-optimize/data-no-defer (LiteSpeed), data-cfasync="false" (Cloudflare Rocket
+	 * Loader), nowprocket (WP Rocket).
+	 *
+	 * @param mixed $attributes Attributes.
+	 * @param mixed $javascript Inline code (wp_inline_script_attributes only).
+	 * @return mixed
+	 */
+	public static function beacon_script_attributes( $attributes, $javascript = '' ) {
+		if ( ! is_array( $attributes ) || ! isset( $attributes['id'] ) || ! in_array( (string) $attributes['id'], array( 'wpac-beacon-js', 'wpac-beacon-js-after', 'wpac-beacon-js-before' ), true ) ) {
+			return $attributes;
+		}
+		return $attributes + array(
+			'data-no-optimize' => '1',
+			'data-no-defer'    => '1',
+			'data-cfasync'     => 'false',
+			'nowprocket'       => true,
+		);
 	}
 
 	/**
@@ -258,6 +304,13 @@ final class Tracker {
 	public static function capture_code( $raw, $campaign, $content_id, array $extra = array() ) {
 		$resolved = wpac_resolve_partner_code( (string) $raw, array( 'context' => ! empty( $extra['cart'] ) ? 'cart' : 'link' ) );
 		if ( ! $resolved ) {
+			self::note_code_miss();
+			return false;
+		}
+		// A client that tried many unknown codes gets no referral cookie for valid ones either: the
+		// Set-Cookie header would tell which code exists (R14-S2). Checked only when a cookie would
+		// be written (otherwise the answer is the same for every code).
+		if ( Consent::cookie_allowed() && self::code_misses_exceeded() ) {
 			return false;
 		}
 		$touch = array(
@@ -274,7 +327,6 @@ final class Tracker {
 		}
 
 		self::store_touch( $touch, ! empty( $extra['cart'] ) );
-		self::$captured_now = true;
 
 		/**
 		 * Fires after a referral link visit was captured.
@@ -284,6 +336,29 @@ final class Tracker {
 		 */
 		do_action( 'wpac_referral_captured', $resolved, $touch );
 		return true;
+	}
+
+	/** Unknown codes/slugs per client address and minute before valid ones are answered like unknown ones. */
+	const CODE_MISS_LIMIT = 60;
+
+	/**
+	 * Count an unknown code or landing slug of the current client (R14-S2). Not behind an untrusted
+	 * proxy: all visitors would share its address, and real referrals must not be dropped.
+	 */
+	public static function note_code_miss() {
+		if ( ! RateLimiter::behind_untrusted_proxy() ) {
+			RateLimiter::allow( 'code_miss', self::CODE_MISS_LIMIT, MINUTE_IN_SECONDS );
+		}
+	}
+
+	/**
+	 * Whether the current client tried more unknown codes/slugs than allowed in this minute (limit
+	 * filterable with wpac_rate_limit, bucket "code_miss").
+	 *
+	 * @return bool
+	 */
+	public static function code_misses_exceeded() {
+		return ! RateLimiter::behind_untrusted_proxy() && RateLimiter::exceeded( 'code_miss', self::CODE_MISS_LIMIT, MINUTE_IN_SECONDS );
 	}
 
 	/**
@@ -351,6 +426,20 @@ final class Tracker {
 	}
 
 	/**
+	 * Whether the browser sends a WooCommerce session cookie (a shop session exists, R14-D7).
+	 *
+	 * @return bool
+	 */
+	public static function has_shop_session_cookie() {
+		foreach ( array_keys( (array) $_COOKIE ) as $name ) {
+			if ( 0 === strpos( (string) $name, 'wp_woocommerce_session_' ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Beacon script: reports the referral parameter of a cached page via REST (JavaScript
 	 * tracking on) and, with cookie mode "consent", sends the referral again once the visitor
 	 * gives marketing consent after the landing (WP Consent API event
@@ -365,10 +454,11 @@ final class Tracker {
 		$consent = 'consent' === Settings::get( 'cookie_mode' );
 		$param   = (string) Settings::get( 'referral_param' );
 		if ( ! $beacon ) {
-			// Without the beacon only the consent listener is needed, and only on a landing that was
-			// just captured without consent.
+			// Without the beacon only the consent listener is needed, and only on a landing with the
+			// referral parameter without consent. Whether the code is valid does not matter: the page
+			// must not tell (R14-S2); the REST endpoint answers unknown codes the same way.
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( ! $consent || empty( $_GET[ $param ] ) || ! self::$captured_now || Consent::cookie_allowed() ) {
+			if ( ! $consent || empty( $_GET[ $param ] ) || Consent::cookie_allowed() ) {
 				return;
 			}
 		}
@@ -380,6 +470,8 @@ final class Tracker {
 			'beacon'  => $beacon ? 1 : 0,
 			'consent' => $consent ? 1 : 0,
 			'sub'     => self::sub_param(),
+			// Fallback when the REST API is blocked for guests (R14-D4).
+			'ajax'    => esc_url_raw( admin_url( 'admin-ajax.php?action=wpac_touch' ) ),
 		);
 		wp_register_script( 'wpac-beacon', '', array(), WPAC_VERSION, array( 'in_footer' => true ) );
 		wp_enqueue_script( 'wpac-beacon' );
@@ -398,7 +490,15 @@ final class Tracker {
 		return 'window.wpacBeacon=' . wp_json_encode( $config ) . ';(function(c){try{var q=new URLSearchParams(location.search),v=q.get(c.param);if(!v){return;}var d={},e=document.getElementById("wpac-beacon-data"),done=0;if(e){try{d=JSON.parse(e.textContent)||{};}catch(x){}}'
 			. 'function has(){return typeof window.wp_has_consent==="function"&&window.wp_has_consent("marketing");}'
 			. 'function r(){try{if(!document.referrer){return"";}if(!c.ref&&!has()){return"";}return new URL(document.referrer).host;}catch(x){return"";}}'
-			. 'function send(k){var b={code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",sub:q.get(c.sub||"sub")||"",content_id:d.content||0,path:location.pathname,referrer:r()};if(k){b.consent=1;}try{fetch(c.url,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});}catch(x){}}'
+			. 'function post(u,b,j){return fetch(u,{method:"POST",credentials:"same-origin",keepalive:true,headers:{"Content-Type":j?"application/json":"application/x-www-form-urlencoded"},body:j?JSON.stringify(b):new URLSearchParams(b).toString()});}'
+			// Reload, back navigation and further pages with the same parameters in this tab: no
+			// new request (the server counts once per minute anyway, but each request boots WordPress,
+			// R14-D7). Marked only once a request got through; a consent re-send always goes out.
+			. 'function send(k){var b={code:v,campaign:q.get("utm_campaign")||"",utm_source:q.get("utm_source")||"",utm_medium:q.get("utm_medium")||"",sub:q.get(c.sub||"sub")||"",content_id:d.content||0,path:location.pathname,referrer:r()},s=[v,b.campaign,b.utm_source,b.utm_medium,b.sub,b.path].join("|");if(k){b.consent=1;}else{try{if(sessionStorage.getItem("wpac_seen")===s){return;}}catch(x){}}'
+			. 'function ok(){if(!k){try{sessionStorage.setItem("wpac_seen",s);}catch(x){}}}'
+			// REST blocked for guests (security plugin, WAF): the same request over admin-ajax.php (R14-D4).
+			. 'function alt(){if(!c.ajax){return;}try{post(c.ajax,b,0).then(function(a){if(a.ok){ok();}},function(){});}catch(x){}}'
+			. 'try{post(c.url,b,1).then(function(a){if(a.ok){ok();}else{alt();}},alt);}catch(x){alt();}}'
 			. 'function granted(){if(done){return;}done=1;send(1);}window.wpacConsentGranted=granted;'
 			. 'function go(){if(c.beacon!==0){if(has()){done=1;}send(0);}else if(has()){granted();}}'
 			. 'if(c.consent){document.addEventListener("wp_listen_for_consent_change",function(ev){var x=ev&&ev.detail||{};if(x.marketing==="allow"){granted();}});}'
@@ -838,24 +938,31 @@ final class Tracker {
 		// A prepared INSERT instead of $wpdb->insert(): that one asks the server for the column
 		// charsets (SHOW FULL COLUMNS) once per request – on every partner click (R12-N9). The
 		// values are cut to the column lengths and valid UTF-8 (sanitized) already.
-		$table = Db::table( 'visits' );
+		$table    = Db::table( 'visits' );
+		$campaign = Db::cut( (string) $touch['campaign'], 100 );
+		$sub_id   = Db::cut( isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '', 100 );
+		$now      = Db::now();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
 		$ok = $wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO {$table} (affiliate_id, code_id, campaign, utm_source, utm_medium, referrer_host, landing_path, content_id, sub_id, created_at) VALUES (%d, %d, %s, %s, %s, %s, %s, %d, %s, %s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				(int) $resolved['affiliate_id'],
 				(int) $resolved['code_id'],
-				Db::cut( (string) $touch['campaign'], 100 ),
+				$campaign,
 				Db::cut( isset( $extra['utm_source'] ) ? (string) $extra['utm_source'] : '', 100 ),
 				Db::cut( isset( $extra['utm_medium'] ) ? (string) $extra['utm_medium'] : '', 100 ),
 				(string) $ref_host,
 				Db::cut( (string) $path, 255 ),
 				(int) $touch['content_id'],
-				Db::cut( isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '', 100 ),
-				Db::now()
+				$sub_id,
+				$now
 			)
 		);
-		return $ok ? (int) $wpdb->insert_id : 0;
+		$id = $ok ? (int) $wpdb->insert_id : 0;
+		// Daily aggregate (R14-D9): +1 for each visit written to the log, so it follows the
+		// sampling setting exactly like the raw visits the reports counted before.
+		\WPAffiliateCaptain\Reports\VisitsDaily::record( $id, (int) $resolved['affiliate_id'], $campaign, $sub_id, $now );
+		return $id;
 	}
 
 	/**
@@ -881,13 +988,19 @@ final class Tracker {
 			'whatsapp', 'viber', 'mastodon', 'iframely', 'pinterest/0.', 'microsoft outlook', 'ms-office', 'googleother', 'feedfetcher-google',
 			'statuscake', 'uptime-kuma', 'site24x7', 'pingdom', 'guzzlehttp', 'go-http-client', 'okhttp', 'axios', 'node-fetch', 'java/',
 			'apache-httpclient', 'scrapy', 'wordpress/', 'httpclient', 'libwww', 'python-urllib', 'aiohttp', 'monitor',
+			// R14-T5: Google services, feed readers, archives, scanners and HTTP clients. Snapchat only as
+			// its preview fetcher ("compatible; Snapchat"): the in-app browser also says "Snapchat/…".
+			'google-inspectiontool', 'mediapartners-google', 'google-read-aloud', '/+/web/snippet', 'facebookcatalog', 'embedly', 'feedly',
+			'ia_archiver', 'httpx', 'postmanruntime', 'compatible; snapchat', 'censys', 'palo alto networks',
 		);
 		foreach ( apply_filters( 'wpac_bot_user_agents', $needles ) as $needle ) {
 			if ( '' !== (string) $needle && false !== strpos( $ua, (string) $needle ) ) {
 				return true;
 			}
 		}
-		return false;
+		// Crawlers name an info URL in their user agent by convention ("+https://…"); browsers and
+		// in-app browsers do not (R14-T5).
+		return (bool) preg_match( '#https?://#', $ua );
 	}
 
 	/**
@@ -910,6 +1023,7 @@ final class Tracker {
 	 * @return array
 	 */
 	public static function site_health_tracking() {
+		self::touch_probe( HOUR_IN_SECONDS ); // Loopback at most once an hour (R14-D4).
 		$problems = self::tracking_problems();
 		$list     = '';
 		foreach ( $problems as $p ) {
@@ -948,6 +1062,18 @@ final class Tracker {
 				sprintf( __( 'This host only passes allow-listed cookies to WordPress; "%s" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref.', 'affiliate-captain' ), $name ),
 			);
 		}
+		$consent = Consent::integration_status();
+		if ( $consent['needed'] && ! $consent['connected'] ) {
+			// R14-L2: "only with consent" but nothing can give it – the cookie is silently never set.
+			$out[] = array(
+				__( 'Affiliate cookie is never set: no consent banner connected', 'affiliate-captain' ),
+				__( 'The affiliate cookie is only set with marketing consent, but neither a consent banner registered with the WP Consent API nor the filter wpac_has_marketing_consent provides it (window.wpacConsentGranted() alone is not enough – the server checks the consent again). Partner links then only count while a shop session lasts (if enabled); partner codes keep working. See the handbook, section "Consent banners", for recipes (Borlabs, Complianz, Real Cookie Banner, Usercentrics, CCM19, Cookiebot).', 'affiliate-captain' ),
+			);
+		}
+		$probe = self::touch_probe_problem();
+		if ( $probe ) {
+			$out[] = array( $probe[1], $probe[2] );
+		}
 		if ( wp_using_ext_object_cache() && ! RateLimiter::use_object_cache() ) {
 			$out[] = array(
 				__( 'Object cache is local to each server', 'affiliate-captain' ),
@@ -955,6 +1081,89 @@ final class Tracker {
 			);
 		}
 		return $out;
+	}
+
+	/** Option: result of the last reachability check of the beacon route (R14-D4). */
+	const PROBE_OPTION = 'wpac_touch_probe';
+
+	/**
+	 * Reachability of the beacon for guests: ok (REST route answers), ajax (REST refused, the
+	 * admin-ajax fallback answers), blocked (both refused), unknown (no loopback request
+	 * possible), '' (beacon off or not checked yet). With $max_age > 0 a result older than
+	 * that is checked again with loopback requests without cookies (like a visitor).
+	 *
+	 * @param int $max_age Seconds (0 = only the stored result).
+	 * @return string
+	 */
+	public static function touch_probe( $max_age = 0 ) {
+		if ( ! Settings::get( 'js_tracking' ) ) {
+			return '';
+		}
+		$stored = get_option( self::PROBE_OPTION );
+		$fresh  = is_array( $stored ) && isset( $stored['status'], $stored['time'] ) && ( $max_age <= 0 || (int) $stored['time'] > time() - (int) $max_age );
+		if ( $fresh || $max_age <= 0 ) {
+			return is_array( $stored ) && isset( $stored['status'] ) ? (string) $stored['status'] : '';
+		}
+		$args   = array(
+			'timeout'     => 10,
+			'redirection' => 0,
+			'cookies'     => array(),
+			'sslverify'   => (bool) apply_filters( 'https_local_ssl_verify', false ),
+		);
+		$answer = static function ( $res ) {
+			if ( is_wp_error( $res ) ) {
+				return null;
+			}
+			$body = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+			return 200 === (int) wp_remote_retrieve_response_code( $res ) && is_array( $body ) && ! empty( $body['ok'] );
+		};
+		$probe  = array(
+			'code'  => \WPAffiliateCaptain\Rest\RestApi::PROBE,
+			'probe' => \WPAffiliateCaptain\Rest\RestApi::PROBE,
+		);
+		$rest   = $answer( wp_remote_post( rest_url( 'wpac/v1/touch' ), $args + array( 'headers' => array( 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $probe ) ) ) );
+		$ajax   = true === $rest ? null : $answer( wp_remote_post( admin_url( 'admin-ajax.php?action=wpac_touch' ), $args + array( 'body' => $probe ) ) );
+		$status = true === $rest ? 'ok' : ( true === $ajax ? 'ajax' : ( null === $rest && null === $ajax ? 'unknown' : 'blocked' ) );
+		update_option(
+			self::PROBE_OPTION,
+			array(
+				'status' => $status,
+				'time'   => time(),
+			),
+			false
+		);
+		return $status;
+	}
+
+	/**
+	 * Hourly: check the beacon route again every six hours (Monitor reads the stored result).
+	 */
+	public static function refresh_touch_probe() {
+		self::touch_probe( 6 * HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * Problem of the beacon route from the last check: [ status, title, description ] or null.
+	 *
+	 * @return array|null
+	 */
+	public static function touch_probe_problem() {
+		$status = self::touch_probe();
+		if ( 'blocked' === $status ) {
+			return array(
+				'critical',
+				__( 'Partner links are not recorded: the beacon is blocked', 'affiliate-captain' ),
+				__( 'JavaScript tracking is on, so guests\' visits are only recorded by the beacon in the browser. A test request without login to the REST route wpac/v1/touch and to admin-ajax.php was refused (e.g. by a security plugin that disables the REST API for guests, or a firewall rule on /wp-json/). Every referral of a guest is lost until the route is allowed for guests (or JavaScript tracking is turned off).', 'affiliate-captain' ),
+			);
+		}
+		if ( 'ajax' === $status ) {
+			return array(
+				'recommended',
+				__( 'The REST API is blocked for guests; the beacon uses admin-ajax.php', 'affiliate-captain' ),
+				__( 'A test request without login to the REST route wpac/v1/touch was refused (security plugin or firewall rule on /wp-json/). The beacon falls back to admin-ajax.php, which costs an extra request per landing. Allow the route wpac/v1/touch for guests to avoid it.', 'affiliate-captain' ),
+			);
+		}
+		return null;
 	}
 
 	/**
