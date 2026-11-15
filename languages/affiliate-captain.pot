@@ -2215,6 +2215,11 @@ msgstr ""
 msgid "By"
 msgstr ""
 
+#. translators: %d: commission ID
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Refers to commission #%d (information only)"
+msgstr ""
+
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Reports/MonthlyMail.php
 msgid "Corrections"
 msgstr ""
@@ -2233,6 +2238,10 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
 msgid "Released from a cancelled payout"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php
+msgid "Reference (information only)"
 msgstr ""
 
 #. translators: %s: status
@@ -5335,7 +5344,7 @@ msgid "The partner data could not be saved. Please try again; the previous data 
 msgstr ""
 
 #. translators: 1: field, 2: number of characters
-#: src/Affiliates/AffiliateRepository.php src/Promotion/Creatives.php
+#: src/Affiliates/AffiliateRepository.php src/Core/PublicApi.php src/Promotion/Creatives.php
 msgid "%1$s is too long (at most %2$d characters). Nothing was changed."
 msgstr ""
 
@@ -7112,6 +7121,11 @@ msgstr ""
 #. translators: %s: field names
 #: src/Core/PublicApi.php
 msgid "These fields cannot be changed: %s"
+msgstr ""
+
+#. translators: %s: argument name
+#: src/Core/PublicApi.php
+msgid "Unknown argument \"%s\"."
 msgstr ""
 
 #. translators: %s: argument name

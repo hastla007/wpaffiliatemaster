@@ -39,6 +39,17 @@ final class Ledger {
 	const MANUAL_KINDS = array( 'adjustment' );
 
 	/**
+	 * Commission event that links a manual booking of wpac_create_adjustment() to a commission
+	 * for information only (P15-1, since 0.15.0): source_event_id = LINK_PREFIX . commission ID,
+	 * reason = the add-on's reference. Unlike parent_id it has no effect on the ledger (refunds,
+	 * corrections, payouts and credit notes ignore it).
+	 */
+	const LINK_EVENT = 'linked';
+
+	/** Prefix of source_event_id of a LINK_EVENT. */
+	const LINK_PREFIX = 'parent:';
+
+	/**
 	 * Labels.
 	 *
 	 * @return array
@@ -1822,9 +1833,12 @@ final class Ledger {
 	 * @param int    $amount_minor Amount (minor units, not 0; negative = deduction).
 	 * @param string $reason       Reason (required, shown to the partner).
 	 * @param int    $parent_id    Commission this corrects (0 = none).
+	 * @param array  $link         Information-only link (wpac_create_adjustment(), since 0.15.0):
+	 *                             parent_id (existing commission, any partner), reference (≤ 64
+	 *                             characters). Stored as a LINK_EVENT, never in parent_id.
 	 * @return int|\WP_Error Commission ID.
 	 */
-	public static function manual_adjustment( $affiliate_id, $currency, $amount_minor, $reason, $parent_id = 0 ) {
+	public static function manual_adjustment( $affiliate_id, $currency, $amount_minor, $reason, $parent_id = 0, array $link = array() ) {
 		global $wpdb;
 		$reason       = trim( (string) $reason );
 		$amount_minor = (int) $amount_minor;
@@ -1849,9 +1863,11 @@ final class Ledger {
 		$t = Db::table( 'commissions' );
 		// A correction of an open commission follows it (like a refund); otherwise payable at once.
 		$status = $parent && in_array( $parent->status, array( 'pending', 'review' ), true ) ? $parent->status : 'approved';
+		$link_parent    = isset( $link['parent_id'] ) ? (int) $link['parent_id'] : 0;
+		$link_reference = isset( $link['reference'] ) ? (string) $link['reference'] : '';
 		try {
 			$id = Db::transaction(
-				static function () use ( $wpdb, $t, $affiliate_id, $currency, $amount_minor, $reason, $parent, $status ) {
+				static function () use ( $wpdb, $t, $affiliate_id, $currency, $amount_minor, $reason, $parent, $status, $link_parent, $link_reference ) {
 					$key = self::key( 'manual:' . (int) $affiliate_id . ':' . Db::now() . ':' . wp_generate_password( 8, false ) );
 					$ok  = $wpdb->insert(
 						$t,
@@ -1886,6 +1902,10 @@ final class Ledger {
 						Balance::post( (int) $affiliate_id, $currency, 'approved', $amount_minor, $id, 0, 'manual' );
 					}
 					self::event( $id, 'created', '', $status, $amount_minor, 'manual: ' . $reason, $key, get_current_user_id() );
+					if ( $link_parent || '' !== $link_reference ) {
+						// Information only (P15-1): not parent_id, so no refund, payout or credit-note rule sees it.
+						self::event( $id, self::LINK_EVENT, $status, $status, 0, $link_reference, $link_parent ? self::LINK_PREFIX . $link_parent : '', get_current_user_id() );
+					}
 					if ( $parent ) {
 						self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount_minor, 'manual', $key, get_current_user_id() );
 					}
@@ -1905,7 +1925,10 @@ final class Ledger {
 				'currency'   => $currency,
 				'parent'     => $parent ? (int) $parent->id : 0,
 				'reason'     => $reason,
-			)
+			) + ( $link_parent || '' !== $link_reference ? array(
+				'linked'    => $link_parent,
+				'reference' => $link_reference,
+			) : array() )
 		);
 		Db::after_commit(
 			static function () use ( $id ) {
@@ -2375,6 +2398,32 @@ final class Ledger {
 		// Reinstatements give back the base of a reversal that turned out to be wrong.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (int) abs( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(base_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected' AND ( base_minor < 0 OR kind = 'reinstatement' ){$for}", $id ) ) );
+	}
+
+	/**
+	 * Information-only links of manual bookings (LINK_EVENT, P15-1).
+	 *
+	 * @param int[] $ids Commission IDs.
+	 * @return array Commission ID => array( parent_id, reference ), only for linked bookings.
+	 */
+	public static function links( array $ids ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		if ( ! $ids ) {
+			return array();
+		}
+		$t   = Db::table( 'commission_events' );
+		$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$out = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- %d placeholders built above.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT commission_id, reason, source_event_id FROM {$t} WHERE event = %s AND commission_id IN ({$in}) ORDER BY id ASC", array_merge( array( self::LINK_EVENT ), $ids ) ) ) as $e ) {
+			$ref = (string) $e->source_event_id;
+			$out[ (int) $e->commission_id ] = array(
+				'parent_id' => 0 === strpos( $ref, self::LINK_PREFIX ) ? (int) substr( $ref, strlen( self::LINK_PREFIX ) ) : 0,
+				'reference' => (string) $e->reason,
+			);
+		}
+		return $out;
 	}
 
 	/**

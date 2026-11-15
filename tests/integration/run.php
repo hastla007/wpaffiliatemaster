@@ -1568,6 +1568,7 @@ require __DIR__ . '/r14-f4.php'; // Round 14, feature agent f4 (before r8-render
 require __DIR__ . '/r14-f1.php'; // Feature f1: automatic partner coupon (before r8-render).
 require __DIR__ . '/r14-f3.php'; // Feature f3: password confirmation rules (before r8-render).
 require __DIR__ . '/r14-f2.php'; // Feature f2 (0.15.0): partner code requests (before r8-render).
+require __DIR__ . '/r14-p15.php'; // Feature p15 (0.15.0): contract wishes of the Pro add-on (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

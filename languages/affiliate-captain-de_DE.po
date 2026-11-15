@@ -1707,6 +1707,9 @@ msgstr "Ereignis"
 msgid "By"
 msgstr "Von"
 
+msgid "Refers to commission #%d (information only)"
+msgstr "Bezieht sich auf Provision #%d (nur zur Information)"
+
 msgid "Corrections"
 msgstr "Korrekturen"
 
@@ -1721,6 +1724,9 @@ msgstr "Einer Auszahlung zugeordnet"
 
 msgid "Released from a cancelled payout"
 msgstr "Aus einer stornierten Auszahlung freigegeben"
+
+msgid "Reference (information only)"
+msgstr "Bezug (nur zur Information)"
 
 msgid "Status: %s"
 msgstr "Status: %s"
@@ -5152,6 +5158,9 @@ msgstr "Die tägliche Prüfung des Partnerprogramms hat Probleme gefunden:\n\n%1
 
 msgid "These fields cannot be changed: %s"
 msgstr "Diese Felder können nicht geändert werden: %s"
+
+msgid "Unknown argument \"%s\"."
+msgstr "Unbekanntes Argument „%s“."
 
 msgid "Invalid value for \"%s\"."
 msgstr "Ungültiger Wert für „%s“."

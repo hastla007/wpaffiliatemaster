@@ -101,7 +101,7 @@ check( 'R11A wpac_set_affiliate_status: paused with reason, audited, event fired
 check( 'R11A wpac_set_affiliate_status: back to active', 'active', wpac_set_affiliate_status( $r11a_b, 'active' )['status'] );
 
 /* Read: commissions --------------------------------------------------------------------------- */
-$r11a_ckeys = array( 'id', 'affiliate_id', 'kind', 'parent_id', 'status', 'currency', 'amount_minor', 'base_minor', 'rate_type', 'rate', 'rule_id', 'source', 'order_id', 'item_id', 'product_ref', 'description', 'hold_until', 'payout_id', 'created_at', 'updated_at' );
+$r11a_ckeys = array( 'id', 'affiliate_id', 'kind', 'parent_id', 'reference', 'status', 'currency', 'amount_minor', 'base_minor', 'rate_type', 'rate', 'rule_id', 'source', 'order_id', 'item_id', 'product_ref', 'description', 'hold_until', 'payout_id', 'created_at', 'updated_at' );
 $r11a_c     = wpac_get_commission( $r11a_c1 );
 check( 'R11A wpac_get_commission: documented fields, typed', array( $r11a_ckeys, $r11a_c1, $r11a_aff, 'sale', 'review', 'r11a-1', true ), array( array_keys( $r11a_c ), $r11a_c['id'], $r11a_c['affiliate_id'], $r11a_c['kind'], $r11a_c['status'], $r11a_c['order_id'], is_int( $r11a_c['amount_minor'] ) ) );
 check( 'R11A wpac_get_commission: no customer data', '', $r11a_secret( $r11a_c ) );

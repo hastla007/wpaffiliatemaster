@@ -210,7 +210,8 @@ final class Creatives {
 		if ( ! $ok ) {
 			return $failed;
 		}
-		$id = (int) $wpdb->insert_id;
+		$id  = (int) $wpdb->insert_id;
+		$new = ! $family_id;
 		if ( ! $family_id ) {
 			if ( false === $wpdb->update( $t, array( 'family_id' => $id ), array( 'id' => $id ) ) ) {
 				$wpdb->delete( $t, array( 'id' => $id ) ); // Without a family the version would be orphaned.
@@ -228,7 +229,55 @@ final class Creatives {
 				'note'    => $note,
 			)
 		);
+		if ( $new ) {
+			/**
+			 * A new creative was saved (first version of a new family, status "draft"). Since 0.15.0.
+			 * Partners see a creative only once a version is approved: see wpac_creative_updated.
+			 *
+			 * @param int   $id   Creative version ID.
+			 * @param array $info id, family_id, version, status, type, title, group_id.
+			 */
+			do_action( 'wpac_creative_created', $id, self::hook_info( $id ) );
+		} else {
+			self::changed( $id );
+		}
 		return $id;
+	}
+
+	/**
+	 * Fields of a creative version for the hooks wpac_creative_created/_updated (since 0.15.0).
+	 *
+	 * @param int $id Version ID.
+	 * @return array id, family_id, version, status (draft|approved|archived), type, title, group_id.
+	 */
+	public static function hook_info( $id ) {
+		$c = self::find( (int) $id );
+		return $c ? array(
+			'id'        => (int) $c->id,
+			'family_id' => (int) $c->family_id,
+			'version'   => (int) $c->version,
+			'status'    => (string) $c->status,
+			'type'      => (string) $c->type,
+			'title'     => (string) $c->title,
+			'group_id'  => (int) $c->group_id,
+		) : array( 'id' => (int) $id );
+	}
+
+	/**
+	 * Fire wpac_creative_updated after a successful change of a version.
+	 *
+	 * @param int $id Version ID.
+	 */
+	private static function changed( $id ) {
+		/**
+		 * A creative was changed: a new draft version of an existing family was saved, or a
+		 * version was approved (status "approved": now visible to partners of its group) or
+		 * archived. Since 0.15.0.
+		 *
+		 * @param int   $id   Creative version ID.
+		 * @param array $info id, family_id, version, status, type, title, group_id.
+		 */
+		do_action( 'wpac_creative_updated', (int) $id, self::hook_info( $id ) );
 	}
 
 	/**
@@ -246,7 +295,7 @@ final class Creatives {
 		$t = Db::table( 'creatives' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( $wpdb->prepare( "UPDATE {$t} SET status = 'archived' WHERE family_id = %d AND status = 'approved'", $c->family_id ) );
-		$wpdb->update(
+		$ok = $wpdb->update(
 			$t,
 			array(
 				'status'      => 'approved',
@@ -264,6 +313,9 @@ final class Creatives {
 				'version' => (int) $c->version,
 			)
 		);
+		if ( $ok ) {
+			self::changed( (int) $id );
+		}
 		return true;
 	}
 
@@ -274,8 +326,11 @@ final class Creatives {
 	 */
 	public static function archive( $id ) {
 		global $wpdb;
-		$wpdb->update( Db::table( 'creatives' ), array( 'status' => 'archived' ), array( 'id' => (int) $id ) );
+		$ok = $wpdb->update( Db::table( 'creatives' ), array( 'status' => 'archived' ), array( 'id' => (int) $id ) );
 		Audit::log( 'creative.archived', 'creative', (int) $id );
+		if ( $ok ) {
+			self::changed( (int) $id ); // Only when the status really changed (0 rows: already archived).
+		}
 	}
 
 	/**

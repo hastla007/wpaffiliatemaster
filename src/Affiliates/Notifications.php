@@ -1023,26 +1023,7 @@ final class Notifications {
 		}
 		$headers = (array) $args['headers'];
 		$from    = (string) Settings::get( 'mail_from_email' );
-		$name    = trim( (string) Settings::get( 'mail_from_name' ) );
-		/**
-		 * Sender name of an e-mail of the plugin (e.g. the brand of a white-label add-on). Empty:
-		 * the site name (with a sender address set) or the WordPress/SMTP default. Since 1.3.0.
-		 *
-		 * @param string $name    Sender name from the settings ('' = not set).
-		 * @param string $type    Mail type.
-		 * @param array  $context type, admin (mail to the operator), affiliate_id.
-		 */
-		$name = apply_filters(
-			'wpac_mail_from_name',
-			$name,
-			(string) $type,
-			array(
-				'type'         => (string) $type,
-				'admin'        => (bool) $args['admin'],
-				'affiliate_id' => (int) $args['affiliate_id'],
-			)
-		);
-		$name = is_string( $name ) ? self::header_text( $name ) : '';
+		$name    = self::from_name( (string) $type, (bool) $args['admin'], (int) $args['affiliate_id'] );
 		if ( '' !== $from && is_email( $from ) ) {
 			$headers[] = 'From: ' . self::header_text( '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ) . ' <' . $from . '>';
 			$name      = '';
@@ -1194,6 +1175,60 @@ final class Notifications {
 	 */
 	public static function filter_from_name( $name ) {
 		return self::$sending && '' !== self::$from_name ? self::$from_name : $name;
+	}
+
+	/**
+	 * Sender name of a mail of the plugin: the setting, filtered by wpac_mail_from_name ('' = not
+	 * set: the site name with a sender address set, otherwise the WordPress/SMTP default).
+	 *
+	 * @param string $type         Mail type.
+	 * @param bool   $admin        Mail to the operator.
+	 * @param int    $affiliate_id Partner.
+	 * @return string Header-safe name.
+	 */
+	private static function from_name( $type, $admin, $affiliate_id ) {
+		$name = trim( (string) Settings::get( 'mail_from_name' ) );
+		/**
+		 * Sender name of an e-mail of the plugin (e.g. the brand of a white-label add-on). Empty:
+		 * the site name (with a sender address set) or the WordPress/SMTP default. Since 1.3.0.
+		 *
+		 * @param string $name    Sender name from the settings ('' = not set).
+		 * @param string $type    Mail type.
+		 * @param array  $context type, admin (mail to the operator), affiliate_id.
+		 */
+		$name = apply_filters(
+			'wpac_mail_from_name',
+			$name,
+			(string) $type,
+			array(
+				'type'         => (string) $type,
+				'admin'        => (bool) $admin,
+				'affiliate_id' => (int) $affiliate_id,
+			)
+		);
+		return is_string( $name ) ? self::header_text( $name ) : '';
+	}
+
+	/**
+	 * Sender of the plugin's e-mails for add-ons (wpac_mail_sender(), since 0.15.0): the same
+	 * rules as send(). Name: setting, filtered by wpac_mail_from_name, otherwise the site name.
+	 * Address: the sender address of the settings, otherwise the program notification address
+	 * (or the site admin e-mail).
+	 *
+	 * @param string $type         Mail type (passed to wpac_mail_from_name).
+	 * @param int    $affiliate_id Partner (passed to wpac_mail_from_name).
+	 * @return array name, email, custom (true = sender address set in the settings: only then do the
+	 *               plugin's mails set a From header; otherwise WordPress or the SMTP plugin decides).
+	 */
+	public static function sender( $type = '', $affiliate_id = 0 ) {
+		$from   = (string) Settings::get( 'mail_from_email' );
+		$custom = '' !== $from && is_email( $from );
+		$name   = self::from_name( (string) $type, false, (int) $affiliate_id );
+		return array(
+			'name'   => '' !== $name ? $name : self::header_text( wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			'email'  => $custom ? $from : self::admin_email(),
+			'custom' => $custom,
+		);
 	}
 
 	/**
