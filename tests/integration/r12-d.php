@@ -167,9 +167,6 @@ if ( ! function_exists( 'has_shortcode' ) ) {
 if ( ! function_exists( 'has_block' ) ) {
 	function has_block( $name, $content = null ) { return false !== strpos( (string) $content, '<!-- wp:' . $name . ' ' ) || false !== strpos( (string) $content, '<!-- wp:' . $name . ' /-->' ); }
 }
-if ( ! function_exists( 'wp_get_sidebars_widgets' ) ) {
-	function wp_get_sidebars_widgets() { return $GLOBALS['r12_sidebars'] ?? array(); }
-}
 if ( ! function_exists( 'wp_is_block_theme' ) ) {
 	function wp_is_block_theme() { return ! empty( $GLOBALS['r12_block_theme'] ); }
 }
@@ -181,11 +178,11 @@ if ( ! function_exists( 'get_block_template' ) ) {
 }
 update_option( 'widget_block', array( 3 => array( 'content' => '<!-- wp:wpac/partner-welcome /-->' ), 4 => array( 'content' => 'nothing' ) ) );
 update_option( 'widget_text', array( 2 => array( 'text' => 'Hallo [wpac_partner_welcome]' ) ) );
-$GLOBALS['r12_sidebars'] = array( 'wp_inactive_widgets' => array( 'block-3', 'text-2' ), 'sidebar-1' => array( 'block-4' ) );
+update_option( 'sidebars_widgets', array( 'wp_inactive_widgets' => array( 'block-3', 'text-2' ), 'sidebar-1' => array( 'block-4' ) ) );
 $r12_w1 = Landing::widgets_have( 'wpac_partner_welcome', 'wpac/partner-welcome' );
-$GLOBALS['r12_sidebars']['sidebar-1'][] = 'block-3';
+update_option( 'sidebars_widgets', array( 'wp_inactive_widgets' => array( 'block-3', 'text-2' ), 'sidebar-1' => array( 'block-4', 'block-3' ) ) );
 $r12_w2 = Landing::widgets_have( 'wpac_partner_welcome', 'wpac/partner-welcome' );
-$GLOBALS['r12_sidebars'] = array( 'footer' => array( 'text-2' ) );
+update_option( 'sidebars_widgets', array( 'footer' => array( 'text-2' ) ) );
 $r12_w3 = Landing::widgets_have( 'wpac_partner_welcome', 'wpac/partner-welcome' );
 check( 'R12-M29 welcome box in active widgets found (block and shortcode), inactive ones ignored', array( false, true, true ), array( $r12_w1, $r12_w2, $r12_w3 ) );
 $GLOBALS['_wp_current_template_content'] = '<!-- wp:template-part {"slug":"header","tagName":"header"} /--><!-- wp:post-content /-->';
@@ -196,7 +193,7 @@ $r12_b2 = Landing::block_template_has( 'wpac_partner_welcome', 'wpac/partner-wel
 $GLOBALS['r12_parts'] = array();
 $r12_b3 = Landing::block_template_has( 'wpac_partner_welcome', 'wpac/partner-welcome' );
 check( 'R12-M29 block theme: welcome box in a template part found; classic theme or without box not', array( false, true, false ), array( $r12_b1, $r12_b2, $r12_b3 ) );
-$GLOBALS['r12_sidebars'] = array();
+update_option( 'sidebars_widgets', array() );
 $r12_seen = null;
 add_filter( 'wpac_needs_nocache', static function ( $found, $sc, $block ) use ( &$r12_seen ) { $r12_seen = array( $found, $sc, $block ); return false; }, 10, 3 );
 Landing::no_cache_welcome();

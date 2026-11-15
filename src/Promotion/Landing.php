@@ -147,17 +147,15 @@ final class Landing {
 	 * @return bool
 	 */
 	public static function widgets_have( $shortcode, $block ) {
-		if ( ! function_exists( 'wp_get_sidebars_widgets' ) ) {
-			return false;
-		}
 		$fields = array(
 			'block'       => 'content',
 			'text'        => 'text',
 			'custom_html' => 'content',
 		);
 		$stored = array();
-		foreach ( (array) wp_get_sidebars_widgets() as $sidebar => $ids ) {
-			if ( 'wp_inactive_widgets' === $sidebar || ! is_array( $ids ) ) {
+		// The option itself (wp_get_sidebars_widgets() is a private core function, refused by Plugin Check).
+		foreach ( (array) get_option( 'sidebars_widgets', array() ) as $sidebar => $ids ) {
+			if ( 'wp_inactive_widgets' === $sidebar || 'array_version' === $sidebar || ! is_array( $ids ) ) {
 				continue;
 			}
 			foreach ( $ids as $id ) {
