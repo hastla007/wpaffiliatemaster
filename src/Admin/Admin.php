@@ -684,9 +684,10 @@ final class Admin {
 	}
 
 	/**
-	 * Message for an amount Money::parse_minor() refused (nothing is rounded silently).
+	 * Message for an amount Money::parse_minor() refused (nothing is rounded silently). The
+	 * examples use the number format of the admin's locale (number_format_i18n()).
 	 *
-	 * @param string $problem  'precision' or 'invalid'.
+	 * @param string $problem  'precision', 'ambiguous' or 'invalid'.
 	 * @param string $currency Currency.
 	 * @return string
 	 */
@@ -695,7 +696,12 @@ final class Admin {
 			/* translators: 1: number of decimals, 2: currency */
 			return sprintf( __( 'The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked).', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Money::decimals( $currency ), $currency );
 		}
-		return __( 'Please enter a valid amount (e.g. 25 or 1.000,50).', 'affiliate-captain' );
+		if ( 'ambiguous' === $problem ) {
+			/* translators: 1: example without grouping (1000), 2: the same amount with grouping and decimals in the site's number format (e.g. 1,000.00) */
+			return sprintf( __( 'The amount is ambiguous (thousands separator or decimal places?). Please write it as %1$s or %2$s.', 'affiliate-captain' ), '1000', number_format_i18n( 1000, 2 ) );
+		}
+		/* translators: 1: example amount (25), 2: example amount with grouping and decimals in the site's number format (e.g. 1,000.50) */
+		return sprintf( __( 'Please enter a valid amount (e.g. %1$s or %2$s).', 'affiliate-captain' ), number_format_i18n( 25 ), number_format_i18n( 1000.5, 2 ) );
 	}
 
 	/**

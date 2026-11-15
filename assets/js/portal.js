@@ -48,10 +48,19 @@
 		Array.prototype.forEach.call( document.querySelectorAll( '.wpac-copy-btn[hidden]' ), function ( btn ) {
 			btn.hidden = false;
 		} );
-		// A success message that is already in the page is not announced by its live region:
-		// move the focus to it (unless a field asks for the focus, e.g. after an error).
+		// A message that is already in the page is not announced by its live region: move the
+		// focus to it – unless a field asks for the focus (autofocus after an error) or the address
+		// points to an anchor in the page (e.g. #wpac-objection after an objection).
 		var notice = document.querySelector( '.wpac-notice[data-wpac-focus]' );
-		if ( notice && ( ! document.activeElement || document.activeElement === document.body ) ) {
+		var target = null;
+		if ( window.location.hash && window.location.hash.length > 1 ) {
+			try {
+				target = document.getElementById( decodeURIComponent( window.location.hash.slice( 1 ) ) );
+			} catch ( err ) {
+				target = null;
+			}
+		}
+		if ( notice && ! target && ! document.querySelector( '[autofocus]' ) && ( ! document.activeElement || document.activeElement === document.body ) ) {
 			notice.focus();
 		}
 	}

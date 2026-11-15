@@ -175,7 +175,7 @@ The credit notes of a payout run are written in the background by the job queue 
 
 *Increases and full reversals.* When an order is cancelled or refunded in full, commission increases of that order that are still pending (not released yet) are rejected together with the reversal, so the reversal only takes back what was approved or paid. Partial refunds work as before.
 
-*Amounts in forms* (manual bookings, repayments, correction credit notes) are read per currency: "1.000" is one thousand, "1.000,50" and "1,000.50" are the same amount; input with more decimals than the currency has (e.g. "12,3456" or "0,125" in euros) is refused instead of rounded.
+*Amounts in forms* (manual bookings, repayments, correction credit notes, settings) are read per currency: "1.000,50", "1,000.50" and "1 000,50" are the same amount, "1.000.000" is one million; a lone group of three digits such as "1.000" or "12,345" is refused as ambiguous (write 1000 or 1.000,00) – except in currencies without decimals (JPY) or with three or more (KWD, BTC), where it is read as shown in the form; input with more decimals than the currency has (e.g. "12,3456" or "0,125" in euros) is refused instead of rounded.
 
 **Cancelling** a payout (before or after export, with a reason) releases its commissions for the next run and, for credit notes, creates a cancellation document (`ST-…`). **Payout requests:** if enabled, partners request the payout of their approved balance; you create the payout from the request or reject it with a reason.
 

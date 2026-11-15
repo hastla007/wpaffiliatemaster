@@ -205,22 +205,62 @@ document.addEventListener( 'submit', function ( e ) {
 		}
 	}, 500 );
 } );
-/* Wide tables scroll inside their own box instead of widening the page (small screens). */
+/* Wide tables scroll inside their own box instead of widening the page (small screens). Only a
+   box whose table overflows is a focusable, named region (keyboard scrolling); it is named after
+   the table's caption or the heading right before it, so several tables on a page differ. */
 document.addEventListener( 'DOMContentLoaded', function () {
+	var heading = function ( table ) {
+		var caption = table.querySelector( 'caption' );
+		if ( caption && caption.textContent.trim() ) {
+			return caption.textContent.trim();
+		}
+		if ( table.getAttribute( 'aria-label' ) ) {
+			return table.getAttribute( 'aria-label' );
+		}
+		// The nearest preceding h2/h3 (also inside a preceding sibling, e.g. a form or a card).
+		for ( var el = table; el && ! ( el.classList && el.classList.contains( 'wrap' ) ); el = el.parentNode ) {
+			for ( var sib = el.previousElementSibling; sib; sib = sib.previousElementSibling ) {
+				if ( /^H[23]$/.test( sib.tagName ) && sib.textContent.trim() ) {
+					return sib.textContent.trim();
+				}
+				var inner = sib.querySelectorAll ? sib.querySelectorAll( 'h2, h3' ) : [];
+				if ( inner.length && inner[ inner.length - 1 ].textContent.trim() ) {
+					return inner[ inner.length - 1 ].textContent.trim();
+				}
+			}
+		}
+		var h1 = document.querySelector( '.wrap h1' );
+		return ( h1 && h1.textContent.trim() ) || document.title;
+	};
+	var boxes = [];
+	var update = function () {
+		boxes.forEach( function ( box ) {
+			if ( box.scrollWidth > box.clientWidth ) {
+				box.setAttribute( 'tabindex', '0' );
+				box.setAttribute( 'role', 'region' );
+				box.setAttribute( 'aria-label', box.getAttribute( 'data-wpac-label' ) );
+			} else {
+				box.removeAttribute( 'tabindex' );
+				box.removeAttribute( 'role' );
+				box.removeAttribute( 'aria-label' );
+			}
+		} );
+	};
 	Array.prototype.forEach.call( document.querySelectorAll( '.wrap table.widefat:not(.table-view-list)' ), function ( table ) {
 		if ( table.parentNode.classList.contains( 'wpac-table-scroll' ) ) {
 			return;
 		}
 		var box = document.createElement( 'div' );
 		box.className = 'wpac-table-scroll';
-		// Keyboard users can scroll the box (focusable region named after the table).
-		var caption = table.querySelector( 'caption' );
-		var heading = document.querySelector( '.wrap h1' );
-		var label = ( caption && caption.textContent.trim() ) || table.getAttribute( 'aria-label' ) || ( heading && heading.textContent.trim() ) || document.title;
-		box.setAttribute( 'tabindex', '0' );
-		box.setAttribute( 'role', 'region' );
-		box.setAttribute( 'aria-label', label );
+		box.setAttribute( 'data-wpac-label', heading( table ) );
 		table.parentNode.insertBefore( box, table );
 		box.appendChild( table );
+		boxes.push( box );
+	} );
+	update();
+	var timer;
+	window.addEventListener( 'resize', function () {
+		window.clearTimeout( timer );
+		timer = window.setTimeout( update, 150 );
 	} );
 } );

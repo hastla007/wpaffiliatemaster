@@ -601,6 +601,7 @@ final class Portal {
 		$fields = array(
 			'wpac_iban'            => 'iban',
 			'wpac_iban_required'   => 'iban',
+			'wpac_account_holder'  => 'account_holder',
 			'wpac_payment_details' => 'payment_details',
 			'wpac_vat'        => 'vat_id',
 			'wpac_vat_format' => 'vat_id',
@@ -948,6 +949,7 @@ final class Portal {
 			'terms_changed' => array( 'error', __( 'The terms were changed in the meantime. Please read the current version and accept it again.', 'affiliate-captain' ) ),
 			'wpac_iban' => array( 'error', __( 'The IBAN is not valid.', 'affiliate-captain' ) ),
 			'wpac_iban_required'   => array( 'error', __( 'Please enter your IBAN for payouts by bank transfer.', 'affiliate-captain' ) ),
+			'wpac_account_holder'  => array( 'error', __( 'Please enter the account holder for payouts by bank transfer.', 'affiliate-captain' ) ),
 			'wpac_payment_details' => array( 'error', __( 'Please enter your payment details (e.g. your PayPal address).', 'affiliate-captain' ) ),
 			'wpac_vat'  => array( 'error', __( 'Please enter your VAT ID or tax number (required on credit notes; reverse charge across borders needs the VAT ID).', 'affiliate-captain' ) ),
 			'wpac_vat_format' => array( 'error', __( 'The VAT ID does not have a valid format or does not start with the code of your country. Please check it.', 'affiliate-captain' ) ),
@@ -991,10 +993,12 @@ final class Portal {
 					$text .= ' ' . $detail;
 				}
 			}
-			// A live region present at page load is not announced: portal.js moves the focus to a
-			// success message (tabindex=-1, data-wpac-focus); errors focus their field (autofocus).
+			// A live region present at page load is not announced: portal.js moves the focus to the
+			// message (tabindex=-1, data-wpac-focus) – unless a field with the error has autofocus
+			// or the address points to an anchor (e.g. #wpac-objection), R13-N7. So errors without
+			// a field of their own (request_failed, maintenance, wpac_profile_db …) are read too.
 			$is_error = 'error' === $messages[ $key ][0];
-			printf( '<div class="wpac-notice wpac-notice--%s" role="%s" id="wpac-portal-error"%s>%s</div>', esc_attr( $messages[ $key ][0] ), $is_error ? 'alert' : 'status', $is_error ? '' : ' tabindex="-1" data-wpac-focus', esc_html( $text ) );
+			printf( '<div class="wpac-notice wpac-notice--%s" role="%s" id="wpac-portal-error" tabindex="-1" data-wpac-focus>%s</div>', esc_attr( $messages[ $key ][0] ), $is_error ? 'alert' : 'status', esc_html( $text ) );
 		}
 	}
 
@@ -1321,7 +1325,7 @@ final class Portal {
 		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Earnings per month', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">' . esc_html__( 'Month', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Sales', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Commission earned', 'affiliate-captain' ) . '</th></tr></thead><tbody role="rowgroup">';
 		foreach ( array_reverse( $months, true ) as $ym => $m ) {
 			printf(
-				'<tr role="row"><th scope="row" role="rowheader" data-label="%4$s">%1$s</th><td role="cell" data-label="%5$s">%2$s</td><td role="cell" data-label="%6$s">%3$s</td></tr>',
+				'<tr role="row"><th scope="row" role="rowheader" data-label="%4$s">%1$s</th><td role="cell" data-label="%5$s"><span class="wpac-cell-label" aria-hidden="true">%5$s: </span>%2$s</td><td role="cell" data-label="%6$s"><span class="wpac-cell-label" aria-hidden="true">%6$s: </span>%3$s</td></tr>',
 				esc_html( date_i18n( 'F Y', strtotime( $ym . '-15 12:00:00 UTC' ) ) ),
 				esc_html( number_format_i18n( $m['sales'] ) ),
 				esc_html( self::money_list( $m['earned'] ) ),
@@ -1348,7 +1352,7 @@ final class Portal {
 			$cells = array( $r['label'], '' !== $r['sub_id'] ? $r['sub_id'] : '—', number_format_i18n( $r['visits'] ), number_format_i18n( $r['orders'] ), self::percent( $r['conversion'] ), $r['commission'] ? self::money_list( $r['commission'] ) : '—' );
 			echo '<tr role="row">';
 			foreach ( $cells as $i => $cell ) {
-				echo '<td role="cell" data-label="' . esc_attr( $labels[ $i ] ) . '">' . esc_html( $cell ) . '</td>';
+				echo '<td role="cell" data-label="' . esc_attr( $labels[ $i ] ) . '"><span class="wpac-cell-label" aria-hidden="true">' . esc_html( $labels[ $i ] ) . ': </span>' . esc_html( $cell ) . '</td>';
 			}
 			echo '</tr>';
 		}
@@ -1508,7 +1512,7 @@ final class Portal {
 		foreach ( $codes as $c ) {
 			$valid = (bool) CodeRepository::validate( $c );
 			printf(
-				'<tr role="row"><td role="cell" data-label="%6$s"><code>%1$s</code></td><td role="cell" data-label="%7$s">%2$s</td><td role="cell" data-label="%8$s">%3$s</td><td role="cell" data-label="%9$s">%4$s</td><td role="cell" data-label="%10$s">%5$s</td></tr>',
+				'<tr role="row"><td role="cell" data-label="%6$s"><span class="wpac-cell-label" aria-hidden="true">%6$s: </span><code>%1$s</code></td><td role="cell" data-label="%7$s"><span class="wpac-cell-label" aria-hidden="true">%7$s: </span>%2$s</td><td role="cell" data-label="%8$s"><span class="wpac-cell-label" aria-hidden="true">%8$s: </span>%3$s</td><td role="cell" data-label="%9$s"><span class="wpac-cell-label" aria-hidden="true">%9$s: </span>%4$s</td><td role="cell" data-label="%10$s"><span class="wpac-cell-label" aria-hidden="true">%10$s: </span>%5$s</td></tr>',
 				esc_html( $c->code ),
 				esc_html( $c->coupon_code ? strtoupper( $c->coupon_code ) : '—' ),
 				esc_html( (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) ),
@@ -1704,7 +1708,7 @@ final class Portal {
 			);
 			echo '<tr role="row">';
 			foreach ( $cells as $i => $cell ) {
-				echo '<td role="cell" data-label="' . esc_attr( $cols[ $i ] ) . '">' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				echo '<td role="cell" data-label="' . esc_attr( $cols[ $i ] ) . '"><span class="wpac-cell-label" aria-hidden="true">' . esc_html( $cols[ $i ] ) . ': </span>' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 			}
 			echo '</tr>';
 		}
@@ -1797,7 +1801,7 @@ final class Portal {
 				}
 			}
 			printf(
-				'<tr role="row"><td role="cell" data-label="%6$s">%1$s</td><td role="cell" data-label="%7$s">%2$s</td><td role="cell" data-label="%8$s">%3$s</td><td role="cell" data-label="%9$s">%4$s</td><td role="cell" data-label="%10$s">%5$s</td></tr>',
+				'<tr role="row"><td role="cell" data-label="%6$s"><span class="wpac-cell-label" aria-hidden="true">%6$s: </span>%1$s</td><td role="cell" data-label="%7$s"><span class="wpac-cell-label" aria-hidden="true">%7$s: </span>%2$s</td><td role="cell" data-label="%8$s"><span class="wpac-cell-label" aria-hidden="true">%8$s: </span>%3$s</td><td role="cell" data-label="%9$s"><span class="wpac-cell-label" aria-hidden="true">%9$s: </span>%4$s</td><td role="cell" data-label="%10$s"><span class="wpac-cell-label" aria-hidden="true">%10$s: </span>%5$s</td></tr>',
 				esc_html( $p->number ),
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $p->period_end ) ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),
@@ -1951,7 +1955,6 @@ final class Portal {
 		// Payout method: SEPA bank transfer (IBAN) or another method with free-text payment details.
 		$stored_method = ProfileRepository::method( $p );
 		$method        = is_array( $kept ) && isset( $kept['values']['payout_method'] ) && '' !== $kept['values']['payout_method'] ? (string) $kept['values']['payout_method'] : $stored_method;
-		$manual        = ProfileRepository::METHOD_MANUAL === $method;
 		// Switching the fields is in assets/js/portal.js (data-wpac-iban-required: an IBAN is needed
 		// unless one is stored).
 		$masked = $p && ProfileRepository::METHOD_SEPA === $stored_method ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
@@ -1961,11 +1964,13 @@ final class Portal {
 		}
 		echo '</select></p>';
 		// Both sections are visible without JavaScript (the select decides on saving); portal.js
-		// hides the one of the other method.
+		// hides the one of the other method and marks its fields as required. Without JavaScript no
+		// field carries "required" (the browser would block saving the other method, R13-M5): the
+		// asterisk names the fields the method needs, ProfileRepository::save() checks them.
 		echo '<div class="wpac-method-sepa">';
-		self::input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), ! $manual, 'autocomplete="name"' );
+		self::input( 'account_holder', __( 'Account holder', 'affiliate-captain' ) . ' *', $v( 'account_holder' ), false, 'autocomplete="name"' );
 		/* translators: %s: masked IBAN, e.g. DE** **** 1234 */
-		self::input( 'iban', $masked ? sprintf( __( 'IBAN (stored: %s)', 'affiliate-captain' ), $masked ) : __( 'IBAN', 'affiliate-captain' ), '', ! $masked && ! $manual, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
+		self::input( 'iban', $masked ? sprintf( __( 'IBAN (stored: %s)', 'affiliate-captain' ), $masked ) : __( 'IBAN', 'affiliate-captain' ) . ' *', '', false, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
 		self::input( 'bic', __( 'BIC (optional)', 'affiliate-captain' ), $v( 'bic' ) );
 		echo '</div>';
 		$has_details = ProfileRepository::METHOD_MANUAL === $stored_method;
@@ -1975,7 +1980,7 @@ final class Portal {
 			/* translators: %s: masked payment details */
 			? sprintf( __( 'Payment details (stored: %s)', 'affiliate-captain' ), ProfileRepository::mask_details( str_replace( array( "\r\n", "\r", "\n" ), ' / ', $stored_details ) ) )
 			: __( 'Payment details', 'affiliate-captain' );
-		echo '<div class="wpac-method-manual"><p><label for="wpac_payment_details">' . esc_html( $details_label ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off"' . ( $manual && ! $has_details ? ' required' : '' ) . ' placeholder="' . esc_attr( $has_details ? __( 'Leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
+		echo '<div class="wpac-method-manual"><p><label for="wpac_payment_details">' . esc_html( $details_label ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off" placeholder="' . esc_attr( $has_details ? __( 'Leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
 		echo '<p class="wpac-muted">' . esc_html__( 'Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually.', 'affiliate-captain' ) . '</p></div>';
 		if ( $p && '' !== (string) $p->iban_encrypted ) {
 			// Needed only when the IBAN, the payment details or the method change (checked on saving).

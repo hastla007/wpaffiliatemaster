@@ -237,7 +237,7 @@ foreach ( array( array( '1.000', 'EUR' ), array( '1.000,50', 'EUR' ), array( '12
 	$a2_v   = Money::parse_minor( $a2_in[0], $a2_in[1], $a2_problem );
 	$a2_p[] = null === $a2_v ? $a2_problem : $a2_v;
 }
-check( 'R12-K6 parse_minor: thousands, decimals, too precise and invalid input', array( 100000, 100050, 1234500, 'precision', 'precision', 50, 5000, 'precision', 'invalid' ), $a2_p );
+check( 'R12-K6 parse_minor: thousands, decimals, too precise and invalid input (R13-K6: a lone group of three digits is ambiguous)', array( 'ambiguous', 100050, 'ambiguous', 'precision', 'precision', 50, 5000, 'precision', 'invalid' ), $a2_p );
 check( 'R12-K6 error message for too precise input names the decimals', true, false !== strpos( WPAffiliateCaptain\Admin\Admin::amount_error( 'precision', 'EUR' ), '2' ) );
 
 /* R12-N2: exchange rates keep their precision; no division by zero. */

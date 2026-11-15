@@ -387,7 +387,13 @@ final class ProfileRepository {
 			}
 			$data['bic'] = '';
 		} else {
-			if ( '' === $iban && self::METHOD_MANUAL === $old_method ) {
+			// The portal form marks the fields of the chosen method as required only with JavaScript
+			// (both sections are sent without it, R13-M5): the partner's bank transfer needs an
+			// account holder and an IBAN (unless one is stored).
+			if ( 'partner' === $context && '' === $data['account_holder'] ) {
+				return new \WP_Error( 'wpac_account_holder', __( 'Please enter the account holder for payouts by bank transfer.', 'affiliate-captain' ) );
+			}
+			if ( '' === $iban && ( self::METHOD_MANUAL === $old_method || ( 'partner' === $context && ( ! $existing || '' === (string) $existing->iban_encrypted ) ) ) ) {
 				return new \WP_Error( 'wpac_iban_required', __( 'Please enter your IBAN for payouts by bank transfer.', 'affiliate-captain' ) );
 			}
 			if ( '' !== $iban ) {

@@ -14,12 +14,32 @@ defined( 'ABSPATH' ) || exit;
 
 final class Money {
 
-	/** Currencies whose minor unit differs from 2 decimals. */
+	/**
+	 * Currencies whose minor unit differs from 2 decimals (ISO 4217), plus the precision of the
+	 * codes WooCommerce offers that are not (or no longer) in ISO 4217. ContractApi::currencies()
+	 * accepts a code only when it is in its ISO list or in this map, so every accepted currency
+	 * has a known precision (an unknown code would be booked with 2 decimals: 0.0045 BTC = 0).
+	 */
 	const DECIMALS = array(
 		'BIF' => 0, 'CLP' => 0, 'DJF' => 0, 'GNF' => 0, 'ISK' => 0, 'JPY' => 0, 'KMF' => 0, 'KRW' => 0,
 		'PYG' => 0, 'RWF' => 0, 'UGX' => 0, 'VND' => 0, 'VUV' => 0, 'XAF' => 0, 'XOF' => 0, 'XPF' => 0,
 		'BHD' => 3, 'IQD' => 3, 'JOD' => 3, 'KWD' => 3, 'LYD' => 3, 'OMR' => 3, 'TND' => 3,
+		// Not in ISO 4217 (WooCommerce codes): Bitcoin, Iranian toman (no subunit in use), the old
+		// Belarusian ruble, crown dependency pounds, Transnistrian ruble, renminbi alias and
+		// withdrawn codes.
+		'BTC' => 8, 'IRT' => 0, 'BYR' => 0, 'GGP' => 2, 'IMP' => 2, 'JEP' => 2, 'PRB' => 2, 'RMB' => 2,
+		'CUC' => 2, 'HRK' => 2, 'SLL' => 2, 'VEF' => 2, 'MRO' => 2, 'STD' => 2,
 	);
+
+	/**
+	 * Whether DECIMALS names the precision of a currency (needed for codes outside the ISO list).
+	 *
+	 * @param string $currency Code.
+	 * @return bool
+	 */
+	public static function has_decimals( $currency ) {
+		return isset( self::DECIMALS[ strtoupper( (string) $currency ) ] );
+	}
 
 	/**
 	 * Number of decimals of a currency.
@@ -68,45 +88,77 @@ final class Money {
 	}
 
 	/**
-	 * Parse an amount typed into a form ("50", "50,00", "1.000", "1,000.50", "EUR 25") for a
-	 * currency. A single kind of separator followed by groups of exactly three digits is read as
-	 * thousands grouping ("1.000" and "1,000" = 1000) – except for currencies with three decimals
-	 * (KWD, BHD …), where "5.000" is the amount as shown by to_decimal() (5 dinars); several groups
-	 * ("1.000.000") are always thousands.
+	 * Parse an amount typed into a form ("50", "50,00", "1.000,50", "1,000.50", "1 000,50",
+	 * "EUR 25") for a currency. Thousands separators are accepted only where they are
+	 * unambiguous: groups of exactly three digits, followed by a decimal part with the other
+	 * separator ("1.000,50", "1,000.50") or repeated ("1.000.000"). A lone group of three digits
+	 * ("1.000", "12,345") is ambiguous (problem 'ambiguous') – except for currencies without
+	 * decimals (JPY: "1.500" can only be 1500) and with three or more decimals (KWD, BTC: "5.000"
+	 * is the amount as shown by to_decimal(), 5 dinars). A misplaced separator ("12.50,00",
+	 * "1.2.3") is invalid.
 	 *
-	 * @param string $raw      Input.
-	 * @param string $currency ISO code ('' = no currency specific rule).
+	 * @param string      $raw      Input.
+	 * @param string      $currency ISO code ('' = unknown: a lone group is ambiguous).
+	 * @param string|null $problem  Set to '' (fine), 'invalid' or 'ambiguous'.
 	 * @return string|null Canonical decimal string or null when invalid.
 	 */
-	public static function parse_amount( $raw, $currency = '' ) {
-		$value = str_replace( array( '€', '$', '£', '¥', "\u{00A0}", "\u{202F}" ), array( '', '', '', '', ' ', ' ' ), (string) $raw );
-		$value = trim( (string) preg_replace( '/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/', '', trim( $value ) ) );
-		$value = str_replace( array( ' ', "'" ), '', $value );
-		if ( preg_match( '/^-?[1-9]\d{0,2}([.,])\d{3}(?:\1\d{3})*$/', $value, $m ) ) {
-			$three = '' !== (string) $currency && 3 === self::decimals( $currency );
-			if ( ! $three || substr_count( $value, $m[1] ) > 1 ) {
-				$value = str_replace( $m[1], '', $value );
+	public static function parse_amount( $raw, $currency = '', &$problem = null ) {
+		$problem = '';
+		$value   = str_replace( array( '€', '$', '£', '¥', "\u{00A0}", "\u{202F}" ), array( '', '', '', '', ' ', ' ' ), (string) $raw );
+		$value   = trim( (string) preg_replace( '/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/', '', trim( $value ) ) );
+		$value   = str_replace( array( ' ', "'" ), '', $value );
+		$neg     = '' !== $value && '-' === $value[0];
+		$body    = $neg ? substr( $value, 1 ) : $value;
+		$comma   = strrpos( $body, ',' );
+		$dot     = strrpos( $body, '.' );
+		if ( false !== $comma && false !== $dot ) {
+			$dec  = $comma > $dot ? ',' : '.';
+			$thou = ',' === $dec ? '.' : ',';
+			if ( ! preg_match( '/^\d{1,3}(?:' . preg_quote( $thou, '/' ) . '\d{3})+' . preg_quote( $dec, '/' ) . '\d+$/', $body ) ) {
+				$problem = 'invalid';
+				return null;
+			}
+			$body = str_replace( $thou, '', $body );
+		} elseif ( false !== $comma || false !== $dot ) {
+			$sep = false !== $comma ? ',' : '.';
+			$q   = preg_quote( $sep, '/' );
+			if ( substr_count( $body, $sep ) > 1 ) {
+				if ( ! preg_match( '/^\d{1,3}(?:' . $q . '\d{3}){2,}$/', $body ) ) {
+					$problem = 'invalid';
+					return null;
+				}
+				$body = str_replace( $sep, '', $body );
+			} elseif ( preg_match( '/^[1-9]\d{0,2}' . $q . '\d{3}$/', $body ) ) {
+				$decimals = '' === (string) $currency ? 2 : self::decimals( $currency );
+				if ( 0 === $decimals ) {
+					$body = str_replace( $sep, '', $body );
+				} elseif ( $decimals < 3 ) {
+					$problem = 'ambiguous';
+					return null;
+				}
 			}
 		}
-		return self::normalize_decimal( $value );
+		$out = self::normalize_decimal( ( $neg ? '-' : '' ) . $body );
+		if ( null === $out ) {
+			$problem = 'invalid';
+		}
+		return $out;
 	}
 
 	/**
 	 * Parse an amount typed into a form (parse_amount()) to minor units of a currency, without
 	 * rounding: input with more significant decimals than the currency has ("12,3456" or "0,125"
-	 * in EUR) is reported instead of rounded. "1.000" and "12,345" are thousands groups (1000 and
-	 * 12345, see parse_amount()).
+	 * in EUR) is reported instead of rounded, a lone group of three digits ("1.000", "12,345")
+	 * as ambiguous (see parse_amount()).
 	 *
 	 * @param string      $raw      Input.
 	 * @param string      $currency ISO code.
-	 * @param string|null $problem  Set to '' (fine), 'invalid' or 'precision'.
+	 * @param string|null $problem  Set to '' (fine), 'invalid', 'ambiguous' or 'precision'.
 	 * @return int|null Minor units, null when not valid.
 	 */
 	public static function parse_minor( $raw, $currency, &$problem = null ) {
-		$problem = '';
-		$value   = self::parse_amount( (string) $raw, (string) $currency );
+		$value = self::parse_amount( (string) $raw, (string) $currency, $problem );
 		if ( null === $value ) {
-			$problem = 'invalid';
 			return null;
 		}
 		$parts = explode( '.', ltrim( $value, '-' ), 2 );

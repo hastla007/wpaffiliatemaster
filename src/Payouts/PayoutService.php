@@ -79,10 +79,25 @@ final class PayoutService {
 	 *
 	 * @param string $period_end Last day of the period (Y-m-d, local).
 	 * @return string UTC "Y-m-d H:i:s" (inclusive).
+	 * @throws IntegrationException For a date that does not exist ("2026-02-30" would roll over
+	 *                              to March and be stored as 0000-00-00 on the credit note).
 	 */
 	public static function cutoff( $period_end ) {
+		if ( ! self::is_date( $period_end ) ) {
+			throw new IntegrationException( 'invalid_date', esc_html__( 'Please choose a valid period end.', 'affiliate-captain' ) );
+		}
 		$range = Db::local_range( (string) $period_end, (string) $period_end );
 		return $range[1];
+	}
+
+	/**
+	 * Whether a value is an existing calendar date "Y-m-d" (checkdate(): no 2026-02-30).
+	 *
+	 * @param mixed $value Value.
+	 * @return bool
+	 */
+	public static function is_date( $value ) {
+		return is_string( $value ) && 1 === preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m ) && checkdate( (int) $m[2], (int) $m[3], (int) $m[1] );
 	}
 
 	/**

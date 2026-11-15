@@ -1187,8 +1187,10 @@ final class OrderSync {
 		if ( ! $order ) {
 			return;
 		}
-		/* translators: 1: credit note number, 2: correction credit note numbers */
-		$order->add_order_note( sprintf( __( 'Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice.', 'affiliate-captain' ), (string) $credit_note, implode( ', ', (array) $corrections ) ) );
+		$corrections = array_map( 'strval', (array) $corrections );
+		/* translators: 1: credit note number, 2: correction credit note number(s), comma separated */
+		$note = _n( 'Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice.', 'Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit notes %2$s. Please check whether the corrections already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice.', max( 1, count( $corrections ) ), 'affiliate-captain' );
+		$order->add_order_note( sprintf( $note, (string) $credit_note, implode( ', ', $corrections ) ) );
 	}
 
 	/**
