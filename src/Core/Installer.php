@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 15;
+	const DB_VERSION = 16;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -707,7 +707,7 @@ final class Installer {
 		global $wpdb;
 		$problems = array();
 		$required = array(
-			'affiliates'      => array( 'id', 'email', 'status', 'status_reason' ),
+			'affiliates'      => array( 'id', 'email', 'status', 'status_reason', 'referred_by' ),
 			'commissions'     => array( 'id', 'idempotency_key', 'payout_id', 'rule_snapshot' ),
 			'payouts'         => array( 'id', 'number', 'storno_number', 'statement_file', 'statement_deleted_at', 'operator_snapshot' ),
 			'payout_items'    => array( 'id', 'payout_id', 'commission_id', 'vat_mode', 'vat_rate', 'ref_payout_id' ),
@@ -1105,9 +1105,11 @@ final class Installer {
 			updated_at datetime NOT NULL,
 			approved_at datetime NULL,
 			approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			referred_by bigint(20) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			UNIQUE KEY slug (slug),
 			KEY user_id (user_id),
+			KEY referred_by (referred_by),
 			KEY email (email),
 			KEY status (status),
 			KEY updated_at (updated_at)

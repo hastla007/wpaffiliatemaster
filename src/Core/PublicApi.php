@@ -25,8 +25,8 @@ final class PublicApi {
 	/** Largest page of a list. */
 	const MAX_PER_PAGE = 100;
 
-	/** Fields wpac_update_affiliate() accepts ("group" = partner group ID, 0 = none). */
-	const AFFILIATE_FIELDS = array( 'name', 'website', 'channel', 'group' );
+	/** Fields wpac_update_affiliate() accepts ("group" = partner group ID, 0 = none; "referred_by" = recruiting partner, 0 = none). */
+	const AFFILIATE_FIELDS = array( 'name', 'website', 'channel', 'group', 'referred_by' );
 
 	/**
 	 * One partner.
@@ -42,12 +42,13 @@ final class PublicApi {
 	/**
 	 * List partners.
 	 *
-	 * @param array $args status, group (ID, 0 = without group), search, per_page (≤ 100), page,
+	 * @param array $args status, group (ID, 0 = without group), referred_by (recruiting partner ID,
+	 *                    0 = without recruiter; since 0.15.0), search, per_page (≤ 100), page,
 	 *                    orderby (id|name|status|created_at), order (asc|desc).
 	 * @return array|\WP_Error { items, total, page, per_page }
 	 */
 	public static function get_affiliates( array $args = array() ) {
-		$bad = self::non_scalar( $args, array( 'status', 'group', 'search', 'per_page', 'page', 'orderby', 'order' ) );
+		$bad = self::non_scalar( $args, array( 'status', 'group', 'referred_by', 'search', 'per_page', 'page', 'orderby', 'order' ) );
 		if ( $bad ) {
 			return $bad;
 		}
@@ -65,6 +66,13 @@ final class PublicApi {
 				return self::invalid( 'group' );
 			}
 			$query['group_id'] = $group;
+		}
+		if ( isset( $args['referred_by'] ) && '' !== (string) $args['referred_by'] ) {
+			$recruiter = self::whole( $args['referred_by'] );
+			if ( null === $recruiter ) {
+				return self::invalid( 'referred_by' );
+			}
+			$query['referred_by'] = $recruiter; // 0 = partners without a recruiter.
 		}
 		$paging = self::paging( $args, array( 'id', 'name', 'status', 'created_at' ) );
 		if ( is_wp_error( $paging ) ) {
@@ -138,7 +146,7 @@ final class PublicApi {
 	 * Change the profile of a partner (same validation as the admin form).
 	 *
 	 * @param int   $id   Partner ID.
-	 * @param array $data name, website, channel, group (see AFFILIATE_FIELDS).
+	 * @param array $data name, website, channel, group, referred_by (see AFFILIATE_FIELDS).
 	 * @return array|\WP_Error The partner after the change.
 	 */
 	public static function update_affiliate( $id, array $data ) {
@@ -175,9 +183,27 @@ final class PublicApi {
 			}
 			$fields['group_id'] = (int) $group;
 		}
+		$recruiter = null;
+		if ( array_key_exists( 'referred_by', $data ) ) {
+			$recruiter = is_scalar( $data['referred_by'] ) ? self::whole( $data['referred_by'] ) : null;
+			if ( null === $recruiter ) {
+				return self::invalid( 'referred_by' );
+			}
+			// Checked before anything is saved: existing partner, not the partner itself, no cycle.
+			$problem = AffiliateRepository::recruiter_problem( (int) $id, $recruiter );
+			if ( $problem ) {
+				return $problem;
+			}
+		}
 		$saved = AffiliateRepository::update( (int) $id, $fields ); // Audited (affiliate.updated).
 		if ( is_wp_error( $saved ) ) {
 			return $saved;
+		}
+		if ( null !== $recruiter ) {
+			$saved = AffiliateRepository::set_referred_by( (int) $id, $recruiter ); // Audited (affiliate.referred_by).
+			if ( is_wp_error( $saved ) ) {
+				return $saved;
+			}
 		}
 		return self::get_affiliate( $id );
 	}
@@ -292,6 +318,7 @@ final class PublicApi {
 			'created_at'    => (string) $a->created_at,
 			'updated_at'    => (string) $a->updated_at,
 			'approved_at'   => $a->approved_at ? (string) $a->approved_at : null,
+			'referred_by'   => isset( $a->referred_by ) ? (int) $a->referred_by : 0, // Since 0.15.0.
 		);
 	}
 

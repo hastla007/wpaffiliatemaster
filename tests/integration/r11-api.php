@@ -64,7 +64,7 @@ $r11a_sale  = wpac_record_sale( array( 'source' => 'test', 'order_id' => 'r11a-1
 list( $r11a_c1, $r11a_c2 ) = array_map( 'intval', $r11a_sale['commission_ids'] );
 
 /* Read: partners ------------------------------------------------------------------------------ */
-$r11a_keys = array( 'id', 'user_id', 'group_id', 'status', 'status_reason', 'slug', 'name', 'email', 'website', 'channel', 'created_at', 'updated_at', 'approved_at' );
+$r11a_keys = array( 'id', 'user_id', 'group_id', 'status', 'status_reason', 'slug', 'name', 'email', 'website', 'channel', 'created_at', 'updated_at', 'approved_at', 'referred_by' ); // referred_by since 0.15.0.
 $r11a_a    = wpac_get_affiliate( $r11a_aff );
 check( 'R11A wpac_get_affiliate: documented fields in this order, typed', array( $r11a_keys, $r11a_aff, 'active', 'r11-api-a@example.de', true ), array( array_keys( $r11a_a ), $r11a_a['id'], $r11a_a['status'], $r11a_a['email'], is_int( $r11a_a['group_id'] ) ) );
 check( 'R11A wpac_get_affiliate: no bank, tax or application data', '', $r11a_secret( $r11a_a ) );
