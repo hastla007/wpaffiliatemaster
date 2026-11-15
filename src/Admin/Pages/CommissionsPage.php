@@ -74,12 +74,12 @@ final class CommissionsPage {
 			$parent   = absint( Admin::post( 'parent_id', 0 ) );
 			$currency = strtoupper( sanitize_key( Admin::post( 'currency' ) ) );
 			$currency = '' !== $currency ? $currency : strtoupper( (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ) );
-			$decimal  = Money::normalize_decimal( ltrim( trim( (string) Admin::post( 'amount' ) ), '-' ) );
+			$minor    = Money::parse_minor( ltrim( trim( (string) Admin::post( 'amount' ) ), '-' ), $currency, $problem );
 			$negative = 0 === strpos( trim( (string) Admin::post( 'amount' ) ), '-' );
-			if ( null === $decimal ) {
-				Admin::back( __( 'Please enter a valid amount (e.g. 25 or -12,50).', 'affiliate-captain' ), 'error' );
+			if ( null === $minor ) {
+				Admin::back( 'precision' === $problem ? Admin::amount_error( $problem, $currency ) : __( 'Please enter a valid amount (e.g. 25 or -12,50).', 'affiliate-captain' ), 'error' );
 			}
-			$minor  = Money::to_minor( $decimal, $currency ) * ( $negative ? -1 : 1 );
+			$minor  = $minor * ( $negative ? -1 : 1 );
 			$result = Ledger::manual_adjustment( absint( Admin::post( 'affiliate_id' ) ), $currency, $minor, sanitize_text_field( Admin::post( 'reason' ) ), $parent );
 			if ( is_wp_error( $result ) ) {
 				Admin::back( $result->get_error_message(), 'error' );

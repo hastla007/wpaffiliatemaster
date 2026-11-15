@@ -846,7 +846,9 @@ final class Settings {
 		}
 		$base = (float) $rates[ $new ];
 		$fmt  = static function ( $value ) {
-			$text = rtrim( rtrim( sprintf( '%.6F', $value ), '0' ), '.' );
+			// 12 significant digits (R12-N2: no rounding to 6 decimals, small rates keep their value).
+			$dec  = $value > 0 ? (int) max( 0, min( 18, 11 - (int) floor( log10( $value ) ) ) ) : 6;
+			$text = rtrim( rtrim( sprintf( '%.' . $dec . 'F', $value ), '0' ), '.' );
 			return '0' === $text || '' === $text ? '0.000001' : $text;
 		};
 		$out = array( $old => $fmt( 1 / $base ) );

@@ -90,6 +90,32 @@ final class Money {
 	}
 
 	/**
+	 * Parse an amount typed into a form (parse_amount()) to minor units of a currency, without
+	 * rounding: input with more significant decimals than the currency has ("12,3456" or "0,125"
+	 * in EUR) is reported instead of rounded. "1.000" and "12,345" are thousands groups (1000 and
+	 * 12345, see parse_amount()).
+	 *
+	 * @param string      $raw      Input.
+	 * @param string      $currency ISO code.
+	 * @param string|null $problem  Set to '' (fine), 'invalid' or 'precision'.
+	 * @return int|null Minor units, null when not valid.
+	 */
+	public static function parse_minor( $raw, $currency, &$problem = null ) {
+		$problem = '';
+		$value   = self::parse_amount( (string) $raw, (string) $currency );
+		if ( null === $value ) {
+			$problem = 'invalid';
+			return null;
+		}
+		$parts = explode( '.', ltrim( $value, '-' ), 2 );
+		if ( isset( $parts[1] ) && strlen( rtrim( $parts[1], '0' ) ) > self::decimals( $currency ) ) {
+			$problem = 'precision';
+			return null;
+		}
+		return self::to_minor( $value, $currency );
+	}
+
+	/**
 	 * Convert a decimal amount (string preferred, float accepted) to minor units,
 	 * rounding half away from zero.
 	 *

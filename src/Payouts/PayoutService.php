@@ -924,14 +924,30 @@ final class PayoutService {
 		list( $cur_from, $to ) = Statement::year_bounds( $year );
 		// Credit notes that were not cancelled, of partners who are small businesses now.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN p.net_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN p.net_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", $cur_from, $cur_from, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$out  = array();
-		foreach ( (array) $rows as $r ) {
-			if ( ! isset( $limits[ $r->currency ] ) ) {
+		// R12-M7: correction credit notes count with their net difference on their own date; the
+		// gross difference settled on a later credit note is not counted a second time there.
+		$it   = Db::table( 'payout_items' );
+		$ct   = Db::table( 'commissions' );
+		$kt   = Db::table( Corrections::TABLE );
+		$kg   = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN -i.amount_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN -i.amount_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id JOIN {$it} i ON i.payout_id = p.id AND i.released_at IS NULL JOIN {$ct} c ON c.id = i.commission_id AND c.kind = %s WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", $cur_from, $cur_from, Corrections::KIND, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$kd   = $wpdb->get_results( $wpdb->prepare( "SELECT k.affiliate_id, k.currency, SUM( CASE WHEN k.created_at < %s THEN k.net_minor - k.prev_net_minor ELSE 0 END ) prev_total, SUM( CASE WHEN k.created_at >= %s THEN k.net_minor - k.prev_net_minor ELSE 0 END ) cur_total FROM {$kt} k JOIN {$pp} f ON f.affiliate_id = k.affiliate_id WHERE f.tax_status = 'small_business' AND k.created_at BETWEEN %s AND %s GROUP BY k.affiliate_id, k.currency", $cur_from, $cur_from, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sums = array();
+		foreach ( array_merge( (array) $rows, (array) $kg, (array) $kd ) as $r ) {
+			$k = (int) $r->affiliate_id . '|' . (string) $r->currency;
+			if ( ! isset( $sums[ $k ] ) ) {
+				$sums[ $k ] = array( (int) $r->affiliate_id, (string) $r->currency, 0, 0 );
+			}
+			$sums[ $k ][2] += (int) $r->prev_total;
+			$sums[ $k ][3] += (int) $r->cur_total;
+		}
+		$out = array();
+		foreach ( $sums as $r ) {
+			if ( ! isset( $limits[ $r[1] ] ) ) {
 				continue;
 			}
-			$which = Vat::small_business_exceeded( (int) $r->prev_total, (int) $r->cur_total, array_values( (array) $limits[ $r->currency ] ) );
+			$which = Vat::small_business_exceeded( $r[2], $r[3], array_values( (array) $limits[ $r[1] ] ) );
 			if ( '' !== $which ) {
-				$out[] = array( (int) $r->affiliate_id, (string) $r->currency, (int) $r->prev_total, (int) $r->cur_total, $which );
+				$out[] = array( $r[0], $r[1], $r[2], $r[3], $which );
 			}
 		}
 		return $out;
