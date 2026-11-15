@@ -88,7 +88,7 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
-		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST, Crypto::REENCRYPT_HOOK, \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, self::VISITS_HOOK, \WPAffiliateCaptain\Tracking\RateLimiter::PURGE_HOOK, \WPAffiliateCaptain\Privacy\Privacy::VISITS_ERASE_HOOK, \WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK, \WPAffiliateCaptain\Commissions\TierService::CONTINUE_HOOK, \WPAffiliateCaptain\Affiliates\Notifications::BROADCAST_HOOK ) as $hook ) {
+		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST, Crypto::REENCRYPT_HOOK, \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, self::VISITS_HOOK, \WPAffiliateCaptain\Tracking\RateLimiter::PURGE_HOOK, \WPAffiliateCaptain\Privacy\Privacy::VISITS_ERASE_HOOK, \WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK, \WPAffiliateCaptain\Commissions\TierService::CONTINUE_HOOK, \WPAffiliateCaptain\Affiliates\Notifications::BROADCAST_HOOK, \WPAffiliateCaptain\Reports\VisitsDaily::HOOK ) as $hook ) {
 			Scheduler::clear( $hook );
 		}
 		Scheduler::clear_group(); // Anything else of this plugin still waiting in the Action Scheduler.
@@ -123,6 +123,8 @@ final class Cron {
 				self::run_step( 'hourly.' . $key, $step );
 			}
 		}
+		// Daily visit aggregate (R14-D9): starts or continues the backfill (a no-op once complete).
+		self::run_step( 'hourly.visits_daily', array( '\WPAffiliateCaptain\Reports\VisitsDaily', 'maintain' ) );
 		// Last (R13-N12): its time budget must not cut the bookings above short on hosts with a
 		// short request limit. A deletion, so it does not wait for the maintenance mode either.
 		self::statement_sweep();
@@ -406,10 +408,16 @@ final class Cron {
 		 * @param int $batch Rows (default 5000).
 		 */
 		$batch = max( 1, (int) apply_filters( 'wpac_visit_purge_batch', 5000 ) );
-		$table = Db::table( 'visits' );
-		$done  = false;
+		$table    = Db::table( 'visits' );
+		$done     = false;
+		$cutoff   = Db::now( time() - $days * DAY_IN_SECONDS );
+		$deadline = $budget > 0 ? microtime( true ) + $budget : 0.0;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", Db::now( time() - $days * DAY_IN_SECONDS ) ), $batch, 0, $budget > 0 ? microtime( true ) + $budget : 0.0, $done );
+		self::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE created_at < %s", $cutoff ), $batch, 0, $deadline, $done );
+		if ( $done ) {
+			// The daily aggregate follows the same retention (whole local days before the cutoff, R14-D9).
+			$done = \WPAffiliateCaptain\Reports\VisitsDaily::purge( $cutoff, $batch, $deadline );
+		}
 		if ( $done ) {
 			Scheduler::clear( self::VISITS_HOOK );
 		} else {

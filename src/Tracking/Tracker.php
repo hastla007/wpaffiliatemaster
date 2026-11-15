@@ -938,24 +938,31 @@ final class Tracker {
 		// A prepared INSERT instead of $wpdb->insert(): that one asks the server for the column
 		// charsets (SHOW FULL COLUMNS) once per request – on every partner click (R12-N9). The
 		// values are cut to the column lengths and valid UTF-8 (sanitized) already.
-		$table = Db::table( 'visits' );
+		$table    = Db::table( 'visits' );
+		$campaign = Db::cut( (string) $touch['campaign'], 100 );
+		$sub_id   = Db::cut( isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '', 100 );
+		$now      = Db::now();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
 		$ok = $wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO {$table} (affiliate_id, code_id, campaign, utm_source, utm_medium, referrer_host, landing_path, content_id, sub_id, created_at) VALUES (%d, %d, %s, %s, %s, %s, %s, %d, %s, %s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				(int) $resolved['affiliate_id'],
 				(int) $resolved['code_id'],
-				Db::cut( (string) $touch['campaign'], 100 ),
+				$campaign,
 				Db::cut( isset( $extra['utm_source'] ) ? (string) $extra['utm_source'] : '', 100 ),
 				Db::cut( isset( $extra['utm_medium'] ) ? (string) $extra['utm_medium'] : '', 100 ),
 				(string) $ref_host,
 				Db::cut( (string) $path, 255 ),
 				(int) $touch['content_id'],
-				Db::cut( isset( $touch['sub_id'] ) ? (string) $touch['sub_id'] : '', 100 ),
-				Db::now()
+				$sub_id,
+				$now
 			)
 		);
-		return $ok ? (int) $wpdb->insert_id : 0;
+		$id = $ok ? (int) $wpdb->insert_id : 0;
+		// Daily aggregate (R14-D9): +1 for each visit written to the log, so it follows the
+		// sampling setting exactly like the raw visits the reports counted before.
+		\WPAffiliateCaptain\Reports\VisitsDaily::record( $id, (int) $resolved['affiliate_id'], $campaign, $sub_id, $now );
+		return $id;
 	}
 
 	/**

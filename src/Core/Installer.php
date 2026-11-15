@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 14;
+	const DB_VERSION = 15;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -718,6 +718,7 @@ final class Installer {
 			'jobs'            => array( 'id', 'idempotency_key', 'attempts' ),
 			'attributions'    => array( 'id', 'content_id', 'campaign', 'sub_id', 'visit_id' ),
 			'visits'          => array( 'id', 'content_id', 'campaign', 'sub_id' ),
+			'visits_daily'    => array( 'id', 'affiliate_id', 'day', 'campaign', 'sub_id', 'visits' ),
 			'customer_links'  => array( 'id', 'customer_hash', 'pending' ),
 		);
 		// Existing tables of this plugin, compared without case: with lower_case_table_names=1
@@ -1056,6 +1057,7 @@ final class Installer {
 			self::schema_agreements( $c ),
 			self::schema_payout_profiles( $c ),
 			self::schema_visits( $c ),
+			self::schema_visits_daily( $c ),
 			self::schema_attributions( $c ),
 			self::schema_rules( $c ),
 			self::schema_commissions( $c ),
@@ -1234,6 +1236,28 @@ final class Installer {
 			KEY created_affiliate (created_at,affiliate_id),
 			KEY campaign_created (campaign,created_at,affiliate_id),
 			KEY content_created (content_id,created_at,affiliate_id)
+		) $c;";
+	}
+
+	/**
+	 * CREATE TABLE statement of the daily visit aggregate (schema 15, R14-D9): visits per partner,
+	 * local day (site time zone), campaign and sub-ID. No personal data.
+	 *
+	 * @param string $c Charset/collation clause.
+	 * @return string
+	 */
+	private static function schema_visits_daily( $c ) {
+		$table = Db::table( 'visits_daily' );
+		return "CREATE TABLE {$table} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			affiliate_id bigint(20) unsigned NOT NULL,
+			day date NOT NULL,
+			campaign varchar(100) NOT NULL DEFAULT '',
+			sub_id varchar(100) NOT NULL DEFAULT '',
+			visits int(10) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			UNIQUE KEY affiliate_day (affiliate_id,day,campaign,sub_id),
+			KEY day (day)
 		) $c;";
 	}
 
@@ -1947,6 +1971,11 @@ final class Installer {
 	 */
 	private static function migrate_after( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 15 ) {
+			// v15: the daily visit aggregate is filled from the existing visits in the background;
+			// the reports read the raw visits until that is complete (R14-D9).
+			Scheduler::once( \WPAffiliateCaptain\Reports\VisitsDaily::HOOK, 60 );
+		}
 		if ( $previous > 0 && $previous < 11 ) {
 			self::migrate_v11_indexes();
 			// v11: bonus months follow the site's time zone; months closed before keep UTC.

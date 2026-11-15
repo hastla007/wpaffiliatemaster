@@ -19,6 +19,7 @@ final class Db {
 		'agreements',
 		'payout_profiles',
 		'visits',
+		'visits_daily',
 		'attributions',
 		'rules',
 		'commissions',

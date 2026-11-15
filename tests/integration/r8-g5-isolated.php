@@ -85,6 +85,7 @@ $row = $wpdb->get_row( 'SELECT * FROM ' . Db::table( 'affiliates' ) . ' WHERE id
 g5( 'R6-LC5 a recent cancellation keeps the records (storno_at counts)', array( $pre . 'wpac_payouts', true ), array( g5_table( $pre . 'wpac_payouts' ), (bool) get_option( 'wpac_retained_after_uninstall' ) ) );
 g5( 'R6-LC1 partners table kept with the records, pseudonymised', array( $pre . 'wpac_affiliates', 'deleted-' . $old . '@invalid.invalid', 'Deleted partner', 'terminated', null ), array( g5_table( $pre . 'wpac_affiliates' ), $row ? $row->email : null, $row ? $row->name : null, $row ? $row->status : null, g5_table( $pre . 'wpac_partner_codes' ) ) );
 g5( 'R5-O5 uninstall removes terms reminder / re-encryption state and the per-site hidden notices', array( false, false, true, true ), array( get_option( 'wpac_terms_remind' ), get_option( 'wpac_reencrypt_cursor' ), in_array( $pre . 'wpac_hidden_notices', (array) ( $GLOBALS['g5_deleted_meta'] ?? array() ), true ), in_array( 'wpac_hidden_notices', (array) ( $GLOBALS['g5_deleted_meta'] ?? array() ), true ) ) );
+g5( 'R14-D9 the daily visit aggregate is dropped even when the booking records are kept (no financial table)', array( null, $pre . 'wpac_payouts' ), array( g5_table( $pre . 'wpac_visits_daily' ), g5_table( $pre . 'wpac_payouts' ) ) );
 g5( 'R6-LC9 pages without the plugin block are not touched', array(), (array) ( $GLOBALS['g5_trashed'] ?? array() ) );
 
 // Reinstall: the old partner number stays reserved.
