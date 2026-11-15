@@ -34,7 +34,7 @@ $r12_keys = static function ( $table ) use ( $wpdb ) {
 };
 
 /* R12-M21/M22: schema 13 with the new indexes, added by the migration. ---------------------- */
-check( 'R12-M21 schema version 13 everywhere (R14-D1: 14)', array( 14, 14, 14 ), array( Installer::DB_VERSION, WPAC_DB_VERSION, Installer::db_version() ) );
+check( 'R12-M21 schema version 13 everywhere (R14-D1: 14, R14-D9: 15)', array( 15, 15, 15 ), array( Installer::DB_VERSION, WPAC_DB_VERSION, Installer::db_version() ) );
 check( 'R12-M21/M22 indexes on audit (action,created_at) and commissions (source_order_id)', array( true, true ), array( in_array( 'action_created', $r12_keys( 'audit' ), true ), in_array( 'source_order_id', $r12_keys( 'commissions' ), true ) ) );
 q( 'ALTER TABLE ' . Db::table( 'audit' ) . ' DROP INDEX action_created' );
 q( 'ALTER TABLE ' . Db::table( 'commissions' ) . ' DROP INDEX source_order_id' );

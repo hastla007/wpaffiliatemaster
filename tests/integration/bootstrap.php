@@ -18,7 +18,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
-define( 'WPAC_DB_VERSION', 14 );
+define( 'WPAC_DB_VERSION', 15 );
 define( 'WPAC_CONTRACT_VERSION', '1.3.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
@@ -446,3 +446,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspec
 // Multisite stand-ins (tests switch $GLOBALS['test_multisite'] / $GLOBALS['test_blog_id']).
 if ( ! function_exists( 'is_multisite' ) ) { function is_multisite() { return ! empty( $GLOBALS['test_multisite'] ); } }
 if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return isset( $GLOBALS['test_blog_id'] ) ? (int) $GLOBALS['test_blog_id'] : 1; } }
+// Most tests write visits straight into the visits table (not through the tracker), so the daily
+// aggregate (R14-D9) would miss them: reports read the raw visits unless a test switches
+// $GLOBALS['test_visits_daily'] on (r14-g8.php).
+add_filter( 'wpac_visits_daily_ready', static function ( $ready ) { return $ready && ! empty( $GLOBALS['test_visits_daily'] ); } );

@@ -75,7 +75,13 @@ final class Reports {
 				$end
 			)
 		);
-		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, COUNT(*) n FROM {$v} WHERE created_at BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id", $start, $end ), OBJECT_K );
+		if ( VisitsDaily::usable( $from, $to ) ) {
+			// Daily aggregate (R14-D9): the same local days, a few rows per partner and day.
+			$d      = VisitsDaily::table();
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, SUM(visits) n FROM {$d} WHERE day BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id", $from, $to ), OBJECT_K );
+		} else {
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, COUNT(*) n FROM {$v} WHERE created_at BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id", $start, $end ), OBJECT_K );
+		}
 		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, COUNT(*) n FROM {$at} WHERE created_at BETWEEN %s AND %s{$aff_sql} GROUP BY affiliate_id", $start, $end ), OBJECT_K );
 		// phpcs:enable
 		AffiliateRepository::find_many( array_merge( wp_list_pluck( $money, 'affiliate_id' ), array_keys( $visits ), array_keys( $orders ) ) );
@@ -151,6 +157,7 @@ final class Reports {
 	 * Hooks: bookings empty the report cache.
 	 */
 	public static function register_hooks() {
+		VisitsDaily::register_hooks();
 		foreach ( array( 'wpac_commission_created', 'wpac_commission_adjusted', 'wpac_commission_approved', 'wpac_commission_rejected', 'wpac_commission_paid', 'wpac_commission_pending', 'wpac_commission_review', 'wpac_payout_created', 'wpac_payout_cancelled' ) as $hook ) {
 			add_action( $hook, array( self::class, 'flush_cache' ), 99, 0 );
 		}
@@ -279,6 +286,38 @@ final class Reports {
 	}
 
 	/**
+	 * One page of the campaign statistics of a partner for the partner area (R14-D9), cached per
+	 * page like partner_cached(): a partner with thousands of sub-IDs made one transient of several
+	 * megabytes, which Memcached does not store (limit 1 MB), so every view computed it again.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $from         Y-m-d (local).
+	 * @param string $to           Y-m-d (local).
+	 * @param int    $page         Page (1-based).
+	 * @param int    $per          Rows per page.
+	 * @return array rows (as partner_campaigns()), total (number of rows of all pages)
+	 */
+	public static function partner_campaigns_page( $affiliate_id, $from, $to, $page = 1, $per = 25 ) {
+		$per  = max( 1, (int) $per );
+		$page = max( 1, (int) $page );
+		$name = self::stats_name( array( 'campaigns_page', (int) $affiliate_id, (string) $from, (string) $to, $page, $per ) );
+		$hit  = get_transient( $name );
+		if ( is_array( $hit ) && isset( $hit['rows'], $hit['total'] ) && is_array( $hit['rows'] ) ) {
+			return array(
+				'rows'  => $hit['rows'],
+				'total' => (int) $hit['total'],
+			);
+		}
+		$all   = self::partner_campaigns( (int) $affiliate_id, $from, $to );
+		$value = array(
+			'rows'  => array_slice( $all, ( $page - 1 ) * $per, $per ),
+			'total' => count( $all ),
+		);
+		self::store( $name, $value );
+		return $value;
+	}
+
+	/**
 	 * Statistics of one content item for the editor panel, cached for CACHE_TTL (R14-D6): the
 	 * panel counts 90 days of visits of the page each time the editor opens.
 	 *
@@ -348,11 +387,20 @@ final class Reports {
 		global $wpdb;
 		list( $start, $end ) = Db::local_range( $from, $to );
 		$ids = array();
+		$daily = VisitsDaily::usable( $from, $to );
 		foreach ( array( 'commissions', 'visits', 'attributions' ) as $table ) {
-			$t = Db::table( $table );
-			// Index (created_at, affiliate_id) resp. (affiliate_id, created_at).
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$t} WHERE created_at BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC LIMIT %d", $start, $end, (int) $after, (int) $limit ) ) as $id ) {
+			if ( 'visits' === $table && $daily ) {
+				// Daily aggregate (R14-D9).
+				$d = VisitsDaily::table();
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$found = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$d} WHERE day BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC LIMIT %d", $from, $to, (int) $after, (int) $limit ) );
+			} else {
+				$t = Db::table( $table );
+				// Index (created_at, affiliate_id) resp. (affiliate_id, created_at).
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$found = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$t} WHERE created_at BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC LIMIT %d", $start, $end, (int) $after, (int) $limit ) );
+			}
+			foreach ( $found as $id ) {
 				$ids[ (int) $id ] = (int) $id;
 			}
 		}
@@ -385,7 +433,13 @@ final class Reports {
 		$aid_v = 'campaign' === $dim ? 'affiliate_id' : '0';
 		$aid_a = 'campaign' === $dim ? 'a.affiliate_id' : '0';
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT {$aid_v} aid, {$dim} k, COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE created_at BETWEEN %s AND %s GROUP BY aid, k", $start, $end ) );
+		if ( 'campaign' === $dim && VisitsDaily::usable( $from, $to ) ) {
+			// Daily aggregate (R14-D9); campaigns are per partner, so "partners" is 1.
+			$d      = VisitsDaily::table();
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id aid, campaign k, SUM(visits) n, 1 partners FROM {$d} WHERE day BETWEEN %s AND %s GROUP BY aid, k", $from, $to ) );
+		} else {
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT {$aid_v} aid, {$dim} k, COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE created_at BETWEEN %s AND %s GROUP BY aid, k", $start, $end ) );
+		}
 		$sales  = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT {$aid_a} aid, a.{$dim} k, c.currency, COUNT(DISTINCT a.id) orders,
@@ -532,7 +586,12 @@ final class Reports {
 		$v                   = Db::table( 'visits' );
 		$c                   = Db::table( 'commissions' );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$visits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s", $affiliate_id, $start, $end ) );
+		if ( VisitsDaily::usable( $from, $to ) ) {
+			$d      = VisitsDaily::table(); // Daily aggregate (R14-D9).
+			$visits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(visits), 0) FROM {$d} WHERE affiliate_id = %d AND day BETWEEN %s AND %s", $affiliate_id, $from, $to ) );
+		} else {
+			$visits = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s", $affiliate_id, $start, $end ) );
+		}
 		$earned = $wpdb->get_results( $wpdb->prepare( "SELECT currency, SUM(amount_minor) total FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at BETWEEN %s AND %s GROUP BY currency", $affiliate_id, $start, $end ) );
 		// phpcs:enable
 		$sales = self::partner_sales( (int) $affiliate_id, $start, $end );
@@ -624,7 +683,12 @@ final class Reports {
 		$c                   = Db::table( 'commissions' );
 		$methods             = "'" . implode( "','", self::CLICK_METHODS ) . "'";
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$visits = $wpdb->get_results( $wpdb->prepare( "SELECT campaign, sub_id, COUNT(*) n FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s GROUP BY campaign, sub_id", $affiliate_id, $start, $end ) );
+		if ( VisitsDaily::usable( $from, $to ) ) {
+			$d      = VisitsDaily::table(); // Daily aggregate (R14-D9).
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT campaign, sub_id, SUM(visits) n FROM {$d} WHERE affiliate_id = %d AND day BETWEEN %s AND %s GROUP BY campaign, sub_id", $affiliate_id, $from, $to ) );
+		} else {
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT campaign, sub_id, COUNT(*) n FROM {$v} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s GROUP BY campaign, sub_id", $affiliate_id, $start, $end ) );
+		}
 		$sales  = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT a.campaign, a.sub_id, c.currency, COUNT(DISTINCT a.id) orders, COUNT(DISTINCT CASE WHEN a.method IN ({$methods}) THEN a.id END) click_orders, SUM(COALESCE(c.amount_minor,0)) commission

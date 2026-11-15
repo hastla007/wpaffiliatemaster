@@ -1437,7 +1437,17 @@ final class Portal {
 		echo '</tbody></table>';
 
 		echo '<h3>' . esc_html__( 'By campaign and sub-ID', 'affiliate-captain' ) . '</h3>';
-		$rows = \WPAffiliateCaptain\Reports\Reports::partner_cached( 'campaigns', (int) $aff->id, $period['from'], $period['to'] );
+		// 25 rows per page, cached per page (R14-D9).
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page   = isset( $_GET['wpac_page'] ) ? max( 1, (int) $_GET['wpac_page'] ) : 1;
+		$result = \WPAffiliateCaptain\Reports\Reports::partner_campaigns_page( (int) $aff->id, $period['from'], $period['to'], $page, 25 );
+		$rows   = $result['rows'];
+		$total  = (int) $result['total'];
+		if ( ! $rows && $total > 0 ) {
+			$page   = (int) ceil( $total / 25 ); // Page beyond the end (fewer rows now): show the last one.
+			$result = \WPAffiliateCaptain\Reports\Reports::partner_campaigns_page( (int) $aff->id, $period['from'], $period['to'], $page, 25 );
+			$rows   = $result['rows'];
+		}
 		if ( ! $rows ) {
 			echo self::empty_state( __( 'No visits or sales in this period yet. Give your links a campaign or sub-ID in the link generator to see here which placement works best.', 'affiliate-captain' ), __( 'Open the link generator', 'affiliate-captain' ), 'links' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			return;
@@ -1457,6 +1467,7 @@ final class Portal {
 			echo '</tr>';
 		}
 		echo '</tbody></table>';
+		self::pager( $page, $total, 25 );
 	}
 
 	/**

@@ -63,8 +63,14 @@ final class Privacy {
 		$batch = max( 1, (int) apply_filters( 'wpac_visit_erase_batch', 5000 ) );
 		$done  = false;
 		$table = Db::table( 'visits' );
+		$deadline = $budget > 0 ? microtime( true ) + (float) $budget : 0.0;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		\WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE affiliate_id = %d", $affiliate_id ), $batch, 0, $budget > 0 ? microtime( true ) + (float) $budget : 0.0, $done );
+		\WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE affiliate_id = %d", $affiliate_id ), $batch, 0, $deadline, $done );
+		if ( $done ) {
+			// Then the partner's rows of the daily aggregate (R14-D9; the backfill skips partners
+			// listed here while their raw visits are deleted).
+			$done = \WPAffiliateCaptain\Reports\VisitsDaily::delete_partner( $affiliate_id, $batch, $deadline );
+		}
 		$pending = array_map( 'intval', (array) get_option( self::VISITS_ERASE_OPTION, array() ) );
 		$listed  = in_array( $affiliate_id, $pending, true );
 		if ( $done && $listed ) {

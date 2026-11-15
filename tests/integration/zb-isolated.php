@@ -158,6 +158,7 @@ zb(
 	array( get_option( 'wpac_report_retry_lock' ), $wpdb->get_var( "SELECT option_value FROM {$wpdb->options} WHERE option_name = 'wpac_stmt_77'" ), get_site_option( 'wpac_network_pending' ), zb_as_find( '', null, Scheduler::GROUP, 'pending' ) )
 );
 zb( 'ZB-K1 uninstall dropped the site\'s tables', null, $wpdb->get_var( "SHOW TABLES LIKE '{$pre}wpac\\_payouts'" ) );
+zb( 'R14-D9 uninstall dropped the daily visit aggregate', null, $wpdb->get_var( "SHOW TABLES LIKE '{$pre}wpac\\_visits\\_daily'" ) );
 foreach ( array_merge( (array) glob( $root . '/*/*' ), (array) glob( $root . '/*' ) ) as $f ) {
 	is_dir( $f ) ? @rmdir( $f ) : @unlink( $f );
 }

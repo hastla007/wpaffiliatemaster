@@ -133,6 +133,8 @@ function wpac_uninstall_site() {
 
 	// Kept records keep their settings (operator data, numbering prefixes) and schema version.
 	$wpac_options = array( 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key', 'wpac_customer_key_constant', 'wpac_customer_key_changed', 'wpac_upgrade_lock', 'wpac_erasure_pending', 'wpac_cookie_signed_since', 'wpac_report_failed', 'wpac_schema_problems', 'wpac_schema_problems_since', 'wpac_schema_warnings', 'wpac_balance_problems', 'wpac_statement_retry', 'wpac_storno_retry', 'wpac_daily_rest', 'wpac_tier_recalc_pending', 'wpac_terms_remind', 'wpac_reencrypt_cursor', 'wpac_cron_last_run', 'wpac_cron_failures', 'wpac_migration_status', 'wpac_site_fingerprint', 'wpac_clone_detected', 'wpac_legacy_takeover', 'wpac_takeover_seen', 'wpac_takeover_notice', 'wpac_takeover_deletion_off', 'wpac_retained_notice', 'wpac_balance_check_pass', 'wpac_audit_purge_cursor', 'wpac_tier_cursor', 'wpac_tier_local_from', 'wpac_activation_redirect', 'wpac_review_alert', 'wpac_review_alert_sent', 'wpac_correction_retry', 'wpac_broadcast', 'wpac_touch_probe', 'wpac_visit_erasure_pending', 'wpac_rl_purge_backlog' );
+	// Daily visit aggregate (R14-D9): backfill limit, cursor, time zone, completion, lock.
+	$wpac_options = array_merge( $wpac_options, array( 'wpac_vdaily_upto', 'wpac_vdaily_cursor', 'wpac_vdaily_tz', 'wpac_vdaily_done', 'wpac_vdaily_lock' ) );
 	// Keyed by partner ID: after a new installation partner 1 must not inherit a fraud flag
 	// (shared IBAN) or a mail opt-out of a former partner 1 (R12-M17).
 	$wpac_options = array_merge( $wpac_options, array( 'wpac_shared_iban', 'wpac_mail_optout' ) );
@@ -190,7 +192,7 @@ function wpac_uninstall_site() {
  * @return string[]
  */
 function wpac_uninstall_tables() {
-	return array( 'affiliates', 'partner_groups', 'partner_codes', 'agreements', 'payout_profiles', 'visits', 'attributions', 'rules', 'commissions', 'commission_events', 'payouts', 'payout_items', 'payout_corrections', 'jobs', 'audit', 'tiers', 'customer_links', 'creatives', 'payout_requests', 'sequences', 'balances', 'balance_entries', 'rate_limits' );
+	return array( 'affiliates', 'partner_groups', 'partner_codes', 'agreements', 'payout_profiles', 'visits', 'visits_daily', 'attributions', 'rules', 'commissions', 'commission_events', 'payouts', 'payout_items', 'payout_corrections', 'jobs', 'audit', 'tiers', 'customer_links', 'creatives', 'payout_requests', 'sequences', 'balances', 'balance_entries', 'rate_limits' );
 }
 
 /**
@@ -316,7 +318,7 @@ function wpac_uninstall_delete_retained_folder( $folder ) {
  * @return string[]
  */
 function wpac_uninstall_hooks() {
-	return array( 'wpac_hourly', 'wpac_daily', 'wpac_daily_rest', 'wpac_report_retry', 'wpac_report_batch', 'wpac_jobs_drain', 'wpac_vies_check', 'wpac_network_setup', 'wpac_reencrypt', 'wpac_terms_remind', 'wpac_purge_visits', 'wpac_purge_rate_limits', 'wpac_erase_visits', 'wpac_balance_check', 'wpac_tier_continue', 'wpac_broadcast_batch' );
+	return array( 'wpac_hourly', 'wpac_daily', 'wpac_daily_rest', 'wpac_report_retry', 'wpac_report_batch', 'wpac_jobs_drain', 'wpac_vies_check', 'wpac_network_setup', 'wpac_reencrypt', 'wpac_terms_remind', 'wpac_purge_visits', 'wpac_purge_rate_limits', 'wpac_erase_visits', 'wpac_visits_daily', 'wpac_balance_check', 'wpac_tier_continue', 'wpac_broadcast_batch' );
 }
 
 /**
