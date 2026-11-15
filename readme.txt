@@ -115,6 +115,9 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
+= Unreleased =
+* Fixed: a payout claimed by a payment provider add-on can no longer be exported again (SEPA, transfer list, PayPal file) – it could have been paid twice; a claimed payout can be cancelled in the admin only 45 days after the claim (filter wpac_claim_cancel_after)
+
 = 0.12.0 =
 Database schema 12:
 * Payouts: correction credit notes for paid payouts (own gapless number series "KG-…", prefix configurable): corrected net amount with reason, before/after/difference with the VAT treatment frozen on the original credit note; the difference is booked to the partner account (shortfall paid in the next run, overpayment offset later); an open objection is resolved automatically; PDF by e-mail and in the partner area

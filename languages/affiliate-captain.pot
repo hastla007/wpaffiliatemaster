@@ -7161,9 +7161,9 @@ msgstr ""
 msgid "Only unpaid payouts can be cancelled."
 msgstr ""
 
-#. translators: 1: payout number, 2: claim reference
+#. translators: 1: payout number, 2: claim reference, 3: number of days
 #: src/Payouts/PayoutService.php
-msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here 7 days after the claim, after checking in the account of the payment provider that it was not paid."
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here %3$d days after the claim, after checking in the account of the payment provider that it was not paid."
 msgstr ""
 
 #. translators: 1: payout number, 2: claim reference

@@ -1089,9 +1089,9 @@ final class PayoutService {
 						throw new IntegrationException( 'state', esc_html__( 'Only unpaid payouts can be cancelled.', 'affiliate-captain' ) );
 					}
 					$claimed = 'exported' === $p->status && 0 === strpos( (string) $p->sepa_batch, self::CLAIM_PREFIX );
-					if ( $claimed && strtotime( (string) $p->exported_at . ' UTC' ) > time() - self::CLAIM_CANCEL_AFTER ) {
-						/* translators: 1: payout number, 2: claim reference */
-						throw new IntegrationException( 'claimed', esc_html( sprintf( __( 'Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here 7 days after the claim, after checking in the account of the payment provider that it was not paid.', 'affiliate-captain' ), $p->number, $p->sepa_batch ) ) );
+					if ( $claimed && strtotime( (string) $p->exported_at . ' UTC' ) > time() - self::claim_cancel_after() ) {
+						/* translators: 1: payout number, 2: claim reference, 3: number of days */
+						throw new IntegrationException( 'claimed', esc_html( sprintf( __( 'Payout %1$s is being paid through a payment provider (reference %2$s). The add-on that claimed it gives it back when the provider does not pay it. It can only be cancelled here %3$d days after the claim, after checking in the account of the payment provider that it was not paid.', 'affiliate-captain' ), $p->number, $p->sepa_batch, (int) ceil( self::claim_cancel_after() / DAY_IN_SECONDS ) ) ) );
 					}
 					if ( $claimed && ! $confirm_not_sent ) {
 						/* translators: 1: payout number, 2: claim reference */
@@ -1558,7 +1558,23 @@ final class PayoutService {
 	/**
 	 * A claimed payout can be cancelled in the admin only this long after the claim (seconds).
 	 */
-	const CLAIM_CANCEL_AFTER = 7 * DAY_IN_SECONDS;
+	const CLAIM_CANCEL_AFTER = 45 * DAY_IN_SECONDS;
+
+	/**
+	 * Seconds after a claim before a claimed payout may be cancelled in the admin. Default 45 days:
+	 * payment providers can settle late (PayPal keeps unclaimed or pending payouts up to 30–40 days),
+	 * and cancelling earlier could pay the commissions twice. Filter: wpac_claim_cancel_after.
+	 *
+	 * @return int
+	 */
+	public static function claim_cancel_after() {
+		/**
+		 * Seconds after a claim before a claimed payout may be cancelled in the admin.
+		 *
+		 * @param int $seconds Default 45 days.
+		 */
+		return max( DAY_IN_SECONDS, (int) apply_filters( 'wpac_claim_cancel_after', self::CLAIM_CANCEL_AFTER ) );
+	}
 
 	/**
 	 * A payout as the public contract describes it (wpac_get_payout()).

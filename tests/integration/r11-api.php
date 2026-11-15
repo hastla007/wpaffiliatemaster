@@ -231,7 +231,7 @@ check( 'R11A wpac_payout_cancelled fires once after the COMMIT with the payout I
 // A claimed payout (payment provider) cancelled after the waiting time.
 $r11a_p2 = r11_payout( $r11a_cx, 'r11a-cx-2' );
 $r11a_cl2 = wpac_claim_payout( $r11a_p2, 'paypal' );
-$wpdb->query( $wpdb->prepare( 'UPDATE ' . t( 'payouts' ) . ' SET exported_at = %s WHERE id = %d', gmdate( 'Y-m-d H:i:s', time() - 8 * DAY_IN_SECONDS ), $r11a_p2 ) );
+$wpdb->query( $wpdb->prepare( 'UPDATE ' . t( 'payouts' ) . ' SET exported_at = %s WHERE id = %d', gmdate( 'Y-m-d H:i:s', time() - 46 * DAY_IN_SECONDS ), $r11a_p2 ) );
 $r11a_m  = r11a_mark();
 $r11a_ok = PayoutService::cancel( $r11a_p2, 'Dienst hat nicht gezahlt', true );
 check( 'R11A wpac_payout_cancelled also for a claimed payout', array( true, true, array( 1, true, array( $r11a_p2 ) ) ), array( is_array( $r11a_cl2 ), $r11a_ok, r11a_fired( 'wpac_payout_cancelled', $r11a_m ) ) );

@@ -278,7 +278,7 @@ Regeln:
 
 - Erst reservieren, dann zahlen. Eine reservierte Auszahlung nehmen weder die Exportdateien (SEPA, Überweisungsliste, PayPal-Datei) – auch nicht mit „erneut exportieren“ (Fehler `wpac_claimed`) – noch eine zweite Reservierung.
 - Die Reservierungsnummer beim Dienst als Idempotenz-Schlüssel verwenden (z. B. `sender_batch_id` bei PayPal), damit eine Wiederholung nach einem Abbruch nicht doppelt zahlt.
-- Im Admin lässt sich eine reservierte Auszahlung in den ersten 7 Tagen nach der Reservierung nicht stornieren; danach nur mit der Bestätigung, dass der Dienst nicht gezahlt hat. Das Add-on gibt Auszahlungen, die der Dienst ablehnt, selbst mit `wpac_release_payout()` frei.
+- Im Admin lässt sich eine reservierte Auszahlung in den ersten 45 Tagen nach der Reservierung nicht stornieren (Filter `wpac_claim_cancel_after`, Sekunden; Zahlungsdienste wie PayPal halten offene Auszahlungen bis zu 30–40 Tage); danach nur mit der Bestätigung, dass der Dienst nicht gezahlt hat – vorher im Konto des Zahlungsdienstes prüfen. Das Add-on gibt Auszahlungen, die der Dienst ablehnt, selbst mit `wpac_release_payout()` frei.
 - Jeder Schritt steht im Audit-Log (`payout.claimed`, `payout.provider_paid`, `payout.claim_released`).
 
 ## Lese- und Schreib-API (1.3.0)
