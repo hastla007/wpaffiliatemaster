@@ -369,7 +369,7 @@ final class Notifications {
 					/* translators: 1: site name, 2: partner */
 					: sprintf( __( '[%1$s] Tax data of %2$s changed', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $aff->name ),
 				implode( "\n", $lines ) . "\n\n" . ( $pending
-					? __( 'The change affects the VAT on credit notes. It only takes effect after you approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):', 'affiliate-captain' )
+					? __( 'The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):', 'affiliate-captain' )
 					: __( 'The change applies to commissions earned from now on. Details:', 'affiliate-captain' ) ) . "\n" . $url,
 				array(
 					'admin'        => true,

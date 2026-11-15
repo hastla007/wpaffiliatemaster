@@ -81,6 +81,11 @@ final class CreativesTable extends \WP_List_Table {
 			)
 		);
 		$this->items           = $rows;
+		// Load the images of this page in two queries (posts and meta), not one by one per row.
+		$attachments = array_values( array_unique( array_filter( array_map( 'intval', wp_list_pluck( $rows, 'attachment_id' ) ) ) ) );
+		if ( $attachments && function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( $attachments, false, true );
+		}
 		$hidden                = function_exists( 'get_hidden_columns' ) && $this->screen ? get_hidden_columns( $this->screen ) : array();
 		$this->_column_headers = array( $this->get_columns(), $hidden, $this->get_sortable_columns(), 'title' );
 		$this->set_pagination_args(

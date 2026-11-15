@@ -231,7 +231,7 @@ final class DashboardPage {
 		$counts   = AffiliateRepository::count_by_status();
 		$rows     = Reports::cached( 'partners', $from, $to ); // Same report for KPIs and table, cached until the data changes.
 		$view     = in_array( Admin::get( 'view' ), array( 'content', 'campaign' ), true ) ? Admin::get( 'view' ) : 'partners';
-		$failed   = count( Jobs::query( 'failed' ) );
+		$failed   = Jobs::count( 'failed' ); // COUNT query: the list itself stops at 100.
 
 		$sum = array(
 			'visits'      => 0,

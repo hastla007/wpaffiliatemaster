@@ -372,7 +372,7 @@ final class Editor {
 			if ( $code ) {
 				$id   = 'wpac-target-' . (int) $p->ID . '-' . ( ++$i );
 				/* translators: %s: page title */
-				$out .= '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( sprintf( __( 'Your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '</label><div class="wpac-copy-row"><input type="text" readonly dir="ltr" class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $link ) . '"><button type="button" class="wpac-copy-btn" data-wpac-copy="' . esc_attr( $id ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
+				$out .= '<label class="wpac-sr" for="' . esc_attr( $id ) . '">' . esc_html( sprintf( __( 'Your partner link to %s', 'affiliate-captain' ), get_the_title( $p ) ) ) . '</label><div class="wpac-copy-row"><input type="text" readonly dir="ltr" class="wpac-copy" id="' . esc_attr( $id ) . '" value="' . esc_attr( $link ) . '"><button type="button" class="wpac-copy-btn" hidden data-wpac-copy="' . esc_attr( $id ) . '">' . esc_html__( 'Copy', 'affiliate-captain' ) . '</button></div>';
 			}
 			$out .= '</li>';
 		}

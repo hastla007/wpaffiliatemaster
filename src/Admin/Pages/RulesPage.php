@@ -370,20 +370,23 @@ final class RulesPage {
 			echo '<li class="wpac-group"><details><summary><strong>' . esc_html( $g->name ) . '</strong> ' . esc_html( $g->description ) . ( (int) $g->public ? ' · ' . esc_html__( 'selectable in application form', 'affiliate-captain' ) : '' ) . ( (int) $g->terms_page_id ? ' · ' . esc_html__( 'own terms', 'affiliate-captain' ) . ' v' . esc_html( $g->agreement_version ) : '' ) . '</summary>';
 			Admin::form_open( 'group_update' );
 			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><table class="form-table">';
-			echo '<tr><th>' . esc_html__( 'Name', 'affiliate-captain' ) . '</th><td><input type="text" name="name" value="' . esc_attr( $g->name ) . '" class="regular-text" required></td></tr>';
-			echo '<tr><th>' . esc_html__( 'Description', 'affiliate-captain' ) . '</th><td><input type="text" name="description" value="' . esc_attr( (string) $g->description ) . '" class="large-text"></td></tr>';
-			echo '<tr><th>' . esc_html__( 'Own terms page', 'affiliate-captain' ) . '</th><td>';
+			// Labels with for= and IDs unique per group (one form per group on the page).
+			$gid = 'wpac-group-' . (int) $g->id . '-';
+			echo '<tr><th><label for="' . esc_attr( $gid . 'name' ) . '">' . esc_html__( 'Name', 'affiliate-captain' ) . '</label></th><td><input type="text" id="' . esc_attr( $gid . 'name' ) . '" name="name" value="' . esc_attr( $g->name ) . '" class="regular-text" required></td></tr>';
+			echo '<tr><th><label for="' . esc_attr( $gid . 'description' ) . '">' . esc_html__( 'Description', 'affiliate-captain' ) . '</label></th><td><input type="text" id="' . esc_attr( $gid . 'description' ) . '" name="description" value="' . esc_attr( (string) $g->description ) . '" class="large-text"></td></tr>';
+			echo '<tr><th><label for="' . esc_attr( $gid . 'terms' ) . '">' . esc_html__( 'Own terms page', 'affiliate-captain' ) . '</label></th><td>';
 			wp_dropdown_pages(
 				array(
 					'name'              => 'terms_page_id',
+					'id'                => esc_attr( $gid . 'terms' ),
 					'selected'          => (int) $g->terms_page_id,
 					'show_option_none'  => esc_html__( '— program terms —', 'affiliate-captain' ),
 					'option_none_value' => '0',
 				)
 			);
-			echo ' ' . esc_html__( 'Version', 'affiliate-captain' ) . ' <input type="text" name="agreement_version" value="' . esc_attr( $g->agreement_version ) . '" size="6"></td></tr>';
+			echo ' <label for="' . esc_attr( $gid . 'version' ) . '">' . esc_html__( 'Version', 'affiliate-captain' ) . '</label> <input type="text" id="' . esc_attr( $gid . 'version' ) . '" name="agreement_version" value="' . esc_attr( $g->agreement_version ) . '" size="6"></td></tr>';
 			echo '<tr><th>' . esc_html__( 'Application', 'affiliate-captain' ) . '</th><td><label><input type="checkbox" name="public" value="1" ' . checked( (int) $g->public, 1, false ) . '> ' . esc_html__( 'Applicants can choose this group', 'affiliate-captain' ) . '</label><br><code>[wpac_affiliate_registration group="' . (int) $g->id . '"]</code></td></tr>';
-			echo '<tr><th>' . esc_html__( 'Additional application fields', 'affiliate-captain' ) . '</th><td><textarea name="fields" rows="4" class="large-text code" placeholder="school_name|Name der Bootsschule|text|required&#10;students|Schüler pro Jahr|number">' . esc_textarea( Groups::fields_text( $g ) ) . '</textarea><p class="description">' . esc_html__( 'One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox.', 'affiliate-captain' ) . '</p></td></tr>';
+			echo '<tr><th><label for="' . esc_attr( $gid . 'fields' ) . '">' . esc_html__( 'Additional application fields', 'affiliate-captain' ) . '</label></th><td><textarea id="' . esc_attr( $gid . 'fields' ) . '" name="fields" rows="4" class="large-text code" aria-describedby="' . esc_attr( $gid . 'fields-help' ) . '" placeholder="' . esc_attr__( "school_name|School name|text|required\nstudents|Students per year|number", 'affiliate-captain' ) . '">' . esc_textarea( Groups::fields_text( $g ) ) . '</textarea><p class="description" id="' . esc_attr( $gid . 'fields-help' ) . '">' . esc_html__( 'One field per line: key|Label|type|required – types: text, textarea, url, number, checkbox.', 'affiliate-captain' ) . '</p></td></tr>';
 			echo '</table><p><button class="button button-primary">' . esc_html__( 'Save group', 'affiliate-captain' ) . '</button></p></form>';
 			Admin::form_open( 'group_delete', 'wpac-inline' );
 			echo '<input type="hidden" name="id" value="' . (int) $g->id . '"><button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated.', 'affiliate-captain' ) . '">' . esc_html__( 'Delete group', 'affiliate-captain' ) . '</button></form></details></li>';
@@ -429,21 +432,27 @@ final class RulesPage {
 
 		echo '<h3>' . esc_html__( 'Add tier plan', 'affiliate-captain' ) . '</h3>';
 		Admin::form_open( 'tier_create' );
-		echo '<p><select name="scope"><option value="global">' . esc_html__( 'All partners', 'affiliate-captain' ) . '</option><option value="group">' . esc_html__( 'Partner group', 'affiliate-captain' ) . '</option><option value="affiliate">' . esc_html__( 'Single partner', 'affiliate-captain' ) . '</option></select> ';
-		echo '<select name="group_id"><option value="">' . esc_html__( '– group –', 'affiliate-captain' ) . '</option>';
+		echo '<p><label class="screen-reader-text" for="wpac-tier-scope">' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</label><select name="scope" id="wpac-tier-scope"><option value="global">' . esc_html__( 'All partners', 'affiliate-captain' ) . '</option><option value="group">' . esc_html__( 'Partner group', 'affiliate-captain' ) . '</option><option value="affiliate">' . esc_html__( 'Single partner', 'affiliate-captain' ) . '</option></select> ';
+		echo '<label class="screen-reader-text" for="wpac-tier-group">' . esc_html__( 'Partner group', 'affiliate-captain' ) . '</label><select name="group_id" id="wpac-tier-group"><option value="">' . esc_html__( '– group –', 'affiliate-captain' ) . '</option>';
 		foreach ( $groups as $gid => $name ) {
 			printf( '<option value="%d">%s</option>', (int) $gid, esc_html( $name ) );
 		}
 		echo '</select> ' . Admin::partner_picker( 'affiliate_id', 0, '', array( 'aria-label' => __( 'Partner', 'affiliate-captain' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
-		echo '</p><p><select name="basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select> ';
-		echo '<select name="mode"><option value="marginal">' . esc_html__( 'Marginal (only above the threshold)', 'affiliate-captain' ) . '</option><option value="retroactive">' . esc_html__( 'Retroactive (whole month)', 'affiliate-captain' ) . '</option></select></p>';
+		echo '</p><p><label class="screen-reader-text" for="wpac-tier-basis">' . esc_html__( 'Basis', 'affiliate-captain' ) . '</label><select name="basis" id="wpac-tier-basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select> ';
+		echo '<label class="screen-reader-text" for="wpac-tier-mode">' . esc_html__( 'Mode', 'affiliate-captain' ) . '</label><select name="mode" id="wpac-tier-mode"><option value="marginal">' . esc_html__( 'Marginal (only above the threshold)', 'affiliate-captain' ) . '</option><option value="retroactive">' . esc_html__( 'Retroactive (whole month)', 'affiliate-captain' ) . '</option></select></p>';
+		// The format is in a visible help text (aria-describedby), not only in the placeholder.
+		echo '<p><label for="wpac-tier-steps">' . esc_html__( 'Steps', 'affiliate-captain' ) . '</label><br>';
 		/* translators: %s: currency */
-		echo '<p><textarea name="steps" rows="3" cols="40" placeholder="' . esc_attr( sprintf( __( "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)", 'affiliate-captain' ), $currency ) ) . '"></textarea></p>';
+		echo '<textarea name="steps" id="wpac-tier-steps" rows="3" cols="40" aria-describedby="wpac-tier-steps-help" placeholder="' . esc_attr( sprintf( __( "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)", 'affiliate-captain' ), $currency ) ) . '"></textarea></p>';
+		/* translators: %s: currency */
+		echo '<p class="description" id="wpac-tier-steps-help">' . esc_html( sprintf( __( 'One step per line as threshold:bonus in percent, e.g. 1000:2 – the threshold is the monthly net revenue in %s or the number of orders (see basis).', 'affiliate-captain' ), $currency ) ) . '</p>';
 		echo '<p><input type="text" name="note" aria-label="' . esc_attr__( 'Note', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Note', 'affiliate-captain' ) . '" class="regular-text"> <input type="text" name="reason" aria-label="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" class="regular-text"> <button class="button">' . esc_html__( 'Add tier plan', 'affiliate-captain' ) . '</button></p></form>';
 
 		Admin::form_open( 'tier_close_month' );
+		$closed = (string) Settings::get( 'tier_month_closed' );
+		$closed = preg_match( '/^(\d{4})-(\d{2})$/', $closed, $cm ) ? date_i18n( 'F Y', gmmktime( 0, 0, 0, (int) $cm[2], 1, (int) $cm[1] ) ) : ( '' !== $closed ? $closed : '—' );
 		/* translators: %s: last closed month */
-		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'affiliate-captain' ), Settings::get( 'tier_month_closed' ) ? Settings::get( 'tier_month_closed' ) : '—' ) ) . ' <input type="month" name="month" value="' . esc_attr( \WPAffiliateCaptain\Core\Db::local_month( -1 ) ) . '"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'affiliate-captain' ) . '">' . esc_html__( 'Close month now', 'affiliate-captain' ) . '</button></p></form>';
+		echo '<p>' . esc_html( sprintf( __( 'Last closed month: %s.', 'affiliate-captain' ), $closed ) ) . ' <label for="wpac-tier-close-month">' . esc_html__( 'Month to close', 'affiliate-captain' ) . '</label> <input type="month" id="wpac-tier-close-month" name="month" value="' . esc_attr( \WPAffiliateCaptain\Core\Db::local_month( -1 ) ) . '"> <button class="button" data-wpac-confirm="' . esc_attr__( 'Book monthly bonuses now? Refunds after this point will not change the bonus.', 'affiliate-captain' ) . '">' . esc_html__( 'Close month now', 'affiliate-captain' ) . '</button></p></form>';
 	}
 
 	/**
