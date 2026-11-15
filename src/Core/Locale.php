@@ -212,16 +212,33 @@ final class Locale {
 	}
 
 	/**
-	 * Permalink of a page in the reader's language.
+	 * Permalink of a page in the reader's language. Only published pages count (R14-T2): a page in
+	 * the trash, a draft or a private page leads visitors to a 404. An unpublished translation
+	 * falls back to the published original, an unpublished page to the fallback.
 	 *
 	 * @param int    $page_id  Page ID.
 	 * @param string $locale   Locale of the reader ('' = current language).
-	 * @param string $fallback URL if there is no page.
+	 * @param string $fallback URL if there is no (published) page.
 	 * @return string
 	 */
 	public static function page_url( $page_id, $locale = '', $fallback = '' ) {
-		$id  = self::page_id( $page_id, $locale );
-		$url = $id ? get_permalink( $id ) : '';
-		return $url ? (string) $url : ( '' !== $fallback ? $fallback : home_url( '/' ) );
+		$url = '';
+		foreach ( array_unique( array( self::page_id( $page_id, $locale ), (int) $page_id ) ) as $id ) {
+			if ( self::published( $id ) ) {
+				$url = (string) get_permalink( $id );
+				break;
+			}
+		}
+		return '' !== $url ? $url : ( '' !== $fallback ? $fallback : home_url( '/' ) );
+	}
+
+	/**
+	 * Whether a page is published (publicly reachable).
+	 *
+	 * @param int $page_id Page ID.
+	 * @return bool
+	 */
+	public static function published( $page_id ) {
+		return (int) $page_id > 0 && 'publish' === get_post_status( (int) $page_id );
 	}
 }

@@ -378,6 +378,20 @@ function get_post( $id ) {
 	return null;
 }
 function _x( $t, $c = '', $d = '' ) { return $t; }
+// Post status: published unless a test says otherwise ($GLOBALS['test_post_status'][ id ], or the
+// older $GLOBALS['g10_post_status'] of r8-g10.php, where unknown posts have no status).
+if ( ! function_exists( 'get_post_status' ) ) {
+	function get_post_status( $id ) {
+		$id = (int) ( is_object( $id ) ? $id->ID : $id );
+		if ( isset( $GLOBALS['test_post_status'] ) && array_key_exists( $id, $GLOBALS['test_post_status'] ) ) {
+			return $GLOBALS['test_post_status'][ $id ];
+		}
+		if ( isset( $GLOBALS['g10_post_status'] ) ) {
+			return $GLOBALS['g10_post_status'][ $id ] ?? false;
+		}
+		return $id > 0 ? 'publish' : false;
+	}
+}
 
 // HTTP: tests set $GLOBALS['test_http'] = function ( $url, $args ) { return array( 'body' => '...' ); }.
 if ( ! function_exists( 'wp_remote_post' ) ) {

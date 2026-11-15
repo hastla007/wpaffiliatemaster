@@ -1,0 +1,5 @@
+{
+ "This name is already used by WordPress, WooCommerce, campaign tracking or the plugin itself. Please choose another one, e.g. \"ref\" or \"partner\".": "Dieser Name wird bereits von WordPress, WooCommerce, der Kampagnenmessung oder dem Plugin selbst verwendet. Bitte wählen Sie einen anderen, z. B. „ref“ oder „partner“.",
+ "A landing page is not published": "Eine Landingpage ist nicht veröffentlicht",
+ "Landing links of partners lead to the default landing page or the home page instead, as long as these pages are in the trash, drafts or private. Page IDs: %s": "Landing-Links der Partner führen stattdessen auf die Standard-Landingpage bzw. die Startseite, solange diese Seiten im Papierkorb liegen, Entwürfe oder privat sind. Seiten-IDs: %s"
+}

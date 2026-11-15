@@ -26,9 +26,6 @@ final class Tracker {
 	const COOKIE      = 'wpac_ref';
 	const SESSION_KEY = 'wpac_ref';
 
-	/** @var bool Whether this request already captured a referral. */
-	private static $captured_now = false;
-
 	/** @var array Cookies written in this request (name, value, options) – for diagnostics and tests. */
 	private static $written = array();
 
@@ -258,6 +255,13 @@ final class Tracker {
 	public static function capture_code( $raw, $campaign, $content_id, array $extra = array() ) {
 		$resolved = wpac_resolve_partner_code( (string) $raw, array( 'context' => ! empty( $extra['cart'] ) ? 'cart' : 'link' ) );
 		if ( ! $resolved ) {
+			self::note_code_miss();
+			return false;
+		}
+		// A client that tried many unknown codes gets no referral cookie for valid ones either: the
+		// Set-Cookie header would tell which code exists (R14-S2). Checked only when a cookie would
+		// be written (otherwise the answer is the same for every code).
+		if ( Consent::cookie_allowed() && self::code_misses_exceeded() ) {
 			return false;
 		}
 		$touch = array(
@@ -274,7 +278,6 @@ final class Tracker {
 		}
 
 		self::store_touch( $touch, ! empty( $extra['cart'] ) );
-		self::$captured_now = true;
 
 		/**
 		 * Fires after a referral link visit was captured.
@@ -284,6 +287,29 @@ final class Tracker {
 		 */
 		do_action( 'wpac_referral_captured', $resolved, $touch );
 		return true;
+	}
+
+	/** Unknown codes/slugs per client address and minute before valid ones are answered like unknown ones. */
+	const CODE_MISS_LIMIT = 60;
+
+	/**
+	 * Count an unknown code or landing slug of the current client (R14-S2). Not behind an untrusted
+	 * proxy: all visitors would share its address, and real referrals must not be dropped.
+	 */
+	public static function note_code_miss() {
+		if ( ! RateLimiter::behind_untrusted_proxy() ) {
+			RateLimiter::allow( 'code_miss', self::CODE_MISS_LIMIT, MINUTE_IN_SECONDS );
+		}
+	}
+
+	/**
+	 * Whether the current client tried more unknown codes/slugs than allowed in this minute (limit
+	 * filterable with wpac_rate_limit, bucket "code_miss").
+	 *
+	 * @return bool
+	 */
+	public static function code_misses_exceeded() {
+		return ! RateLimiter::behind_untrusted_proxy() && RateLimiter::exceeded( 'code_miss', self::CODE_MISS_LIMIT, MINUTE_IN_SECONDS );
 	}
 
 	/**
@@ -365,10 +391,11 @@ final class Tracker {
 		$consent = 'consent' === Settings::get( 'cookie_mode' );
 		$param   = (string) Settings::get( 'referral_param' );
 		if ( ! $beacon ) {
-			// Without the beacon only the consent listener is needed, and only on a landing that was
-			// just captured without consent.
+			// Without the beacon only the consent listener is needed, and only on a landing with the
+			// referral parameter without consent. Whether the code is valid does not matter: the page
+			// must not tell (R14-S2); the REST endpoint answers unknown codes the same way.
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( ! $consent || empty( $_GET[ $param ] ) || ! self::$captured_now || Consent::cookie_allowed() ) {
+			if ( ! $consent || empty( $_GET[ $param ] ) || Consent::cookie_allowed() ) {
 				return;
 			}
 		}
@@ -881,13 +908,19 @@ final class Tracker {
 			'whatsapp', 'viber', 'mastodon', 'iframely', 'pinterest/0.', 'microsoft outlook', 'ms-office', 'googleother', 'feedfetcher-google',
 			'statuscake', 'uptime-kuma', 'site24x7', 'pingdom', 'guzzlehttp', 'go-http-client', 'okhttp', 'axios', 'node-fetch', 'java/',
 			'apache-httpclient', 'scrapy', 'wordpress/', 'httpclient', 'libwww', 'python-urllib', 'aiohttp', 'monitor',
+			// R14-T5: Google services, feed readers, archives, scanners and HTTP clients. Snapchat only as
+			// its preview fetcher ("compatible; Snapchat"): the in-app browser also says "Snapchat/…".
+			'google-inspectiontool', 'mediapartners-google', 'google-read-aloud', '/+/web/snippet', 'facebookcatalog', 'embedly', 'feedly',
+			'ia_archiver', 'httpx', 'postmanruntime', 'compatible; snapchat', 'censys', 'palo alto networks',
 		);
 		foreach ( apply_filters( 'wpac_bot_user_agents', $needles ) as $needle ) {
 			if ( '' !== (string) $needle && false !== strpos( $ua, (string) $needle ) ) {
 				return true;
 			}
 		}
-		return false;
+		// Crawlers name an info URL in their user agent by convention ("+https://…"); browsers and
+		// in-app browsers do not (R14-T5).
+		return (bool) preg_match( '#https?://#', $ua );
 	}
 
 	/**

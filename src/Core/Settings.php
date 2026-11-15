@@ -323,6 +323,54 @@ final class Settings {
 	}
 
 	/**
+	 * Whether a name cannot be the referral parameter (R14-T6): a public query variable of
+	 * WordPress (also those of post types and taxonomies), a WooCommerce parameter, a campaign
+	 * parameter or click ID, or a parameter of the plugin.
+	 *
+	 * @param string $param Parameter name (lower case).
+	 * @return bool
+	 */
+	public static function reserved_param( $param ) {
+		$param    = (string) $param;
+		$reserved = array(
+			// WP::$public_query_vars (core, without registered post types/taxonomies).
+			'm', 'p', 'posts', 'w', 'cat', 'withcomments', 'withoutcomments', 's', 'search', 'exact', 'sentence', 'calendar', 'page', 'paged', 'more', 'tb', 'pb', 'author', 'order', 'orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'tag', 'feed', 'author_name', 'pagename', 'page_id', 'error', 'attachment', 'attachment_id', 'subpost', 'subpost_id', 'preview', 'robots', 'favicon', 'taxonomy', 'term', 'cpage', 'post_type', 'embed', 'sitemap', 'sitemap-subtype', 'sitemap-stylesheet', 'rest_route', 'static', 'lang', 'p_id', 'preview_id', 'preview_nonce', 'customize_changeset_uuid', 'action', 'redirect_to', 'loggedout', 'replytocom',
+			// WooCommerce.
+			'add-to-cart', 'quantity', 'variation_id', 'product', 'product_cat', 'product_tag', 'product_shipping_class', 'wc-ajax', 'wc-api', 'remove_item', 'removed_item', 'undo_item', 'key', 'order', 'order-pay', 'order-received', 'pay_for_order', 'coupon_code', 'min_price', 'max_price', 'rating_filter', 'filter', 'query_type', 'wc_order_attribution',
+			// Campaign parameters and click IDs.
+			'utm_campaign', 'utm_source', 'utm_medium', 'utm_content', 'utm_term', 'utm_id',
+			// The plugin.
+			\WPAffiliateCaptain\Tracking\Tracker::sub_param(), \WPAffiliateCaptain\Promotion\Landing::QUERY_VAR,
+		);
+		$reserved = array_merge( $reserved, \WPAffiliateCaptain\Promotion\Landing::CLICK_IDS );
+		if ( isset( $GLOBALS['wp'] ) && is_object( $GLOBALS['wp'] ) && isset( $GLOBALS['wp']->public_query_vars ) ) {
+			$reserved = array_merge( $reserved, (array) $GLOBALS['wp']->public_query_vars );
+		}
+		if ( function_exists( 'get_post_types' ) ) {
+			foreach ( get_post_types( array(), 'objects' ) as $type ) {
+				if ( ! empty( $type->query_var ) && is_string( $type->query_var ) ) {
+					$reserved[] = $type->query_var;
+				}
+			}
+		}
+		if ( function_exists( 'get_taxonomies' ) ) {
+			foreach ( get_taxonomies( array(), 'objects' ) as $tax ) {
+				if ( ! empty( $tax->query_var ) && is_string( $tax->query_var ) ) {
+					$reserved[] = $tax->query_var;
+				}
+			}
+		}
+		/**
+		 * Names that cannot be used as the referral parameter.
+		 *
+		 * @since 0.14.0
+		 * @param string[] $reserved Names.
+		 */
+		$reserved = (array) apply_filters( 'wpac_reserved_referral_params', $reserved );
+		return in_array( $param, $reserved, true ) || 0 === strpos( $param, 'wpac_' ) || 0 === strpos( $param, 'utm_' ) || 0 === strpos( $param, 'filter_' ) || 0 === strpos( $param, 'query_type_' );
+	}
+
+	/**
 	 * Sanitize and validate raw input from the settings form.
 	 *
 	 * Invalid input is never replaced silently: the field keeps its stored value and an error
@@ -352,6 +400,10 @@ final class Settings {
 				$out['referral_param']    = $old( 'referral_param' );
 			} elseif ( ! preg_match( '/^[a-z0-9_\-]+$/', $param ) ) {
 				$errors['referral_param'] = __( 'Only lowercase letters, digits, "-" and "_" are allowed.', 'affiliate-captain' );
+				$out['referral_param']    = $old( 'referral_param' );
+			} elseif ( $param !== $old( 'referral_param' ) && self::reserved_param( $param ) ) {
+				// R14-T6: "p", "s", "page", "add-to-cart", "sub" … would break pages or every partner link.
+				$errors['referral_param'] = __( 'This name is already used by WordPress, WooCommerce, campaign tracking or the plugin itself. Please choose another one, e.g. "ref" or "partner".', 'affiliate-captain' );
 				$out['referral_param']    = $old( 'referral_param' );
 			} else {
 				$out['referral_param'] = $param;
