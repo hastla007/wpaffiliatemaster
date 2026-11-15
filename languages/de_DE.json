@@ -274,6 +274,7 @@
  "A correction of this commission is part of a payout. Cancel that payout first.": "Eine Korrektur dieser Provision ist Teil einer Auszahlung. Stornieren Sie zuerst diese Auszahlung.",
  "A customer account with the partner's e-mail address exists, but the link to connect it has expired or was never sent.": "Es gibt ein Kundenkonto mit der E-Mail-Adresse des Partners, aber der Link zum Verknüpfen ist abgelaufen oder wurde nie gesendet.",
  "A customer account with the partner's e-mail address exists. The partner received a link to connect it (valid for 7 days) and has not used it yet.": "Es gibt ein Kundenkonto mit der E-Mail-Adresse des Partners. Der Partner hat einen Link zum Verknüpfen erhalten (7 Tage gültig) und ihn noch nicht genutzt.",
+ "A landing page is not published": "Eine Landingpage ist nicht veröffentlicht",
  "A link was sent a few minutes ago. Please check your e-mail or try again later.": "Vor wenigen Minuten wurde bereits ein Link gesendet. Bitte prüfen Sie Ihre E-Mails oder versuchen Sie es später erneut.",
  "A page or edge cache was detected (%s). If it serves pages with partner links from the cache, the server never sees those clicks and no commission is recorded. Switch on \"Also record partner links via JavaScript\" (Settings → Tracking) or exclude the link parameter from the cache.": "Ein Seiten- oder Edge-Cache wurde erkannt (%s). Liefert er Seiten mit Partnerlinks aus dem Cache, sieht der Server diese Klicks nie und es wird keine Provision erfasst. Schalten Sie „Partnerlinks zusätzlich per JavaScript erfassen“ ein (Einstellungen → Tracking) oder nehmen Sie den Link-Parameter vom Cache aus.",
  "A percentage cannot exceed 100.": "Ein Prozentsatz darf 100 nicht überschreiten.",
@@ -1080,6 +1081,7 @@
  ],
  "Key unchanged – confirm without deleting": "Schlüssel unverändert – ohne Löschen bestätigen",
  "Label every post with your link, code, short link or QR code as advertising – e.g. with \"%s\" at the beginning, visible without clicking.": "Kennzeichnen Sie jeden Beitrag mit Ihrem Link, Code, Kurzlink oder QR-Code als Werbung – z. B. mit „%s“ am Anfang, ohne Klick sichtbar.",
+ "Landing links of partners lead to the default landing page or the home page instead, as long as these pages are in the trash, drafts or private. Page IDs: %s": "Landing-Links der Partner führen stattdessen auf die Standard-Landingpage bzw. die Startseite, solange diese Seiten im Papierkorb liegen, Entwürfe oder privat sind. Seiten-IDs: %s",
  "Landing page": "Landingpage",
  "Landing page path": "URL-Pfad der Landingpages",
  "Last 12 months": "Letzte 12 Monate",
@@ -2253,6 +2255,7 @@
   "Bisher in diesem Monat: %s Bestellungen"
  ],
  "This month so far: %s orders": "Bisher in diesem Monat: %s Bestellungen",
+ "This name is already used by WordPress, WooCommerce, campaign tracking or the plugin itself. Please choose another one, e.g. \"ref\" or \"partner\".": "Dieser Name wird bereits von WordPress, WooCommerce, der Kampagnenmessung oder dem Plugin selbst verwendet. Bitte wählen Sie einen anderen, z. B. „ref“ oder „partner“.",
  "This objection was already handled (or no longer exists); nothing was sent.": "Dieser Widerspruch wurde bereits bearbeitet (oder existiert nicht mehr); es wurde nichts gesendet.",
  "This objection was already handled, no longer exists or could not be saved; nothing was sent.": "Dieser Widerspruch wurde bereits bearbeitet, existiert nicht mehr oder konnte nicht gespeichert werden; es wurde nichts versendet.",
  "This order is not attributed yet; assign it instead.": "Diese Bestellung ist noch nicht zugeordnet; ordnen Sie sie stattdessen zu.",

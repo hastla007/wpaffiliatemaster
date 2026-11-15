@@ -6187,6 +6187,15 @@ msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. 
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "A landing page is not published"
+msgstr ""
+
+#. translators: %s: page IDs
+#: src/Core/Monitor.php
+msgid "Landing links of partners lead to the default landing page or the home page instead, as long as these pages are in the trash, drafts or private. Page IDs: %s"
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Partner program is in maintenance mode"
 msgstr ""
 
@@ -6308,6 +6317,10 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "Only lowercase letters, digits, \"-\" and \"_\" are allowed."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "This name is already used by WordPress, WooCommerce, campaign tracking or the plugin itself. Please choose another one, e.g. \"ref\" or \"partner\"."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -9191,15 +9204,15 @@ msgid "Please enter a title."
 msgstr ""
 
 #: src/Promotion/Creatives.php
+msgid "The target page must be on this website."
+msgstr ""
+
+#: src/Promotion/Creatives.php
 msgid "Please choose an image from the media library."
 msgstr ""
 
 #: src/Promotion/Creatives.php
 msgid "Please enter the text."
-msgstr ""
-
-#: src/Promotion/Creatives.php
-msgid "The target page must be on this website."
 msgstr ""
 
 #: src/Promotion/Creatives.php

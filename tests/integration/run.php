@@ -1558,6 +1558,7 @@ require __DIR__ . '/r13-d.php'; // Round 13, part D (privacy).
 require __DIR__ . '/r13-pro.php'; // Core requests of the Pro audit (before r8-render).
 require __DIR__ . '/r14-g4.php'; // Round 14, fix agent g4 (legal; before r8-render).
 require __DIR__ . '/r14-g3.php'; // Round 14, fix agent g3 (before r8-render).
+require __DIR__ . '/r14-g2.php'; // Round 14, fix agent g2 (before r8-render: no template stubs needed).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

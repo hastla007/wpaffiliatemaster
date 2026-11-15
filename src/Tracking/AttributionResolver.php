@@ -288,8 +288,9 @@ final class AttributionResolver {
 				}
 			}
 		}
-		$street = self::comparable( isset( $customer['address'] ) ? (string) $customer['address'] : '' );
-		return strlen( $street ) >= 4 && false !== strpos( str_replace( ' ', '', $words ), $street );
+		// Whole words only (R14-T1): "Am Markt 1" must not match "Am Markt 15", "Ring 1" not "Ring 1a".
+		$street = self::comparable( isset( $customer['address'] ) ? (string) $customer['address'] : '', true );
+		return strlen( str_replace( ' ', '', $street ) ) >= 4 && false !== strpos( $words, ' ' . $street . ' ' );
 	}
 
 	/**
@@ -320,6 +321,11 @@ final class AttributionResolver {
 			)
 		);
 		$text = preg_replace( '/stra(ss)?e\b|str\./', 'str', $text );
+		if ( $keep_spaces ) {
+			// "Hauptstr.2" and "Hauptstraße 2" give the same words (a letter followed by a digit
+			// starts a new word; "1a" stays one word, so "Ring 1" never matches "Ring 1a").
+			$text = (string) preg_replace( '/(?<=[a-z])(?=[0-9])/', ' ', $text );
+		}
 		return trim( (string) preg_replace( $keep_spaces ? '/[^a-z0-9]+/' : '/[^a-z0-9]/', $keep_spaces ? ' ' : '', $text ) );
 	}
 }

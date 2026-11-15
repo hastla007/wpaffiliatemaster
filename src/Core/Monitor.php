@@ -121,8 +121,38 @@ final class Monitor {
 			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY was removed or changed', 'affiliate-captain' ), __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links. This warning stays until the earlier key is back, the old links are gone, or you confirm the change under Integrations → System status.', 'affiliate-captain' ) );
 		}
 
+		$landing = self::unpublished_landing_pages();
+		if ( $landing ) {
+			$out['landing_pages'] = array(
+				'recommended',
+				__( 'A landing page is not published', 'affiliate-captain' ),
+				/* translators: %s: page IDs */
+				sprintf( __( 'Landing links of partners lead to the default landing page or the home page instead, as long as these pages are in the trash, drafts or private. Page IDs: %s', 'affiliate-captain' ), implode( ', ', $landing ) ),
+			);
+		}
+
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			$out['maintenance'] = array( 'recommended', __( 'Partner program is in maintenance mode', 'affiliate-captain' ), __( 'Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait.', 'affiliate-captain' ) );
+		}
+		return $out;
+	}
+
+	/**
+	 * Landing pages that are set (default page, pages of active partners) but not published
+	 * (R14-T2).
+	 *
+	 * @return int[] Page IDs.
+	 */
+	public static function unpublished_landing_pages() {
+		global $wpdb;
+		$t   = Db::table( 'affiliates' );
+		$ids = array_map( 'intval', (array) $wpdb->get_col( "SELECT DISTINCT landing_page_id FROM {$t} WHERE status = 'active' AND landing_page_id > 0 LIMIT 200" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		array_unshift( $ids, (int) Settings::get( 'landing_page_id' ) );
+		$out = array();
+		foreach ( array_unique( array_filter( $ids ) ) as $id ) {
+			if ( ! Locale::published( $id ) ) {
+				$out[] = $id;
+			}
 		}
 		return $out;
 	}

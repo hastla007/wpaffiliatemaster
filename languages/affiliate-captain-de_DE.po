@@ -4484,6 +4484,12 @@ msgstr "WPAC_CUSTOMER_KEY wurde entfernt oder geändert"
 msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links. This warning stays until the earlier key is back, the old links are gone, or you confirm the change under Integrations → System status."
 msgstr "Die vorhandenen Kundenverknüpfungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanträge finden ihre Verknüpfungen nicht mehr. Dieser Hinweis bleibt, bis der frühere Schlüssel wieder gesetzt ist, die alten Verknüpfungen entfernt sind oder Sie die Änderung unter Integrationen → Systemstatus bestätigen."
 
+msgid "A landing page is not published"
+msgstr "Eine Landingpage ist nicht veröffentlicht"
+
+msgid "Landing links of partners lead to the default landing page or the home page instead, as long as these pages are in the trash, drafts or private. Page IDs: %s"
+msgstr "Landing-Links der Partner führen stattdessen auf die Standard-Landingpage bzw. die Startseite, solange diese Seiten im Papierkorb liegen, Entwürfe oder privat sind. Seiten-IDs: %s"
+
 msgid "Partner program is in maintenance mode"
 msgstr "Partnerprogramm ist im Wartungsmodus"
 
@@ -4573,6 +4579,9 @@ msgstr "Bitte geben Sie einen Parameternamen ein."
 
 msgid "Only lowercase letters, digits, \"-\" and \"_\" are allowed."
 msgstr "Erlaubt sind nur Kleinbuchstaben, Ziffern, „-“ und „_“."
+
+msgid "This name is already used by WordPress, WooCommerce, campaign tracking or the plugin itself. Please choose another one, e.g. \"ref\" or \"partner\"."
+msgstr "Dieser Name wird bereits von WordPress, WooCommerce, der Kampagnenmessung oder dem Plugin selbst verwendet. Bitte wählen Sie einen anderen, z. B. „ref“ oder „partner“."
 
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty."
 msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein (z. B. 10 oder 12,5) oder lassen Sie das Feld leer."
@@ -6637,14 +6646,14 @@ msgstr "Archiviert"
 msgid "Please enter a title."
 msgstr "Bitte geben Sie einen Titel ein."
 
+msgid "The target page must be on this website."
+msgstr "Die Zielseite muss auf dieser Website liegen."
+
 msgid "Please choose an image from the media library."
 msgstr "Bitte wählen Sie ein Bild aus der Mediathek."
 
 msgid "Please enter the text."
 msgstr "Bitte geben Sie den Text ein."
-
-msgid "The target page must be on this website."
-msgstr "Die Zielseite muss auf dieser Website liegen."
 
 msgid "The draft could not be saved. Please try again; nothing was changed."
 msgstr "Der Entwurf konnte nicht gespeichert werden. Bitte versuchen Sie es erneut; es wurde nichts geändert."

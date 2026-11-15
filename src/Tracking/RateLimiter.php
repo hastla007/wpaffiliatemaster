@@ -43,6 +43,37 @@ final class RateLimiter {
 	}
 
 	/**
+	 * Whether the current client already used up a limit in this window – without counting a hit
+	 * (read only; false when nothing is stored or the storage is not available).
+	 *
+	 * @param string $bucket Bucket name.
+	 * @param int    $limit  Max hits per window (0 = unlimited).
+	 * @param int    $window Seconds.
+	 * @return bool
+	 */
+	public static function exceeded( $bucket, $limit, $window = 60 ) {
+		global $wpdb;
+		$limit = self::limit( $bucket, $limit, $window );
+		if ( $limit <= 0 ) {
+			return false;
+		}
+		$window = max( 1, (int) $window );
+		$key    = self::key( $bucket . '|ip:' . self::bucket_ip( self::current_ip() ) . '|' . (int) floor( time() / $window ) );
+		if ( self::use_object_cache() ) {
+			$hits = wp_cache_get( 'wpac_rl_' . $key, 'wpac_rl' );
+			if ( false !== $hits ) {
+				return (int) $hits > $limit;
+			}
+		}
+		$table    = \WPAffiliateCaptain\Core\Db::table( 'rate_limits' );
+		$suppress = $wpdb->suppress_errors( true );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$hits = $wpdb->get_var( $wpdb->prepare( "SELECT hits FROM {$table} WHERE rl_key = UNHEX(%s) AND expires_at >= %d", $key, time() ) );
+		$wpdb->suppress_errors( $suppress );
+		return null !== $hits && (int) $hits > $limit;
+	}
+
+	/**
 	 * Whether an action for a subject other than the client IP may be performed,
 	 * e.g. per partner or per recipient address (an attacker can rotate IPs, not
 	 * the account or the address being targeted). The subject is only stored as
