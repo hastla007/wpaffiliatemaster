@@ -210,6 +210,11 @@ final class Retention {
 		update_option( \WPAffiliateCaptain\Payouts\Objections::OPTION, $objections, false );
 		// Change log of the partner's payouts (e.g. the reason of a cancellation).
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'payout' AND object_id IN (SELECT id FROM {$p} WHERE affiliate_id = %d)", $affiliate_id ) );
+		// Change log of the partner's payout details and requests, kept unchanged by the erasure
+		// during the retention period (acceptance records go with delete_agreements()).
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%'", $affiliate_id ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
+		// The tax data history was only needed for corrections within the retention period.
+		\WPAffiliateCaptain\Payouts\TaxHistory::delete( (int) $affiliate_id );
 		// phpcs:enable
 	}
 

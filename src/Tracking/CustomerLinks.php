@@ -30,6 +30,16 @@ final class CustomerLinks {
 		return hash_hmac( 'sha256', $identifier, self::key() );
 	}
 
+	/** Option: fingerprint of WPAC_CUSTOMER_KEY once the hashes are made with it. */
+	const CONSTANT_FP = 'wpac_customer_key_constant';
+
+	/**
+	 * Key of the request (cached: the decision needs one query).
+	 *
+	 * @var array|null
+	 */
+	private static $state = null;
+
 	/**
 	 * Dedicated, persistent key (independent of WordPress salt rotation, so
 	 * erasure requests still find the hashes).
@@ -37,12 +47,106 @@ final class CustomerLinks {
 	 * @return string
 	 */
 	private static function key() {
-		$key = get_option( 'wpac_customer_key' );
-		if ( ! is_string( $key ) || strlen( $key ) < 32 ) {
-			$key = bin2hex( random_bytes( 32 ) );
-			add_option( 'wpac_customer_key', $key, '', false );
+		return self::key_state()['key'];
+	}
+
+	/**
+	 * A valid WPAC_CUSTOMER_KEY from wp-config.php (at least 32 characters), or ''.
+	 *
+	 * @return string
+	 */
+	private static function constant_key() {
+		return defined( 'WPAC_CUSTOMER_KEY' ) && is_string( WPAC_CUSTOMER_KEY ) && strlen( WPAC_CUSTOMER_KEY ) >= 32 ? (string) WPAC_CUSTOMER_KEY : '';
+	}
+
+	/**
+	 * Which key the hashes use. WPAC_CUSTOMER_KEY (wp-config.php, so a database dump alone does
+	 * not reverse the hashes) is only taken while no customer links exist yet, or when the
+	 * existing links were made with it: the e-mail addresses are not stored, so existing hashes
+	 * cannot be recomputed with a new key. Otherwise the stored key stays in use and
+	 * status() reports the constant as ignored.
+	 *
+	 * @return array key, source (constant|option), ignored (constant set but not used),
+	 *               missing (links were made with the constant, which is no longer defined).
+	 */
+	private static function key_state() {
+		if ( null !== self::$state ) {
+			return self::$state;
 		}
-		return $key;
+		$const  = self::constant_key();
+		$fp     = (string) get_option( self::CONSTANT_FP, '' );
+		$stored = get_option( 'wpac_customer_key' );
+		$stored = is_string( $stored ) && strlen( $stored ) >= 32 ? $stored : '';
+		$state  = array(
+			'key'     => '',
+			'source'  => 'option',
+			'ignored' => false,
+			'missing' => false,
+		);
+		if ( '' !== $const ) {
+			$fp_new = hash( 'sha256', $const );
+			if ( hash_equals( $fp, $fp_new ) ) {
+				$state['source'] = 'constant';
+			} elseif ( '' === $fp && '' !== $stored && self::has_links() ) {
+				// Existing hashes were made with the stored key: keep it, the constant is ignored.
+				$state['ignored'] = true;
+			} else {
+				// No hashes depend on the stored key (or the links were made with an earlier
+				// constant, which is gone either way): the constant takes over.
+				$state['missing'] = '' !== $fp && self::has_links();
+				$state['source']  = 'constant';
+				update_option( self::CONSTANT_FP, $fp_new, false );
+				delete_option( 'wpac_customer_key' );
+			}
+		} elseif ( '' !== $fp ) {
+			// The constant was removed: existing hashes no longer match.
+			$state['missing'] = self::has_links();
+			if ( ! $state['missing'] ) {
+				delete_option( self::CONSTANT_FP );
+			}
+		}
+		if ( 'constant' === $state['source'] ) {
+			$state['key'] = $const;
+		} else {
+			if ( '' === $stored ) {
+				$stored = bin2hex( random_bytes( 32 ) );
+				add_option( 'wpac_customer_key', $stored, '', false );
+			}
+			$state['key'] = $stored;
+		}
+		self::$state = $state;
+		return $state;
+	}
+
+	/**
+	 * Whether any customer link exists (one index lookup).
+	 *
+	 * @return bool
+	 */
+	private static function has_links() {
+		global $wpdb;
+		$t = Db::table( 'customer_links' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		return (bool) $wpdb->get_var( "SELECT 1 FROM {$t} LIMIT 1" );
+	}
+
+	/**
+	 * Key status for Site Health and the system status: source (constant|option), ignored,
+	 * missing (see key_state()).
+	 *
+	 * @return array
+	 */
+	public static function key_status() {
+		$state = self::key_state();
+		unset( $state['key'] );
+		return $state;
+	}
+
+	/**
+	 * Forget the key decision of this request (tests, after the links or options changed).
+	 */
+	public static function reset_key_cache() {
+		self::$state = null;
 	}
 
 	/**

@@ -870,8 +870,34 @@ final class Privacy {
 		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'wpac_dunning_' . (int) $aff->id . '_' ) . '%' ) ) as $option ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			delete_option( (string) $option );
 		}
-		// Free-text details in the audit log (reasons may contain personal data); acceptance records stay as proof.
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%'", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
+		// Free-text details in the audit log (reasons may contain personal data); acceptance records
+		// stay as proof. The change log of booking-relevant data (payout details: tax data and VAT
+		// ID checks, payout requests, …) is kept unchanged as long as Cron::purge_audit() keeps it
+		// for the statements (GoBD): its details are emptied once the entry is past the retention
+		// period (here, or by Retention::scrub_ledger_texts() when the partner's records expire).
+		$audit     = Db::table( 'audit' );
+		$cutoff    = Retention::cutoff();
+		$financial = \WPAffiliateCaptain\Core\Audit::financial_sql();
+		$expired   = null === $cutoff ? '' : $wpdb->prepare( ' OR created_at < %s', $cutoff );
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery -- Table name and constant conditions; values are placeholders.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$audit} SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%' AND ( NOT {$financial}{$expired} )", $aff->id ) );
+		$kept = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$audit} WHERE object_type = 'affiliate' AND object_id = %d AND details IS NOT NULL AND {$financial}", $aff->id ) );
+		// phpcs:enable
+		if ( $kept ) {
+			$messages[] = sprintf(
+				/* translators: %d: number of log entries */
+				_n(
+					'%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards.',
+					'%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards.',
+					$kept,
+					'affiliate-captain'
+				),
+				$kept
+			);
+		}
+		if ( \WPAffiliateCaptain\Payouts\TaxHistory::profile( (int) $aff->id ) && \WPAffiliateCaptain\Payouts\TaxHistory::retained( (int) $aff->id ) ) {
+			$messages[] = __( 'The history of the partner\'s tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards.', 'affiliate-captain' );
+		}
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::clear_cache();
 
 		if ( $open ) {

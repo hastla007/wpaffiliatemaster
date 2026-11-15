@@ -110,6 +110,13 @@ final class Monitor {
 			? array( 'good', __( 'Own encryption key for bank details', 'affiliate-captain' ), '' )
 			: array( 'recommended', __( 'No own encryption key for bank details', 'affiliate-captain' ), __( 'Add WPAC_ENCRYPTION_KEY to wp-config.php so bank details do not depend on the WordPress salts.', 'affiliate-captain' ) );
 
+		$customer = \WPAffiliateCaptain\Tracking\CustomerLinks::key_status();
+		if ( $customer['ignored'] ) {
+			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY is ignored', 'affiliate-captain' ), __( 'Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired).', 'affiliate-captain' ) );
+		} elseif ( $customer['missing'] ) {
+			$out['customer_key'] = array( 'recommended', __( 'WPAC_CUSTOMER_KEY was removed or changed', 'affiliate-captain' ), __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.', 'affiliate-captain' ) );
+		}
+
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			$out['maintenance'] = array( 'recommended', __( 'Partner program is in maintenance mode', 'affiliate-captain' ), __( 'Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait.', 'affiliate-captain' ) );
 		}
@@ -404,6 +411,7 @@ final class Monitor {
 				'DISABLE_WP_CRON'          => $yes( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ),
 				'WPAC_ENCRYPTION_KEY'      => $yes( Crypto::has_dedicated_key() ),
 				'WPAC_STATEMENT_DIR'       => $yes( defined( 'WPAC_STATEMENT_DIR' ) ),
+				'WPAC_CUSTOMER_KEY'        => \WPAffiliateCaptain\Tracking\CustomerLinks::key_status()['source'],
 				'statements_public'        => true === \WPAffiliateCaptain\Payouts\Statement::publicly_accessible() ? 'yes' : 'no/unknown',
 				'trusted_proxies'          => (string) count( $proxy ),
 			),

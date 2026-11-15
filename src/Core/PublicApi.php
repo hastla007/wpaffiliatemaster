@@ -129,7 +129,8 @@ final class PublicApi {
 		if ( is_wp_error( $paging ) ) {
 			return $paging;
 		}
-		list( $rows, $total ) = Ledger::query( $query + $paging['query'] );
+		// Without a filter the total of the whole table is cached briefly (exact when filtered).
+		list( $rows, $total ) = Ledger::query( $query + $paging['query'] + array( 'count' => 'cached' ) );
 		return self::page( array_map( array( __CLASS__, 'commission_data' ), (array) $rows ), $total, $paging );
 	}
 

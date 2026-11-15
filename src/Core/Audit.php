@@ -15,6 +15,27 @@ final class Audit {
 	const REDACT = array( 'iban', 'iban_encrypted', 'password', 'email', 'billing_email', 'customer_email', 'address' );
 
 	/**
+	 * Action prefixes of the change log of booking-relevant data (commissions, payouts,
+	 * statements, payout details and requests, balances, tiers): kept as long as the statements
+	 * (GoBD) by Cron::purge_audit() and not emptied by a partner erasure within that period.
+	 */
+	const FINANCIAL = array( 'payout.', 'statement.', 'payout_profile.', 'payout_request.', 'commission.', 'balance.', 'tier.' );
+
+	/**
+	 * SQL condition "the entry is booking-relevant" (see FINANCIAL), for use inside
+	 * $wpdb->prepare() (the LIKE wildcards are escaped as %%). Constant text, no input.
+	 *
+	 * @return string
+	 */
+	public static function financial_sql() {
+		$like = array();
+		foreach ( self::FINANCIAL as $prefix ) {
+			$like[] = "action LIKE '" . $prefix . "%%'";
+		}
+		return '( ' . implode( ' OR ', $like ) . ' )';
+	}
+
+	/**
 	 * Write an audit entry.
 	 *
 	 * @param string $action      Action slug, e.g. affiliate.approved.
@@ -117,22 +138,7 @@ final class Audit {
 	 * @return int
 	 */
 	private static function total( $where, array $params ) {
-		global $wpdb;
-		$table = Db::table( 'audit' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-		$max   = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
-		$key   = md5( $where . '|' . wp_json_encode( $params ) . '|' . $max );
-		$cache = get_transient( 'wpac_audit_totals' );
-		$cache = is_array( $cache ) ? $cache : array();
-		if ( isset( $cache[ $key ] ) ) {
-			return (int) $cache[ $key ];
-		}
-		$count = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
-		$total = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $count, $params ) ) : $wpdb->get_var( $count ) );
-		$cache = array_slice( array( $key => $total ) + $cache, 0, 10, true );
-		set_transient( 'wpac_audit_totals', $cache, 5 * MINUTE_IN_SECONDS );
-		return $total;
+		return Paged::cached_total( Db::table( 'audit' ), $where, $params, 'wpac_audit_totals' );
 	}
 
 	/**

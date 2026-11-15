@@ -1014,7 +1014,7 @@ final class Portal {
 		printf(
 			/* translators: 1: link, 2: version */
 			esc_html__( 'I accept the %1$s (version %2$s).', 'affiliate-captain' ),
-			'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '</a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			esc_html( $terms['version'] )
 		);
 		echo '</label> <button type="submit" class="wpac-button">' . esc_html__( 'Accept', 'affiliate-captain' ) . '</button></form>';
@@ -1152,7 +1152,7 @@ final class Portal {
 			return '';
 		}
 		$latest = Agreements::latest( (int) $aff->id );
-		$link   = '<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'Partner program terms', 'affiliate-captain' ) . '</a>';
+		$link   = '<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'Partner program terms', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
 		if ( $latest ) {
 			/* translators: 1: link, 2: version, 3: date */
 			return sprintf( esc_html__( '%1$s – accepted version %2$s on %3$s.', 'affiliate-captain' ), $link, esc_html( (string) $latest->version ), esc_html( wp_date( get_option( 'date_format' ), strtotime( $latest->created_at . ' UTC' ) ) ) );
@@ -1318,10 +1318,10 @@ final class Portal {
 			}
 			echo '</div>';
 		}
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Earnings per month', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html__( 'Month', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Sales', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Commission earned', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Earnings per month', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">' . esc_html__( 'Month', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Sales', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Commission earned', 'affiliate-captain' ) . '</th></tr></thead><tbody role="rowgroup">';
 		foreach ( array_reverse( $months, true ) as $ym => $m ) {
 			printf(
-				'<tr><th scope="row" data-label="%4$s">%1$s</th><td data-label="%5$s">%2$s</td><td data-label="%6$s">%3$s</td></tr>',
+				'<tr role="row"><th scope="row" role="rowheader" data-label="%4$s">%1$s</th><td role="cell" data-label="%5$s">%2$s</td><td role="cell" data-label="%6$s">%3$s</td></tr>',
 				esc_html( date_i18n( 'F Y', strtotime( $ym . '-15 12:00:00 UTC' ) ) ),
 				esc_html( number_format_i18n( $m['sales'] ) ),
 				esc_html( self::money_list( $m['earned'] ) ),
@@ -1339,16 +1339,16 @@ final class Portal {
 			return;
 		}
 		$labels = array( __( 'Campaign', 'affiliate-captain' ), __( 'Sub-ID', 'affiliate-captain' ), __( 'Link visits', 'affiliate-captain' ), __( 'Sales', 'affiliate-captain' ), __( 'Conversion rate', 'affiliate-captain' ), __( 'Commission', 'affiliate-captain' ) );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'By campaign and sub-ID', 'affiliate-captain' ) . '</caption><thead><tr>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'By campaign and sub-ID', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row">';
 		foreach ( $labels as $l ) {
-			echo '<th scope="col">' . esc_html( $l ) . '</th>';
+			echo '<th scope="col" role="columnheader">' . esc_html( $l ) . '</th>';
 		}
-		echo '</tr></thead><tbody>';
+		echo '</tr></thead><tbody role="rowgroup">';
 		foreach ( $rows as $r ) {
 			$cells = array( $r['label'], '' !== $r['sub_id'] ? $r['sub_id'] : '—', number_format_i18n( $r['visits'] ), number_format_i18n( $r['orders'] ), self::percent( $r['conversion'] ), $r['commission'] ? self::money_list( $r['commission'] ) : '—' );
-			echo '<tr>';
+			echo '<tr role="row">';
 			foreach ( $cells as $i => $cell ) {
-				echo '<td data-label="' . esc_attr( $labels[ $i ] ) . '">' . esc_html( $cell ) . '</td>';
+				echo '<td role="cell" data-label="' . esc_attr( $labels[ $i ] ) . '">' . esc_html( $cell ) . '</td>';
 			}
 			echo '</tr>';
 		}
@@ -1500,15 +1500,15 @@ final class Portal {
 			return;
 		}
 		$labels = array( __( 'Code', 'affiliate-captain' ), __( 'Coupon', 'affiliate-captain' ), __( 'Used', 'affiliate-captain' ), __( 'Valid until', 'affiliate-captain' ), __( 'Status', 'affiliate-captain' ) );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your codes', 'affiliate-captain' ) . '</caption><thead><tr>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Your codes', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row">';
 		foreach ( $labels as $l ) {
-			echo '<th scope="col">' . esc_html( $l ) . '</th>';
+			echo '<th scope="col" role="columnheader">' . esc_html( $l ) . '</th>';
 		}
-		echo '</tr></thead><tbody>';
+		echo '</tr></thead><tbody role="rowgroup">';
 		foreach ( $codes as $c ) {
 			$valid = (bool) CodeRepository::validate( $c );
 			printf(
-				'<tr><td data-label="%6$s"><code>%1$s</code></td><td data-label="%7$s">%2$s</td><td data-label="%8$s">%3$s</td><td data-label="%9$s">%4$s</td><td data-label="%10$s">%5$s</td></tr>',
+				'<tr role="row"><td role="cell" data-label="%6$s"><code>%1$s</code></td><td role="cell" data-label="%7$s">%2$s</td><td role="cell" data-label="%8$s">%3$s</td><td role="cell" data-label="%9$s">%4$s</td><td role="cell" data-label="%10$s">%5$s</td></tr>',
 				esc_html( $c->code ),
 				esc_html( $c->coupon_code ? strtoupper( $c->coupon_code ) : '—' ),
 				esc_html( (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) ),
@@ -1672,11 +1672,11 @@ final class Portal {
 		}
 		$reasons = self::rejection_reasons( $rows );
 		$cols    = array( __( 'Date', 'affiliate-captain' ), __( 'Order', 'affiliate-captain' ), __( 'Product', 'affiliate-captain' ), __( 'Base', 'affiliate-captain' ), __( 'Rate', 'affiliate-captain' ), __( 'Amount', 'affiliate-captain' ), __( 'Status', 'affiliate-captain' ), __( 'Available from', 'affiliate-captain' ) );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your commissions', 'affiliate-captain' ) . '</caption><thead><tr>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Your commissions', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row">';
 		foreach ( $cols as $col ) {
-			echo '<th scope="col">' . esc_html( $col ) . '</th>';
+			echo '<th scope="col" role="columnheader">' . esc_html( $col ) . '</th>';
 		}
-		echo '</tr></thead><tbody>';
+		echo '</tr></thead><tbody role="rowgroup">';
 		foreach ( $rows as $r ) {
 			$product = in_array( $r->kind, array( 'sale', 'bonus' ), true ) ? $r->description : sprintf( '%s (%s)', __( 'Correction', 'affiliate-captain' ), self::kind_label( $r->kind ) );
 			$status  = self::status( $r->status, isset( $labels[ $r->status ] ) ? $labels[ $r->status ] : $r->status );
@@ -1702,9 +1702,9 @@ final class Portal {
 				$status,
 				esc_html( $available ),
 			);
-			echo '<tr>';
+			echo '<tr role="row">';
 			foreach ( $cells as $i => $cell ) {
-				echo '<td data-label="' . esc_attr( $cols[ $i ] ) . '">' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				echo '<td role="cell" data-label="' . esc_attr( $cols[ $i ] ) . '">' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 			}
 			echo '</tr>';
 		}
@@ -1777,7 +1777,7 @@ final class Portal {
 			return;
 		}
 		self::list_filter_form( 'payouts', $labels, $filters );
-		echo '<table class="wpac-table"><caption class="wpac-sr">' . esc_html__( 'Your payouts', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Period until', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="wpac-table" role="table"><caption class="wpac-sr">' . esc_html__( 'Your payouts', 'affiliate-captain' ) . '</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">' . esc_html_x( 'Number', 'document number', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Period until', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Amount', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th scope="col" role="columnheader">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</th></tr></thead><tbody role="rowgroup">';
 		$kgs = \WPAffiliateCaptain\Payouts\Corrections::for_payouts( wp_list_pluck( $rows, 'id' ) );
 		foreach ( $rows as $p ) {
 			if ( 'cancelled' === $p->status && ! $p->storno_file ) {
@@ -1797,7 +1797,7 @@ final class Portal {
 				}
 			}
 			printf(
-				'<tr><td data-label="%6$s">%1$s</td><td data-label="%7$s">%2$s</td><td data-label="%8$s">%3$s</td><td data-label="%9$s">%4$s</td><td data-label="%10$s">%5$s</td></tr>',
+				'<tr role="row"><td role="cell" data-label="%6$s">%1$s</td><td role="cell" data-label="%7$s">%2$s</td><td role="cell" data-label="%8$s">%3$s</td><td role="cell" data-label="%9$s">%4$s</td><td role="cell" data-label="%10$s">%5$s</td></tr>',
 				esc_html( $p->number ),
 				esc_html( date_i18n( get_option( 'date_format' ), strtotime( $p->period_end ) ) ),
 				esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ),

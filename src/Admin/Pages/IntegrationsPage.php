@@ -296,6 +296,12 @@ final class IntegrationsPage {
 			array( ! \WPAffiliateCaptain\Commissions\Balance::verify_all( 200 ), __( 'Partner accounts: booking chains intact and balances match the commission ledger', 'affiliate-captain' ) ),
 			array( \WPAffiliateCaptain\Core\Monitor::cron_running(), __( 'Scheduled tasks active (hold period release, retries)', 'affiliate-captain' ) ),
 		);
+		if ( defined( 'WPAC_CUSTOMER_KEY' ) ) {
+			$customer = \WPAffiliateCaptain\Tracking\CustomerLinks::key_status();
+			$checks[] = 'constant' === $customer['source'] && ! $customer['missing']
+				? array( true, __( 'Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php', 'affiliate-captain' ) )
+				: array( false, $customer['ignored'] ? __( 'WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored).', 'affiliate-captain' ) : __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.', 'affiliate-captain' ) );
+		}
 		foreach ( $checks as $c ) {
 			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '"><span aria-hidden="true">' . ( $c[0] ? '✔' : '!' ) . '</span> ' . esc_html( $c[1] ) . '<span class="screen-reader-text"> – ' . esc_html( $c[0] ? __( 'OK', 'affiliate-captain' ) : __( 'check', 'affiliate-captain' ) ) . '</span></li>';
 		}
