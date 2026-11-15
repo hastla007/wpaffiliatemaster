@@ -196,6 +196,9 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_refund_after_correction` | `array $refund, string $credit_note, string[] $corrections` – Erstattung/Storno einer Bestellung abgezogen, deren Gutschrift bereits eine Korrekturgutschrift hat (die die Erstattung schon enthalten kann); die WooCommerce-Integration schreibt eine Bestellnotiz. Buchung unverändert. |
 | `wpac_affiliate_created` | `int $affiliate_id, string $status` |
 | `wpac_affiliate_status_changed` | `int $affiliate_id, string $new, string $old` |
+| `wpac_code_requested` | `int $affiliate_id, string $code, int $row_id` – ein Partner hat im Partnerbereich einen eigenen Code beantragt (Zeile in `partner_codes` mit Status `requested`, wird nie aufgelöst). Seit Plugin 0.15.0. |
+| `wpac_code_request_approved` | `int $affiliate_id, string $code, int $row_id, bool $make_main` – Antrag freigegeben, der Code ist aktiv. Seit Plugin 0.15.0. |
+| `wpac_code_request_rejected` | `int $affiliate_id, string $code, string $reason` – Antrag abgelehnt, die Zeile ist gelöscht, der Code wieder frei. Seit Plugin 0.15.0. |
 
 | `wpac_contract_not_queued` | `string $what` (`sale`/`refund`), `array $data` – Verkauf/Erstattung konnte weder verbucht noch für die Wiederholung gespeichert werden (z. B. Datenbank weg); die Quelle muss selbst erneut senden. Steht zusätzlich im Plugin-Log. |
 
@@ -225,6 +228,9 @@ Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempo
 | `wpac_mail_sent` ( `$type`, `$mail`, `$sent`, `$context` ) | Action | Nach der Übergabe an `wp_mail()`. |
 | `wpac_mail_failed` ( `$type`, `$mail`, `$error`, `$context` ) | Action | E-Mail konnte nicht gesendet werden (Grund aus `wp_mail_failed`); steht auch im Plugin-Log. |
 | `wpac_notify_payout_paid` ( `$send` ) | Filter | Mail „Auszahlung überwiesen“ (Standard: Einstellung „E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde“). |
+| `wpac_code_requests_per_month` ( `$limit`, `$affiliate_id` ) | Filter | Code-Anträge eines Partners in 30 Tagen (Standard 3; abgelehnte und zurückgezogene zählen mit; immer nur ein offener Antrag). Seit Plugin 0.15.0. |
+| `wpac_code_request_max_length` ( `$length` ) | Filter | Höchstlänge eines beantragten Codes (Standard 20, 3–64). Seit Plugin 0.15.0. |
+| `wpac_reserved_partner_codes` ( `$words` ) | Filter | Codes, die Partner nicht beantragen können (zusätzlich zu den reservierten Namen des Referral-Parameters `wpac_reserved_referral_params`, `DEL-…` und `WPAC…`). Seit Plugin 0.15.0. |
 | `wpac_portal_tabs` ( `$tabs`, `$aff` ) | Filter | Wie oben; zusätzlich lassen sich die Kern-Tabs `overview`, `links`, `promotion`, `commissions`, `payouts` ausblenden, indem man sie entfernt (Auszahlungsdaten, Konto und Datenschutz bleiben immer). |
 
 **Plugin-Log:** WooCommerce → Status → Protokolle, Quelle `affiliate-captain` (bis 0.10 `wp-affiliate-captain`); ohne WooCommerce das PHP-Fehlerprotokoll (`Affiliate Captain error: …`). Einträge zu Exceptions enthalten Klasse, Fehlercode, Datei und Zeile, nie personenbezogene Daten.
