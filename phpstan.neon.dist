@@ -1,7 +1,11 @@
 includes:
 	- vendor/szepeviktor/phpstan-wordpress/extension.neon
+	# Known false positives of the WooCommerce stubs (subclass methods on base types), R14-A4.
+	- phpstan-baseline.neon
 parameters:
-	level: 1
+	level: 3
+	# Stub versions differ between local runs and CI: a baseline entry that does not occur is fine.
+	reportUnmatchedIgnoredErrors: false
 	phpVersion: 70400
 	paths:
 		- affiliate-captain.php

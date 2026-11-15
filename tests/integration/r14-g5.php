@@ -164,7 +164,7 @@ $GLOBALS['g5_filter_saw'] = '';
 add_filter(
 	'wpac_mail',
 	static function ( $mail, $type, $context ) {
-		if ( 'bank_details_changed' === $type ) {
+		if ( 'bank_details_changed' === $type && ! empty( $GLOBALS['g5_filter_on'] ) ) { // Only for this check: later files send the same mail type.
 			$GLOBALS['g5_filter_saw'] = $mail['message'] . '|' . ( $context['template'] ?? '' );
 			$mail['subject']          = 'Vom Filter';
 		}
@@ -174,8 +174,10 @@ add_filter(
 	3
 );
 Notifications::save_template( 'bank_details_changed', 'Bankdaten', 'Hallo {name}, deine Bankdaten wurden geändert.' );
-$GLOBALS['g5_sent'] = array();
+$GLOBALS['g5_sent']      = array();
+$GLOBALS['g5_filter_on'] = true;
 Notifications::bank_details_changed( $g5_aff );
+$GLOBALS['g5_filter_on'] = false;
 check(
 	'R14-P1 wpac_mail sees the filled-in template (and the template key) and its changes win',
 	array( 'Hallo Gerda Fünf, deine Bankdaten wurden geändert.|bank_details_changed', 'Vom Filter' ),

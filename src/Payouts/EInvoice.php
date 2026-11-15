@@ -1162,7 +1162,8 @@ final class EInvoice {
 			$out['BR-CO-26'] = 'seller identifier, legal registration or VAT ID missing';
 		}
 		$tax_total = $x->query( $sum . '/ram:TaxTotalAmount' );
-		if ( ! $tax_total || 1 !== $tax_total->length || '' === trim( (string) $tax_total->item( 0 )->textContent ) || $tax_total->item( 0 )->getAttribute( 'currencyID' ) !== $val( $st . '/ram:InvoiceCurrencyCode' ) ) {
+		$tax_node  = $tax_total && 1 === $tax_total->length ? $tax_total->item( 0 ) : null;
+		if ( ! $tax_node instanceof \DOMElement || '' === trim( (string) $tax_node->textContent ) || $tax_node->getAttribute( 'currencyID' ) !== $val( $st . '/ram:InvoiceCurrencyCode' ) ) {
 			$out['BR-CO-14'] = 'invoice total VAT amount missing or without currency';
 		}
 		$means = $val( $st . '/ram:SpecifiedTradeSettlementPaymentMeans/ram:TypeCode' );

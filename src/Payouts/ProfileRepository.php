@@ -410,6 +410,31 @@ final class ProfileRepository {
 			// (IBAN or manual payment details alike).
 			$data['iban_encrypted'] = Crypto::encrypt( (string) Crypto::decrypt( (string) $existing->iban_encrypted ) );
 		}
+		// A new payout destination entered in the partner area shortly after the account access
+		// changed (e-mail address, linked user) waits for approval: whoever took over the access
+		// must not redirect the next payout (R14-S1). The stored destination stays meanwhile.
+		$held = false;
+		if ( $existing && self::changes_destination( $existing, $in ) ) {
+			if ( 'partner' === $context && \WPAffiliateCaptain\Affiliates\AffiliateRepository::access_changed_recently( (int) $affiliate_id ) ) {
+				$new_destination = array();
+				foreach ( self::DESTINATION_FIELDS as $f ) {
+					$new_destination[ $f ] = isset( $data[ $f ] ) ? (string) $data[ $f ] : (string) $existing->$f;
+					$data[ $f ]            = (string) $existing->$f;
+				}
+				update_option(
+					self::BANK_PENDING . (int) $affiliate_id,
+					array(
+						'data'         => $new_destination,
+						'method'       => $method,
+						'requested_at' => Db::now(),
+					),
+					false
+				);
+				$held = true;
+			} else {
+				delete_option( self::BANK_PENDING . (int) $affiliate_id ); // Replaced by the details saved now.
+			}
+		}
 		// Tax data: compare with the stored data (old values go to the audit log and the history).
 		$tax_old = TaxHistory::fields( $existing );
 		$tax_new = TaxHistory::fields( $data );
@@ -463,14 +488,18 @@ final class ProfileRepository {
 		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
 		}
-		if ( '' !== $iban || self::METHOD_MANUAL === $method ) {
+		if ( ! $held && ( '' !== $iban || self::METHOD_MANUAL === $method ) ) {
 			self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : array() );
 		}
 		if ( $pending && '' !== $tax_new['vat_id'] ) {
 			Vies::schedule( (int) $affiliate_id ); // Checks the requested VAT ID: the result helps the admin decide.
 		}
 		$had_details = $existing && '' !== (string) $existing->iban_encrypted;
-		$changed     = $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $method !== $old_method );
+		$changed     = ! $held && $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $method !== $old_method );
+		if ( $held ) {
+			Audit::log( 'payout_profile.bank_change_requested', 'affiliate', (int) $affiliate_id, array( 'payout_method' => $method ) );
+			self::notify_bank_change_held( (int) $affiliate_id );
+		}
 		if ( $changed ) {
 			// Security notice to the partner: where the money goes was changed.
 			\WPAffiliateCaptain\Affiliates\Notifications::bank_details_changed( (int) $affiliate_id );
@@ -482,11 +511,149 @@ final class ProfileRepository {
 			array(
 				'tax_status'      => $tax,
 				'payout_method'   => $method,
-				'iban_changed'    => '' !== $iban,
-				'details_changed' => $details_new,
+				'iban_changed'    => ! $held && '' !== $iban,
+				'details_changed' => ! $held && $details_new,
+				'bank_held'       => $held,
 			)
 		);
 		return true;
+	}
+
+	/** Columns that decide where a payout goes (held together while a change waits, R14-S1). */
+	const DESTINATION_FIELDS = array( 'iban_encrypted', 'iban_country', 'iban_last4', 'bic', 'account_holder' );
+
+	/** Option prefix (+ partner ID): payout destination waiting for approval. */
+	const BANK_PENDING = 'wpac_bank_pending_';
+
+	/**
+	 * Payout destination waiting for approval, or null: data (encrypted like the profile), method,
+	 * requested_at.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return array|null
+	 */
+	public static function pending_bank_change( $affiliate_id ) {
+		$p = get_option( self::BANK_PENDING . (int) $affiliate_id );
+		return is_array( $p ) && isset( $p['data'] ) && is_array( $p['data'] ) ? $p : null;
+	}
+
+	/**
+	 * The waiting destination for display: "DE•• •••• 3000" or the masked payment details.
+	 *
+	 * @param array $pending As returned by pending_bank_change().
+	 * @return string
+	 */
+	public static function pending_bank_label( array $pending ) {
+		$profile = (object) $pending['data'];
+		if ( self::METHOD_MANUAL === self::method( $profile ) ) {
+			$details = self::payment_details( $profile );
+			return null === $details ? '—' : self::mask_details( $details );
+		}
+		return Iban::mask( (string) $profile->iban_last4, (string) $profile->iban_country );
+	}
+
+	/**
+	 * Approve the waiting payout destination: it applies from now on.
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return true|\WP_Error
+	 */
+	public static function approve_bank_change( $affiliate_id ) {
+		global $wpdb;
+		$pending  = self::pending_bank_change( (int) $affiliate_id );
+		$existing = self::get( (int) $affiliate_id );
+		if ( ! $pending || ! $existing ) {
+			return new \WP_Error( 'wpac_none', __( 'There is no pending change of the bank details.', 'affiliate-captain' ) );
+		}
+		$data = array_intersect_key( $pending['data'], array_flip( self::DESTINATION_FIELDS ) );
+		$ok   = $wpdb->update( Db::table( 'payout_profiles' ), $data + array( 'updated_at' => Db::now() ), array( 'affiliate_id' => (int) $affiliate_id ) );
+		if ( false === $ok ) {
+			return new \WP_Error( 'wpac_db', __( 'The payout details could not be saved. Please try again.', 'affiliate-captain' ) );
+		}
+		delete_option( self::BANK_PENDING . (int) $affiliate_id );
+		Audit::log( 'payout_profile.bank_change_approved', 'affiliate', (int) $affiliate_id, array( 'payout_method' => (string) $pending['method'] ) );
+		$profile = self::get( (int) $affiliate_id );
+		$iban    = self::METHOD_SEPA === self::method( $profile ) ? (string) self::iban( $profile ) : '';
+		self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : array() );
+		\WPAffiliateCaptain\Affiliates\Notifications::bank_details_changed( (int) $affiliate_id );
+		return true;
+	}
+
+	/**
+	 * Reject the waiting payout destination (the stored details stay).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return true|\WP_Error
+	 */
+	public static function reject_bank_change( $affiliate_id ) {
+		if ( ! self::pending_bank_change( (int) $affiliate_id ) ) {
+			return new \WP_Error( 'wpac_none', __( 'There is no pending change of the bank details.', 'affiliate-captain' ) );
+		}
+		delete_option( self::BANK_PENDING . (int) $affiliate_id );
+		Audit::log( 'payout_profile.bank_change_rejected', 'affiliate', (int) $affiliate_id );
+		$aff = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( (int) $affiliate_id );
+		if ( $aff ) {
+			$switched = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
+			try {
+				\WPAffiliateCaptain\Affiliates\Notifications::send(
+					'bank_change_rejected',
+					\WPAffiliateCaptain\Affiliates\AffiliateRepository::alert_recipients( $aff ),
+					/* translators: %s: site name */
+					sprintf( __( '[%s] Your change of the bank details was not accepted', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+					/* translators: %s: name */
+					sprintf( __( "Hello %s,\n\nwe did not accept the recent change of your bank details; payouts still go to the previous account. Please contact us if you want to change them.", 'affiliate-captain' ), $aff->name ),
+					array( 'affiliate_id' => (int) $affiliate_id )
+				);
+			} finally {
+				\WPAffiliateCaptain\Core\Locale::restore( $switched );
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Tell the partner (current and recent previous address) and the admin that a new payout
+	 * destination waits for approval.
+	 *
+	 * @param int $affiliate_id Partner.
+	 */
+	private static function notify_bank_change_held( $affiliate_id ) {
+		$aff = \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( (int) $affiliate_id );
+		if ( ! $aff ) {
+			return;
+		}
+		$site     = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$switched = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
+		try {
+			\WPAffiliateCaptain\Affiliates\Notifications::send(
+				'bank_change_held',
+				\WPAffiliateCaptain\Affiliates\AffiliateRepository::alert_recipients( $aff ),
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Your new bank details wait for our approval', 'affiliate-captain' ), $site ),
+				/* translators: %s: name */
+				sprintf( __( "Hello %s,\n\nnew bank details for your commission payouts were entered in the partner area. Because the access to your partner account changed recently, we check them first; until then payouts go to the previous account. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), $aff->name ),
+				array( 'affiliate_id' => (int) $affiliate_id )
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
+		$switched = \WPAffiliateCaptain\Affiliates\Notifications::switch_for_admin();
+		try {
+			\WPAffiliateCaptain\Affiliates\Notifications::send(
+				'bank_change_held_admin',
+				\WPAffiliateCaptain\Affiliates\Notifications::admin_email(),
+				/* translators: %s: site name */
+				sprintf( __( '[%s] New bank details wait for approval', 'affiliate-captain' ), $site ),
+				/* translators: 1: partner, 2: URL */
+				sprintf( __( "%1\$s entered new bank details shortly after the e-mail address or the linked user account of the partner changed. They apply only after someone with the payout permission approved them; please make sure the change comes from the partner.\n\n%2\$s", 'affiliate-captain' ), $aff->name, admin_url( 'admin.php?page=wpac-affiliates&action=edit&id=' . (int) $affiliate_id ) ),
+				array(
+					'admin'        => true,
+					'affiliate_id' => (int) $affiliate_id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $switched );
+		}
 	}
 
 	/** Option: partner ID => IDs of other partners with the same IBAN. */
@@ -648,6 +815,7 @@ final class ProfileRepository {
 	public static function delete( $affiliate_id ) {
 		global $wpdb;
 		$wpdb->delete( Db::table( 'payout_profiles' ), array( 'affiliate_id' => (int) $affiliate_id ) );
+		delete_option( self::BANK_PENDING . (int) $affiliate_id ); // Bank details waiting for approval go too.
 		self::note_shared_iban( (int) $affiliate_id, array() );
 		// The history only decides the VAT of new payouts of earlier services (PayoutService); without
 		// payout details no payout is possible any more, and correction credit notes use the

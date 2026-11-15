@@ -268,6 +268,9 @@ msgstr "Dieser Partner ist mit keinem WordPress-Benutzer verknüpft."
 msgid "The WordPress user was disconnected. The partner keeps all data; a new account can be linked."
 msgstr "Der WordPress-Benutzer wurde getrennt. Der Partner behält alle Daten; ein neues Konto kann verknüpft werden."
 
+msgid "Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved."
+msgstr "Die E-Mail-Adresse eines Partners mit Zugang zum Partnerbereich oder mit Auszahlungsdaten kann nur mit der Berechtigung für Auszahlungen geändert werden. Es wurde nichts gespeichert."
+
 msgid "Partner saved."
 msgstr "Partner gespeichert."
 
@@ -307,6 +310,9 @@ msgstr "Gutschein-Verknüpfung aktualisiert."
 msgid "Coupon \"%s\" created in WooCommerce and linked to the partner."
 msgstr "Gutschein „%s“ in WooCommerce angelegt und mit dem Partner verknüpft."
 
+msgid "The processing of this partner's data is restricted (Art. 18 GDPR): the VAT ID is not sent to VIES."
+msgstr "Die Verarbeitung der Daten dieses Partners ist eingeschränkt (Art. 18 DSGVO): Die USt-IdNr. wird nicht an VIES übermittelt."
+
 msgid "The VAT ID could not be checked (the VIES check may be switched off in the settings)."
 msgstr "Die USt-IdNr. konnte nicht geprüft werden (die VIES-Prüfung ist möglicherweise in den Einstellungen abgeschaltet)."
 
@@ -342,6 +348,12 @@ msgstr "Die neuen Steuerdaten gelten ab jetzt."
 
 msgid "The change of the tax data was rejected; the previous data stay."
 msgstr "Die Änderung der Steuerdaten wurde abgelehnt; die bisherigen Daten bleiben."
+
+msgid "The new bank details apply from now on."
+msgstr "Die neuen Bankdaten gelten ab sofort."
+
+msgid "The change of the bank details was rejected; payouts still go to the previous account."
+msgstr "Die Änderung der Bankdaten wurde abgelehnt; Auszahlungen gehen weiterhin auf das bisherige Konto."
 
 msgid "You are not allowed to view tax and bank details."
 msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
@@ -469,6 +481,9 @@ msgstr "Profil"
 msgid "WordPress user"
 msgstr "WordPress-Benutzer"
 
+msgid "Only users with the payout permission can change the e-mail address of a partner with partner area access or payout details."
+msgstr "Nur Benutzer mit der Berechtigung für Auszahlungen können die E-Mail-Adresse eines Partners mit Zugang zum Partnerbereich oder mit Auszahlungsdaten ändern."
+
 msgid "No WordPress user is linked: the partner cannot log in to the partner area yet. See \"Partner area access\" on the overview tab."
 msgstr "Kein WordPress-Benutzer verknüpft: Der Partner kann sich noch nicht im Partnerbereich anmelden. Siehe „Zugang zum Partnerbereich“ im Tab Übersicht."
 
@@ -492,6 +507,15 @@ msgstr "Speichern"
 
 msgid "Partner area access"
 msgstr "Zugang zum Partnerbereich"
+
+msgid "A WordPress user is linked."
+msgstr "Ein WordPress-Benutzer ist verknüpft."
+
+msgid "No WordPress user is linked."
+msgstr "Kein WordPress-Benutzer ist verknüpft."
+
+msgid "Only users with the payout permission can link or disconnect accounts."
+msgstr "Nur Benutzer mit der Berechtigung für Auszahlungen können Konten verknüpfen oder trennen."
 
 msgid "The linked WordPress user #%d no longer exists. Disconnect it so a new account can be linked."
 msgstr "Der verknüpfte WordPress-Benutzer #%d existiert nicht mehr. Trennen Sie ihn, damit ein neues Konto verknüpft werden kann."
@@ -744,6 +768,15 @@ msgstr "Die Änderung wirkt sich auf die USt der Gutschriften aus. Bis zur Freig
 
 msgid "Approve tax data"
 msgstr "Steuerdaten freigeben"
+
+msgid "New bank details entered in the partner area on %1$s wait for approval: %2$s."
+msgstr "Im Partnerbereich am %1$s eingetragene neue Bankdaten warten auf Freigabe: %2$s."
+
+msgid "The e-mail address or the linked user account of this partner changed shortly before. Until you approve the change, payouts go to the previous account. Make sure the change comes from the partner (e.g. by phone)."
+msgstr "Die E-Mail-Adresse oder das verknüpfte Benutzerkonto dieses Partners hat sich kurz vorher geändert. Bis Sie die Änderung freigeben, gehen Auszahlungen auf das bisherige Konto. Stellen Sie sicher, dass die Änderung vom Partner stammt (z. B. telefonisch)."
+
+msgid "Approve bank details"
+msgstr "Bankdaten freigeben"
 
 msgid "Check VAT ID with VIES now"
 msgstr "USt-IdNr. jetzt über VIES prüfen"
@@ -1079,6 +1112,15 @@ msgstr "USt-IdNr. über VIES geprüft"
 
 msgid "Bank details re-encrypted"
 msgstr "Bankdaten neu verschlüsselt"
+
+msgid "New bank details wait for approval (account access changed recently)"
+msgstr "Neue Bankdaten warten auf Freigabe (Kontozugang kürzlich geändert)"
+
+msgid "New bank details approved"
+msgstr "Neue Bankdaten freigegeben"
+
+msgid "New bank details rejected"
+msgstr "Neue Bankdaten abgelehnt"
 
 msgid "Payout requested"
 msgstr "Auszahlung beantragt"
@@ -3755,14 +3797,38 @@ msgstr "[%s] Ein Konto wurde mit Ihrem Partnerzugang verknüpft"
 msgid "Hello %1$s,\n\nthe shop team linked the user account \"%2$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away."
 msgstr "Hallo %1$s,\n\ndas Shop-Team hat das Benutzerkonto „%2$s“ mit Ihrem Partnerzugang verknüpft. Wer sich damit anmeldet, sieht Ihren Partnerbereich, Ihre Provisionen und Auszahlungsdaten.\n\nFalls Sie das nicht veranlasst haben, kontaktieren Sie uns bitte umgehend."
 
+msgid "Hello %1$s,\n\nthe user account \"%2$s\" was linked to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away."
+msgstr "Hallo %1$s,\n\ndas Benutzerkonto „%2$s“ wurde mit Ihrem Partnerzugang verknüpft. Wer sich damit anmeldet, sieht Ihren Partnerbereich, Ihre Provisionen und Ihre Auszahlungsdaten.\n\nWenn Sie das nicht veranlasst haben, kontaktieren Sie uns bitte umgehend."
+
+msgid "The account has a different e-mail address than the partner."
+msgstr "Das Konto hat eine andere E-Mail-Adresse als der Partner."
+
+msgid "The partner's e-mail address was changed within the last 30 days (before: %s). Please make sure the account belongs to the partner; new bank details entered in the partner area wait for approval for 30 days."
+msgstr "Die E-Mail-Adresse des Partners wurde in den letzten 30 Tagen geändert (vorher: %s). Bitte stellen Sie sicher, dass das Konto dem Partner gehört; neue Bankdaten aus dem Partnerbereich warten 30 Tage lang auf Freigabe."
+
 msgid "[%s] Partner account linked manually"
 msgstr "[%s] Partnerkonto manuell verknüpft"
+
+msgid "[%s] Partner account linked"
+msgstr "[%s] Partnerkonto verknüpft"
 
 msgid "Partner #%1$d was linked to the user account \"%2$s\" by %3$s.%4$s"
 msgstr "Partner #%1$d wurde von %3$s mit dem Benutzerkonto „%2$s“ verknüpft.%4$s"
 
-msgid "The account has a different e-mail address than the partner."
-msgstr "Das Konto hat eine andere E-Mail-Adresse als der Partner."
+msgid "[%s] An account was disconnected from your partner access"
+msgstr "[%s] Ein Konto wurde von Ihrem Partnerzugang getrennt"
+
+msgid "Hello %1$s,\n\nthe shop team disconnected the user account \"%2$s\" from your partner access. It no longer opens your partner area.\n\nIf you did not ask for this, please contact us right away."
+msgstr "Hallo %1$s,\n\ndas Shop-Team hat das Benutzerkonto „%2$s“ von Ihrem Partnerzugang getrennt. Es öffnet Ihren Partnerbereich nicht mehr.\n\nWenn Sie das nicht veranlasst haben, kontaktieren Sie uns bitte umgehend."
+
+msgid "The partner's e-mail address was changed within the last 30 days (before: %s)."
+msgstr "Die E-Mail-Adresse des Partners wurde in den letzten 30 Tagen geändert (vorher: %s)."
+
+msgid "[%s] Partner account disconnected"
+msgstr "[%s] Partnerkonto getrennt"
+
+msgid "The user account \"%2$s\" was disconnected from partner #%1$d by %3$s.%4$s"
+msgstr "Das Benutzerkonto „%2$s“ wurde von %3$s von Partner #%1$d getrennt.%4$s"
 
 msgid "[%s] Connect your partner account"
 msgstr "[%s] Partnerkonto verbinden"
@@ -5812,11 +5878,32 @@ msgstr "Die IBAN ist ungültig."
 msgid "Your payout details could not be saved. Please try again; your previous details are unchanged."
 msgstr "Ihre Auszahlungsdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut; Ihre bisherigen Angaben sind unverändert."
 
-msgid "There is no pending change of the tax data."
-msgstr "Es gibt keine offene Änderung der Steuerdaten."
+msgid "There is no pending change of the bank details."
+msgstr "Es liegt keine offene Änderung der Bankdaten vor."
 
 msgid "The payout details could not be saved. Please try again."
 msgstr "Die Auszahlungsdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut."
+
+msgid "[%s] Your change of the bank details was not accepted"
+msgstr "[%s] Ihre Änderung der Bankdaten wurde nicht übernommen"
+
+msgid "Hello %s,\n\nwe did not accept the recent change of your bank details; payouts still go to the previous account. Please contact us if you want to change them."
+msgstr "Hallo %s,\n\nwir haben die letzte Änderung Ihrer Bankdaten nicht übernommen; Auszahlungen gehen weiterhin auf das bisherige Konto. Bitte kontaktieren Sie uns, wenn Sie die Bankdaten ändern möchten."
+
+msgid "[%s] Your new bank details wait for our approval"
+msgstr "[%s] Ihre neuen Bankdaten warten auf unsere Freigabe"
+
+msgid "Hello %s,\n\nnew bank details for your commission payouts were entered in the partner area. Because the access to your partner account changed recently, we check them first; until then payouts go to the previous account. If you did not make this change, please contact us immediately."
+msgstr "Hallo %s,\n\nim Partnerbereich wurden neue Bankdaten für Ihre Provisionsauszahlungen eingetragen. Weil sich der Zugang zu Ihrem Partnerkonto kürzlich geändert hat, prüfen wir sie zuerst; bis dahin gehen Auszahlungen auf das bisherige Konto. Wenn Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie uns bitte sofort."
+
+msgid "[%s] New bank details wait for approval"
+msgstr "[%s] Neue Bankdaten warten auf Freigabe"
+
+msgid "%1$s entered new bank details shortly after the e-mail address or the linked user account of the partner changed. They apply only after someone with the payout permission approved them; please make sure the change comes from the partner.\n\n%2$s"
+msgstr "%1$s hat neue Bankdaten eingetragen, kurz nachdem sich die E-Mail-Adresse oder das verknüpfte Benutzerkonto des Partners geändert hat. Sie gelten erst, wenn jemand mit der Berechtigung für Auszahlungen sie freigegeben hat; bitte stellen Sie sicher, dass die Änderung vom Partner stammt.\n\n%2$s"
+
+msgid "There is no pending change of the tax data."
+msgstr "Es gibt keine offene Änderung der Steuerdaten."
 
 msgid "The SEPA XML export needs the PHP extension \"dom\" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead."
 msgstr "Der SEPA-XML-Export benötigt die PHP-Erweiterung „dom“ (DOMDocument), die auf diesem Server nicht installiert ist. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie stattdessen die Überweisungsliste (CSV)."
@@ -6011,6 +6098,9 @@ msgstr "Die USt-IdNr. hat kein gültiges Format oder beginnt nicht mit dem Kürz
 
 msgid "Your details have been saved. The change of your tax data is checked by us and applies once we have approved it; until then your previous tax data are used."
 msgstr "Ihre Angaben wurden gespeichert. Die Änderung Ihrer Steuerdaten prüfen wir; sie gilt, sobald wir sie freigegeben haben. Bis dahin werden Ihre bisherigen Steuerdaten verwendet."
+
+msgid "Your details have been saved. Because the access to your partner account changed recently, we check your new bank details first; until we have approved them, payouts go to your previous account."
+msgstr "Ihre Angaben wurden gespeichert. Weil sich der Zugang zu Ihrem Partnerkonto kürzlich geändert hat, prüfen wir Ihre neuen Bankdaten zuerst; bis zu unserer Freigabe gehen Auszahlungen auf Ihr bisheriges Konto."
 
 msgid "Please confirm the change of your bank or payment details with your current password. Nothing was changed."
 msgstr "Bitte bestätigen Sie die Änderung Ihrer Bank- oder Zahlungsangaben mit Ihrem aktuellen Passwort. Es wurde nichts geändert."
@@ -6497,6 +6587,9 @@ msgstr "USt-IdNr. (Unternehmen)"
 
 msgid "Your change of the tax data (%1$s, VAT ID %2$s) waits for our approval. Until then your previous tax data are used."
 msgstr "Ihre Änderung der Steuerdaten (%1$s, USt-IdNr. %2$s) wartet auf unsere Freigabe. Bis dahin werden Ihre bisherigen Steuerdaten verwendet."
+
+msgid "Your new bank details (%s) wait for our approval. Until then payouts go to your previous account."
+msgstr "Ihre neuen Bankdaten (%s) warten auf unsere Freigabe. Bis dahin gehen Auszahlungen auf Ihr bisheriges Konto."
 
 msgid "According to the EU VIES database, this VAT ID is not valid. Please check it (country prefix, digits) and save it again. Until it is confirmed, we cannot issue credit notes with VAT or reverse charge."
 msgstr "Laut der EU-Datenbank VIES ist diese USt-IdNr. nicht gültig. Bitte prüfen Sie sie (Länderkürzel, Ziffern) und speichern Sie sie erneut. Bis zur Bestätigung können wir keine Gutschriften mit USt oder Reverse Charge ausstellen."

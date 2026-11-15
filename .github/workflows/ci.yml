@@ -40,18 +40,30 @@ jobs:
         run: php examples/connector-addon/tests/connector-test.php
 
   integration:
-    name: Integration (${{ matrix.db }})
+    name: Integration (${{ matrix.db }}, PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        # Lowest and highest supported PHP version too (R14-A4): deprecations in src/ fail the run
+        # (tests/integration/bootstrap.php).
         include:
           - db: "MariaDB 10.11"
             image: mariadb:10.11
             health: healthcheck.sh --connect --innodb_initialized
+            php: "8.3"
           - db: "MySQL 8.4"
             image: mysql:8.4
             health: mysqladmin ping -h 127.0.0.1 -uroot -proot
+            php: "8.3"
+          - db: "MariaDB 10.11"
+            image: mariadb:10.11
+            health: healthcheck.sh --connect --innodb_initialized
+            php: "7.4"
+          - db: "MariaDB 10.11"
+            image: mariadb:10.11
+            health: healthcheck.sh --connect --innodb_initialized
+            php: "8.4"
     services:
       db:
         image: ${{ matrix.image }}
@@ -72,7 +84,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: ${{ matrix.php }}
           extensions: mysqli, sodium, dom, mbstring
           coverage: none
       - name: Ledger and payout integration tests
@@ -307,6 +319,40 @@ jobs:
           tail -n 100 "$RUNNER_TEMP/server.log" || true
           tail -n 100 "$RUNNER_TEMP/wp/wp-content/debug.log" || true
 
+  # Newest PHP with the current WordPress and WooCommerce (R14-A4): the smoke test fails on
+  # deprecations and notices from the plugin in debug.log.
+  latest-php:
+    name: Smoke test (current WordPress and WooCommerce, PHP 8.4)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: wpac_e2e
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.4"
+          extensions: mysqli, sodium, dom, mbstring, gd, zip
+          coverage: none
+      - name: Test site (current WordPress and WooCommerce)
+        run: tests/ci/install-wp.sh "$RUNNER_TEMP/wp"
+      - name: Web server
+        run: (cd "$RUNNER_TEMP/wp" && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8088 -t . "$GITHUB_WORKSPACE/tests/ci/router.php" > "$RUNNER_TEMP/server.log" 2>&1 &) && sleep 2
+      - name: Smoke test
+        run: php tests/ci/smoke.php "$RUNNER_TEMP/wp" http://127.0.0.1:8088
+      - name: Logs on failure
+        if: failure()
+        run: |
+          tail -n 100 "$RUNNER_TEMP/server.log" || true
+          tail -n 100 "$RUNNER_TEMP/wp/wp-content/debug.log" || true
+
   # Official Plugin Check (the WordPress.org review tool) on the built ZIP. Errors fail the job,
   # except documented false positives in tests/ci/plugin-check-ignore.txt; warnings are listed.
   plugin-check:
@@ -436,7 +482,7 @@ jobs:
 
   release:
     name: Release ZIP
-    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade, minimum-versions, plugin-check]
+    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade, minimum-versions, latest-php, plugin-check]
     runs-on: ubuntu-latest
     permissions:
       contents: read

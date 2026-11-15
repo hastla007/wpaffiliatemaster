@@ -95,6 +95,13 @@ final class AffiliatesPage {
 				break;
 
 			case 'affiliate_update':
+				$email = sanitize_email( (string) Admin::post( 'email' ) );
+				$cur   = AffiliateRepository::find( $id );
+				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) && ! self::may_change_email( $cur ) ) {
+					// The address decides which account can be linked and where security alerts go:
+					// with account access or payout details it is as sensitive as the bank details (R14-S1).
+					Admin::back( __( 'Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved.', 'affiliate-captain' ), 'error' );
+				}
 				$saved = AffiliateRepository::update(
 					$id,
 					array(
@@ -110,8 +117,6 @@ final class AffiliatesPage {
 				if ( is_wp_error( $saved ) ) {
 					Admin::back( $saved->get_error_message(), 'error' );
 				}
-				$email = sanitize_email( (string) Admin::post( 'email' ) );
-				$cur   = AffiliateRepository::find( $id );
 				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) ) {
 					$changed = AffiliateRepository::set_email( $id, $email );
 					if ( is_wp_error( $changed ) ) {
@@ -184,6 +189,8 @@ final class AffiliatesPage {
 			case 'balance_writeoff':
 			case 'tax_approve':
 			case 'tax_reject':
+			case 'bank_approve':
+			case 'bank_reject':
 			case 'profile_update':
 				self::handle_payout_data( $do, $id );
 				break;
@@ -301,6 +308,9 @@ final class AffiliatesPage {
 	private static function handle_payout_data( $do, $id ) {
 		switch ( $do ) {
 			case 'vies_check':
+				if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( $id ) ) {
+					Admin::back( __( 'The processing of this partner\'s data is restricted (Art. 18 GDPR): the VAT ID is not sent to VIES.', 'affiliate-captain' ), 'error' );
+				}
 				$r = \WPAffiliateCaptain\Payouts\Vies::check( $id );
 				if ( ! $r ) {
 					$profile = ProfileRepository::get( $id );
@@ -358,6 +368,18 @@ final class AffiliatesPage {
 				Admin::back( 'tax_approve' === $do ? __( 'The new tax data apply from now on.', 'affiliate-captain' ) : __( 'The change of the tax data was rejected; the previous data stay.', 'affiliate-captain' ) );
 				break;
 
+			case 'bank_approve':
+			case 'bank_reject':
+				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) || ! current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+					Admin::back( __( 'You are not allowed to change payout details.', 'affiliate-captain' ), 'error' );
+				}
+				$result = 'bank_approve' === $do ? ProfileRepository::approve_bank_change( $id ) : ProfileRepository::reject_bank_change( $id );
+				if ( is_wp_error( $result ) ) {
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( 'bank_approve' === $do ? __( 'The new bank details apply from now on.', 'affiliate-captain' ) : __( 'The change of the bank details was rejected; payouts still go to the previous account.', 'affiliate-captain' ) );
+				break;
+
 			case 'profile_update':
 				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 					Admin::back( __( 'You are not allowed to view tax and bank details.', 'affiliate-captain' ), 'error' );
@@ -375,6 +397,17 @@ final class AffiliatesPage {
 				Admin::back( __( 'Payout details saved.', 'affiliate-captain' ) );
 				break;
 		}
+	}
+
+	/**
+	 * Whether the current user may change the partner's e-mail address: with partner area access
+	 * or payout details only with the payout permission (R14-S1).
+	 *
+	 * @param object $aff Partner.
+	 * @return bool
+	 */
+	public static function may_change_email( $aff ) {
+		return current_user_can( Capabilities::MANAGE_PAYOUTS ) || ( ! (int) $aff->user_id && ! ProfileRepository::get( (int) $aff->id ) );
 	}
 
 	/**
@@ -630,7 +663,7 @@ final class AffiliatesPage {
 		Admin::form_open( 'affiliate_update' );
 		echo '<input type="hidden" name="id" value="' . (int) $id . '"><table class="form-table">';
 		self::row_input( 'name', __( 'Name / company', 'affiliate-captain' ), $a->name, 'maxlength="190"' );
-		echo '<tr><th><label for="wpac-email">' . esc_html__( 'E-mail', 'affiliate-captain' ) . '</label></th><td><input type="email" id="wpac-email" name="email" class="regular-text" value="' . esc_attr( $a->email ) . '">' . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'affiliate-captain' ) . '</a>' : '' ) . '</td></tr>';
+		echo '<tr><th><label for="wpac-email">' . esc_html__( 'E-mail', 'affiliate-captain' ) . '</label></th><td><input type="email" id="wpac-email" name="email" class="regular-text" value="' . esc_attr( $a->email ) . '"' . ( self::may_change_email( $a ) ? '' : ' readonly aria-describedby="wpac-email-locked"' ) . '>' . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'affiliate-captain' ) . '</a>' : '' ) . ( self::may_change_email( $a ) ? '' : '<p class="description" id="wpac-email-locked">' . esc_html__( 'Only users with the payout permission can change the e-mail address of a partner with partner area access or payout details.', 'affiliate-captain' ) . '</p>' ) . '</td></tr>';
 		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
 			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html__( 'No WordPress user is linked: the partner cannot log in to the partner area yet. See "Partner area access" on the overview tab.', 'affiliate-captain' ) . '</p></div></td></tr>';
 		}
@@ -664,7 +697,12 @@ final class AffiliatesPage {
 	 */
 	private static function render_access_terms_boxes( $a, $id ) {
 		// Partner area access (no linked WordPress user).
-		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
+		if ( ! current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+			if ( $a->user_id || in_array( $a->status, array( 'active', 'paused' ), true ) ) {
+				// Linking and disconnecting accounts gives access to the payout details (R14-S1).
+				echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner area access', 'affiliate-captain' ) . '</h2><div class="inside"><p>' . esc_html( $a->user_id ? __( 'A WordPress user is linked.', 'affiliate-captain' ) : __( 'No WordPress user is linked.', 'affiliate-captain' ) ) . ' ' . esc_html__( 'Only users with the payout permission can link or disconnect accounts.', 'affiliate-captain' ) . '</p></div></div>';
+			}
+		} elseif ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
 			self::user_link_box( $a );
 		} elseif ( $a->user_id ) {
 			echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Partner area access', 'affiliate-captain' ) . '</h2><div class="inside">';
@@ -894,7 +932,19 @@ final class AffiliatesPage {
 				}
 				echo '</div>';
 			}
-			if ( $p && '' !== (string) $p->vat_id ) {
+			$bank_pending = ProfileRepository::pending_bank_change( $id );
+			if ( $bank_pending ) {
+				/* translators: 1: date, 2: masked new account or payment details */
+				echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( __( 'New bank details entered in the partner area on %1$s wait for approval: %2$s.', 'affiliate-captain' ), Admin::date( (string) $bank_pending['requested_at'], true ), ProfileRepository::pending_bank_label( $bank_pending ) ) ) . '</strong><br>' . esc_html__( 'The e-mail address or the linked user account of this partner changed shortly before. Until you approve the change, payouts go to the previous account. Make sure the change comes from the partner (e.g. by phone).', 'affiliate-captain' ) . '</p>';
+				if ( current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
+					Admin::form_open( 'bank_approve', 'wpac-inline' );
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="button button-primary">' . esc_html__( 'Approve bank details', 'affiliate-captain' ) . '</button></form> ';
+					Admin::form_open( 'bank_reject', 'wpac-inline' );
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="button">' . esc_html__( 'Reject', 'affiliate-captain' ) . '</button></form>';
+				}
+				echo '</div>';
+			}
+			if ( $p && '' !== (string) $p->vat_id && current_user_can( Capabilities::MANAGE_PAYOUTS ) ) {
 				Admin::form_open( 'vies_check', 'wpac-inline' );
 				echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="button">' . esc_html__( 'Check VAT ID with VIES now', 'affiliate-captain' ) . '</button></form>';
 			}

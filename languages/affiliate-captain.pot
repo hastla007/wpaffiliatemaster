@@ -368,6 +368,10 @@ msgid "The WordPress user was disconnected. The partner keeps all data; a new ac
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Partner saved."
 msgstr ""
 
@@ -421,6 +425,10 @@ msgid "Coupon \"%s\" created in WooCommerce and linked to the partner."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "The processing of this partner's data is restricted (Art. 18 GDPR): the VAT ID is not sent to VIES."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "The VAT ID could not be checked (the VIES check may be switched off in the settings)."
 msgstr ""
 
@@ -467,6 +475,14 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "The change of the tax data was rejected; the previous data stay."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The new bank details apply from now on."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The change of the bank details was rejected; payouts still go to the previous account."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -640,6 +656,10 @@ msgid "WordPress user"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "Only users with the payout permission can change the e-mail address of a partner with partner area access or payout details."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "No WordPress user is linked: the partner cannot log in to the partner area yet. See \"Partner area access\" on the overview tab."
 msgstr ""
 
@@ -669,6 +689,18 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Partner area access"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "A WordPress user is linked."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "No WordPress user is linked."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Only users with the payout permission can link or disconnect accounts."
 msgstr ""
 
 #. translators: %d: user ID
@@ -1015,6 +1047,19 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Approve tax data"
+msgstr ""
+
+#. translators: 1: date, 2: masked new account or payment details
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "New bank details entered in the partner area on %1$s wait for approval: %2$s."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The e-mail address or the linked user account of this partner changed shortly before. Until you approve the change, payouts go to the previous account. Make sure the change comes from the partner (e.g. by phone)."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Approve bank details"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -1471,6 +1516,18 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "Bank details re-encrypted"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "New bank details wait for approval (account access changed recently)"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "New bank details approved"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "New bank details rejected"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -5111,9 +5168,28 @@ msgstr ""
 msgid "Hello %1$s,\n\nthe shop team linked the user account \"%2$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away."
 msgstr ""
 
+#. translators: 1: partner name, 2: login name
+#: src/Affiliates/AffiliateRepository.php
+msgid "Hello %1$s,\n\nthe user account \"%2$s\" was linked to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away."
+msgstr ""
+
+#: src/Affiliates/AffiliateRepository.php
+msgid "The account has a different e-mail address than the partner."
+msgstr ""
+
+#. translators: %s: previous address, partly hidden
+#: src/Affiliates/AffiliateRepository.php
+msgid "The partner's e-mail address was changed within the last 30 days (before: %s). Please make sure the account belongs to the partner; new bank details entered in the partner area wait for approval for 30 days."
+msgstr ""
+
 #. translators: %s: site name
 #: src/Affiliates/AffiliateRepository.php
 msgid "[%s] Partner account linked manually"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/AffiliateRepository.php
+msgid "[%s] Partner account linked"
 msgstr ""
 
 #. translators: 1: partner ID, 2: login name, 3: user who linked it, 4: note
@@ -5121,8 +5197,29 @@ msgstr ""
 msgid "Partner #%1$d was linked to the user account \"%2$s\" by %3$s.%4$s"
 msgstr ""
 
+#. translators: %s: site name
 #: src/Affiliates/AffiliateRepository.php
-msgid "The account has a different e-mail address than the partner."
+msgid "[%s] An account was disconnected from your partner access"
+msgstr ""
+
+#. translators: 1: partner name, 2: login name
+#: src/Affiliates/AffiliateRepository.php
+msgid "Hello %1$s,\n\nthe shop team disconnected the user account \"%2$s\" from your partner access. It no longer opens your partner area.\n\nIf you did not ask for this, please contact us right away."
+msgstr ""
+
+#. translators: %s: previous address, partly hidden
+#: src/Affiliates/AffiliateRepository.php
+msgid "The partner's e-mail address was changed within the last 30 days (before: %s)."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/AffiliateRepository.php
+msgid "[%s] Partner account disconnected"
+msgstr ""
+
+#. translators: 1: partner ID, 2: login name, 3: user who disconnected it, 4: note
+#: src/Affiliates/AffiliateRepository.php
+msgid "The user account \"%2$s\" was disconnected from partner #%1$d by %3$s.%4$s"
 msgstr ""
 
 #. translators: %s: site name
@@ -8056,11 +8153,45 @@ msgid "Your payout details could not be saved. Please try again; your previous d
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php
-msgid "There is no pending change of the tax data."
+msgid "There is no pending change of the bank details."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php
 msgid "The payout details could not be saved. Please try again."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Payouts/ProfileRepository.php
+msgid "[%s] Your change of the bank details was not accepted"
+msgstr ""
+
+#. translators: %s: name
+#: src/Payouts/ProfileRepository.php
+msgid "Hello %s,\n\nwe did not accept the recent change of your bank details; payouts still go to the previous account. Please contact us if you want to change them."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Payouts/ProfileRepository.php
+msgid "[%s] Your new bank details wait for our approval"
+msgstr ""
+
+#. translators: %s: name
+#: src/Payouts/ProfileRepository.php
+msgid "Hello %s,\n\nnew bank details for your commission payouts were entered in the partner area. Because the access to your partner account changed recently, we check them first; until then payouts go to the previous account. If you did not make this change, please contact us immediately."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Payouts/ProfileRepository.php
+msgid "[%s] New bank details wait for approval"
+msgstr ""
+
+#. translators: 1: partner, 2: URL
+#: src/Payouts/ProfileRepository.php
+msgid "%1$s entered new bank details shortly after the e-mail address or the linked user account of the partner changed. They apply only after someone with the payout permission approved them; please make sure the change comes from the partner.\n\n%2$s"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "There is no pending change of the tax data."
 msgstr ""
 
 #: src/Payouts/SepaXml.php
@@ -8329,6 +8460,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your details have been saved. The change of your tax data is checked by us and applies once we have approved it; until then your previous tax data are used."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your details have been saved. Because the access to your partner account changed recently, we check your new bank details first; until we have approved them, payouts go to your previous account."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -8997,6 +9132,11 @@ msgstr ""
 #. translators: 1: tax status, 2: VAT ID
 #: src/Portal/Portal.php
 msgid "Your change of the tax data (%1$s, VAT ID %2$s) waits for our approval. Until then your previous tax data are used."
+msgstr ""
+
+#. translators: %s: masked account or payment details
+#: src/Portal/Portal.php
+msgid "Your new bank details (%s) wait for our approval. Until then payouts go to your previous account."
 msgstr ""
 
 #: src/Portal/Portal.php

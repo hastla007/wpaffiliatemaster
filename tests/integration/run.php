@@ -1561,6 +1561,7 @@ require __DIR__ . '/r14-g3.php'; // Round 14, fix agent g3 (before r8-render).
 require __DIR__ . '/r14-g2.php'; // Round 14, fix agent g2 (before r8-render: no template stubs needed).
 require __DIR__ . '/r14-g5.php'; // Round 14, fix agent g5 (before r8-render).
 require __DIR__ . '/r14-g6.php'; // Round 14, fix agent g6: e-invoice (before r8-render).
+require __DIR__ . '/r14-g1.php'; // Round 14, fix agent g1 (before r8-render: no template stubs needed).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1570,6 +1571,8 @@ require __DIR__ . '/r13-c-render.php'; // After r8-render.php: renders the partn
 require __DIR__ . '/r14-g3-render.php'; // After r8-render.php: renders the partner area with its stubs.
 require __DIR__ . '/r14-g5-render.php'; // After the render files: e-mail templates page (R14-P1).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+$GLOBALS['wpac_test_deprecations_reported'] = true;
+check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );
