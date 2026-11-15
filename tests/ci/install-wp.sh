@@ -16,11 +16,16 @@ mkdir -p "$WP_DIR"
 if [ ! -f "$WP_DIR/wp-load.php" ]; then
   # WP_VERSION: "latest" (default) or a release such as 6.3 (minimum-version job).
   if [ -z "${WP_VERSION:-}" ] || [ "${WP_VERSION}" = "latest" ]; then WP_TGZ="latest.tar.gz"; else WP_TGZ="wordpress-${WP_VERSION}.tar.gz"; fi
-  curl -fsSL "https://wordpress.org/${WP_TGZ}" | tar xz -C "$WP_DIR" --strip-components=1
+  # Checked against the SHA-1 that wordpress.org publishes next to every release archive (R13-N13).
+  curl -fsSL -o /tmp/wordpress.tar.gz "https://wordpress.org/${WP_TGZ}"
+  WP_SHA1="$(curl -fsSL "https://wordpress.org/${WP_TGZ}.sha1" | tr -d '[:space:]')"
+  echo "${WP_SHA1}  /tmp/wordpress.tar.gz" | sha1sum -c --quiet - || { echo "WordPress archive checksum mismatch" >&2; exit 1; }
+  tar xzf /tmp/wordpress.tar.gz -C "$WP_DIR" --strip-components=1
 fi
 if [ ! -d "$WP_DIR/wp-content/plugins/woocommerce" ]; then
   curl -fsSL -o /tmp/woocommerce.zip "https://downloads.wordpress.org/plugin/woocommerce.${WC_VERSION:-latest-stable}.zip"
   unzip -q /tmp/woocommerce.zip -d "$WP_DIR/wp-content/plugins"
+  php "$PLUGIN_DIR/tests/ci/verify-plugin.php" "$WP_DIR/wp-content/plugins/woocommerce" woocommerce
 fi
 # Folder = slug: "affiliate-captain" since 0.11, "wp-affiliate-captain" for older releases (upgrade test).
 SLUG="affiliate-captain"

@@ -157,11 +157,13 @@ jobs:
           tools: composer:v2
           coverage: none
       - name: Install analysis tools
-        run: composer update --no-interaction --no-progress --prefer-dist
+        # From the committed composer.lock (exact versions pinned to commits); refresh it with
+        # "composer update" and commit the result (R13-N13).
+        run: composer install --no-interaction --no-progress --prefer-dist
       - name: Composer validate and dependency audit
         run: |
-          composer validate --strict --no-check-lock
-          composer audit --no-interaction
+          composer validate --strict
+          composer audit --no-interaction --locked
       - name: PHPCS (WordPress security sniffs + PHPCompatibilityWP)
         run: vendor/bin/phpcs
       - name: PHPStan
@@ -233,6 +235,7 @@ jobs:
         run: |
           curl -fsSL -o /tmp/redis-cache.zip https://downloads.wordpress.org/plugin/redis-cache.latest-stable.zip
           unzip -q /tmp/redis-cache.zip -d "$RUNNER_TEMP/wp/wp-content/plugins"
+          php tests/ci/verify-plugin.php "$RUNNER_TEMP/wp/wp-content/plugins/redis-cache" redis-cache
           cp "$RUNNER_TEMP/wp/wp-content/plugins/redis-cache/includes/object-cache.php" "$RUNNER_TEMP/wp/wp-content/object-cache.php"
           sed -i "s#^define( 'DB_NAME'#define( 'WP_REDIS_HOST', '127.0.0.1' );\ndefine( 'DB_NAME'#" "$RUNNER_TEMP/wp/wp-config.php"
           php -r '$_SERVER["HTTP_HOST"]="127.0.0.1:8088"; require getenv("RUNNER_TEMP")."/wp/wp-load.php"; if ( ! wp_using_ext_object_cache() ) { fwrite( STDERR, "object cache not active\n" ); exit( 1 ); } echo "external object cache active\n";'
