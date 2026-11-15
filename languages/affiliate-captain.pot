@@ -6106,6 +6106,10 @@ msgid "Please enter 1 to 8 letters or digits (e.g. GS)."
 msgstr ""
 
 #: src/Core/Settings.php
+msgid "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number."
+msgstr ""
+
+#: src/Core/Settings.php
 msgid "This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it."
 msgstr ""
 
@@ -7142,6 +7146,11 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details)."
+msgstr ""
+
+#. translators: 1: payout number, 2: claim reference
+#: src/Payouts/PayoutService.php
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s) and cannot be exported. The add-on that claimed it gives it back when the provider does not pay it."
 msgstr ""
 
 #. translators: %s: payout number
