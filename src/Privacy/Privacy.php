@@ -1086,6 +1086,15 @@ final class Privacy {
 		} else {
 			ProfileRepository::delete( (int) $aff->id ); // With the history of the tax data.
 		}
+		/**
+		 * A partner's personal data were erased (GDPR Art. 17): add-ons delete their own data of
+		 * this partner (e.g. webhook logs, payment provider references). Fires after the core
+		 * erasure; the partner row remains (anonymised) as long as bookings reference it.
+		 *
+		 * @param int  $affiliate_id Partner.
+		 * @param bool $open         Whether open commissions or payouts delayed part of the erasure.
+		 */
+		do_action( 'wpac_affiliate_erased', (int) $aff->id, (bool) $open );
 		return $messages;
 	}
 

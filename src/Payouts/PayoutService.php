@@ -1636,16 +1636,18 @@ final class PayoutService {
 	 * The PayPal address is only filled for the manual method whose payment details contain an
 	 * e-mail address (the same rule as the PayPal payouts file); bank details never leave.
 	 *
-	 * @param object $p Payout row.
+	 * @param object                  $p      Payout row.
+	 * @param array<int, string>|null $emails PayPal addresses per affiliate, preloaded for a page (contract_list()); null loads the profile.
 	 * @return array
 	 */
-	public static function contract_view( $p ) {
+	public static function contract_view( $p, $emails = null ) {
 		$method = self::snapshot_method( $p );
 		$email  = '';
-		if ( ProfileRepository::METHOD_MANUAL === $method && in_array( (string) $p->status, array( 'pending', 'exported' ), true ) ) {
-			$profile = ProfileRepository::get( (int) $p->affiliate_id );
-			if ( $profile && ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
-				$email = ProfileRepository::paypal_email( ProfileRepository::payment_details( $profile ) );
+		if ( self::wants_paypal_email( $p, $method ) ) {
+			if ( is_array( $emails ) && array_key_exists( (int) $p->affiliate_id, $emails ) ) {
+				$email = $emails[ (int) $p->affiliate_id ];
+			} else {
+				$email = self::paypal_emails( array( (int) $p->affiliate_id ) )[ (int) $p->affiliate_id ];
 			}
 		}
 		$batch = (string) $p->sepa_batch;
@@ -1663,6 +1665,42 @@ final class PayoutService {
 			'exported_at'  => (string) $p->exported_at,
 			'paid_at'      => (string) $p->paid_at,
 		);
+	}
+
+	/**
+	 * Whether contract_view() shows the PayPal address of a payout (manual method, not paid yet).
+	 *
+	 * @param object $p      Payout row.
+	 * @param string $method Method from the snapshot.
+	 * @return bool
+	 */
+	private static function wants_paypal_email( $p, $method ) {
+		return ProfileRepository::METHOD_MANUAL === $method && in_array( (string) $p->status, array( 'pending', 'exported' ), true );
+	}
+
+	/**
+	 * PayPal addresses of several partners with one query and one decryption per partner (no
+	 * query per payout in wpac_get_payouts()).
+	 *
+	 * @param int[] $affiliate_ids Partners.
+	 * @return array<int, string> Address per partner ('' without manual profile or address).
+	 */
+	private static function paypal_emails( array $affiliate_ids ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $affiliate_ids ) ) ) );
+		$out = array_fill_keys( $ids, '' );
+		if ( ! $ids ) {
+			return $out;
+		}
+		$t = Db::table( 'payout_profiles' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.DirectDatabaseQuery -- Table name; one %d per ID.
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ) );
+		foreach ( $rows as $profile ) {
+			if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
+				$out[ (int) $profile->affiliate_id ] = (string) ProfileRepository::paypal_email( ProfileRepository::payment_details( $profile ) );
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -1710,12 +1748,19 @@ final class PayoutService {
 		do {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name and fixed fragments ($where holds only literal conditions); values are placeholders.
 			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE " . implode( ' AND ', $where ) . ' AND id > %d ORDER BY id ASC LIMIT %d', array_merge( $params, array( $after, $limit ) ) ) );
+			$need = array();
+			foreach ( $rows as $p ) {
+				if ( self::wants_paypal_email( $p, self::snapshot_method( $p ) ) ) {
+					$need[] = (int) $p->affiliate_id;
+				}
+			}
+			$emails = self::paypal_emails( $need );
 			foreach ( $rows as $p ) {
 				$after = (int) $p->id;
 				if ( '' !== $method && self::snapshot_method( $p ) !== $method ) {
 					continue;
 				}
-				$out[] = self::contract_view( $p );
+				$out[] = self::contract_view( $p, $emails );
 				if ( count( $out ) >= $limit ) {
 					break 2;
 				}

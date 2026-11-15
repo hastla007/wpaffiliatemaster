@@ -133,6 +133,7 @@ Expert audit (8 reviewers); database schema 13 (indexes only):
 * Fixed: repayments and write-offs no longer count as taxable net on credit notes, the annual summary and the small business warning; a deleted refund gives back exactly what was deducted (also for fixed rates per piece); a partial refund of a raised line takes back the open increase first
 * Fixed: ambiguous amounts like "12,345" are refused instead of read as thousands; currencies use their real number of decimals (BTC 8)
 * Privacy: the personal data export no longer contains internal reasons or fraud markers and masks bank details; a changed customer key keeps old links and warns until confirmed; old commissions are pseudonymised after the retention period
+* Add-ons: new action wpac_affiliate_erased after a partner erasure; wpac_commission_review and the error codes wpac_affiliate_db / wpac_status_not_saved are documented in the contract; wpac_get_payouts() loads payout profiles once per page
 * Compatibility: all WooCommerce currencies accepted; refused payloads of the integration contract are listed under Integrations; hints for edge caches and multisite cron; read/write API validates arguments strictly
 
 = 0.12.0 =
