@@ -415,7 +415,8 @@ final class Settings {
 		if ( isset( $in['currency'] ) ) {
 			$currency = strtoupper( trim( (string) $in['currency'] ) );
 			// Only codes the contract accepts: sales in another currency would all be refused.
-			if ( preg_match( '/^[A-Z]{3}$/', $currency ) && in_array( $currency, \WPAffiliateCaptain\Sales\ContractApi::currencies(), true ) ) {
+			// The stored currency stays valid (e.g. IRT while WooCommerce is inactive, R13-N10).
+			if ( preg_match( '/^[A-Z]{3}$/', $currency ) && ( $currency === $out['currency'] || in_array( $currency, \WPAffiliateCaptain\Sales\ContractApi::currencies(), true ) ) ) {
 				$out['currency'] = $currency;
 			} else {
 				$errors['currency'] = __( 'Please enter a three-letter currency code (ISO 4217, e.g. EUR).', 'affiliate-captain' );

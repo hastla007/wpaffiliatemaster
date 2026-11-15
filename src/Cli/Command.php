@@ -230,6 +230,9 @@ final class Command {
 				if ( $problems ) {
 					return array( 'Migration incomplete: ' . implode( '; ', $problems ) );
 				}
+				foreach ( (array) get_option( 'wpac_schema_warnings', array() ) as $warning ) {
+					\WP_CLI::warning( (string) $warning ); // E.g. a performance index that could not be added online.
+				}
 				\WP_CLI::success( 'Schema version ' . get_option( Installer::DB_OPTION ) );
 				return array();
 			}

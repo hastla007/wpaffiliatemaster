@@ -478,7 +478,7 @@ if ( preg_match( '/== Upgrade Notice ==\s*(.*?)(?:\n== |\z)/s', $g6_readme, $g6_
 check( 'R5-W4 upgrade notices have at most 300 characters', array(), $g6_long );
 // R5-W3: the release notes are read from the Changelog section only (the Upgrade Notice has the
 // same "= x.y.z =" headings and would otherwise become the release text).
-check( 'R5-W3 release notes awk reads only the Changelog section', true, (bool) preg_match( '/notes="\$\(awk[^\n]*Changelog/', $g6_ci ) );
+check( 'R5-W3 release notes awk reads only the Changelog section (R13-N11: CR stripped first)', true, (bool) preg_match( '/notes="\$\([^\n]*readme\.txt \| awk[^\n]*Changelog/', $g6_ci ) );
 // R8 package G4b (pure logic).
 check( 'R5-W6 "5.000" KWD is 5 dinars (as shown), not 5000', 5000, Money::to_minor( Money::parse_amount( Money::to_decimal( 5000, 'KWD' ), 'KWD' ), 'KWD' ) );
 check( 'R5-W6 saving a shown 3-decimal amount again keeps it (no x1000)', '12.345', Money::parse_amount( '12.345', 'BHD' ) );

@@ -236,16 +236,52 @@ final class Retention {
 		}
 		$at = Db::table( 'attributions' );
 		$c  = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names; values are placeholders.
-		$sql = $wpdb->prepare( "DELETE FROM {$at} WHERE created_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.source = {$at}.source AND c.source_order_id = {$at}.source_order_id AND ( c.updated_at >= %s OR c.status IN ('pending','review') OR ( c.status = 'approved' AND c.payout_id = 0 ) ) )", $cutoff, $cutoff );
 		/**
-		 * Attribution rows deleted per statement (one short transaction each).
+		 * Attribution IDs checked per statement (one short transaction each).
 		 *
-		 * @param int $batch Rows (default 1000).
+		 * @param int $batch IDs (default 1000).
 		 */
 		$batch = max( 1, (int) apply_filters( 'wpac_attribution_purge_batch', 1000 ) );
-		return \WPAffiliateCaptain\Core\Cron::delete_in_batches( $sql, $batch, 50 );
+		// ID windows with a cursor (R13-N12) instead of DELETE … LIMIT: rows kept because their
+		// order is still open were scanned again by every LIMIT batch. Bounds from the created_at
+		// index; the cursor continues in the rest of the daily run, a new day starts at the front
+		// (kept rows can expire meanwhile).
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- Table names; values are placeholders.
+		$bounds = $wpdb->get_row( $wpdb->prepare( "SELECT MIN(id) AS lo, MAX(id) AS hi FROM {$at} WHERE created_at < %s", $cutoff ) );
+		if ( ! $bounds || null === $bounds->lo ) {
+			delete_option( self::ATTR_CURSOR );
+			return 0;
+		}
+		$from   = (int) $bounds->lo;
+		$cursor = get_option( self::ATTR_CURSOR );
+		if ( is_array( $cursor ) && isset( $cursor['day'], $cursor['id'] ) && gmdate( 'Y-m-d' ) === $cursor['day'] ) {
+			$from = max( $from, (int) $cursor['id'] );
+		}
+		$total = 0;
+		$done  = 0;
+		while ( $from <= (int) $bounds->hi ) {
+			if ( $done++ > 0 && \WPAffiliateCaptain\Core\Cron::over_budget() ) { // At least one window per call.
+				update_option(
+					self::ATTR_CURSOR,
+					array(
+						'day' => gmdate( 'Y-m-d' ),
+						'id'  => $from,
+					),
+					false
+				);
+				\WPAffiliateCaptain\Core\Cron::mark_unfinished();
+				return $total;
+			}
+			$total += max( 0, (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$at} WHERE id >= %d AND id < %d AND created_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.source = {$at}.source AND c.source_order_id = {$at}.source_order_id AND ( c.updated_at >= %s OR c.status IN ('pending','review') OR ( c.status = 'approved' AND c.payout_id = 0 ) ) )", $from, $from + $batch, $cutoff, $cutoff ) ) );
+			$from  += $batch;
+		}
+		// phpcs:enable
+		delete_option( self::ATTR_CURSOR );
+		return $total;
 	}
+
+	/** Option: position of an attribution clean-up that continues in the rest of the daily run. */
+	const ATTR_CURSOR = 'wpac_attr_purge_cursor';
 
 	/**
 	 * Delete the partner's acceptance records (kept as proof of the self-billing agreement as long

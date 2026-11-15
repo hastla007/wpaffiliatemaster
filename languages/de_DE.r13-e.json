@@ -1,0 +1,8 @@
+{
+ "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days.": "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist anonymisiert (personenbezogene Daten entfernt, Status abgelehnt). Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht.",
+ "The search covers the last %d day unless a start date is set.": [
+  "Die Suche umfasst den letzten %d Tag, sofern Sie kein Startdatum angeben.",
+  "Die Suche umfasst die letzten %d Tage, sofern Sie kein Startdatum angeben."
+ ],
+ "The search covers the last %d days unless a start date is set.": "Die Suche umfasst die letzten %d Tage, sofern Sie kein Startdatum angeben."
+}

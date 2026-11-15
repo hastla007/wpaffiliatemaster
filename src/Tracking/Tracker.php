@@ -47,7 +47,7 @@ final class Tracker {
 
 	/**
 	 * Name of a page or edge cache detected on this site ('' = none found): caching plugins and
-	 * hosts known to serve pages from a cache, and proxy headers (Cloudflare, Varnish) of the
+	 * hosts known to serve pages from a cache, and proxy headers (Varnish) of the
 	 * current request. Such caches may answer ?partner=… without PHP, so the server never sees
 	 * the click – the JavaScript beacon (setting js_tracking) records it anyway. Cheap: constants,
 	 * classes and request headers only.
@@ -74,9 +74,10 @@ final class Tracker {
 		if ( '' === $found && ( class_exists( 'SiteGround_Optimizer\Supercacher\Supercacher' ) || class_exists( 'WpeCommon' ) ) ) {
 			$found = class_exists( 'WpeCommon' ) ? 'WP Engine' : 'SiteGround';
 		}
-		if ( '' === $found && ! empty( $_SERVER['HTTP_CF_RAY'] ) ) {
-			$found = 'Cloudflare';
-		} elseif ( '' === $found && ( ! empty( $_SERVER['HTTP_X_VARNISH'] ) || ! empty( $_SERVER['HTTP_X_CACHE'] ) ) ) {
+		// A CF-Ray header alone is no sign: Cloudflare does not cache HTML by default (only with
+		// APO or "Cache Everything"; the APO plugin is detected above). Every shop behind
+		// Cloudflare got the hint (R13-N10).
+		if ( '' === $found && ! empty( $_SERVER['HTTP_X_VARNISH'] ) ) {
 			$found = 'Varnish/Proxy';
 		}
 		/**

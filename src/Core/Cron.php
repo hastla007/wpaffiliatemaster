@@ -102,25 +102,39 @@ final class Cron {
 		Lifecycle::check_clone();
 		if ( ! Installer::schema_current() ) {
 			Installer::alert_if_stuck();
-			return; // A migration is running or failed: no bookings against the old schema.
+			// A migration is running or failed: no bookings against the old schema. The retention
+			// deletion of local credit note copies still runs once the documents' columns exist
+			// (schema 12): a deletion does not wait for a migration (R13-N11).
+			if ( (int) get_option( Installer::DB_OPTION, 0 ) >= 12 ) {
+				self::statement_sweep();
+			}
+			return;
 		}
-		// Retention deletion of local copies of deleted credit notes on the server that runs the
-		// cron (throttled per server by its marker file, within a time budget; R12-M20). A deletion,
-		// so it does not wait for the maintenance mode.
+		if ( ! Settings::get( 'maintenance_mode' ) ) {
+			// Each step on its own (an error in one must not stop the others), the queue first:
+			// sales and refunds waiting for a retry are the most urgent, approvals and documents
+			// follow. Maintenance: approvals, documents and retries wait (sales are still recorded).
+			foreach ( array(
+				'jobs'       => array( Jobs::class, 'run_due' ),
+				'approve'    => array( Ledger::class, 'approve_due' ),
+				'statements' => array( '\WPAffiliateCaptain\Payouts\PayoutService', 'generate_missing_statements' ),
+				'review'     => array( '\WPAffiliateCaptain\Commissions\ReviewAlert', 'digest' ),
+			) as $key => $step ) {
+				self::run_step( 'hourly.' . $key, $step );
+			}
+		}
+		// Last (R13-N12): its time budget must not cut the bookings above short on hosts with a
+		// short request limit. A deletion, so it does not wait for the maintenance mode either.
+		self::statement_sweep();
+	}
+
+	/**
+	 * Retention deletion of local copies of deleted credit notes on the server that runs the cron
+	 * (throttled per server by its marker file, within a time budget; R12-M20). A failure is
+	 * recorded like any failed step.
+	 */
+	private static function statement_sweep() {
 		self::run_step( 'hourly.statement_sweep', array( '\WPAffiliateCaptain\Payouts\StatementSweep', 'scheduled' ) );
-		if ( Settings::get( 'maintenance_mode' ) ) {
-			return; // Maintenance: approvals, documents and retries wait (sales are still recorded).
-		}
-		// Each step on its own (an error in one must not stop the others), the queue first:
-		// sales and refunds waiting for a retry are the most urgent, approvals and documents follow.
-		foreach ( array(
-			'jobs'       => array( Jobs::class, 'run_due' ),
-			'approve'    => array( Ledger::class, 'approve_due' ),
-			'statements' => array( '\WPAffiliateCaptain\Payouts\PayoutService', 'generate_missing_statements' ),
-			'review'     => array( '\WPAffiliateCaptain\Commissions\ReviewAlert', 'digest' ),
-		) as $key => $step ) {
-			self::run_step( 'hourly.' . $key, $step );
-		}
 	}
 
 	/**

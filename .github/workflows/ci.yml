@@ -373,8 +373,14 @@ jobs:
           tests/ci/multisite.sh "$RUNNER_TEMP/wp"
 
   upgrade:
-    name: Upgrade from the previous release (real dbDelta)
+    name: Upgrade from ${{ matrix.from }} (real dbDelta)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # "previous": the newest final release; v0.10.0: the last release in the old folder
+        # "wp-affiliate-captain" (takeover by the new copy, uninstalling the old one keeps the data).
+        from: [previous, v0.10.0]
     services:
       mariadb:
         image: mariadb:10.11
@@ -397,18 +403,27 @@ jobs:
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          FROM: ${{ matrix.from }}
         run: |
-          # The newest final release (vX.Y.Z, no -rc/-beta) other than the tag of this run: on
-          # a tag push the newest tag is the one being built, which would test X.Y.Z -> X.Y.Z.
-          current=""
-          if [ "$REF_TYPE" = "tag" ]; then current="$REF_NAME"; fi
-          last="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vxF "${current:-none}" | head -n 1)"
+          if [ "$FROM" = "previous" ]; then
+            # The newest final release (vX.Y.Z, no -rc/-beta) other than the tag of this run: on
+            # a tag push the newest tag is the one being built, which would test X.Y.Z -> X.Y.Z.
+            current=""
+            if [ "$REF_TYPE" = "tag" ]; then current="$REF_NAME"; fi
+            last="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vxF "${current:-none}" | head -n 1)"
+          else
+            last="$(git tag --list "$FROM" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)"
+            git cat-file -e "$last:wp-affiliate-captain.php" || { echo "$FROM is not a release in the old folder"; exit 1; }
+          fi
           [ -n "$last" ] || { echo "No previous release tag found"; exit 1; }
           echo "Previous release: $last"
           git worktree add "$RUNNER_TEMP/old" "$last"
           WPAC_PLUGIN_SRC="$RUNNER_TEMP/old" tests/ci/install-wp.sh "$RUNNER_TEMP/wp"
           php tests/ci/upgrade-check.php "$RUNNER_TEMP/wp" 127.0.0.1:8088 "$RUNNER_TEMP/before.json"
       - name: Switch to this version and migrate
+        env:
+          # The takeover run must really take over the old copy (switch-plugin.php fails otherwise).
+          WPAC_EXPECT_TAKEOVER: ${{ matrix.from == 'v0.10.0' && '1' || '' }}
         run: |
           # Up to 0.10 the plugin folder was "wp-affiliate-captain"; the new copy is installed
           # next to it and takes over (the old copy is deactivated, data stays).
@@ -484,7 +499,17 @@ jobs:
             fi
           elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
             v="$(sed -n 's/^ \* Version: *\([0-9A-Za-z.\-]*\).*/\1/p' affiliate-captain.php)"
-            if gh release view "v$v" >/dev/null 2>&1; then echo "Release v$v exists"; else tag="v$v"; fi
+            if gh release view "v$v" >/dev/null 2>&1; then
+              echo "Release v$v exists"
+            elif git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+              # The tag exists without a release (release deleted in a rollback, or a tag pushed
+              # early onto another commit): a release now would hang at the old tag commit with
+              # the ZIP of this commit. Never reuse a version: raise it (RELEASE.md).
+              echo "::error::Tag v$v exists without a release - nothing published. Raise the plugin version."
+              exit 1
+            else
+              tag="v$v"
+            fi
           fi
           if [ -n "$tag" ]; then
             printf '%s' "$tag" | grep -Eq "$version_re" || { echo "Refusing release tag that is not a version: $tag"; exit 1; }
@@ -508,6 +533,10 @@ jobs:
           cat "$zip.sha256"
           sha="$(cut -d' ' -f1 "$zip.sha256")"
           # Only the "== Changelog ==" section (the Upgrade Notice has the same "= x.y.z =" headings).
-          notes="$(awk -v v="${TAG#v}" '/^== /{cl=($0 ~ /^== Changelog ==/); on=0; next} cl && $0 == "= " v " =" {on=1; next} on && /^= /{exit} on' readme.txt)"
+          # CR stripped first (as bin/build-zip.sh does): CRLF lines never equal "= x.y.z =".
+          notes="$(tr -d '\r' < readme.txt | awk -v v="${TAG#v}" '/^== /{cl=($0 ~ /^== Changelog ==/); on=0; next} cl && $0 == "= " v " =" {on=1; next} on && /^= /{exit} on')"
           printf -v notes '%s\n\nSHA-256 (%s): `%s`' "${notes:-Siehe readme.txt}" "$(basename "$zip")" "$sha"
-          gh release create "$TAG" "$zip" "$zip.sha256" --target "$GITHUB_SHA" --title "Affiliate Captain ${TAG#v}" --notes "$notes"
+          # A pre-release version (0.14.0-rc1) is published as pre-release, never as "Latest".
+          pre=()
+          case "${TAG#v}" in *-*) pre=(--prerelease) ;; esac
+          gh release create "$TAG" "$zip" "$zip.sha256" --target "$GITHUB_SHA" --title "Affiliate Captain ${TAG#v}" --notes "$notes" "${pre[@]}"

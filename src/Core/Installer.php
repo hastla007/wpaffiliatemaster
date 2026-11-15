@@ -556,6 +556,9 @@ final class Installer {
 	public static function maybe_upgrade() {
 		if ( (int) get_option( self::DB_OPTION, 0 ) >= self::db_version() ) {
 			self::clear_stale_problems();
+			if ( ( ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) && ! self::downgraded_from() ) {
+				self::maybe_retry_indexes(); // Performance indexes that could not be added online.
+			}
 			return; // Current, or the schema of a newer version (downgrade, see downgraded_from()).
 		}
 		// A migration that failed is retried at most every 5 minutes (not on every page load).
@@ -744,11 +747,12 @@ final class Installer {
 				$problems[] = 'missing column ' . $name . '.' . $missing;
 			}
 		}
-		// v13: indexes the order filters and the audit log sort rely on (dbDelta adds them).
-		$indexes = array(
-			'commissions' => array( 'source_order_id' ),
-			'audit'       => array( 'action_created' ),
-		);
+		// v13: indexes the order filters and the audit log sort rely on (added online, see
+		// add_online_indexes(); dbDelta otherwise).
+		$indexes = array();
+		foreach ( self::ONLINE_INDEXES as $table => $keys ) {
+			$indexes[ $table ] = array_keys( $keys );
+		}
 		foreach ( $indexes as $table => $keys ) {
 			$name = Db::table( $table );
 			if ( ! isset( $have[ strtolower( $name ) ] ) ) {
@@ -758,7 +762,8 @@ final class Installer {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
 			$found_keys = array_map( 'strtolower', array_map( 'strval', (array) $wpdb->get_col( "SHOW INDEX FROM `{$real}`", 2 ) ) );
 			foreach ( array_diff( $keys, $found_keys ) as $missing ) {
-				$problems[] = 'missing index ' . $name . '.' . $missing;
+				// Performance only: bookings work without it, so it must not stop them (R13-M8).
+				$warnings[] = 'missing index ' . $name . '.' . $missing . ' (performance only; retried every 5 minutes or by wp wpac upgrade)';
 			}
 		}
 		foreach ( $have as $row ) {
@@ -808,6 +813,140 @@ final class Installer {
 	}
 
 	/**
+	 * Indexes for performance only (schema 13): table => key => columns. Added online before
+	 * dbDelta; missing ones are warnings, not blockers (R13-M8).
+	 */
+	const ONLINE_INDEXES = array(
+		'commissions' => array( 'source_order_id' => 'source_order_id' ),
+		'audit'       => array( 'action_created' => 'action,created_at' ),
+	);
+
+	/**
+	 * Limit the time schema changes of this session wait for a metadata lock.
+	 *
+	 * @return string|null Previous value to restore, null when unchanged.
+	 */
+	private static function limit_lock_wait() {
+		global $wpdb;
+		/**
+		 * Seconds a schema change of the migration waits for a metadata lock before it gives up
+		 * (and is retried after 5 minutes). 0 = server default (up to a day or a year).
+		 *
+		 * @since 0.13.0
+		 * @param int $seconds Default 10.
+		 */
+		$seconds = (int) apply_filters( 'wpac_migration_lock_wait_timeout', 10 );
+		if ( $seconds <= 0 ) {
+			return null;
+		}
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery
+		$old = $wpdb->get_var( 'SELECT @@SESSION.lock_wait_timeout' );
+		if ( null === $old || '' === (string) $old ) {
+			return null;
+		}
+		$wpdb->query( $wpdb->prepare( 'SET SESSION lock_wait_timeout = %d', $seconds ) );
+		// phpcs:enable
+		return (string) $old;
+	}
+
+	/**
+	 * Restore the session's lock wait timeout.
+	 *
+	 * @param string|null $old Value from limit_lock_wait().
+	 */
+	private static function restore_lock_wait( $old ) {
+		global $wpdb;
+		if ( null !== $old && ctype_digit( (string) $old ) ) {
+			$wpdb->query( $wpdb->prepare( 'SET SESSION lock_wait_timeout = %d', (int) $old ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		}
+	}
+
+	/**
+	 * Add missing performance indexes without blocking writes (ALGORITHM=INPLACE, LOCK=NONE):
+	 * the server refuses at once where that is not possible (MyISAM, older servers) instead of
+	 * copying the table under a write lock.
+	 *
+	 * @return array Table key => keys that could not be added (left out of dbDelta).
+	 */
+	public static function add_online_indexes() {
+		global $wpdb;
+		$skipped = array();
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		foreach ( self::ONLINE_INDEXES as $table => $keys ) {
+			$name = Db::table( $table );
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) ) {
+				continue; // New table: dbDelta creates it with its indexes.
+			}
+			foreach ( $keys as $key => $columns ) {
+				if ( $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$name} WHERE Key_name = %s", $key ) ) ) {
+					continue;
+				}
+				$suppress = $wpdb->suppress_errors( true );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Own table, key and column names only.
+				$ok = false !== $wpdb->query( "ALTER TABLE {$name} ADD KEY {$key} ({$columns}), ALGORITHM=INPLACE, LOCK=NONE" );
+				$error = (string) $wpdb->last_error;
+				$wpdb->suppress_errors( $suppress );
+				if ( ! $ok || '' !== $error ) {
+					$skipped[ $table ][] = $key;
+					Log::warning( 'Performance index not added (retried later)', array( 'table' => $name, 'index' => $key, 'error' => Db::cut( $error, 190 ) ) );
+				}
+				self::keep_lock();
+			}
+		}
+		// phpcs:enable
+		return $skipped;
+	}
+
+	/**
+	 * A CREATE TABLE statement without the keys that could not be added online (dbDelta would
+	 * otherwise add them with a blocking table copy).
+	 *
+	 * @param string $statement CREATE TABLE statement.
+	 * @param array  $skipped   Table key => keys.
+	 * @return string
+	 */
+	private static function without_indexes( $statement, array $skipped ) {
+		foreach ( $skipped as $table => $keys ) {
+			if ( ! preg_match( '/^\s*CREATE TABLE ' . preg_quote( Db::table( $table ), '/' ) . '\s/', $statement ) ) {
+				continue;
+			}
+			foreach ( $keys as $key ) {
+				$statement = (string) preg_replace( '/,\s*KEY ' . preg_quote( $key, '/' ) . ' \([^)]*\)/', '', $statement );
+			}
+		}
+		return $statement;
+	}
+
+	/**
+	 * Retry missing performance indexes (at most every 5 minutes, cron and WP-CLI only, under the
+	 * migration lock) once the schema is current.
+	 */
+	public static function maybe_retry_indexes() {
+		$warnings = get_option( 'wpac_schema_warnings' );
+		if ( ! is_array( $warnings ) || ! preg_grep( '/^missing index /', $warnings ) || get_transient( 'wpac_index_retry' ) ) {
+			return;
+		}
+		set_transient( 'wpac_index_retry', 1, 5 * MINUTE_IN_SECONDS );
+		$owner = Db::lock( self::LOCK, self::LOCK_TTL );
+		if ( '' === $owner ) {
+			return;
+		}
+		self::$lock_owner     = $owner;
+		self::$lock_refreshed = time();
+		$restore              = self::limit_lock_wait();
+		try {
+			self::add_online_indexes();
+			self::verify_schema(); // Updates the warnings.
+		} catch ( \Throwable $e ) {
+			Log::exception( 'Index retry failed', $e );
+		} finally {
+			self::restore_lock_wait( $restore );
+			Db::unlock( self::LOCK, self::$lock_owner );
+			self::$lock_owner = '';
+		}
+	}
+
+	/**
 	 * Create/update all tables with dbDelta.
 	 */
 	public static function install_schema() {
@@ -826,9 +965,22 @@ final class Installer {
 		$sql = self::schema_statements( $c );
 
 		self::keep_lock();
-		foreach ( $sql as $statement ) {
-			dbDelta( $statement );
-			self::keep_lock();
+		// Schema changes wait at most a few seconds for a metadata lock (an open transaction on
+		// the table): otherwise every following INSERT queues behind the waiting ALTER for up to
+		// a day/year. A change that gave up is retried by the 5-minute mechanism (R13-M8).
+		$restore = self::limit_lock_wait();
+		try {
+			// Performance indexes first, online (ALGORITHM=INPLACE, LOCK=NONE). One that cannot
+			// be added without blocking writes (MyISAM, old servers, lock timeout) is left out of
+			// dbDelta (which would copy the table under a write lock) and retried later; a
+			// missing performance index is a warning, never a blocker.
+			$skipped = self::add_online_indexes();
+			foreach ( $sql as $statement ) {
+				dbDelta( self::without_indexes( $statement, $skipped ) );
+				self::keep_lock();
+			}
+		} finally {
+			self::restore_lock_wait( $restore );
 		}
 
 		self::migrate_after( $previous );
