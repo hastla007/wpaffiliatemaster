@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.13.0
+Stable tag: 0.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,7 +115,7 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
-= Unreleased =
+= 0.14.0 =
 Expert audit round 14 (12 perspectives); database schema 15 (one index widened online, new table visits_daily):
 * New: credit notes, correction credit notes and cancellations as electronic invoice (EN 16931 CII XML; XRechnung 3.0 profile when all its data are known) – download next to every PDF in the partner area and admin, optional attachment to the partner e-mail (setting "Send e-invoice", automatic for domestic VAT-registered partners), Leitweg-ID setting, filters wpac_einvoice_xml / wpac_einvoice_data
 * New: e-mail templates in the admin (Affiliate Captain → E-mail templates): subject and text of every partner e-mail with placeholders ({name}, {link}, {code}, {rate}, {portal_url}, {amount} …), reset to default, test send, optional simple HTML layout with plain-text part; the approval/welcome e-mail contains partner link, code and commission rate
@@ -293,6 +293,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.14.0 =
+Security and compliance update: e-invoice (EN 16931 XML) for credit notes, editable e-mail templates, approval for bank-detail changes after account changes. Back up first; schema 15 widens one index online and adds a visit summary table filled in the background.
 
 = 0.13.0 =
 Audit fixes: no double payouts of claimed payouts, correct VAT on correction credit notes, safe retries after database deadlocks. Back up first; schema 13 only adds indexes (waits at most 10 s for locks, retried later by cron).
