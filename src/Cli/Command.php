@@ -427,9 +427,9 @@ final class Command {
 	 *
 	 * `sweep` deletes the local copies of credit notes and cancellations that were deleted after
 	 * the retention period (the database decides; the daily cron only reaches the server it runs
-	 * on). Each server also sweeps by itself every 6 hours on its own requests (filter
-	 * wpac_statement_sweep_interval); without shared storage run this on every app server, e.g.
-	 * from its system cron. Only files whose SHA-256 belongs to a deleted document are removed;
+	 * on). The plugin's hourly cron sweeps the server it runs on at most every 6 hours (filter
+	 * wpac_statement_sweep_interval); visitor requests never sweep. Without shared storage run
+	 * this on every app server, e.g. from its system cron. Only files whose SHA-256 belongs to a deleted document are removed;
 	 * other unreferenced files are listed as unknown and kept.
 	 *
 	 * ## OPTIONS

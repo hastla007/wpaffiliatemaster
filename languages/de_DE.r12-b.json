@@ -1,0 +1,33 @@
+{
+ "%d order of this customer is attributed to a partner (order number, partner, method, campaign). The attribution is retained as a booking record of the partner commission for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details.": [
+  "%d Bestellung dieses Kunden ist einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnung wird als Buchungsunterlage der Partnerprovision für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden.",
+  "%d Bestellungen dieses Kunden sind einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnungen werden als Buchungsunterlagen der Partnerprovisionen für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden."
+ ],
+ "%d orders of this customer are attributed to a partner (order number, partner, method, campaign). The attributions are retained as booking records of the partner commissions for the statutory retention period and deleted afterwards; partners never see the customer's name or contact details.": "%d Bestellungen dieses Kunden sind einem Partner zugeordnet (Bestellnummer, Partner, Methode, Kampagne). Die Zuordnungen werden als Buchungsunterlagen der Partnerprovisionen für die gesetzliche Aufbewahrungsfrist aufbewahrt und danach gelöscht; Partner sehen nie Namen oder Kontaktdaten des Kunden.",
+ "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days.": "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist gelöscht. Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht.",
+ "Change log entries about you": "Einträge im Änderungsprotokoll zu Ihnen",
+ "Commission status changes": "Statusänderungen von Provisionen",
+ "Earlier tax data": "Frühere Steuerangaben",
+ "Keep undecided applications (days, 0 = forever)": "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)",
+ "Link broken: this WooCommerce coupon no longer exists (deleted or renamed). Orders with this coupon code are not credited. Link the coupon again or remove the link.": "Verknüpfung defekt: Dieser WooCommerce-Gutschein existiert nicht mehr (gelöscht oder umbenannt). Bestellungen mit diesem Gutscheincode werden nicht gutgeschrieben. Verknüpfen Sie den Gutschein erneut oder entfernen Sie die Verknüpfung.",
+ "Requested change of the tax data (waiting for approval)": "Beantragte Änderung der Steuerangaben (wartet auf Freigabe)",
+ "The referral data of %d order is retained until its partner commission has been booked (automatic retry).": [
+  "Die Empfehlungsangaben von %d Bestellung werden aufbewahrt, bis ihre Partnerprovision gebucht ist (automatische Wiederholung).",
+  "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung)."
+ ],
+ "The referral data of %d orders is retained until their partner commission has been booked (automatic retry).": "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung).",
+ "This partner code is blocked, expired or used up. Please choose an active code.": "Dieser Partnercode ist gesperrt, abgelaufen oder aufgebraucht. Bitte wählen Sie einen aktiven Code.",
+ "Unsubscribed from these e-mails": "Von diesen E-Mails abgemeldet",
+ "applications whose e-mail address was not confirmed: 2 days": "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: 2 Tage",
+ "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order": [
+  "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
+  "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+ ],
+ "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order": "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
+ "partner applications that were never decided: %d day": [
+  "nie entschiedene Partnerbewerbungen: %d Tag",
+  "nie entschiedene Partnerbewerbungen: %d Tage"
+ ],
+ "partner applications that were never decided: %d days": "nie entschiedene Partnerbewerbungen: %d Tage",
+ "partner applications that were never decided: until deleted manually": "nie entschiedene Partnerbewerbungen: bis zur manuellen Löschung"
+}

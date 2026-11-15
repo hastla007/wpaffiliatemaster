@@ -133,7 +133,10 @@ function wpac_uninstall_site() {
 	}
 
 	// Kept records keep their settings (operator data, numbering prefixes) and schema version.
-	$wpac_options = array( 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key', 'wpac_upgrade_lock', 'wpac_erasure_pending', 'wpac_cookie_signed_since', 'wpac_report_failed', 'wpac_schema_problems', 'wpac_schema_problems_since', 'wpac_schema_warnings', 'wpac_balance_problems', 'wpac_statement_retry', 'wpac_storno_retry', 'wpac_daily_rest', 'wpac_tier_recalc_pending', 'wpac_terms_remind', 'wpac_reencrypt_cursor', 'wpac_cron_last_run', 'wpac_cron_failures', 'wpac_migration_status', 'wpac_site_fingerprint', 'wpac_clone_detected', 'wpac_legacy_takeover', 'wpac_takeover_seen', 'wpac_takeover_notice', 'wpac_takeover_deletion_off', 'wpac_retained_notice', 'wpac_balance_check_pass', 'wpac_audit_purge_cursor', 'wpac_tier_cursor', 'wpac_tier_local_from', 'wpac_activation_redirect', 'wpac_review_alert', 'wpac_review_alert_sent' );
+	$wpac_options = array( 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key', 'wpac_upgrade_lock', 'wpac_erasure_pending', 'wpac_cookie_signed_since', 'wpac_report_failed', 'wpac_schema_problems', 'wpac_schema_problems_since', 'wpac_schema_warnings', 'wpac_balance_problems', 'wpac_statement_retry', 'wpac_storno_retry', 'wpac_daily_rest', 'wpac_tier_recalc_pending', 'wpac_terms_remind', 'wpac_reencrypt_cursor', 'wpac_cron_last_run', 'wpac_cron_failures', 'wpac_migration_status', 'wpac_site_fingerprint', 'wpac_clone_detected', 'wpac_legacy_takeover', 'wpac_takeover_seen', 'wpac_takeover_notice', 'wpac_takeover_deletion_off', 'wpac_retained_notice', 'wpac_balance_check_pass', 'wpac_audit_purge_cursor', 'wpac_tier_cursor', 'wpac_tier_local_from', 'wpac_activation_redirect', 'wpac_review_alert', 'wpac_review_alert_sent', 'wpac_correction_retry', 'wpac_broadcast' );
+	// Keyed by partner ID: after a new installation partner 1 must not inherit a fraud flag
+	// (shared IBAN) or a mail opt-out of a former partner 1 (R12-M17).
+	$wpac_options = array_merge( $wpac_options, array( 'wpac_shared_iban', 'wpac_mail_optout' ) );
 	if ( ! $wpac_keep ) {
 		// The restriction list belongs to the kept booking records; without them it is not needed.
 		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_vat_rate_history', 'wpac_monitor_key' ) );
@@ -152,7 +155,9 @@ function wpac_uninstall_site() {
 	// Content meta (recommended partner targets).
 	delete_post_meta_by_key( '_wpac_promote' );
 	delete_post_meta_by_key( '_wpac_promote_note' );
-	// Note: order meta (_wpac_*) is kept with the orders; WordPress users created for partners are kept.
+	// Note: WooCommerce orders belong to the shop: their notes ("attributed to partner …") and the
+	// order meta (_wpac_*: partner code entered, referral snapshot) stay with the orders (R12-N18,
+	// see HANDBOOK "Uninstalling"); WordPress users created for partners are kept.
 
 	if ( function_exists( 'remove_role' ) ) {
 		remove_role( 'wpac_tax_advisor' ); // Read-only role of the plugin.
@@ -165,11 +170,31 @@ function wpac_uninstall_site() {
 }
 
 /**
+ * Hooks of the plugin's scheduled tasks (kept in sync with Core\Cron::unschedule() by a test).
+ *
+ * @return string[]
+ */
+function wpac_uninstall_hooks() {
+	return array( 'wpac_hourly', 'wpac_daily', 'wpac_daily_rest', 'wpac_report_retry', 'wpac_report_batch', 'wpac_jobs_drain', 'wpac_vies_check', 'wpac_network_setup', 'wpac_reencrypt', 'wpac_terms_remind', 'wpac_purge_visits', 'wpac_balance_check', 'wpac_tier_continue', 'wpac_broadcast_batch' );
+}
+
+/**
+ * Remove the user preferences of the admin list screens (rows per page).
+ */
+function wpac_uninstall_user_meta() {
+	foreach ( array( 'wpac_audit_per_page', 'wpac_commissions_per_page', 'wpac_creatives_per_page', 'wpac_partners_per_page', 'wpac_payouts_per_page' ) as $wpac_meta ) {
+		delete_metadata( 'user', 0, $wpac_meta, '', true );
+	}
+}
+
+/**
  * Remove the scheduled tasks of the current site: WP-Cron events (with any arguments) and the
  * plugin's group in WooCommerce's Action Scheduler (when it is loaded).
  */
 function wpac_uninstall_schedules() {
-	foreach ( array( 'wpac_hourly', 'wpac_daily', 'wpac_daily_rest', 'wpac_report_retry', 'wpac_report_batch', 'wpac_jobs_drain', 'wpac_vies_check', 'wpac_network_setup', 'wpac_reencrypt', 'wpac_terms_remind' ) as $wpac_hook ) {
+	// Same hooks as Core\Cron::unschedule() (the plugin's classes are not loaded here; a test keeps
+	// both lists in sync).
+	foreach ( wpac_uninstall_hooks() as $wpac_hook ) {
 		if ( function_exists( 'wp_unschedule_hook' ) ) {
 			wp_unschedule_hook( $wpac_hook ); // All events of the hook, also those with arguments.
 		} else {
@@ -228,8 +253,9 @@ if ( is_multisite() ) {
 	delete_site_option( 'wpac_network_pending' );
 	delete_site_transient( 'wpac_orphan_sweep' );
 	delete_site_option( 'wpac_legacy_takeover' );
-	// Hidden notices stored by older versions for all sites at once.
+	// Hidden notices stored by older versions for all sites at once; list screen preferences.
 	delete_metadata( 'user', 0, 'wpac_hidden_notices', '', true );
+	wpac_uninstall_user_meta();
 	if ( $wpac_left ) {
 		// Shown nowhere (the plugin is gone), but kept for the network admin and support:
 		// "wp plugin uninstall affiliate-captain" on the command line has no time limit.
@@ -241,4 +267,5 @@ if ( is_multisite() ) {
 } else {
 	wpac_uninstall_site();
 	delete_metadata( 'user', 0, 'wpac_hidden_notices', '', true );
+	wpac_uninstall_user_meta();
 }

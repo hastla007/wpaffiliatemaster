@@ -9,9 +9,12 @@
  * belongs to a credit note or cancellation deleted after the retention period is removed. Nothing
  * else is ever deleted (files of other sites in a shared folder, unknown files, temporary files).
  *
- * The sweep runs on the server's own requests, throttled by a marker file in the local statement
- * folder (never an option or transient: those are shared by all servers), within a small time
- * budget; operators can run it on every server with `wp wpac statements sweep`.
+ * The sweep runs from the plugin's hourly cron on the server that runs it and from WP-CLI
+ * (`wp wpac statements sweep`, on every server, e.g. from its system cron), throttled by a marker
+ * file in the local statement folder (never an option or transient: those are shared by all
+ * servers) and within a time budget that includes listing the folder. It never runs in a visitor's
+ * request unless the filter wpac_statement_sweep_on_requests turns that on (R12-M20). The marker
+ * holds only hashes of the files remembered as unknown, never paths or file names (R12-K5).
  *
  * @package WPAffiliateCaptain
  */
@@ -35,10 +38,28 @@ final class StatementSweep {
 	const CHUNK = 200;
 
 	/**
-	 * Register the sweep on this server's requests.
+	 * Register the sweep at the end of requests - only when the filter turns it on (default off:
+	 * the sweep runs from the hourly cron and WP-CLI, never in a visitor's request).
 	 */
 	public static function register_hooks() {
-		add_action( 'shutdown', array( __CLASS__, 'maybe_run' ), 100 );
+		/**
+		 * Whether this server also sweeps at the end of its own requests (after the response where
+		 * the server supports fastcgi_finish_request()). Default false: hourly cron and WP-CLI only.
+		 *
+		 * @param bool $on Sweep on requests.
+		 */
+		if ( apply_filters( 'wpac_statement_sweep_on_requests', false ) ) {
+			add_action( 'shutdown', array( __CLASS__, 'maybe_run' ), 100 );
+		}
+	}
+
+	/**
+	 * Hourly cron: sweep this server's folder when its last sweep is older than the interval.
+	 *
+	 * @return array|null Stats of the sweep, null when not due.
+	 */
+	public static function scheduled() {
+		return self::due( 'cron' );
 	}
 
 	/**
@@ -51,47 +72,64 @@ final class StatementSweep {
 		/**
 		 * Seconds between two sweeps of the local statement folder on one app server.
 		 *
-		 * @param int $seconds Default 6 hours; 0 = no sweep on requests (run `wp wpac statements sweep`).
+		 * @param int $seconds Default 6 hours; 0 = no automatic sweep (run `wp wpac statements sweep`).
 		 */
 		return max( 0, (int) apply_filters( 'wpac_statement_sweep_interval', 6 * HOUR_IN_SECONDS ) );
 	}
 
 	/**
-	 * End of a request: sweep when this server's last sweep is older than the interval. Costs one
-	 * file status lookup otherwise.
+	 * End of a request (only with the filter wpac_statement_sweep_on_requests): sweep when this
+	 * server's last sweep is older than the interval, after the response has been sent where the
+	 * server supports it. Costs one file status lookup otherwise.
 	 */
 	public static function maybe_run() {
+		self::due( 'request' );
+	}
+
+	/**
+	 * Sweep when this server's last sweep is older than the interval.
+	 *
+	 * @param string $context cron|request.
+	 * @return array|null Stats, null when not due (or failed).
+	 */
+	private static function due( $context ) {
 		if ( ( function_exists( 'wp_installing' ) && wp_installing() ) || defined( 'WP_UNINSTALL_PLUGIN' ) ) {
-			return;
+			return null;
 		}
 		$interval = self::interval();
 		if ( $interval <= 0 ) {
-			return;
+			return null;
 		}
 		try {
 			$dir = Statement::configured_dir();
 			if ( ! @is_dir( $dir ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- open_basedir.
-				return; // No folder on this server: no document to delete.
+				return null; // No folder on this server: no document to delete.
 			}
 			$last = @filemtime( $dir . '/' . self::MARKER ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			if ( false !== $last && time() - (int) $last < $interval ) {
-				return;
+				return null;
+			}
+			if ( 'request' === $context && function_exists( 'fastcgi_finish_request' ) ) {
+				fastcgi_finish_request(); // The visitor does not wait for the sweep.
 			}
 			/**
-			 * Seconds a sweep at the end of a request may take (the rest follows next time).
+			 * Seconds one automatic sweep may take, listing the folder included (the rest follows
+			 * next time).
 			 *
-			 * @param float $budget Seconds.
+			 * @param float  $budget  Seconds (default 20 in the cron, 2 at the end of a request).
+			 * @param string $context cron|request.
 			 */
-			self::run( (float) apply_filters( 'wpac_statement_sweep_budget', 2.0 ) );
+			return self::run( (float) apply_filters( 'wpac_statement_sweep_budget', 'cron' === $context ? 20.0 : 2.0, $context ) );
 		} catch ( \Throwable $e ) {
 			\WPAffiliateCaptain\Core\Log::exception( 'Statement sweep failed', $e );
+			return null;
 		}
 	}
 
 	/**
 	 * Sweep the local statement folder (and the earlier folders) of the current site.
 	 *
-	 * @param float $budget Seconds (0 = until done).
+	 * @param float $budget Seconds (0 = until done), listing the folder included.
 	 * @param bool  $full   Hash every candidate again, also files remembered as unknown.
 	 * @return array{files:int,candidates:int,deleted:int,unknown:string[],complete:bool,locked:bool}
 	 */
@@ -123,11 +161,21 @@ final class StatementSweep {
 			$state   = json_decode( (string) stream_get_contents( $handle ), true );
 			$state   = is_array( $state ) ? $state : array();
 			$unknown = isset( $state['unknown'] ) && is_array( $state['unknown'] ) ? $state['unknown'] : array();
+			// Only hashed keys: entries of older versions keyed by path are dropped (hashed again).
+			$unknown = array_filter(
+				$unknown,
+				static function ( $key ) {
+					return (bool) preg_match( '/^[0-9a-f]{64}$/', (string) $key );
+				},
+				ARRAY_FILTER_USE_KEY
+			);
 			self::write_marker( $handle, array( 'last' => time(), 'unknown' => $unknown ) );
 
 			$deadline = $budget > 0 ? microtime( true ) + $budget : 0.0;
-			$files    = self::list_files( array_merge( array( $dir ), Statement::legacy_dirs() ) );
-			$stats['files'] = count( $files );
+			$listed   = true;
+			$files    = self::list_files( array_merge( array( $dir ), Statement::legacy_dirs() ), $deadline, $listed );
+			$stats['files']    = count( $files );
+			$stats['complete'] = $listed;
 			$keep_unknown   = array();
 			foreach ( array_chunk( array_keys( $files ), self::CHUNK ) as $names ) {
 				if ( $deadline > 0 && microtime( true ) > $deadline ) {
@@ -142,9 +190,10 @@ final class StatementSweep {
 					}
 					foreach ( $files[ $name ] as $path ) {
 						$sig = self::signature( $path );
-						if ( ! $full && isset( $unknown[ $path ] ) && $unknown[ $path ]['sig'] === $sig && time() - (int) $unknown[ $path ]['at'] < self::UNKNOWN_RECHECK ) {
-							$keep_unknown[ $path ] = $unknown[ $path ];
-							$stats['unknown'][]    = $path;
+						$key = self::key( $path );
+						if ( ! $full && isset( $unknown[ $key ]['sig'], $unknown[ $key ]['at'] ) && $unknown[ $key ]['sig'] === $sig && time() - (int) $unknown[ $key ]['at'] < self::UNKNOWN_RECHECK ) {
+							$keep_unknown[ $key ] = $unknown[ $key ];
+							$stats['unknown'][]   = $path;
 							continue;
 						}
 						if ( $deadline > 0 && microtime( true ) > $deadline ) {
@@ -171,11 +220,11 @@ final class StatementSweep {
 							}
 							continue;
 						}
-						$keep_unknown[ $entry[1] ] = array(
+						$keep_unknown[ self::key( $entry[1] ) ] = array(
 							'sig' => $entry[2],
 							'at'  => time(),
 						);
-						$stats['unknown'][]        = $entry[1];
+						$stats['unknown'][] = $entry[1];
 					}
 				}
 			}
@@ -222,20 +271,47 @@ final class StatementSweep {
 	}
 
 	/**
-	 * PDF files of the folders: name => paths.
+	 * Key of a file in the marker: a hash of its path (the marker never holds paths or names).
 	 *
-	 * @param string[] $dirs Folders.
+	 * @param string $path Path.
+	 * @return string
+	 */
+	private static function key( $path ) {
+		return hash( 'sha256', (string) $path );
+	}
+
+	/**
+	 * PDF files of the folders: name => paths. Stops at the deadline (the listing counts toward
+	 * the time budget); $complete tells whether every folder was listed completely.
+	 *
+	 * @param string[] $dirs     Folders.
+	 * @param float    $deadline microtime() deadline (0 = none).
+	 * @param bool     $complete Set to false when the deadline stopped the listing.
 	 * @return array
 	 */
-	private static function list_files( array $dirs ) {
-		$out = array();
+	private static function list_files( array $dirs, $deadline = 0.0, &$complete = true ) {
+		$out      = array();
+		$complete = true;
+		$n        = 0;
 		foreach ( array_unique( $dirs ) as $dir ) {
-			$names = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			foreach ( is_array( $names ) ? $names : array() as $name ) {
-				if ( '.' === $name[0] || ! preg_match( '/\.pdf$/i', $name ) || ! is_file( $dir . '/' . $name ) ) {
-					continue;
+			$handle = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			if ( ! $handle ) {
+				continue;
+			}
+			$name = readdir( $handle );
+			while ( false !== $name ) {
+				if ( $deadline > 0 && 0 === ( ++$n % 200 ) && microtime( true ) > $deadline ) {
+					$complete = false;
+					break;
 				}
-				$out[ $name ][] = $dir . '/' . $name;
+				if ( '' !== $name && '.' !== $name[0] && preg_match( '/\.pdf$/i', $name ) && is_file( $dir . '/' . $name ) ) {
+					$out[ $name ][] = $dir . '/' . $name;
+				}
+				$name = readdir( $handle );
+			}
+			closedir( $handle );
+			if ( ! $complete ) {
+				break;
 			}
 		}
 		ksort( $out );
@@ -243,26 +319,19 @@ final class StatementSweep {
 	}
 
 	/**
-	 * File names a payout of this site still refers to (live documents).
+	 * File names a payout, cancellation or correction credit note of this site still refers to
+	 * (live documents). One query per column with an IN list (no OR across columns).
 	 *
 	 * @param string[] $names File names.
 	 * @return array Name => true.
 	 */
 	private static function referenced( array $names ) {
-		global $wpdb;
 		if ( ! $names ) {
 			return array();
 		}
-		$t     = Db::table( 'payouts' );
-		$marks = implode( ',', array_fill( 0, count( $names ), '%s' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and %s placeholders built above.
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT statement_file, storno_file FROM {$t} WHERE statement_file IN ({$marks}) OR storno_file IN ({$marks})", array_merge( $names, $names ) ) );
-		if ( '' !== (string) $wpdb->last_error ) {
-			throw new \RuntimeException( 'Statement sweep: ' . esc_html( $wpdb->last_error ) ); // Never treat a failed query as "not referenced".
-		}
 		$out = array();
-		foreach ( $rows as $r ) {
-			foreach ( array( $r->statement_file, $r->storno_file ) as $file ) {
+		foreach ( array( array( 'payouts', 'statement_file' ), array( 'payouts', 'storno_file' ), array( 'payout_corrections', 'file' ) ) as $col ) {
+			foreach ( self::column_in( $col[0], $col[1], $names, '' ) as $file ) {
 				if ( '' !== (string) $file ) {
 					$out[ basename( (string) $file ) ] = true;
 				}
@@ -272,26 +341,45 @@ final class StatementSweep {
 	}
 
 	/**
-	 * Hashes of documents deleted after the retention period (this site).
+	 * Hashes of documents deleted after the retention period (this site): credit notes,
+	 * cancellations and correction credit notes.
 	 *
 	 * @param string[] $hashes SHA-256 values.
 	 * @return array Hash => true.
 	 */
 	private static function deleted_hashes( array $hashes ) {
-		global $wpdb;
-		$t     = Db::table( 'payouts' );
-		$marks = implode( ',', array_fill( 0, count( $hashes ), '%s' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and %s placeholders built above.
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT statement_hash, storno_hash FROM {$t} WHERE statement_deleted_at IS NOT NULL AND ( statement_hash IN ({$marks}) OR storno_hash IN ({$marks}) )", array_merge( $hashes, $hashes ) ) );
-		$out  = array();
-		foreach ( $rows as $r ) {
-			foreach ( array( $r->statement_hash, $r->storno_hash ) as $hash ) {
+		$out = array();
+		foreach ( array( array( 'payouts', 'statement_hash', 'statement_deleted_at IS NOT NULL' ), array( 'payouts', 'storno_hash', 'statement_deleted_at IS NOT NULL' ), array( 'payout_corrections', 'hash', 'file_deleted_at IS NOT NULL' ) ) as $col ) {
+			foreach ( self::column_in( $col[0], $col[1], $hashes, $col[2] ) as $hash ) {
 				if ( '' !== (string) $hash ) {
 					$out[ (string) $hash ] = true;
 				}
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Values of one column that are in a list (fixed table/column names, values as placeholders).
+	 *
+	 * @param string   $table  Table key.
+	 * @param string   $column Column.
+	 * @param string[] $values Values.
+	 * @param string   $extra  Fixed extra condition ('' = none).
+	 * @return string[]
+	 * @throws \RuntimeException When the query fails (never treat a failed query as "not referenced").
+	 */
+	private static function column_in( $table, $column, array $values, $extra ) {
+		global $wpdb;
+		$t     = Db::table( $table );
+		$marks = implode( ',', array_fill( 0, count( $values ), '%s' ) );
+		$where = '' !== $extra ? ' AND ' . $extra : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Fixed table/column names and %s placeholders built above.
+		$rows = (array) $wpdb->get_col( $wpdb->prepare( "SELECT {$column} FROM {$t} WHERE {$column} IN ({$marks}){$where}", $values ) );
+		if ( '' !== (string) $wpdb->last_error ) {
+			throw new \RuntimeException( 'Statement sweep: ' . esc_html( $wpdb->last_error ) );
+		}
+		return array_map( 'strval', $rows );
 	}
 
 	/**

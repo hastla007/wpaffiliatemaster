@@ -407,7 +407,7 @@ final class Registration {
 		if ( '' !== $code && self::$values ) {
 			$token = wp_generate_password( 20, false );
 			set_transient(
-				'wpac_form_' . $token,
+				self::KEPT_PREFIX . $token,
 				array(
 					'values' => self::$values,
 					'field'  => self::$field,
@@ -418,6 +418,27 @@ final class Registration {
 		}
 		wp_safe_redirect( '' !== $code ? add_query_arg( 'wpac_err', $code, $url ) : add_query_arg( 'wpac_reg', $success, $url ) );
 		exit;
+	}
+
+	/**
+	 * Transient prefix of entries kept for correction after an error (own namespace: never the
+	 * admin's wpac_form_* transients; R12-M18).
+	 */
+	const KEPT_PREFIX = 'wpac_regkeep_';
+
+	/**
+	 * Entries kept for correction by the token in the address: only a token of exactly the
+	 * generated format (20 letters/digits) is looked up.
+	 *
+	 * @param string $token Token from the address.
+	 * @return array
+	 */
+	public static function kept_entries( $token ) {
+		if ( ! preg_match( '/^[A-Za-z0-9]{20}$/', (string) $token ) ) {
+			return array();
+		}
+		$form = get_transient( self::KEPT_PREFIX . $token );
+		return is_array( $form ) ? $form : array();
 	}
 
 	/** @var array Submitted values (kept for correction). */
@@ -718,7 +739,7 @@ final class Registration {
 		// Messages and kept entries belong to the form that was sent (several forms on a page).
 		$mine = ! isset( $_GET['wpac_fi'] ) || sanitize_key( wp_unslash( $_GET['wpac_fi'] ) ) === $key;
 		$err  = $mine && isset( $_GET['wpac_err'] ) ? sanitize_key( wp_unslash( $_GET['wpac_err'] ) ) : '';
-		$form = $mine && isset( $_GET['wpac_form'] ) ? get_transient( 'wpac_form_' . sanitize_text_field( wp_unslash( $_GET['wpac_form'] ) ) ) : array();
+		$form = $mine ? self::kept_entries( isset( $_GET['wpac_form'] ) && is_string( $_GET['wpac_form'] ) ? sanitize_text_field( wp_unslash( $_GET['wpac_form'] ) ) : '' ) : array();
 		$form = is_array( $form ) ? $form : array();
 		$kept = static function ( $name ) use ( $form ) {
 			return isset( $form['values'][ $name ] ) ? (string) $form['values'][ $name ] : '';

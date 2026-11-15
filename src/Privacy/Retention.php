@@ -214,6 +214,35 @@ final class Retention {
 	}
 
 	/**
+	 * Daily: attributions (order number, partner, method, campaign, sub ID, visit ID) are booking
+	 * records only as long as the commissions of their order: once the attribution and every
+	 * commission of the order are past the retention period and nothing of it is open any more, the
+	 * attribution row is deleted (storage limitation, R12-M13). Nothing is deleted during a tax
+	 * audit / legal hold or with "keep forever" (cutoff() is null). The commissions themselves keep
+	 * their amounts (statistics before the cutoff lose the campaign breakdown).
+	 *
+	 * @return int Rows deleted.
+	 */
+	public static function purge_attributions() {
+		global $wpdb;
+		$cutoff = self::cutoff();
+		if ( null === $cutoff ) {
+			return 0;
+		}
+		$at = Db::table( 'attributions' );
+		$c  = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names; values are placeholders.
+		$sql = $wpdb->prepare( "DELETE FROM {$at} WHERE created_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.source = {$at}.source AND c.source_order_id = {$at}.source_order_id AND ( c.updated_at >= %s OR c.status IN ('pending','review') OR ( c.status = 'approved' AND c.payout_id = 0 ) ) )", $cutoff, $cutoff );
+		/**
+		 * Attribution rows deleted per statement (one short transaction each).
+		 *
+		 * @param int $batch Rows (default 1000).
+		 */
+		$batch = max( 1, (int) apply_filters( 'wpac_attribution_purge_batch', 1000 ) );
+		return \WPAffiliateCaptain\Core\Cron::delete_in_batches( $sql, $batch, 50 );
+	}
+
+	/**
 	 * Delete the partner's acceptance records (kept as proof of the self-billing agreement as long
 	 * as the credit notes, then removed).
 	 *

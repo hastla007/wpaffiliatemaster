@@ -126,6 +126,17 @@ final class Statement {
 		if ( true !== $exposed ) {
 			$exposed = self::probe_verdict( $code, $body, self::control_reachable( $upload ) );
 		}
+		if ( false === $exposed ) {
+			// Dotfiles too (the sweep marker .wpac-sweep): some servers block *.txt/*.pdf by rule
+			// but serve hidden files (R12-K5).
+			$dot = '.wpac-probe-' . wp_generate_password( 12, false );
+			file_put_contents( $dir . '/' . $dot, 'wpac' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			$res = wp_remote_get( trailingslashit( $upload['baseurl'] ) . 'wpac-statements/' . $dot, array( 'timeout' => 5 ) );
+			wp_delete_file( $dir . '/' . $dot );
+			if ( ! is_wp_error( $res ) && true === self::probe_verdict( (int) wp_remote_retrieve_response_code( $res ), (string) wp_remote_retrieve_body( $res ), true ) ) {
+				$exposed = true;
+			}
+		}
 		if ( null === $exposed ) {
 			set_transient( 'wpac_statement_probe', 'unknown', HOUR_IN_SECONDS );
 			$memo = null;

@@ -217,6 +217,7 @@ final class AffiliatesPage {
 				if ( is_wp_error( $result ) ) {
 					Admin::back( $result->get_error_message(), 'error' );
 				}
+				\WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::remember( (int) $result, (string) Admin::post( 'coupon_code' ) );
 				Admin::back( __( 'Code created.', 'affiliate-captain' ) );
 				break;
 
@@ -245,6 +246,7 @@ final class AffiliatesPage {
 					Admin::back( $check->get_error_message(), 'error' );
 				}
 				CodeRepository::set_coupon( absint( Admin::post( 'code_id' ) ), sanitize_text_field( Admin::post( 'coupon_code' ) ) );
+				\WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::remember( absint( Admin::post( 'code_id' ) ), sanitize_text_field( Admin::post( 'coupon_code' ) ) );
 				Admin::back( __( 'Coupon link updated.', 'affiliate-captain' ) );
 				break;
 
@@ -719,6 +721,9 @@ final class AffiliatesPage {
 				echo '<tr><td><code>' . esc_html( $c->code ) . '</code><br><small>' . esc_html( add_query_arg( $param, $c->code, home_url( '/' ) ) ) . '</small></td><td>';
 				Admin::form_open( 'code_coupon', 'wpac-inline' );
 				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="text" name="coupon_code" value="' . esc_attr( $c->coupon_code ) . '" size="10" aria-label="' . esc_attr__( 'Coupon code', 'affiliate-captain' ) . '"> <button class="button button-small">' . esc_html__( 'Link', 'affiliate-captain' ) . '</button></form>';
+				if ( 'ok' !== \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::link_state( $c ) ) {
+					echo '<br><small class="wpac-danger">' . esc_html__( 'Link broken: this WooCommerce coupon no longer exists (deleted or renamed). Orders with this coupon code are not credited. Link the coupon again or remove the link.', 'affiliate-captain' ) . '</small>';
+				}
 				echo '</td><td>' . (int) $c->usage_count . ( (int) $c->usage_limit ? ' / ' . (int) $c->usage_limit : '' ) . '</td><td>' . esc_html( 'active' === $c->status ? __( 'Active', 'affiliate-captain' ) : __( 'Blocked', 'affiliate-captain' ) ) . ( $c->expires_at ? '<br><small>' . esc_html( sprintf( /* translators: %s: date */ __( 'until %s', 'affiliate-captain' ), Admin::date( $c->expires_at ) ) ) . '</small>' : '' ) . '</td><td>';
 				Admin::form_open( 'code_status', 'wpac-inline' );
 				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="hidden" name="status" value="' . ( 'active' === $c->status ? 'blocked' : 'active' ) . '"><button class="button button-small"' . ( 'active' === $c->status ? ' data-wpac-confirm="' . esc_attr__( 'Block this code? Links and coupons with it no longer credit the partner.', 'affiliate-captain' ) . '"' : '' ) . '>' . esc_html( 'active' === $c->status ? __( 'Block', 'affiliate-captain' ) : __( 'Unblock', 'affiliate-captain' ) ) . '</button></form></td></tr>';
@@ -753,8 +758,8 @@ final class AffiliatesPage {
 			echo '<input type="hidden" name="id" value="' . (int) $id . '">';
 			echo '<p><label for="wpac-cc-code">' . esc_html__( 'Partner code', 'affiliate-captain' ) . '</label><br><select name="code_id" id="wpac-cc-code">';
 			foreach ( $codes as $c ) {
-				if ( $c->batch ) {
-					continue;
+				if ( $c->batch || ! \WPAffiliateCaptain\Integrations\WooCommerce\CouponLink::code_usable( $c ) ) {
+					continue; // Blocked, expired or used-up codes are not offered (R12-K4).
 				}
 				$is_sel = $kept ? $sel === (int) $c->id : $main === $c->code;
 				printf( '<option value="%d" %s>%s</option>', (int) $c->id, selected( $is_sel, true, false ), esc_html( $c->code . ( $c->coupon_code ? ' (' . sprintf( /* translators: %s: coupon code */ __( 'replaces coupon %s', 'affiliate-captain' ), $c->coupon_code ) . ')' : '' ) ) );

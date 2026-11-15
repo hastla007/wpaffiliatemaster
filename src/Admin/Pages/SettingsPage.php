@@ -134,6 +134,7 @@ final class SettingsPage {
 			'lifetime_rate'              => __( 'Lifetime rate in % (empty = normal rules)', 'affiliate-captain' ),
 			'audit_retention_days'       => __( 'Keep audit log (days, 0 = forever)', 'affiliate-captain' ),
 			'application_retention_days' => __( 'Keep rejected applications (days, 0 = forever)', 'affiliate-captain' ),
+			'pending_application_days'   => __( 'Keep undecided applications (days, 0 = forever)', 'affiliate-captain' ),
 			'fraud_max_orders_day'       => __( 'Max. orders per partner in 24 hours', 'affiliate-captain' ),
 			'fraud_min_click_seconds'    => __( 'Min. seconds between click and order', 'affiliate-captain' ),
 			'fraud_max_refund_rate'      => __( 'Max. refund rate of a partner in % (90 days, min. 5 orders)', 'affiliate-captain' ),
@@ -270,7 +271,7 @@ final class SettingsPage {
 			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
 			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
-			'data'        => array( 'visit_retention_days', 'application_retention_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
+			'data'        => array( 'visit_retention_days', 'application_retention_days', 'pending_application_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
 		);
 	}
 
@@ -612,6 +613,7 @@ final class SettingsPage {
 		self::section( __( 'Retention periods', 'affiliate-captain' ), 'data' );
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'affiliate-captain' ), $s );
 		self::number( 'application_retention_days', __( 'Keep rejected applications (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised.', 'affiliate-captain' ) );
+		self::number( 'pending_application_days', __( 'Keep undecided applications (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days.', 'affiliate-captain' ) );
 		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Terms acceptance records and booking-relevant entries are kept as long as the credit notes.', 'affiliate-captain' ) );
 		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'affiliate-captain' ), $s, __( 'At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain.', 'affiliate-captain' ) );
 		self::checkbox( 'retention_hold', __( 'Tax audit or legal hold: do not delete any statements', 'affiliate-captain' ), $s, __( 'The retention period is suspended while a tax audit is running (§147 Abs. 3 AO).', 'affiliate-captain' ) );

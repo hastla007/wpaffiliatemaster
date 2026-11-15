@@ -285,6 +285,9 @@ final class Vies {
 		$cap = max( 1, (int) apply_filters( 'wpac_vies_daily_cap', self::DAILY_CAP ) );
 		$n   = 0;
 		foreach ( $ids as $id ) {
+			if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $id ) ) {
+				continue; // Restricted processing (Art. 18 GDPR): no transfer to VIES (R12-N17).
+			}
 			$r = self::result( (int) $id );
 			if ( $r && self::next_check( $r ) > time() ) {
 				continue;

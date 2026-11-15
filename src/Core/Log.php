@@ -109,6 +109,23 @@ final class Log {
 	}
 
 	/**
+	 * Mask e-mail addresses in a log text: "anna.berg@example.de" becomes "a***@***.de" (enough to
+	 * tell addresses apart while debugging, not enough to identify the person).
+	 *
+	 * @param string $text Text.
+	 * @return string
+	 */
+	public static function mask( $text ) {
+		return (string) preg_replace_callback(
+			'/([A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]*@(?:[A-Za-z0-9\-]+\.)+([A-Za-z]{2,24})\b/',
+			static function ( $m ) {
+				return $m[1] . '***@***.' . $m[2];
+			},
+			(string) $text
+		);
+	}
+
+	/**
 	 * Write.
 	 *
 	 * @param string $level   Level.
@@ -116,7 +133,9 @@ final class Log {
 	 * @param array  $context Context.
 	 */
 	private static function write( $level, $message, array $context ) {
-		$line = (string) $message . ( $context ? ' ' . wp_json_encode( $context ) : '' );
+		// Exception texts and mailer errors may contain e-mail addresses (e.g. "Duplicate entry
+		// 'x@y.de'", "Invalid address: …"): they are masked before anything is written (R12-N19).
+		$line = self::mask( (string) $message . ( $context ? ' ' . wp_json_encode( $context ) : '' ) );
 		if ( function_exists( 'wc_get_logger' ) ) {
 			wc_get_logger()->log( $level, $line, array( 'source' => self::SOURCE ) );
 			return;
