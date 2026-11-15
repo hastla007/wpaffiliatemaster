@@ -1226,6 +1226,13 @@ msgstr ""
 msgid "Partner group"
 msgstr ""
 
+#. translators: %d: number of days
+#: src/Admin/Pages/AuditPage.php
+msgid "The search covers the last %d day unless a start date is set."
+msgid_plural "The search covers the last %d days unless a start date is set."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/AuditPage.php
 msgid "Partner created"
 msgstr ""
@@ -1995,7 +2002,7 @@ msgstr ""
 msgid "Reopen for review"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Correction"
 msgstr ""
 
@@ -2643,6 +2650,13 @@ msgid_plural "Bank details of %d partners were encrypted with the new key."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of customer links
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Key change confirmed; %d customer link made with the earlier key was deleted."
+msgid_plural "Key change confirmed; %d customer links made with the earlier key were deleted."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: number of files
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "%d credit note file was moved to the new statement folder."
@@ -2678,6 +2692,13 @@ msgid_plural "%d credit note files are still in the previous statement folder."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of customer links
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d customer link was made with an earlier WPAC_CUSTOMER_KEY."
+msgid_plural "%d customer links were made with an earlier WPAC_CUSTOMER_KEY."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "There are no failed jobs."
 msgstr ""
@@ -2708,6 +2729,10 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "The rest is processed in the background."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Key change confirmed."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -2927,12 +2952,24 @@ msgstr ""
 msgid "WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored)."
 msgstr ""
 
-#: src/Admin/Pages/IntegrationsPage.php src/Core/Monitor.php
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "check"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "If you can, restore the earlier key in wp-config.php. If it is lost, these links can no longer be matched to a customer (no lifetime commissions, not found by access or erasure requests): delete them. If only the WordPress salts were changed and the key itself is the same, confirm without deleting."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Delete links made with the earlier key and confirm"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Key unchanged – confirm without deleting"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -4578,7 +4615,7 @@ msgid "Afterwards name, e-mail and application data of rejected applicants witho
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -6046,6 +6083,10 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "WPAC_CUSTOMER_KEY was removed or changed"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links. This warning stays until the earlier key is back, the old links are gone, or you confirm the change under Integrations → System status."
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -8553,10 +8594,24 @@ msgid_plural "The referral data of %d orders is retained until their partner com
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of orders
+#: src/Privacy/Privacy.php
+msgid "The referral data of %d order that is not paid yet (referral, partner code entered, manual assignment) is retained: it is needed to credit the partner once the order is paid. Run the erasure again after payment or cancellation to remove it."
+msgid_plural "The referral data of %d orders that are not paid yet (referral, partner code entered, manual assignment) is retained: it is needed to credit the partner once the orders are paid. Run the erasure again after payment or cancellation to remove it."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: number of log entries
 #: src/Privacy/Privacy.php
-msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards."
-msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards."
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted. It is not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) are retained as booking-relevant records, pseudonymised (tax IDs masked, names, addresses and free texts removed); their processing is restricted. They are not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of log entries
+#: src/Privacy/Privacy.php
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record for the statutory retention period, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted and its details are deleted afterwards."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) are retained as booking-relevant records for the statutory retention period, pseudonymised (tax IDs masked, names, addresses and free texts removed); their processing is restricted and their details are deleted afterwards."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -8618,8 +8673,8 @@ msgstr[1] ""
 
 #. translators: %d: years
 #: src/Privacy/Privacy.php
-msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order"
-msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order"
+msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)"
+msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -8651,6 +8706,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Commission status changes"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Checked by the operator before approval"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Internal note (not shown)"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8691,6 +8754,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Payout requests"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Bank and payment details are stored encrypted and are masked in this file, which is not encrypted. You can check and change them in the partner area (payout details); on request the operator tells you the complete details stored."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -8794,6 +8861,10 @@ msgid "Previous e-mail address (security notices for 30 days)"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted. They are not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period."
 msgstr ""
 
@@ -8802,11 +8873,7 @@ msgid "The restriction of processing could not be saved. Please restrict the par
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "The history of the partner's tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards."
-msgstr ""
-
-#: src/Privacy/Privacy.php
-msgid "Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled."
+msgid "Payout details and the history of the tax data were retained because the partner still has open commissions or payouts (the VAT of these payouts depends on the tax data valid at the time of the service). They are deleted automatically once everything is settled."
 msgstr ""
 
 #. translators: %s: partner

@@ -84,6 +84,11 @@ final class IntegrationsPage {
 			\WPAffiliateCaptain\Core\Monitor::check_migrations();
 			Admin::back( $message );
 		}
+		if ( 'customer_key_confirm' === $do ) {
+			$deleted = \WPAffiliateCaptain\Tracking\CustomerLinks::confirm_key_change( '1' === (string) Admin::post( 'delete_old' ) );
+			/* translators: %d: number of customer links */
+			Admin::back( $deleted ? sprintf( _n( 'Key change confirmed; %d customer link made with the earlier key was deleted.', 'Key change confirmed; %d customer links made with the earlier key were deleted.', $deleted, 'affiliate-captain' ), $deleted ) : __( 'Key change confirmed.', 'affiliate-captain' ) );
+		}
 		if ( 'statements_move' === $do ) {
 			list( $moved, $failed ) = \WPAffiliateCaptain\Payouts\Statement::move_misplaced();
 			/* translators: %d: number of files */
@@ -306,6 +311,23 @@ final class IntegrationsPage {
 			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '"><span aria-hidden="true">' . ( $c[0] ? '✔' : '!' ) . '</span> ' . esc_html( $c[1] ) . '<span class="screen-reader-text"> – ' . esc_html( $c[0] ? __( 'OK', 'affiliate-captain' ) : __( 'check', 'affiliate-captain' ) ) . '</span></li>';
 		}
 		echo '</ul>';
+		self::render_customer_key_change();
+	}
+
+	/**
+	 * WPAC_CUSTOMER_KEY was changed or removed while customer links exist (R13-K9): the warning
+	 * stays until an admin confirms here, with or without deleting the links made with the
+	 * earlier key.
+	 */
+	private static function render_customer_key_change() {
+		$change = \WPAffiliateCaptain\Tracking\CustomerLinks::key_change();
+		if ( ! $change || ! \WPAffiliateCaptain\Tracking\CustomerLinks::key_status()['missing'] || ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
+			return;
+		}
+		/* translators: %d: number of customer links */
+		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( '%d customer link was made with an earlier WPAC_CUSTOMER_KEY.', '%d customer links were made with an earlier WPAC_CUSTOMER_KEY.', $change['links'], 'affiliate-captain' ), $change['links'] ) ) . '</strong> ' . esc_html__( 'If you can, restore the earlier key in wp-config.php. If it is lost, these links can no longer be matched to a customer (no lifetime commissions, not found by access or erasure requests): delete them. If only the WordPress salts were changed and the key itself is the same, confirm without deleting.', 'affiliate-captain' ) . '</p>';
+		Admin::form_open( 'customer_key_confirm' );
+		echo '<p><button class="button button-primary" name="delete_old" value="1">' . esc_html__( 'Delete links made with the earlier key and confirm', 'affiliate-captain' ) . '</button> <button class="button" name="delete_old" value="0">' . esc_html__( 'Key unchanged – confirm without deleting', 'affiliate-captain' ) . '</button></p></form></div>';
 	}
 
 	/**

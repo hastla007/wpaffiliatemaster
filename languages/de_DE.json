@@ -49,6 +49,14 @@
   "%d Protokolleintrag zu Auszahlungsdaten oder Auszahlungsanträge (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanträge) wird als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; seine Verarbeitung ist eingeschränkt, seine Details werden danach gelöscht.",
   "%d Protokolleinträge zu Auszahlungsdaten oder Auszahlungsanträge (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanträge) werden als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; ihre Verarbeitung ist eingeschränkt, ihre Details werden danach gelöscht."
  ],
+ "%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record for the statutory retention period, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted and its details are deleted afterwards.": [
+  "%d Eintrag im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleibt als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); seine Verarbeitung ist eingeschränkt, die Details werden danach gelöscht.",
+  "%d Einträge im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleiben als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); ihre Verarbeitung ist eingeschränkt, die Details werden danach gelöscht."
+ ],
+ "%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted. It is not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active.": [
+  "%d Eintrag im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleibt als buchungsrelevanter Beleg pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); seine Verarbeitung ist eingeschränkt. Er wird nicht automatisch gelöscht, solange die Aufbewahrungsfrist auf „unbegrenzt“ steht oder eine Betriebsprüfung bzw. Sperre aktiv ist.",
+  "%d Einträge im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleiben als buchungsrelevante Belege pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); ihre Verarbeitung ist eingeschränkt. Sie werden nicht automatisch gelöscht, solange die Aufbewahrungsfrist auf „unbegrenzt“ steht oder eine Betriebsprüfung bzw. Sperre aktiv ist."
+ ],
  "%d commission entered \"Needs review\" since the last notice.": [
   "Seit dem letzten Hinweis ist %d Provision auf „Prüfung nötig“ gesetzt worden.",
   "Seit dem letzten Hinweis sind %d Provisionen auf „Prüfung nötig“ gesetzt worden."
@@ -78,6 +86,10 @@
   "%d Gutschriften liegen noch im bisherigen Belegordner"
  ],
  "%d credit notes could not be written": "%d Gutschriften konnten nicht geschrieben werden",
+ "%d customer link was made with an earlier WPAC_CUSTOMER_KEY.": [
+  "%d Kundenverknüpfung wurde mit einem früheren WPAC_CUSTOMER_KEY erstellt.",
+  "%d Kundenverknüpfungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt."
+ ],
  "%d day (returns and cancellations), then the commission is approved": [
   "%d Tag (Rücksendungen und Stornierungen), dann wird die Provision freigegeben",
   "%d Tage (Rücksendungen und Stornierungen), dann wird die Provision freigegeben"
@@ -456,6 +468,7 @@
  "Balance (settled, no transfer)": "Saldo (ausgeglichen, keine Überweisung)",
  "Balance including VAT corrections is not positive – carried forward": "Saldo einschließlich USt-Korrekturen nicht positiv – vorgetragen",
  "Bank account": "Bankkonto",
+ "Bank and payment details are stored encrypted and are masked in this file, which is not encrypted. You can check and change them in the partner area (payout details); on request the operator tells you the complete details stored.": "Bank- und Zahlungsangaben werden verschlüsselt gespeichert und sind in dieser unverschlüsselten Datei maskiert. Sie können sie im Partnerbereich (Auszahlungsdaten) prüfen und ändern; auf Anfrage teilt Ihnen der Betreiber die vollständig gespeicherten Angaben mit.",
  "Bank details": "Bankverbindung",
  "Bank details for payout %s are missing or cannot be decrypted.": "Die Bankdaten für Auszahlung %s fehlen oder können nicht entschlüsselt werden.",
  "Bank details of %d partner cannot be decrypted": [
@@ -554,6 +567,7 @@
  "Check file": "Datei prüfen",
  "Check of %s (nothing has been saved yet):": "Prüfung von %s (noch nichts gespeichert):",
  "Check that the statement folder is writable.": "Prüfen Sie, ob der Belegordner beschreibbar ist.",
+ "Checked by the operator before approval": "Vor der Freigabe vom Betreiber geprüft",
  "Checked on": "Geprüft am",
  "Choose another file": "Andere Datei wählen",
  "Choose another partner type": "Andere Partnerart wählen",
@@ -578,6 +592,7 @@
  "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.": "Provisions- und Auszahlungsdaten, Gutschriften und das Protokoll bleiben erhalten, solange eine Gutschrift in der Aufbewahrungsfrist liegt; alles andere wird gelöscht.",
  "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO) and deleted after the configured retention period.": "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden aufgrund gesetzlicher Aufbewahrungspflichten (z. B. § 147 AO) aufbewahrt und nach Ablauf der eingestellten Frist gelöscht.",
  "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.": "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden wegen gesetzlicher Aufbewahrungspflichten (z. B. §147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt und sie werden nach Ablauf der Frist gelöscht.",
+ "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted. They are not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active.": "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden aufgrund gesetzlicher Aufbewahrungspflichten (z. B. § 147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt. Sie werden nicht automatisch gelöscht, solange die Aufbewahrungsfrist auf „unbegrenzt“ steht oder eine Betriebsprüfung bzw. Sperre aktiv ist.",
  "Commission approved": "Provision freigegeben",
  "Commission base": "Provisionsbasis",
  "Commission earned": "Verdiente Provision",
@@ -764,6 +779,7 @@
  "Delete": "Löschen",
  "Delete all data when the plugin is deleted": "Alle Daten löschen, wenn das Plugin gelöscht wird",
  "Delete group": "Gruppe löschen",
+ "Delete links made with the earlier key and confirm": "Mit dem früheren Schlüssel erstellte Verknüpfungen löschen und bestätigen",
  "Delete this group?": "Diese Gruppe löschen?",
  "Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated.": "Diese Gruppe löschen? Ihre Partner fallen auf die Regeln und Bedingungen des Programms zurück (bei eigenen Bedingungen müssen sie vor der nächsten Gutschrift die Programmbedingungen annehmen), und die Provisionsregeln der Gruppe werden deaktiviert.",
  "Delete this rule? Existing commissions are not changed.": "Diese Regel löschen? Bestehende Provisionen bleiben unverändert.",
@@ -950,6 +966,7 @@
  "Iceland": "Island",
  "Idempotency key": "Technische Kennung",
  "If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.": "Wenn Sie bereits einen Warenkorb (Shop-Sitzung) haben oder Marketing-Cookies zugestimmt haben, wird der Partnercode bis zur Bestellung in Ihrer Shop-Sitzung gehalten.",
+ "If you can, restore the earlier key in wp-config.php. If it is lost, these links can no longer be matched to a customer (no lifetime commissions, not found by access or erasure requests): delete them. If only the WordPress salts were changed and the key itself is the same, confirm without deleting.": "Stellen Sie nach Möglichkeit den früheren Schlüssel in der wp-config.php wieder her. Ist er verloren, lassen sich diese Verknüpfungen keinem Kunden mehr zuordnen (keine Lifetime-Provisionen, von Auskunfts- und Löschanträgen nicht gefunden): Löschen Sie sie. Wurden nur die WordPress-Salts geändert und der Schlüssel selbst ist gleich geblieben, bestätigen Sie ohne Löschen.",
  "If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout.": "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode bis zur Kasse in Ihrer Shop-Sitzung gespeichert.",
  "If your e-mail address belongs to a partner account waiting to be connected, we have sent you a new link. Please check your e-mail (also the spam folder).": "Falls Ihre E-Mail-Adresse zu einem Partnerkonto gehört, das auf die Verknüpfung wartet, haben wir Ihnen einen neuen Link gesendet. Bitte prüfen Sie Ihre E-Mails (auch den Spam-Ordner).",
  "Ignored columns:": "Ignorierte Spalten:",
@@ -992,6 +1009,7 @@
  "Integrations": "Integrationen",
  "Integrity check failed:": "Integritätsprüfung fehlgeschlagen:",
  "Integrity check passed: booking chain intact, balance matches the approved, unpaid commissions.": "Integritätsprüfung bestanden: Buchungskette intakt, Saldo entspricht den freigegebenen, nicht ausgezahlten Provisionen.",
+ "Internal note (not shown)": "Interne Notiz (nicht angezeigt)",
  "Invalid field definition: %s": "Ungültige Felddefinition: %s",
  "Invalid status.": "Ungültiger Status.",
  "Invalid value for \"%s\".": "Ungültiger Wert für „%s“.",
@@ -1017,6 +1035,12 @@
  "Keep undecided applications (days, 0 = forever)": "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)",
  "Keep visit data (days)": "Besuchsdaten aufbewahren (Tage)",
  "Key": "Schlüssel",
+ "Key change confirmed.": "Schlüsseländerung bestätigt.",
+ "Key change confirmed; %d customer link made with the earlier key was deleted.": [
+  "Schlüsseländerung bestätigt; %d mit dem früheren Schlüssel erstellte Kundenverknüpfung wurde gelöscht.",
+  "Schlüsseländerung bestätigt; %d mit dem früheren Schlüssel erstellte Kundenverknüpfungen wurden gelöscht."
+ ],
+ "Key unchanged – confirm without deleting": "Schlüssel unverändert – ohne Löschen bestätigen",
  "Landing page": "Landingpage",
  "Landing page path": "URL-Pfad der Landingpages",
  "Last 12 months": "Letzte 12 Monate",
@@ -1443,6 +1467,7 @@
  "Payout created again": "Auszahlung neu angelegt",
  "Payout created from the request.": "Auszahlung aus dem Antrag angelegt.",
  "Payout details": "Auszahlungsdaten",
+ "Payout details and the history of the tax data were retained because the partner still has open commissions or payouts (the VAT of these payouts depends on the tax data valid at the time of the service). They are deleted automatically once everything is settled.": "Auszahlungsdaten und der Verlauf der Steuerdaten wurden aufbewahrt, weil der Partner noch offene Provisionen oder Auszahlungen hat (die Umsatzsteuer dieser Auszahlungen richtet sich nach den zum Leistungszeitpunkt gültigen Steuerdaten). Sie werden automatisch gelöscht, sobald alles abgerechnet ist.",
  "Payout details changed": "Auszahlungsdaten geändert",
  "Payout details completed": "Auszahlungsdaten vervollständigt",
  "Payout details could not be saved": "Auszahlungsdaten konnten nicht gespeichert werden",
@@ -2003,6 +2028,7 @@
   "Die E-Mail wird im Hintergrund an %d aktive Partner gesendet (Partner, die sich von Ankündigungen abgemeldet haben, werden übersprungen)."
  ],
  "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.": "Die bestehenden Kundenverknüpfungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanfragen finden ihre Kundenverknüpfungen nicht mehr.",
+ "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links. This warning stays until the earlier key is back, the old links are gone, or you confirm the change under Integrations → System status.": "Die vorhandenen Kundenverknüpfungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanträge finden ihre Verknüpfungen nicht mehr. Dieser Hinweis bleibt, bis der frühere Schlüssel wieder gesetzt ist, die alten Verknüpfungen entfernt sind oder Sie die Änderung unter Integrationen → Systemstatus bestätigen.",
  "The export file could not be created.": "Die Exportdatei konnte nicht erstellt werden.",
  "The file contains no partners.": "Die Datei enthält keine Partner.",
  "The file has more than %d partners. Split it or use WP-CLI: wp wpac import partners <file>": "Die Datei enthält mehr als %d Partner. Teilen Sie sie auf oder nutzen Sie WP-CLI: wp wpac import partners <datei>",
@@ -2087,6 +2113,10 @@
  "The referral data of %d order is retained until its partner commission has been booked (automatic retry).": [
   "Die Empfehlungsangaben von %d Bestellung werden aufbewahrt, bis ihre Partnerprovision gebucht ist (automatische Wiederholung).",
   "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung)."
+ ],
+ "The referral data of %d order that is not paid yet (referral, partner code entered, manual assignment) is retained: it is needed to credit the partner once the order is paid. Run the erasure again after payment or cancellation to remove it.": [
+  "Die Empfehlungsdaten von %d noch nicht bezahlten Bestellung (Empfehlung, eingegebener Partnercode, manuelle Zuordnung) bleiben erhalten: Sie werden benötigt, um dem Partner nach der Zahlung die Provision gutzuschreiben. Führen Sie die Löschung nach Zahlung oder Stornierung erneut aus, um sie zu entfernen.",
+  "Die Empfehlungsdaten von %d noch nicht bezahlten Bestellungen (Empfehlung, eingegebener Partnercode, manuelle Zuordnung) bleiben erhalten: Sie werden benötigt, um dem Partner nach der Zahlung die Provision gutzuschreiben. Führen Sie die Löschung nach Zahlung oder Stornierung erneut aus, um sie zu entfernen."
  ],
  "The referral data of %d orders is retained until their partner commission has been booked (automatic retry).": "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung).",
  "The refund could not be processed and was queued for retry.": "Die Rückerstattung konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant.",
@@ -2442,6 +2472,10 @@
  "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order": [
   "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
   "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+ ],
+ "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)": [
+  "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung; danach behalten die Provisionszeilen der Bestellung nur Partner, Beträge und Daten (Bestellnummer pseudonymisiert, Produkt und Buchungstexte gelöscht)",
+  "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung; danach behalten die Provisionszeilen der Bestellung nur Partner, Beträge und Daten (Bestellnummer pseudonymisiert, Produkt und Buchungstexte gelöscht)"
  ],
  "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order": "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
  "being reviewed": "wird geprüft",

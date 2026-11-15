@@ -735,6 +735,7 @@ final class Admin {
 			'broadcast_send'    => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statements_move'   => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'customer_key_confirm' => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'restriction'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_create'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_batch'        => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),

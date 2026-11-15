@@ -318,9 +318,9 @@ check(
 		in_array( 'wpac-tax-history', $m16_groups, true ) && false !== strpos( $m16_flat, 'ATU12345678' ),
 		in_array( 'wpac-commission-events', $m16_groups, true ) && false !== strpos( $m16_flat, 'Storno durch Kunde M16' ),
 		false !== strpos( $m16_flat, 'Unsubscribed from these e-mails' ) && false !== strpos( $m16_flat, 'commission' ),
-		false !== strpos( $m16_flat, 'DE89370400440532013000' ),
+		false === strpos( $m16_flat, 'DE89370400440532013000' ) && false !== strpos( $m16_flat, '3000' ), // R13-K8: masked now.
 		false !== strpos( $m16_flat, 'payout_profile' ) || false !== strpos( $m16_flat, 'affiliate.' ),
-		false !== strpos( $r12b_src( 'docs/HANDBOOK.md' ), 'own payment details in full' ),
+		false !== strpos( $r12b_src( 'docs/HANDBOOK.md' ), 'reverses the "full IBAN"' ),
 	)
 );
 

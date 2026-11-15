@@ -95,7 +95,7 @@ $r12e_checks = Monitor::checks();
 check( 'R12-N21 Site Health reports the ignored constant', array( 'recommended', 'WPAC_CUSTOMER_KEY is ignored' ), isset( $r12e_checks['customer_key'] ) ? array( $r12e_checks['customer_key'][0], $r12e_checks['customer_key'][1] ) : null );
 q( "DELETE FROM {$r12e_links}" );
 CustomerLinks::reset_key_cache();
-check( 'R12-N21 no links: the constant takes over, the generated key leaves the database', array( array( 'source' => 'constant', 'ignored' => false, 'missing' => false ), false, hash( 'sha256', WPAC_CUSTOMER_KEY ) ), array( CustomerLinks::key_status(), get_option( 'wpac_customer_key' ), get_option( CustomerLinks::CONSTANT_FP ) ) );
+check( 'R12-N21 no links: the constant takes over, the generated key leaves the database', array( array( 'source' => 'constant', 'ignored' => false, 'missing' => false ), false, CustomerLinks::fingerprint( WPAC_CUSTOMER_KEY ) ), array( CustomerLinks::key_status(), get_option( 'wpac_customer_key' ), get_option( CustomerLinks::CONSTANT_FP ) ) );
 check( 'R12-N21 hashes made with the constant', hash_hmac( 'sha256', 'e:r12e-kunde@example.de', WPAC_CUSTOMER_KEY ), CustomerLinks::hashes( 0, 'r12e-kunde@example.de' )[0] );
 CustomerLinks::link( $r12e_aff, CustomerLinks::hashes( 0, 'r12e-kunde@example.de' ), 'test', 'r12e-link-2' );
 CustomerLinks::reset_key_cache();
@@ -111,6 +111,7 @@ q( "DELETE FROM {$r12e_links}" );
 q( "INSERT INTO {$r12e_links} SELECT * FROM r12e_links_backup" );
 q( 'DROP TEMPORARY TABLE r12e_links_backup' );
 delete_option( CustomerLinks::CONSTANT_FP );
+delete_option( CustomerLinks::KEY_CHANGED );
 if ( false !== $r12e_old_fp ) {
 	update_option( CustomerLinks::CONSTANT_FP, $r12e_old_fp );
 }
@@ -139,30 +140,24 @@ $r12e_details = static function ( $action ) use ( $wpdb, $r12e_era ) {
 };
 $r12e_msgs = Privacy::erase_partner( AffiliateRepository::find( $r12e_era ) );
 check(
-	'R12-N22 erasure empties free-text details but keeps booking-relevant entries within the retention unchanged',
-	array( null, true, true, null, true ),
+	'R12-N22/R13-N2 erasure empties free-text details, keeps booking-relevant entries within the retention pseudonymised, drops non-records',
+	array( null, true, null, null, true ),
 	array(
 		$r12e_details( 'affiliate.note' ),
-		false !== strpos( (string) $r12e_details( 'payout_profile.tax_changed' ), 'DE222' ),
-		false !== strpos( (string) $r12e_details( 'payout_request.rejected' ), 'Bitte erst Rechnung' ),
+		false !== strpos( (string) $r12e_details( 'payout_profile.tax_changed' ), 'vat_id' ) && false === strpos( (string) $r12e_details( 'payout_profile.tax_changed' ), 'DE222' ),
+		$r12e_details( 'payout_request.rejected' ),
 		$wpdb->get_var( 'SELECT details FROM ' . t( 'audit' ) . ' WHERE id = ' . $r12e_old_entry ),
 		null !== $r12e_details( 'agreement.accepted' ),
 	)
 );
 $r12e_joined = implode( ' | ', $r12e_msgs );
-check( 'R12-N22 eraser response reports the retained entries and the tax history with the reason', array( true, true ), array( false !== strpos( $r12e_joined, '2 change log entries about payout details or payout requests' ), false !== strpos( $r12e_joined, 'history of the partner\'s tax data' ) ) );
+check( 'R12-N22/R13-N2 eraser response reports the retained (pseudonymised) entries; no false reason for the tax history', array( true, false ), array( false !== strpos( $r12e_joined, '1 change log entry about payout details or payout requests' ) && false !== strpos( $r12e_joined, 'pseudonymised' ), false !== strpos( $r12e_joined, 'corrections of credit notes within this period' ) ) );
 ProfileRepository::delete( $r12e_era );
-check( 'R12-N22 ProfileRepository::delete keeps the tax history within the retention, drops the pending request', array( 1, null ), array( count( TaxHistory::profile( $r12e_era ) ), TaxHistory::pending( $r12e_era ) ) );
-$r12e_none = AffiliateRepository::create( array( 'name' => 'R12E No bookings', 'email' => 'r12e-none@example.de', 'status' => 'active' ) );
-TaxHistory::record_profile( $r12e_none, array( 'tax_status' => 'business', 'country' => 'DE', 'vat_id' => 'DE987654321', 'tax_number' => '' ) );
-ProfileRepository::delete( $r12e_none );
-check( 'R12-N22 without bookings the tax history is deleted at once', array( array(), false ), array( TaxHistory::profile( $r12e_none ), TaxHistory::retained( $r12e_none ) ) );
-update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 0 ) ) );
-check( 'R12-N22 "keep forever": the tax history of a partner with bookings is always retained', true, TaxHistory::retained( $r12e_era ) );
-update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), array( 'statement_retention_years' => 10 ) ) );
+check( 'R13-N2 ProfileRepository::delete deletes the tax history with the payout details (Corrections does not use it)', array( array(), null, false ), array( TaxHistory::profile( $r12e_era ), TaxHistory::pending( $r12e_era ), false !== strpos( $r12e_src( 'src/Payouts/Corrections.php' ), 'TaxHistory' ) ) );
+TaxHistory::record_profile( $r12e_era, array( 'tax_status' => 'business', 'country' => 'DE', 'vat_id' => 'DE123456789', 'tax_number' => '' ) );
 // The partner's records expire: the remaining details and the history go.
 q( 'UPDATE ' . t( 'commissions' ) . " SET created_at = '2001-01-01 00:00:00', updated_at = '2001-01-01 00:00:00' WHERE id = " . $r12e_ec );
-check( 'R12-N22 records past the retention: history no longer retained', array( true, false ), array( Retention::partner_expired( $r12e_era ), TaxHistory::retained( $r12e_era ) ) );
+check( 'R12-N22 records past the retention', true, Retention::partner_expired( $r12e_era ) );
 Retention::scrub_ledger_texts( $r12e_era );
 check( 'R12-N22 after the retention the booking-relevant details and the tax history are deleted', array( null, null, array() ), array( $r12e_details( 'payout_profile.tax_changed' ), $r12e_details( 'payout_request.rejected' ), TaxHistory::profile( $r12e_era ) ) );
 check( 'R12-N22 purge_audit and the erasure share one list of booking-relevant actions', array( true, 7 ), array( false !== strpos( $r12e_src( 'src/Core/Cron.php' ), 'Audit::financial_sql()' ), substr_count( Audit::financial_sql(), "%%'" ) ) );

@@ -895,6 +895,11 @@ msgstr "Partnerbereiche"
 msgid "Partner group"
 msgstr "Partnergruppe"
 
+msgid "The search covers the last %d day unless a start date is set."
+msgid_plural "The search covers the last %d days unless a start date is set."
+msgstr[0] "Die Suche umfasst den letzten %d Tag, sofern Sie kein Startdatum angeben."
+msgstr[1] "Die Suche umfasst die letzten %d Tage, sofern Sie kein Startdatum angeben."
+
 msgid "Partner created"
 msgstr "Partner angelegt"
 
@@ -1947,6 +1952,11 @@ msgid_plural "Bank details of %d partners were encrypted with the new key."
 msgstr[0] "Die Bankdaten von %d Partner wurden mit dem neuen Schlüssel verschlüsselt."
 msgstr[1] "Die Bankdaten von %d Partnern wurden mit dem neuen Schlüssel verschlüsselt."
 
+msgid "Key change confirmed; %d customer link made with the earlier key was deleted."
+msgid_plural "Key change confirmed; %d customer links made with the earlier key were deleted."
+msgstr[0] "Schlüsseländerung bestätigt; %d mit dem früheren Schlüssel erstellte Kundenverknüpfung wurde gelöscht."
+msgstr[1] "Schlüsseländerung bestätigt; %d mit dem früheren Schlüssel erstellte Kundenverknüpfungen wurden gelöscht."
+
 msgid "%d credit note file was moved to the new statement folder."
 msgid_plural "%d credit note files were moved to the new statement folder."
 msgstr[0] "%d Gutschrift-Datei wurde in den neuen Belegordner verschoben."
@@ -1972,6 +1982,11 @@ msgid_plural "%d credit note files are still in the previous statement folder."
 msgstr[0] "%d Gutschrift-Datei liegt noch im bisherigen Belegordner."
 msgstr[1] "%d Gutschrift-Dateien liegen noch im bisherigen Belegordner."
 
+msgid "%d customer link was made with an earlier WPAC_CUSTOMER_KEY."
+msgid_plural "%d customer links were made with an earlier WPAC_CUSTOMER_KEY."
+msgstr[0] "%d Kundenverknüpfung wurde mit einem früheren WPAC_CUSTOMER_KEY erstellt."
+msgstr[1] "%d Kundenverknüpfungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt."
+
 msgid "There are no failed jobs."
 msgstr "Es gibt keine fehlgeschlagenen Jobs."
 
@@ -1995,6 +2010,9 @@ msgstr "Definieren Sie zuerst WPAC_ENCRYPTION_KEY in der wp-config.php."
 
 msgid "The rest is processed in the background."
 msgstr "Der Rest wird im Hintergrund verarbeitet."
+
+msgid "Key change confirmed."
+msgstr "Schlüsseländerung bestätigt."
 
 msgid "They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them."
 msgstr "Sie bleiben lesbar, solange sich die Salts in der wp-config.php nicht ändern. Verschlüsseln Sie sie jetzt mit Ihrem neuen WPAC_ENCRYPTION_KEY – danach wirkt sich eine Änderung der Salts nicht mehr auf sie aus."
@@ -2163,6 +2181,15 @@ msgstr "Die bestehenden Kundenverknüpfungen wurden mit einem früheren WPAC_CUS
 
 msgid "check"
 msgstr "prüfen"
+
+msgid "If you can, restore the earlier key in wp-config.php. If it is lost, these links can no longer be matched to a customer (no lifetime commissions, not found by access or erasure requests): delete them. If only the WordPress salts were changed and the key itself is the same, confirm without deleting."
+msgstr "Stellen Sie nach Möglichkeit den früheren Schlüssel in der wp-config.php wieder her. Ist er verloren, lassen sich diese Verknüpfungen keinem Kunden mehr zuordnen (keine Lifetime-Provisionen, von Auskunfts- und Löschanträgen nicht gefunden): Löschen Sie sie. Wurden nur die WordPress-Salts geändert und der Schlüssel selbst ist gleich geblieben, bestätigen Sie ohne Löschen."
+
+msgid "Delete links made with the earlier key and confirm"
+msgstr "Mit dem früheren Schlüssel erstellte Verknüpfungen löschen und bestätigen"
+
+msgid "Key unchanged – confirm without deleting"
+msgstr "Schlüssel unverändert – ohne Löschen bestätigen"
 
 msgid "Refused through the action hooks"
 msgstr "Über die Action-Hooks abgelehnt"
@@ -3365,8 +3392,8 @@ msgstr "Aufbewahrungsfristen"
 msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
 msgstr "Danach werden Name, E-Mail und Bewerbungsdaten abgelehnter Bewerber ohne Provisionen anonymisiert."
 
-msgid "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
-msgstr "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist gelöscht. Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht."
+msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgstr "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist anonymisiert (personenbezogene Daten entfernt, Status abgelehnt). Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht."
 
 msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
 msgstr "Nachweise zu den Partnerbedingungen und buchungsrelevante Einträge werden so lange aufbewahrt wie die Gutschriften."
@@ -4385,6 +4412,9 @@ msgstr "Es bestehen bereits Kundenverknüpfungen mit Hashes aus dem in der Daten
 
 msgid "WPAC_CUSTOMER_KEY was removed or changed"
 msgstr "WPAC_CUSTOMER_KEY wurde entfernt oder geändert"
+
+msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links. This warning stays until the earlier key is back, the old links are gone, or you confirm the change under Integrations → System status."
+msgstr "Die vorhandenen Kundenverknüpfungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanträge finden ihre Verknüpfungen nicht mehr. Dieser Hinweis bleibt, bis der frühere Schlüssel wieder gesetzt ist, die alten Verknüpfungen entfernt sind oder Sie die Änderung unter Integrationen → Systemstatus bestätigen."
 
 msgid "Partner program is in maintenance mode"
 msgstr "Partnerprogramm ist im Wartungsmodus"
@@ -6175,10 +6205,20 @@ msgid_plural "The referral data of %d orders is retained until their partner com
 msgstr[0] "Die Empfehlungsangaben von %d Bestellung werden aufbewahrt, bis ihre Partnerprovision gebucht ist (automatische Wiederholung)."
 msgstr[1] "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihre Partnerprovisionen gebucht sind (automatische Wiederholung)."
 
-msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards."
-msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards."
-msgstr[0] "%d Protokolleintrag zu Auszahlungsdaten oder Auszahlungsanträge (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanträge) wird als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; seine Verarbeitung ist eingeschränkt, seine Details werden danach gelöscht."
-msgstr[1] "%d Protokolleinträge zu Auszahlungsdaten oder Auszahlungsanträge (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanträge) werden als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; ihre Verarbeitung ist eingeschränkt, ihre Details werden danach gelöscht."
+msgid "The referral data of %d order that is not paid yet (referral, partner code entered, manual assignment) is retained: it is needed to credit the partner once the order is paid. Run the erasure again after payment or cancellation to remove it."
+msgid_plural "The referral data of %d orders that are not paid yet (referral, partner code entered, manual assignment) is retained: it is needed to credit the partner once the orders are paid. Run the erasure again after payment or cancellation to remove it."
+msgstr[0] "Die Empfehlungsdaten von %d noch nicht bezahlten Bestellung (Empfehlung, eingegebener Partnercode, manuelle Zuordnung) bleiben erhalten: Sie werden benötigt, um dem Partner nach der Zahlung die Provision gutzuschreiben. Führen Sie die Löschung nach Zahlung oder Stornierung erneut aus, um sie zu entfernen."
+msgstr[1] "Die Empfehlungsdaten von %d noch nicht bezahlten Bestellungen (Empfehlung, eingegebener Partnercode, manuelle Zuordnung) bleiben erhalten: Sie werden benötigt, um dem Partner nach der Zahlung die Provision gutzuschreiben. Führen Sie die Löschung nach Zahlung oder Stornierung erneut aus, um sie zu entfernen."
+
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted. It is not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) are retained as booking-relevant records, pseudonymised (tax IDs masked, names, addresses and free texts removed); their processing is restricted. They are not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active."
+msgstr[0] "%d Eintrag im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleibt als buchungsrelevanter Beleg pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); seine Verarbeitung ist eingeschränkt. Er wird nicht automatisch gelöscht, solange die Aufbewahrungsfrist auf „unbegrenzt“ steht oder eine Betriebsprüfung bzw. Sperre aktiv ist."
+msgstr[1] "%d Einträge im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleiben als buchungsrelevante Belege pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); ihre Verarbeitung ist eingeschränkt. Sie werden nicht automatisch gelöscht, solange die Aufbewahrungsfrist auf „unbegrenzt“ steht oder eine Betriebsprüfung bzw. Sperre aktiv ist."
+
+msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) is retained as a booking-relevant record for the statutory retention period, pseudonymised (tax IDs masked, names, addresses and free texts removed); its processing is restricted and its details are deleted afterwards."
+msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax status, VAT ID checks, payout requests) are retained as booking-relevant records for the statutory retention period, pseudonymised (tax IDs masked, names, addresses and free texts removed); their processing is restricted and their details are deleted afterwards."
+msgstr[0] "%d Eintrag im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleibt als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); seine Verarbeitung ist eingeschränkt, die Details werden danach gelöscht."
+msgstr[1] "%d Einträge im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleiben als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); ihre Verarbeitung ist eingeschränkt, die Details werden danach gelöscht."
 
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
@@ -6220,10 +6260,10 @@ msgid_plural "partner applications that were never decided: %d days"
 msgstr[0] "nie entschiedene Partnerbewerbungen: %d Tag"
 msgstr[1] "nie entschiedene Partnerbewerbungen: %d Tage"
 
-msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order"
-msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order"
-msgstr[0] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
-msgstr[1] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
+msgid "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)"
+msgid_plural "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)"
+msgstr[0] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung; danach behalten die Provisionszeilen der Bestellung nur Partner, Beträge und Daten (Bestellnummer pseudonymisiert, Produkt und Buchungstexte gelöscht)"
+msgstr[1] "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung; danach behalten die Provisionszeilen der Bestellung nur Partner, Beträge und Daten (Bestellnummer pseudonymisiert, Produkt und Buchungstexte gelöscht)"
 
 msgid "commission records, credit notes, payout details and the accepted terms: %d year after the end of the calendar year (statutory retention; longer during a tax audit)"
 msgid_plural "commission records, credit notes, payout details and the accepted terms: %d years after the end of the calendar year (statutory retention; longer during a tax audit)"
@@ -6246,6 +6286,12 @@ msgstr "Gesperrt bis"
 
 msgid "Commission status changes"
 msgstr "Statusänderungen von Provisionen"
+
+msgid "Checked by the operator before approval"
+msgstr "Vor der Freigabe vom Betreiber geprüft"
+
+msgid "Internal note (not shown)"
+msgstr "Interne Notiz (nicht angezeigt)"
 
 msgid "Change log entries about you"
 msgstr "Einträge im Änderungsprotokoll zu Ihnen"
@@ -6276,6 +6322,9 @@ msgstr "aktiv"
 
 msgid "Payout requests"
 msgstr "Auszahlungsanträge"
+
+msgid "Bank and payment details are stored encrypted and are masked in this file, which is not encrypted. You can check and change them in the partner area (payout details); on request the operator tells you the complete details stored."
+msgstr "Bank- und Zahlungsangaben werden verschlüsselt gespeichert und sind in dieser unverschlüsselten Datei maskiert. Sie können sie im Partnerbereich (Auszahlungsdaten) prüfen und ändern; auf Anfrage teilt Ihnen der Betreiber die vollständig gespeicherten Angaben mit."
 
 msgid "Earlier tax data"
 msgstr "Frühere Steuerdaten"
@@ -6352,17 +6401,17 @@ msgstr "Beantragte neue Website (wartet auf Freigabe)"
 msgid "Previous e-mail address (security notices for 30 days)"
 msgstr "Vorherige E-Mail-Adresse (Sicherheitshinweise für 30 Tage)"
 
+msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted. They are not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active."
+msgstr "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden aufgrund gesetzlicher Aufbewahrungspflichten (z. B. § 147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt. Sie werden nicht automatisch gelöscht, solange die Aufbewahrungsfrist auf „unbegrenzt“ steht oder eine Betriebsprüfung bzw. Sperre aktiv ist."
+
 msgid "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period."
 msgstr "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden wegen gesetzlicher Aufbewahrungspflichten (z. B. §147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt und sie werden nach Ablauf der Frist gelöscht."
 
 msgid "The restriction of processing could not be saved. Please restrict the partner manually on the partner page."
 msgstr "Die Einschränkung der Verarbeitung konnte nicht gespeichert werden. Bitte schränken Sie den Partner manuell auf der Partnerseite ein."
 
-msgid "The history of the partner's tax data (tax status, country, VAT ID, tax number and until when they applied) is retained for the statutory retention period: corrections of credit notes within this period must use the tax data valid at the time of the service. It is deleted afterwards."
-msgstr "Der Verlauf der Steuerdaten des Partners (Steuerstatus, Land, USt-IdNr., Steuernummer und bis wann sie galten) wird für die gesetzliche Aufbewahrungsfrist aufbewahrt: Korrekturen von Gutschriften innerhalb dieser Frist müssen die zum Zeitpunkt der Leistung gültigen Steuerdaten verwenden. Danach wird er gelöscht."
-
-msgid "Payout details were retained because the partner still has open commissions or payouts. They are deleted automatically once everything is settled."
-msgstr "Die Auszahlungsdaten wurden aufbewahrt, weil der Partner noch offene Provisionen oder Auszahlungen hat. Sie werden automatisch gelöscht, sobald alles abgerechnet ist."
+msgid "Payout details and the history of the tax data were retained because the partner still has open commissions or payouts (the VAT of these payouts depends on the tax data valid at the time of the service). They are deleted automatically once everything is settled."
+msgstr "Auszahlungsdaten und der Verlauf der Steuerdaten wurden aufbewahrt, weil der Partner noch offene Provisionen oder Auszahlungen hat (die Umsatzsteuer dieser Auszahlungen richtet sich nach den zum Leistungszeitpunkt gültigen Steuerdaten). Sie werden automatisch gelöscht, sobald alles abgerechnet ist."
 
 msgid "Data protection: %s asks to restrict processing"
 msgstr "Datenschutz: %s beantragt die Einschränkung der Verarbeitung"

@@ -64,8 +64,10 @@ final class CouponLink {
 		if ( ! $linked ) {
 			// Renamed coupon: the code row linked by the coupon's ID follows the new code instead of
 			// staying on the old text (a later coupon with the old name must not credit the partner).
+			// Only a row that is still linked to a coupon follows: a row whose link was removed on the
+			// partner page (empty coupon_code) must not be linked again - and then blocked (R13-M2).
 			$by_id = self::linked_row( (int) $coupon_id );
-			if ( $by_id && 'active' === $by_id->status && CodeRepository::normalize_coupon( (string) $by_id->coupon_code ) !== CodeRepository::normalize_coupon( $code ) ) {
+			if ( $by_id && 'active' === $by_id->status && '' !== (string) $by_id->coupon_code && CodeRepository::normalize_coupon( (string) $by_id->coupon_code ) !== CodeRepository::normalize_coupon( $code ) ) {
 				CodeRepository::set_coupon( (int) $by_id->id, $code );
 				$linked = CodeRepository::find( (int) $by_id->id );
 			}
@@ -80,6 +82,7 @@ final class CouponLink {
 			CodeRepository::set_status( (int) $linked->id, 'blocked' );
 		}
 		if ( ! $aff_id ) {
+			self::forget( (int) $coupon_id );
 			return;
 		}
 		// Re-use an earlier (unlinked) row of the same partner for this coupon if there is one.
@@ -155,6 +158,43 @@ final class CouponLink {
 		} catch ( \Throwable $e ) {
 			return; // The link still works by the code text.
 		}
+	}
+
+	/**
+	 * Remove the link meta from a WooCommerce coupon (WooCommerce CRUD), e.g. after the link was
+	 * removed on the partner page: otherwise the next save of the coupon would find the old code
+	 * row by the coupon's ID and link it again (R13-M2).
+	 *
+	 * @param int $coupon_id Coupon ID.
+	 * @param int $code_id   Only when the meta points to this code row (0 = always).
+	 */
+	public static function forget( $coupon_id, $code_id = 0 ) {
+		if ( ! $coupon_id || ! class_exists( 'WC_Coupon' ) ) {
+			return;
+		}
+		try {
+			$wc      = new \WC_Coupon( (int) $coupon_id );
+			$current = (int) $wc->get_meta( self::META_CODE_ID );
+			if ( $current && ( ! $code_id || (int) $code_id === $current ) ) {
+				$wc->delete_meta_data( self::META_CODE_ID );
+				$wc->save_meta_data();
+			}
+		} catch ( \Throwable $e ) {
+			return;
+		}
+	}
+
+	/**
+	 * Remove the link meta of a partner code row from the coupon with this code (see forget()).
+	 *
+	 * @param int    $code_id Partner code row.
+	 * @param string $coupon  Coupon code the row was linked to.
+	 */
+	public static function forget_code( $code_id, $coupon ) {
+		if ( '' === (string) $coupon || ! function_exists( 'wc_get_coupon_id_by_code' ) ) {
+			return;
+		}
+		self::forget( (int) wc_get_coupon_id_by_code( (string) $coupon ), (int) $code_id );
 	}
 
 	/**
