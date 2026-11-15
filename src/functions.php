@@ -316,9 +316,50 @@ if ( ! function_exists( 'wpac_create_adjustment' ) ) {
 	 * @param int    $amount_minor Amount in minor units (not 0; negative = deduction).
 	 * @param string $currency     ISO 4217 code.
 	 * @param string $reason       Reason (required, shown to the partner).
-	 * @return array|WP_Error The booking (as wpac_get_commission()).
+	 * @param array  $args         Optional (since 0.15.0): parent_id (ID of an existing commission the
+	 *                             booking refers to, e.g. the downline sale of a team commission;
+	 *                             information only: refunds of that commission leave the booking
+	 *                             untouched), reference (text, at most 64 characters). Other keys →
+	 *                             WP_Error.
+	 * @return array|WP_Error The booking (as wpac_get_commission(), with parent_id and reference).
 	 */
-	function wpac_create_adjustment( $affiliate_id, $amount_minor, $currency, $reason ) {
-		return \WPAffiliateCaptain\Core\PublicApi::create_adjustment( $affiliate_id, $amount_minor, $currency, $reason );
+	function wpac_create_adjustment( $affiliate_id, $amount_minor, $currency, $reason, $args = array() ) {
+		return \WPAffiliateCaptain\Core\PublicApi::create_adjustment( $affiliate_id, $amount_minor, $currency, $reason, $args );
+	}
+}
+
+if ( ! function_exists( 'wpac_portal_url' ) ) {
+	/**
+	 * URL of the partner area (settings: portal page), for links in add-on e-mails or pages. With a
+	 * partner: in the partner's language (language of the linked account, otherwise the site
+	 * language; translated page with WPML/Polylang), as in the plugin's own e-mails. Without a
+	 * partner (0 or unknown ID): in the language of the current request. Home page when no portal
+	 * page is published.
+	 *
+	 * @since 0.15.0
+	 * @param int $affiliate_id Partner ID (0 = current language).
+	 * @return string
+	 */
+	function wpac_portal_url( $affiliate_id = 0 ) {
+		$aff = (int) $affiliate_id > 0 ? \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( (int) $affiliate_id ) : null;
+		return \WPAffiliateCaptain\Affiliates\Notifications::portal_url( $aff ? $aff : null );
+	}
+}
+
+if ( ! function_exists( 'wpac_mail_sender' ) ) {
+	/**
+	 * Sender of the plugin's e-mails, for add-ons that send their own: the same rules as the
+	 * plugin's mails. Name: setting "Sender name", filtered by wpac_mail_from_name, otherwise the
+	 * site name. Address: setting "Sender address", otherwise the program notification address
+	 * (settings) or the site admin e-mail.
+	 *
+	 * @since 0.15.0
+	 * @param string $type         Optional mail type of the add-on (passed to wpac_mail_from_name).
+	 * @param int    $affiliate_id Optional recipient partner (passed to wpac_mail_from_name).
+	 * @return array { name, email, custom } custom = true when the sender address is set in the
+	 *               settings (only then do the plugin's mails set a From header).
+	 */
+	function wpac_mail_sender( $type = '', $affiliate_id = 0 ) {
+		return \WPAffiliateCaptain\Affiliates\Notifications::sender( (string) $type, (int) $affiliate_id );
 	}
 }

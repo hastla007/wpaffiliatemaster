@@ -90,7 +90,7 @@ final class PublicApi {
 	 */
 	public static function get_commission( $id ) {
 		$c = (int) $id > 0 ? Ledger::find( (int) $id ) : null;
-		return $c ? self::commission_data( $c ) : null; // Like wpac_get_payout(): null when unknown.
+		return $c ? self::commission_data( $c, Ledger::links( array( (int) $c->id ) ) ) : null; // Like wpac_get_payout(): null when unknown.
 	}
 
 	/**
@@ -139,7 +139,13 @@ final class PublicApi {
 		}
 		// Without a filter the total of the whole table is cached briefly (exact when filtered).
 		list( $rows, $total ) = Ledger::query( $query + $paging['query'] + array( 'count' => 'cached' ) );
-		return self::page( array_map( array( __CLASS__, 'commission_data' ), (array) $rows ), $total, $paging );
+		$rows  = (array) $rows;
+		$links = Ledger::links( wp_list_pluck( $rows, 'id' ) ); // One query for the page (P15-1).
+		$items = array();
+		foreach ( $rows as $row ) {
+			$items[] = self::commission_data( $row, $links );
+		}
+		return self::page( $items, $total, $paging );
 	}
 
 	/**
@@ -277,11 +283,50 @@ final class PublicApi {
 	 * @param int    $amount_minor Amount in minor units (not 0; negative = deduction).
 	 * @param string $currency     ISO 4217 code.
 	 * @param string $reason       Reason (required, shown to the partner).
+	 * @param array  $args         Optional (since 0.15.0): parent_id (existing commission the
+	 *                             booking refers to, e.g. the downline sale of a team commission;
+	 *                             information only, no effect on refunds, payouts or credit
+	 *                             notes), reference (≤ 64 characters, e.g. the add-on's rule).
 	 * @return array|\WP_Error The booking.
 	 */
-	public static function create_adjustment( $affiliate_id, $amount_minor, $currency, $reason ) {
+	public static function create_adjustment( $affiliate_id, $amount_minor, $currency, $reason, $args = array() ) {
 		if ( ! AffiliateRepository::find( (int) $affiliate_id ) ) {
 			return self::not_found();
+		}
+		if ( ! is_array( $args ) ) {
+			return self::invalid( 'args' );
+		}
+		$unknown = array_diff( array_keys( $args ), array( 'parent_id', 'reference' ) );
+		if ( $unknown ) {
+			return new \WP_Error(
+				'wpac_invalid_field',
+				/* translators: %s: argument name */
+				sprintf( __( 'Unknown argument "%s".', 'affiliate-captain' ), (string) reset( $unknown ) )
+			);
+		}
+		$link = array();
+		if ( isset( $args['parent_id'] ) && '' !== $args['parent_id'] && 0 !== $args['parent_id'] && '0' !== $args['parent_id'] ) {
+			$parent = is_scalar( $args['parent_id'] ) ? self::whole( $args['parent_id'] ) : null;
+			if ( ! $parent || ! Ledger::find( $parent ) ) {
+				return self::invalid( 'parent_id' );
+			}
+			$link['parent_id'] = $parent;
+		}
+		if ( isset( $args['reference'] ) ) {
+			if ( ! is_scalar( $args['reference'] ) || is_bool( $args['reference'] ) ) {
+				return self::invalid( 'reference' );
+			}
+			$reference = trim( sanitize_text_field( (string) $args['reference'] ) );
+			if ( Db::too_long( $reference, 64 ) ) {
+				return new \WP_Error(
+					'wpac_too_long_reference',
+					/* translators: 1: field, 2: number of characters */
+					sprintf( __( '%1$s is too long (at most %2$d characters). Nothing was changed.', 'affiliate-captain' ), 'reference', 64 )
+				);
+			}
+			if ( '' !== $reference ) {
+				$link['reference'] = $reference;
+			}
 		}
 		if ( ! is_int( $amount_minor ) && ! ( is_string( $amount_minor ) && preg_match( '/^-?\d{1,12}$/', $amount_minor ) ) ) {
 			return new \WP_Error( 'wpac_amount', __( 'Please enter an amount other than 0.', 'affiliate-captain' ) );
@@ -290,7 +335,7 @@ final class PublicApi {
 			return self::invalid( 'currency' );
 		}
 		// Audited (commission.manual); wpac_commission_created fires after the COMMIT.
-		$id = Ledger::manual_adjustment( (int) $affiliate_id, strtoupper( $currency ), (int) $amount_minor, sanitize_text_field( (string) $reason ) );
+		$id = Ledger::manual_adjustment( (int) $affiliate_id, strtoupper( $currency ), (int) $amount_minor, sanitize_text_field( (string) $reason ), 0, $link );
 		if ( is_wp_error( $id ) ) {
 			return $id;
 		}
@@ -325,15 +370,24 @@ final class PublicApi {
 	/**
 	 * Public fields of a ledger row (no customer data: the ledger stores none).
 	 *
-	 * @param object $c Commission row.
+	 * @param object     $c     Commission row.
+	 * @param array|null $links Information-only links (Ledger::links()) of this row or page; null =
+	 *                          look up this row.
 	 * @return array
 	 */
-	public static function commission_data( $c ) {
+	public static function commission_data( $c, $links = null ) {
+		if ( ! is_array( $links ) ) {
+			$links = Ledger::links( array( (int) $c->id ) );
+		}
+		$link = isset( $links[ (int) $c->id ] ) ? $links[ (int) $c->id ] : null;
 		return array(
 			'id'           => (int) $c->id,
 			'affiliate_id' => (int) $c->affiliate_id,
 			'kind'         => (string) $c->kind,
-			'parent_id'    => (int) $c->parent_id,
+			// The corrected commission; for a booking of wpac_create_adjustment() with parent_id the
+			// linked commission (information only, since 0.15.0).
+			'parent_id'    => (int) $c->parent_id ? (int) $c->parent_id : ( $link ? (int) $link['parent_id'] : 0 ),
+			'reference'    => $link ? (string) $link['reference'] : '', // Since 0.15.0.
 			'status'       => (string) $c->status,
 			'currency'     => (string) $c->currency,
 			'amount_minor' => (int) $c->amount_minor,
