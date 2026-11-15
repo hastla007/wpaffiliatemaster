@@ -89,8 +89,10 @@ class Test_WPDB {
 		$this->options = $this->prefix . 'options';
 		$this->db->query( "CREATE TABLE IF NOT EXISTS {$this->options} ( option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT, option_name varchar(191) NOT NULL, option_value longtext NOT NULL, autoload varchar(20) NOT NULL DEFAULT 'yes', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name) )" );
 		$this->db->query( "TRUNCATE TABLE {$this->options}" );
+		$this->postmeta = $this->prefix . 'postmeta'; // Name only (uninstall.php checks whether it exists).
 	}
 	public $options = 'wp_options';
+	public $postmeta = 'wp_postmeta';
 	public $rows_affected = 0;
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4'; }
 	public function get_blog_prefix( $id = null ) { return $this->prefix; }
@@ -303,6 +305,31 @@ class WP_Error {
 	public function get_error_message() { return $this->message; }
 	public function add_data( $d ) { $this->data = $d; }
 }
+
+// R14-A4: deprecations raised in the plugin's own code (src/, uninstall.php) fail the run, on every
+// PHP version of the CI matrix. Silenced ones (@) and those of the stand-ins/tests are ignored.
+$GLOBALS['wpac_test_deprecations'] = array();
+set_error_handler(
+	static function ( $no, $str, $file = '', $line = 0 ) {
+		if ( ! ( $no & ( E_DEPRECATED | E_USER_DEPRECATED ) ) ) {
+			return false; // Everything else: PHP's normal handling.
+		}
+		$real = (string) realpath( (string) $file );
+		$own  = '' !== $real && ( 0 === strpos( $real, (string) realpath( WPAC_DIR . 'src' ) . '/' ) || (string) realpath( WPAC_DIR . 'uninstall.php' ) === $real );
+		if ( $own && ( error_reporting() & E_WARNING ) ) { // Not silenced with @ (which masks E_WARNING).
+			$GLOBALS['wpac_test_deprecations'][] = $str . ' in ' . substr( $real, strlen( (string) realpath( WPAC_DIR ) ) + 1 ) . ':' . (int) $line;
+		}
+		return true;
+	}
+);
+register_shutdown_function(
+	static function () {
+		if ( $GLOBALS['wpac_test_deprecations'] && empty( $GLOBALS['wpac_test_deprecations_reported'] ) ) {
+			fwrite( STDERR, "\nDeprecations from the plugin's code:\n  " . implode( "\n  ", array_unique( $GLOBALS['wpac_test_deprecations'] ) ) . "\n" );
+			exit( 1 );
+		}
+	}
+);
 
 spl_autoload_register(
 	static function ( $class ) {

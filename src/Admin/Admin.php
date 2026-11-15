@@ -725,12 +725,14 @@ final class Admin {
 			'affiliate_update'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'affiliate_status'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'public_change'     => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'vies_check'        => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'vies_check'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Sends data to the EU; "invalid" blocks payouts (R14-S4).
 			'tax_approve'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'tax_reject'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
-			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'bank_approve'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'bank_reject'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
+			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
+			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'broadcast_send'    => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),

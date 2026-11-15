@@ -53,7 +53,7 @@ function wpac_uninstall_site() {
 	// the kept credit notes, balances and commissions refer to. Dropping it would let a new
 	// installation give a former partner's ID – and with it their documents and balance – to
 	// a new partner.
-	$wpac_financial = array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements', 'payout_corrections' );
+	$wpac_financial = wpac_uninstall_financial_tables();
 
 	// Statements / credit notes of THIS site (only when "delete all data" was explicitly enabled and
 	// no statement is within the retention period anymore). Only the files the site's payouts point
@@ -76,8 +76,7 @@ function wpac_uninstall_site() {
 		}
 	}
 
-	$wpac_tables = array( 'affiliates', 'partner_groups', 'partner_codes', 'agreements', 'payout_profiles', 'visits', 'attributions', 'rules', 'commissions', 'commission_events', 'payouts', 'payout_items', 'payout_corrections', 'jobs', 'audit', 'tiers', 'customer_links', 'creatives', 'payout_requests', 'sequences', 'balances', 'balance_entries', 'rate_limits' );
-	foreach ( $wpac_tables as $wpac_table ) {
+	foreach ( wpac_uninstall_tables() as $wpac_table ) {
 		if ( $wpac_keep && in_array( $wpac_table, $wpac_financial, true ) ) {
 			continue;
 		}
@@ -149,7 +148,7 @@ function wpac_uninstall_site() {
 		delete_option( $wpac_option );
 	}
 	// Markers of sales being booked (normally removed right away), pending applications/e-mail changes.
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%' OR option_name LIKE 'wpac\\_user\\_link\\_%' OR option_name LIKE 'wpac\\_prev\\_email\\_%' OR option_name LIKE 'wpac\\_public\\_change\\_%' OR option_name LIKE 'wpac\\_vies\\_%' OR option_name LIKE 'wpac\\_dunning\\_%' OR option_name LIKE 'wpac\\_tax\\_history\\_%' OR option_name LIKE 'wpac\\_tax\\_pending\\_%' OR option_name LIKE 'wpac\\_reassign\\_%' OR option_name LIKE 'wpac\\_pending\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%' OR option_name LIKE 'wpac\\_user\\_link\\_%' OR option_name LIKE 'wpac\\_prev\\_email\\_%' OR option_name LIKE 'wpac\\_public\\_change\\_%' OR option_name LIKE 'wpac\\_vies\\_%' OR option_name LIKE 'wpac\\_dunning\\_%' OR option_name LIKE 'wpac\\_tax\\_history\\_%' OR option_name LIKE 'wpac\\_tax\\_pending\\_%' OR option_name LIKE 'wpac\\_bank\\_pending\\_%' OR option_name LIKE 'wpac\\_access\\_changed\\_%' OR option_name LIKE 'wpac\\_reassign\\_%' OR option_name LIKE 'wpac\\_pending\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Monthly report claims (one per month).
 	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_report\\_claim\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Rate-limit and other transients.
@@ -157,9 +156,23 @@ function wpac_uninstall_site() {
 	// Content meta (recommended partner targets).
 	delete_post_meta_by_key( '_wpac_promote' );
 	delete_post_meta_by_key( '_wpac_promote_note' );
+	delete_post_meta_by_key( '_wpac_form_groups' ); // Partner groups of the application form blocks (R14-A3).
+	// IDs of the partner code rows (coupon meta): the partner codes table is always dropped, so a new
+	// installation gives these IDs to other partners' codes (R14-A1). Coupons stay posts with HPOS.
+	delete_post_meta_by_key( '_wpac_code_id' );
+	if ( ! $wpac_keep ) {
+		// The partners table is dropped too: a manual assignment by partner ID in an order would
+		// credit the new partner with the same ID once the order is paid (R14-A1).
+		foreach ( array( $wpdb->postmeta, $wpdb->prefix . 'wc_orders_meta' ) as $wpac_meta_table ) {
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_meta_table ) ) === $wpac_meta_table ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->query( "DELETE FROM {$wpac_meta_table} WHERE meta_key IN ('_wpac_manual_affiliate', '_wpac_manual_own')" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			}
+		}
+	}
 	// Note: WooCommerce orders belong to the shop: their notes ("attributed to partner …") and the
 	// order meta (_wpac_*: partner code entered, referral snapshot) stay with the orders (R12-N18,
-	// see HANDBOOK "Uninstalling"); WordPress users created for partners are kept.
+	// see HANDBOOK "Uninstalling"); WordPress users created for partners are kept. Only the manual
+	// assignment by partner ID goes when the partners table is dropped (see above).
 
 	if ( function_exists( 'remove_role' ) ) {
 		remove_role( 'wpac_tax_advisor' ); // Read-only role of the plugin.
@@ -169,6 +182,132 @@ function wpac_uninstall_site() {
 			$wpac_role->remove_cap( $wpac_cap );
 		}
 	}
+}
+
+/**
+ * Tables of the plugin (without prefix; the same list as Core\Db::TABLES, kept in sync by a test).
+ *
+ * @return string[]
+ */
+function wpac_uninstall_tables() {
+	return array( 'affiliates', 'partner_groups', 'partner_codes', 'agreements', 'payout_profiles', 'visits', 'attributions', 'rules', 'commissions', 'commission_events', 'payouts', 'payout_items', 'payout_corrections', 'jobs', 'audit', 'tiers', 'customer_links', 'creatives', 'payout_requests', 'sequences', 'balances', 'balance_entries', 'rate_limits' );
+}
+
+/**
+ * Tables with booking records kept for the statutory retention period (as Core\Installer::FINANCIAL_TABLES).
+ *
+ * @return string[]
+ */
+function wpac_uninstall_financial_tables() {
+	return array( 'affiliates', 'commissions', 'commission_events', 'payouts', 'payout_items', 'sequences', 'balances', 'balance_entries', 'audit', 'agreements', 'payout_corrections' );
+}
+
+/**
+ * Network: tables and kept credit notes of DELETED sites (R14-A2). While the plugin is active the
+ * daily sweep (Core\Installer::drop_orphaned_tables()) removes them once the retention period
+ * ended; after the plugin is deleted nothing would. Same rules: a site counts as deleted when it
+ * is not in the network and its WordPress options table is gone; the booking records stay while
+ * they are within their period (or a legal hold was set) – then the network option
+ * wpac_retained_sites stays too, and tools/purge-retained.php can be run again later.
+ */
+function wpac_uninstall_deleted_sites() {
+	global $wpdb;
+	$base  = $wpdb->base_prefix;
+	$found = array_merge(
+		(array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( '_wpac_affiliates' ) ) ), // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		(array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base ) . '%' . $wpdb->esc_like( '_wpac_payouts' ) ) ) // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	);
+	$retained = (array) get_site_option( 'wpac_retained_sites', array() );
+	$seen     = array();
+	foreach ( $found as $wpac_table ) {
+		if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(\d+)_wpac_(affiliates|payouts)$/i', (string) $wpac_table, $m ) ) {
+			continue;
+		}
+		$blog_id = (int) $m[1];
+		if ( $blog_id < 2 || isset( $seen[ $blog_id ] ) || get_site( $blog_id ) ) {
+			continue;
+		}
+		$seen[ $blog_id ] = true;
+		$prefix           = $base . $blog_id . '_';
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix . 'options' ) ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			continue; // Not a deleted site (or not one of this network).
+		}
+		$keep = wpac_uninstall_deleted_site_retained( $prefix, isset( $retained[ $blog_id ] ) ? (array) $retained[ $blog_id ] : null );
+		foreach ( wpac_uninstall_tables() as $name ) {
+			if ( $keep && in_array( $name, wpac_uninstall_financial_tables(), true ) ) {
+				continue;
+			}
+			$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $prefix . 'wpac_' . $name ) . '`' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+		}
+		if ( ! $keep && isset( $retained[ $blog_id ] ) ) {
+			wpac_uninstall_delete_retained_folder( isset( $retained[ $blog_id ]['folder'] ) ? (string) $retained[ $blog_id ]['folder'] : '' );
+			unset( $retained[ $blog_id ] );
+		}
+	}
+	// Kept folders of deleted sites whose tables are already gone.
+	foreach ( $retained as $blog_id => $entry ) {
+		if ( isset( $seen[ (int) $blog_id ] ) || get_site( (int) $blog_id ) ) {
+			continue;
+		}
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base . (int) $blog_id . '_wpac_payouts' ) ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			wpac_uninstall_delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
+			unset( $retained[ $blog_id ] );
+		}
+	}
+	if ( $retained ) {
+		update_site_option( 'wpac_retained_sites', $retained );
+	} else {
+		delete_site_option( 'wpac_retained_sites' );
+	}
+}
+
+/**
+ * Whether the kept booking records of a deleted site are still within their retention period
+ * (as Core\Installer::deleted_site_retained()).
+ *
+ * @param string     $prefix Table prefix of the deleted site.
+ * @param array|null $entry  Retention data remembered when the site was deleted (null: 10 years).
+ * @return bool
+ */
+function wpac_uninstall_deleted_site_retained( $prefix, $entry ) {
+	global $wpdb;
+	$t = $prefix . 'wpac_payouts';
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+	if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $t ) ) ) || ! $wpdb->get_var( 'SHOW COLUMNS FROM `' . esc_sql( $t ) . "` LIKE 'storno_at'" ) ) {
+		return false;
+	}
+	$years = null === $entry || ! isset( $entry['years'] ) ? 10 : (int) $entry['years'];
+	if ( ! empty( $entry['hold'] ) || $years <= 0 ) {
+		return true; // Keep forever / legal hold: the network admin deletes the tables by hand.
+	}
+	$cutoff = gmdate( 'Y-12-31 23:59:59', strtotime( '-' . ( $years + 1 ) . ' years' ) );
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	if ( $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM `' . esc_sql( $t ) . '` WHERE created_at > %s OR storno_at > %s LIMIT 1', $cutoff, $cutoff ) ) ) {
+		return true;
+	}
+	$k = $prefix . 'wpac_payout_corrections';
+	if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $k ) ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return false;
+	}
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM `' . esc_sql( $k ) . '` WHERE created_at > %s LIMIT 1', $cutoff ) );
+}
+
+/**
+ * Delete the kept credit note folder of a deleted site ("…/site-N" only).
+ *
+ * @param string $folder Folder.
+ */
+function wpac_uninstall_delete_retained_folder( $folder ) {
+	if ( '' === $folder || ! is_dir( $folder ) || ! preg_match( '#/site-\d+$#', untrailingslashit( $folder ) ) ) {
+		return;
+	}
+	foreach ( (array) scandir( $folder ) as $entry ) {
+		if ( '.' !== $entry && '..' !== $entry && is_file( $folder . '/' . $entry ) ) {
+			wp_delete_file( $folder . '/' . $entry );
+		}
+	}
+	@rmdir( $folder ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 }
 
 /**
@@ -205,6 +344,17 @@ function wpac_uninstall_schedules() {
 	}
 	if ( function_exists( 'as_unschedule_all_actions' ) ) {
 		as_unschedule_all_actions( '', array(), 'wp-affiliate-captain' );
+		return;
+	}
+	// WooCommerce (with its Action Scheduler) not loaded, e.g. deactivated before this plugin was
+	// deleted: its tables may still hold pending actions of the plugin's group, which would fail
+	// ("no callbacks registered") once WooCommerce is active again (R14-A3).
+	global $wpdb;
+	$wpac_actions = $wpdb->prefix . 'actionscheduler_actions';
+	$wpac_groups  = $wpdb->prefix . 'actionscheduler_groups';
+	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_actions ) ) === $wpac_actions && $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_groups ) ) === $wpac_groups ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( "DELETE a FROM {$wpac_actions} a INNER JOIN {$wpac_groups} g ON g.group_id = a.group_id WHERE g.slug = %s AND a.status = %s", 'wp-affiliate-captain', 'pending' ) );
 	}
 }
 
@@ -251,6 +401,8 @@ if ( is_multisite() ) {
 		wpac_uninstall_site();
 		restore_current_blog();
 	}
+	// Tables and kept credit notes of deleted sites whose retention period ended (R14-A2).
+	wpac_uninstall_deleted_sites();
 	// Network-wide state: sites still waiting for the set-up after a network activation, daily sweep marker.
 	delete_site_option( 'wpac_network_pending' );
 	delete_site_transient( 'wpac_orphan_sweep' );

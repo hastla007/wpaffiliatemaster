@@ -50,7 +50,7 @@ final class RestApi {
 	 * Beacon: referral seen by a cached page (see Tracker::enqueue_beacon()).
 	 *
 	 * @param \WP_REST_Request $r Request.
-	 * @return array|\WP_Error
+	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function touch( $r ) {
 		// "consent": the visitor gave marketing consent after the landing; the referral is stored

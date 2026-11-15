@@ -514,7 +514,7 @@ final class Portal {
 				// Tax data that change the VAT on credit notes wait for the approval of an admin.
 				$result = ProfileRepository::save( (int) $aff->id, $in, 'partner' );
 			}
-			$msg = is_wp_error( $result ) ? $result->get_error_code() : ( \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id ) ? 'tax_pending' : 'saved' );
+			$msg = is_wp_error( $result ) ? $result->get_error_code() : ( ProfileRepository::pending_bank_change( (int) $aff->id ) ? 'bank_pending' : ( \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id ) ? 'tax_pending' : 'saved' ) );
 			if ( is_wp_error( $result ) ) {
 				self::keep_profile_form( $in, $msg );
 			}
@@ -955,6 +955,7 @@ final class Portal {
 			'wpac_vat_format' => array( 'error', __( 'The VAT ID does not have a valid format or does not start with the code of your country. Please check it.', 'affiliate-captain' ) ),
 			'tax_pending'     => array( 'success', __( 'Your details have been saved. The change of your tax data is checked by us and applies once we have approved it; until then your previous tax data are used.', 'affiliate-captain' ) ),
 			'wpac_tax_number' => array( 'error', __( 'Please enter your tax number or VAT ID (required on credit notes).', 'affiliate-captain' ) ),
+			'bank_pending'    => array( 'success', __( 'Your details have been saved. Because the access to your partner account changed recently, we check your new bank details first; until we have approved them, payouts go to your previous account.', 'affiliate-captain' ) ),
 			'wpac_password'   => array( 'error', __( 'Please confirm the change of your bank or payment details with your current password. Nothing was changed.', 'affiliate-captain' ) ),
 			'wpac_too_long_legal_name'     => array( 'error', __( 'The name is too long (at most 190 characters). Nothing was changed.', 'affiliate-captain' ) ),
 			'wpac_too_long_account_holder' => array( 'error', __( 'The account holder is too long (at most 190 characters). Nothing was changed.', 'affiliate-captain' ) ),
@@ -1940,6 +1941,11 @@ final class Portal {
 			$pending_status = isset( $tax_pending['new']['tax_status'], $labels[ $tax_pending['new']['tax_status'] ] ) ? $labels[ $tax_pending['new']['tax_status'] ] : '—';
 			/* translators: 1: tax status, 2: VAT ID */
 			echo '<div class="wpac-notice" role="status">' . esc_html( sprintf( __( 'Your change of the tax data (%1$s, VAT ID %2$s) waits for our approval. Until then your previous tax data are used.', 'affiliate-captain' ), $pending_status, '' !== (string) $tax_pending['new']['vat_id'] ? (string) $tax_pending['new']['vat_id'] : '—' ) ) . '</div>';
+		}
+		$bank_pending = ProfileRepository::pending_bank_change( (int) $aff->id );
+		if ( $bank_pending ) {
+			/* translators: %s: masked account or payment details */
+			echo '<div class="wpac-notice" role="status">' . esc_html( sprintf( __( 'Your new bank details (%s) wait for our approval. Until then payouts go to your previous account.', 'affiliate-captain' ), ProfileRepository::pending_bank_label( $bank_pending ) ) ) . '</div>';
 		}
 		$vies = $p && '' !== (string) $p->vat_id ? \WPAffiliateCaptain\Payouts\Vies::result_for( (int) $aff->id, array( (string) $p->vat_id ) ) : null;
 		if ( $vies ) {
