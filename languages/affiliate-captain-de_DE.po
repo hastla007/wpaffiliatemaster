@@ -1642,7 +1642,7 @@ msgid "3. Payout: payouts are made once the minimum payout is reached, by bank t
 msgstr "3. Auszahlung: Ausgezahlt wird, sobald die Mindestauszahlung erreicht ist, per Überweisung oder einer anderen vereinbarten Auszahlungsart."
 
 msgid "4. Credit notes (self-billing): we settle commissions by credit note in the name and for the account of the partner (§14 (2) sentence 2 German VAT Act). The partner agrees to this procedure, keeps the tax details in the partner area up to date and may object to a credit note; it then loses its effect as an invoice."
-msgstr "4. Gutschriften: Wir rechnen Provisionen per Gutschrift im Namen und für Rechnung des Partners ab (§ 14 Abs. 2 Satz 2 UStG). Der Partner ist mit diesem Verfahren einverstanden, hält seine Steuerangaben im Partnerbereich aktuell und kann einer Gutschrift widersprechen; sie verliert dann ihre Wirkung als Rechnung."
+msgstr "4. Gutschriften: Wir rechnen Provisionen per Gutschrift im Namen und für Rechnung des Partners ab (§ 14 Abs. 2 Satz 2 UStG). Der Partner ist mit diesem Verfahren einverstanden, hält seine Steuerdaten im Partnerbereich aktuell und kann einer Gutschrift widersprechen; sie verliert dann ihre Wirkung als Rechnung."
 
 msgid "5. Advertising rules: partners label their posts as advertising, follow the promotion guidelines and do not use misleading claims, spam, brand bidding or cookie stuffing."
 msgstr "5. Werberegeln: Partner kennzeichnen ihre Beiträge als Werbung, beachten die Werberichtlinien und nutzen keine irreführenden Aussagen, keinen Spam, kein Brand-Bidding und kein Cookie-Stuffing."
@@ -1913,7 +1913,7 @@ msgid "Imported active partners receive a welcome e-mail."
 msgstr "Importierte aktive Partner erhalten eine Willkommens-E-Mail."
 
 msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items, correction credit notes and payout requests. Use it as a backup, for your tax advisor or to move to another system."
-msgstr "Laden Sie das gesamte Partnerprogramm als ZIP-Datei mit einer CSV-Datei je Liste herunter: Partner, Gruppen, Codes, Regeln, Stufenpläne, Zustimmungen zu den Partnerbedingungen, Provisionen, Auszahlungen, Auszahlungspositionen, Korrektur-Gutschriften und Auszahlungsanträge – zur Sicherung, für Ihre Steuerberatung oder für den Umzug in ein anderes System."
+msgstr "Laden Sie das gesamte Partnerprogramm als ZIP-Datei mit einer CSV-Datei je Liste herunter: Partner, Gruppen, Codes, Regeln, Stufenpläne, Zustimmungen zu den Partnerbedingungen, Provisionen, Auszahlungen, Auszahlungspositionen, Korrekturgutschriften und Auszahlungsanträge – zur Sicherung, für Ihre Steuerberatung oder für den Umzug in ein anderes System."
 
 msgid "The program export needs the PHP extension \"zip\". Ask your hosting provider to enable it, or use the CSV exports of the individual lists."
 msgstr "Der Programm-Export benötigt die PHP-Erweiterung „zip“. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie die CSV-Exporte der einzelnen Listen."
@@ -2156,10 +2156,10 @@ msgid "Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php"
 msgstr "Kunden-Hashes verwenden WPAC_CUSTOMER_KEY aus der wp-config.php"
 
 msgid "WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored)."
-msgstr "WPAC_CUSTOMER_KEY wird ignoriert: Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel, und diese lassen sich nicht neu berechnen (E-Mail-Adressen werden nicht gespeichert)."
+msgstr "WPAC_CUSTOMER_KEY wird ignoriert: Es bestehen bereits Kundenverknüpfungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel, und diese lassen sich nicht neu berechnen (E-Mail-Adressen werden nicht gespeichert)."
 
 msgid "The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links."
-msgstr "Die bestehenden Kunden-Bindungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanfragen finden ihre Bindungen nicht mehr."
+msgstr "Die bestehenden Kundenverknüpfungen wurden mit einem früheren WPAC_CUSTOMER_KEY erstellt. Stellen Sie ihn in der wp-config.php wieder her, sonst werden wiederkehrende Kunden nicht mehr erkannt und Löschanfragen finden ihre Kundenverknüpfungen nicht mehr."
 
 msgid "check"
 msgstr "prüfen"
@@ -2168,7 +2168,7 @@ msgid "Refused through the action hooks"
 msgstr "Über die Action-Hooks abgelehnt"
 
 msgid "These sales, refunds or reinstatements were sent through do_action() and refused by the validation. They were not booked and are not retried: please fix the sending integration and send them again."
-msgstr "Diese Verkäufe, Erstattungen oder Wiedergutschriften wurden über do_action() gesendet und von der Prüfung abgelehnt. Sie wurden nicht gebucht und werden nicht wiederholt: Bitte korrigieren Sie die sendende Integration und senden Sie sie erneut."
+msgstr "Diese Verkäufe, Erstattungen oder Wiederherstellungen wurden über do_action() gesendet und von der Prüfung abgelehnt. Sie wurden nicht gebucht und werden nicht wiederholt: Bitte korrigieren Sie die sendende Integration und senden Sie sie erneut."
 
 msgid "No open or failed jobs. Sales and refunds that cannot be booked right away (e.g. during a database problem) wait here and are retried automatically."
 msgstr "Keine offenen oder fehlgeschlagenen Aufträge. Verkäufe und Erstattungen, die nicht sofort gebucht werden können (z. B. bei einem Datenbankproblem), warten hier und werden automatisch wiederholt."
@@ -2507,7 +2507,7 @@ msgid "Correct net amount (%s)"
 msgstr "Richtiger Nettobetrag (%s)"
 
 msgid "This credit note has parts with different VAT treatments or rates. Enter the correct taxable net amount for each part you want to change (leave the others empty); each changed part gets its own correction credit note."
-msgstr "Diese Gutschrift hat Teile mit unterschiedlicher umsatzsteuerlicher Behandlung oder unterschiedlichen Steuersätzen. Geben Sie für jeden Teil, den Sie ändern möchten, den richtigen steuerbaren Nettobetrag ein (die übrigen bleiben leer); jeder geänderte Teil erhält eine eigene Korrektur-Gutschrift."
+msgstr "Diese Gutschrift hat Teile mit unterschiedlicher umsatzsteuerlicher Behandlung oder unterschiedlichen Steuersätzen. Geben Sie für jeden Teil, den Sie ändern möchten, den richtigen steuerbaren Nettobetrag ein (die übrigen bleiben leer); jeder geänderte Teil erhält eine eigene Korrekturgutschrift."
 
 msgid "Part"
 msgstr "Teil"
@@ -2528,10 +2528,10 @@ msgid "Correct net amount"
 msgstr "Richtiger Nettobetrag"
 
 msgid "Not taxable and not part of the amounts above: repayments, write-offs and settled correction credit notes on this credit note (%s)."
-msgstr "Nicht steuerbar und nicht Teil der obigen Beträge: Rückzahlungen, Abschreibungen und verrechnete Korrektur-Gutschriften auf dieser Gutschrift (%s)."
+msgstr "Nicht steuerbar und nicht Teil der obigen Beträge: Rückzahlungen, Abschreibungen und ausgeglichene Korrekturgutschriften auf dieser Gutschrift (%s)."
 
 msgid "Orders on this credit note: %s. A later refund or cancellation of these orders is deducted from the partner account automatically – do not include it in a correction credit note, or the partner is charged twice."
-msgstr "Bestellungen auf dieser Gutschrift: %s. Eine spätere Erstattung oder Stornierung dieser Bestellungen wird automatisch vom Partnerkonto abgezogen – nehmen Sie sie nicht in eine Korrektur-Gutschrift auf, sonst wird dem Partner doppelt abgezogen."
+msgstr "Bestellungen auf dieser Gutschrift: %s. Eine spätere Erstattung oder Stornierung dieser Bestellungen wird automatisch vom Partnerkonto abgezogen – nehmen Sie sie nicht in eine Korrekturgutschrift auf, sonst wird dem Partner doppelt abgezogen."
 
 msgid "Reason (printed on the correction credit note and sent to the partner)"
 msgstr "Grund (wird auf die Korrekturgutschrift gedruckt und dem Partner gesendet)"
@@ -2540,7 +2540,7 @@ msgid "Issue a numbered correction credit note and book the difference (cannot b
 msgstr "Nummerierte Korrekturgutschrift ausstellen und die Differenz buchen (nicht rückgängig zu machen; eine weitere Korrektur ist möglich)."
 
 msgid "Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
-msgstr "Bestellung #%1$s wurde am %2$s erstattet oder storniert, nach der Korrektur-Gutschrift %3$s. Die Erstattung wurde automatisch vom Partnerkonto abgezogen. Bitte prüfen Sie, ob die Korrektur-Gutschrift diese Bestellung bereits berücksichtigt hat; falls ja, stellen Sie eine weitere Korrektur-Gutschrift aus, damit dem Partner nicht doppelt abgezogen wird."
+msgstr "Bestellung #%1$s wurde am %2$s erstattet oder storniert, nach der Korrekturgutschrift %3$s. Die Erstattung wurde automatisch vom Partnerkonto abgezogen. Bitte prüfen Sie, ob die Korrekturgutschrift diese Bestellung bereits berücksichtigt hat; falls ja, stellen Sie eine weitere Korrekturgutschrift aus, damit dem Partner nicht doppelt abgezogen wird."
 
 msgid "Correction credit notes"
 msgstr "Korrekturgutschriften"
@@ -4371,7 +4371,7 @@ msgid "WPAC_CUSTOMER_KEY is ignored"
 msgstr "WPAC_CUSTOMER_KEY wird ignoriert"
 
 msgid "Customer links already exist with hashes made from the key stored in the database. Customer e-mail addresses are not stored, so these hashes cannot be recalculated with the key from wp-config.php; the stored key stays in use. The constant is only used on sites without customer links (e.g. new installations, or after all links have expired)."
-msgstr "Es bestehen bereits Kunden-Bindungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel. Die E-Mail-Adressen der Kunden werden nicht gespeichert, daher lassen sich diese Hashes nicht mit dem Schlüssel aus der wp-config.php neu berechnen; der gespeicherte Schlüssel bleibt in Gebrauch. Die Konstante wird nur auf Websites ohne Kunden-Bindungen verwendet (z. B. bei Neuinstallationen oder nachdem alle Bindungen abgelaufen sind)."
+msgstr "Es bestehen bereits Kundenverknüpfungen mit Hashes aus dem in der Datenbank gespeicherten Schlüssel. Die E-Mail-Adressen der Kunden werden nicht gespeichert, daher lassen sich diese Hashes nicht mit dem Schlüssel aus der wp-config.php neu berechnen; der gespeicherte Schlüssel bleibt in Gebrauch. Die Konstante wird nur auf Websites ohne Kundenverknüpfungen verwendet (z. B. bei Neuinstallationen oder nachdem alle Bindungen abgelaufen sind)."
 
 msgid "WPAC_CUSTOMER_KEY was removed or changed"
 msgstr "WPAC_CUSTOMER_KEY wurde entfernt oder geändert"
@@ -4902,7 +4902,7 @@ msgid "Affiliate Captain: the partner commission could not be reinstated. Please
 msgstr "Affiliate Captain: Die Partnerprovision konnte nicht wiederhergestellt werden. Bitte ändern Sie den Bestellstatus später erneut."
 
 msgid "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
-msgstr "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrektur-Gutschrift(en) %2$s. Bitte prüfen Sie, ob die Korrektur diese Bestellung schon berücksichtigt hat (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
+msgstr "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrekturgutschrift(en) %2$s. Bitte prüfen Sie, ob die Korrektur diese Bestellung schon berücksichtigt hat (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
 
 msgid "Order paid again (chargeback won or cancellation reversed)"
 msgstr "Bestellung wieder bezahlt (Rückbuchung gewonnen oder Stornierung aufgehoben)"
@@ -5013,10 +5013,10 @@ msgid "Affiliate not found"
 msgstr "Partner nicht gefunden"
 
 msgid "This credit note contains no taxable commissions (only settled correction credit notes, repayments or write-offs), so there is nothing to correct on it. Correct the credit note the amounts came from instead."
-msgstr "Diese Gutschrift enthält keine steuerbaren Provisionen (nur verrechnete Korrektur-Gutschriften, Rückzahlungen oder Abschreibungen), daher gibt es an ihr nichts zu korrigieren. Korrigieren Sie stattdessen die Gutschrift, aus der die Beträge stammen."
+msgstr "Diese Gutschrift enthält keine steuerbaren Provisionen (nur ausgeglichene Korrekturgutschriften, Rückzahlungen oder Abschreibungen), daher gibt es an ihr nichts zu korrigieren. Korrigieren Sie stattdessen die Gutschrift, aus der die Beträge stammen."
 
 msgid "This credit note has parts with different VAT treatments or rates. Please correct each part separately (one correction credit note per part, with the corrected net amount of that part)."
-msgstr "Diese Gutschrift hat Teile mit unterschiedlicher umsatzsteuerlicher Behandlung oder unterschiedlichen Steuersätzen. Bitte korrigieren Sie jeden Teil einzeln (eine Korrektur-Gutschrift je Teil, mit dem richtigen Nettobetrag dieses Teils)."
+msgstr "Diese Gutschrift hat Teile mit unterschiedlicher umsatzsteuerlicher Behandlung oder unterschiedlichen Steuersätzen. Bitte korrigieren Sie jeden Teil einzeln (eine Korrekturgutschrift je Teil, mit dem richtigen Nettobetrag dieses Teils)."
 
 msgid "The credit note was corrected in the meantime. Please check the current amounts and try again; nothing was booked."
 msgstr "Die Gutschrift wurde zwischenzeitlich korrigiert. Bitte prüfen Sie die aktuellen Beträge und versuchen Sie es erneut; es wurde nichts gebucht."
@@ -5031,7 +5031,7 @@ msgid "We have issued correction credit note %1$s for credit note %2$s (in your 
 msgstr "Wir haben zur Gutschrift %2$s die Korrekturgutschrift %1$s ausgestellt (in Ihrem Partnerbereich unter „Auszahlungen“): %3$s"
 
 msgid "We have issued correction credit note %1$s for credit note %2$s: %3$s. The document is still being created; we will send it to you by e-mail as soon as it is ready."
-msgstr "Wir haben zur Gutschrift %2$s die Korrektur-Gutschrift %1$s ausgestellt: %3$s. Das Dokument wird noch erstellt; wir senden es Ihnen per E-Mail, sobald es fertig ist."
+msgstr "Wir haben zur Gutschrift %2$s die Korrekturgutschrift %1$s ausgestellt: %3$s. Das Dokument wird noch erstellt; wir senden es Ihnen per E-Mail, sobald es fertig ist."
 
 msgid "Correction credit note (Gutschrift)"
 msgstr "Korrekturgutschrift (Gutschrift)"
@@ -5100,7 +5100,7 @@ msgid "This correction concerns only the part of credit note %1$s with %2$s; the
 msgstr "Diese Korrektur betrifft nur den Teil der Gutschrift %1$s mit %2$s; die übrigen Teile der Gutschrift bleiben unverändert."
 
 msgid "Repayments, write-offs and settled correction credit notes on credit note %1$s (%2$s) are not taxable and not part of the amounts above."
-msgstr "Rückzahlungen, Abschreibungen und verrechnete Korrektur-Gutschriften auf der Gutschrift %1$s (%2$s) sind nicht steuerbar und nicht Teil der obigen Beträge."
+msgstr "Rückzahlungen, Abschreibungen und ausgeglichene Korrekturgutschriften auf der Gutschrift %1$s (%2$s) sind nicht steuerbar und nicht Teil der obigen Beträge."
 
 msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
 msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (§ 14 Abs. 2 UStG); die Änderung der Beträge ist eine Berichtigung nach § 17 UStG. Der Partner kann ihr wie der Gutschrift widersprechen."
@@ -5487,7 +5487,7 @@ msgid "VAT %1$s %% on %2$s"
 msgstr "USt %1$s %% auf %2$s"
 
 msgid "Correction credit notes settled (gross, VAT shown there)"
-msgstr "Verrechnete Korrektur-Gutschriften (brutto, USt dort ausgewiesen)"
+msgstr "Ausgeglichene Korrekturgutschriften (brutto, USt dort ausgewiesen)"
 
 msgid "Total cancelled"
 msgstr "Storniert gesamt"
@@ -6147,8 +6147,8 @@ msgstr[1] "Die Empfehlungsangaben von %d Bestellungen werden aufbewahrt, bis ihr
 
 msgid "%d change log entry about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) is retained unchanged as a booking-relevant record for the statutory retention period; its processing is restricted and its details are deleted afterwards."
 msgid_plural "%d change log entries about payout details or payout requests (e.g. changes of the tax data, VAT ID checks, payout requests) are retained unchanged as booking-relevant records for the statutory retention period; their processing is restricted and their details are deleted afterwards."
-msgstr[0] "%d Protokolleintrag zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) wird als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; seine Verarbeitung ist eingeschränkt, seine Details werden danach gelöscht."
-msgstr[1] "%d Protokolleinträge zu Auszahlungsdaten oder Auszahlungsanforderungen (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanforderungen) werden als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; ihre Verarbeitung ist eingeschränkt, ihre Details werden danach gelöscht."
+msgstr[0] "%d Protokolleintrag zu Auszahlungsdaten oder Auszahlungsanträge (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanträge) wird als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; seine Verarbeitung ist eingeschränkt, seine Details werden danach gelöscht."
+msgstr[1] "%d Protokolleinträge zu Auszahlungsdaten oder Auszahlungsanträge (z. B. Änderungen der Steuerdaten, USt-IdNr.-Prüfungen, Auszahlungsanträge) werden als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist unverändert aufbewahrt; ihre Verarbeitung ist eingeschränkt, ihre Details werden danach gelöscht."
 
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
@@ -6248,10 +6248,10 @@ msgid "Payout requests"
 msgstr "Auszahlungsanträge"
 
 msgid "Earlier tax data"
-msgstr "Frühere Steuerangaben"
+msgstr "Frühere Steuerdaten"
 
 msgid "Requested change of the tax data (waiting for approval)"
-msgstr "Beantragte Änderung der Steuerangaben (wartet auf Freigabe)"
+msgstr "Beantragte Änderung der Steuerdaten (wartet auf Freigabe)"
 
 msgid "Requested on"
 msgstr "Beantragt am"
