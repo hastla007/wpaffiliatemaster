@@ -242,8 +242,14 @@ msgstr ""
 msgid "The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked)."
 msgstr ""
 
+#. translators: 1: example without grouping (1000), 2: the same amount with grouping and decimals in the site's number format (e.g. 1,000.00)
+#: src/Admin/Admin.php src/Core/Settings.php
+msgid "The amount is ambiguous (thousands separator or decimal places?). Please write it as %1$s or %2$s."
+msgstr ""
+
+#. translators: 1: example amount (25), 2: example amount with grouping and decimals in the site's number format (e.g. 1,000.50)
 #: src/Admin/Admin.php
-msgid "Please enter a valid amount (e.g. 25 or 1.000,50)."
+msgid "Please enter a valid amount (e.g. %1$s or %2$s)."
 msgstr ""
 
 #: src/Admin/Admin.php
@@ -1861,10 +1867,6 @@ msgid "Commissions updated."
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
-msgid "Please enter a valid amount (e.g. 25 or -12,50)."
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php
 msgid "Manual booking saved. It is payable with the next payout."
 msgstr ""
 
@@ -2978,6 +2980,13 @@ msgstr ""
 msgid "Dismiss"
 msgstr ""
 
+#. translators: 1: correction credit note number(s), comma separated, 2: credit note number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
+msgid_plural "Correction credit notes %1$s for %2$s issued; the differences were booked to the partner account and the partner was informed."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: number of payouts
 #: src/Admin/Pages/PayoutsPage.php
 msgid "%d payout created."
@@ -3083,6 +3092,13 @@ msgid_plural "Create %d payouts"
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: 1: order number, 2: date, 3: correction credit note number(s), comma separated
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
+msgid_plural "Order #%1$s was refunded or cancelled on %2$s, after correction credit notes %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit notes already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Payout cancelled and created again with the refund deducted."
 msgstr ""
@@ -3118,11 +3134,6 @@ msgstr ""
 #. translators: 1: issued correction numbers, 2: error message
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Issued: %1$s. The next part was not corrected: %2$s"
-msgstr ""
-
-#. translators: 1: correction number, 2: credit note number
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Rest/RestApi.php
@@ -3403,8 +3414,7 @@ msgstr ""
 msgid "Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions."
 msgstr ""
 
-#. translators: %s: currency
-#. translators: %s: VAT treatment or rate
+#. translators: %s: what the amount refers to: the currency (e.g. EUR) or, on a credit note with several parts, the VAT treatment or rate of the part
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Correct net amount (%s)"
 msgstr ""
@@ -3453,11 +3463,6 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible)."
-msgstr ""
-
-#. translators: 1: order number, 2: date, 3: correction credit note numbers
-#: src/Admin/Pages/PayoutsPage.php
-msgid "Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Privacy/Privacy.php
@@ -5945,11 +5950,11 @@ msgstr ""
 msgid "Commissions are not released and failed sales are not retried. Set up a system cron (\"wp cron event run --due-now\"; on a network for every site)."
 msgstr ""
 
-#. translators: %d: number of refused payloads
 #: src/Core/Monitor.php
 msgid "An integration sends sales that are refused"
 msgstr ""
 
+#. translators: %d: number of refused payloads
 #: src/Core/Monitor.php
 msgid "Payloads sent through the action hooks and refused by the validation: %d (Affiliate Captain → Integrations → System status)."
 msgstr ""
@@ -6230,8 +6235,9 @@ msgstr ""
 msgid "Not an IP address or range: %s"
 msgstr ""
 
+#. translators: 1: example amount (1000), 2: the same amount in the site's number format (e.g. 1,000.00)
 #: src/Core/Settings.php
-msgid "Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off)."
+msgid "Please enter an amount (e.g. %1$s or %2$s; 0 = rule off)."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -6649,6 +6655,13 @@ msgstr ""
 msgid "The order could not be attributed to partner \"%s\" (partner not active, processing restricted or the partner is the buyer)."
 msgstr ""
 
+#. translators: 1: credit note number, 2: correction credit note number(s), comma separated
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
+msgid_plural "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit notes %2$s. Please check whether the corrections already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "No partner link, partner code, coupon or lifetime customer."
 msgstr ""
@@ -6765,11 +6778,6 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later."
-msgstr ""
-
-#. translators: 1: credit note number, 2: correction credit note numbers
-#: src/Integrations/WooCommerce/OrderSync.php
-msgid "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
@@ -7225,6 +7233,10 @@ msgid "Cancelled"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "Please choose a valid period end."
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "Negative balance – carried forward"
 msgstr ""
 
@@ -7458,6 +7470,10 @@ msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Please enter your payment details (e.g. your PayPal address)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Please enter the account holder for payouts by bank transfer."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php

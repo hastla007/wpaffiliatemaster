@@ -179,8 +179,11 @@ msgstr "Ausblenden, bis sich etwas ändert"
 msgid "The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked)."
 msgstr "Der Betrag hat mehr als %1$d Nachkommastellen, die es bei %2$s nicht gibt. Bitte geben Sie ihn genau ein (es wurde nichts gerundet oder gebucht)."
 
-msgid "Please enter a valid amount (e.g. 25 or 1.000,50)."
-msgstr "Bitte geben Sie einen gültigen Betrag ein (z. B. 25 oder 1.000,50)."
+msgid "The amount is ambiguous (thousands separator or decimal places?). Please write it as %1$s or %2$s."
+msgstr "Der Betrag ist nicht eindeutig (Tausendertrennzeichen oder Nachkommastellen?). Bitte schreiben Sie ihn als %1$s oder %2$s."
+
+msgid "Please enter a valid amount (e.g. %1$s or %2$s)."
+msgstr "Bitte geben Sie einen gültigen Betrag ein (z. B. %1$s oder %2$s)."
 
 msgid "The link has expired. Please go back and try again."
 msgstr "Der Link ist abgelaufen. Bitte gehen Sie zurück und versuchen Sie es erneut."
@@ -1371,9 +1374,6 @@ msgstr "Manuell freigegeben"
 msgid "Commissions updated."
 msgstr "Provisionen aktualisiert."
 
-msgid "Please enter a valid amount (e.g. 25 or -12,50)."
-msgstr "Bitte einen gültigen Betrag eingeben (z. B. 25 oder -12,50)."
-
 msgid "Manual booking saved. It is payable with the next payout."
 msgstr "Manuelle Buchung gespeichert. Sie wird mit der nächsten Auszahlung ausgezahlt."
 
@@ -2197,6 +2197,11 @@ msgstr "Diesen Auftrag verwerfen? Er wird nicht mehr wiederholt; ein Verkauf dar
 msgid "Dismiss"
 msgstr "Verwerfen"
 
+msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
+msgid_plural "Correction credit notes %1$s for %2$s issued; the differences were booked to the partner account and the partner was informed."
+msgstr[0] "Korrekturgutschrift %1$s zu %2$s ausgestellt; die Differenz wurde auf dem Partnerkonto gebucht und der Partner informiert."
+msgstr[1] "Korrekturgutschriften %1$s zu %2$s ausgestellt; die Differenzen wurden auf dem Partnerkonto gebucht und der Partner informiert."
+
 msgid "%d payout created."
 msgid_plural "%d payouts created."
 msgstr[0] "%d Auszahlung angelegt."
@@ -2272,6 +2277,11 @@ msgid_plural "Create %d payouts"
 msgstr[0] "%d Auszahlung anlegen"
 msgstr[1] "%d Auszahlungen anlegen"
 
+msgid "Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
+msgid_plural "Order #%1$s was refunded or cancelled on %2$s, after correction credit notes %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit notes already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
+msgstr[0] "Bestellung #%1$s wurde am %2$s erstattet oder storniert, nach der Korrekturgutschrift %3$s. Die Erstattung wurde automatisch vom Partnerkonto abgezogen. Bitte prüfen Sie, ob die Korrekturgutschrift diese Bestellung bereits berücksichtigt hat; falls ja, stellen Sie eine weitere Korrekturgutschrift aus, damit dem Partner nicht doppelt abgezogen wird."
+msgstr[1] "Bestellung #%1$s wurde am %2$s erstattet oder storniert, nach den Korrekturgutschriften %3$s. Die Erstattung wurde automatisch vom Partnerkonto abgezogen. Bitte prüfen Sie, ob die Korrekturgutschriften diese Bestellung bereits berücksichtigt haben; falls ja, stellen Sie eine weitere Korrekturgutschrift aus, damit dem Partner nicht doppelt abgezogen wird."
+
 msgid "Payout cancelled and created again with the refund deducted."
 msgstr "Auszahlung storniert und mit abgezogener Erstattung neu erstellt."
 
@@ -2298,9 +2308,6 @@ msgstr "Bitte setzen Sie das Bestätigungshäkchen: Die Korrekturgutschrift erh�
 
 msgid "Issued: %1$s. The next part was not corrected: %2$s"
 msgstr "Ausgestellt: %1$s. Der nächste Teil wurde nicht korrigiert: %2$s"
-
-msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
-msgstr "Korrekturgutschrift %1$s zu %2$s ausgestellt; die Differenz wurde auf dem Partnerkonto gebucht und der Partner informiert."
 
 msgid "Not allowed."
 msgstr "Nicht erlaubt."
@@ -2538,9 +2545,6 @@ msgstr "Grund (wird auf die Korrekturgutschrift gedruckt und dem Partner gesende
 
 msgid "Issue a numbered correction credit note and book the difference (cannot be undone; a further correction is possible)."
 msgstr "Nummerierte Korrekturgutschrift ausstellen und die Differenz buchen (nicht rückgängig zu machen; eine weitere Korrektur ist möglich)."
-
-msgid "Order #%1$s was refunded or cancelled on %2$s, after correction credit note %3$s. The refund was deducted from the partner account automatically. Please check whether the correction credit note already covered this order; if so, issue a further correction credit note so the partner is not charged twice."
-msgstr "Bestellung #%1$s wurde am %2$s erstattet oder storniert, nach der Korrekturgutschrift %3$s. Die Erstattung wurde automatisch vom Partnerkonto abgezogen. Bitte prüfen Sie, ob die Korrekturgutschrift diese Bestellung bereits berücksichtigt hat; falls ja, stellen Sie eine weitere Korrekturgutschrift aus, damit dem Partner nicht doppelt abgezogen wird."
 
 msgid "Correction credit notes"
 msgstr "Korrekturgutschriften"
@@ -4514,8 +4518,8 @@ msgstr "Bitte geben Sie die Domain dieser Website oder eine übergeordnete Domai
 msgid "Not an IP address or range: %s"
 msgstr "Keine IP-Adresse und kein IP-Bereich: %s"
 
-msgid "Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off)."
-msgstr "Bitte geben Sie einen Betrag ein (z. B. 1.000 oder 1000,00; 0 = Regel aus)."
+msgid "Please enter an amount (e.g. %1$s or %2$s; 0 = rule off)."
+msgstr "Bitte geben Sie einen Betrag ein (z. B. %1$s oder %2$s; 0 = Regel aus)."
 
 msgid "Please enter an amount (e.g. 50 or 50,00; 0 = no minimum)."
 msgstr "Bitte geben Sie einen Betrag ein (z. B. 50 oder 50,00; 0 = kein Mindestbetrag)."
@@ -4817,6 +4821,11 @@ msgstr "Die Bestellung konnte noch nicht gebucht werden und wird automatisch ern
 msgid "The order could not be attributed to partner \"%s\" (partner not active, processing restricted or the partner is the buyer)."
 msgstr "Die Bestellung konnte dem Partner „%s“ nicht zugeordnet werden (Partner nicht aktiv, Verarbeitung eingeschränkt oder der Partner ist selbst der Käufer)."
 
+msgid "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
+msgid_plural "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit notes %2$s. Please check whether the corrections already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
+msgstr[0] "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrekturgutschrift %2$s. Bitte prüfen Sie, ob die Korrektur diese Bestellung schon berücksichtigt hat (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
+msgstr[1] "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrekturgutschriften %2$s. Bitte prüfen Sie, ob die Korrekturen diese Bestellung schon berücksichtigt haben (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
+
 msgid "No partner link, partner code, coupon or lifetime customer."
 msgstr "Kein Partnerlink, Partnercode, Gutschein oder Lifetime-Kunde."
 
@@ -4900,9 +4909,6 @@ msgstr "Affiliate Captain: Die Partnerprovision konnte noch nicht wiederhergeste
 
 msgid "Affiliate Captain: the partner commission could not be reinstated. Please change the order status again later."
 msgstr "Affiliate Captain: Die Partnerprovision konnte nicht wiederhergestellt werden. Bitte ändern Sie den Bestellstatus später erneut."
-
-msgid "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
-msgstr "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrekturgutschrift(en) %2$s. Bitte prüfen Sie, ob die Korrektur diese Bestellung schon berücksichtigt hat (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
 
 msgid "Order paid again (chargeback won or cancellation reversed)"
 msgstr "Bestellung wieder bezahlt (Rückbuchung gewonnen oder Stornierung aufgehoben)"
@@ -5216,6 +5222,9 @@ msgstr "SEPA exportiert"
 msgid "Cancelled"
 msgstr "Storniert"
 
+msgid "Please choose a valid period end."
+msgstr "Bitte wählen Sie ein gültiges Periodenende."
+
 msgid "Negative balance – carried forward"
 msgstr "Negativer Saldo – vorgetragen"
 
@@ -5383,6 +5392,9 @@ msgstr "Auszahlungen über eine andere Auszahlungsart werden nicht angeboten. Bi
 
 msgid "Please enter your payment details (e.g. your PayPal address)."
 msgstr "Bitte geben Sie Ihre Zahlungsangaben ein (z. B. Ihre PayPal-Adresse)."
+
+msgid "Please enter the account holder for payouts by bank transfer."
+msgstr "Bitte geben Sie den Kontoinhaber für Auszahlungen per Banküberweisung ein."
 
 msgid "Please enter your IBAN for payouts by bank transfer."
 msgstr "Bitte geben Sie Ihre IBAN für Auszahlungen per Banküberweisung ein."
