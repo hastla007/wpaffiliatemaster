@@ -4427,6 +4427,9 @@ msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 99 ein (z. B. 19 oder 7
 msgid "Please enter 1 to 8 letters or digits (e.g. GS)."
 msgstr "Bitte geben Sie 1 bis 8 Buchstaben oder Ziffern ein (z. B. GS)."
 
+msgid "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number."
+msgstr "Die Präfixe für Gutschriften, Stornobelege und Korrekturgutschriften müssen sich voneinander unterscheiden – sonst erhalten zwei Belege dieselbe Nummer."
+
 msgid "This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it."
 msgstr "Diese BIC ist ungültig (8 oder 11 Zeichen, z. B. COBADEFFXXX). Lassen Sie das Feld leer, wenn Sie sie nicht kennen."
 
@@ -5161,6 +5164,9 @@ msgstr "Der Partner hat seine Auszahlungsdaten nach dem Anlegen der Auszahlung %
 
 msgid "None of the selected payouts goes to a PayPal address (other payment method with an e-mail address in the payment details)."
 msgstr "Keine der ausgewählten Auszahlungen geht an eine PayPal-Adresse (andere Auszahlungsart mit einer E-Mail-Adresse in den Zahlungsangaben)."
+
+msgid "Payout %1$s is being paid through a payment provider (reference %2$s) and cannot be exported. The add-on that claimed it gives it back when the provider does not pay it."
+msgstr "Auszahlung %1$s wird gerade über einen Zahlungsdienst ausgezahlt (Referenz %2$s) und kann nicht exportiert werden. Das Add-on, das sie reserviert hat, gibt sie zurück, wenn der Zahlungsdienst nicht zahlt."
 
 msgid "Payment details for payout %s are missing or cannot be decrypted."
 msgstr "Die Zahlungsangaben für Auszahlung %s fehlen oder können nicht entschlüsselt werden."
