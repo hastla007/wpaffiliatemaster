@@ -116,7 +116,20 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 == Changelog ==
 
 = Unreleased =
+Expert audit (8 reviewers); database schema 13 (indexes only):
 * Fixed: a payout claimed by a payment provider add-on can no longer be exported again (SEPA, transfer list, PayPal file) – it could have been paid twice; a claimed payout can be cancelled in the admin only 45 days after the claim (filter wpac_claim_cancel_after)
+* Fixed: a cancelled payout no longer gets a credit note without its cancellation document
+* Fixed: correction credit notes compute VAT per VAT group of the corrected credit note (treatment at the time of the service), leave non-taxable amounts out and no longer accumulate rounding; mixed credit notes are corrected per group; settled corrections are shown separately on the next credit note
+* Fixed: amounts like "1.000" in repayments and manual bookings were read as 1.00; input with too many decimals is refused
+* Fixed: credit, cancellation and correction prefixes must differ (no duplicate document numbers)
+* Fixed: the partner broadcast e-mail could never be sent
+* Fixed: a cancelled order with a not yet released increase could recover too much; a deleted WooCommerce refund now gives its deduction back
+* Security: creating a WooCommerce coupon for a partner also needs the WooCommerce permission to publish coupons; blocked or expired partner codes are not offered
+* Privacy: the statement sweep marker stores only hashes and covers correction credit notes; attributions are deleted after the retention period; applications never decided are anonymised after a configurable period; customer erasure removes the order meta and reports what is kept; the personal data export includes audit entries, tax history and mail opt-outs; e-mail addresses are masked in logs; uninstall removes all options, user meta and cron hooks
+* Performance: portal.css only loads where the partner area or a block is shown; the statement sweep runs in cron instead of visitor requests; new indexes and cached totals for the audit log and commissions; reports cached for 10 minutes and cleared on bookings
+* Accessibility: labels for all admin form fields, autocomplete in the partner area, per-field registration errors, better contrast, payout method switch without JavaScript, announced notices
+* Admin: the payout export reloads the page only after the download started; payout run cut-off and month in the site time zone
+* Compatibility: all WooCommerce currencies accepted; refused payloads of the integration contract are listed under Integrations; hints for edge caches and multisite cron; read/write API validates arguments strictly
 
 = 0.12.0 =
 Database schema 12:
