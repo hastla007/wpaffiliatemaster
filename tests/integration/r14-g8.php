@@ -88,7 +88,8 @@ check( 'R14-D9 verify_schema reports a missing visits_daily table', array( 'miss
 update_option( Installer::DB_OPTION, 14 );
 $GLOBALS['test_scheduled'] = array();
 Installer::install_schema();
-check( 'R14-D9 migration 14 → 15 creates the table and schedules the backfill', array( 15, $g8_dt, array(), true ), array( (int) get_option( Installer::DB_OPTION ), $wpdb->get_var( "SHOW TABLES LIKE '{$g8_dt}'" ), Installer::verify_schema(), in_array( VisitsDaily::HOOK, $GLOBALS['test_scheduled'], true ) ) );
+check( 'R14-D9 migration 14 → 15 creates the table and schedules the backfill', array( 15, strtolower( $g8_dt ), array(), true ), array( (int) get_option( Installer::DB_OPTION ), strtolower( (string) $wpdb->get_var( "SHOW TABLES LIKE '{$g8_dt}'" ) ), // lower_case_table_names=1 returns lower case.
+ Installer::verify_schema(), in_array( VisitsDaily::HOOK, $GLOBALS['test_scheduled'], true ) ) );
 check( 'R14-D9 visits_daily is not a financial table (dropped on uninstall/site deletion even when booking records are kept)', false, in_array( 'visits_daily', Installer::FINANCIAL_TABLES, true ) );
 
 /* Test data: two partners, visits every 37 minutes over windows with DST changes, plus visits
