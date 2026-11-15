@@ -3409,6 +3409,11 @@ msgstr ""
 msgid "Issue correction credit note"
 msgstr ""
 
+#. translators: %s: correction credit note number
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Correction credit note %s was issued by an earlier version for the whole credit note (all VAT parts together). Further corrections start from its corrected total; please check the amounts before correcting again."
+msgstr ""
+
 #. translators: 1: document number, 2: net, 3: VAT, 4: gross
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions."
@@ -6763,6 +6768,11 @@ msgstr ""
 msgid "Affiliate Captain: a refund was deleted; the partner commission was not restored automatically (commission under review, rejected or reversed). If the partner should get it back, book a correction (Affiliate Captain → Commissions → commission → Correction)."
 msgstr ""
 
+#. translators: %s: refund ID
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: refund #%s was deleted; no partner commission had been deducted for it, so nothing was booked again."
+msgstr ""
+
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Order items increased after payment"
 msgstr ""
@@ -6978,6 +6988,11 @@ msgstr ""
 #. translators: 1: correction credit note number, 2: credit note number, 3: reason
 #: src/Payouts/Corrections.php
 msgid "We have issued correction credit note %1$s for credit note %2$s: %3$s. The document is still being created; we will send it to you by e-mail as soon as it is ready."
+msgstr ""
+
+#. translators: 1: correction credit note number, 2: corrected net amount
+#: src/Payouts/Corrections.php
+msgid "This form was already sent: correction credit note %1$s was issued with the corrected net amount %2$s. The new amount was not booked; open the correction form again to correct the credit note further."
 msgstr ""
 
 #: src/Payouts/Corrections.php
