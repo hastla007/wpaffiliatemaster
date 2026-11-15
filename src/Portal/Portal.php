@@ -1257,6 +1257,7 @@ final class Portal {
 		if ( $code ) {
 			echo self::copy_field( add_query_arg( (string) Settings::get( 'referral_param' ), $code, home_url( '/' ) ), __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo self::link_snippet( add_query_arg( (string) Settings::get( 'referral_param' ), $code, home_url( '/' ) ), __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo self::link_discount( $aff, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			/* translators: %s: code */
 			echo '<p>' . esc_html( sprintf( __( 'Or tell customers your code %s – they enter it at checkout, no cookies needed.', 'affiliate-captain' ), $code ) ) . '</p>';
 		} else {
@@ -1584,6 +1585,7 @@ final class Portal {
 			echo '<h3>' . esc_html__( 'Your partner link', 'affiliate-captain' ) . '</h3>';
 			echo self::copy_field( $link, __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo self::link_snippet( $link, __( 'Your partner link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo self::link_discount( $aff, $main ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo '<p>' . esc_html__( 'Your partner code', 'affiliate-captain' ) . ': <strong class="wpac-code">' . esc_html( $main ) . '</strong> ';
 			echo '<span class="wpac-muted">' . esc_html__( 'Customers can enter it at checkout – it works without cookies.', 'affiliate-captain' ) . '</span></p>';
 
@@ -1688,6 +1690,20 @@ final class Portal {
 	public static function text_link_code( $link, $text = '' ) {
 		$text = '' !== (string) $text ? (string) $text : (string) get_bloginfo( 'name' );
 		return '<a href="' . esc_url( $link ) . '" rel="sponsored noopener">' . esc_html( '' !== $text ? $text : $link ) . '</a>';
+	}
+
+	/**
+	 * Line next to the partner link: the discount customers get through the link (automatic
+	 * coupon on); '' when there is nothing to show.
+	 *
+	 * @param object $aff  Partner.
+	 * @param string $code Partner code of the link.
+	 * @return string HTML.
+	 */
+	private static function link_discount( $aff, $code ) {
+		$row  = CodeRepository::find_by_code( (string) $code );
+		$text = \WPAffiliateCaptain\Integrations\WooCommerce\AutoCoupon::portal_text( (int) $aff->id, $row ? (int) $row->id : 0 );
+		return '' !== $text ? '<p class="wpac-link-discount">' . esc_html( $text ) . '</p>' : '';
 	}
 
 	/**

@@ -11,6 +11,10 @@
 		"text": {
 			"type": "string",
 			"default": ""
+		},
+		"showDiscount": {
+			"type": "boolean",
+			"default": false
 		}
 	},
 	"supports": {
