@@ -141,7 +141,7 @@ function wpac_uninstall_site() {
 	$wpac_options = array_merge( $wpac_options, array( 'wpac_reports_gen', 'wpac_tplscan_gen', 'wpac_attr_purge_cursor' ) );
 	if ( ! $wpac_keep ) {
 		// The restriction list belongs to the kept booking records; without them it is not needed.
-		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_vat_rate_history', 'wpac_monitor_key' ) );
+		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_vat_rate_history', 'wpac_monitor_key', 'wpac_mail_templates' ) );
 		// Stored terms texts belong to the acceptance records (agreements), which are dropped now.
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_terms\\_text\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
