@@ -60,7 +60,7 @@ Set both **before** the first partner enters bank details and the first credit n
 | Tracking | link parameter (default `partner`), checkout field, shop session, cookie mode, attribution (first/last touch), JavaScript tracking for caches |
 | Fraud & abuse | fraud rules, rate limit, trusted proxies (Cloudflare/reverse proxy IP ranges) |
 | Commissions | program currency (changing it converts the minimum payout, review limit and a fixed default rate – with an exchange rate between the two currencies if one is entered; fixed rules and bonus tiers must be adjusted by hand), exchange rates for reports, default rate, rule precedence, lifetime commissions, subscription renewals, hold period |
-| Promotion | landing page path, disclosure note, promotion guidelines |
+| Promotion | landing page path, disclosure note, visible disclosure label in the banner embed code, promotion guidelines |
 | Payouts & credit notes | minimum payout, payout requests, other payment method (on/off); your country, address, VAT ID/tax number; self-billing, VAT rate, number prefixes; VIES check; company bank account for SEPA |
 | Data & maintenance | all retention periods (visits, rejected applications, audit log, statements, legal hold), maintenance mode, monitoring token, data deletion on uninstall, record of processing activities |
 
@@ -92,7 +92,7 @@ On a multisite network `wp cron event run` only reaches the main site. Run it fo
 
 **Partner codes.** Every partner has at least one code (random by default, a custom code is possible). Codes can have a usage limit and an expiry date, be linked to a WooCommerce coupon, or be created in batches (with CSV export) for print campaigns. A linked coupon must exist in WooCommerce and must not be linked to another partner. With WooCommerce active, "Create coupon for partner" on the partner's Codes tab creates a new coupon (code defaults to the selected partner code; percentage or fixed cart discount, amount, optional expiry, usage limit and individual use) and links it in one step; if the link cannot be saved, the coupon is deleted again. The action is recorded in the audit log.
 
-**Partner area** (block "Partner area" or `[wpac_affiliate_portal]`): partner link with campaign builder (campaign, source and sub-ID), short link and QR code, codes, creatives (with embed code and sub-ID), statistics (period filter, conversion rate, earnings per month, report by campaign and sub-ID), commissions and payouts (filters, CSV export, without customer data), credit notes, payout details (bank and tax data), the partner's conditions and terms, e-mail preferences, account and privacy requests. The page with the partner area is never cached (`DONOTCACHEPAGE`), and partners land there after logging in (also from WooCommerce "My account", which gets a "Partner area" entry).
+**Partner area** (block "Partner area" or `[wpac_affiliate_portal]`): partner link with campaign builder (campaign, source and sub-ID), short link and QR code, codes, creatives (with embed code and sub-ID), statistics (period filter, conversion rate, earnings per month, report by campaign and sub-ID), commissions and payouts (filters, CSV export, without customer data), credit notes, payout details (bank and tax data), the partner's conditions and terms, e-mail preferences, account and privacy requests. The tab "Links & codes" starts with the labelling duty (the disclosure note from Settings → Promotion, e.g. "Advertisement", at the beginning of every post with a link, code, short link or QR code) and examples per channel. With Settings → Promotion → "Show the disclosure note visibly above the banner embed code" (default on) the HTML code for banners starts with the creative's disclosure note, so the label travels with the banner. The page with the partner area is never cached (`DONOTCACHEPAGE`), and partners land there after logging in (also from WooCommerce "My account", which gets a "Partner area" entry).
 
 **Sub-IDs.** Partner links accept a sub-ID next to the referral parameter (`?partner=CODE&sub=placement-1`; parameter name via the filter `wpac_sub_id_param`). It is stored with the visit and the attribution (together with the visit ID) and shown to the partner per campaign and sub-ID.
 
@@ -104,7 +104,70 @@ A sale is attributed to a partner by (in this order): a manual assignment by an 
 
 **Partner links** look like `https://example.com/?partner=CODE` (parameter configurable) or `https://example.com/partner/slug/` (landing page). The visit is recorded without IP address (the referrer host only with marketing consent). The code is kept in an existing WooCommerce session (a cart) and – only with marketing consent – in the cookie `wpac_ref` (in a multisite network `wpac_ref_{site ID}`, filter `wpac_cookie_name`). A click alone never creates a shop session. Consent is read from the WP Consent API or the filter `wpac_has_marketing_consent`.
 
-**Consent given after the landing.** Most visitors answer the consent banner after the page has loaded. On a landing page that was captured without consent, a small script (handle `wpac-beacon`) waits for the WP Consent API event `wp_listen_for_consent_change` and, when marketing consent is given, sends the referral again (`POST /wp-json/wpac/v1/touch` with `consent: true`), which sets the cookie without counting a second visit. Banners without WP Consent API support call `window.wpacConsentGranted()` after consent. If the visitor gives consent only on a later page, the referral is still kept when the first product is put into the cart from the landing page (the cart fallback reads the referring page and then also sets the cookie with consent).
+**Consent given after the landing.** Most visitors answer the consent banner after the page has loaded. On a landing page that was captured without consent, a small script (handle `wpac-beacon`) waits for the WP Consent API event `wp_listen_for_consent_change` and, when marketing consent is given, sends the referral again (`POST /wp-json/wpac/v1/touch` with `consent: true`), which sets the cookie without counting a second visit. Banners without WP Consent API support need **both** parts of a recipe in "Consent banners" below: the PHP filter `wpac_has_marketing_consent` (the server checks the consent again before it sets the cookie) and `window.wpacConsentGranted()` after consent (sends the referral of the landing page again). `wpacConsentGranted()` alone sets no cookie. If the visitor gives consent only on a later page, the referral is still kept when the first product is put into the cart from the landing page (the cart fallback reads the referring page and then also sets the cookie with consent).
+
+### Consent banners
+
+Integrations → System status shows "Consent banner connected" only when consent can really reach the plugin: a banner has registered a consent type with the WP Consent API (`wp_get_consent_type()` is not empty), or the filter `wpac_has_marketing_consent` is hooked. The WP Consent API plugin alone is not enough – without a registered banner it answers nothing, and the cookie is never set. Site Health ("Partner link tracking") and the setup checklist warn in that case. Partner codes and the shop session keep working without the cookie.
+
+**Banners with WP Consent API support** – nothing else to do: install the "WP Consent API" plugin, switch on the banner's WP Consent API integration and put the cookie into the category **Marketing**.
+
+- **Complianz:** supports the WP Consent API out of the box. Add the cookie under the category Marketing.
+- **Real Cookie Banner:** supports the WP Consent API; create a service "Affiliate Captain" in the group Marketing with the cookie below.
+- **Cookiebot (WordPress plugin "Cookiebot by Usercentrics"):** switch on the WP Consent API integration in the plugin settings and map Cookiebot's category "Marketing" to "marketing".
+
+Check the result under Integrations → System status. If it stays on "No consent banner connected", the banner does not register with the WP Consent API on your site – use the marker recipe below.
+
+**Banners without WP Consent API support** (e.g. Borlabs Cookie, Usercentrics, CCM19, Cookiebot without its plugin): use a small consent marker. The banner sets the first-party cookie `wpac_consent=1` when the visitor accepts the service "Affiliate Captain" and removes it on withdrawal; the plugin reads it on the server. Put the PHP part into a must-use plugin (e.g. `wp-content/mu-plugins/wpac-consent.php`):
+
+```php
+<?php
+// Marketing consent for Affiliate Captain from the consent banner's marker cookie.
+add_filter( 'wpac_has_marketing_consent', function ( $consent ) {
+	return $consent || ( isset( $_COOKIE['wpac_consent'] ) && '1' === $_COOKIE['wpac_consent'] );
+} );
+```
+
+Opt-in code (runs after consent; 34128000 seconds = 395 days – keep it equal to or shorter than the consent validity of your banner):
+
+```html
+<script>document.cookie='wpac_consent=1;path=/;max-age=34128000;SameSite=Lax';if(window.wpacConsentGranted){window.wpacConsentGranted();}</script>
+```
+
+Opt-out code (runs on withdrawal; the plugin then removes `wpac_ref` on the next page view):
+
+```html
+<script>document.cookie='wpac_consent=;path=/;max-age=0;SameSite=Lax';</script>
+```
+
+With a cookie domain (Settings → Tracking, e.g. `.example.com`) add `;domain=.example.com` to both codes. Where the codes go:
+
+- **Borlabs Cookie 3:** Consent Management → Services → add a service "Affiliate Captain" in the service group Marketing; the opt-in and opt-out codes go into the fields of the same names, the cookie below into the service's cookie list. Instead of the marker cookie, PHP can also ask Borlabs directly: `function_exists( 'BorlabsCookieHelper' ) && BorlabsCookieHelper()->gaveConsent( 'affiliate-captain' )` (the service ID as set in Borlabs).
+- **Usercentrics (Browser CMP):** create a data processing service "Affiliate Captain" (category Marketing) and, under Implementation → Data Layer & Events, a window event (e.g. `ucEvent`). Then load once on every page:
+  ```html
+  <script>window.addEventListener('ucEvent',function(e){if(!e.detail||e.detail.event!=='consent_status'){return;}if(e.detail['Affiliate Captain']===true){document.cookie='wpac_consent=1;path=/;max-age=34128000;SameSite=Lax';if(window.wpacConsentGranted){window.wpacConsentGranted();}}else if(e.detail['Affiliate Captain']===false){document.cookie='wpac_consent=;path=/;max-age=0;SameSite=Lax';}});</script>
+  ```
+- **CCM19:** create an embedding "Affiliate Captain" (purpose Marketing) and put the opt-in code into its code field – CCM19 only runs it after consent. Make sure a withdrawal removes the marker cookie (list `wpac_consent` as a cookie of the embedding so CCM19 deletes it, or run the opt-out code).
+- **Cookiebot (without the WordPress plugin):** read Cookiebot's own consent cookie instead of the marker cookie:
+  ```php
+  add_filter( 'wpac_has_marketing_consent', function ( $consent ) {
+  	return $consent || ( isset( $_COOKIE['CookieConsent'] ) && false !== strpos( wp_unslash( $_COOKIE['CookieConsent'] ), 'marketing:true' ) );
+  } );
+  ```
+  and send the referral after consent: `<script>window.addEventListener('CookiebotOnAccept',function(){if(window.Cookiebot&&Cookiebot.consent.marketing&&window.wpacConsentGranted){window.wpacConsentGranted();}});</script>`.
+
+The menu names of the banners change between versions; the principle stays the same. Test it: open a partner link in a private window, accept marketing in the banner and check in the browser's developer tools that the cookie `wpac_ref` exists; withdraw consent and check that it is gone after the next page view.
+
+**Cookie details for the cookie list of your banner:**
+
+| Field | Value |
+|---|---|
+| Name | `wpac_ref` (multisite: `wpac_ref_{site ID}`; filter `wpac_cookie_name`) – with the marker recipe also `wpac_consent` |
+| Provider | your own website (first party), set by the plugin Affiliate Captain |
+| Purpose | Remembers which partner referred the visitor (signed partner code), so that a later purchase is credited to the partner and the partner receives a commission |
+| Lifetime | Settings → Tracking → "Cookie lifetime (days)" (default 30 days); data protection authorities usually consider up to 13 months (395 days) proportionate – the settings warn above that |
+| Category | Marketing (consent required, § 25 TDDDG / ePrivacy) |
+| Data | partner code, time of the click, campaign and sub ID; no IP address, no customer data |
 
 **Page caches.** Pages opened with the link parameter are sent with `DONOTCACHEPAGE` and no-cache headers, which WP Rocket, LiteSpeed Cache, W3 Total Cache, WP Super Cache and most hosting caches respect. Check that your cache does **not** ignore query strings for the link parameter (some caches strip unknown parameters such as `partner`). When the dashboard detects a caching plugin, a host cache or a proxy (Cloudflare, Varnish) while JavaScript tracking is off, it recommends the beacon mode below (filter `wpac_edge_cache` to name or hide the cache).
 
@@ -216,7 +279,11 @@ Settings → Fraud & abuse: maximum orders per partner in 24 hours, maximum orde
 
 - No IP address is stored for attribution; visits keep the referrer host, campaign and landing content only, and are deleted after the retention period.
 - The affiliate cookie is only set with marketing consent (cookie mode "consent", default).
-- Partners never see customer names or contact details.
+- Partners never see customer names or contact details. They do see, for their own orders, the order number, date, product name, amounts, status, campaign and sub ID – check whether product names in your shop allow conclusions about customers (e.g. health products).
+- Customers can object to the attribution of their orders and to the lifetime link (Art. 21 GDPR); the suggested privacy policy text says so. Remove the link in the "Affiliate Captain" box of the order or with `wp wpac customer unlink`.
+- Cookie lifetime: the settings accept up to 3650 days but warn above 395 days (13 months), which data protection authorities usually consider the limit for consent-based cookies. The lifetime is named in the privacy policy text and belongs into the cookie list of your banner (see "Consent banners" in section 3).
+- Proof of accepted terms: the version hash covers the **rendered** text of the terms page (blocks including synced patterns, shortcodes, tags removed), and that text is stored once per hash (option `wpac_terms_text_{hash}`, together with the block source). A change of a synced pattern on the terms page therefore also yields a new hash and stored text; acceptances from before keep counting as long as the version number is unchanged – increase it for material changes.
+- The terms template (dashboard → "Create pages automatically") contains clauses on independence (no commercial agent, no indemnity under § 89b HGB), the format of credit notes (PDF, e-invoice where required, consent to the PDF format during the transition period), changes of the small business status, the labelling duty with examples and the data protection roles. It is a starting point – have it checked by a lawyer before publishing.
 - Lifetime links store a keyed hash (HMAC-SHA256) of the customer, not the e-mail address. The key is generated once and stored in the option `wpac_customer_key` – in the same database, so the hashes are pseudonymous: with a database dump, e-mail addresses could be guessed by trying candidates. Define `WPAC_CUSTOMER_KEY` (at least 32 characters) in `wp-config.php` to keep the key out of the database. It is only used while **no customer links exist** (new installations, or after all links have expired or were removed): e-mail addresses are not stored, so existing hashes cannot be recalculated with a new key. If links already exist, the stored key stays in use and Site Health, `wp wpac health` and Integrations → System status report the constant as ignored. Once the constant is in use, the generated key is deleted from the database and only a fingerprint of the constant is kept (`wpac_customer_key_constant`, an HMAC with the WordPress auth salt, so a database dump alone does not allow guessing the constant – generate it at random, e.g. `openssl rand -hex 32`); do not change or remove the constant afterwards – returning customers are then no longer recognised and erasure requests no longer find their links. The fingerprint of the earlier key is then kept and Site Health, `wp wpac health` and Integrations → System status keep warning (state `wpac_customer_key_changed`) until the earlier key is back, the links made with it have expired, or an admin confirms the change under Integrations → System status – either deleting the links made with the earlier key (they can no longer be matched to anybody) or, if only the WordPress salts changed and the key is the same, without deleting.
 - Bank details are encrypted; tax and bank data are only visible with `wpac_view_tax_data`.
 - WordPress privacy tools: personal data export and erasure for partners and customers. Records that must be retained are restricted (Art. 18 GDPR) instead of deleted and erased when the retention period ends.
@@ -226,7 +293,7 @@ Settings → Fraud & abuse: maximum orders per partner in 24 hours, maximum orde
 - Attributions (order number, partner, method, campaign, sub ID, visit ID) are deleted daily once they and every commission of the order are past the statutory retention period and nothing of the order is open (not during a legal hold). Afterwards the commission rows of the order are pseudonymised: the order number becomes a keyed hash (one per order, so order counts stay right), product and description are emptied, the idempotency key is hashed (a re-delivered sale of the order is still recognised as a duplicate) and the reasons of their status changes are deleted; partner, amounts, status and dates stay for the partner account and reports. Undecided and rejected applications are anonymised in batches until none is left (within the daily time budget, the rest in the next run), except applicants whose processing is restricted (Art. 18 GDPR); their VIES result, previous e-mail address, requested changes, account-link token and mail opt-out go with them. Applications that were confirmed but never decided are anonymised after Settings → Data & maintenance → "Keep undecided applications" (default 365 days); unconfirmed applications (e-mail not confirmed) expire after 2 days.
 - WooCommerce orders belong to the shop: the order notes written when an order is attributed (they name the partner) and the order meta `_wpac_*` stay with the orders when a partner is erased or the plugin is deleted. Remove such notes in WooCommerce yourself if a partner's erasure requires it.
 - Logs: e-mail addresses in logged exception messages and mailer errors are masked (`a***@***.de`).
-- Settings → Privacy → Policy Guide contains a suggested text based on your settings (including the VIES recipient); Settings → Data & maintenance offers a record of processing activities.
+- Settings → Privacy → Policy Guide contains a suggested text based on your settings (including the VIES recipient); Settings → Data & maintenance offers a record of processing activities (German template for German admin languages, otherwise English; filter `wpac_ropa_language`).
 - External services: only the VIES check (European Commission) and a loopback request to your own site, see readme.txt → External services.
 
 ## 9. Multisite

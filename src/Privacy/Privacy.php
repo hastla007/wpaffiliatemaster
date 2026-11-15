@@ -1191,12 +1191,39 @@ final class Privacy {
 	}
 
 	/**
+	 * Language of the record of processing activities template (R14-L5): German for German
+	 * locales, else the English template (docs/RECORD-OF-PROCESSING.md).
+	 *
+	 * @return string de|en
+	 */
+	public static function ropa_language() {
+		if ( function_exists( 'get_user_locale' ) ) {
+			$locale = (string) get_user_locale();
+		} elseif ( function_exists( 'get_locale' ) ) {
+			$locale = (string) get_locale();
+		} else {
+			$locale = 'de_DE';
+		}
+		$lang = 0 === strpos( strtolower( $locale ), 'de' ) ? 'de' : 'en';
+		/**
+		 * Filter the language of the record of processing activities template.
+		 *
+		 * @param string $lang   de|en.
+		 * @param string $locale Locale of the current user.
+		 */
+		$lang = (string) apply_filters( 'wpac_ropa_language', $lang, $locale );
+		return 'de' === $lang ? 'de' : 'en';
+	}
+
+	/**
 	 * Record of processing activities (template in docs/, filled with the current settings).
 	 *
+	 * @param string $lang de|en, '' = ropa_language().
 	 * @return string Markdown.
 	 */
-	public static function ropa() {
-		$file = WPAC_DIR . 'docs/VERARBEITUNGSVERZEICHNIS.md';
+	public static function ropa( $lang = '' ) {
+		$de   = 'de' === ( '' !== $lang ? $lang : self::ropa_language() );
+		$file = WPAC_DIR . 'docs/' . ( $de ? 'VERARBEITUNGSVERZEICHNIS.md' : 'RECORD-OF-PROCESSING.md' );
 		$text = is_readable( $file ) ? (string) file_get_contents( $file ) : '';
 		$name = (string) Settings::get( 'debtor_name' );
 		$days = static function ( $key ) {
@@ -1204,19 +1231,32 @@ final class Privacy {
 			return $v > 0 ? (string) $v : '∞';
 		};
 		$life = (int) Settings::get( 'lifetime_days' );
-		$map  = array(
+		// The German template keeps German words; the English one is translatable for other languages.
+		if ( ! Settings::get( 'lifetime_enabled' ) ) {
+			$lifetime = $de ? 'nicht aktiv' : __( 'not active', 'affiliate-captain' );
+		} elseif ( $life > 0 ) {
+			/* translators: %d: days */
+			$lifetime = $de ? $life . ' Tage' : sprintf( _n( '%d day', '%d days', $life, 'affiliate-captain' ), $life );
+		} else {
+			$lifetime = $de ? 'bis Vertragsende' : __( 'until the partnership ends', 'affiliate-captain' );
+		}
+		$providers = '';
+		if ( ProfileRepository::manual_enabled() ) {
+			// Other payment method on: the payment provider receives the payout (e.g. PayPal; outside the EU possible).
+			$providers = $de ? 'Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ' : __( 'payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), ', 'affiliate-captain' );
+		}
+		$map = array(
 			'{operator_name}'              => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'{operator_address}'           => str_replace( array( "\r\n", "\n" ), ', ', (string) Settings::get( 'operator_address' ) ),
 			'{date}'                       => wp_date( 'Y-m-d' ),
 			'{visit_retention_days}'       => $days( 'visit_retention_days' ),
 			'{cookie_days}'                => $days( 'cookie_days' ),
-			'{lifetime_days}'              => Settings::get( 'lifetime_enabled' ) ? ( $life > 0 ? $life . ' Tage' : 'bis Vertragsende' ) : 'nicht aktiv',
+			'{lifetime_days}'              => $lifetime,
 			'{retention_years}'            => Retention::years() > 0 ? (string) Retention::years() : '∞',
 			'{application_retention_days}' => $days( 'application_retention_days' ),
 			'{pending_application_days}'   => $days( 'pending_application_days' ),
 			'{audit_retention_days}'       => $days( 'audit_retention_days' ),
-			// Other payment method on: the payment provider receives the payout (e.g. PayPal; outside the EU possible).
-			'{payment_providers}'          => ProfileRepository::manual_enabled() ? 'Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ' : '',
+			'{payment_providers}'          => $providers,
 		);
 		return strtr( $text, $map );
 	}
@@ -1305,6 +1345,11 @@ final class Privacy {
 		if ( null === $vies || $vies ) {
 			$p[] = __( 'VAT ID check: if a partner enters an EU VAT ID, it is checked with the VIES service of the European Commission (ec.europa.eu) when the payout details are saved and again periodically. The VAT ID of the partner and our own VAT ID are sent; the European Commission receives these as an independent controller (legal basis: our obligation and legitimate interest to verify the VAT ID before issuing reverse-charge credit notes, Art. 6(1)(c) and (f) GDPR). The result and the consultation number are stored with the payout details.', 'affiliate-captain' );
 		}
+		// R14-L4: customers are data subjects too (attribution without cookie and the customer link
+		// rely on legitimate interest): Art. 13(2)(b) and Art. 21(4) GDPR require an explicit note.
+		$p[] = Settings::get( 'lifetime_enabled' )
+			? __( 'Customers can object at any time, on grounds relating to their particular situation, to the attribution of their orders to a partner and to the link to a partner for later purchases (Art. 21 GDPR); we then remove the link and do not attribute later orders. Customers also have the right of access, correction, erasure, restriction of processing and to lodge a complaint with a data protection supervisory authority. A message to the contact details given in this privacy policy is enough.', 'affiliate-captain' )
+			: __( 'Customers can object at any time, on grounds relating to their particular situation, to the attribution of their orders to a partner (Art. 21 GDPR). Customers also have the right of access, correction, erasure, restriction of processing and to lodge a complaint with a data protection supervisory authority. A message to the contact details given in this privacy policy is enough.', 'affiliate-captain' );
 		$p[] = __( 'Partners can ask for a copy of their data, its correction, erasure or restriction of processing, and can object to processing based on legitimate interest. Records we must keep by law are restricted instead of deleted until the retention period ends.', 'affiliate-captain' );
 		$html = '';
 		foreach ( $p as $para ) {

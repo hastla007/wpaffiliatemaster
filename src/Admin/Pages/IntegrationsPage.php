@@ -293,7 +293,7 @@ final class IntegrationsPage {
 		$checks = array(
 			array( class_exists( 'WooCommerce' ), __( 'WooCommerce active', 'affiliate-captain' ) . ( class_exists( 'WooCommerce' ) ? ' (' . ( $hpos ? 'HPOS' : __( 'legacy order storage', 'affiliate-captain' ) ) . ')' : '' ) ),
 			array( function_exists( 'woocommerce_register_additional_checkout_field' ), __( 'Partner code field available in block checkout (WooCommerce 8.9+)', 'affiliate-captain' ) ),
-			array( function_exists( 'wp_has_consent' ), __( 'WP Consent API detected (marketing consent for the affiliate cookie)', 'affiliate-captain' ) ),
+			self::consent_check(),
 			array( Crypto::has_dedicated_key(), Crypto::has_dedicated_key() ? __( 'Dedicated encryption key WPAC_ENCRYPTION_KEY defined', 'affiliate-captain' ) : __( 'No dedicated encryption key: add define( \'WPAC_ENCRYPTION_KEY\', \'…64 hex characters…\' ); to wp-config.php (generate it e.g. with "openssl rand -hex 32"). Existing bank details stay readable and can then be re-encrypted here.', 'affiliate-captain' ) ),
 			array( '' !== (string) Settings::get( 'debtor_iban' ), __( 'Company account for SEPA export configured', 'affiliate-captain' ) ),
 			self::statement_dir_check(),
@@ -312,6 +312,29 @@ final class IntegrationsPage {
 		}
 		echo '</ul>';
 		self::render_customer_key_change();
+	}
+
+	/**
+	 * Consent banner check (R14-L2): green only when consent can really reach the plugin – the
+	 * WP Consent API with a banner that registered a consent type, or the filter
+	 * wpac_has_marketing_consent. The API plugin alone answers nothing.
+	 *
+	 * @return array [ ok, label ]
+	 */
+	public static function consent_check() {
+		$c = \WPAffiliateCaptain\Tracking\Consent::integration_status();
+		if ( ! $c['needed'] ) {
+			return array( true, __( 'Consent banner: not needed for the current cookie setting', 'affiliate-captain' ) );
+		}
+		if ( $c['connected'] ) {
+			return array( true, __( 'Consent banner connected (WP Consent API with a registered banner or the filter wpac_has_marketing_consent) – the affiliate cookie is set after marketing consent', 'affiliate-captain' ) );
+		}
+		return array(
+			false,
+			$c['api']
+				? __( 'WP Consent API installed, but no consent banner has registered with it: the affiliate cookie is never set. Use a banner with WP Consent API support or add the filter wpac_has_marketing_consent (recipes in the handbook, section "Consent banners"). Partner codes keep working.', 'affiliate-captain' )
+				: __( 'No consent banner connected: the affiliate cookie is never set. Install a banner with WP Consent API support or add the filter wpac_has_marketing_consent (recipes in the handbook, section "Consent banners"). Partner codes keep working.', 'affiliate-captain' ),
+		);
 	}
 
 	/**

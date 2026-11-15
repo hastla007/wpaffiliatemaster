@@ -92,6 +92,7 @@ final class Settings {
 			// Translated once translations can load (before "init" WordPress warns about early loading).
 			'default_disclosure'      => function_exists( 'did_action' ) && did_action( 'init' ) ? __( 'Advertisement', 'affiliate-captain' ) : 'Advertisement',
 			'promotion_guidelines'    => '',
+			'embed_disclosure_label'  => 1,          // Visible disclosure label above the banner embed code (R14-L3).
 			// Payouts.
 			'min_payout_minor'        => 5000,
 			'payout_requests'         => 0,
@@ -268,6 +269,13 @@ final class Settings {
 	}
 
 	/**
+	 * Longest cookie lifetime (days) that data protection authorities usually consider
+	 * proportionate for a consent-based cookie, about 13 months (R14-L8). Longer values are
+	 * allowed but warned about.
+	 */
+	const COOKIE_DAYS_ADVISED = 395;
+
+	/**
 	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
 	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
 	 */
@@ -378,7 +386,7 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
@@ -406,6 +414,12 @@ final class Settings {
 		if ( 100 < $out['fraud_max_refund_rate'] && ! isset( $errors['fraud_max_refund_rate'] ) ) {
 			$errors['fraud_max_refund_rate'] = __( 'Please enter a percentage between 0 and 100.', 'affiliate-captain' );
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
+		}
+
+		if ( isset( $in['cookie_days'] ) && ! isset( $errors['cookie_days'] ) && $out['cookie_days'] > self::COOKIE_DAYS_ADVISED ) {
+			// R14-L8: allowed (non-EU shops, documented reasons), but not silently.
+			/* translators: 1: configured cookie lifetime in days, 2: advised maximum in days */
+			$notices['cookie_days'] = sprintf( __( 'Saved, but please check: a cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days).', 'affiliate-captain' ), $out['cookie_days'], self::COOKIE_DAYS_ADVISED );
 		}
 
 		self::sanitize_operator_country( $in, $out, $errors, $notices, $old );
