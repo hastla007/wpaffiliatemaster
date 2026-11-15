@@ -1,8 +1,11 @@
 /* Affiliate Captain partner area: copy buttons (fields stay selectable without JavaScript). */
 ( function () {
 	var i18n = window.wpacPortal || { copied: 'Copied.', failed: 'Please copy manually.' };
-	function announce( text ) {
-		var live = document.getElementById( 'wpac-live' );
+	function announce( text, btn ) {
+		// The live region of the block around the button (e.g. recommended targets outside the
+		// partner area, R14-U8), else the one of the partner area.
+		var scope = btn && btn.closest ? btn.closest( '.wpac-portal' ) : null;
+		var live  = ( scope && scope.querySelector( '.wpac-live' ) ) || document.getElementById( 'wpac-live' );
 		if ( live ) {
 			live.textContent = '';
 			window.setTimeout( function () { live.textContent = text; }, 50 );
@@ -26,15 +29,15 @@
 			window.clearTimeout( btn.wpacTimer );
 			btn.textContent = '✔';
 			btn.wpacTimer = window.setTimeout( function () { btn.textContent = btn.getAttribute( 'data-wpac-label' ); }, 1500 );
-			announce( i18n.copied );
+			announce( i18n.copied, btn );
 		};
 		if ( navigator.clipboard && window.isSecureContext ) {
-			navigator.clipboard.writeText( field.value ).then( done, function () { announce( i18n.failed ); } );
+			navigator.clipboard.writeText( field.value ).then( done, function () { announce( i18n.failed, btn ); } );
 		} else {
 			try {
-				document.execCommand( 'copy' ) ? done() : announce( i18n.failed );
+				document.execCommand( 'copy' ) ? done() : announce( i18n.failed, btn );
 			} catch ( err ) {
-				announce( i18n.failed );
+				announce( i18n.failed, btn );
 			}
 		}
 	} );

@@ -2182,7 +2182,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/Admin/Pages/DashboardPage.php
-msgid "Some pages could not be created. Please create them yourself with the blocks \"Partner application\" and \"Partner area\" and select them in the settings."
+msgid "Some pages could not be created. Please create them yourself with the blocks \"Partner application form\" and \"Partner area\" and select them in the settings."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -5433,14 +5433,6 @@ msgid "Almost done! We have sent you an e-mail. Please confirm your e-mail addre
 msgstr ""
 
 #: src/Affiliates/Registration.php
-msgid "Go to partner area"
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "You already have a partner account."
-msgstr ""
-
-#: src/Affiliates/Registration.php
 msgid "The form expired. Please try again."
 msgstr ""
 
@@ -5513,6 +5505,31 @@ msgstr ""
 
 #: src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "Apply now"
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Go to partner area"
+msgstr ""
+
+#. translators: %s: e-mail link
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Questions? Contact us at %s."
+msgstr ""
+
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Your application is being reviewed. We will notify you by e-mail."
+msgstr ""
+
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Your application was not accepted."
+msgstr ""
+
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Your partnership has ended. You can still see your commissions and payouts and download your credit notes."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "You already have a partner account."
 msgstr ""
 
 #: src/Codes/CodeRepository.php
@@ -5822,6 +5839,13 @@ msgstr ""
 msgid "excluded"
 msgstr ""
 
+#. translators: 1: number of orders, 2: extra rate, e.g. +2 %
+#: src/Commissions/TierService.php
+msgid "From %1$s order in a month: %2$s of the net value of all orders of that month"
+msgid_plural "From %1$s orders in a month: %2$s of the net value of all orders of that month"
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: 1: month, 2: rate
 #: src/Commissions/TierService.php
 msgid "Monthly bonus %1$s (tier %2$s %%)"
@@ -5830,6 +5854,21 @@ msgstr ""
 #. translators: %s: month
 #: src/Commissions/TierService.php
 msgid "Monthly bonus correction %s"
+msgstr ""
+
+#. translators: 1: number of the order, 2: extra rate, e.g. +2 %
+#: src/Commissions/TierService.php
+msgid "From order no. %1$s in a month: %2$s of the net value of this and every further order of that month"
+msgstr ""
+
+#. translators: 1: amount, 2: extra rate, e.g. +2 %
+#: src/Commissions/TierService.php
+msgid "From %1$s net sales in a month: %2$s of all net sales of that month"
+msgstr ""
+
+#. translators: 1: amount, 2: extra rate, e.g. +2 %
+#: src/Commissions/TierService.php
+msgid "From %1$s net sales in a month: %2$s of the net sales above this amount"
 msgstr ""
 
 #. translators: %d: number of visits
@@ -5915,6 +5954,14 @@ msgstr ""
 msgid "Recommended targets appear in the partner area with a ready-made partner link."
 msgstr ""
 
+#: src/Content/Editor.php src/Portal/Portal.php
+msgid "Copied to the clipboard."
+msgstr ""
+
+#: src/Content/Editor.php src/Portal/Portal.php
+msgid "Please copy the text manually."
+msgstr ""
+
 #: src/Content/Editor.php
 msgid "Recommended target pages"
 msgstr ""
@@ -5922,6 +5969,11 @@ msgstr ""
 #. translators: %s: page title
 #: src/Content/Editor.php
 msgid "Your partner link to %s"
+msgstr ""
+
+#. translators: %s: page title
+#: src/Content/Editor.php
+msgid "Copy your partner link to %s"
 msgstr ""
 
 #: src/Content/Editor.php src/Portal/Portal.php
@@ -7812,6 +7864,20 @@ msgid_plural "%d days (returns and cancellations), then the commission is approv
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %s: number of orders
+#: src/Portal/Portal.php
+msgid "This month so far: %s order"
+msgid_plural "This month so far: %s orders"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: number of orders still missing, 2: extra rate
+#: src/Portal/Portal.php
+msgid "%1$s more order to %2$s."
+msgid_plural "%1$s more orders to %2$s."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Portal/Portal.php
 msgid "The link has expired."
 msgstr ""
@@ -7828,14 +7894,6 @@ msgstr ""
 #. translators: %s: link
 #: src/Portal/Portal.php
 msgid "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail."
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "Copied to the clipboard."
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "Please copy the text manually."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -7863,19 +7921,6 @@ msgid "You do not have a partner account yet."
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Your application is being reviewed. We will notify you by e-mail."
-msgstr ""
-
-#: src/Portal/Portal.php
-msgid "Your application was not accepted."
-msgstr ""
-
-#. translators: %s: e-mail link
-#: src/Portal/Portal.php
-msgid "Questions? Contact us at %s."
-msgstr ""
-
-#: src/Portal/Portal.php
 msgid "Statistics"
 msgstr ""
 
@@ -7900,7 +7945,7 @@ msgid "Your partner account is paused. New sales are currently not attributed."
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Your partnership has ended. You can still see your commissions and payouts and download your credit notes."
+msgid "Until your last payout please keep your payout details up to date."
 msgstr ""
 
 #. translators: %s: what is copied
@@ -8074,7 +8119,19 @@ msgid "Referral valid for"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "None – commissions are approved right away"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The bonus is calculated after the end of the month from the orders that were not refunded."
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "Minimum payout amount"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "No minimum amount"
 msgstr ""
 
 #. translators: 1: link, 2: version, 3: date
@@ -8164,6 +8221,29 @@ msgstr ""
 msgid "Your conditions"
 msgstr ""
 
+#. translators: %s: amount
+#: src/Portal/Portal.php
+msgid "This month so far: %s net sales"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Your monthly bonus"
+msgstr ""
+
+#. translators: 1: amount still missing, 2: extra rate
+#: src/Portal/Portal.php
+msgid "%1$s more net sales to %2$s."
+msgstr ""
+
+#. translators: %s: extra rate
+#: src/Portal/Portal.php
+msgid "highest step reached (%s)."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Includes orders still in the hold period; refunded orders do not count."
+msgstr ""
+
 #: src/Portal/Portal.php
 msgid "Last 7 days"
 msgstr ""
@@ -8210,6 +8290,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Sales count orders that were not rejected or completely refunded. Commission earned includes corrections of refunds."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The conversion rate only counts sales after a click on your link (not code or coupon sales); without visits it shows \"—\"."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -8333,6 +8417,15 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
+#. translators: %s: label of the link, e.g. "Your partner link"
+#: src/Portal/Portal.php
+msgid "HTML text link (marked rel=\"sponsored\")"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "HTML text link: %s"
+msgstr ""
+
 #: src/Portal/Portal.php
 msgid "No active partner code yet."
 msgstr ""
@@ -8438,6 +8531,10 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Complete payout details"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "No payouts match the filter."
 msgstr ""
 
 #: src/Portal/Portal.php
