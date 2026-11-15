@@ -680,6 +680,21 @@ final class Admin {
 	}
 
 	/**
+	 * Message for an amount Money::parse_minor() refused (nothing is rounded silently).
+	 *
+	 * @param string $problem  'precision' or 'invalid'.
+	 * @param string $currency Currency.
+	 * @return string
+	 */
+	public static function amount_error( $problem, $currency ) {
+		if ( 'precision' === $problem ) {
+			/* translators: 1: number of decimals, 2: currency */
+			return sprintf( __( 'The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked).', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Money::decimals( $currency ), $currency );
+		}
+		return __( 'Please enter a valid amount (e.g. 25 or 1.000,50).', 'affiliate-captain' );
+	}
+
+	/**
 	 * Route admin-post actions to page handlers.
 	 */
 	public static function dispatch() {

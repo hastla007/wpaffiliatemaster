@@ -1100,6 +1100,26 @@ final class OrderSync {
 	}
 
 	/**
+	 * Order note when a refund was deducted although the credit note of the commission already
+	 * has a correction credit note (R12-M2, hook wpac_refund_after_correction).
+	 *
+	 * @param array  $refund      Normalized refund.
+	 * @param string $credit_note Credit note number.
+	 * @param array  $corrections Correction credit note numbers.
+	 */
+	public static function refund_after_correction( $refund, $credit_note, $corrections ) {
+		if ( ! is_array( $refund ) || WooCommerce::SOURCE !== (string) $refund['source'] || ! function_exists( 'wc_get_order' ) ) {
+			return;
+		}
+		$order = wc_get_order( (int) $refund['order_id'] );
+		if ( ! $order ) {
+			return;
+		}
+		/* translators: 1: credit note number, 2: correction credit note numbers */
+		$order->add_order_note( sprintf( __( 'Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit note(s) %2$s. Please check whether the correction already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice.', 'affiliate-captain' ), (string) $credit_note, implode( ', ', (array) $corrections ) ) );
+	}
+
+	/**
 	 * Reinstate now; database errors are thrown (job queue).
 	 *
 	 * @param int $order_id Order.

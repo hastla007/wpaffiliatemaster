@@ -516,6 +516,9 @@ final class Statement {
 				$pdf->text( 545, $y, Money::format( $sign * (int) $item->amount_minor, $p->currency ), 9, false, 'right' );
 				$y   += 13 * $height;
 				$sum += (int) $item->amount_minor;
+				if ( 'kg' === $ref ) {
+					continue; // Settled correction credit notes: shown separately below, no VAT group.
+				}
 				$rate = $rate_of( $item );
 				$groups[ $rate ] = ( isset( $groups[ $rate ] ) ? $groups[ $rate ] : 0 ) + (int) $item->amount_minor;
 			}
@@ -536,8 +539,15 @@ final class Statement {
 		}
 		$pdf->line( 50, $y - 6, 545, $y - 6 );
 		$y     += 6;
-		$totals = array(
-			array( __( 'Net amount', 'affiliate-captain' ), $sign * $net, false ),
+		// R12-M7: the gross differences of settled correction credit notes are no net amount of
+		// this document (their VAT is shown on the correction credit note): a line of their own.
+		$kg_sum = 0;
+		foreach ( isset( $blocks['kg'] ) ? $blocks['kg'] : array() as $item ) {
+			$kg_sum += (int) $item->amount_minor;
+		}
+		$taxable = count( $items ) > ( isset( $blocks['kg'] ) ? count( $blocks['kg'] ) : 0 );
+		$totals  = array(
+			array( __( 'Net amount', 'affiliate-captain' ), $sign * ( $net - $kg_sum ), false ),
 		);
 		$legacy = true;
 		foreach ( $items as $item ) {
@@ -558,6 +568,12 @@ final class Statement {
 				/* translators: 1: rate, 2: net amount */
 				$totals[] = array( sprintf( __( 'VAT %1$s %% on %2$s', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $rate ), Money::format( $sign * $group_net, $p->currency ) ), $sign * Vat::amount( $group_net, (string) $rate ), false );
 			}
+		}
+		if ( ! $taxable ) {
+			$totals = array(); // Only settled correction credit notes: no net amount, no VAT.
+		}
+		if ( $kg_sum ) {
+			$totals[] = array( __( 'Correction credit notes settled (gross, VAT shown there)', 'affiliate-captain' ), $sign * $kg_sum, false );
 		}
 		if ( $storno ) {
 			$total_label = __( 'Total cancelled', 'affiliate-captain' );

@@ -320,7 +320,10 @@ final class AffiliatesPage {
 
 			case 'repayment':
 				$cur    = strtoupper( sanitize_text_field( Admin::post( 'currency' ) ) );
-				$amount = Money::to_minor( (string) Money::normalize_decimal( (string) Admin::post( 'amount' ) ), $cur );
+				$amount = Money::parse_minor( (string) Admin::post( 'amount' ), $cur, $problem );
+				if ( null === $amount ) {
+					Admin::back( Admin::amount_error( (string) $problem, $cur ), 'error' );
+				}
 				$result = \WPAffiliateCaptain\Commissions\Dunning::record_repayment( $id, $cur, $amount, sanitize_text_field( Admin::post( 'note' ) ) );
 				if ( is_wp_error( $result ) ) {
 					Admin::back( $result->get_error_message(), 'error' );

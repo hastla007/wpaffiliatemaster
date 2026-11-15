@@ -192,6 +192,7 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_payout_paid` | `int $payout_id` (auch nach `wpac_complete_payout()`) |
 | `wpac_payout_cancelled` | `int $payout_id` – nicht bezahlte Auszahlung storniert (auch eine reservierte und die alte Auszahlung beim Neuerstellen; seit 1.3.0). |
 | `wpac_correction_generated` | `int $correction_id, string $path` – Korrekturgutschrift erzeugt (siehe „Add-ons“). |
+| `wpac_refund_after_correction` | `array $refund, string $credit_note, string[] $corrections` – Erstattung/Storno einer Bestellung abgezogen, deren Gutschrift bereits eine Korrekturgutschrift hat (die die Erstattung schon enthalten kann); die WooCommerce-Integration schreibt eine Bestellnotiz. Buchung unverändert. |
 | `wpac_affiliate_created` | `int $affiliate_id, string $status` |
 | `wpac_affiliate_status_changed` | `int $affiliate_id, string $new, string $old` |
 

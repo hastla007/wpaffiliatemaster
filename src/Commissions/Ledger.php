@@ -834,6 +834,36 @@ final class Ledger {
 	}
 
 	/**
+	 * Reject the increases of a commission that are not released yet (pending/review, in no
+	 * payout), inside the caller's transaction (full refund or cancellation of the order).
+	 *
+	 * @param int    $id     Original commission (locked by the caller).
+	 * @param string $reason Reason.
+	 * @return int[] Rejected increase IDs.
+	 */
+	private static function reject_open_increases( $id, $reason ) {
+		global $wpdb;
+		$t   = Db::table( 'commissions' );
+		$ids = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE parent_id = %d AND kind = 'increase' AND status IN ('pending','review') AND payout_id = 0 FOR UPDATE", (int) $id ) ) as $inc_id ) {
+			if ( self::transition( (int) $inc_id, 'rejected', Db::cut( $reason, 191 ), 0, 0, null, false ) ) {
+				$ids[] = (int) $inc_id;
+			}
+		}
+		if ( $ids ) {
+			Db::after_commit(
+				static function () use ( $ids ) {
+					foreach ( $ids as $inc_id ) {
+						do_action( 'wpac_commission_rejected', $inc_id );
+					}
+				}
+			);
+		}
+		return $ids;
+	}
+
+	/**
 	 * Record a normalized refund/cancellation/chargeback.
 	 *
 	 * @param array $refund Normalized refund.
@@ -920,6 +950,13 @@ final class Ledger {
 					if ( ! $refund['full'] && is_array( $snap ) && ! empty( $snap['line_net'] ) && (int) $snap['line_net'] !== (int) $parent->base_minor ) {
 						$refunded_net = (int) round( $refunded_net * (int) $parent->base_minor / (int) $snap['line_net'] );
 					}
+					if ( $refund['full'] ) {
+						// R12-M1: increases still waiting for release (pending/review) are rejected
+						// together with the full reversal – otherwise an approved reversal would take
+						// back money that was never approved, and rejecting the increase later would
+						// leave the account too low.
+						self::reject_open_increases( (int) $parent->id, $refund['type'] . ': ' . $refund['reason'] );
+					}
 					// Increases booked after the sale (record_increase()) belong to the commission
 					// being corrected: base and commission are the original plus the increases.
 					$inc      = self::increased( (int) $parent->id, true );
@@ -991,9 +1028,14 @@ final class Ledger {
 					// A correction of a commission that sits in a payout not sent to the bank yet: the
 					// payout would pay too much now and offset it only later (clawback). Flag it so the
 					// operator can rebuild the payout before exporting it.
+					$warned = array();
 					foreach ( $originals as $o ) {
 						if ( (int) $o->payout_id ) {
 							\WPAffiliateCaptain\Payouts\PayoutService::flag_clawback( (int) $o->payout_id, $refund['source'] . ' #' . $refund['order_id'] );
+							if ( ! isset( $warned[ (int) $o->payout_id ] ) ) {
+								$warned[ (int) $o->payout_id ] = true;
+								self::warn_after_correction( (int) $o->payout_id, $refund );
+							}
 						}
 					}
 					self::maybe_forget_links( $refund['source'], $refund['order_id'] );
@@ -1002,6 +1044,45 @@ final class Ledger {
 			);
 		}
 		return $result;
+	}
+
+	/**
+	 * A refund hit a commission whose credit note already has a correction credit note (R12-M2):
+	 * correction credit notes are not linked to commissions, so the correction may already have
+	 * reduced the amount the refund now deducts again. The booking stays as it is; the operator
+	 * is warned (audit entry shown with the corrections of the payout, hook for an order note).
+	 *
+	 * @param int   $payout_id Payout of the refunded commission.
+	 * @param array $refund    Normalized refund.
+	 */
+	private static function warn_after_correction( $payout_id, array $refund ) {
+		$list = \WPAffiliateCaptain\Payouts\Corrections::for_payout( (int) $payout_id );
+		if ( ! $list ) {
+			return;
+		}
+		$p       = \WPAffiliateCaptain\Payouts\PayoutService::find( (int) $payout_id );
+		$numbers = array_map( 'strval', wp_list_pluck( $list, 'number' ) );
+		Audit::log(
+			'payout.refund_after_correction',
+			'payout',
+			(int) $payout_id,
+			array(
+				'source'      => (string) $refund['source'],
+				'order'       => (string) $refund['order_id'],
+				'refund_id'   => (string) $refund['refund_id'],
+				'corrections' => $numbers,
+			)
+		);
+		/**
+		 * A refund of an order was deducted although the credit note of its commission already has
+		 * a correction credit note (which may cover the refund already). The WooCommerce
+		 * integration adds an order note.
+		 *
+		 * @param array  $refund      Normalized refund.
+		 * @param string $credit_note Credit note number.
+		 * @param array  $corrections Correction credit note numbers.
+		 */
+		do_action( 'wpac_refund_after_correction', $refund, $p ? (string) $p->number : '', $numbers );
 	}
 
 	/**
