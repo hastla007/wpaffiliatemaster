@@ -32,6 +32,10 @@ final class RestApi {
 
 	public static function register_hooks() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
+		// Late: after plugins that block the REST API for guests (R14-D4).
+		add_filter( 'rest_authentication_errors', array( __CLASS__, 'allow_touch_route' ), 999 );
+		add_action( 'wp_ajax_nopriv_wpac_touch', array( __CLASS__, 'ajax_touch' ) );
+		add_action( 'wp_ajax_wpac_touch', array( __CLASS__, 'ajax_touch' ) );
 	}
 
 	/**
@@ -46,6 +50,12 @@ final class RestApi {
 		};
 	}
 
+	/** Parameters of the beacon (REST route and admin-ajax fallback). */
+	const TOUCH_PARAMS = array( 'code', 'campaign', 'utm_source', 'utm_medium', 'sub', 'content_id', 'path', 'referrer', 'consent', 'probe' );
+
+	/** Value of "probe" in the reachability check (Tracker::touch_probe()): answered, never stored. */
+	const PROBE = 'wpac-probe';
+
 	/**
 	 * Beacon: referral seen by a cached page (see Tracker::enqueue_beacon()).
 	 *
@@ -53,45 +63,122 @@ final class RestApi {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function touch( $r ) {
+		$params = array();
+		foreach ( self::TOUCH_PARAMS as $key ) {
+			if ( isset( $r[ $key ] ) ) {
+				$params[ $key ] = $r[ $key ];
+			}
+		}
+		return self::touch_data( $params, (string) $r->get_header( 'origin' ) );
+	}
+
+	/**
+	 * Beacon request over admin-ajax.php (action wpac_touch): the fallback of the script when the
+	 * REST API is blocked for guests (security plugins, WAF rules on /wp-json/, R14-D4). Same
+	 * answer and checks as the REST route.
+	 */
+	public static function ajax_touch() {
+		$params = array();
+		foreach ( self::TOUCH_PARAMS as $key ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Public like a page view (cached pages carry no nonce), same as the REST route.
+			if ( isset( $_POST[ $key ] ) && is_scalar( $_POST[ $key ] ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized per field in touch_data().
+				$params[ $key ] = (string) wp_unslash( $_POST[ $key ] );
+			}
+		}
+		$origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['HTTP_ORIGIN'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$res    = self::touch_data( $params, $origin );
+		header( 'Cache-Control: no-store' );
+		if ( is_wp_error( $res ) ) {
+			$data = $res->get_error_data();
+			wp_send_json( array( 'code' => $res->get_error_code() ), is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 400 );
+		}
+		wp_send_json( $res->get_data(), $res->get_status() );
+	}
+
+	/**
+	 * Handle a beacon request (REST route or admin-ajax).
+	 *
+	 * @param array  $p      Parameters (TOUCH_PARAMS).
+	 * @param string $origin Origin header.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function touch_data( array $p, $origin ) {
+		$get = static function ( $key ) use ( $p ) {
+			return isset( $p[ $key ] ) && is_scalar( $p[ $key ] ) ? (string) $p[ $key ] : '';
+		};
 		// "consent": the visitor gave marketing consent after the landing; the referral is stored
 		// again (cookie), the visit was already counted. Available whenever cookies need consent.
-		$consent_only = ! empty( $r['consent'] );
+		$consent_only = ! empty( $p['consent'] ) && 'false' !== $get( 'consent' );
 		if ( ! Settings::get( 'js_tracking' ) && ! ( $consent_only && 'consent' === Settings::get( 'cookie_mode' ) ) ) {
 			return new \WP_Error( 'wpac_disabled', __( 'JavaScript tracking is disabled.', 'affiliate-captain' ), array( 'status' => 404 ) );
 		}
+		$code = $get( 'code' );
+		if ( '' === $code || strlen( $code ) > 100 ) {
+			return new \WP_Error( 'rest_invalid_param', __( 'Invalid parameter.', 'affiliate-captain' ), array( 'status' => 400 ) );
+		}
 		$res = rest_ensure_response( array( 'ok' => true ) ); // Same answer for unknown codes (no enumeration).
 		$res->header( 'Cache-Control', 'no-store' );
+		// Reachability check of Site Health and the monitor: the request got through, nothing is stored.
+		if ( self::PROBE === $get( 'probe' ) ) {
+			return $res;
+		}
 		// Only pages of this shop report (same answer otherwise). No per-IP limit here: behind a CDN all
 		// visitors share one address and the referral must never be dropped – visit statistics are
 		// limited per client in Tracker::capture_code(), unknown codes write nothing.
-		if ( ! self::own_origin( (string) $r->get_header( 'origin' ) ) ) {
+		if ( ! self::own_origin( (string) $origin ) ) {
 			return $res;
 		}
 		// REST requests do not load the WooCommerce session: without it the touch of a visitor with a
 		// cart would not reach the checkout. Not for logged-in customers: without a nonce the REST
-		// request runs as a guest, and WooCommerce would end (empty) their session.
-		if ( function_exists( 'WC' ) && function_exists( 'wc_load_cart' ) && ! WC()->session && ! \WPAffiliateCaptain\Tracking\Tracker::has_login_cookie() ) {
+		// request runs as a guest, and WooCommerce would end (empty) their session. And only when the
+		// visitor already has a shop session (cookie): store_touch() never starts one for a click, so
+		// loading the cart would only cost time on every landing (R14-D7).
+		if ( function_exists( 'WC' ) && function_exists( 'wc_load_cart' ) && ! WC()->session && ! \WPAffiliateCaptain\Tracking\Tracker::has_login_cookie() && \WPAffiliateCaptain\Tracking\Tracker::has_shop_session_cookie() ) {
 			wc_load_cart();
 		}
-		$path = wp_parse_url( (string) $r['path'], PHP_URL_PATH );
+		$path = wp_parse_url( $get( 'path' ), PHP_URL_PATH );
 		// Only the host of the previous page is kept (never its path or query, which may contain personal data).
-		$ref  = trim( (string) $r['referrer'] );
+		$ref  = trim( $get( 'referrer' ) );
 		$host = false !== strpos( $ref, '://' ) ? (string) wp_parse_url( $ref, PHP_URL_HOST ) : $ref;
 		$host = preg_match( '/^[a-z0-9.-]{1,253}$/i', $host ) ? strtolower( $host ) : '';
 		\WPAffiliateCaptain\Tracking\Tracker::capture_code(
-			sanitize_text_field( (string) $r['code'] ),
-			\WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['campaign'] ),
-			absint( $r['content_id'] ),
+			sanitize_text_field( $code ),
+			\WPAffiliateCaptain\Tracking\Tracker::clean_utm( $get( 'campaign' ) ),
+			absint( $get( 'content_id' ) ),
 			array(
-				'utm_source' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['utm_source'] ),
-				'utm_medium' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( (string) $r['utm_medium'] ),
-				'sub_id'     => \WPAffiliateCaptain\Tracking\Tracker::clean_sub( (string) $r['sub'] ),
+				'utm_source' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( $get( 'utm_source' ) ),
+				'utm_medium' => \WPAffiliateCaptain\Tracking\Tracker::clean_utm( $get( 'utm_medium' ) ),
+				'sub_id'     => \WPAffiliateCaptain\Tracking\Tracker::clean_sub( $get( 'sub' ) ),
 				'path'       => is_string( $path ) ? $path : '',
 				'referrer'   => '' !== $host ? 'https://' . $host . '/' : '',
 				'count'      => ! $consent_only,
 			)
 		);
 		return $res;
+	}
+
+	/**
+	 * Keep the beacon route reachable when a plugin blocks the REST API for guests through
+	 * rest_authentication_errors ("Disable REST API", Perfmatters, Solid Security …): the route
+	 * is public like a page view; without the exception every referral of the beacon mode is
+	 * lost (R14-D4). Other routes keep the error.
+	 *
+	 * @param mixed $result Authentication result (WP_Error = refused).
+	 * @return mixed
+	 */
+	public static function allow_touch_route( $result ) {
+		if ( ! is_wp_error( $result ) ) {
+			return $result;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Compared only.
+		$route = isset( $_GET['rest_route'] ) && is_string( $_GET['rest_route'] ) ? wp_unslash( $_GET['rest_route'] ) : '';
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Compared only.
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_parse_url( wp_unslash( (string) $_SERVER['REQUEST_URI'] ), PHP_URL_PATH ) : '';
+		$own  = '/' . self::NS . '/touch';
+		$hit  = untrailingslashit( (string) $route ) === $own || ( '' === (string) $route && $own === substr( untrailingslashit( $uri ), -strlen( $own ) ) && false !== strpos( $uri, '/' . rest_get_url_prefix() . '/' ) );
+		$post = isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === strtoupper( (string) $_SERVER['REQUEST_METHOD'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		return $hit && $post ? null : $result;
 	}
 
 	/**
@@ -204,6 +291,7 @@ final class RestApi {
 					'path'       => array( 'type' => 'string' ),
 					'referrer'   => array( 'type' => 'string' ),
 					'consent'    => array( 'type' => 'boolean' ),
+					'probe'      => array( 'type' => 'string' ),
 				),
 			)
 		);

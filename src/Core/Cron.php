@@ -88,7 +88,7 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::DAILY );
-		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST, Crypto::REENCRYPT_HOOK, \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, self::VISITS_HOOK, \WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK, \WPAffiliateCaptain\Commissions\TierService::CONTINUE_HOOK, \WPAffiliateCaptain\Affiliates\Notifications::BROADCAST_HOOK ) as $hook ) {
+		foreach ( array( \WPAffiliateCaptain\Reports\MonthlyMail::BATCH_HOOK, \WPAffiliateCaptain\Reports\MonthlyMail::RETRY_HOOK, Jobs::DRAIN_HOOK, \WPAffiliateCaptain\Payouts\Vies::HOOK, Installer::NETWORK_HOOK, self::DAILY_REST, Crypto::REENCRYPT_HOOK, \WPAffiliateCaptain\Affiliates\Agreements::REMIND_HOOK, self::VISITS_HOOK, \WPAffiliateCaptain\Tracking\RateLimiter::PURGE_HOOK, \WPAffiliateCaptain\Privacy\Privacy::VISITS_ERASE_HOOK, \WPAffiliateCaptain\Commissions\Balance::CHECK_HOOK, \WPAffiliateCaptain\Commissions\TierService::CONTINUE_HOOK, \WPAffiliateCaptain\Affiliates\Notifications::BROADCAST_HOOK ) as $hook ) {
 			Scheduler::clear( $hook );
 		}
 		Scheduler::clear_group(); // Anything else of this plugin still waiting in the Action Scheduler.
@@ -215,6 +215,14 @@ final class Cron {
 	 */
 	public static function mark_unfinished() {
 		self::$unfinished = true;
+	}
+
+	/**
+	 * The running daily step has scheduled its own continuation (deletion backlog): it is not
+	 * repeated in the rest of the daily run.
+	 */
+	public static function continues_separately() {
+		self::$unfinished = false;
 	}
 
 	/**

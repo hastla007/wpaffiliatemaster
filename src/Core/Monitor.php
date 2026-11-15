@@ -131,6 +131,18 @@ final class Monitor {
 			);
 		}
 
+		$probe = \WPAffiliateCaptain\Tracking\Tracker::touch_probe_problem();
+		if ( $probe ) {
+			$out['beacon'] = $probe; // R14-D4: result of the hourly check without login.
+		}
+		if ( \WPAffiliateCaptain\Tracking\RateLimiter::purge_lagging() ) {
+			$out['rate_limits'] = array(
+				'recommended',
+				__( 'Expired rate-limit counters pile up', 'affiliate-captain' ),
+				__( 'The clean-up of the rate-limit table has not caught up for over six hours: new visitors write counters faster than they can be deleted. Use a shared persistent object cache (e.g. Redis) for the counters; the table then stays empty.', 'affiliate-captain' ),
+			);
+		}
+
 		if ( Settings::get( 'maintenance_mode' ) ) {
 			$out['maintenance'] = array( 'recommended', __( 'Partner program is in maintenance mode', 'affiliate-captain' ), __( 'Sales are still recorded, but approvals, payouts, mails and changes in the partner area wait.', 'affiliate-captain' ) );
 		}

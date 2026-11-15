@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 13;
+	const DB_VERSION = 14;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -747,23 +747,22 @@ final class Installer {
 				$problems[] = 'missing column ' . $name . '.' . $missing;
 			}
 		}
-		// v13: indexes the order filters and the audit log sort rely on (added online, see
-		// add_online_indexes(); dbDelta otherwise).
-		$indexes = array();
+		// v13/v14: indexes the order filters, the audit log sort and the partner statistics rely
+		// on (added or replaced online, see add_online_indexes(); dbDelta otherwise).
 		foreach ( self::ONLINE_INDEXES as $table => $keys ) {
-			$indexes[ $table ] = array_keys( $keys );
-		}
-		foreach ( $indexes as $table => $keys ) {
 			$name = Db::table( $table );
 			if ( ! isset( $have[ strtolower( $name ) ] ) ) {
 				continue;
 			}
-			$real = (string) $have[ strtolower( $name ) ]->t;
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-			$found_keys = array_map( 'strtolower', array_map( 'strval', (array) $wpdb->get_col( "SHOW INDEX FROM `{$real}`", 2 ) ) );
-			foreach ( array_diff( $keys, $found_keys ) as $missing ) {
-				// Performance only: bookings work without it, so it must not stop them (R13-M8).
-				$warnings[] = 'missing index ' . $name . '.' . $missing . ' (performance only; retried every 5 minutes or by wp wpac upgrade)';
+			$found_keys = self::key_columns( (string) $have[ strtolower( $name ) ]->t );
+			foreach ( $keys as $key => $columns ) {
+				if ( ! isset( $found_keys[ $key ] ) ) {
+					// Performance only: bookings work without it, so it must not stop them (R13-M8).
+					$warnings[] = 'missing index ' . $name . '.' . $key . ' (performance only; retried every 5 minutes or by wp wpac upgrade)';
+				} elseif ( $found_keys[ $key ] !== $columns ) {
+					// Same for a key that still has the columns of an older schema (R14-D1).
+					$warnings[] = 'missing index ' . $name . '.' . $key . ' (' . $columns . '; still ' . $found_keys[ $key ] . '; performance only; retried every 5 minutes or by wp wpac upgrade)';
+				}
 			}
 		}
 		foreach ( $have as $row ) {
@@ -814,12 +813,40 @@ final class Installer {
 
 	/**
 	 * Indexes for performance only (schema 13): table => key => columns. Added online before
-	 * dbDelta; missing ones are warnings, not blockers (R13-M8).
+	 * dbDelta; missing ones are warnings, not blockers (R13-M8). An existing key with other
+	 * columns is replaced online as well (schema 14: visits.affiliate_created also covers
+	 * campaign and sub-ID for the partner statistics, R14-D1; a second, wider key would not be
+	 * chosen by the optimizer while the narrow one exists).
 	 */
 	const ONLINE_INDEXES = array(
 		'commissions' => array( 'source_order_id' => 'source_order_id' ),
 		'audit'       => array( 'action_created' => 'action,created_at' ),
+		'visits'      => array( 'affiliate_created' => 'affiliate_id,created_at,campaign,sub_id' ),
 	);
+
+	/**
+	 * Columns of the keys of a table, in key order: key name (lower case) => "col1,col2".
+	 *
+	 * @param string $table Real table name.
+	 * @return array
+	 */
+	private static function key_columns( $table ) {
+		global $wpdb;
+		$out = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- Own table name only.
+		foreach ( (array) $wpdb->get_results( "SHOW INDEX FROM `{$table}`" ) as $row ) {
+			$row = array_change_key_case( (array) $row, CASE_LOWER );
+			if ( ! isset( $row['key_name'], $row['column_name'] ) ) {
+				continue;
+			}
+			$out[ strtolower( (string) $row['key_name'] ) ][ (int) $row['seq_in_index'] ] = strtolower( (string) $row['column_name'] );
+		}
+		foreach ( $out as $key => $columns ) {
+			ksort( $columns );
+			$out[ $key ] = implode( ',', $columns );
+		}
+		return $out;
+	}
 
 	/**
 	 * Limit the time schema changes of this session wait for a metadata lock.
@@ -864,7 +891,9 @@ final class Installer {
 	/**
 	 * Add missing performance indexes without blocking writes (ALGORITHM=INPLACE, LOCK=NONE):
 	 * the server refuses at once where that is not possible (MyISAM, older servers) instead of
-	 * copying the table under a write lock.
+	 * copying the table under a write lock. A key with the columns of an older schema is
+	 * replaced in the same statement (dropped and added again, R14-D1), so the table is never
+	 * without it.
 	 *
 	 * @return array Table key => keys that could not be added (left out of dbDelta).
 	 */
@@ -877,13 +906,15 @@ final class Installer {
 			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) ) ) {
 				continue; // New table: dbDelta creates it with its indexes.
 			}
+			$found = self::key_columns( $name );
 			foreach ( $keys as $key => $columns ) {
-				if ( $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$name} WHERE Key_name = %s", $key ) ) ) {
+				if ( isset( $found[ $key ] ) && $found[ $key ] === $columns ) {
 					continue;
 				}
+				$drop     = isset( $found[ $key ] ) ? "DROP KEY {$key}, " : '';
 				$suppress = $wpdb->suppress_errors( true );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Own table, key and column names only.
-				$ok = false !== $wpdb->query( "ALTER TABLE {$name} ADD KEY {$key} ({$columns}), ALGORITHM=INPLACE, LOCK=NONE" );
+				$ok = false !== $wpdb->query( "ALTER TABLE {$name} {$drop}ADD KEY {$key} ({$columns}), ALGORITHM=INPLACE, LOCK=NONE" );
 				$error = (string) $wpdb->last_error;
 				$wpdb->suppress_errors( $suppress );
 				if ( ! $ok || '' !== $error ) {
@@ -978,6 +1009,11 @@ final class Installer {
 			foreach ( $sql as $statement ) {
 				dbDelta( self::without_indexes( $statement, $skipped ) );
 				self::keep_lock();
+			}
+			if ( $skipped ) {
+				// A key over a column that dbDelta has only just added (e.g. visits.sub_id of an
+				// install older than schema 11): online again, now that the column exists.
+				self::add_online_indexes();
 			}
 		} finally {
 			self::restore_lock_wait( $restore );
@@ -1194,7 +1230,7 @@ final class Installer {
 			sub_id varchar(100) NOT NULL DEFAULT '',
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
-			KEY affiliate_created (affiliate_id,created_at),
+			KEY affiliate_created (affiliate_id,created_at,campaign,sub_id),
 			KEY created_affiliate (created_at,affiliate_id),
 			KEY campaign_created (campaign,created_at,affiliate_id),
 			KEY content_created (content_id,created_at,affiliate_id)

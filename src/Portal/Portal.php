@@ -1227,7 +1227,7 @@ final class Portal {
 	private static function tab_overview( $aff ) {
 		$totals  = Ledger::totals( array( 'affiliate_id' => (int) $aff->id ) );
 		$period  = self::period( '30' );
-		$summary = \WPAffiliateCaptain\Reports\Reports::partner_summary( (int) $aff->id, $period['from'], $period['to'] );
+		$summary = \WPAffiliateCaptain\Reports\Reports::partner_cached( 'summary', (int) $aff->id, $period['from'], $period['to'] );
 		$review  = self::sum_statuses( $totals, array( 'review' ) );
 		// Amounts in every booking currency (sales in USD show up even if the program uses EUR).
 		$cards = array(
@@ -1382,7 +1382,7 @@ final class Portal {
 		}
 		echo '</select> <button type="submit" class="wpac-button">' . esc_html__( 'Show', 'affiliate-captain' ) . '</button></form>';
 
-		$s = \WPAffiliateCaptain\Reports\Reports::partner_summary( (int) $aff->id, $period['from'], $period['to'] );
+		$s = \WPAffiliateCaptain\Reports\Reports::partner_cached( 'summary', (int) $aff->id, $period['from'], $period['to'] );
 		echo '<div class="wpac-cards">';
 		foreach (
 			array(
@@ -1437,7 +1437,7 @@ final class Portal {
 		echo '</tbody></table>';
 
 		echo '<h3>' . esc_html__( 'By campaign and sub-ID', 'affiliate-captain' ) . '</h3>';
-		$rows = \WPAffiliateCaptain\Reports\Reports::partner_campaigns( (int) $aff->id, $period['from'], $period['to'] );
+		$rows = \WPAffiliateCaptain\Reports\Reports::partner_cached( 'campaigns', (int) $aff->id, $period['from'], $period['to'] );
 		if ( ! $rows ) {
 			echo self::empty_state( __( 'No visits or sales in this period yet. Give your links a campaign or sub-ID in the link generator to see here which placement works best.', 'affiliate-captain' ), __( 'Open the link generator', 'affiliate-captain' ), 'links' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			return;

@@ -34,14 +34,14 @@ $r12_keys = static function ( $table ) use ( $wpdb ) {
 };
 
 /* R12-M21/M22: schema 13 with the new indexes, added by the migration. ---------------------- */
-check( 'R12-M21 schema version 13 everywhere', array( 13, 13, 13 ), array( Installer::DB_VERSION, WPAC_DB_VERSION, Installer::db_version() ) );
+check( 'R12-M21 schema version 13 everywhere (R14-D1: 14)', array( 14, 14, 14 ), array( Installer::DB_VERSION, WPAC_DB_VERSION, Installer::db_version() ) );
 check( 'R12-M21/M22 indexes on audit (action,created_at) and commissions (source_order_id)', array( true, true ), array( in_array( 'action_created', $r12_keys( 'audit' ), true ), in_array( 'source_order_id', $r12_keys( 'commissions' ), true ) ) );
 q( 'ALTER TABLE ' . Db::table( 'audit' ) . ' DROP INDEX action_created' );
 q( 'ALTER TABLE ' . Db::table( 'commissions' ) . ' DROP INDEX source_order_id' );
 check( 'R12-M21 verify_schema reports missing indexes (R13-M8: as warnings, not blockers)', array( array(), array( 'missing index ' . Db::table( 'commissions' ) . '.source_order_id', 'missing index ' . Db::table( 'audit' ) . '.action_created' ) ), array( Installer::verify_schema(), array_values( array_map( static function ( $w ) { return strstr( $w, ' (', true ); }, preg_grep( '/^missing index /', (array) get_option( 'wpac_schema_warnings' ) ) ) ) ) );
 update_option( 'wpac_db_version', 12 );
 Installer::install_schema();
-check( 'R12-M21 migration 12 → 13 adds the indexes (dbDelta) and raises the version', array( true, true, 13, array() ), array( in_array( 'action_created', $r12_keys( 'audit' ), true ), in_array( 'source_order_id', $r12_keys( 'commissions' ), true ), (int) get_option( 'wpac_db_version' ), Installer::verify_schema() ) );
+check( 'R12-M21 migration 12 → 13 adds the indexes (dbDelta) and raises the version', array( true, true, Installer::DB_VERSION, array() ), array( in_array( 'action_created', $r12_keys( 'audit' ), true ), in_array( 'source_order_id', $r12_keys( 'commissions' ), true ), (int) get_option( 'wpac_db_version' ), Installer::verify_schema() ) );
 
 /* R12-M21: order filter from indexed queries; totals cached but exact for new entries. ------- */
 $r12_aff = AffiliateRepository::create( array( 'name' => 'R12 Partner', 'email' => 'r12-partner@example.de', 'status' => 'active' ) );
