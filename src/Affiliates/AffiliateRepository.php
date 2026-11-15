@@ -181,7 +181,8 @@ final class AffiliateRepository {
 	/**
 	 * Create an affiliate.
 	 *
-	 * @param array $data name, email, website, channel, application_note, user_id, group_id, status, slug.
+	 * @param array $data name, email, website, channel, application_note, user_id, group_id, status, slug,
+	 *                    referred_by (recruiting partner; ignored when unknown).
 	 * @return int|\WP_Error New ID.
 	 */
 	public static function create( array $data ) {
@@ -195,6 +196,12 @@ final class AffiliateRepository {
 		}
 		$name   = sanitize_text_field( isset( $data['name'] ) ? $data['name'] : '' );
 		$status = isset( $data['status'] ) && in_array( $data['status'], self::STATUSES, true ) ? $data['status'] : 'pending';
+		// Recruiting partner (sub-affiliate add-ons): only an existing partner; a new account cannot
+		// be its own recruiter or close a cycle.
+		$referred_by = isset( $data['referred_by'] ) ? absint( $data['referred_by'] ) : 0;
+		if ( $referred_by && ! self::find( $referred_by ) ) {
+			$referred_by = 0;
+		}
 		$slug   = self::unique_slug( ! empty( $data['slug'] ) ? $data['slug'] : $name );
 		$now    = Db::now();
 
@@ -211,6 +218,7 @@ final class AffiliateRepository {
 				'channel'          => sanitize_text_field( isset( $data['channel'] ) ? $data['channel'] : '' ),
 				'application_note' => sanitize_textarea_field( isset( $data['application_note'] ) ? $data['application_note'] : '' ),
 				'application_data' => ! empty( $data['application_data'] ) ? wp_json_encode( $data['application_data'] ) : null,
+				'referred_by'      => $referred_by,
 				'created_at'       => $now,
 				'updated_at'       => $now,
 			)
@@ -220,10 +228,11 @@ final class AffiliateRepository {
 		}
 		$id = (int) $wpdb->insert_id;
 		self::clear_cache( $id );
-		Audit::log( 'affiliate.created', 'affiliate', $id, array( 'status' => $status ) );
+		Audit::log( 'affiliate.created', 'affiliate', $id, $referred_by ? array( 'status' => $status, 'referred_by' => $referred_by ) : array( 'status' => $status ) );
 
 		if ( 'active' === $status ) {
 			self::on_activated( $id );
+			self::recruited( $id );
 		}
 		/**
 		 * A partner account was created (admin, application or API).
@@ -233,6 +242,123 @@ final class AffiliateRepository {
 		 */
 		do_action( 'wpac_affiliate_created', $id, $status );
 		return $id;
+	}
+
+	/** Most recruiter levels followed when checking for a cycle (deeper chains are refused). */
+	const RECRUITER_DEPTH = 1000;
+
+	/**
+	 * Why a partner cannot be recorded as recruiter of another one: unknown partner, the partner
+	 * itself, or a cycle (the recruiter was recruited – directly or further up – by the partner).
+	 *
+	 * @param int $id        Partner.
+	 * @param int $recruiter Recruiting partner (0 = none: always fine).
+	 * @return \WP_Error|null
+	 */
+	public static function recruiter_problem( $id, $recruiter ) {
+		global $wpdb;
+		$id        = (int) $id;
+		$recruiter = (int) $recruiter;
+		if ( 0 === $recruiter ) {
+			return null;
+		}
+		if ( $recruiter < 0 || ! self::find( $recruiter ) ) {
+			return new \WP_Error( 'wpac_invalid_recruiter', __( 'The recruiting partner does not exist.', 'affiliate-captain' ) );
+		}
+		if ( $recruiter === $id ) {
+			return new \WP_Error( 'wpac_invalid_recruiter', __( 'A partner cannot be their own recruiter.', 'affiliate-captain' ) );
+		}
+		$t    = Db::table( 'affiliates' );
+		$seen = array( $recruiter => true );
+		$next = $recruiter;
+		for ( $i = 0; $i < self::RECRUITER_DEPTH; $i++ ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$next = (int) $wpdb->get_var( $wpdb->prepare( "SELECT referred_by FROM {$t} WHERE id = %d", $next ) );
+			if ( 0 === $next ) {
+				return null;
+			}
+			if ( $next === $id || isset( $seen[ $next ] ) ) {
+				return new \WP_Error( 'wpac_recruiter_cycle', __( 'The chosen recruiter was recruited (directly or indirectly) by this partner: that would form a cycle.', 'affiliate-captain' ) );
+			}
+			$seen[ $next ] = true;
+		}
+		return new \WP_Error( 'wpac_recruiter_cycle', __( 'The chain of recruiters is too long.', 'affiliate-captain' ) );
+	}
+
+	/**
+	 * Set or remove the recruiting partner (admin, wpac_update_affiliate()). Validated (existing
+	 * partner, not the partner itself, no cycle) and audited. Does not fire
+	 * wpac_affiliate_recruited (that follows the registration/approval only).
+	 *
+	 * @param int $id        Partner.
+	 * @param int $recruiter Recruiting partner (0 = none).
+	 * @return true|\WP_Error
+	 */
+	public static function set_referred_by( $id, $recruiter ) {
+		global $wpdb;
+		$aff = self::find( (int) $id );
+		if ( ! $aff ) {
+			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'affiliate-captain' ) );
+		}
+		$recruiter = (int) $recruiter;
+		$before    = isset( $aff->referred_by ) ? (int) $aff->referred_by : 0;
+		if ( $before === $recruiter ) {
+			return true;
+		}
+		$problem = self::recruiter_problem( (int) $id, $recruiter );
+		if ( $problem ) {
+			return $problem;
+		}
+		$saved = $wpdb->update(
+			Db::table( 'affiliates' ),
+			array(
+				'referred_by' => max( 0, $recruiter ),
+				'updated_at'  => Db::now(),
+			),
+			array( 'id' => (int) $id )
+		);
+		self::clear_cache( (int) $id );
+		if ( false === $saved ) {
+			return new \WP_Error( 'wpac_affiliate_db', __( 'The partner data could not be saved. Please try again; the previous data are unchanged.', 'affiliate-captain' ) );
+		}
+		Audit::log(
+			'affiliate.referred_by',
+			'affiliate',
+			(int) $id,
+			array(
+				'from' => $before,
+				'to'   => $recruiter,
+			)
+		);
+		return true;
+	}
+
+	/**
+	 * Fire wpac_affiliate_recruited for a partner that has a recruiter and just became active
+	 * through the registration or the approval of the application (after COMMIT).
+	 *
+	 * @param int $id Partner.
+	 */
+	private static function recruited( $id ) {
+		$aff       = self::find( (int) $id );
+		$recruiter = $aff && isset( $aff->referred_by ) ? (int) $aff->referred_by : 0;
+		if ( ! $recruiter ) {
+			return;
+		}
+		Db::after_commit(
+			static function () use ( $id, $recruiter ) {
+				/**
+				 * A partner recruited by another partner was registered and is active (registered with
+				 * automatic approval, or the application was approved). Fired once, after COMMIT. For
+				 * sub-affiliate add-ons: the core only stores the link (affiliates.referred_by).
+				 *
+				 * @since 0.15.0
+				 * @param int $affiliate_id New partner.
+				 * @param int $recruiter_id Recruiting partner.
+				 */
+				do_action( 'wpac_affiliate_recruited', (int) $id, $recruiter );
+			}
+		);
 	}
 
 	/**
@@ -573,6 +699,9 @@ final class AffiliateRepository {
 
 		if ( 'active' === $status ) {
 			self::on_activated( (int) $id );
+			if ( ! $aff->approved_at && in_array( $aff->status, array( 'pending', 'rejected' ), true ) ) {
+				self::recruited( (int) $id ); // The application of a recruited partner was approved.
+			}
 			if ( $notify && in_array( $aff->status, array( 'pending', 'rejected' ), true ) ) {
 				Notifications::application_approved( (int) $id );
 			}
@@ -1259,7 +1388,7 @@ final class AffiliateRepository {
 	/**
 	 * List affiliates.
 	 *
-	 * @param array $args status, group_id, search, limit, offset.
+	 * @param array $args status, group_id, referred_by (recruiting partner, 0 = none), search, limit, offset.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -1274,6 +1403,10 @@ final class AffiliateRepository {
 		if ( isset( $args['group_id'] ) && '' !== (string) $args['group_id'] && (int) $args['group_id'] >= 0 ) {
 			$where   .= ' AND group_id = %d';
 			$params[] = (int) $args['group_id'];
+		}
+		if ( isset( $args['referred_by'] ) && '' !== (string) $args['referred_by'] && (int) $args['referred_by'] >= 0 ) {
+			$where   .= ' AND referred_by = %d';
+			$params[] = (int) $args['referred_by'];
 		}
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';

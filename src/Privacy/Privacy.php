@@ -642,6 +642,8 @@ final class Privacy {
 				array( 'name' => __( 'Application', 'affiliate-captain' ), 'value' => (string) $aff->application_note ),
 				array( 'name' => __( 'Status', 'affiliate-captain' ), 'value' => $aff->status ),
 				array( 'name' => __( 'Created', 'affiliate-captain' ), 'value' => $aff->created_at ),
+				// Only the ID of the recruiting partner: their name and address are another person's data.
+				array( 'name' => __( 'Recruited by (partner ID)', 'affiliate-captain' ), 'value' => ! empty( $aff->referred_by ) ? '#' . (int) $aff->referred_by : '—' ),
 			),
 		);
 		foreach ( CodeRepository::for_affiliate( $id ) as $c ) {
@@ -1121,6 +1123,8 @@ final class Privacy {
 		$messages = array();
 		$open     = self::has_open_items( (int) $aff->id );
 
+		// referred_by (recruiting partner) stays: a pseudonymous link between two partner IDs that
+		// sub-affiliate bookings of add-ons may depend on; nothing else about the recruiter is stored.
 		$wpdb->update(
 			Db::table( 'affiliates' ),
 			array(

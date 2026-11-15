@@ -102,6 +102,18 @@ final class AffiliatesPage {
 					// with account access or payout details it is as sensitive as the bank details (R14-S1).
 					Admin::back( __( 'Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved.', 'affiliate-captain' ), 'error' );
 				}
+				// Recruiting partner (sub-affiliate add-ons): checked before anything is saved.
+				$recruiter = null;
+				if ( null !== Admin::post( 'referred_by', null ) ) {
+					$raw       = sanitize_text_field( (string) Admin::post( 'referred_by' ) );
+					$recruiter = AffiliateRepository::resolve_input( $raw );
+					$problem   = '' !== trim( $raw ) && ! $recruiter
+						? new \WP_Error( 'wpac_invalid_recruiter', __( 'The recruiting partner does not exist.', 'affiliate-captain' ) )
+						: AffiliateRepository::recruiter_problem( $id, $recruiter );
+					if ( $problem ) {
+						Admin::back( $problem->get_error_message() . ' ' . __( 'Nothing was saved.', 'affiliate-captain' ), 'error' );
+					}
+				}
 				$saved = AffiliateRepository::update(
 					$id,
 					array(
@@ -116,6 +128,12 @@ final class AffiliatesPage {
 				);
 				if ( is_wp_error( $saved ) ) {
 					Admin::back( $saved->get_error_message(), 'error' );
+				}
+				if ( null !== $recruiter ) {
+					$changed = AffiliateRepository::set_referred_by( $id, $recruiter ); // Audited (affiliate.referred_by).
+					if ( is_wp_error( $changed ) ) {
+						Admin::back( $changed->get_error_message(), 'error' );
+					}
 				}
 				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) ) {
 					$changed = AffiliateRepository::set_email( $id, $email );
@@ -671,6 +689,20 @@ final class AffiliatesPage {
 		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $a->website, 'type="url" maxlength="255"' );
 		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $a->channel, 'maxlength="255"' );
 		self::row_group( (int) $a->group_id );
+		$recruiter = isset( $a->referred_by ) ? (int) $a->referred_by : 0;
+		$recruits  = AffiliateRepository::query(
+			array(
+				'referred_by' => (int) $id,
+				'limit'       => 1,
+			)
+		)[1];
+		echo '<tr><th><label for="wpac-referred_by">' . esc_html__( 'Recruited by', 'affiliate-captain' ) . '</label></th><td>';
+		echo Admin::partner_picker( 'referred_by', $recruiter, '', array( 'id' => 'wpac-referred_by', 'aria-describedby' => 'wpac-referred_by-desc' ), array( (int) $id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		if ( $recruiter ) {
+			echo ' <a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $recruiter ) ) ) . '">' . esc_html__( 'Open recruiting partner', 'affiliate-captain' ) . '</a>';
+		}
+		/* translators: %d: number of partners */
+		echo '<p class="description" id="wpac-referred_by-desc">' . esc_html__( 'The partner whose referral link this partner registered through. Stored for add-ons (e.g. sub-affiliate programs); the free plugin pays no commission for it.', 'affiliate-captain' ) . ( $recruits ? ' ' . esc_html( sprintf( _n( 'This partner recruited %d partner.', 'This partner recruited %d partners.', (int) $recruits, 'affiliate-captain' ), (int) $recruits ) ) : '' ) . '</p></td></tr>';
 		echo '<tr><th><label for="wpac-landing_page_id">' . esc_html__( 'Landing page', 'affiliate-captain' ) . '</label></th><td>';
 		wp_dropdown_pages(
 			array(

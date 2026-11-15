@@ -33,6 +33,12 @@ final class Ledger {
 	const STATUSES = array( 'pending', 'review', 'approved', 'paid', 'rejected' );
 
 	/**
+	 * Kinds booked by hand (admin, wpac_create_adjustment()). Linked to a commission they stay
+	 * untouched by refunds of its order (R12-N3, owner decision 2026-11-15).
+	 */
+	const MANUAL_KINDS = array( 'adjustment' );
+
+	/**
 	 * Labels.
 	 *
 	 * @return array
@@ -1076,7 +1082,9 @@ final class Ledger {
 					// being corrected: base and commission are the original plus the increases.
 					$inc      = self::increased( (int) $parent->id, true );
 					$eff_base = (int) $parent->base_minor + $inc['base'];
-					$adjusted = self::adjusted_sum( (int) $parent->id, true ) - $inc['amount'];
+					// R12-N3: manual corrections of the partner linked to this commission (penalties,
+					// bonuses) stay untouched – they are neither netted as earlier refunds nor reversed.
+					$adjusted = self::adjusted_sum( (int) $parent->id, true, true ) - $inc['amount'];
 					$refunded = self::refunded_base( (int) $parent->id, true );
 					$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor + $inc['amount'], $eff_base, $adjusted, $refunded_net, $refund['full'], $refunded );
 					if ( 0 === $amount ) {
@@ -1942,8 +1950,9 @@ final class Ledger {
 	private static function maybe_forget_links( $source, $order_id ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
+		// Manual corrections (R12-N3) stay after a refund and say nothing about the order itself.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE source = %s AND source_order_id = %s AND status <> 'rejected' AND kind <> 'bonus'", $source, $order_id ) );
+		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE source = %s AND source_order_id = %s AND status <> 'rejected' AND kind NOT IN ('bonus','adjustment')", $source, $order_id ) );
 		if ( $left <= 0 ) {
 			CustomerLinks::forget_order( $source, $order_id );
 		}
@@ -2312,8 +2321,9 @@ final class Ledger {
 			return false;
 		}
 		$t = Db::table( 'commissions' );
+		// Manual corrections (R12-N3) stay after a refund and say nothing about the order itself.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE source = %s AND source_order_id = %s AND status <> 'rejected' AND kind <> 'bonus'", $source, (string) $order_id ) );
+		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE source = %s AND source_order_id = %s AND status <> 'rejected' AND kind NOT IN ('bonus','adjustment')", $source, (string) $order_id ) );
 		return $sales <= 0 || $left > 0;
 	}
 
@@ -2333,17 +2343,22 @@ final class Ledger {
 	/**
 	 * Sum of non-rejected adjustments.
 	 *
-	 * @param int $id Parent.
+	 * @param int  $id             Parent.
+	 * @param bool $lock           Locking read (inside a transaction).
+	 * @param bool $automatic_only Only the automatically calculated corrections (refunds,
+	 *                             reinstatements, increases), without manual corrections (R12-N3).
 	 * @return int
 	 */
-	public static function adjusted_sum( $id, $lock = false ) {
+	public static function adjusted_sum( $id, $lock = false, $automatic_only = false ) {
 		global $wpdb;
 		$t = Db::table( 'commissions' );
 		// A locking read sees rows committed by parallel refunds (a plain read in a REPEATABLE READ
 		// transaction would use the older snapshot and reverse the same amount twice).
 		$for = $lock ? ' FOR UPDATE' : ''; // Constant fragment, no input.
+		// R12-N3: manual corrections (penalties, bonuses) are not part of the calculated commission.
+		$manual = $automatic_only ? " AND kind NOT IN ('" . implode( "','", self::MANUAL_KINDS ) . "')" : ''; // Constant list, no input.
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected'{$for}", $id ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$t} WHERE parent_id = %d AND status <> 'rejected'{$manual}{$for}", $id ) );
 	}
 
 	/**
