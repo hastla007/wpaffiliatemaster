@@ -948,6 +948,14 @@ final class Tracker {
 				sprintf( __( 'This host only passes allow-listed cookies to WordPress; "%s" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref.', 'affiliate-captain' ), $name ),
 			);
 		}
+		$consent = Consent::integration_status();
+		if ( $consent['needed'] && ! $consent['connected'] ) {
+			// R14-L2: "only with consent" but nothing can give it – the cookie is silently never set.
+			$out[] = array(
+				__( 'Affiliate cookie is never set: no consent banner connected', 'affiliate-captain' ),
+				__( 'The affiliate cookie is only set with marketing consent, but neither a consent banner registered with the WP Consent API nor the filter wpac_has_marketing_consent provides it (window.wpacConsentGranted() alone is not enough – the server checks the consent again). Partner links then only count while a shop session lasts (if enabled); partner codes keep working. See the handbook, section "Consent banners", for recipes (Borlabs, Complianz, Real Cookie Banner, Usercentrics, CCM19, Cookiebot).', 'affiliate-captain' ),
+			);
+		}
 		if ( wp_using_ext_object_cache() && ! RateLimiter::use_object_cache() ) {
 			$out[] = array(
 				__( 'Object cache is local to each server', 'affiliate-captain' ),

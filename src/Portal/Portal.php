@@ -1453,6 +1453,21 @@ final class Portal {
 		$main  = CodeRepository::main_code( (int) $aff->id );
 		$param = (string) Settings::get( 'referral_param' );
 
+		// R14-L3: labelling duty for links, codes, short links and QR codes (§ 5a (4) UWG, § 6 DDG).
+		$label = (string) Settings::get( 'default_disclosure' );
+		/* translators: %s: disclosure note, e.g. "Advertisement" */
+		echo '<div class="wpac-disclosure" role="note"><p><strong>' . esc_html( sprintf( __( 'Label every post with your link, code, short link or QR code as advertising – e.g. with "%s" at the beginning, visible without clicking.', 'affiliate-captain' ), $label ) ) . '</strong></p><ul>';
+		foreach ( array(
+			__( 'Instagram, TikTok, Facebook: at the beginning of the caption or in the story itself, plus the platform\'s "paid partnership" label where available – a hashtag at the end is not enough.', 'affiliate-captain' ),
+			__( 'YouTube, podcasts, streams: say it at the beginning and write it in the description; switch on the platform\'s note for paid promotion.', 'affiliate-captain' ),
+			__( 'Website, blog: directly above the link or banner, not only in the imprint; links with rel="sponsored".', 'affiliate-captain' ),
+			__( 'Newsletter, messenger: in the subject line or at the beginning of the message.', 'affiliate-captain' ),
+			__( 'Print, talks, flyers with a QR code or code: next to the code or the QR code.', 'affiliate-captain' ),
+		) as $example ) {
+			echo '<li>' . esc_html( $example ) . '</li>';
+		}
+		echo '</ul></div>';
+
 		if ( $main ) {
 			$link = add_query_arg( $param, rawurlencode( $main ), home_url( '/' ) );
 			echo '<h3>' . esc_html__( 'Your partner link', 'affiliate-captain' ) . '</h3>';
@@ -1536,10 +1551,16 @@ final class Portal {
 	 * @param int    $w     Width.
 	 * @param int    $h     Height.
 	 * @param string $title Alt text.
+	 * @param string $label Visible advertising label above the banner (R14-L3), '' = none.
 	 * @return string
 	 */
-	public static function embed_code( $link, $src, $w, $h, $title ) {
-		return '<a href="' . esc_url( $link ) . '" rel="sponsored noopener" target="_blank"><img src="' . esc_url( $src ) . '"' . ( $w && $h ? ' width="' . (int) $w . '" height="' . (int) $h . '"' : '' ) . ' alt="' . esc_attr( $title ) . '"></a>';
+	public static function embed_code( $link, $src, $w, $h, $title, $label = '' ) {
+		$code = '<a href="' . esc_url( $link ) . '" rel="sponsored noopener" target="_blank"><img src="' . esc_url( $src ) . '"' . ( $w && $h ? ' width="' . (int) $w . '" height="' . (int) $h . '"' : '' ) . ' alt="' . esc_attr( $title ) . '"></a>';
+		if ( '' === trim( (string) $label ) ) {
+			return $code;
+		}
+		// Inline styles: the partner site has none of our CSS.
+		return '<div class="wpac-ad" style="display:inline-block"><small class="wpac-ad-label" style="display:block;font-size:12px">' . esc_html( $label ) . '</small>' . $code . '</div>';
 	}
 
 	/**
@@ -1600,7 +1621,7 @@ final class Portal {
 						echo esc_html( sprintf( __( 'Size: %1$d × %2$d pixels', 'affiliate-captain' ), (int) $w, (int) $h ) ) . ' · ';
 					}
 					echo '<a href="' . esc_url( $src ) . '" target="_blank" rel="noopener">' . esc_html__( 'View original', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a> · <a href="' . esc_url( $src ) . '" download>' . esc_html__( 'Download image', 'affiliate-captain' ) . '</a></p>';
-					echo self::copy_field( self::embed_code( $link, $src, (int) $w, (int) $h, self::embed_alt( (int) $c->attachment_id ) ), __( 'Embed code (HTML)', 'affiliate-captain' ) . ': ' . $c->title, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					echo self::copy_field( self::embed_code( $link, $src, (int) $w, (int) $h, self::embed_alt( (int) $c->attachment_id ), Settings::get( 'embed_disclosure_label' ) ? (string) $c->disclosure : '' ), __( 'Embed code (HTML)', 'affiliate-captain' ) . ': ' . $c->title, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 				echo self::copy_field( $link, __( 'Link', 'affiliate-captain' ) . ': ' . $c->title ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			}

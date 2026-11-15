@@ -111,15 +111,18 @@ final class DashboardPage {
 	public static function terms_template() {
 		$site  = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
 		$parts = array(
-			__( 'Template – please adapt it to your program and have it checked before publishing.', 'affiliate-captain' ),
+			__( 'Template – please adapt it to your program and have it checked by a lawyer before publishing (not legal advice).', 'affiliate-captain' ),
 			/* translators: %s: site name */
 			sprintf( __( '1. Parties and subject: these terms govern the partner program of %s. Partners promote our offer with their personal links, codes and coupons and receive a commission for attributed sales.', 'affiliate-captain' ), $site ),
-			__( '2. Commission: the rates shown in the partner area apply. Commissions are released after the hold period; refunded or cancelled orders reduce them.', 'affiliate-captain' ),
-			__( '3. Payout: payouts are made once the minimum payout is reached, by bank transfer or another agreed payment method.', 'affiliate-captain' ),
-			__( '4. Credit notes (self-billing): we settle commissions by credit note in the name and for the account of the partner (§14 (2) sentence 2 German VAT Act). The partner agrees to this procedure, keeps the tax details in the partner area up to date and may object to a credit note; it then loses its effect as an invoice.', 'affiliate-captain' ),
-			__( '5. Advertising rules: partners label their posts as advertising, follow the promotion guidelines and do not use misleading claims, spam, brand bidding or cookie stuffing.', 'affiliate-captain' ),
-			__( '6. Data protection: we process the partner data needed for the program and payouts as described in our privacy policy.', 'affiliate-captain' ),
-			__( '7. Term and termination: either party can end the partnership at any time; commissions earned until then are settled as described in the partner area.', 'affiliate-captain' ),
+			__( '2. Independence: partners act as independent businesses on their own account and decide freely whether, when and how they promote us. They are not commercial agents (§§ 84 ff. German Commercial Code, HGB), are not entitled to conclude contracts in our name and have no claim to an indemnity under § 89b HGB.', 'affiliate-captain' ),
+			__( '3. Commission: the rates shown in the partner area apply. Commissions are released after the hold period; refunded or cancelled orders reduce them.', 'affiliate-captain' ),
+			__( '4. Payout: payouts are made once the minimum payout is reached, by bank transfer or another agreed payment method.', 'affiliate-captain' ),
+			__( '5. Credit notes (self-billing): we settle commissions by credit note in the name and for the account of the partner (§14 (2) sentence 2 German VAT Act). The partner agrees to this procedure, keeps the tax details in the partner area up to date and may object to a credit note; it then loses its effect as an invoice.', 'affiliate-captain' ),
+			__( '6. Format of the credit notes: the partner agrees to receive credit notes electronically – as a PDF in the partner area and by e-mail – and, where required by law, as a structured e-invoice (e.g. XRechnung or ZUGFeRD). As long as the law still permits other formats (transition rules of § 27 (38) German VAT Act, at the latest until 31 December 2027), the partner expressly consents to credit notes in PDF format.', 'affiliate-captain' ),
+			__( '7. Small business status: the partner informs us without delay, in the partner area or in writing, when it starts or stops applying the small business scheme (§ 19 German VAT Act) or its VAT status changes otherwise. Until then credit notes follow the tax details on file; the partner bears the consequences of an outdated status.', 'affiliate-captain' ),
+			__( '8. Advertising rules: partners label every post, video, story, newsletter or profile with a partner link, code, short link or QR code clearly as advertising – with "Advertisement" or "Ad" at the beginning, visible without clicking (e.g. "Ad" at the start of an Instagram caption, a verbal note at the start of a video or podcast). They follow the promotion guidelines and do not use misleading claims, spam, brand bidding or cookie stuffing.', 'affiliate-captain' ),
+			__( '9. Data protection: we process the partner data needed for the program and payouts as described in our privacy policy. Each party is solely responsible for the data it processes in its own channels (website, newsletter, social media profiles) and for the consents needed there. Partners do not receive personal data of our customers; orders are shown to them only without names or contact details.', 'affiliate-captain' ),
+			__( '10. Term and termination: either party can end the partnership at any time; commissions earned until then are settled as described in the partner area.', 'affiliate-captain' ),
 		);
 		$out = '';
 		foreach ( $parts as $part ) {
@@ -150,6 +153,7 @@ final class DashboardPage {
 		$terms_page = (int) Settings::get( 'terms_page_id' );
 		$self_bill  = (bool) Settings::get( 'self_billing' );
 		$source     = class_exists( 'WooCommerce' );
+		$consent    = \WPAffiliateCaptain\Tracking\Consent::integration_status();
 		if ( ! $source && class_exists( '\WPAffiliateCaptain\Sales\ContractApi' ) ) {
 			foreach ( (array) \WPAffiliateCaptain\Sales\ContractApi::integrations() as $info ) {
 				if ( ! empty( $info['active'] ) ) {
@@ -168,6 +172,8 @@ final class DashboardPage {
 			array( AffiliateRepository::count_by_status()['active'] > 0, __( 'First partner approved', 'affiliate-captain' ), Admin::url( 'wpac-affiliates' ), true ),
 			array( '' !== (string) Settings::get( 'debtor_iban' ) && '' !== trim( (string) Settings::get( 'debtor_name' ) ), __( 'Optional: company bank account for SEPA files (account holder and IBAN) – not needed if you pay by hand or by PayPal', 'affiliate-captain' ), Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), false ),
 			array( \WPAffiliateCaptain\Core\Crypto::has_dedicated_key(), __( 'Recommended: own encryption key WPAC_ENCRYPTION_KEY in wp-config.php (bank details then survive a change of the WordPress salts)', 'affiliate-captain' ), Admin::url( 'wpac-integrations', array( 'tab' => 'status' ) ), false ),
+			// R14-L2: "only with consent" needs a banner that can give it, else the cookie is never set.
+			array( $consent['connected'] || ! $consent['needed'], __( 'Recommended: connect your consent banner (WP Consent API or the filter wpac_has_marketing_consent) – otherwise the affiliate cookie is never set and only partner codes and the shop session count', 'affiliate-captain' ), Admin::url( 'wpac-integrations', array( 'tab' => 'status' ) ), false ),
 		);
 	}
 

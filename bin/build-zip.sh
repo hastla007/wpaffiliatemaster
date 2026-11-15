@@ -39,7 +39,7 @@ for f in $(find "$BUILD/$SLUG" -name '*.php'); do php -l "$f" >/dev/null; done
 
 # The ZIP must contain the runtime files and nothing from development.
 for need in affiliate-captain.php uninstall.php readme.txt src assets blocks languages \
-	docs/VERARBEITUNGSVERZEICHNIS.md tools/purge-retained.php languages/affiliate-captain-de_DE.mo; do
+	docs/VERARBEITUNGSVERZEICHNIS.md docs/RECORD-OF-PROCESSING.md tools/purge-retained.php languages/affiliate-captain-de_DE.mo; do
 	[ -e "$BUILD/$SLUG/$need" ] || { echo "Missing in the ZIP: $need" >&2; exit 1; }
 done
 for dev in README.md TODO.md tests bin examples composer.json phpcs.xml.dist phpstan.neon.dist \

@@ -199,7 +199,7 @@ if ( ! function_exists( 'get_edit_post_link' ) ) {
 }
 // R5-O44 / R5-W61: checklist with optional items; setup notice until the required items are done.
 $g10_items = DashboardPage::checklist_items();
-check( 'R5-O44 sales source checked; SEPA account and own key optional', array( 9, true, false, false ), array( count( $g10_items ), $g10_items[0][3], $g10_items[7][3], $g10_items[8][3] ) );
+check( 'R5-O44 sales source checked; SEPA account and own key optional', array( 10, true, false, false ), array( count( $g10_items ), $g10_items[0][3], $g10_items[7][3], $g10_items[8][3] ) );
 check( 'R5-O44 terms template with the self-billing agreement', true, false !== strpos( DashboardPage::terms_template(), 'self-billing' ) );
 check( 'R5-W61 setup notice follows the checklist, not only the partner area page', true, DashboardPage::setup_open() && false !== strpos( $g10_src( 'src/Admin/Admin.php' ), 'DashboardPage::setup_open()' ) );
 update_option( 'wpac_activation_redirect', 4242 );
