@@ -137,6 +137,8 @@ function wpac_uninstall_site() {
 	// Keyed by partner ID: after a new installation partner 1 must not inherit a fraud flag
 	// (shared IBAN) or a mail opt-out of a former partner 1 (R12-M17).
 	$wpac_options = array_merge( $wpac_options, array( 'wpac_shared_iban', 'wpac_mail_optout' ) );
+	// Report cache generation, template scan generation, cursor of the attribution clean-up (R13-N12).
+	$wpac_options = array_merge( $wpac_options, array( 'wpac_reports_gen', 'wpac_tplscan_gen', 'wpac_attr_purge_cursor' ) );
 	if ( ! $wpac_keep ) {
 		// The restriction list belongs to the kept booking records; without them it is not needed.
 		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_vat_rate_history', 'wpac_monitor_key' ) );

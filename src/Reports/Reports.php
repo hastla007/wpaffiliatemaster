@@ -134,8 +134,11 @@ final class Reports {
 		return is_array( $rows ) ? array_values( $rows ) : array();
 	}
 
-	/** Transient with the cached admin reports (one entry per report, few entries). */
+	/** Prefix of the transients with the cached admin reports (one transient per report). */
 	const CACHE = 'wpac_reports';
+
+	/** Option: generation of the report cache; a booking raises it (old entries expire). */
+	const CACHE_GEN = 'wpac_reports_gen';
 
 	/** Lifetime of a cached report; visits show up after at most this long. */
 	const CACHE_TTL = 600;
@@ -153,7 +156,37 @@ final class Reports {
 	 * Drop all cached reports (after a booking).
 	 */
 	public static function flush_cache() {
-		delete_transient( self::CACHE );
+		// One small write instead of deleting every report: the keys hold the generation, so the
+		// old entries are never read again and expire on their own (R13-N12).
+		update_option( self::CACHE_GEN, self::generation() + 1, true );
+	}
+
+	/**
+	 * Generation of the report cache.
+	 *
+	 * @return int
+	 */
+	private static function generation() {
+		return (int) get_option( self::CACHE_GEN, 0 );
+	}
+
+	/**
+	 * Name of the transient that holds one report (time bucket, generation and state in the key).
+	 *
+	 * @param string $kind partners|content_id|campaign.
+	 * @param string $from Y-m-d (local).
+	 * @param string $to   Y-m-d (local).
+	 * @return string
+	 */
+	public static function cache_name( $kind, $from, $to ) {
+		global $wpdb;
+		$state = array( $kind, $from, $to, (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ), wp_json_encode( Fx::rates() ), function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '', function_exists( 'determine_locale' ) ? determine_locale() : '' ); // Labels such as "(no campaign)" are translated.
+		$table = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- constants only.
+		$state[] = wp_json_encode( $wpdb->get_row( "SELECT MAX(id), MAX(updated_at) FROM {$table}" ) );
+		$state[] = (int) floor( time() / self::CACHE_TTL );
+		$state[] = self::generation();
+		return self::CACHE . '_' . md5( implode( '|', $state ) );
 	}
 
 	/**
@@ -161,8 +194,9 @@ final class Reports {
 	 * the same report on every visit (KPIs and table), and the aggregates scan the whole period.
 	 * The key holds a time bucket (CACHE_TTL), a fingerprint of the newest commission (indexed
 	 * MAX() lookups, so a sale or refund shows at once) and the currency settings. New visits
-	 * show up with the next bucket – they no longer make every click a cache miss. All reports
-	 * share one transient (a few entries), bookings delete it.
+	 * show up with the next bucket – they no longer make every click a cache miss. Each report has
+	 * its own small transient (a shared one grew to megabytes, beyond the 1 MB of Memcached, and
+	 * evicted reports in turn); bookings raise the generation in the key (R13-N12).
 	 *
 	 * @param string $kind partners|content_id|campaign.
 	 * @param string $from Y-m-d (local).
@@ -170,33 +204,21 @@ final class Reports {
 	 * @return array Rows (self::$unconverted is set as by the uncached call).
 	 */
 	public static function cached( $kind, $from, $to ) {
-		global $wpdb;
-		$state = array( $kind, $from, $to, (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ), wp_json_encode( Fx::rates() ), function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '', function_exists( 'determine_locale' ) ? determine_locale() : '' ); // Labels such as "(no campaign)" are translated.
-		$table   = Db::table( 'commissions' );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- constants only.
-		$state[] = wp_json_encode( $wpdb->get_row( "SELECT MAX(id), MAX(updated_at) FROM {$table}" ) );
-		$bucket  = (int) floor( time() / self::CACHE_TTL );
-		$key     = md5( implode( '|', $state ) );
-		$cache   = get_transient( self::CACHE );
-		$cache   = is_array( $cache ) && isset( $cache['bucket'] ) && $bucket === (int) $cache['bucket'] ? $cache : array( 'bucket' => $bucket, 'items' => array() );
-		$hit     = isset( $cache['items'][ $key ] ) ? $cache['items'][ $key ] : null;
+		$name = self::cache_name( $kind, $from, $to );
+		$hit  = get_transient( $name );
 		if ( is_array( $hit ) && isset( $hit['rows'], $hit['unconverted'] ) ) {
 			self::$unconverted = (array) $hit['unconverted'];
 			return (array) $hit['rows'];
 		}
-		$rows           = 'partners' === $kind ? self::partners( $from, $to ) : self::by_dimension( $kind, $from, $to );
-		$cache['items'] = array_slice(
+		$rows = 'partners' === $kind ? self::partners( $from, $to ) : self::by_dimension( $kind, $from, $to );
+		set_transient(
+			$name,
 			array(
-				$key => array(
-					'rows'        => $rows,
-					'unconverted' => self::$unconverted,
-				),
-			) + (array) $cache['items'],
-			0,
-			8,
-			true
+				'rows'        => $rows,
+				'unconverted' => self::$unconverted,
+			),
+			self::CACHE_TTL
 		);
-		set_transient( self::CACHE, $cache, self::CACHE_TTL );
 		return $rows;
 	}
 

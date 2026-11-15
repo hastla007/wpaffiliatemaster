@@ -48,6 +48,7 @@ final class Plugin {
 		Installer::register_multisite_hooks();
 		add_action( 'init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'followup' ), 5 );
 		add_action( 'init', array( \WPAffiliateCaptain\Core\Capabilities::class, 'translate_role_name' ), 2 ); // R12-N13.
+		add_action( 'wp_roles_init', array( \WPAffiliateCaptain\Core\Capabilities::class, 'translate_role_name' ), 10, 1 ); // After switch_to_blog() (R13-N10).
 		add_action( 'admin_init', array( \WPAffiliateCaptain\Core\Lifecycle::class, 'run_check_clone' ), 5 );
 		\WPAffiliateCaptain\Affiliates\AffiliateRepository::register_user_hooks();
 

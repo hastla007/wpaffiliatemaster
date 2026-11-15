@@ -28,8 +28,14 @@ final class Landing {
 		add_action( 'template_redirect', array( __CLASS__, 'redirect' ), 1 );
 		add_shortcode( 'wpac_partner_welcome', array( __CLASS__, 'welcome' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'no_cache_welcome' ), 2 );
+		add_action( 'template_redirect', array( __CLASS__, 'enqueue_head_styles' ), 3 ); // Stylesheet in the head (R13-N10).
 		// Block themes: the template is known only now (before any output, R12-M29).
 		add_filter( 'template_include', array( __CLASS__, 'no_cache_template' ), 99 );
+		// The cached template scan is renewed when templates, parts, synced patterns or the theme change.
+		add_action( 'save_post', array( __CLASS__, 'maybe_flush_template_scan' ) );
+		add_action( 'deleted_post', array( __CLASS__, 'maybe_flush_template_scan' ) );
+		add_action( 'switch_theme', array( __CLASS__, 'flush_template_scan' ), 10, 0 );
+		add_action( 'upgrader_process_complete', array( __CLASS__, 'flush_template_scan' ), 10, 0 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush' ), 99 );
 		// Browsers must not prefetch/prerender /partner/slug/ (Speculation Rules, WP 6.8+): a
 		// prefetch is no click. Links with ?partner=… have a query string and are excluded by core.
@@ -99,13 +105,38 @@ final class Landing {
 	public static function no_cache_template( $template ) {
 		if ( ! defined( 'DONOTCACHEPAGE' ) && self::block_template_has( 'wpac_partner_welcome', 'wpac/partner-welcome' ) ) {
 			self::no_cache();
+			self::enqueue_style(); // Before wp_head: in the head, not the footer (R13-N10).
 		}
 		return $template;
 	}
 
+	/** Option: generation of the cached template scans (raised when templates, parts or synced patterns change). */
+	const TPL_GEN = 'wpac_tplscan_gen';
+
 	/**
-	 * Whether the block template of the current request (or one of its template parts)
-	 * contains a shortcode or block. Only for block themes; false before template_include.
+	 * Raise the generation of the cached template scans (a template, template part, synced
+	 * pattern or the theme changed).
+	 */
+	public static function flush_template_scan() {
+		update_option( self::TPL_GEN, (int) get_option( self::TPL_GEN, 0 ) + 1, true );
+	}
+
+	/**
+	 * Saving or deleting a post: only templates, template parts and synced patterns matter.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function maybe_flush_template_scan( $post_id ) {
+		if ( in_array( get_post_type( (int) $post_id ), array( 'wp_template', 'wp_template_part', 'wp_block' ), true ) ) {
+			self::flush_template_scan();
+		}
+	}
+
+	/**
+	 * Whether the block template of the current request (or a template part, synced pattern or
+	 * pattern in it, nested ones included) contains a shortcode or block. Only for block themes;
+	 * false before template_include. The result is cached per template content (R13-N12): the
+	 * template parts were loaded on every page view.
 	 *
 	 * @param string $shortcode Shortcode tag.
 	 * @param string $block     Block name.
@@ -116,26 +147,78 @@ final class Landing {
 		if ( ! function_exists( 'wp_is_block_theme' ) || ! wp_is_block_theme() || ! is_string( $_wp_current_template_content ) || '' === $_wp_current_template_content ) {
 			return false;
 		}
-		$contents = array( $_wp_current_template_content );
-		if ( function_exists( 'get_block_template' ) && preg_match_all( '/<!--\s+wp:template-part\s+(\{[^}]*\})/', $_wp_current_template_content, $m ) ) {
-			foreach ( array_slice( array_unique( $m[1] ), 0, 10 ) as $json ) {
-				$attrs = json_decode( $json, true );
-				if ( ! is_array( $attrs ) || empty( $attrs['slug'] ) ) {
-					continue;
-				}
-				$theme = ! empty( $attrs['theme'] ) ? (string) $attrs['theme'] : get_stylesheet();
-				$part  = get_block_template( $theme . '//' . sanitize_key( (string) $attrs['slug'] ), 'wp_template_part' );
-				if ( $part && is_string( $part->content ) ) {
-					$contents[] = $part->content;
-				}
-			}
+		$key    = 'wpac_tplscan_' . md5( implode( '|', array( get_stylesheet(), md5( $_wp_current_template_content ), $shortcode, $block, (int) get_option( self::TPL_GEN, 0 ), WPAC_VERSION ) ) );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) && isset( $cached['found'] ) ) {
+			return (bool) $cached['found'];
 		}
+		$contents = array();
+		self::collect_contents( $_wp_current_template_content, $contents, 0 );
+		$found = false;
 		foreach ( $contents as $content ) {
 			if ( has_shortcode( $content, $shortcode ) || ( function_exists( 'has_block' ) && has_block( $block, $content ) ) ) {
-				return true;
+				$found = true;
+				break;
 			}
 		}
-		return false;
+		set_transient( $key, array( 'found' => $found ), DAY_IN_SECONDS );
+		return $found;
+	}
+
+	/**
+	 * A block markup and the markup of the template parts, synced patterns and patterns it uses,
+	 * recursively (at most 3 levels and 20 pieces).
+	 *
+	 * @param string   $content Block markup.
+	 * @param string[] $out     Collected markup (by reference).
+	 * @param int      $depth   Nesting level.
+	 */
+	private static function collect_contents( $content, array &$out, $depth ) {
+		$out[] = (string) $content;
+		// The attribute JSON is matched up to the comment end: core escapes "--" inside it, so
+		// nested objects ("style":{…}) are captured whole (the old [^}]* stopped at the first }).
+		if ( $depth >= 3 || ! preg_match_all( '/<!--\s+wp:(?:core\/)?(template-part|block|pattern)\s+(\{.*?\})\s*\/?-->/s', (string) $content, $m, PREG_SET_ORDER ) ) {
+			return;
+		}
+		$seen = array();
+		foreach ( $m as $match ) {
+			if ( count( $out ) >= 20 ) {
+				return;
+			}
+			$attrs = json_decode( $match[2], true );
+			if ( ! is_array( $attrs ) ) {
+				continue;
+			}
+			$inner = self::referenced_markup( $match[1], $attrs );
+			if ( '' !== $inner && ! isset( $seen[ md5( $inner ) ] ) ) {
+				$seen[ md5( $inner ) ] = true;
+				self::collect_contents( $inner, $out, $depth + 1 );
+			}
+		}
+	}
+
+	/**
+	 * Markup of a template part, synced pattern (core/block ref) or registered pattern.
+	 *
+	 * @param string $type  template-part|block|pattern.
+	 * @param array  $attrs Block attributes.
+	 * @return string
+	 */
+	private static function referenced_markup( $type, array $attrs ) {
+		if ( 'template-part' === $type && ! empty( $attrs['slug'] ) && function_exists( 'get_block_template' ) ) {
+			$theme = ! empty( $attrs['theme'] ) ? (string) $attrs['theme'] : get_stylesheet();
+			$part  = get_block_template( $theme . '//' . sanitize_key( (string) $attrs['slug'] ), 'wp_template_part' );
+			return $part && is_string( $part->content ) ? $part->content : '';
+		}
+		if ( 'block' === $type && ! empty( $attrs['ref'] ) ) {
+			$post = get_post( (int) $attrs['ref'] );
+			return $post && isset( $post->post_type, $post->post_content ) && 'wp_block' === $post->post_type ? (string) $post->post_content : '';
+		}
+		if ( 'pattern' === $type && ! empty( $attrs['slug'] ) && class_exists( '\WP_Block_Patterns_Registry' ) ) {
+			$pattern = \WP_Block_Patterns_Registry::get_instance()->get_registered( (string) $attrs['slug'] );
+			return is_array( $pattern ) && isset( $pattern['content'] ) ? (string) $pattern['content'] : '';
+		}
+		return '';
 	}
 
 	/**
@@ -192,6 +275,31 @@ final class Landing {
 		}
 		$content = (string) $post->post_content;
 		return has_shortcode( $content, $shortcode ) || ( function_exists( 'has_block' ) && has_block( $block, $content ) );
+	}
+
+	/**
+	 * Classic themes: enqueue the portal stylesheet in the head when the queried post shows a
+	 * block or shortcode of the plugin. Render callbacks enqueue it in the body only, where
+	 * WordPress prints it in the footer: the content stood unstyled until then (R13-N10).
+	 */
+	public static function enqueue_head_styles() {
+		foreach ( array(
+			'wpac_affiliate_registration' => 'wpac/registration',
+			'wpac_partner_welcome'        => 'wpac/partner-welcome',
+			'wpac_partner_targets'        => 'wpac/partner-targets',
+		) as $shortcode => $block ) {
+			if ( self::current_post_has( $shortcode, $block ) ) {
+				self::enqueue_style();
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Enqueue the portal stylesheet (the blocks and shortcodes share it).
+	 */
+	public static function enqueue_style() {
+		wp_enqueue_style( 'wpac-portal', WPAC_URL . 'assets/css/portal.css', array(), WPAC_VERSION );
 	}
 
 	/**

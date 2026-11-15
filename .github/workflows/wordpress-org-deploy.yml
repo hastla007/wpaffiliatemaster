@@ -70,9 +70,12 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           sha="$(git rev-parse HEAD)"
-          ok="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$sha" --status success --limit 20 --json databaseId --jq 'length')"
-          [ "${ok:-0}" -gt 0 ] || { echo "::error::No successful CI run for $TAG ($sha) – deploy refused."; exit 1; }
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null || { echo "::error::No GitHub release $TAG – deploy refused."; exit 1; }
+          # Only the push run of the tag itself or of main counts (not branch pushes or PR runs).
+          ok="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$sha" --status success --limit 50 --json event,headBranch --jq '[.[] | select(.event == "push" and (.headBranch == $ENV.TAG or .headBranch == "main"))] | length')"
+          [ "${ok:-0}" -gt 0 ] || { echo "::error::No successful CI run of the tag or main for $TAG ($sha) – deploy refused."; exit 1; }
+          state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq 'if .isDraft or .isPrerelease then "withdrawn" else "ok" end')" || { echo "::error::No GitHub release $TAG – deploy refused."; exit 1; }
+          # A release set back to draft or pre-release is withdrawn (rollback, RELEASE.md §3a).
+          [ "$state" = "ok" ] || { echo "::error::Release $TAG is a draft or pre-release – deploy refused."; exit 1; }
       # Same checks as the release ZIP: versions in header, constant, readme and tag match; unit tests;
       # the .distignore selection contains the runtime files and no development files.
       - name: Verify the tag

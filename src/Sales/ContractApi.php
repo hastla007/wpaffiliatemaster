@@ -326,7 +326,13 @@ final class ContractApi {
 	public static function currencies() {
 		$iso   = explode( ' ', self::CURRENCIES );
 		$codes = $iso;
-		if ( function_exists( 'get_woocommerce_currencies' ) ) {
+		// get_woocommerce_currencies() translates the names: before init (an add-on recording a
+		// sale in plugins_loaded) that loads WooCommerce's translations too early and keeps the
+		// English names in its static cache. The program currency is accepted meanwhile (R13-N10).
+		$early = function_exists( 'did_action' ) && ! did_action( 'init' ) && ! doing_action( 'init' );
+		if ( $early ) {
+			$codes[] = strtoupper( (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ) );
+		} elseif ( function_exists( 'get_woocommerce_currencies' ) ) {
 			foreach ( array_keys( (array) get_woocommerce_currencies() ) as $code ) {
 				$codes[] = strtoupper( (string) $code );
 			}

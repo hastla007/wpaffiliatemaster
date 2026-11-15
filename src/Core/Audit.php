@@ -164,9 +164,38 @@ final class Audit {
 		$com = Db::table( 'commissions' );
 		$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT a.id FROM {$table} a INNER JOIN {$com} c ON a.object_type = 'commission' AND a.object_id = c.id WHERE c.source_order_id = %s LIMIT %d", $order, $cap ) ) );
 		$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE object_type = 'order' AND object_id = 0 AND ( details LIKE %s OR details LIKE %s ) LIMIT %d", $like, $older, $cap ) ) );
-		$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE action = 'attribution.flagged' AND ( details LIKE %s OR details LIKE %s ) LIMIT %d", $like, $older, $cap ) ) );
+		// Actions about another object that carry the order number in their details (index
+		// action_created): partner flags of the order, a refund after a correction credit note.
+		foreach ( self::order_detail_actions() as $action ) {
+			$ids = array_merge( $ids, (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE action = %s AND ( details LIKE %s OR details LIKE %s ) LIMIT %d", $action, $like, $older, $cap ) ) );
+		}
 		// phpcs:enable
 		return array_values( array_unique( array_map( 'intval', $ids ) ) );
+	}
+
+	/**
+	 * Actions logged on another object (partner, payout) whose details name the order.
+	 *
+	 * @return string[]
+	 */
+	private static function order_detail_actions() {
+		return array( 'attribution.flagged', 'payout.refund_after_correction' );
+	}
+
+	/**
+	 * Days the free-text search covers when no "from" date is set (the LIKE over the details
+	 * cannot use an index; without a bound it scanned millions of rows, R13-N12).
+	 *
+	 * @return int 0 = the whole log.
+	 */
+	public static function search_days() {
+		/**
+		 * Days the audit log search covers when no start date is given.
+		 *
+		 * @since 0.13.0
+		 * @param int $days Default 90; 0 = the whole log.
+		 */
+		return max( 0, (int) apply_filters( 'wpac_audit_search_days', 90 ) );
 	}
 
 	/**
@@ -219,6 +248,11 @@ final class Audit {
 		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
 		if ( '' !== $search ) {
 			// Free text in the action key and the details; a number also finds the object ID.
+			$days = self::search_days();
+			if ( $days > 0 && empty( $args['from'] ) && empty( $args['order'] ) && empty( $args['object_id'] ) ) {
+				$where   .= ' AND created_at >= %s'; // Index created_at bounds the scan.
+				$params[] = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+			}
 			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
 			$where   .= ' AND ( action LIKE %s OR details LIKE %s' . ( ctype_digit( $search ) ? ' OR object_id = %d' : '' ) . ' )';
 			$params[] = $like;

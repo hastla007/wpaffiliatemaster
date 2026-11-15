@@ -404,6 +404,7 @@
  "Application page and partner area page": "Bewerbungsseite und Partnerbereich",
  "Application pending": "Bewerbung offen",
  "Applications & termination": "Bewerbungen & Beendigung",
+ "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days.": "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist anonymisiert (personenbezogene Daten entfernt, Status abgelehnt). Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht.",
  "Applications that were confirmed but never approved or rejected are deleted after this period. Unconfirmed applications (e-mail not confirmed) are deleted after 2 days.": "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist gelöscht. Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht.",
  "Applications via this form are currently not possible.": "Bewerbungen über dieses Formular sind derzeit nicht möglich.",
  "Applications waiting": "Offene Bewerbungen",
@@ -2102,6 +2103,11 @@
  "The sale of this order was not reported yet; the refund is booked once it is.": "Der Verkauf dieser Bestellung wurde noch nicht gemeldet; die Erstattung wird gebucht, sobald er gemeldet ist.",
  "The sale or refund could not be processed and could not be stored for a retry. Please send it again later.": "Der Verkauf bzw. die Erstattung konnte nicht verarbeitet und auch nicht für eine Wiederholung gespeichert werden. Bitte später erneut senden.",
  "The sale was not accepted (%s), see the order notes.": "Der Verkauf wurde nicht angenommen (%s), siehe Bestellnotizen.",
+ "The search covers the last %d day unless a start date is set.": [
+  "Die Suche umfasst den letzten %d Tag, sofern Sie kein Startdatum angeben.",
+  "Die Suche umfasst die letzten %d Tage, sofern Sie kein Startdatum angeben."
+ ],
+ "The search covers the last %d days unless a start date is set.": "Die Suche umfasst die letzten %d Tage, sofern Sie kein Startdatum angeben.",
  "The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.": "Die ausgewählten Auszahlungen nutzen eine andere Auszahlungsart (z. B. PayPal) und sind nicht Teil der SEPA-Datei. Laden Sie für die Zahlungsangaben die Überweisungsliste (CSV) herunter, zahlen Sie manuell und markieren Sie die Auszahlungen als bezahlt.",
  "The settings could not be saved (database error). Nothing was changed; please try again.": "Die Einstellungen konnten nicht gespeichert werden (Datenbankfehler). Es wurde nichts geändert; bitte versuchen Sie es erneut.",
  "The shop or integration reported an error.": "Der Shop oder die Integration hat einen Fehler gemeldet.",

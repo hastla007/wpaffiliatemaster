@@ -9,6 +9,7 @@ namespace WPAffiliateCaptain\Admin\Pages;
 
 use WPAffiliateCaptain\Admin\Admin;
 use WPAffiliateCaptain\Admin\Tables\AuditTable;
+use WPAffiliateCaptain\Core\Audit;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -380,6 +381,11 @@ final class AuditPage {
 		}
 		echo '</select> <label for="wpac-audit-id">' . esc_html__( 'ID (e.g. partner number)', 'affiliate-captain' ) . '</label> <input type="number" min="1" id="wpac-audit-id" name="object_id" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" class="small-text"> <button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button>';
 		echo '<p class="description">' . esc_html__( 'Order: everything about one order (attribution, commissions, refunds, manual changes). Dates are UTC.', 'affiliate-captain' ) . '</p>';
+		$days = Audit::search_days();
+		if ( $days > 0 ) {
+			/* translators: %d: number of days */
+			echo '<p class="description">' . esc_html( sprintf( _n( 'The search covers the last %d day unless a start date is set.', 'The search covers the last %d days unless a start date is set.', $days, 'affiliate-captain' ), $days ) ) . '</p>';
+		}
 		$table->search_box( __( 'Search audit log', 'affiliate-captain' ), 'wpac-audit' );
 		$table->display();
 		echo '</form></div>';

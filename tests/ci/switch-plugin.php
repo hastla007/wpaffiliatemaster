@@ -44,6 +44,13 @@ global $wpdb;
 $settings                        = (array) get_option( 'wpac_settings', array() );
 $settings['delete_on_uninstall'] = 1;
 update_option( 'wpac_settings', $settings );
+$takeover = (bool) getenv( 'WPAC_EXPECT_TAKEOVER' );
+if ( $takeover && ! is_file( WP_PLUGIN_DIR . '/' . $old ) ) {
+	// The takeover run (from 0.10) must have the old copy: otherwise the checks above are
+	// trivially true and the takeover path goes untested (R13-N11).
+	echo "FAIL old copy {$old} not installed - the takeover was not tested\n";
+	exit( 1 );
+}
 if ( is_file( WP_PLUGIN_DIR . '/' . $old ) ) {
 	uninstall_plugin( $old );
 }
