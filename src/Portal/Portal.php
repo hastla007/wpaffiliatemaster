@@ -365,13 +365,20 @@ final class Portal {
 		if ( ! $aff || ! $p || (int) $p->affiliate_id !== (int) $aff->id ) {
 			wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
 		}
+		$xml = isset( $_GET['format'] ) && 'xml' === sanitize_key( wp_unslash( $_GET['format'] ) );
 		if ( ! empty( $_GET['correction'] ) ) {
 			// Correction credit note of this (own) payout.
 			$kg = \WPAffiliateCaptain\Payouts\Corrections::find( absint( $_GET['correction'] ) );
 			if ( ! $kg || (int) $kg->payout_id !== (int) $p->id ) {
 				wp_die( esc_html__( 'Not allowed.', 'affiliate-captain' ), 403 );
 			}
+			if ( $xml ) {
+				\WPAffiliateCaptain\Payouts\EInvoice::send_correction( $kg );
+			}
 			\WPAffiliateCaptain\Payouts\Corrections::send( $kg );
+		}
+		if ( $xml ) {
+			\WPAffiliateCaptain\Payouts\EInvoice::send_payout( $p, ! empty( $_GET['storno'] ) ); // E-invoice of the same document (R14-L1).
 		}
 		if ( ! empty( $_GET['storno'] ) ) {
 			Statement::send_storno( $p );
@@ -1787,17 +1794,24 @@ final class Portal {
 			if ( 'cancelled' === $p->status && ! $p->storno_file ) {
 				continue;
 			}
-			$url = static function ( $storno ) use ( $p ) {
-				return wp_nonce_url( add_query_arg( array( 'wpac_statement' => (int) $p->id, 'storno' => $storno ? 1 : 0 ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id );
+			// E-invoice (XML) next to each PDF (R14-L1): the same download with format=xml.
+			$url = static function ( $storno, $args = array() ) use ( $p ) {
+				return wp_nonce_url( add_query_arg( $args + array( 'wpac_statement' => (int) $p->id, 'storno' => $storno ? 1 : 0 ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id );
 			};
-			$pdf = $p->statement_file ? '<a href="' . esc_url( $url( false ) ) . '">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</a>' : '—';
+			$xml = static function ( $href ) {
+				return ' <a href="' . esc_url( $href ) . '" title="' . esc_attr__( 'Electronic invoice (EN 16931 XML)', 'affiliate-captain' ) . '">' . esc_html_x( '(XML)', 'e-invoice link', 'affiliate-captain' ) . '</a>';
+			};
+			$pdf = $p->statement_file ? '<a href="' . esc_url( $url( false ) ) . '">' . esc_html__( 'Credit note', 'affiliate-captain' ) . '</a>' . ( \WPAffiliateCaptain\Payouts\EInvoice::available( $p ) ? $xml( $url( false, array( 'format' => 'xml' ) ) ) : '' ) : '—';
 			if ( $p->storno_file ) {
-				$pdf .= ' · <a href="' . esc_url( $url( true ) ) . '">' . esc_html__( 'Cancellation', 'affiliate-captain' ) . '</a>';
+				$pdf .= ' · <a href="' . esc_url( $url( true ) ) . '">' . esc_html__( 'Cancellation', 'affiliate-captain' ) . '</a>' . ( \WPAffiliateCaptain\Payouts\EInvoice::available( $p, true ) ? $xml( $url( true, array( 'format' => 'xml' ) ) ) : '' );
 			}
 			foreach ( isset( $kgs[ (int) $p->id ] ) ? $kgs[ (int) $p->id ] : array() as $kg ) {
 				if ( '' !== (string) $kg->file ) {
 					/* translators: %s: correction credit note number */
 					$pdf .= ' · <a href="' . esc_url( wp_nonce_url( add_query_arg( array( 'wpac_statement' => (int) $p->id, 'correction' => (int) $kg->id ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id ) ) . '">' . esc_html( sprintf( __( 'Correction %s', 'affiliate-captain' ), $kg->number ) ) . '</a>';
+					if ( \WPAffiliateCaptain\Payouts\EInvoice::correction_available( $kg ) ) {
+						$pdf .= $xml( wp_nonce_url( add_query_arg( array( 'wpac_statement' => (int) $p->id, 'correction' => (int) $kg->id, 'format' => 'xml' ), home_url( '/' ) ), 'wpac_statement_' . (int) $p->id ) );
+					}
 				}
 			}
 			printf(

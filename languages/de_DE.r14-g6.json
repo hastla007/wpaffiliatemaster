@@ -1,0 +1,20 @@
+{
+ "Repayments, write-offs and settled correction credit notes (%s) are no service and not subject to VAT; they are shown as the amount already settled, so the amount due equals the payout amount.": "Rückzahlungen, Abschreibungen und verrechnete Korrekturgutschriften (%s) sind keine Leistung und nicht umsatzsteuerbar; sie sind als bereits verrechneter Betrag ausgewiesen, sodass der Zahlbetrag dem Auszahlungsbetrag entspricht.",
+ "Paid by the issuer of this credit note (recipient of the service) by transfer with the payout; the partner does not have to pay anything.": "Zahlung durch den Aussteller dieser Gutschrift (Leistungsempfänger) per Überweisung mit der Auszahlung; der Partner muss nichts zahlen.",
+ "Net amount before (%1$s): %2$s; corrected net amount: %3$s": "Nettobetrag bisher (%1$s): %2$s; berichtigter Nettobetrag: %3$s",
+ "This XML file is the electronic invoice (EN 16931) of the document; the PDF with the same content is a visual copy.": "Diese XML-Datei ist die elektronische Rechnung (EN 16931) des Belegs; das PDF gleichen Inhalts ist eine Sichtkopie.",
+ "SEPA credit transfer": "SEPA-Überweisung",
+ "SEPA credit transfer to the partner's account %s": "SEPA-Überweisung auf das Konto des Partners %s",
+ "There is no electronic invoice for this document (no self-billing credit note, no taxable line, or deleted after the retention period).": "Zu diesem Beleg gibt es keine E-Rechnung (keine Gutschrift im Gutschriftverfahren, keine steuerbare Position oder nach Ablauf der Aufbewahrungsfrist gelöscht).",
+ "Electronic invoice (EN 16931 XML)": "E-Rechnung (EN 16931, XML)",
+ "e-invoice link\u0004(XML)": "(XML)",
+ "E-invoice (XML)": "E-Rechnung (XML)",
+ "Send e-invoice (XML) with the credit note e-mail": "E-Rechnung (XML) mit der Gutschrift-E-Mail senden",
+ "Buyer reference on e-invoices (e.g. Leitweg-ID)": "Käuferreferenz auf E-Rechnungen (z. B. Leitweg-ID)",
+ "Electronic invoice (EN 16931)": "Elektronische Rechnung (EN 16931)",
+ "Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)": "Automatisch: für Partner mit deutscher Umsatzsteuer auf der Gutschrift (inländische regelbesteuerte Unternehmen)",
+ "Always": "Immer",
+ "Never (download only)": "Nie (nur Download)",
+ "Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy.": "Jede Gutschrift, Korrekturgutschrift und jedes Storno lässt sich neben dem PDF auch als E-Rechnung herunterladen (UN/CEFACT-CII-XML nach EN 16931; XRechnung-Profil, wenn alle dafür nötigen Angaben vorliegen), im Partnerbereich und hier. Ab 2027/2028 brauchen inländische regelbesteuerte Partner sie: Das XML ist dann die Rechnung, das PDF eine Sichtkopie.",
+ "Optional. Empty: the document number is used.": "Optional. Leer: Es wird die Belegnummer verwendet."
+}
