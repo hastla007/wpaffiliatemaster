@@ -239,9 +239,8 @@ final class AffiliatesPage {
 			}
 			/* translators: %s: code */
 			$message = sprintf( __( 'Code %s approved and active; the partner was informed.', 'affiliate-captain' ), $result['code'] );
-			if ( $result['blocked'] ) {
-				/* translators: %s: list of codes */
-				$message .= ' ' . sprintf( __( 'It is the main code now; blocked: %s.', 'affiliate-captain' ), implode( ', ', $result['blocked'] ) );
+			if ( Admin::post( 'make_main' ) ) {
+				$message .= ' ' . __( 'It is the main code now; the earlier codes stay valid.', 'affiliate-captain' );
 			}
 			Admin::back( $message, $result['warnings'] ? 'warning' : 'success', '', $result['warnings'] );
 		}
@@ -284,7 +283,7 @@ final class AffiliatesPage {
 			echo '<td><code>' . esc_html( $r->code ) . '</code></td><td>' . ( $main ? '<code>' . esc_html( $main->code ) . '</code>' . ( '' !== (string) $main->coupon_code ? '<br><small>' . esc_html( sprintf( /* translators: %s: coupon code */ __( 'coupon %s', 'affiliate-captain' ), $main->coupon_code ) ) . '</small>' : '' ) : '—' ) . '</td><td>';
 			Admin::form_open( 'code_request' );
 			echo '<input type="hidden" name="request_id" value="' . esc_attr( (string) $rid ) . '"><input type="hidden" name="decision" value="approve">';
-			echo '<label><input type="checkbox" name="make_main" value="1"> ' . esc_html( $main ? sprintf( /* translators: %s: current main code */ __( 'Make main code (the current main code %s is blocked)', 'affiliate-captain' ), $main->code ) : __( 'Make main code', 'affiliate-captain' ) ) . '</label><br>';
+			echo '<label><input type="checkbox" name="make_main" value="1"> ' . esc_html( $main ? sprintf( /* translators: %s: current main code */ __( 'Make main code (the current main code %s stays valid)', 'affiliate-captain' ), $main->code ) : __( 'Make main code', 'affiliate-captain' ) ) . '</label><br>';
 			if ( $coupons ) {
 				echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'WooCommerce coupon', 'affiliate-captain' ) . '</legend>';
 				echo '<label><input type="radio" name="coupon" value="" checked> ' . esc_html__( 'No coupon change', 'affiliate-captain' ) . '</label><br>';

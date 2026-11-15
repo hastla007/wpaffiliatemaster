@@ -312,8 +312,8 @@ final class CodeRequests {
 	 *
 	 * @param int   $row_id Row of the request.
 	 * @param array $opts {
-	 *     @type bool   $make_main     Make it the main code: the codes that would still come first
-	 *                                 (the previous main code) are blocked.
+	 *     @type bool   $make_main     Make it the main code (shown in the partner area and links);
+	 *                                 earlier codes stay valid.
 	 *     @type string $coupon        '' (default) | 'create' (new WooCommerce coupon with this code,
 	 *                                 needs discount_type and amount) | 'rename' (rename the coupon
 	 *                                 linked to the previous main code and move the link).
@@ -383,17 +383,9 @@ final class CodeRequests {
 				$warnings[] = $renamed->get_error_message();
 			}
 		}
-		$blocked = array();
+		$blocked = array(); // Earlier codes stay valid (owner decision 2026-11-15).
 		if ( ! empty( $opts['make_main'] ) ) {
-			// Block what would still come before the new code (at most a few rows).
-			for ( $i = 0; $i < 10; $i++ ) {
-				$first = CodeRepository::main_row( $aff_id );
-				if ( ! $first || (int) $first->id === (int) $row->id ) {
-					break;
-				}
-				CodeRepository::set_status( (int) $first->id, 'blocked' );
-				$blocked[] = (string) $first->code;
-			}
+			CodeRepository::set_main( $aff_id, (int) $row->id );
 		}
 		self::close_history( $aff_id, (string) $row->code, 'approved' );
 		Audit::log(
@@ -532,6 +524,7 @@ final class CodeRequests {
 			)
 		);
 		delete_option( self::HISTORY_PREFIX . (int) $affiliate_id );
+		CodeRepository::set_main( (int) $affiliate_id, 0 );
 	}
 
 	/**

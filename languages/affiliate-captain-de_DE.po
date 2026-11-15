@@ -389,8 +389,8 @@ msgstr "Entscheidung gespeichert; der Partner wurde informiert."
 msgid "Code %s approved and active; the partner was informed."
 msgstr "Code %s freigegeben und aktiv; der Partner wurde informiert."
 
-msgid "It is the main code now; blocked: %s."
-msgstr "Er ist jetzt der Hauptcode; gesperrt: %s."
+msgid "It is the main code now; the earlier codes stay valid."
+msgstr "Er ist jetzt der Hauptcode; die bisherigen Codes bleiben gültig."
 
 msgid "Code request rejected; the partner was informed."
 msgstr "Code-Antrag abgelehnt; der Partner wurde informiert."
@@ -419,8 +419,8 @@ msgstr "Ablehnen"
 msgid "coupon %s"
 msgstr "Gutschein %s"
 
-msgid "Make main code (the current main code %s is blocked)"
-msgstr "Zum Hauptcode machen (der aktuelle Hauptcode %s wird gesperrt)"
+msgid "Make main code (the current main code %s stays valid)"
+msgstr "Zum Hauptcode machen (der bisherige Hauptcode %s bleibt gültig)"
 
 msgid "Make main code"
 msgstr "Zum Hauptcode machen"

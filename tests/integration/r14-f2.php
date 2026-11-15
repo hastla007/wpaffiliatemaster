@@ -291,19 +291,22 @@ check(
 );
 CodeRequests::withdraw( $f2_aff( $f2_a ) );
 
-// Approval as main code: the previous main code is blocked.
+// Approval as main code: the previous main code stays valid (owner decision 2026-11-15).
 $f2_rb  = CodeRequests::request( $f2_aff( $f2_b ), 'BERND10' );
 $f2_okb = CodeRequests::approve( (int) $f2_rb, array( 'make_main' => true ) );
 check(
-	'F2 approval "make main code": new main code, the previous one blocked and no longer resolved',
-	array( 'BERND10', true, null, 'blocked' ),
+	'F2 approval "make main code": new main code, the previous one stays active and resolvable',
+	array( 'BERND10', array(), true, 'active' ),
 	array(
 		CodeRepository::main_code( $f2_b ),
-		is_array( $f2_okb ) && in_array( $f2_main_b, $f2_okb['blocked'], true ),
-		CodeRepository::validate( CodeRepository::find_by_code( $f2_main_b ) ),
+		is_array( $f2_okb ) ? $f2_okb['blocked'] : null,
+		(bool) CodeRepository::validate( CodeRepository::find_by_code( $f2_main_b ) ),
 		CodeRepository::find_by_code( $f2_main_b )->status,
 	)
 );
+CodeRepository::set_status( (int) CodeRepository::find_by_code( 'BERND10' )->id, 'blocked' );
+check( 'F2 a blocked preferred main code falls back to the automatic order', $f2_main_b, CodeRepository::main_code( $f2_b ) );
+CodeRepository::set_status( (int) CodeRepository::find_by_code( 'BERND10' )->id, 'active' );
 
 // Re-check at approval: a WooCommerce coupon with that code was created meanwhile.
 $f2_rl = CodeRequests::request( $f2_aff( $f2_c ), 'CARLA7' );

@@ -87,3 +87,18 @@ Nächste Schritte nach der Entscheidung für A/C:
 ## Geplante Captain-Suite-Integrationen
 
 Die bestehenden Integrationsverträge für Verkauf, Attribution und Provision bleiben für WooCommerce, Pass Captain und Voucher Captain zuständig. Form Captain ersetzt den Affiliate-Bewerbungsablauf nicht; eine optionale Formularübergabe kann nur einen wartenden Antrag einreichen, während Prüfung und Freigabe in Affiliate Captain verbleiben. Review Captain erhält keinen Zugriff auf Provisionsdetails: die spätere Verbindung ist auf freigegebene, aggregierte Qualitätswerte begrenzt und darf keine Einladung oder Provision auslösen. Dafür sind neue, explizite Verträge nötig; die bestehenden Affiliate-Verträge v1.3 stellen diese Funktionen noch nicht bereit.
+
+## 7. Aufteilung der Wettbewerbs-Funktionen (entschieden 2026-11-15)
+
+Grundlage: Audit-Runde 14 (R14-P2), Abgleich mit AffiliateWP (Pro/Plus-Tarife), Solid Affiliate und SliceWP. Die Inhaberin hat die Aufteilung dem Entwicklungsteam überlassen.
+
+| Funktion | Ort | Begründung |
+|---|---|---|
+| Gutschein automatisch per Partnerlink einlösen | Kern (0.15.0) | Gutscheine sind Kern; bei Solid Affiliate Grundumfang; größter Conversion-Hebel. |
+| Wunschcode auf Antrag des Partners | Kern (0.15.0) | Wunschcodes gibt es bereits im Admin; nur der Antragsweg kommt dazu. |
+| Erneute Anmeldung / 2FA vor Geld-Aktionen | Kern (0.15.0) | Sicherheit gehört nicht hinter eine Bezahlschranke. |
+| „Geworben von“ (Daten + Hook `wpac_affiliate_recruited`) | Kern (0.15.0) | Grundlage für Sub-Affiliate-Add-ons, nützt auch Dritten. |
+| Leaderboard + Meilenstein-Mails | Pro | AffiliateWP: Plus-Tarif. |
+| Stripe Connect, Auszahlung als Shop-Guthaben | Pro | Weitere Auszahlungswege sind Pro (siehe 3., Option A). |
+| Sub-Affiliates / mehrstufige Provision | Pro | Siehe 3., Option A; nutzt den Kern-Hook. |
+| Ausgehende Webhooks | Pro | Bereits im Add-on vorhanden. |

@@ -152,7 +152,26 @@ final class CodeRepository {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d{$extra} ORDER BY id ASC", $affiliate_id ) );
 	}
 
+		/** Option prefix (+ affiliate ID) of an explicitly chosen main code (row ID, not autoloaded). */
+	const MAIN_OPTION = 'wpac_main_code_';
+
 	/**
+	 * Make a code the partner's main code without blocking the others (printed links and coupons
+	 * with earlier codes keep crediting the partner).
+	 *
+	 * @param int $affiliate_id Affiliate.
+	 * @param int $row_id       Code row of this partner (0 = back to the automatic order).
+	 * @return void
+	 */
+	public static function set_main( $affiliate_id, $row_id ) {
+		if ( (int) $row_id > 0 ) {
+			update_option( self::MAIN_OPTION . (int) $affiliate_id, (int) $row_id, false );
+		} else {
+			delete_option( self::MAIN_OPTION . (int) $affiliate_id );
+		}
+	}
+
+/**
 	 * Main (non-batch, valid) code of an affiliate.
 	 *
 	 * @param int $affiliate_id Affiliate.
@@ -269,7 +288,19 @@ final class CodeRepository {
 	 */
 	private static function first_valid( $affiliate_id, $main_only = false ) {
 		global $wpdb;
-		$t     = Db::table( 'partner_codes' );
+		$t = Db::table( 'partner_codes' );
+		if ( $main_only ) {
+			// Main code chosen explicitly (e.g. an approved code request "make main code"): the
+			// earlier codes stay valid, only the displayed main code changes.
+			$preferred = (int) get_option( self::MAIN_OPTION . (int) $affiliate_id, 0 );
+			if ( $preferred > 0 ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d AND affiliate_id = %d AND batch = ''", $preferred, (int) $affiliate_id ) );
+				if ( $row && self::validate( $row ) ) {
+					return $row;
+				}
+			}
+		}
 		$extra = '';
 		$order = 'id ASC';
 		if ( $main_only ) {

@@ -426,9 +426,8 @@ msgstr ""
 msgid "Code %s approved and active; the partner was informed."
 msgstr ""
 
-#. translators: %s: list of codes
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "It is the main code now; blocked: %s."
+msgid "It is the main code now; the earlier codes stay valid."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -471,7 +470,7 @@ msgstr ""
 
 #. translators: %s: current main code
 #: src/Admin/Pages/AffiliatesPage.php
-msgid "Make main code (the current main code %s is blocked)"
+msgid "Make main code (the current main code %s stays valid)"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
