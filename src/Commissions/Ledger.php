@@ -800,9 +800,10 @@ final class Ledger {
 			'amount'       => $amount,
 			'line_net'     => Money::prorate( $delta, $line_net, $base ),
 			'quantity'     => null === $qty ? 0 : $qty,
-			// Base booked for the line in total after this increase (refunds not deducted): grows
-			// with every increase, so the same increase is never booked twice.
-			'booked_after' => $base + $inc['base'] + $delta,
+			// Base booked for the line in total after this increase (refunds not deducted, nor the
+			// part of an open increase a refund took back, R13-K4): grows with every increase, so
+			// the same increase is never booked twice.
+			'booked_after' => $base + $inc['booked'] + $delta,
 		);
 	}
 
@@ -811,7 +812,8 @@ final class Ledger {
 	 *
 	 * @param int  $id   Original commission.
 	 * @param bool $lock Locking read (inside a transaction).
-	 * @return array [ base, amount, quantity ]
+	 * @return array [ base, amount, quantity, booked ] – booked: base as booked originally (before
+	 *               a refund reduced an open increase, R13-K4).
 	 */
 	public static function increased( $id, $lock = false ) {
 		global $wpdb;
@@ -823,12 +825,14 @@ final class Ledger {
 			'base'     => 0,
 			'amount'   => 0,
 			'quantity' => 0,
+			'booked'   => 0,
 		);
 		foreach ( $rows as $r ) {
 			$snap             = $r->rule_snapshot ? json_decode( (string) $r->rule_snapshot, true ) : null;
 			$sum['base']     += (int) $r->base_minor;
 			$sum['amount']   += (int) $r->amount_minor;
 			$sum['quantity'] += is_array( $snap ) && isset( $snap['quantity'] ) ? (int) $snap['quantity'] : 0;
+			$sum['booked']   += is_array( $snap ) && isset( $snap['booked_base'] ) ? (int) $snap['booked_base'] : (int) $r->base_minor;
 		}
 		return $sum;
 	}
@@ -861,6 +865,91 @@ final class Ledger {
 			);
 		}
 		return $ids;
+	}
+
+	/**
+	 * Marker reason of the parent event when a refund took back an open increase (R13-K4).
+	 */
+	const REDUCED_REASON = 'open increase reduced';
+
+	/**
+	 * Commission taken back from open increases of a commission by a refund (R13-K4): the
+	 * idempotency of that path (no refund row may be booked at all) and what a deleted refund
+	 * has to give back.
+	 *
+	 * @param int    $id        Original commission (locked by the caller).
+	 * @param string $refund_id Refund ID.
+	 * @return int Commission taken back (positive), 0 when none.
+	 */
+	public static function reduced_by( $id, $refund_id ) {
+		global $wpdb;
+		$e = Db::table( 'commission_events' );
+		// Locking read: sees a parallel run that committed after this transaction began.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = (array) $wpdb->get_col( $wpdb->prepare( "SELECT amount_minor FROM {$e} WHERE commission_id = %d AND source_event_id = %s AND event = 'adjusted' AND reason LIKE %s FOR UPDATE", (int) $id, Db::cut( (string) $refund_id, 191 ), '%' . $wpdb->esc_like( self::REDUCED_REASON ) ) );
+		return $rows ? max( 1, -(int) array_sum( $rows ) ) : 0;
+	}
+
+	/**
+	 * R13-K4: a partial refund takes back increases of the line that are not released yet
+	 * (pending/review, in no payout), newest first, inside the caller's transaction. A fully
+	 * absorbed increase is rejected, a partly absorbed one is lowered in proportion (its booked
+	 * base stays in the snapshot, so the same increase is never booked twice).
+	 *
+	 * @param object $parent       Original commission (locked by the caller).
+	 * @param int    $refunded_net Refunded base of the line (scaled like the commission base).
+	 * @param array  $refund       Normalized refund.
+	 * @return int Base taken back from open increases.
+	 * @throws IntegrationException On DB errors.
+	 */
+	private static function reduce_open_increases( $parent, $refunded_net, array $refund ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$open   = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE parent_id = %d AND kind = 'increase' AND status IN ('pending','review') AND payout_id = 0 AND base_minor > 0 ORDER BY id DESC FOR UPDATE", (int) $parent->id ) );
+		$left   = (int) $refunded_net;
+		$base   = 0;
+		$amount = 0;
+		$reason = $refund['type'] . ': ' . $refund['reason'];
+		foreach ( $open as $inc ) {
+			if ( $left <= 0 ) {
+				break;
+			}
+			$take = min( $left, (int) $inc->base_minor );
+			if ( $take >= (int) $inc->base_minor ) {
+				if ( ! self::transition( (int) $inc->id, 'rejected', Db::cut( $reason, 191 ), 0, 0, (string) $inc->status, false ) ) {
+					continue;
+				}
+				$cut = (int) $inc->amount_minor;
+				$id  = (int) $inc->id;
+				Db::after_commit(
+					static function () use ( $id ) {
+						do_action( 'wpac_commission_rejected', $id );
+					}
+				);
+			} else {
+				$cut  = Money::prorate( (int) $inc->amount_minor, $take, (int) $inc->base_minor );
+				$snap = $inc->rule_snapshot ? json_decode( (string) $inc->rule_snapshot, true ) : array();
+				$snap = is_array( $snap ) ? $snap : array();
+				if ( ! isset( $snap['booked_base'] ) ) {
+					$snap['booked_base'] = (int) $inc->base_minor;
+				}
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$ok = $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET base_minor = base_minor - %d, amount_minor = amount_minor - %d, rule_snapshot = %s, updated_at = %s WHERE id = %d AND status IN ('pending','review') AND payout_id = 0", $take, $cut, wp_json_encode( $snap ), Db::now(), (int) $inc->id ) );
+				if ( 1 !== (int) $ok ) {
+					throw new IntegrationException( 'db_increase', esc_html( 'Could not lower the open increase: ' . $wpdb->last_error ) );
+				}
+				self::event( (int) $inc->id, 'adjusted', (string) $inc->status, (string) $inc->status, -$cut, $reason, (string) $refund['refund_id'] );
+			}
+			$left   -= $take;
+			$base   += $take;
+			$amount += $cut;
+		}
+		if ( $base > 0 ) {
+			// Marker on the original commission (idempotency, deleted refunds).
+			self::event( (int) $parent->id, 'adjusted', (string) $parent->status, (string) $parent->status, -$amount, $refund['type'] . ': ' . self::REDUCED_REASON, (string) $refund['refund_id'] );
+		}
+		return $base;
 	}
 
 	/**
@@ -956,6 +1045,18 @@ final class Ledger {
 						// back money that was never approved, and rejecting the increase later would
 						// leave the account too low.
 						self::reject_open_increases( (int) $parent->id, $refund['type'] . ': ' . $refund['reason'] );
+					} elseif ( $refunded_net > 0 ) {
+						// R13-K4: a partial refund first takes back increases still waiting for release
+						// (newest first); only the rest is deducted from the approved/paid commission –
+						// never more than was approved, and rejecting the increase later leaves the
+						// line right.
+						if ( self::reduced_by( (int) $parent->id, (string) $refund['refund_id'] ) ) {
+							continue; // Idempotent: this refund was absorbed by open increases before.
+						}
+						$refunded_net -= self::reduce_open_increases( $parent, (int) $refunded_net, $refund );
+						if ( $refunded_net <= 0 ) {
+							continue;
+						}
 					}
 					// Increases booked after the sale (record_increase()) belong to the commission
 					// being corrected: base and commission are the original plus the increases.
@@ -1294,6 +1395,191 @@ final class Ledger {
 			Audit::log( 'commission.reinstated', 'order', 0, array( 'source' => $source, 'order' => (string) $order_id, 'count' => $n ) );
 		}
 		return $n;
+	}
+
+	/**
+	 * A refund was deleted in the shop (R13-K3/K5): give back exactly what was booked for it,
+	 * from the stored refund rows – whatever the rate type (a fixed rate per piece included: a
+	 * refund does not change the quantity of the line). Refund rows not released yet
+	 * (pending/review, in no payout) are rejected; approved or paid-out ones get a
+	 * "reinstatement" booking, approved at once like the refund was (no hold period, reported with
+	 * the corrections, never rejected by a later full reversal). Idempotent per refund row.
+	 *
+	 * @param string $source    Source.
+	 * @param string $order_id  Order.
+	 * @param string $refund_id Deleted refund.
+	 * @param string $reason    Reason (shown in the history).
+	 * @return array { status: booked|already|none|skipped, amount_minor (given back), commission_ids,
+	 *               reduced (the refund also took back open increases, R13-K4) }
+	 * @throws IntegrationException On DB errors.
+	 */
+	public static function reverse_refund( $source, $order_id, $refund_id, $reason ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		$e = Db::table( 'commission_events' );
+		$result = array(
+			'status'         => 'none',
+			'amount_minor'   => 0,
+			'commission_ids' => array(),
+			'reduced'        => false,
+		);
+		// Rows booked for this refund: its ID is the source event of their "created" event.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.* FROM {$t} c INNER JOIN {$e} ev ON ev.commission_id = c.id AND ev.event = 'created' AND ev.source_event_id = %s WHERE c.source = %s AND c.source_order_id = %s AND c.parent_id > 0 AND c.kind = 'refund' ORDER BY c.id ASC", Db::cut( (string) $refund_id, 191 ), (string) $source, (string) $order_id ) );
+		foreach ( self::sale_commissions( $source, $order_id ) as $sale ) {
+			if ( self::reduced_by( (int) $sale->id, (string) $refund_id ) ) {
+				$result['reduced'] = true;
+			}
+		}
+		$given    = 0;
+		$skipped  = 0;
+		$already  = 0;
+		$rejected = array();
+		foreach ( $rows as $row ) {
+			$rkey = self::key( 'reinstate:' . (int) $row->id );
+			if ( 'rejected' === $row->status || self::find_by_key( $rkey ) ) {
+				++$already;
+				continue;
+			}
+			$parent = self::find( (int) $row->parent_id );
+			if ( ! $parent || 'rejected' === $parent->status || self::fully_reversed( (int) $parent->id ) ) {
+				++$skipped; // Rejected, or reversed in full after the refund: nothing is given back.
+				continue;
+			}
+			if ( ! (int) $row->payout_id && in_array( $row->status, array( 'pending', 'review' ), true ) ) {
+				// Not released yet: the refund row itself goes (no balance effect).
+				if ( self::transition( (int) $row->id, 'rejected', Db::cut( (string) $reason, 191 ), get_current_user_id(), 0, (string) $row->status, false ) ) {
+					$given                     -= (int) $row->amount_minor;
+					$result['commission_ids'][] = (int) $row->id;
+					$rejected[]                 = (int) $row->id;
+				} else {
+					++$already;
+				}
+				continue;
+			}
+			$amount = -(int) $row->amount_minor;
+			$id     = Db::transaction(
+				static function () use ( $wpdb, $t, $row, $parent, $amount, $rkey, $reason, $refund_id ) {
+					// Lock the original commission, as refunds do (serialised with them).
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$wpdb->get_row( $wpdb->prepare( "SELECT id FROM {$t} WHERE id = %d FOR UPDATE", (int) $parent->id ) );
+					if ( self::find_by_key( $rkey ) ) {
+						return 0;
+					}
+					$ok = $wpdb->insert(
+						$t,
+						array(
+							'affiliate_id'    => (int) $row->affiliate_id,
+							'source'          => $row->source,
+							'source_order_id' => $row->source_order_id,
+							'source_item_id'  => $row->source_item_id,
+							'kind'            => 'reinstatement',
+							'parent_id'       => (int) $parent->id,
+							'product_ref'     => $row->product_ref,
+							'description'     => Db::cut( (string) $reason, 255 ),
+							'currency'        => $row->currency,
+							'base_minor'      => -(int) $row->base_minor,
+							'amount_minor'    => $amount,
+							'rate_type'       => $row->rate_type,
+							'rate'            => $row->rate,
+							'rule_id'         => (int) $row->rule_id,
+							'rule_snapshot'   => wp_json_encode(
+								array(
+									'refund_deleted' => (string) $refund_id,
+									'reverses'       => (int) $row->id,
+								)
+							),
+							'status'          => 'approved',
+							'hold_until'      => Db::now(),
+							'idempotency_key' => $rkey,
+							'created_at'      => Db::now(),
+							'updated_at'      => Db::now(),
+						)
+					);
+					if ( ! $ok ) {
+						if ( self::find_by_key( $rkey ) ) {
+							return 0;
+						}
+						throw new IntegrationException( 'db_reinstatement', esc_html( $wpdb->last_error ) );
+					}
+					$id = (int) $wpdb->insert_id;
+					Balance::post( (int) $row->affiliate_id, $row->currency, 'approved', $amount, $id, 0, 'reinstatement' );
+					self::event( $id, 'created', '', 'approved', $amount, 'reinstatement: ' . $reason, 'refund-deleted-' . $refund_id );
+					self::event( (int) $parent->id, 'adjusted', $parent->status, $parent->status, $amount, 'reinstatement', 'refund-deleted-' . $refund_id );
+					Db::after_commit(
+						static function () use ( $id ) {
+							do_action( 'wpac_commission_created', $id );
+						}
+					);
+					return $id;
+				}
+			);
+			if ( $id ) {
+				$given                     += $amount;
+				$result['commission_ids'][] = (int) $id;
+			} else {
+				++$already;
+			}
+		}
+		if ( $result['commission_ids'] ) {
+			$result['status']       = 'booked';
+			$result['amount_minor'] = $given;
+			Audit::log(
+				'commission.refund_deleted',
+				'order',
+				ctype_digit( (string) $order_id ) ? (int) $order_id : 0, // Numeric order numbers are found by ID.
+
+				array(
+					'source'      => (string) $source,
+					'order'       => (string) $order_id,
+					'refund'      => (string) $refund_id,
+					'commissions' => $result['commission_ids'],
+					'amount'      => $given,
+				)
+			);
+			if ( $rejected ) {
+				// Refund rows taken back (reinstatements fire wpac_commission_created instead).
+				$refund = array(
+					'source'    => (string) $source,
+					'order_id'  => (string) $order_id,
+					'refund_id' => (string) $refund_id,
+					'type'      => 'refund',
+					'reason'    => (string) $reason,
+					'deleted'   => true,
+				);
+				Db::after_commit(
+					static function () use ( $refund, $rejected ) {
+						do_action( 'wpac_commission_adjusted', $refund, $rejected ); // Report cache, review count.
+					}
+				);
+			}
+		} elseif ( $skipped ) {
+			$result['status'] = 'skipped';
+		} elseif ( $already ) {
+			$result['status'] = 'already';
+		}
+		return $result;
+	}
+
+	/**
+	 * Whether a commission has a full reversal that stands (cancellation, chargeback, status
+	 * refund or reassignment, not reinstated): what was left of it is reversed already.
+	 *
+	 * @param int $id Original commission.
+	 * @return bool
+	 */
+	private static function fully_reversed( $id ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		$e = Db::table( 'commission_events' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ids = (array) $wpdb->get_col( $wpdb->prepare( "SELECT c.id FROM {$t} c LEFT JOIN {$e} ev ON ev.commission_id = c.id AND ev.event = 'created' WHERE c.parent_id = %d AND c.status <> 'rejected' AND c.amount_minor < 0 AND ( c.kind IN ('cancellation','chargeback') OR ev.source_event_id LIKE %s )", (int) $id, $wpdb->esc_like( 'status-' ) . '%' ) );
+		foreach ( $ids as $cid ) {
+			if ( ! self::find_by_key( self::key( 'reinstate:' . (int) $cid ) ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

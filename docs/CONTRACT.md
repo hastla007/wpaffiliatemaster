@@ -186,7 +186,7 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_referral_captured` | `array $resolved, array $touch` |
 | `wpac_affiliate_attributed` | `string $order_id, int $affiliate_id, string $method, string $source` |
 | `wpac_commission_created` | `int $commission_id` – jede neue Buchung im Provisionskonto außer Erstattungs-Korrekturen: Verkauf, Bestellerhöhung, manuelle Buchung, Monatsbonus und Bonuskorrektur, Abschreibung (`writeoff`), Rückzahlung (`repayment`), Wiederherstellung (`reinstatement`), Korrekturgutschrift (`correction`; seit 1.3.0 für alle). Art über `wpac_get_commission( $id )['kind']`. |
-| `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` – Erstattung, Storno, Chargeback (Buchungsarten `refund`, `cancellation`, `chargeback`; dafür kein `wpac_commission_created`). |
+| `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` – Erstattung, Storno, Chargeback (Buchungsarten `refund`, `cancellation`, `chargeback`; dafür kein `wpac_commission_created`). Wird eine WooCommerce-Erstattung gelöscht, kommen die zurückgenommenen, noch nicht freigegebenen Erstattungszeilen mit `$refund['deleted'] = true`; bereits freigegebene bekommen eine Wiederherstellung (`reinstatement`, `wpac_commission_created`). |
 | `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` | `int $commission_id` |
 | `wpac_payout_created` | `int $payout_id, int $affiliate_id` (siehe „Add-ons“) |
 | `wpac_payout_paid` | `int $payout_id` (auch nach `wpac_complete_payout()`) |

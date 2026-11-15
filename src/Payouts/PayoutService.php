@@ -304,13 +304,14 @@ final class PayoutService {
 		$groups = array();
 		foreach ( $rows as $r ) {
 			$rate = $treat[ (int) $r->id ]['rate'];
-			if ( ! isset( $groups[ $rate ] ) ) {
-				$groups[ $rate ] = array(
+			$key  = Vat::rate_key( $rate ); // "19" and "19.0" are one group (R13-N8).
+			if ( ! isset( $groups[ $key ] ) ) {
+				$groups[ $key ] = array(
 					'rate' => $rate,
 					'net'  => 0,
 				);
 			}
-			$groups[ $rate ]['net'] += (int) $r->amount_minor;
+			$groups[ $key ]['net'] += (int) $r->amount_minor;
 		}
 		return $groups;
 	}
@@ -926,10 +927,12 @@ final class PayoutService {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN p.net_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN p.net_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", $cur_from, $cur_from, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// R12-M7: correction credit notes count with their net difference on their own date; the
 		// gross difference settled on a later credit note is not counted a second time there.
-		$it   = Db::table( 'payout_items' );
-		$ct   = Db::table( 'commissions' );
-		$kt   = Db::table( Corrections::TABLE );
-		$kg   = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN -i.amount_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN -i.amount_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id JOIN {$it} i ON i.payout_id = p.id AND i.released_at IS NULL JOIN {$ct} c ON c.id = i.commission_id AND c.kind = %s WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", $cur_from, $cur_from, Corrections::KIND, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// R13-K2: repayments and write-offs on a credit note are no turnover either.
+		$it    = Db::table( 'payout_items' );
+		$ct    = Db::table( 'commissions' );
+		$kt    = Db::table( Corrections::TABLE );
+		$kinds = implode( ',', array_fill( 0, count( Vat::NON_TAXABLE_KINDS ), '%s' ) );
+		$kg    = $wpdb->get_results( $wpdb->prepare( "SELECT p.affiliate_id, p.currency, SUM( CASE WHEN p.created_at < %s THEN -i.amount_minor ELSE 0 END ) prev_total, SUM( CASE WHEN p.created_at >= %s THEN -i.amount_minor ELSE 0 END ) cur_total FROM {$t} p JOIN {$pp} f ON f.affiliate_id = p.affiliate_id JOIN {$it} i ON i.payout_id = p.id AND i.released_at IS NULL JOIN {$ct} c ON c.id = i.commission_id AND ( c.kind IN ({$kinds}) OR i.vat_mode = %s ) WHERE f.tax_status = 'small_business' AND p.status <> 'cancelled' AND p.created_at BETWEEN %s AND %s GROUP BY p.affiliate_id, p.currency", array_merge( array( $cur_from, $cur_from ), Vat::NON_TAXABLE_KINDS, array( Vat::NONE, $from, $to ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Kind placeholders built above.
 		$kd   = $wpdb->get_results( $wpdb->prepare( "SELECT k.affiliate_id, k.currency, SUM( CASE WHEN k.created_at < %s THEN k.net_minor - k.prev_net_minor ELSE 0 END ) prev_total, SUM( CASE WHEN k.created_at >= %s THEN k.net_minor - k.prev_net_minor ELSE 0 END ) cur_total FROM {$kt} k JOIN {$pp} f ON f.affiliate_id = k.affiliate_id WHERE f.tax_status = 'small_business' AND k.created_at BETWEEN %s AND %s GROUP BY k.affiliate_id, k.currency", $cur_from, $cur_from, $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$sums = array();
 		foreach ( array_merge( (array) $rows, (array) $kg, (array) $kd ) as $r ) {
