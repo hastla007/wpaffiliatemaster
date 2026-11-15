@@ -161,7 +161,7 @@ $m8_took = microtime( true ) - $m8_t0;
 $m8_warn = array_values( preg_grep( '/^missing index /', (array) get_option( 'wpac_schema_warnings' ) ) );
 check(
 	'R13-M8 index blocked by an open transaction: migration gives up after the lock timeout, schema counts as current, warning instead of blocker',
-	array( true, 13, false, true, array() ),
+	array( true, Installer::DB_VERSION, false, true, array() ),
 	array( $m8_took < 8, (int) get_option( Installer::DB_OPTION ), in_array( 'action_created', $m8_keys(), true ), 1 === count( $m8_warn ) && 0 === strpos( $m8_warn[0], 'missing index ' . $m8_audit . '.action_created' ), Installer::verify_schema() )
 );
 check( 'R13-M8 the session lock_wait_timeout is restored afterwards', $m8_before_wait, (string) $wpdb->get_var( 'SELECT @@SESSION.lock_wait_timeout' ) );

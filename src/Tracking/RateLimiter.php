@@ -260,16 +260,61 @@ final class RateLimiter {
 		self::purge();
 	}
 
+	/** Single event that continues deleting expired counters while a backlog is left (R14-D2). */
+	const PURGE_HOOK = 'wpac_purge_rate_limits';
+
+	/** Option: since when (Unix time) the deletion of expired counters has not caught up. */
+	const BACKLOG_OPTION = 'wpac_rl_purge_backlog';
+
 	/**
-	 * Delete expired counters in small batches. Runs hourly, so the table never holds more
-	 * than about an hour of expired rows, however many visits there are.
+	 * Delete expired counters in small batches. Runs hourly and is driven by the backlog, not by
+	 * a fixed number of rows: each run deletes within its time budget and, while expired rows
+	 * are left, the next run follows a few minutes later (campaign traffic of several hundred new
+	 * clicks per second writes millions of counters an hour, R14-D2).
 	 *
 	 * @return int Deleted rows.
 	 */
 	public static function purge() {
 		global $wpdb;
+		/**
+		 * Seconds one run of the rate-limit clean-up may delete before it continues separately.
+		 *
+		 * @since 0.14.0
+		 * @param float $budget Seconds (default 20, 0 = until done).
+		 */
+		$budget = (float) apply_filters( 'wpac_rate_limit_purge_budget', 20 );
+		/**
+		 * Expired counters deleted per statement (one short transaction each).
+		 *
+		 * @since 0.14.0
+		 * @param int $batch Rows (default 5000).
+		 */
+		$batch = max( 1, (int) apply_filters( 'wpac_rate_limit_purge_batch', 5000 ) );
+		$done  = false;
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return \WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( 'DELETE FROM ' . \WPAffiliateCaptain\Core\Db::table( 'rate_limits' ) . ' WHERE expires_at < %d', time() ), 5000, 200 );
+		$n = \WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( 'DELETE FROM ' . \WPAffiliateCaptain\Core\Db::table( 'rate_limits' ) . ' WHERE expires_at < %d', time() ), $batch, 0, $budget > 0 ? microtime( true ) + $budget : 0.0, $done );
+		if ( $done ) {
+			\WPAffiliateCaptain\Core\Scheduler::clear( self::PURGE_HOOK );
+			delete_option( self::BACKLOG_OPTION );
+		} else {
+			\WPAffiliateCaptain\Core\Scheduler::once( self::PURGE_HOOK, 3 * MINUTE_IN_SECONDS ); // The backlog continues on its own.
+			if ( ! get_option( self::BACKLOG_OPTION ) ) {
+				update_option( self::BACKLOG_OPTION, time(), false );
+			}
+		}
+		\WPAffiliateCaptain\Core\Cron::continues_separately(); // Not repeated in the daily rest.
+		return $n;
+	}
+
+	/**
+	 * Whether the deletion of expired counters has not caught up for hours (Monitor): the
+	 * counters are written faster than they can be deleted.
+	 *
+	 * @return bool
+	 */
+	public static function purge_lagging() {
+		$since = (int) get_option( self::BACKLOG_OPTION, 0 );
+		return $since > 0 && $since < time() - 6 * HOUR_IN_SECONDS;
 	}
 
 	/**

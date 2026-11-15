@@ -28,6 +28,94 @@ final class Privacy {
 		add_filter( 'wp_privacy_personal_data_exporters', array( __CLASS__, 'exporters' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'erasers' ) );
 		add_action( 'admin_init', array( __CLASS__, 'policy_text' ) );
+		add_action( self::VISITS_ERASE_HOOK, array( __CLASS__, 'visit_erasure_event' ), 10, 0 );
+	}
+
+	/** Single event that continues deleting the link visits of erased partners (R14-D3). */
+	const VISITS_ERASE_HOOK = 'wpac_erase_visits';
+
+	/** Option: partner IDs whose link visits are still being deleted. */
+	const VISITS_ERASE_OPTION = 'wpac_visit_erasure_pending';
+
+	/** Transient prefix: partner whose erasure request (by e-mail hash) still deletes visits. */
+	const VISITS_ERASE_REQUEST = 'wpac_erase_req_';
+
+	/**
+	 * Delete the link visits of a partner in short transactions within a time budget (R14-D3):
+	 * one DELETE of millions of rows ran for many minutes in one transaction (the erasure request
+	 * in admin-ajax timed out, a second click started the next DELETE, a cancelled one rolled
+	 * back for as long). What is left is deleted by a single event a few minutes later; the
+	 * partner is listed in VISITS_ERASE_OPTION until done.
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param float $budget       Seconds (0 = until done).
+	 * @return bool Whether no visit of the partner is left.
+	 */
+	public static function delete_partner_visits( $affiliate_id, $budget = 10.0 ) {
+		global $wpdb;
+		$affiliate_id = (int) $affiliate_id;
+		/**
+		 * Visits deleted per statement when a partner is erased (one short transaction each).
+		 *
+		 * @since 0.14.0
+		 * @param int $batch Rows (default 5000).
+		 */
+		$batch = max( 1, (int) apply_filters( 'wpac_visit_erase_batch', 5000 ) );
+		$done  = false;
+		$table = Db::table( 'visits' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		\WPAffiliateCaptain\Core\Cron::delete_in_batches( $wpdb->prepare( "DELETE FROM {$table} WHERE affiliate_id = %d", $affiliate_id ), $batch, 0, $budget > 0 ? microtime( true ) + (float) $budget : 0.0, $done );
+		$pending = array_map( 'intval', (array) get_option( self::VISITS_ERASE_OPTION, array() ) );
+		$listed  = in_array( $affiliate_id, $pending, true );
+		if ( $done && $listed ) {
+			$pending = array_values( array_diff( $pending, array( $affiliate_id ) ) );
+			if ( $pending ) {
+				update_option( self::VISITS_ERASE_OPTION, $pending, false );
+			} else {
+				delete_option( self::VISITS_ERASE_OPTION );
+			}
+		} elseif ( ! $done ) {
+			if ( ! $listed ) {
+				$pending[] = $affiliate_id;
+				update_option( self::VISITS_ERASE_OPTION, $pending, false );
+			}
+			\WPAffiliateCaptain\Core\Scheduler::once( self::VISITS_ERASE_HOOK, 3 * MINUTE_IN_SECONDS );
+		}
+		return $done;
+	}
+
+	/**
+	 * Hook callback of VISITS_ERASE_HOOK (actions return nothing): see continue_visit_erasure().
+	 */
+	public static function visit_erasure_event() {
+		self::continue_visit_erasure();
+	}
+
+	/**
+	 * Continue deleting the visits of erased partners (single event, daily backup run).
+	 *
+	 * @return bool Whether nothing is left.
+	 */
+	public static function continue_visit_erasure() {
+		/**
+		 * Seconds one background run may delete visits of erased partners.
+		 *
+		 * @since 0.14.0
+		 * @param float $budget Seconds (default 20, 0 = until done).
+		 */
+		$budget = (float) apply_filters( 'wpac_visit_erase_budget', 20 );
+		$end    = $budget > 0 ? microtime( true ) + $budget : 0.0;
+		foreach ( array_map( 'intval', (array) get_option( self::VISITS_ERASE_OPTION, array() ) ) as $id ) {
+			$left = $end > 0 ? $end - microtime( true ) : 0.0;
+			if ( $end > 0 && $left <= 0 ) {
+				\WPAffiliateCaptain\Core\Scheduler::once( self::VISITS_ERASE_HOOK, 3 * MINUTE_IN_SECONDS );
+				return false;
+			}
+			if ( ! self::delete_partner_visits( $id, $end > 0 ? max( 0.001, $left ) : 0.0 ) ) {
+				return false; // Rescheduled by delete_partner_visits().
+			}
+		}
+		return ! get_option( self::VISITS_ERASE_OPTION );
 	}
 
 	/**
@@ -846,6 +934,23 @@ final class Privacy {
 	 */
 	public static function erase( $email, $page = 1 ) {
 		global $wpdb;
+		// A partner whose link visits did not fit into the first request (millions of rows): the
+		// following pages of the same request delete the rest (the partner row is anonymised by
+		// now, so the e-mail address no longer finds it, R14-D3).
+		$request = self::VISITS_ERASE_REQUEST . md5( strtolower( trim( (string) $email ) ) );
+		$waiting = (int) $page > 1 ? (int) get_transient( $request ) : 0;
+		if ( $waiting > 0 ) {
+			$done = self::delete_partner_visits( $waiting, self::erase_budget() );
+			if ( $done ) {
+				delete_transient( $request );
+			}
+			return array(
+				'items_removed'  => true,
+				'items_retained' => false,
+				'messages'       => array(),
+				'done'           => $done,
+			);
+		}
 		// Customers: remove lifetime partner links (stored as hashes).
 		$user    = get_user_by( 'email', $email );
 		$removed = \WPAffiliateCaptain\Tracking\CustomerLinks::forget( $user ? (int) $user->ID : 0, $email ) > 0;
@@ -865,7 +970,12 @@ final class Privacy {
 				'done'           => true,
 			);
 		}
-		$messages   = array_merge( $customer_messages, self::erase_partner( $aff ) );
+		$messages   = array_merge( $customer_messages, self::erase_partner( $aff, self::erase_budget() ) );
+		// Visits left (time budget): WordPress calls the eraser again with the next page.
+		$visits_done = ! in_array( (int) $aff->id, array_map( 'intval', (array) get_option( self::VISITS_ERASE_OPTION, array() ) ), true );
+		if ( ! $visits_done ) {
+			set_transient( $request, (int) $aff->id, HOUR_IN_SECONDS );
+		}
 		$messages[] = null === Retention::cutoff()
 			? __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted. They are not deleted automatically while the retention period is set to "keep forever" or a tax audit / legal hold is active.', 'affiliate-captain' )
 			: __( 'Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.', 'affiliate-captain' );
@@ -875,8 +985,24 @@ final class Privacy {
 			'items_removed'  => true,
 			'items_retained' => true,
 			'messages'       => $messages,
-			'done'           => true,
+			'done'           => $visits_done,
 		);
+	}
+
+	/**
+	 * Seconds one eraser request may delete link visits before WordPress calls it again.
+	 *
+	 * @return float
+	 */
+	private static function erase_budget() {
+		/**
+		 * Seconds one call of the WordPress privacy eraser may delete link visits of a partner
+		 * (admin-ajax request); the rest follows with the next page of the request.
+		 *
+		 * @since 0.14.0
+		 * @param float $budget Seconds (default 10).
+		 */
+		return max( 0.000001, (float) apply_filters( 'wpac_erase_request_budget', 10 ) );
 	}
 
 	/**
@@ -977,10 +1103,14 @@ final class Privacy {
 	 * reminders and the change log details; booking records stay (restricted) and the payout
 	 * details are deleted unless something is still open.
 	 *
-	 * @param object $aff Partner.
+	 * The link visits are deleted in short transactions within $visit_budget; a rest is deleted
+	 * in the background (delete_partner_visits(), R14-D3).
+	 *
+	 * @param object $aff          Partner.
+	 * @param float  $visit_budget Seconds for deleting the link visits in this request.
 	 * @return string[] Messages.
 	 */
-	public static function erase_partner( $aff ) {
+	public static function erase_partner( $aff, $visit_budget = 10.0 ) {
 		global $wpdb;
 		$messages = array();
 		$open     = self::has_open_items( (int) $aff->id );
@@ -1006,7 +1136,7 @@ final class Privacy {
 		);
 		// Codes may be derived from the name (vanity codes) → replace them by neutral values.
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'partner_codes' ) . " SET status = 'blocked', code = CONCAT('DEL-', id) WHERE affiliate_id = %d", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$wpdb->delete( Db::table( 'visits' ), array( 'affiliate_id' => (int) $aff->id ) );
+		self::delete_partner_visits( (int) $aff->id, (float) $visit_budget );
 		$wpdb->delete( Db::table( 'customer_links' ), array( 'affiliate_id' => (int) $aff->id ) );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payout_requests' ) . " SET note = '' WHERE affiliate_id = %d", $aff->id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		// Booking records (commission events, attribution notes, payout notes, write-off reasons and
@@ -1416,6 +1546,9 @@ final class Privacy {
 	 * Delete retained payout details of erased partners once everything is settled (daily cron).
 	 */
 	public static function finish_pending_erasures() {
+		if ( get_option( self::VISITS_ERASE_OPTION ) ) {
+			self::continue_visit_erasure(); // Backup of the single event (R14-D3).
+		}
 		$pending = array_map( 'intval', (array) get_option( 'wpac_erasure_pending', array() ) );
 		if ( ! $pending ) {
 			return;
@@ -1538,7 +1671,7 @@ final class Privacy {
 			array( 'id' => (int) $aff->id )
 		);
 		$wpdb->delete( Db::table( 'partner_codes' ), array( 'affiliate_id' => (int) $aff->id ) );
-		$wpdb->delete( Db::table( 'visits' ), array( 'affiliate_id' => (int) $aff->id ) );
+		self::delete_partner_visits( (int) $aff->id ); // Rest in the background (R14-D3).
 		$wpdb->delete( Db::table( 'customer_links' ), array( 'affiliate_id' => (int) $aff->id ) );
 		ProfileRepository::delete( (int) $aff->id );
 		// Without commissions there are no credit notes, so the acceptance records are not needed either.

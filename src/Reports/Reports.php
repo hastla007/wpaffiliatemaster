@@ -157,12 +157,37 @@ final class Reports {
 	}
 
 	/**
+	 * @var bool Whether the generation was raised in this request and no report was cached
+	 *           since (a further raise would change nothing, R14-D5).
+	 */
+	private static $gen_raised = false;
+
+	/**
 	 * Drop all cached reports (after a booking).
 	 */
 	public static function flush_cache() {
 		// One small write instead of deleting every report: the keys hold the generation, so the
-		// old entries are never read again and expire on their own (R13-N12).
-		update_option( self::CACHE_GEN, self::generation() + 1, true );
+		// old entries are never read again and expire on their own (R13-N12). At most one write
+		// per request, however many bookings it makes (approve_due() with 2000 commissions), and
+		// not autoloaded: the front end never reads it, and with a persistent object cache every
+		// write of an autoloaded option rebuilds "alloptions" for all requests (R14-D5). Only a
+		// report cached after the raise allows the next one (it may hold the older state).
+		if ( self::$gen_raised ) {
+			return;
+		}
+		self::$gen_raised = true;
+		update_option( self::CACHE_GEN, self::generation() + 1, false );
+	}
+
+	/**
+	 * Store a cached report (transient) and allow the next generation raise (R14-D5).
+	 *
+	 * @param string $name  Transient.
+	 * @param mixed  $value Value.
+	 */
+	private static function store( $name, $value ) {
+		self::$gen_raised = false;
+		set_transient( $name, $value, self::CACHE_TTL );
 	}
 
 	/**
@@ -215,15 +240,83 @@ final class Reports {
 			return (array) $hit['rows'];
 		}
 		$rows = 'partners' === $kind ? self::partners( $from, $to ) : self::by_dimension( $kind, $from, $to );
-		set_transient(
+		self::store(
 			$name,
 			array(
 				'rows'        => $rows,
 				'unconverted' => self::$unconverted,
-			),
-			self::CACHE_TTL
+			)
 		);
 		return $rows;
+	}
+
+	/** Prefix of the transients with the cached statistics of the partner area and editor panel. */
+	const STATS_CACHE = 'wpac_pstats';
+
+	/**
+	 * Statistics of one partner for the partner area, cached for CACHE_TTL per partner and period
+	 * (R14-D1): reloading the statistics tab must not scan the partner's visits again each time
+	 * (a partner with a million visits a month made every reload a query of close to a minute).
+	 * Bookings raise the generation in the key, so new sales show at once; new visits show with
+	 * the next time bucket.
+	 *
+	 * @param string $kind         summary|campaigns.
+	 * @param int    $affiliate_id Partner.
+	 * @param string $from         Y-m-d (local).
+	 * @param string $to           Y-m-d (local).
+	 * @return array As partner_summary() resp. partner_campaigns().
+	 */
+	public static function partner_cached( $kind, $affiliate_id, $from, $to ) {
+		$kind = 'campaigns' === $kind ? 'campaigns' : 'summary';
+		$name = self::stats_name( array( $kind, (int) $affiliate_id, (string) $from, (string) $to ) );
+		$hit  = get_transient( $name );
+		if ( is_array( $hit ) && isset( $hit['rows'] ) && is_array( $hit['rows'] ) ) {
+			return $hit['rows'];
+		}
+		$rows = 'campaigns' === $kind ? self::partner_campaigns( (int) $affiliate_id, $from, $to ) : self::partner_summary( (int) $affiliate_id, $from, $to );
+		self::store( $name, array( 'rows' => $rows ) );
+		return $rows;
+	}
+
+	/**
+	 * Statistics of one content item for the editor panel, cached for CACHE_TTL (R14-D6): the
+	 * panel counts 90 days of visits of the page each time the editor opens.
+	 *
+	 * @param int $post_id Post.
+	 * @param int $days    Days.
+	 * @return array As for_content() (self::$unconverted is set as by the uncached call).
+	 */
+	public static function content_cached( $post_id, $days = 90 ) {
+		$name = self::stats_name( array( 'content', (int) $post_id, (int) $days, (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ), wp_json_encode( Fx::rates() ) ) );
+		$hit  = get_transient( $name );
+		if ( is_array( $hit ) && isset( $hit['rows'], $hit['unconverted'] ) && is_array( $hit['rows'] ) ) {
+			self::$unconverted = (array) $hit['unconverted'];
+			return $hit['rows'];
+		}
+		$rows = self::for_content( (int) $post_id, (int) $days );
+		self::store(
+			$name,
+			array(
+				'rows'        => $rows,
+				'unconverted' => self::$unconverted,
+			)
+		);
+		return $rows;
+	}
+
+	/**
+	 * Name of a statistics transient: the parts plus time zone, language (labels), time bucket
+	 * and generation.
+	 *
+	 * @param array $parts Parts of the key.
+	 * @return string
+	 */
+	private static function stats_name( array $parts ) {
+		$parts[] = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '';
+		$parts[] = function_exists( 'determine_locale' ) ? determine_locale() : '';
+		$parts[] = (int) floor( time() / self::CACHE_TTL );
+		$parts[] = self::generation();
+		return self::STATS_CACHE . '_' . md5( implode( '|', $parts ) );
 	}
 
 	/**

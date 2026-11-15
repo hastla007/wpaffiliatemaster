@@ -261,7 +261,7 @@ final class Editor {
 			echo '<p><strong>' . esc_html__( 'Partner deep link', 'affiliate-captain' ) . '</strong><br><code style="word-break:break-all">' . esc_html( $link ) . '</code></p>';
 		}
 		if ( current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
-			$stats = Reports::for_content( (int) $post->ID, 90 );
+			$stats = Reports::content_cached( (int) $post->ID, 90 );
 			echo '<p><strong>' . esc_html__( 'Partner traffic (90 days)', 'affiliate-captain' ) . '</strong><br>';
 			$visits   = (int) $stats['visits'];
 			$partners = (int) $stats['partners'];
