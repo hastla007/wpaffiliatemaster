@@ -809,14 +809,17 @@ final class Statement {
 	 * credit note of a cancelled payout without its cancellation would count as turnover (R12-K2).
 	 *
 	 * @param int $payout_id Payout.
+	 * @param int $wait      Seconds to wait while another request writes it (R13-N9; 0 = none).
 	 * @return bool
 	 */
-	public static function generate( $payout_id ) {
+	public static function generate( $payout_id, $wait = 0 ) {
 		global $wpdb;
+		self::$busy = false;
 		// Claim the payout: the payout run and the hourly cron (or two cron runs) must not both
 		// write a credit note for it (two files, the second overwriting the stored hash).
-		$owner = Db::lock( 'wpac_stmt_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
+		$owner = self::claim( 'wpac_stmt_' . (int) $payout_id, $wait );
 		if ( '' === $owner ) {
+			self::$busy = true; // Being written right now – not a write error (see was_busy()).
 			return false;
 		}
 		try {
@@ -863,6 +866,47 @@ final class Statement {
 		 */
 		do_action( 'wpac_statement_generated', (int) $payout_id, $path );
 		return true;
+	}
+
+	/** @var bool Whether the last generate() found the credit note being written by another request. */
+	private static $busy = false;
+
+	/**
+	 * Whether the last generate() returned false because another request is writing the same
+	 * credit note right now (e.g. the job queue right after a payout run) – then "check the
+	 * folder" would be the wrong advice: it is there in a moment.
+	 *
+	 * @return bool
+	 */
+	public static function was_busy() {
+		return self::$busy;
+	}
+
+	/**
+	 * Take a document lock, waiting up to $wait seconds while another request holds it (a
+	 * PDF takes a few seconds; the lock of a request that died expires after 10 minutes).
+	 *
+	 * @param string $name Lock name.
+	 * @param int    $wait Seconds (0 = try once).
+	 * @return string Owner ('' = still held by someone else).
+	 */
+	private static function claim( $name, $wait ) {
+		/**
+		 * Seconds to wait for a credit note or cancellation document that another request is
+		 * writing right now, before the caller reports "being generated, try again".
+		 *
+		 * @param int    $wait Default given by the caller (20–30 seconds; 0 for cron runs).
+		 * @param string $name Lock name.
+		 */
+		$wait     = $wait > 0 ? max( 0, (int) apply_filters( 'wpac_statement_lock_wait', (int) $wait, $name ) ) : 0;
+		$deadline = microtime( true ) + $wait;
+		while ( true ) {
+			$owner = Db::lock( $name, 10 * MINUTE_IN_SECONDS );
+			if ( '' !== $owner || microtime( true ) >= $deadline ) {
+				return $owner;
+			}
+			usleep( 250000 );
+		}
 	}
 
 	const RETRY_OPTION = 'wpac_statement_retry';
@@ -1151,14 +1195,18 @@ final class Statement {
 		// that already existed). Retried with the cancellation (generate_missing_stornos()).
 		$p = PayoutService::find( $payout_id );
 		if ( $p && '' !== (string) $p->storno_number && '' === (string) $p->storno_file && ! $p->statement_deleted_at && '' === (string) $p->statement_file && '' === (string) $p->statement_hash ) {
-			self::generate( (int) $payout_id );
+			// R13-N9: cancelled while the job queue writes its credit note – wait for it instead
+			// of an hour of back-off (and a cancellation alarm) for a lock that is just busy.
+			self::generate( (int) $payout_id, 30 );
 			$p = PayoutService::find( $payout_id );
 			if ( ! $p || '' === (string) $p->statement_file ) {
-				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
-				return false;
+				if ( ! self::$busy ) {
+					self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
+				}
+				return false; // Still busy: the next cron run (generate_missing_stornos()) writes it.
 			}
 		}
-		$owner = Db::lock( 'wpac_storno_' . (int) $payout_id, 10 * MINUTE_IN_SECONDS );
+		$owner = self::claim( 'wpac_storno_' . (int) $payout_id, 30 );
 		if ( '' === $owner ) {
 			return false;
 		}

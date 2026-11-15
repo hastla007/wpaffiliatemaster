@@ -1550,6 +1550,7 @@ require __DIR__ . '/r12-a2.php';
 require __DIR__ . '/r12-b.php';
 require __DIR__ . '/r12-d.php'; // Round 12, part D (before r8-render: no template stubs needed).
 require __DIR__ . '/r12-e.php'; // Round 12, part E (before r8-render: no template stubs needed).
+require __DIR__ . '/r13-a1.php'; // Round 13, part a1 (concurrency; before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

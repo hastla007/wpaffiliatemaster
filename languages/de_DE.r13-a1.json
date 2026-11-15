@@ -1,0 +1,5 @@
+{
+ "Affiliate Captain: another request (a refund or an edit) was processing this order, so the partner commission was not checked for this change. Please save the order items again in a moment.": "Affiliate Captain: Eine andere Anfrage (eine Erstattung oder eine Bearbeitung) hat diese Bestellung gerade verarbeitet, daher wurde die Partnerprovision für diese Änderung nicht geprüft. Bitte speichern Sie die Bestellpositionen gleich noch einmal.",
+ "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again.": "Die Datenbank hat die Buchung abgebrochen (Deadlock, Zeitüberschreitung beim Warten auf eine Sperre oder Verbindungsabbruch). Es wurde nichts gespeichert; bitte versuchen Sie es erneut.",
+ "The statement of payout %s is being generated right now. Please try again in a minute.": "Der Beleg der Auszahlung %s wird gerade erstellt. Bitte versuchen Sie es in einer Minute erneut."
+}

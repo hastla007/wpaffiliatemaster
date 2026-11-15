@@ -55,6 +55,19 @@ final class Jobs {
 			// This refund is already part of the booked sale (supersede_refunds()): never run it again.
 			return true;
 		}
+		if ( $exists && 'running' === $row->status ) {
+			// R13-N9: a running job keeps its claim and lease (resetting it to "queued" would let a
+			// second runner start it next to the first one). The new payload is stored; run()
+			// sees that it changed and queues the job once more when the current run ends.
+			$ok = $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET payload = %s, updated_at = %s WHERE id = %d AND status = 'running'", wp_json_encode( $payload ), $now, (int) $exists ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( false === $ok ) {
+				return false;
+			}
+			if ( 1 === (int) $ok || $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE id = %d AND status = 'running'", (int) $exists ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return true; // Updated, or the same payload (0 changed rows) while still running.
+			}
+			// The run ended meanwhile: queue it as usual below.
+		}
 		if ( $exists ) {
 			// The attempts are kept: a job that keeps failing must still end as "failed" for the
 			// admin instead of restarting its count with every new failure report.
@@ -186,14 +199,16 @@ final class Jobs {
 			if ( ! $handled ) {
 				throw new IntegrationException( 'no_handler', 'No handler available for job type ' . $job->type );
 			}
-			$wpdb->update(
-				$table,
-				array(
-					'status'     => 'done',
-					'updated_at' => Db::now(),
-				),
-				array( 'id' => (int) $job->id )
-			);
+			// R13-N9: only the owner of the claim closes the job. When the run took longer than
+			// the lease, run_due() put the job back and another runner may have claimed it
+			// (attempts changed): its status is not ours to set. A payload stored by enqueue()
+			// during the run (changed) needs one more run.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$closed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'done', updated_at = %s WHERE id = %d AND attempts = %d AND status IN ('running','queued','failed') AND payload = %s", Db::now(), (int) $job->id, (int) $job->attempts, (string) $job->payload ) );
+			if ( 1 !== $closed ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'queued', next_attempt_at = %s, updated_at = %s WHERE id = %d AND attempts = %d AND status = 'running'", Db::now(), Db::now(), (int) $job->id, (int) $job->attempts ) );
+			}
 			if ( in_array( $job->type, array( 'sale', 'woo_order' ), true ) ) {
 				// The sale is booked: refunds that waited for it run now (also those that failed meanwhile).
 				$parts = explode( ':', (string) $job->idempotency_key, 2 );
@@ -235,7 +250,12 @@ final class Jobs {
 					'last_error'      => Db::cut( Log::plain( $e->getMessage() ), 255 ),
 					'updated_at'      => Db::now(),
 				),
-				array( 'id' => (int) $job->id )
+				// Only while the claim is still ours (see above).
+				array(
+					'id'       => (int) $job->id,
+					'attempts' => (int) $job->attempts,
+					'status'   => 'running',
+				)
 			);
 			return false;
 		}
@@ -389,6 +409,66 @@ final class Jobs {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		return 1 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', self::inflight_lock( self::inflight_key( $source, $order_id ) ) ) );
+	}
+
+	/** @var int[] Order locks held by this request (name => depth): taken once, released at depth 0. */
+	private static $order_locks = array();
+
+	/**
+	 * Serialize the work on one order (R13-M1): reading the order (payload) and booking the
+	 * difference must not interleave with a refund or another edit of the same order – a payload
+	 * read before a parallel booking would book a stale difference. A MySQL user lock of this
+	 * connection (re-entrant within the request, released when the connection ends at the latest).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @param int    $wait     Seconds to wait for another request.
+	 * @return bool Whether this request holds the lock now.
+	 */
+	public static function lock_order( $source, $order_id, $wait = 15 ) {
+		global $wpdb;
+		$name = self::order_lock_name( $source, $order_id );
+		if ( ! empty( self::$order_locks[ $name ] ) ) {
+			++self::$order_locks[ $name ];
+			return true;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( 1 !== (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $name, max( 0, (int) $wait ) ) ) ) {
+			return false;
+		}
+		self::$order_locks[ $name ] = 1;
+		return true;
+	}
+
+	/**
+	 * Release one level of lock_order().
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 */
+	public static function unlock_order( $source, $order_id ) {
+		global $wpdb;
+		$name = self::order_lock_name( $source, $order_id );
+		if ( empty( self::$order_locks[ $name ] ) ) {
+			return;
+		}
+		if ( --self::$order_locks[ $name ] > 0 ) {
+			return;
+		}
+		unset( self::$order_locks[ $name ] );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
+	}
+
+	/**
+	 * Name of the order lock (server-wide, so with database and table prefix; max. 64 characters).
+	 *
+	 * @param string $source   Source.
+	 * @param string $order_id Order ID.
+	 * @return string
+	 */
+	private static function order_lock_name( $source, $order_id ) {
+		return self::inflight_lock( 'wpac_order_' . md5( $source . ':' . $order_id ) );
 	}
 
 	/**

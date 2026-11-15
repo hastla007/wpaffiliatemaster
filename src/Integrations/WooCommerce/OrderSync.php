@@ -553,6 +553,84 @@ final class OrderSync {
 	 * @param int $refund_id Refund.
 	 */
 	public static function sync_refund( $order_id, $refund_id ) {
+		$locked = self::lock( $order_id );
+		try {
+			self::sync_refund_locked( $order_id, $refund_id );
+		} finally {
+			if ( $locked ) {
+				Jobs::unlock_order( WooCommerce::SOURCE, (string) $order_id );
+			}
+			self::refund_created( $order_id );
+		}
+	}
+
+	/** @var bool[] Orders whose refund is being created in this request (order ID => true), see refund_creating(). */
+	private static $creating = array();
+
+	/**
+	 * A refund is about to be stored (woocommerce_create_refund, before the payment gateway is
+	 * called): the order stays locked until woocommerce_order_refunded has booked it (R13-M1).
+	 * In between the refund is already part of the order (payload()) but not of the ledger – an
+	 * edit of the order items saved meanwhile would deduct it a second time.
+	 *
+	 * @param \WC_Order_Refund $refund Refund.
+	 */
+	public static function refund_creating( $refund ) {
+		$order_id = is_object( $refund ) && method_exists( $refund, 'get_parent_id' ) ? (int) $refund->get_parent_id() : 0;
+		if ( ! $order_id || isset( self::$creating[ $order_id ] ) ) {
+			return;
+		}
+		if ( Jobs::lock_order( WooCommerce::SOURCE, (string) $order_id ) ) {
+			self::$creating[ $order_id ] = true;
+		}
+	}
+
+	/**
+	 * Release the lock of refund_creating() (the refund was booked).
+	 *
+	 * @param int $order_id Order.
+	 */
+	private static function refund_created( $order_id ) {
+		if ( isset( self::$creating[ (int) $order_id ] ) ) {
+			unset( self::$creating[ (int) $order_id ] );
+			Jobs::unlock_order( WooCommerce::SOURCE, (string) (int) $order_id );
+		}
+	}
+
+	/**
+	 * A refund of this request was deleted again (payment gateway refused it: WooCommerce
+	 * deletes it without woocommerce_order_refunded) or the request ends: release the locks of
+	 * refund_creating().
+	 */
+	public static function refund_creation_ended() {
+		foreach ( array_keys( self::$creating ) as $order_id ) {
+			self::refund_created( (int) $order_id );
+		}
+	}
+
+	/**
+	 * Take the order lock (Jobs::lock_order()) for a booking that must happen anyway (refund,
+	 * reversal): without the lock after the wait it goes on – the booking itself is keyed and
+	 * locked per commission – and leaves a log entry.
+	 *
+	 * @param int $order_id Order.
+	 * @return bool Whether the lock was taken (release it then).
+	 */
+	private static function lock( $order_id ) {
+		if ( Jobs::lock_order( WooCommerce::SOURCE, (string) $order_id ) ) {
+			return true;
+		}
+		Log::warning( 'Order is locked by another request; booking without the order lock', array( 'order' => (int) $order_id ) );
+		return false;
+	}
+
+	/**
+	 * Report a WooCommerce refund (under the order lock).
+	 *
+	 * @param int $order_id  Order.
+	 * @param int $refund_id Refund.
+	 */
+	private static function sync_refund_locked( $order_id, $refund_id ) {
 		$order  = wc_get_order( $order_id );
 		$refund = wc_get_order( $refund_id );
 		if ( ! $order || ! $refund ) {
@@ -968,6 +1046,71 @@ final class OrderSync {
 	 * @param int $order_id Order.
 	 */
 	public static function items_changed( $order_id ) {
+		// R13-M1: payload and booking under the order lock (a refund booked in between would
+		// make the payload stale: the increase would undo the refund, the reduction double it).
+		if ( ! Jobs::lock_order( WooCommerce::SOURCE, (string) $order_id ) ) {
+			self::busy_note( $order_id );
+			return;
+		}
+		try {
+			self::items_changed_locked( $order_id );
+		} finally {
+			Jobs::unlock_order( WooCommerce::SOURCE, (string) $order_id );
+		}
+	}
+
+	/**
+	 * Order note: the order was locked by another request, nothing was checked.
+	 *
+	 * @param int $order_id Order.
+	 */
+	private static function busy_note( $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( $order ) {
+			$order->add_order_note( __( 'Affiliate Captain: another request (a refund or an edit) was processing this order, so the partner commission was not checked for this change. Please save the order items again in a moment.', 'affiliate-captain' ) );
+		}
+	}
+
+	/** Seconds in which a refund the ledger does not know yet counts as still being reported (R13-M1). */
+	const UNBOOKED_WINDOW = 900;
+
+	/**
+	 * Lines of recent refunds of the order that are not in the ledger yet (neither deducted nor
+	 * part of the booked sale): they are being reported right now (woocommerce_order_refunded
+	 * follows) and must not be deducted by an edit as well. Older unknown refunds stay deducted
+	 * as before (legacy orders, refunds created without WooCommerce's refund hooks).
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return int[] item_id => net minor units.
+	 */
+	private static function unbooked_refund_lines( $order ) {
+		$out      = array();
+		$order_id = (string) $order->get_id();
+		foreach ( $order->get_refunds() as $refund ) {
+			$created = method_exists( $refund, 'get_date_created' ) ? $refund->get_date_created() : null;
+			$rid     = (string) $refund->get_id();
+			if ( ! is_object( $created ) || $created->getTimestamp() < time() - self::UNBOOKED_WINDOW || Jobs::is_superseded( WooCommerce::SOURCE, $order_id, $rid ) ) {
+				continue;
+			}
+			$lines = self::refund_lines( $order, $refund );
+			foreach ( $lines as $line ) {
+				if ( Ledger::find_by_key( Ledger::key( 'refund:' . WooCommerce::SOURCE . ':' . $order_id . ':' . $rid . ':' . $line['item_id'] ) ) ) {
+					continue 2; // Booked.
+				}
+			}
+			foreach ( $lines as $line ) {
+				$out[ $line['item_id'] ] = ( isset( $out[ $line['item_id'] ] ) ? $out[ $line['item_id'] ] : 0 ) + (int) $line['net_minor'];
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Line items changed (under the order lock).
+	 *
+	 * @param int $order_id Order.
+	 */
+	private static function items_changed_locked( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( ! $order || is_a( $order, 'WC_Order_Refund' ) || ! $order->is_paid() ) {
 			return;
@@ -980,6 +1123,13 @@ final class OrderSync {
 		$targets = array();
 		foreach ( $payload['items'] as $item ) {
 			$targets[ $item['item_id'] ] = (int) $item['net_minor'];
+		}
+		// Only refunds the ledger knows are part of the target of a reduction (R13-M1); the
+		// increase below keeps the lower payload target (never more than the order shows).
+		foreach ( self::unbooked_refund_lines( $order ) as $item_id => $net ) {
+			if ( isset( $targets[ $item_id ] ) ) {
+				$targets[ $item_id ] += $net;
+			}
 		}
 		$rows = array();
 		foreach ( Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) as $c ) {
@@ -1041,6 +1191,24 @@ final class OrderSync {
 	 * @param int $order_id  Order.
 	 */
 	public static function refund_deleted( $refund_id, $order_id ) {
+		if ( ! Jobs::lock_order( WooCommerce::SOURCE, (string) $order_id ) ) {
+			self::busy_note( $order_id );
+			return;
+		}
+		try {
+			self::refund_deleted_locked( $refund_id, $order_id );
+		} finally {
+			Jobs::unlock_order( WooCommerce::SOURCE, (string) $order_id );
+		}
+	}
+
+	/**
+	 * A refund was deleted (under the order lock, R13-M1).
+	 *
+	 * @param int $refund_id Deleted refund.
+	 * @param int $order_id  Order.
+	 */
+	private static function refund_deleted_locked( $refund_id, $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( ! $order || is_a( $order, 'WC_Order_Refund' ) ) {
 			return;
@@ -1198,6 +1366,23 @@ final class OrderSync {
 	 * @throws \Throwable On database errors.
 	 */
 	private static function reinstate_now( $order_id ) {
+		$locked = self::lock( $order_id );
+		try {
+			self::reinstate_locked( $order_id );
+		} finally {
+			if ( $locked ) {
+				Jobs::unlock_order( WooCommerce::SOURCE, (string) $order_id );
+			}
+		}
+	}
+
+	/**
+	 * Reinstate (under the order lock).
+	 *
+	 * @param int $order_id Order.
+	 * @throws \Throwable On database errors.
+	 */
+	private static function reinstate_locked( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
 			return;
@@ -1225,6 +1410,25 @@ final class OrderSync {
 	 * @param string $event    Event name in the refund ID (default: the type).
 	 */
 	private static function full_reversal( $order_id, $type, $reason, $event = '' ) {
+		$locked = self::lock( $order_id );
+		try {
+			self::full_reversal_locked( $order_id, $type, $reason, $event );
+		} finally {
+			if ( $locked ) {
+				Jobs::unlock_order( WooCommerce::SOURCE, (string) $order_id );
+			}
+		}
+	}
+
+	/**
+	 * Reverse all remaining commission of an order (under the order lock).
+	 *
+	 * @param int    $order_id Order.
+	 * @param string $type     Type.
+	 * @param string $reason   Reason.
+	 * @param string $event    Event name in the refund ID (default: the type).
+	 */
+	private static function full_reversal_locked( $order_id, $type, $reason, $event = '' ) {
 		if ( ! Ledger::sale_commissions( WooCommerce::SOURCE, (string) $order_id ) && ! Jobs::sale_pending( WooCommerce::SOURCE, (string) $order_id ) ) {
 			return;
 		}

@@ -540,7 +540,9 @@ final class PayoutService {
 			self::$deferred[] = $fn;
 			return;
 		}
-		$fn();
+		// Inside a caller's transaction (e.g. PayoutRequests::process()) only after its COMMIT;
+		// right away otherwise.
+		Db::after_commit( $fn );
 	}
 
 	/**
@@ -713,6 +715,7 @@ final class PayoutService {
 				list( $from, $params ) = self::payable_sql( $currency, self::cutoff( $period_end ), $affiliate_id );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from} FOR UPDATE", $params ) );
+				Db::check( 'Locking the payable commissions' ); // R13-K1: an error is not "nothing payable".
 				$total = 0;
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
@@ -967,8 +970,14 @@ final class PayoutService {
 		if ( ! $p || '' !== (string) $p->statement_file || $p->statement_deleted_at || ! in_array( (string) $p->status, array( 'pending', 'exported' ), true ) ) {
 			return null;
 		}
-		Statement::generate( (int) $id );
+		// R13-N9: written right now by another request (job queue after a payout run): wait a
+		// little, and if it is still busy say so – it is not a folder problem.
+		Statement::generate( (int) $id, 20 );
 		$p = self::find( $id );
+		if ( $p && '' === (string) $p->statement_file && Statement::was_busy() ) {
+			/* translators: %s: payout number */
+			return new \WP_Error( 'wpac_statement_busy', sprintf( __( 'The statement of payout %s is being generated right now. Please try again in a minute.', 'affiliate-captain' ), $p->number ) );
+		}
 		if ( $p && '' === (string) $p->statement_file ) {
 			/* translators: %s: payout number */
 			return new \WP_Error( 'wpac_statement', sprintf( __( 'The statement of payout %s could not be stored. Please check that the statement folder is writable and try again.', 'affiliate-captain' ), $p->number ) );
@@ -1135,22 +1144,33 @@ final class PayoutService {
 					if ( '' !== (string) $p->number || '' !== (string) $p->statement_file || '' !== (string) $p->statement_hash ) {
 						$storno = Sequence::number( (string) Settings::get( 'storno_prefix' ), 'storno', (int) wp_date( 'Y' ) );
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-						$wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET storno_number = %s, storno_at = %s WHERE id = %d", $storno, Db::now(), $id ) );
+						if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$pt} SET storno_number = %s, storno_at = %s WHERE id = %d", $storno, Db::now(), $id ) ) ) {
+							throw new IntegrationException( 'db_error', esc_html__( 'The cancellation could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
+						}
 					}
-					foreach ( self::items( $id, true ) as $item ) {
-						Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
-					}
+					$items    = self::items( $id, true );
 					$released = 0;
-					foreach ( self::items( $id, true ) as $item ) {
+					foreach ( $items as $item ) {
 						$released += (int) $item->amount_minor;
 					}
-					\WPAffiliateCaptain\Commissions\Balance::post( (int) $p->affiliate_id, $p->currency, 'payout_cancelled', $released, 0, (int) $id, $p->number );
 					$it = Db::table( 'payout_items' );
 					$ct = Db::table( 'commissions' );
+					// R13-K1: commissions first, the partner account after them – the order of
+					// Ledger::record_refund() (commission → account). The other way round, a refund
+					// of a commission of this payout and the cancellation deadlock each other.
+					// Both UPDATEs are checked: a commission left on a cancelled payout would never
+					// be paid (payable rows need payout_id = 0) while the account counts it again.
 					// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$wpdb->query( $wpdb->prepare( "UPDATE {$it} SET released_at = %s, active_commission_id = NULL WHERE payout_id = %d AND released_at IS NULL", Db::now(), $id ) );
-					$wpdb->query( $wpdb->prepare( "UPDATE {$ct} SET payout_id = 0, updated_at = %s WHERE payout_id = %d AND status = 'approved'", Db::now(), $id ) );
+					$freed = $wpdb->query( $wpdb->prepare( "UPDATE {$ct} SET payout_id = 0, updated_at = %s WHERE payout_id = %d AND status = 'approved'", Db::now(), $id ) );
+					$unset = false === $freed ? false : $wpdb->query( $wpdb->prepare( "UPDATE {$it} SET released_at = %s, active_commission_id = NULL WHERE payout_id = %d AND released_at IS NULL", Db::now(), $id ) );
 					// phpcs:enable
+					if ( false === $freed || false === $unset ) {
+						throw new IntegrationException( 'db_error', esc_html__( 'The cancellation could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ) );
+					}
+					foreach ( $items as $item ) {
+						Ledger::event( (int) $item->commission_id, 'payout_released', 'approved', 'approved', (int) $item->amount_minor, $p->number . ': ' . $reason );
+					}
+					\WPAffiliateCaptain\Commissions\Balance::post( (int) $p->affiliate_id, $p->currency, 'payout_cancelled', $released, 0, (int) $id, $p->number );
 					self::reopen_request( $p );
 					return $p;
 				}

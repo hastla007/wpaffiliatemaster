@@ -52,6 +52,10 @@ final class WooCommerce {
 		add_action( 'woocommerce_order_status_processing', array( OrderSync::class, 'sync_order' ) );
 		add_action( 'woocommerce_order_status_completed', array( OrderSync::class, 'sync_order' ) );
 		add_action( 'woocommerce_order_refunded', array( OrderSync::class, 'sync_refund' ), 10, 2 );
+		// R13-M1: the order stays locked from storing a refund until it is booked (or deleted).
+		add_action( 'woocommerce_create_refund', array( OrderSync::class, 'refund_creating' ), 10, 1 );
+		add_action( 'woocommerce_delete_order_refund', array( OrderSync::class, 'refund_creation_ended' ), 10, 0 );
+		add_action( 'shutdown', array( OrderSync::class, 'refund_creation_ended' ), 10, 0 );
 		add_action( 'wpac_refund_after_correction', array( OrderSync::class, 'refund_after_correction' ), 10, 3 );
 		// A deleted refund gives its deduction back (R12-M8).
 		add_action( 'woocommerce_refund_deleted', array( OrderSync::class, 'refund_deleted' ), 10, 2 );
