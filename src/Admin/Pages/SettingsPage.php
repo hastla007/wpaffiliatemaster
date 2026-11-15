@@ -195,6 +195,7 @@ final class SettingsPage {
 				'terms_page_id'         => __( 'Partner program terms', 'affiliate-captain' ),
 				'auto_approve'          => __( 'Approve applications automatically', 'affiliate-captain' ),
 				'terminated_open'       => __( 'Open commissions on termination', 'affiliate-captain' ),
+				'code_requests'         => __( 'Partners can request an own partner code (e.g. MARIA10) in the partner area', 'affiliate-captain' ),
 				'mail_from_name'        => __( 'Sender name', 'affiliate-captain' ),
 				'notify_payout_paid'    => __( 'E-mail to the partner when a payout was paid', 'affiliate-captain' ),
 				'notify_commissions'    => __( 'E-mail to partners about new, approved and rejected commissions', 'affiliate-captain' ),
@@ -280,7 +281,7 @@ final class SettingsPage {
 	 */
 	public static function tab_keys() {
 		return array(
-			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open' ),
+			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'code_requests' ),
 			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'report_admin', 'report_partners' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
 			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'reauth_required' ),
@@ -415,6 +416,7 @@ final class SettingsPage {
 		self::section( __( 'Applications & termination', 'affiliate-captain' ), 'program' );
 		self::checkbox( 'auto_approve', __( 'Approve applications automatically', 'affiliate-captain' ), $s );
 		self::select( 'terminated_open', __( 'Open commissions on termination', 'affiliate-captain' ), $s, array( 'pay' => __( 'Remain payable', 'affiliate-captain' ), 'reject' => __( 'Are rejected', 'affiliate-captain' ) ) );
+		self::checkbox( 'code_requests', __( 'Partners can request an own partner code (e.g. MARIA10) in the partner area', 'affiliate-captain' ), $s, __( 'Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page.', 'affiliate-captain' ) );
 		self::end();
 	}
 
