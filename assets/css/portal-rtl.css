@@ -5,7 +5,7 @@
 .wpac-notice{border-left:0;border-right-color:var(--wpac-accent)}
 .wpac-notice--success{border-right-color:#2e7d32}
 .wpac-notice--error{border-right-color:#c62828}
-.wpac-disclosure{border-left:0;border-right-color:#f9a825}
+.wpac-disclosure{border-left:0;border-right-color:#b26a00}
 .wpac-welcome{border-left-color:var(--wpac-border,rgba(0,0,0,.12));border-right-color:#0b6e99}
 .wpac-hero{border-left-color:var(--wpac-border);border-right-color:var(--wpac-accent)}
 .wpac-table th,.wpac-table td{text-align:right}

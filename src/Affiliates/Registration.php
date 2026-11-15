@@ -119,7 +119,18 @@ final class Registration {
 			self::back( $redirect, 'invalid' );
 		}
 
+		// Every invalid field is reported at once (R12-M26): the form lists all of them, each field
+		// is marked; the focus goes to the first one.
+		$invalid          = array();
 		$application_data = array();
+		if ( ! isset( $_POST['wpac_name'] ) || ! is_string( $_POST['wpac_name'] ) || '' === trim( sanitize_text_field( wp_unslash( $_POST['wpac_name'] ) ) ) ) {
+			$invalid['wpac_name'] = __( 'Please enter your name or company.', 'affiliate-captain' );
+		}
+		$user  = wp_get_current_user();
+		$email = $user && $user->exists() ? $user->user_email : ( isset( $_POST['wpac_email'] ) && is_string( $_POST['wpac_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_email'] ) ) : '' );
+		if ( strlen( $email ) > self::MAX_EMAIL || ! is_email( $email ) ) {
+			$invalid['wpac_email'] = __( 'Please enter a valid e-mail address.', 'affiliate-captain' );
+		}
 		foreach ( Groups::fields( $group ) as $field ) {
 			$name  = 'wpac_f_' . $field['key'];
 			$value = isset( $_POST[ $name ] ) ? wp_unslash( $_POST[ $name ] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -140,8 +151,9 @@ final class Registration {
 					$value = self::cap( sanitize_text_field( is_string( $value ) ? $value : '' ), self::MAX_TEXT );
 			}
 			if ( $field['required'] && '' === $value ) {
-				self::$field = 'wpac_f_' . $field['key'];
-				self::back( $redirect, 'required' );
+				/* translators: %s: field label */
+				$invalid[ 'wpac_f_' . $field['key'] ] = sprintf( __( 'Please fill in "%s".', 'affiliate-captain' ), $field['label'] );
+				continue;
 			}
 			$application_data[ $field['key'] ] = array(
 				'label' => $field['label'],
@@ -151,20 +163,21 @@ final class Registration {
 
 		$terms = Agreements::current( $group_id );
 		if ( $terms['page_id'] && empty( $_POST['wpac_terms'] ) ) {
-			self::$field = 'wpac_terms';
-			self::back( $redirect, 'terms' );
+			$invalid['wpac_terms'] = __( 'Please accept the partner program terms.', 'affiliate-captain' );
+		}
+		if ( $invalid ) {
+			self::$invalid = $invalid;
+			// The first invalid field in the order of the form gets the focus.
+			$order       = array_merge( array( 'wpac_name', 'wpac_email' ), array_keys( array_diff_key( $invalid, array_flip( array( 'wpac_name', 'wpac_email', 'wpac_terms' ) ) ) ), array( 'wpac_terms' ) );
+			self::$field = (string) current( array_intersect( $order, array_keys( $invalid ) ) );
+			$code        = array( 'wpac_terms' ) === array_keys( $invalid ) ? 'terms' : ( isset( $invalid['wpac_email'] ) ? 'invalid' : 'required' );
+			self::back( $redirect, $code );
 		}
 		if ( $terms['page_id'] ) {
 			// The text accepted now is kept even if the page changes before the e-mail confirmation.
 			Agreements::store_text( $terms );
 		}
 
-		$user  = wp_get_current_user();
-		$email = $user && $user->exists() ? $user->user_email : ( isset( $_POST['wpac_email'] ) && is_string( $_POST['wpac_email'] ) ? sanitize_email( wp_unslash( $_POST['wpac_email'] ) ) : '' );
-		if ( strlen( $email ) > self::MAX_EMAIL || ! is_email( $email ) ) {
-			self::$field = 'wpac_email';
-			self::back( $redirect, 'invalid' );
-		}
 		if ( $user && $user->exists() && AffiliateRepository::find_by_user( $user->ID ) ) {
 			self::back( $redirect, 'exists' );
 		}
@@ -411,6 +424,7 @@ final class Registration {
 				array(
 					'values' => self::$values,
 					'field'  => self::$field,
+					'errors' => self::$invalid,
 				),
 				15 * MINUTE_IN_SECONDS
 			);
@@ -425,6 +439,9 @@ final class Registration {
 
 	/** @var string Field with the error. */
 	private static $field = '';
+
+	/** @var array<string,string> Invalid fields of the submission: field name => message. */
+	private static $invalid = array();
 
 	/** @var string Form that was submitted (form_key()). */
 	private static $form_id = '';
@@ -448,10 +465,86 @@ final class Registration {
 		if ( $value && isset( $form['values'][ $name ] ) ) {
 			$out .= ' value="' . esc_attr( $form['values'][ $name ] ) . '"';
 		}
-		if ( isset( $form['field'] ) && $form['field'] === $name ) {
-			$out .= ' aria-invalid="true" aria-describedby="wpac-form-error' . self::$suffix . '"' . ( '' === self::$suffix ? ' autofocus' : '' );
+		$errors = self::form_errors( $form );
+		if ( isset( $errors[ $name ] ) ) {
+			// Linked to its own message below the field, or (older kept state) to the form message.
+			$described = '' !== $errors[ $name ] ? self::error_id( $name ) : 'wpac-form-error' . self::$suffix;
+			$out      .= ' aria-invalid="true" aria-describedby="' . esc_attr( $described ) . '"' . ( '' === self::$suffix && isset( $form['field'] ) && $form['field'] === $name ? ' autofocus' : '' );
 		}
 		return $out;
+	}
+
+	/**
+	 * What follows the error message of the form: the list of invalid fields (each a link to its
+	 * field), or for an existing account the way to log in or reset the password (R12-M26, N7).
+	 *
+	 * @param string $err  Error code.
+	 * @param array  $form Kept form state.
+	 * @return string
+	 */
+	private static function error_extras( $err, array $form ) {
+		if ( 'exists' === $err ) {
+			$portal = (int) Settings::get( 'portal_page_id' ) ? Notifications::portal_url() : home_url( '/' );
+			return ' <a href="' . esc_url( wp_login_url( $portal ) ) . '">' . esc_html__( 'Log in to the partner area', 'affiliate-captain' ) . '</a> · <a href="' . esc_url( wp_lostpassword_url( $portal ) ) . '">' . esc_html__( 'Forgot your password?', 'affiliate-captain' ) . '</a>';
+		}
+		$errors = array_filter( self::form_errors( $form ) );
+		if ( ! $errors || ( 'terms' === $err && 1 === count( $errors ) ) ) {
+			return '';
+		}
+		$out = '<ul class="wpac-error-list">';
+		foreach ( $errors as $name => $message ) {
+			$out .= '<li><a href="#' . esc_attr( self::field_id( $name ) ) . '">' . esc_html( $message ) . '</a></li>';
+		}
+		return $out . '</ul>';
+	}
+
+	/**
+	 * Invalid fields of the kept form state: field name => message ('' = no own message).
+	 *
+	 * @param array $form Kept form state.
+	 * @return array<string,string>
+	 */
+	private static function form_errors( array $form ) {
+		$errors = isset( $form['errors'] ) && is_array( $form['errors'] ) ? array_map( 'strval', $form['errors'] ) : array();
+		if ( ! $errors && ! empty( $form['field'] ) ) {
+			$errors = array( (string) $form['field'] => '' );
+		}
+		return $errors;
+	}
+
+	/**
+	 * Element ID of a field (with the suffix of the form being rendered).
+	 *
+	 * @param string $name Field name.
+	 * @return string
+	 */
+	private static function field_id( $name ) {
+		return $name . self::$suffix;
+	}
+
+	/**
+	 * Element ID of the message of an invalid field.
+	 *
+	 * @param string $name Field name.
+	 * @return string
+	 */
+	private static function error_id( $name ) {
+		return 'wpac-err-' . $name . self::$suffix;
+	}
+
+	/**
+	 * Message below an invalid field (empty when the field is valid).
+	 *
+	 * @param array  $form Kept form state.
+	 * @param string $name Field name.
+	 * @return string
+	 */
+	private static function field_error( array $form, $name ) {
+		$errors = self::form_errors( $form );
+		if ( empty( $errors[ $name ] ) ) {
+			return '';
+		}
+		return '<span class="wpac-field-error" id="' . esc_attr( self::error_id( $name ) ) . '">' . esc_html( $errors[ $name ] ) . '</span>';
 	}
 
 	/**
@@ -702,7 +795,7 @@ final class Registration {
 
 		$errors = array(
 			'nonce'   => __( 'The form expired. Please try again.', 'affiliate-captain' ),
-			'spam'    => __( 'Your submission could not be processed.', 'affiliate-captain' ),
+			'spam'    => __( 'Your submission could not be processed. Please reload the page and send the form again; if this happens again, contact us directly.', 'affiliate-captain' ),
 			'rate'    => __( 'Too many attempts. Please try again later.', 'affiliate-captain' ),
 			'terms'   => __( 'Please accept the partner program terms.', 'affiliate-captain' ),
 			'exists'  => __( 'An affiliate account with this e-mail address already exists.', 'affiliate-captain' ),
@@ -757,7 +850,7 @@ final class Registration {
 		?>
 		<form class="wpac-form" method="post">
 			<?php if ( $err && isset( $errors[ $err ] ) ) : ?>
-				<div class="wpac-notice wpac-notice--error" role="alert" id="wpac-form-error<?php echo esc_attr( $sfx ); ?>"><?php echo esc_html( $errors[ $err ] ); ?></div>
+				<div class="wpac-notice wpac-notice--error" role="alert" id="wpac-form-error<?php echo esc_attr( $sfx ); ?>"><?php echo esc_html( $errors[ $err ] ); ?><?php echo self::error_extras( $err, $form ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></div>
 			<?php endif; ?>
 			<?php echo self::nonce_field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 			<input type="hidden" name="wpac_register" value="1">
@@ -771,17 +864,23 @@ final class Registration {
 				<?php endif; ?>
 			<?php endif; ?>
 			<?php if ( $group ) : ?>
-				<p class="wpac-muted"><?php echo esc_html( sprintf( /* translators: %s: group */ __( 'Application as: %s', 'affiliate-captain' ), $group->name ) ); ?></p>
+				<p class="wpac-muted"><?php echo esc_html( sprintf( /* translators: %s: group */ __( 'Application as: %s', 'affiliate-captain' ), $group->name ) ); ?>
+				<?php if ( ! $fixed && $public ) : ?>
+					<a href="<?php echo esc_url( remove_query_arg( array( 'wpac_group', 'wpac_err', 'wpac_form', 'wpac_fi' ) ) ); ?>"><?php esc_html_e( 'Choose another partner type', 'affiliate-captain' ); ?></a>
+				<?php endif; ?>
+				</p>
 			<?php endif; ?>
 			<p class="wpac-hp" aria-hidden="true"><label>URL <input type="text" name="wpac_url_confirm" tabindex="-1" autocomplete="off"></label></p>
 			<p>
 				<label for="wpac_name<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'Name / company', 'affiliate-captain' ); ?> *</label>
 				<input type="text" id="wpac_name<?php echo esc_attr( $sfx ); ?>" name="wpac_name" required autocomplete="name" value="<?php echo esc_attr( '' !== $kept( 'wpac_name' ) ? $kept( 'wpac_name' ) : ( $user->exists() ? $user->display_name : '' ) ); ?>"<?php echo self::attrs( $form, 'wpac_name', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+				<?php echo self::field_error( $form, 'wpac_name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 			</p>
 			<?php if ( ! $user->exists() ) : ?>
 			<p>
 				<label for="wpac_email<?php echo esc_attr( $sfx ); ?>"><?php esc_html_e( 'E-mail', 'affiliate-captain' ); ?> *</label>
 				<input type="email" id="wpac_email<?php echo esc_attr( $sfx ); ?>" name="wpac_email" required autocomplete="email"<?php echo self::attrs( $form, 'wpac_email' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+				<?php echo self::field_error( $form, 'wpac_email' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 			</p>
 			<?php endif; ?>
 			<p>
@@ -803,7 +902,7 @@ final class Registration {
 				?>
 				<p class="<?php echo 'checkbox' === $field['type'] ? 'wpac-check' : ''; ?>">
 				<?php if ( 'checkbox' === $field['type'] ) : ?>
-					<label><input type="checkbox" name="<?php echo esc_attr( $fid ); ?>" value="1" <?php echo $field['required'] ? 'required' : ''; ?> <?php checked( '1', $kept( $fid ) ); ?><?php echo self::attrs( $form, $fid, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>> <?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
+					<label><input type="checkbox" id="<?php echo esc_attr( $wpac_fel ); ?>" name="<?php echo esc_attr( $fid ); ?>" value="1" <?php echo $field['required'] ? 'required' : ''; ?> <?php checked( '1', $kept( $fid ) ); ?><?php echo self::attrs( $form, $fid, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>> <?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
 				<?php else : ?>
 					<label for="<?php echo esc_attr( $wpac_fel ); ?>"><?php echo esc_html( $field['label'] ); ?><?php echo $field['required'] ? ' *' : ''; ?></label>
 					<?php if ( 'textarea' === $field['type'] ) : ?>
@@ -812,21 +911,23 @@ final class Registration {
 						<input type="<?php echo esc_attr( 'url' === $field['type'] ? 'url' : ( 'number' === $field['type'] ? 'number' : 'text' ) ); ?>" id="<?php echo esc_attr( $wpac_fel ); ?>" name="<?php echo esc_attr( $fid ); ?>" <?php echo $field['required'] ? 'required' : ''; ?><?php echo self::attrs( $form, $fid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 					<?php endif; ?>
 				<?php endif; ?>
+				<?php echo self::field_error( $form, $fid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 				</p>
 			<?php endforeach; ?>
 			<?php if ( $terms['page_id'] ) : ?>
 			<p class="wpac-check">
 				<label>
-					<input type="checkbox" name="wpac_terms" value="1" required<?php echo self::attrs( $form, 'wpac_terms', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+					<input type="checkbox" id="wpac_terms<?php echo esc_attr( $sfx ); ?>" name="wpac_terms" value="1" required<?php echo self::attrs( $form, 'wpac_terms', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 					<?php
 					printf(
 						/* translators: 1: link to terms, 2: version */
 						esc_html__( 'I accept the %1$s (version %2$s).', 'affiliate-captain' ),
-						'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '</a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 						esc_html( $terms['version'] )
 					);
 					?>
 				</label>
+				<?php echo self::field_error( $form, 'wpac_terms' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 			</p>
 			<?php endif; ?>
 			<p class="wpac-muted wpac-privacy-note">
@@ -835,7 +936,7 @@ final class Registration {
 				$wpac_privacy = function_exists( 'get_privacy_policy_url' ) ? get_privacy_policy_url() : '';
 				echo esc_html__( 'We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy.', 'affiliate-captain' );
 				if ( $wpac_privacy ) {
-					echo ' <a href="' . esc_url( $wpac_privacy ) . '" target="_blank" rel="noopener">' . esc_html__( 'Privacy policy', 'affiliate-captain' ) . '</a>';
+					echo ' <a href="' . esc_url( $wpac_privacy ) . '" target="_blank" rel="noopener">' . esc_html__( 'Privacy policy', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
 				}
 				?>
 			</p>

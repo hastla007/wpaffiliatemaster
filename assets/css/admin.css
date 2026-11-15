@@ -52,6 +52,7 @@ fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
 /* Wide tables scroll in their own box (admin.js wraps them; R5-O43). */
 .wpac-table-scroll { overflow-x: auto; max-width: 100%; }
 .wpac-table-scroll > table.widefat { min-width: 640px; }
+.wpac-table-scroll:focus-visible { outline: 2px solid #2271b1; outline-offset: 2px; }
 /* State words in the partner list. */
 .wpac-state--ok { color: #00704a; }
 .wpac-state--open { color: #6b5300; }

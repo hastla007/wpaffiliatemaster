@@ -387,13 +387,15 @@ final class PayoutsPage {
 
 	/**
 	 * A file download ends the request (no redirect): the message is shown when the payouts page
-	 * is loaded next – the page reloads itself after the download (see render()).
+	 * is loaded next. With JavaScript the page reloads once the download started (download
+	 * cookie, see download_started()); without it the message appears on the next page load.
 	 *
 	 * @param string   $message Message.
 	 * @param string   $type    success|warning.
 	 * @param string[] $details Details.
 	 */
 	private static function download_notice( $message, $type = 'success', array $details = array() ) {
+		self::download_started();
 		set_transient(
 			'wpac_notice_' . get_current_user_id(),
 			array(
@@ -402,6 +404,29 @@ final class PayoutsPage {
 				'details' => array_values( array_map( 'strval', $details ) ),
 			),
 			5 * MINUTE_IN_SECONDS
+		);
+	}
+
+	/**
+	 * Tell admin.js that the download response arrived: a short-lived cookie named after the token
+	 * the form sent (wpac_dl_token). Only then is the list reloaded, so a reload never cancels a
+	 * download that has not started yet (R12-M3). Not HttpOnly: the page script reads it.
+	 */
+	private static function download_started() {
+		$token = Admin::post( 'wpac_dl_token' );
+		if ( ! is_string( $token ) || ! preg_match( '/^[a-z0-9]{8,40}$/', $token ) || headers_sent() ) {
+			return;
+		}
+		setcookie(
+			'wpac_dl_' . $token,
+			'1',
+			array(
+				'expires'  => time() + 5 * MINUTE_IN_SECONDS,
+				'path'     => defined( 'ADMIN_COOKIE_PATH' ) ? ADMIN_COOKIE_PATH : '/',
+				'secure'   => is_ssl(),
+				'httponly' => false,
+				'samesite' => 'Lax',
+			)
 		);
 	}
 
@@ -423,7 +448,7 @@ final class PayoutsPage {
 			return;
 		}
 		$currency = Admin::get( 'currency' ) ? strtoupper( Admin::get( 'currency' ) ) : (string) Settings::get( 'currency' );
-		$end      = Admin::get( 'period_end' ) ? Admin::get( 'period_end' ) : gmdate( 'Y-m-d', strtotime( 'last day of previous month' ) );
+		$end      = Admin::get( 'period_end' ) ? Admin::get( 'period_end' ) : gmdate( 'Y-m-t', (int) strtotime( \WPAffiliateCaptain\Core\Db::local_month( -1 ) . '-01 00:00:00 UTC' ) ); // Last day of the previous month in the site time zone.
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Payouts', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
@@ -636,8 +661,12 @@ final class PayoutsPage {
 		} else {
 			echo '<p class="description">' . esc_html__( 'Read-only view: you can open the payouts and download credit notes and cancellations, but not create, export or change payouts.', 'affiliate-captain' ) . '</p>';
 		}
-		// A download ends without a page change: admin.js reloads the list afterwards
-		// (data-wpac-reload-after), so the new status and the message about the download are shown.
+		// A download ends without a page change: admin.js reloads the list once the download started
+		// (download cookie), so the new status and the message are shown; if that takes too long it
+		// offers a "Refresh page" link here instead. Without JavaScript: refresh by hand.
+		if ( $manage ) {
+			echo '<div class="wpac-download-status" role="status" data-wpac-download-wait="' . esc_attr__( 'The download is taking longer than expected. Once it has finished, refresh the page to see the new status.', 'affiliate-captain' ) . '" data-wpac-download-refresh="' . esc_attr__( 'Refresh page', 'affiliate-captain' ) . '"></div>';
+		}
 		$table->display();
 		if ( ! $manage ) {
 			echo '</div>';

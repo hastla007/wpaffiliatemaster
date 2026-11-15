@@ -43,8 +43,26 @@
 			e.target.select();
 		}
 	} );
+	function ready() {
+		// Copy buttons only work with JavaScript: they are rendered hidden and shown here.
+		Array.prototype.forEach.call( document.querySelectorAll( '.wpac-copy-btn[hidden]' ), function ( btn ) {
+			btn.hidden = false;
+		} );
+		// A success message that is already in the page is not announced by its live region:
+		// move the focus to it (unless a field asks for the focus, e.g. after an error).
+		var notice = document.querySelector( '.wpac-notice[data-wpac-focus]' );
+		if ( notice && ( ! document.activeElement || document.activeElement === document.body ) ) {
+			notice.focus();
+		}
+	}
+	if ( 'loading' === document.readyState ) {
+		document.addEventListener( 'DOMContentLoaded', ready );
+	} else {
+		ready();
+	}
 } )();
-/* Payout details: show the fields of the chosen payout method (all fields work without JavaScript). */
+/* Payout details: show the fields of the chosen payout method. Both sections are rendered visible,
+   so all fields work without JavaScript; here the one of the other method is hidden. */
 ( function () {
 	function update() {
 		var s = document.getElementById( 'wpac_payout_method' );

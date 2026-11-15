@@ -440,7 +440,7 @@ final class Admin {
 		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['ids'] ) || $cache['state'] !== $state ) {
 			$ids = array();
 			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
+			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( wp_date( 'Y-m-d' ), $currency ) as $row ) {
 				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
 					$ids[] = array( (int) $row['affiliate']->id, isset( $row['code'] ) ? (string) $row['code'] : '' );
 				}
@@ -707,6 +707,7 @@ final class Admin {
 			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'broadcast_send'    => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statements_move'   => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'restriction'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
