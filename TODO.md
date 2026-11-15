@@ -943,12 +943,12 @@ Sechs Prüfer mit je zwei Perspektiven. Berichte: `/tmp/claude-0/a14/{arch,sec,p
 
 ## Wünsche aus dem Pro-Add-on (2026-11-15, captain-pro: multi_tier, Bestenliste/Meilensteine)
 
-- [ ] **[PRIO: NIEDRIG]** | **[Add-on-Vertrag]** | **[Kategorie: Feature]** – **P15-1 `wpac_create_adjustment()` mit Bezug auf eine Provision**
+- [x] **[PRIO: NIEDRIG]** | **[Add-on-Vertrag]** | **[Kategorie: Feature]** – **P15-1 `wpac_create_adjustment()` mit Bezug auf eine Provision** → **Erledigt:** Bezug als Ereignis `linked` gespeichert (nicht `parent_id`-Spalte, damit Gutschrift/Erstattung/Auszahlung unverändert bleiben); `wpac_get_commission(s)` liefert `parent_id`/`reference`.
   - *Problem:* Team-Provisionen eines Add-ons können nur per Textmarker auf die Original-Provision verweisen.
   - *Lösung:* Optionales Argument (Array) mit `parent_id` (Provision desselben Programms, geprüft) und `reference` (kurzer Text); in `wpac_get_commission()` sichtbar; Verhalten bei Erstattungen wie andere manuelle Buchungen (R12-N3: bleiben stehen), dokumentiert in CONTRACT.md.
-- [ ] **[PRIO: NIEDRIG]** | **[Add-on-Vertrag]** | **[Kategorie: Feature]** – **P15-2 Action beim Anlegen eines Werbemittels**
+- [x] **[PRIO: NIEDRIG]** | **[Add-on-Vertrag]** | **[Kategorie: Feature]** – **P15-2 Action beim Anlegen eines Werbemittels** → **Erledigt:** `wpac_creative_created`/`wpac_creative_updated` ( $id, $info ).
   - *Problem:* Add-ons können keine Meilenstein-Mail „neue Werbemittel“ auslösen.
   - *Lösung:* `do_action( 'wpac_creative_created', $creative_id )` (und `wpac_creative_updated`) nach dem Speichern; dokumentiert.
-- [ ] **[PRIO: NIEDRIG]** | **[Add-on-Vertrag]** | **[Kategorie: Feature]** – **P15-3 Portal-URL und Absender für Add-on-Mails**
+- [x] **[PRIO: NIEDRIG]** | **[Add-on-Vertrag]** | **[Kategorie: Feature]** – **P15-3 Portal-URL und Absender für Add-on-Mails** → **Erledigt:** `wpac_portal_url()` und `wpac_mail_sender()` (gleicher Helfer wie `Notifications::send()`).
   - *Problem:* Add-ons mit eigenen Mails kennen weder die Portal-URL noch den Absender aus den Kern-Einstellungen.
   - *Lösung:* Vertragsfunktionen `wpac_portal_url( $affiliate_id = 0 )` (Sprache des Partners) und `wpac_mail_sender()` (Name/Adresse wie in `Notifications::send()`, inkl. Filter `wpac_mail_from_name`); dokumentiert.
