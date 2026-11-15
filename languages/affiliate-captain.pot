@@ -5845,6 +5845,10 @@ msgstr ""
 msgid "Tax advisor (Affiliate Captain, read only)"
 msgstr ""
 
+#: src/Core/Db.php
+msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
+msgstr ""
+
 #: src/Core/Installer.php src/Privacy/Privacy.php
 msgid "Deleted partner"
 msgstr ""
@@ -6730,6 +6734,10 @@ msgid "Order deleted"
 msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
+msgid "Affiliate Captain: another request (a refund or an edit) was processing this order, so the partner commission was not checked for this change. Please save the order items again in a moment."
+msgstr ""
+
+#: src/Integrations/WooCommerce/OrderSync.php
 msgid "Order items changed after payment"
 msgstr ""
 
@@ -7328,6 +7336,11 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Technical error while saving (details in the audit log) – please run the payout again"
+msgstr ""
+
+#. translators: %s: payout number
+#: src/Payouts/PayoutService.php
+msgid "The statement of payout %s is being generated right now. Please try again in a minute."
 msgstr ""
 
 #. translators: %s: payout number

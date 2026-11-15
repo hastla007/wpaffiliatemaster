@@ -4244,6 +4244,9 @@ msgstr "Kopieren"
 msgid "Tax advisor (Affiliate Captain, read only)"
 msgstr "Steuerberatung (Affiliate Captain, nur lesen)"
 
+msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
+msgstr "Die Datenbank hat die Buchung abgebrochen (Deadlock, Zeitüberschreitung beim Warten auf eine Sperre oder Verbindungsabbruch). Es wurde nichts gespeichert; bitte versuchen Sie es erneut."
+
 msgid "Deleted partner"
 msgstr "Gelöschter Partner"
 
@@ -4874,6 +4877,9 @@ msgstr "Bestellung in den Papierkorb verschoben"
 msgid "Order deleted"
 msgstr "Bestellung gelöscht"
 
+msgid "Affiliate Captain: another request (a refund or an edit) was processing this order, so the partner commission was not checked for this change. Please save the order items again in a moment."
+msgstr "Affiliate Captain: Eine andere Anfrage (eine Erstattung oder eine Bearbeitung) hat diese Bestellung gerade verarbeitet, daher wurde die Partnerprovision für diese Änderung nicht geprüft. Bitte speichern Sie die Bestellpositionen gleich noch einmal."
+
 msgid "Order items changed after payment"
 msgstr "Bestellpositionen nach der Zahlung geändert"
 
@@ -5293,6 +5299,9 @@ msgstr "Nichts mehr auszahlbar (inzwischen geändert) – vorgetragen"
 
 msgid "Technical error while saving (details in the audit log) – please run the payout again"
 msgstr "Technischer Fehler beim Speichern (Details im Audit-Log) – bitte führen Sie die Auszahlung erneut aus"
+
+msgid "The statement of payout %s is being generated right now. Please try again in a minute."
+msgstr "Der Beleg der Auszahlung %s wird gerade erstellt. Bitte versuchen Sie es in einer Minute erneut."
 
 msgid "The statement of payout %s could not be stored. Please check that the statement folder is writable and try again."
 msgstr "Der Beleg der Auszahlung %s konnte nicht gespeichert werden. Bitte prüfen Sie, ob der Belegordner beschreibbar ist, und versuchen Sie es erneut."
