@@ -256,7 +256,7 @@ msgstr ""
 msgid "The link has expired. Please go back and try again."
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/ImportExportPage.php src/Integrations/WooCommerce/CouponLink.php
+#: src/Admin/Admin.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/MailTemplatesPage.php src/Integrations/WooCommerce/CouponLink.php
 msgid "You are not allowed to do this."
 msgstr ""
 
@@ -489,7 +489,7 @@ msgstr ""
 msgid "Name / company"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/ImportExportPage.php src/Affiliates/Registration.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/MailTemplatesPage.php src/Affiliates/Registration.php src/Privacy/Privacy.php
 msgid "E-mail"
 msgstr ""
 
@@ -820,7 +820,7 @@ msgstr ""
 msgid "Create coupon for partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Affiliates/Notifications.php src/Commissions/Ledger.php
 msgid "Partner code"
 msgstr ""
 
@@ -849,7 +849,7 @@ msgstr ""
 msgid "Fixed cart discount"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php src/Affiliates/Notifications.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Amount"
 msgstr ""
 
@@ -1087,7 +1087,7 @@ msgstr ""
 msgid "Last broadcast mail on %1$s: %2$d sent, %3$d skipped (unsubscribed or restricted)."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/MailTemplatesPage.php
 msgid "Subject"
 msgstr ""
 
@@ -1601,7 +1601,7 @@ msgstr ""
 msgid "Credit notes moved to the new folder"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php
+#: src/Admin/Pages/AuditPage.php src/Affiliates/Notifications.php
 msgid "Correction credit note issued"
 msgstr ""
 
@@ -1645,7 +1645,7 @@ msgstr ""
 msgid "Reason"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/MailTemplatesPage.php
 msgid "Changed"
 msgstr ""
 
@@ -2108,7 +2108,7 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php src/Portal/Portal.php src/Promotion/Creatives.php
+#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/MailTemplatesPage.php src/Portal/Portal.php src/Promotion/Creatives.php
 msgid "Text"
 msgstr ""
 
@@ -3045,6 +3045,116 @@ msgstr ""
 msgid "Dismiss"
 msgstr ""
 
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "E-mail templates"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Layout saved."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php src/Affiliates/Notifications.php
+msgid "Unknown e-mail template."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Template saved."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "The built-in text is used again."
+msgstr ""
+
+#. translators: %s: e-mail address
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Test e-mail sent to %s."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "The test e-mail could not be sent. Please check the mail log or your SMTP settings."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Adjust the e-mails your partners receive, e.g. to address them informally. Placeholders in curly brackets are replaced with the values of the partner. Templates you have not changed follow the language of the partner; changed templates are sent as you wrote them."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Layout"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Plain text"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Simple HTML layout (with a plain-text version for e-mail programs without HTML)"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Save layout"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php src/Admin/Tables/CreativesTable.php
+msgid "Actions"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Built-in text"
+msgstr ""
+
+#. translators: %s: name of the e-mail
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Edit: %s"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
+msgid "Edit"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Developers can still change every e-mail with the filter wpac_mail; it runs after the template."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "All e-mail templates"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "This template was changed."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "The built-in text is used."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Placeholders"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Plain text: line breaks are kept, web addresses become links in the HTML layout. HTML tags are removed."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Save template"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Send test e-mail to me"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Sends the saved template with example values to your own e-mail address."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Reset to the built-in text"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Discard your changes to this template?"
+msgstr ""
+
 #. translators: 1: correction credit note number(s), comma separated, 2: credit note number
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
@@ -3756,10 +3866,6 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "No rules yet – the program default applies to all sales."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php
-msgid "Edit"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4812,10 +4918,6 @@ msgid "Disclosure"
 msgstr ""
 
 #: src/Admin/Tables/CreativesTable.php
-msgid "Actions"
-msgstr ""
-
-#: src/Admin/Tables/CreativesTable.php
 msgid "No creatives match this search."
 msgstr ""
 
@@ -4910,7 +5012,7 @@ msgstr ""
 msgid "The status could not be saved (database error or changed meanwhile). Nothing was changed; please try again."
 msgstr ""
 
-#: src/Affiliates/AffiliateRepository.php
+#: src/Affiliates/AffiliateRepository.php src/Affiliates/Notifications.php
 msgid "Partnership terminated"
 msgstr ""
 
@@ -5041,166 +5143,128 @@ msgid "News and announcements of the partner program"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "Please enter a subject and a text."
+msgid "Application: confirm e-mail address (double opt-in)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "Another broadcast mail is still being sent. Please wait until it is finished."
+msgid "Application received"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "There are no active partners to write to."
-msgstr ""
-
-#. translators: %s: partner name
-#. translators: %s: name
-#: src/Affiliates/Notifications.php src/Reports/MonthlyMail.php
-msgid "Hello %s,"
-msgstr ""
-
-#. translators: 1: site name, 2: document number
-#: src/Affiliates/Notifications.php
-msgid "[%1$s] Credit note %2$s"
-msgstr ""
-
-#. translators: 1: name, 2: document number, 3: amount, 4: portal URL
-#: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nwe have issued credit note %2$s for your commissions (total %3$s). It is attached to this e-mail and can be downloaded in your partner area: %4$s\n\nPlease check it. If something is wrong, you can object to it in the partner area."
-msgstr ""
-
-#. translators: 1: site name, 2: cancelled credit note number
-#: src/Affiliates/Notifications.php
-msgid "[%1$s] Credit note %2$s cancelled"
-msgstr ""
-
-#. translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL
-#: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
-msgstr ""
-
-#. translators: %s: amount
-#: src/Affiliates/Notifications.php
-msgid "The difference of %s is paid with your next payout."
-msgstr ""
-
-#. translators: %s: amount
-#: src/Affiliates/Notifications.php
-msgid "The overpayment of %s is offset against your next commissions."
-msgstr ""
-
-#. translators: 1: site name, 2: correction number, 3: credit note number
-#: src/Affiliates/Notifications.php
-msgid "[%1$s] Correction credit note %2$s for credit note %3$s"
-msgstr ""
-
-#. translators: 1: name, 2: credit note number, 3: correction number, 4: what happens with the difference, 5: portal URL
-#: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nwe have corrected credit note %2$s with the attached correction credit note %3$s. %4$s\n\nPartner area: %5$s"
-msgstr ""
-
-#. translators: 1: site name, 2: partner
-#: src/Affiliates/Notifications.php
-msgid "[%1$s] Tax data change of %2$s waits for your approval"
-msgstr ""
-
-#. translators: 1: site name, 2: partner
-#: src/Affiliates/Notifications.php
-msgid "[%1$s] Tax data of %2$s changed"
+msgid "Application approved (welcome)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgid "Partner created in the admin (welcome)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "The change applies to commissions earned from now on. Details:"
+msgid "Application rejected"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "This link is not valid."
+msgid "Application with an address that already has a partner account"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "E-mail settings"
+msgid "News about commissions"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "You will receive these e-mails again."
+msgid "Payout transferred (bank transfer)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "You have been unsubscribed. You will no longer receive these e-mails from the partner program."
+msgid "Payout paid (other payment method)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "Undo"
-msgstr ""
-
-#. translators: %s: URL
-#: src/Affiliates/Notifications.php
-msgid "Do not want these e-mails any more? Unsubscribe: %s"
+msgid "Credit note issued"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "New commissions (pending until the end of the hold period)"
+msgid "Credit note cancelled (Storno)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "Approved commissions (count towards your next payout)"
+msgid "Bank details changed (to the partner)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "Rejected commissions (e.g. cancelled or returned orders)"
+msgid "Name or website change approved"
 msgstr ""
 
-#. translators: 1: name, 2: list of events, 3: portal URL
 #: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nthere is news about your commissions:\n\n%2$s\n\nDetails are in your partner area: %3$s"
+msgid "Name or website change not approved"
 msgstr ""
 
-#. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "[%s] News about your commissions"
+msgid "Partner account paused"
 msgstr ""
 
-#. translators: 1: name, 2: amount, 3: number, 4: portal URL
 #: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nwe have paid out %2$s to you with the payment method agreed with you (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgid "Partner account active again"
 msgstr ""
 
-#. translators: 1: name, 2: amount, 3: number, 4: portal URL
 #: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nwe have transferred %2$s to your bank account (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgid "Name of the partner"
 msgstr ""
 
-#. translators: 1: site name, 2: payout number
 #: src/Affiliates/Notifications.php
-msgid "[%1$s] Payout %2$s paid"
+msgid "Name of your website"
 msgstr ""
 
-#. translators: 1: site name, 2: payout number
 #: src/Affiliates/Notifications.php
-msgid "[%1$s] Payout %2$s transferred"
+msgid "Confirmation link"
 msgstr ""
 
-#. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "[%s] New affiliate application"
+msgid "Partner link (start page with the partner code)"
 msgstr ""
 
-#. translators: 1: name, 2: website, 3: admin URL
 #: src/Affiliates/Notifications.php
-msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
+msgid "Commission rate"
 msgstr ""
 
-#. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "[%s] We have received your partner application"
+msgid "Address of the partner area"
 msgstr ""
 
-#. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided."
+msgid "Access to the partner area (set-password link, hint on the terms)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Line \"Reason: …\" (empty without a reason)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Reason entered by your team"
+msgstr ""
+
+#: src/Affiliates/Notifications.php src/Payouts/Statement.php
+msgid "Credit note number"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Number of the cancellation document"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Number of the correction credit note"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "What happens with the difference"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "List of new, approved and rejected commissions"
+msgstr ""
+
+#. translators: 1: partner link, 2: partner code, 3: commission rate
+#: src/Affiliates/Notifications.php
+msgid "Your partner link: %1$s\nYour partner code: %2$s (customers can also enter it at checkout)\nYour commission: %3$s"
 msgstr ""
 
 #. translators: %s: site name
@@ -5215,55 +5279,12 @@ msgstr ""
 
 #. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "[%s] Your partner account"
-msgstr ""
-
-#. translators: %s: portal URL
-#: src/Affiliates/Notifications.php
-msgid "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail."
+msgid "[%s] We have received your partner application"
 msgstr ""
 
 #. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "[%s] Your bank details were changed"
-msgstr ""
-
-#. translators: %s: name
-#: src/Affiliates/Notifications.php
-msgid "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately."
-msgstr ""
-
-#. translators: %s: site name
-#: src/Affiliates/Notifications.php
-msgid "[%s] Partner changed bank details"
-msgstr ""
-
-#. translators: 1: partner, 2: URL
-#: src/Affiliates/Notifications.php
-msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
-msgstr ""
-
-#. translators: %s: site name
-#: src/Affiliates/Notifications.php
-msgid "[%s] Partner wants to change name or website"
-msgstr ""
-
-#. translators: 1: partner, 2: URL
-#: src/Affiliates/Notifications.php
-msgid "%1$s changed the public name or website. The change is shown only after you approve it:\n\n%2$s"
-msgstr ""
-
-#. translators: %s: site name
-#: src/Affiliates/Notifications.php
-msgid "[%s] Your profile change"
-msgstr ""
-
-#: src/Affiliates/Notifications.php
-msgid "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on."
-msgstr ""
-
-#: src/Affiliates/Notifications.php
-msgid "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us."
+msgid "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided."
 msgstr ""
 
 #. translators: %s: site name
@@ -5286,27 +5307,107 @@ msgstr ""
 msgid "Hello %1$s,\n\n%2$s has set up a partner account for you.\n\n%3$s"
 msgstr ""
 
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your affiliate application"
+msgstr ""
+
+#. translators: 1: name, 2: reason
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your partner account"
+msgstr ""
+
 #. translators: %s: portal URL
 #: src/Affiliates/Notifications.php
-msgid "Your partner area with links, codes and statistics: %s"
+msgid "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail."
 msgstr ""
 
-#. translators: %s: URL
+#. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "We have created an account for you. Choose your password here: %s"
+msgid "[%s] News about your commissions"
+msgstr ""
+
+#. translators: 1: name, 2: list of events, 3: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nthere is news about your commissions:\n\n%2$s\n\nDetails are in your partner area: %3$s"
+msgstr ""
+
+#. translators: 1: site name, 2: payout number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Payout %2$s transferred"
+msgstr ""
+
+#. translators: 1: name, 2: amount, 3: number, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have transferred %2$s to your bank account (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgstr ""
+
+#. translators: 1: site name, 2: payout number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Payout %2$s paid"
+msgstr ""
+
+#. translators: 1: name, 2: amount, 3: number, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have paid out %2$s to you with the payment method agreed with you (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgstr ""
+
+#. translators: 1: site name, 2: document number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Credit note %2$s"
+msgstr ""
+
+#. translators: 1: name, 2: document number, 3: amount, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have issued credit note %2$s for your commissions (total %3$s). It is attached to this e-mail and can be downloaded in your partner area: %4$s\n\nPlease check it. If something is wrong, you can object to it in the partner area."
+msgstr ""
+
+#. translators: 1: site name, 2: cancelled credit note number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Credit note %2$s cancelled"
+msgstr ""
+
+#. translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
+msgstr ""
+
+#. translators: 1: site name, 2: correction number, 3: credit note number
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Correction credit note %2$s for credit note %3$s"
+msgstr ""
+
+#. translators: 1: name, 2: credit note number, 3: correction number, 4: what happens with the difference, 5: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Hello %1$s,\n\nwe have corrected credit note %2$s with the attached correction credit note %3$s. %4$s\n\nPartner area: %5$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your bank details were changed"
+msgstr ""
+
+#. translators: %s: name
+#: src/Affiliates/Notifications.php
+msgid "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Your profile change"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "You already have a customer account with this e-mail address: we have sent you a separate e-mail with a link to connect it to the partner program."
-msgstr ""
-
-#. translators: %s: URL
-#: src/Affiliates/Notifications.php
-msgid "No password yet? Set one here: %s"
+msgid "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on."
 msgstr ""
 
 #: src/Affiliates/Notifications.php
-msgid "On your first visit, please read and accept the partner program terms – we need them to pay out your commissions."
+msgid "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us."
 msgstr ""
 
 #. translators: %s: site name
@@ -5345,19 +5446,180 @@ msgstr ""
 msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
 msgstr ""
 
+#: src/Affiliates/Notifications.php
+msgid "Please enter a subject and a text."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Max Mustermann"
+msgstr ""
+
+#. translators: %s: portal URL
+#: src/Affiliates/Notifications.php
+msgid "Your partner area with links, codes and statistics: %s"
+msgstr ""
+
 #. translators: %s: reason entered by the shop team
 #: src/Affiliates/Notifications.php src/Portal/Portal.php
 msgid "Reason: %s"
 msgstr ""
 
-#. translators: %s: site name
 #: src/Affiliates/Notifications.php
-msgid "[%s] Your affiliate application"
+msgid "Example reason"
 msgstr ""
 
-#. translators: 1: name, 2: reason
+#. translators: %s: amount
 #: src/Affiliates/Notifications.php
-msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
+msgid "The difference of %s is paid with your next payout."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "New commissions (pending until the end of the hold period)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Your user account has no valid e-mail address."
+msgstr ""
+
+#. translators: %s: subject
+#: src/Affiliates/Notifications.php
+msgid "[Test] %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Another broadcast mail is still being sent. Please wait until it is finished."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "There are no active partners to write to."
+msgstr ""
+
+#. translators: %s: partner name
+#. translators: %s: name
+#: src/Affiliates/Notifications.php src/Reports/MonthlyMail.php
+msgid "Hello %s,"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Affiliates/Notifications.php
+msgid "The overpayment of %s is offset against your next commissions."
+msgstr ""
+
+#. translators: 1: site name, 2: partner
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Tax data change of %2$s waits for your approval"
+msgstr ""
+
+#. translators: 1: site name, 2: partner
+#: src/Affiliates/Notifications.php
+msgid "[%1$s] Tax data of %2$s changed"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "The change applies to commissions earned from now on. Details:"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "E-mail settings"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "This link is not valid."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "You will receive these e-mails again."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "You have been unsubscribed. You will no longer receive these e-mails from the partner program."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Undo"
+msgstr ""
+
+#. translators: %s: kind of e-mails, e.g. "Monthly summary"
+#: src/Affiliates/Notifications.php
+msgid "Do you want to receive these e-mails again: %s?"
+msgstr ""
+
+#. translators: %s: kind of e-mails, e.g. "Monthly summary"
+#: src/Affiliates/Notifications.php
+msgid "Do you want to unsubscribe from these e-mails of the partner program: %s?"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Subscribe again"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Unsubscribe"
+msgstr ""
+
+#. translators: %s: URL
+#: src/Affiliates/Notifications.php
+msgid "Do not want these e-mails any more? Unsubscribe: %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Approved commissions (count towards your next payout)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "Rejected commissions (e.g. cancelled or returned orders)"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] New affiliate application"
+msgstr ""
+
+#. translators: 1: name, 2: website, 3: admin URL
+#: src/Affiliates/Notifications.php
+msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Partner changed bank details"
+msgstr ""
+
+#. translators: 1: partner, 2: URL
+#: src/Affiliates/Notifications.php
+msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
+msgstr ""
+
+#. translators: %s: site name
+#: src/Affiliates/Notifications.php
+msgid "[%s] Partner wants to change name or website"
+msgstr ""
+
+#. translators: 1: partner, 2: URL
+#: src/Affiliates/Notifications.php
+msgid "%1$s changed the public name or website. The change is shown only after you approve it:\n\n%2$s"
+msgstr ""
+
+#. translators: %s: URL
+#: src/Affiliates/Notifications.php
+msgid "We have created an account for you. Choose your password here: %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "You already have a customer account with this e-mail address: we have sent you a separate e-mail with a link to connect it to the partner program."
+msgstr ""
+
+#. translators: %s: URL
+#: src/Affiliates/Notifications.php
+msgid "No password yet? Set one here: %s"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
+msgid "On your first visit, please read and accept the partner program terms – we need them to pay out your commissions."
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -7755,10 +8017,6 @@ msgstr ""
 
 #: src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Cancellation number"
-msgstr ""
-
-#: src/Payouts/Statement.php
-msgid "Credit note number"
 msgstr ""
 
 #: src/Payouts/Statement.php

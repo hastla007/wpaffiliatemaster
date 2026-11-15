@@ -2245,6 +2245,87 @@ msgstr "Diesen Auftrag verwerfen? Er wird nicht mehr wiederholt; ein Verkauf dar
 msgid "Dismiss"
 msgstr "Verwerfen"
 
+msgid "E-mail templates"
+msgstr "E-Mail-Vorlagen"
+
+msgid "Layout saved."
+msgstr "Layout gespeichert."
+
+msgid "Unknown e-mail template."
+msgstr "Unbekannte E-Mail-Vorlage."
+
+msgid "Template saved."
+msgstr "Vorlage gespeichert."
+
+msgid "The built-in text is used again."
+msgstr "Es wird wieder der mitgelieferte Text verwendet."
+
+msgid "Test e-mail sent to %s."
+msgstr "Test-E-Mail an %s gesendet."
+
+msgid "The test e-mail could not be sent. Please check the mail log or your SMTP settings."
+msgstr "Die Test-E-Mail konnte nicht gesendet werden. Bitte prüfen Sie das Mail-Protokoll oder Ihre SMTP-Einstellungen."
+
+msgid "Adjust the e-mails your partners receive, e.g. to address them informally. Placeholders in curly brackets are replaced with the values of the partner. Templates you have not changed follow the language of the partner; changed templates are sent as you wrote them."
+msgstr "Passen Sie die E-Mails an Ihre Partner an, zum Beispiel für eine Ansprache mit „du“. Platzhalter in geschweiften Klammern werden durch die Werte des Partners ersetzt. Nicht geänderte Vorlagen folgen der Sprache des Partners; geänderte Vorlagen werden so versendet, wie Sie sie geschrieben haben."
+
+msgid "Layout"
+msgstr "Layout"
+
+msgid "Plain text"
+msgstr "Reiner Text"
+
+msgid "Simple HTML layout (with a plain-text version for e-mail programs without HTML)"
+msgstr "Einfaches HTML-Layout (mit einer Textfassung für E-Mail-Programme ohne HTML)"
+
+msgid "Save layout"
+msgstr "Layout speichern"
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "Built-in text"
+msgstr "Mitgelieferter Text"
+
+msgid "Edit: %s"
+msgstr "Bearbeiten: %s"
+
+msgid "Edit"
+msgstr "Bearbeiten"
+
+msgid "Developers can still change every e-mail with the filter wpac_mail; it runs after the template."
+msgstr "Entwickler können jede E-Mail weiterhin mit dem Filter wpac_mail ändern; er läuft nach der Vorlage."
+
+msgid "All e-mail templates"
+msgstr "Alle E-Mail-Vorlagen"
+
+msgid "This template was changed."
+msgstr "Diese Vorlage wurde geändert."
+
+msgid "The built-in text is used."
+msgstr "Es wird der mitgelieferte Text verwendet."
+
+msgid "Placeholders"
+msgstr "Platzhalter"
+
+msgid "Plain text: line breaks are kept, web addresses become links in the HTML layout. HTML tags are removed."
+msgstr "Reiner Text: Zeilenumbrüche bleiben erhalten, Webadressen werden im HTML-Layout zu Links. HTML-Tags werden entfernt."
+
+msgid "Save template"
+msgstr "Vorlage speichern"
+
+msgid "Send test e-mail to me"
+msgstr "Test-E-Mail an mich senden"
+
+msgid "Sends the saved template with example values to your own e-mail address."
+msgstr "Sendet die gespeicherte Vorlage mit Beispielwerten an Ihre eigene E-Mail-Adresse."
+
+msgid "Reset to the built-in text"
+msgstr "Auf den mitgelieferten Text zurücksetzen"
+
+msgid "Discard your changes to this template?"
+msgstr "Ihre Änderungen an dieser Vorlage verwerfen?"
+
 msgid "Correction credit note %1$s for %2$s issued; the difference was booked to the partner account and the partner was informed."
 msgid_plural "Correction credit notes %1$s for %2$s issued; the differences were booked to the partner account and the partner was informed."
 msgstr[0] "Korrekturgutschrift %1$s zu %2$s ausgestellt; die Differenz wurde auf dem Partnerkonto gebucht und der Partner informiert."
@@ -2759,9 +2840,6 @@ msgstr "Notiz"
 
 msgid "No rules yet – the program default applies to all sales."
 msgstr "Noch keine Regeln – für alle Verkäufe gilt der Programmstandard."
-
-msgid "Edit"
-msgstr "Bearbeiten"
 
 msgid "Delete this rule? Existing commissions are not changed."
 msgstr "Diese Regel löschen? Bestehende Provisionen bleiben unverändert."
@@ -3536,9 +3614,6 @@ msgstr "Provision #%d auswählen"
 msgid "Disclosure"
 msgstr "Kennzeichnung"
 
-msgid "Actions"
-msgstr "Aktionen"
-
 msgid "No creatives match this search."
 msgstr "Keine Werbemittel passen zu dieser Suche."
 
@@ -3698,110 +3773,98 @@ msgstr "Monatliche Übersicht"
 msgid "News and announcements of the partner program"
 msgstr "Neuigkeiten und Ankündigungen des Partnerprogramms"
 
-msgid "Please enter a subject and a text."
-msgstr "Bitte geben Sie einen Betreff und einen Text ein."
+msgid "Application: confirm e-mail address (double opt-in)"
+msgstr "Bewerbung: E-Mail-Adresse bestätigen (Double-Opt-in)"
 
-msgid "Another broadcast mail is still being sent. Please wait until it is finished."
-msgstr "Es wird noch eine andere Rundmail gesendet. Bitte warten Sie, bis sie abgeschlossen ist."
+msgid "Application received"
+msgstr "Bewerbung eingegangen"
 
-msgid "There are no active partners to write to."
-msgstr "Es gibt keine aktiven Partner, an die geschrieben werden kann."
+msgid "Application approved (welcome)"
+msgstr "Bewerbung angenommen (Willkommen)"
 
-msgid "Hello %s,"
-msgstr "Hallo %s,"
+msgid "Partner created in the admin (welcome)"
+msgstr "Partner im Admin angelegt (Willkommen)"
 
-msgid "[%1$s] Credit note %2$s"
-msgstr "[%1$s] Gutschrift %2$s"
+msgid "Application rejected"
+msgstr "Bewerbung abgelehnt"
 
-msgid "Hello %1$s,\n\nwe have issued credit note %2$s for your commissions (total %3$s). It is attached to this e-mail and can be downloaded in your partner area: %4$s\n\nPlease check it. If something is wrong, you can object to it in the partner area."
-msgstr "Hallo %1$s,\n\nwir haben für Ihre Provisionen die Gutschrift %2$s ausgestellt (Gesamtbetrag %3$s). Sie hängt an dieser E-Mail und steht in Ihrem Partnerbereich zum Download bereit: %4$s\n\nBitte prüfen Sie sie. Ist etwas falsch, können Sie im Partnerbereich widersprechen."
+msgid "Application with an address that already has a partner account"
+msgstr "Bewerbung mit einer Adresse, die schon ein Partnerkonto hat"
 
-msgid "[%1$s] Credit note %2$s cancelled"
-msgstr "[%1$s] Gutschrift %2$s storniert"
+msgid "News about commissions"
+msgstr "Neuigkeiten zu Provisionen"
 
-msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
-msgstr "Hallo %1$s,\n\nwir haben die Gutschrift %2$s mit dem angehängten Stornobeleg %3$s storniert. Die Provisionen bleiben in Ihrem Konto und werden mit einer neuen Gutschrift ausgezahlt.\n\nPartnerbereich: %4$s"
+msgid "Payout transferred (bank transfer)"
+msgstr "Auszahlung überwiesen (Banküberweisung)"
 
-msgid "The difference of %s is paid with your next payout."
-msgstr "Die Differenz von %s wird mit Ihrer nächsten Auszahlung ausgezahlt."
+msgid "Payout paid (other payment method)"
+msgstr "Auszahlung geleistet (andere Zahlungsart)"
 
-msgid "The overpayment of %s is offset against your next commissions."
-msgstr "Die Überzahlung von %s wird mit Ihren nächsten Provisionen verrechnet."
+msgid "Credit note issued"
+msgstr "Gutschrift ausgestellt"
 
-msgid "[%1$s] Correction credit note %2$s for credit note %3$s"
-msgstr "[%1$s] Korrekturgutschrift %2$s zur Gutschrift %3$s"
+msgid "Credit note cancelled (Storno)"
+msgstr "Gutschrift storniert (Storno)"
 
-msgid "Hello %1$s,\n\nwe have corrected credit note %2$s with the attached correction credit note %3$s. %4$s\n\nPartner area: %5$s"
-msgstr "Hallo %1$s,\n\nwir haben die Gutschrift %2$s mit der beigefügten Korrekturgutschrift %3$s korrigiert. %4$s\n\nPartnerbereich: %5$s"
+msgid "Bank details changed (to the partner)"
+msgstr "Bankdaten geändert (an den Partner)"
 
-msgid "[%1$s] Tax data change of %2$s waits for your approval"
-msgstr "[%1$s] Änderung der Steuerdaten von %2$s wartet auf Ihre Freigabe"
+msgid "Name or website change approved"
+msgstr "Änderung von Name oder Website freigegeben"
 
-msgid "[%1$s] Tax data of %2$s changed"
-msgstr "[%1$s] Steuerdaten von %2$s geändert"
+msgid "Name or website change not approved"
+msgstr "Änderung von Name oder Website nicht freigegeben"
 
-msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
-msgstr "Die Änderung wirkt sich auf die USt der Gutschriften aus. Sie gilt erst nach Ihrer Freigabe (vorher verdiente Provisionen behalten die bisherige Behandlung). Bitte prüfen Sie die Angaben (z. B. die USt-IdNr. per VIES):"
+msgid "Partner account paused"
+msgstr "Partnerkonto pausiert"
 
-msgid "The change applies to commissions earned from now on. Details:"
-msgstr "Die Änderung gilt für Provisionen ab jetzt. Details:"
+msgid "Partner account active again"
+msgstr "Partnerkonto wieder aktiv"
 
-msgid "This link is not valid."
-msgstr "Dieser Link ist ungültig."
+msgid "Name of the partner"
+msgstr "Name des Partners"
 
-msgid "E-mail settings"
-msgstr "E-Mail-Einstellungen"
+msgid "Name of your website"
+msgstr "Name Ihrer Website"
 
-msgid "You will receive these e-mails again."
-msgstr "Sie erhalten diese E-Mails wieder."
+msgid "Confirmation link"
+msgstr "Bestätigungslink"
 
-msgid "You have been unsubscribed. You will no longer receive these e-mails from the partner program."
-msgstr "Sie wurden abgemeldet. Sie erhalten diese E-Mails des Partnerprogramms nicht mehr."
+msgid "Partner link (start page with the partner code)"
+msgstr "Partnerlink (Startseite mit dem Partnercode)"
 
-msgid "Undo"
-msgstr "Rückgängig"
+msgid "Commission rate"
+msgstr "Provisionssatz"
 
-msgid "Do not want these e-mails any more? Unsubscribe: %s"
-msgstr "Diese E-Mails nicht mehr erhalten? Abmelden: %s"
+msgid "Address of the partner area"
+msgstr "Adresse des Partnerbereichs"
 
-msgid "New commissions (pending until the end of the hold period)"
-msgstr "Neue Provisionen (vorgemerkt bis zum Ende der Haltefrist)"
+msgid "Access to the partner area (set-password link, hint on the terms)"
+msgstr "Zugang zum Partnerbereich (Link zum Festlegen des Passworts, Hinweis auf die Bedingungen)"
 
-msgid "Approved commissions (count towards your next payout)"
-msgstr "Freigegebene Provisionen (zählen zur nächsten Auszahlung)"
+msgid "Line \"Reason: …\" (empty without a reason)"
+msgstr "Zeile „Grund: …“ (leer ohne Grund)"
 
-msgid "Rejected commissions (e.g. cancelled or returned orders)"
-msgstr "Abgelehnte Provisionen (z. B. stornierte oder zurückgeschickte Bestellungen)"
+msgid "Reason entered by your team"
+msgstr "Von Ihrem Team eingetragener Grund"
 
-msgid "Hello %1$s,\n\nthere is news about your commissions:\n\n%2$s\n\nDetails are in your partner area: %3$s"
-msgstr "Hallo %1$s,\n\nes gibt Neuigkeiten zu Ihren Provisionen:\n\n%2$s\n\nEinzelheiten finden Sie in Ihrem Partnerbereich: %3$s"
+msgid "Credit note number"
+msgstr "Gutschriftnummer"
 
-msgid "[%s] News about your commissions"
-msgstr "[%s] Neuigkeiten zu Ihren Provisionen"
+msgid "Number of the cancellation document"
+msgstr "Nummer des Stornobelegs"
 
-msgid "Hello %1$s,\n\nwe have paid out %2$s to you with the payment method agreed with you (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
-msgstr "Hallo %1$s,\n\nwir haben Ihnen %2$s über die mit Ihnen vereinbarte Zahlungsart ausgezahlt (Gutschrift %3$s).\n\nDie Gutschrift können Sie in Ihrem Partnerbereich herunterladen: %4$s"
+msgid "Number of the correction credit note"
+msgstr "Nummer der Korrekturgutschrift"
 
-msgid "Hello %1$s,\n\nwe have transferred %2$s to your bank account (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
-msgstr "Hallo %1$s,\n\nwir haben %2$s auf Ihr Konto überwiesen (Gutschrift %3$s).\n\nDie Gutschrift können Sie in Ihrem Partnerbereich herunterladen: %4$s"
+msgid "What happens with the difference"
+msgstr "Was mit der Differenz geschieht"
 
-msgid "[%1$s] Payout %2$s paid"
-msgstr "[%1$s] Auszahlung %2$s bezahlt"
+msgid "List of new, approved and rejected commissions"
+msgstr "Liste der neuen, freigegebenen und abgelehnten Provisionen"
 
-msgid "[%1$s] Payout %2$s transferred"
-msgstr "[%1$s] Auszahlung %2$s überwiesen"
-
-msgid "[%s] New affiliate application"
-msgstr "[%s] Neue Partnerbewerbung"
-
-msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
-msgstr "Neue Partnerbewerbung von %1$s (%2$s).\n\nPrüfen: %3$s"
-
-msgid "[%s] We have received your partner application"
-msgstr "[%s] Wir haben Ihre Partnerbewerbung erhalten"
-
-msgid "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided."
-msgstr "Hallo,\n\nvielen Dank für Ihre Bewerbung für das Partnerprogramm von %s. Wir prüfen sie und informieren Sie per E-Mail, sobald wir entschieden haben."
+msgid "Your partner link: %1$s\nYour partner code: %2$s (customers can also enter it at checkout)\nYour commission: %3$s"
+msgstr "Ihr Partnerlink: %1$s\nIhr Partnercode: %2$s (Kunden können ihn auch an der Kasse eingeben)\nIhre Provision: %3$s"
 
 msgid "[%s] Please confirm your partner application"
 msgstr "[%s] Bitte bestätigen Sie Ihre Partnerbewerbung"
@@ -3809,38 +3872,11 @@ msgstr "[%s] Bitte bestätigen Sie Ihre Partnerbewerbung"
 msgid "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
 msgstr "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für das Partnerprogramm von %1$s beworben. Bitte bestätigen Sie Ihre E-Mail-Adresse, um die Bewerbung abzuschließen:\n%2$s\n\nDer Link ist 48 Stunden gültig. Wenn Sie sich nicht beworben haben, können Sie diese E-Mail ignorieren."
 
-msgid "[%s] Your partner account"
-msgstr "[%s] Ihr Partnerkonto"
+msgid "[%s] We have received your partner application"
+msgstr "[%s] Wir haben Ihre Partnerbewerbung erhalten"
 
-msgid "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail."
-msgstr "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für unser Partnerprogramm beworben. Sie haben bereits ein Partnerkonto: %s\n\nWenn Sie das nicht waren, können Sie diese E-Mail ignorieren."
-
-msgid "[%s] Your bank details were changed"
-msgstr "[%s] Ihre Bankverbindung wurde geändert"
-
-msgid "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately."
-msgstr "Hallo %s,\n\ndie Bankverbindung für Ihre Provisionsauszahlungen wurde soeben geändert. Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie uns bitte umgehend."
-
-msgid "[%s] Partner changed bank details"
-msgstr "[%s] Partner hat Bankverbindung geändert"
-
-msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
-msgstr "%1$s hat die Bankverbindung für Auszahlungen geändert. Bitte vor dem nächsten Auszahlungslauf prüfen.\n\n%2$s"
-
-msgid "[%s] Partner wants to change name or website"
-msgstr "[%s] Partner möchte Namen oder Website ändern"
-
-msgid "%1$s changed the public name or website. The change is shown only after you approve it:\n\n%2$s"
-msgstr "%1$s hat den öffentlichen Namen oder die Website geändert. Die Änderung wird erst nach Ihrer Freigabe angezeigt:\n\n%2$s"
-
-msgid "[%s] Your profile change"
-msgstr "[%s] Ihre Profiländerung"
-
-msgid "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on."
-msgstr "Hallo,\n\nIhr neuer Name bzw. Ihre neue Website für das Partnerprogramm wurde freigegeben und wird ab jetzt angezeigt."
-
-msgid "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us."
-msgstr "Hallo,\n\ndie gewünschte Änderung von Name oder Website für das Partnerprogramm wurde nicht freigegeben. Die bisherigen Angaben bleiben. Bei Fragen melden Sie sich bitte bei uns."
+msgid "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided."
+msgstr "Hallo,\n\nvielen Dank für Ihre Bewerbung für das Partnerprogramm von %s. Wir prüfen sie und informieren Sie per E-Mail, sobald wir entschieden haben."
 
 msgid "[%s] Your affiliate application was approved"
 msgstr "[%s] Ihre Partnerbewerbung wurde angenommen"
@@ -3854,20 +3890,68 @@ msgstr "[%s] Willkommen in unserem Partnerprogramm"
 msgid "Hello %1$s,\n\n%2$s has set up a partner account for you.\n\n%3$s"
 msgstr "Hallo %1$s,\n\n%2$s hat ein Partnerkonto für Sie eingerichtet.\n\n%3$s"
 
-msgid "Your partner area with links, codes and statistics: %s"
-msgstr "Ihr Partnerbereich mit Links, Codes und Statistiken: %s"
+msgid "[%s] Your affiliate application"
+msgstr "[%s] Ihre Partnerbewerbung"
 
-msgid "We have created an account for you. Choose your password here: %s"
-msgstr "Wir haben ein Konto für Sie angelegt. Legen Sie hier Ihr Passwort fest: %s"
+msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
+msgstr "Hallo %1$s,\n\nleider können wir Ihre Bewerbung derzeit nicht annehmen.\n\n%2$s"
 
-msgid "You already have a customer account with this e-mail address: we have sent you a separate e-mail with a link to connect it to the partner program."
-msgstr "Sie haben bereits ein Kundenkonto mit dieser E-Mail-Adresse: Wir haben Ihnen eine separate E-Mail mit einem Link geschickt, um es mit dem Partnerprogramm zu verknüpfen."
+msgid "[%s] Your partner account"
+msgstr "[%s] Ihr Partnerkonto"
 
-msgid "No password yet? Set one here: %s"
-msgstr "Noch kein Passwort? Hier festlegen: %s"
+msgid "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail."
+msgstr "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für unser Partnerprogramm beworben. Sie haben bereits ein Partnerkonto: %s\n\nWenn Sie das nicht waren, können Sie diese E-Mail ignorieren."
 
-msgid "On your first visit, please read and accept the partner program terms – we need them to pay out your commissions."
-msgstr "Bitte lesen und akzeptieren Sie bei Ihrem ersten Besuch die Partnerbedingungen – wir benötigen sie, um Ihre Provisionen auszuzahlen."
+msgid "[%s] News about your commissions"
+msgstr "[%s] Neuigkeiten zu Ihren Provisionen"
+
+msgid "Hello %1$s,\n\nthere is news about your commissions:\n\n%2$s\n\nDetails are in your partner area: %3$s"
+msgstr "Hallo %1$s,\n\nes gibt Neuigkeiten zu Ihren Provisionen:\n\n%2$s\n\nEinzelheiten finden Sie in Ihrem Partnerbereich: %3$s"
+
+msgid "[%1$s] Payout %2$s transferred"
+msgstr "[%1$s] Auszahlung %2$s überwiesen"
+
+msgid "Hello %1$s,\n\nwe have transferred %2$s to your bank account (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgstr "Hallo %1$s,\n\nwir haben %2$s auf Ihr Konto überwiesen (Gutschrift %3$s).\n\nDie Gutschrift können Sie in Ihrem Partnerbereich herunterladen: %4$s"
+
+msgid "[%1$s] Payout %2$s paid"
+msgstr "[%1$s] Auszahlung %2$s bezahlt"
+
+msgid "Hello %1$s,\n\nwe have paid out %2$s to you with the payment method agreed with you (credit note %3$s).\n\nYou can download the credit note in your partner area: %4$s"
+msgstr "Hallo %1$s,\n\nwir haben Ihnen %2$s über die mit Ihnen vereinbarte Zahlungsart ausgezahlt (Gutschrift %3$s).\n\nDie Gutschrift können Sie in Ihrem Partnerbereich herunterladen: %4$s"
+
+msgid "[%1$s] Credit note %2$s"
+msgstr "[%1$s] Gutschrift %2$s"
+
+msgid "Hello %1$s,\n\nwe have issued credit note %2$s for your commissions (total %3$s). It is attached to this e-mail and can be downloaded in your partner area: %4$s\n\nPlease check it. If something is wrong, you can object to it in the partner area."
+msgstr "Hallo %1$s,\n\nwir haben für Ihre Provisionen die Gutschrift %2$s ausgestellt (Gesamtbetrag %3$s). Sie hängt an dieser E-Mail und steht in Ihrem Partnerbereich zum Download bereit: %4$s\n\nBitte prüfen Sie sie. Ist etwas falsch, können Sie im Partnerbereich widersprechen."
+
+msgid "[%1$s] Credit note %2$s cancelled"
+msgstr "[%1$s] Gutschrift %2$s storniert"
+
+msgid "Hello %1$s,\n\nwe have cancelled credit note %2$s with the attached cancellation document %3$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4$s"
+msgstr "Hallo %1$s,\n\nwir haben die Gutschrift %2$s mit dem angehängten Stornobeleg %3$s storniert. Die Provisionen bleiben in Ihrem Konto und werden mit einer neuen Gutschrift ausgezahlt.\n\nPartnerbereich: %4$s"
+
+msgid "[%1$s] Correction credit note %2$s for credit note %3$s"
+msgstr "[%1$s] Korrekturgutschrift %2$s zur Gutschrift %3$s"
+
+msgid "Hello %1$s,\n\nwe have corrected credit note %2$s with the attached correction credit note %3$s. %4$s\n\nPartner area: %5$s"
+msgstr "Hallo %1$s,\n\nwir haben die Gutschrift %2$s mit der beigefügten Korrekturgutschrift %3$s korrigiert. %4$s\n\nPartnerbereich: %5$s"
+
+msgid "[%s] Your bank details were changed"
+msgstr "[%s] Ihre Bankverbindung wurde geändert"
+
+msgid "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately."
+msgstr "Hallo %s,\n\ndie Bankverbindung für Ihre Provisionsauszahlungen wurde soeben geändert. Falls Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie uns bitte umgehend."
+
+msgid "[%s] Your profile change"
+msgstr "[%s] Ihre Profiländerung"
+
+msgid "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on."
+msgstr "Hallo,\n\nIhr neuer Name bzw. Ihre neue Website für das Partnerprogramm wurde freigegeben und wird ab jetzt angezeigt."
+
+msgid "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us."
+msgstr "Hallo,\n\ndie gewünschte Änderung von Name oder Website für das Partnerprogramm wurde nicht freigegeben. Die bisherigen Angaben bleiben. Bei Fragen melden Sie sich bitte bei uns."
 
 msgid "[%s] Your partner account has been paused"
 msgstr "[%s] Ihr Partnerkonto wurde pausiert"
@@ -3893,14 +3977,122 @@ msgstr "Ihr Partnerkonto wurde reaktiviert. Ihre Links und Codes funktionieren w
 msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
 msgstr "Hallo %1$s,\n\n%2$s\n\n%3$s"
 
+msgid "Please enter a subject and a text."
+msgstr "Bitte geben Sie einen Betreff und einen Text ein."
+
+msgid "Max Mustermann"
+msgstr "Max Mustermann"
+
+msgid "Your partner area with links, codes and statistics: %s"
+msgstr "Ihr Partnerbereich mit Links, Codes und Statistiken: %s"
+
 msgid "Reason: %s"
 msgstr "Grund: %s"
 
-msgid "[%s] Your affiliate application"
-msgstr "[%s] Ihre Partnerbewerbung"
+msgid "Example reason"
+msgstr "Beispielgrund"
 
-msgid "Hello %1$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2$s"
-msgstr "Hallo %1$s,\n\nleider können wir Ihre Bewerbung derzeit nicht annehmen.\n\n%2$s"
+msgid "The difference of %s is paid with your next payout."
+msgstr "Die Differenz von %s wird mit Ihrer nächsten Auszahlung ausgezahlt."
+
+msgid "New commissions (pending until the end of the hold period)"
+msgstr "Neue Provisionen (vorgemerkt bis zum Ende der Haltefrist)"
+
+msgid "Your user account has no valid e-mail address."
+msgstr "Ihr Benutzerkonto hat keine gültige E-Mail-Adresse."
+
+msgid "[Test] %s"
+msgstr "[Test] %s"
+
+msgid "Another broadcast mail is still being sent. Please wait until it is finished."
+msgstr "Es wird noch eine andere Rundmail gesendet. Bitte warten Sie, bis sie abgeschlossen ist."
+
+msgid "There are no active partners to write to."
+msgstr "Es gibt keine aktiven Partner, an die geschrieben werden kann."
+
+msgid "Hello %s,"
+msgstr "Hallo %s,"
+
+msgid "The overpayment of %s is offset against your next commissions."
+msgstr "Die Überzahlung von %s wird mit Ihren nächsten Provisionen verrechnet."
+
+msgid "[%1$s] Tax data change of %2$s waits for your approval"
+msgstr "[%1$s] Änderung der Steuerdaten von %2$s wartet auf Ihre Freigabe"
+
+msgid "[%1$s] Tax data of %2$s changed"
+msgstr "[%1$s] Steuerdaten von %2$s geändert"
+
+msgid "The change affects the VAT on credit notes. It only takes effect after you have approved it (commissions earned before keep the previous treatment). Please check the details (e.g. the VAT ID with VIES):"
+msgstr "Die Änderung wirkt sich auf die USt der Gutschriften aus. Sie gilt erst nach Ihrer Freigabe (vorher verdiente Provisionen behalten die bisherige Behandlung). Bitte prüfen Sie die Angaben (z. B. die USt-IdNr. per VIES):"
+
+msgid "The change applies to commissions earned from now on. Details:"
+msgstr "Die Änderung gilt für Provisionen ab jetzt. Details:"
+
+msgid "E-mail settings"
+msgstr "E-Mail-Einstellungen"
+
+msgid "This link is not valid."
+msgstr "Dieser Link ist ungültig."
+
+msgid "You will receive these e-mails again."
+msgstr "Sie erhalten diese E-Mails wieder."
+
+msgid "You have been unsubscribed. You will no longer receive these e-mails from the partner program."
+msgstr "Sie wurden abgemeldet. Sie erhalten diese E-Mails des Partnerprogramms nicht mehr."
+
+msgid "Undo"
+msgstr "Rückgängig"
+
+msgid "Do you want to receive these e-mails again: %s?"
+msgstr "Möchten Sie diese E-Mails wieder erhalten: %s?"
+
+msgid "Do you want to unsubscribe from these e-mails of the partner program: %s?"
+msgstr "Möchten Sie sich von diesen E-Mails des Partnerprogramms abmelden: %s?"
+
+msgid "Subscribe again"
+msgstr "Wieder anmelden"
+
+msgid "Unsubscribe"
+msgstr "Abmelden"
+
+msgid "Do not want these e-mails any more? Unsubscribe: %s"
+msgstr "Diese E-Mails nicht mehr erhalten? Abmelden: %s"
+
+msgid "Approved commissions (count towards your next payout)"
+msgstr "Freigegebene Provisionen (zählen zur nächsten Auszahlung)"
+
+msgid "Rejected commissions (e.g. cancelled or returned orders)"
+msgstr "Abgelehnte Provisionen (z. B. stornierte oder zurückgeschickte Bestellungen)"
+
+msgid "[%s] New affiliate application"
+msgstr "[%s] Neue Partnerbewerbung"
+
+msgid "New affiliate application from %1$s (%2$s).\n\nReview: %3$s"
+msgstr "Neue Partnerbewerbung von %1$s (%2$s).\n\nPrüfen: %3$s"
+
+msgid "[%s] Partner changed bank details"
+msgstr "[%s] Partner hat Bankverbindung geändert"
+
+msgid "%1$s changed the bank details for payouts. Please check before the next payout run.\n\n%2$s"
+msgstr "%1$s hat die Bankverbindung für Auszahlungen geändert. Bitte vor dem nächsten Auszahlungslauf prüfen.\n\n%2$s"
+
+msgid "[%s] Partner wants to change name or website"
+msgstr "[%s] Partner möchte Namen oder Website ändern"
+
+msgid "%1$s changed the public name or website. The change is shown only after you approve it:\n\n%2$s"
+msgstr "%1$s hat den öffentlichen Namen oder die Website geändert. Die Änderung wird erst nach Ihrer Freigabe angezeigt:\n\n%2$s"
+
+msgid "We have created an account for you. Choose your password here: %s"
+msgstr "Wir haben ein Konto für Sie angelegt. Legen Sie hier Ihr Passwort fest: %s"
+
+msgid "You already have a customer account with this e-mail address: we have sent you a separate e-mail with a link to connect it to the partner program."
+msgstr "Sie haben bereits ein Kundenkonto mit dieser E-Mail-Adresse: Wir haben Ihnen eine separate E-Mail mit einem Link geschickt, um es mit dem Partnerprogramm zu verknüpfen."
+
+msgid "No password yet? Set one here: %s"
+msgstr "Noch kein Passwort? Hier festlegen: %s"
+
+msgid "On your first visit, please read and accept the partner program terms – we need them to pay out your commissions."
+msgstr "Bitte lesen und akzeptieren Sie bei Ihrem ersten Besuch die Partnerbedingungen – wir benötigen sie, um Ihre Provisionen auszuzahlen."
 
 msgid "Please enter your name or company."
 msgstr "Bitte geben Sie Ihren Namen oder Ihre Firma ein."
@@ -5595,9 +5787,6 @@ msgstr "Gutschrift (Self-Billing)"
 
 msgid "Cancellation number"
 msgstr "Stornonummer"
-
-msgid "Credit note number"
-msgstr "Gutschriftnummer"
 
 msgid "Statement number"
 msgstr "Belegnummer"

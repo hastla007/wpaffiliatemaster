@@ -34,6 +34,19 @@ final class Notifications {
 	/** Partners per broadcast batch. */
 	const BROADCAST_BATCH = 50;
 
+	/**
+	 * Option (not autoloaded): e-mail templates edited in the admin and the layout,
+	 * array( 'layout' => 'text'|'html', 'templates' => array( key => array( subject, body, updated ) ) ).
+	 */
+	const TEMPLATES_OPTION = 'wpac_mail_templates';
+
+	/** Maximum length of a template subject and body. */
+	const TEMPLATE_SUBJECT_MAX = 190;
+	const TEMPLATE_BODY_MAX    = 20000;
+
+	/** @var string Plain-text alternative of the HTML mail being sent ('' = none). */
+	private static $alt_body = '';
+
 	/** @var bool Whether the wp_mail hooks of send() are registered. */
 	private static $hooked = false;
 
@@ -96,6 +109,535 @@ final class Notifications {
 			'commission'      => __( 'New, approved and rejected commissions', 'affiliate-captain' ),
 			'monthly_partner' => __( 'Monthly summary', 'affiliate-captain' ),
 			'broadcast'       => __( 'News and announcements of the partner program', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * E-mail templates the operator can edit in the admin (R14-P1): template key => type (mail
+	 * type passed to send() and the wpac_mail filter), label and the placeholders it offers.
+	 * Several templates can share one mail type (e.g. the variants of the status mail).
+	 * Mails that would carry text entered by a stranger (confirm_application, already_registered)
+	 * offer no placeholder with such text.
+	 *
+	 * @return array key => array( type, label, vars )
+	 */
+	public static function template_defs() {
+		$welcome = array( 'name', 'site', 'link', 'code', 'rate', 'portal_url', 'access' );
+		return array(
+			'confirm_application'    => array(
+				'type'  => 'confirm_application',
+				'label' => __( 'Application: confirm e-mail address (double opt-in)', 'affiliate-captain' ),
+				'vars'  => array( 'site', 'link' ),
+			),
+			'application_confirmed'  => array(
+				'type'  => 'application_confirmed',
+				'label' => __( 'Application received', 'affiliate-captain' ),
+				'vars'  => array( 'site' ),
+			),
+			'application_approved'   => array(
+				'type'  => 'application_approved',
+				'label' => __( 'Application approved (welcome)', 'affiliate-captain' ),
+				'vars'  => $welcome,
+			),
+			'partner_created'        => array(
+				'type'  => 'partner_created',
+				'label' => __( 'Partner created in the admin (welcome)', 'affiliate-captain' ),
+				'vars'  => $welcome,
+			),
+			'application_rejected'   => array(
+				'type'  => 'application_rejected',
+				'label' => __( 'Application rejected', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'reason' ),
+			),
+			'already_registered'     => array(
+				'type'  => 'already_registered',
+				'label' => __( 'Application with an address that already has a partner account', 'affiliate-captain' ),
+				'vars'  => array( 'site', 'portal_url' ),
+			),
+			'commission'             => array(
+				'type'  => 'commission',
+				'label' => __( 'News about commissions', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'events', 'portal_url' ),
+			),
+			'payout_paid'            => array(
+				'type'  => 'payout_paid',
+				'label' => __( 'Payout transferred (bank transfer)', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'amount', 'number', 'portal_url' ),
+			),
+			'payout_paid_manual'     => array(
+				'type'  => 'payout_paid',
+				'label' => __( 'Payout paid (other payment method)', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'amount', 'number', 'portal_url' ),
+			),
+			'credit_note'            => array(
+				'type'  => 'credit_note',
+				'label' => __( 'Credit note issued', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'number', 'amount', 'portal_url' ),
+			),
+			'credit_note_cancelled'  => array(
+				'type'  => 'credit_note_cancelled',
+				'label' => __( 'Credit note cancelled (Storno)', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'number', 'storno_number', 'portal_url' ),
+			),
+			'credit_note_corrected'  => array(
+				'type'  => 'credit_note_corrected',
+				'label' => __( 'Correction credit note issued', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'number', 'correction_number', 'effect', 'portal_url' ),
+			),
+			'bank_details_changed'   => array(
+				'type'  => 'bank_details_changed',
+				'label' => __( 'Bank details changed (to the partner)', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site' ),
+			),
+			'public_change_approved' => array(
+				'type'  => 'public_change_resolved',
+				'label' => __( 'Name or website change approved', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site' ),
+			),
+			'public_change_rejected' => array(
+				'type'  => 'public_change_resolved',
+				'label' => __( 'Name or website change not approved', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site' ),
+			),
+			'status_paused'          => array(
+				'type'  => 'status_changed',
+				'label' => __( 'Partner account paused', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'reason' ),
+			),
+			'status_terminated'      => array(
+				'type'  => 'status_changed',
+				'label' => __( 'Partnership terminated', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'reason' ),
+			),
+			'status_active'          => array(
+				'type'  => 'status_changed',
+				'label' => __( 'Partner account active again', 'affiliate-captain' ),
+				'vars'  => array( 'name', 'site', 'reason' ),
+			),
+		);
+	}
+
+	/**
+	 * What the placeholders stand for (admin template editor).
+	 *
+	 * @param string $key Template key (some placeholders mean something else per template).
+	 * @return array placeholder => description
+	 */
+	public static function placeholder_labels( $key = '' ) {
+		return array(
+			'name'              => __( 'Name of the partner', 'affiliate-captain' ),
+			'site'              => __( 'Name of your website', 'affiliate-captain' ),
+			'link'              => 'confirm_application' === $key ? __( 'Confirmation link', 'affiliate-captain' ) : __( 'Partner link (start page with the partner code)', 'affiliate-captain' ),
+			'code'              => __( 'Partner code', 'affiliate-captain' ),
+			'rate'              => __( 'Commission rate', 'affiliate-captain' ),
+			'portal_url'        => __( 'Address of the partner area', 'affiliate-captain' ),
+			'access'            => __( 'Access to the partner area (set-password link, hint on the terms)', 'affiliate-captain' ),
+			'reason'            => 0 === strpos( (string) $key, 'status_' ) ? __( 'Line "Reason: …" (empty without a reason)', 'affiliate-captain' ) : __( 'Reason entered by your team', 'affiliate-captain' ),
+			'amount'            => __( 'Amount', 'affiliate-captain' ),
+			'number'            => __( 'Credit note number', 'affiliate-captain' ),
+			'storno_number'     => __( 'Number of the cancellation document', 'affiliate-captain' ),
+			'correction_number' => __( 'Number of the correction credit note', 'affiliate-captain' ),
+			'effect'            => __( 'What happens with the difference', 'affiliate-captain' ),
+			'events'            => __( 'List of new, approved and rejected commissions', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Default subject and body of a template (the built-in texts in the current language, with
+	 * placeholders instead of the values).
+	 *
+	 * @param string $key Template key.
+	 * @return array|null array( subject, body ) or null for an unknown key.
+	 */
+	public static function default_template( $key ) {
+		// Partner link, code and rate in the welcome mails: the shortest way to the first share.
+		/* translators: 1: partner link, 2: partner code, 3: commission rate */
+		$share = sprintf( __( "Your partner link: %1\$s\nYour partner code: %2\$s (customers can also enter it at checkout)\nYour commission: %3\$s", 'affiliate-captain' ), '{link}', '{code}', '{rate}' );
+		switch ( (string) $key ) {
+			case 'confirm_application':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Please confirm your partner application', 'affiliate-captain' ), '{site}' );
+				/* translators: 1: site name, 2: link */
+				$body = sprintf( __( "Hello,\n\nsomeone (probably you) applied for the partner program of %1\$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2\$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail.", 'affiliate-captain' ), '{site}', '{link}' );
+				break;
+			case 'application_confirmed':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] We have received your partner application', 'affiliate-captain' ), '{site}' );
+				/* translators: %s: site name */
+				$body = sprintf( __( "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided.", 'affiliate-captain' ), '{site}' );
+				break;
+			case 'application_approved':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your affiliate application was approved', 'affiliate-captain' ), '{site}' );
+				/* translators: 1: name, 2: access instructions */
+				$body = sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program!\n\n%2\$s", 'affiliate-captain' ), '{name}', $share . "\n\n{access}" );
+				break;
+			case 'partner_created':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Welcome to our partner program', 'affiliate-captain' ), '{site}' );
+				/* translators: 1: name, 2: site name, 3: access instructions */
+				$body = sprintf( __( "Hello %1\$s,\n\n%2\$s has set up a partner account for you.\n\n%3\$s", 'affiliate-captain' ), '{name}', '{site}', $share . "\n\n{access}" );
+				break;
+			case 'application_rejected':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your affiliate application', 'affiliate-captain' ), '{site}' );
+				/* translators: 1: name, 2: reason */
+				$body = sprintf( __( "Hello %1\$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2\$s", 'affiliate-captain' ), '{name}', '{reason}' );
+				break;
+			case 'already_registered':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your partner account', 'affiliate-captain' ), '{site}' );
+				/* translators: %s: portal URL */
+				$body = sprintf( __( "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail.", 'affiliate-captain' ), '{portal_url}' );
+				break;
+			case 'commission':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] News about your commissions', 'affiliate-captain' ), '{site}' );
+				/* translators: 1: name, 2: list of events, 3: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nthere is news about your commissions:\n\n%2\$s\n\nDetails are in your partner area: %3\$s", 'affiliate-captain' ), '{name}', '{events}', '{portal_url}' );
+				break;
+			case 'payout_paid':
+				/* translators: 1: site name, 2: payout number */
+				$subject = sprintf( __( '[%1$s] Payout %2$s transferred', 'affiliate-captain' ), '{site}', '{number}' );
+				/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nwe have transferred %2\$s to your bank account (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'affiliate-captain' ), '{name}', '{amount}', '{number}', '{portal_url}' );
+				break;
+			case 'payout_paid_manual':
+				/* translators: 1: site name, 2: payout number */
+				$subject = sprintf( __( '[%1$s] Payout %2$s paid', 'affiliate-captain' ), '{site}', '{number}' );
+				/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nwe have paid out %2\$s to you with the payment method agreed with you (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'affiliate-captain' ), '{name}', '{amount}', '{number}', '{portal_url}' );
+				break;
+			case 'credit_note':
+				/* translators: 1: site name, 2: document number */
+				$subject = sprintf( __( '[%1$s] Credit note %2$s', 'affiliate-captain' ), '{site}', '{number}' );
+				/* translators: 1: name, 2: document number, 3: amount, 4: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nwe have issued credit note %2\$s for your commissions (total %3\$s). It is attached to this e-mail and can be downloaded in your partner area: %4\$s\n\nPlease check it. If something is wrong, you can object to it in the partner area.", 'affiliate-captain' ), '{name}', '{number}', '{amount}', '{portal_url}' );
+				break;
+			case 'credit_note_cancelled':
+				/* translators: 1: site name, 2: cancelled credit note number */
+				$subject = sprintf( __( '[%1$s] Credit note %2$s cancelled', 'affiliate-captain' ), '{site}', '{number}' );
+				/* translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nwe have cancelled credit note %2\$s with the attached cancellation document %3\$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4\$s", 'affiliate-captain' ), '{name}', '{number}', '{storno_number}', '{portal_url}' );
+				break;
+			case 'credit_note_corrected':
+				/* translators: 1: site name, 2: correction number, 3: credit note number */
+				$subject = sprintf( __( '[%1$s] Correction credit note %2$s for credit note %3$s', 'affiliate-captain' ), '{site}', '{correction_number}', '{number}' );
+				/* translators: 1: name, 2: credit note number, 3: correction number, 4: what happens with the difference, 5: portal URL */
+				$body = sprintf( __( "Hello %1\$s,\n\nwe have corrected credit note %2\$s with the attached correction credit note %3\$s. %4\$s\n\nPartner area: %5\$s", 'affiliate-captain' ), '{name}', '{number}', '{correction_number}', '{effect}', '{portal_url}' );
+				break;
+			case 'bank_details_changed':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your bank details were changed', 'affiliate-captain' ), '{site}' );
+				/* translators: %s: name */
+				$body = sprintf( __( "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), '{name}' );
+				break;
+			case 'public_change_approved':
+			case 'public_change_rejected':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your profile change', 'affiliate-captain' ), '{site}' );
+				$body    = 'public_change_approved' === $key
+					? __( "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on.", 'affiliate-captain' )
+					: __( "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us.", 'affiliate-captain' );
+				break;
+			case 'status_paused':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your partner account has been paused', 'affiliate-captain' ), '{site}' );
+				$text    = __( 'Your partner account has been paused. During the pause, new sales are not attributed to you. Commissions already earned remain unaffected.', 'affiliate-captain' );
+				break;
+			case 'status_terminated':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your partnership has been terminated', 'affiliate-captain' ), '{site}' );
+				$text    = 'reject' === Settings::get( 'terminated_open' )
+					? __( 'Your partnership has been terminated. Open commissions that were not yet paid have been cancelled according to the program terms.', 'affiliate-captain' )
+					: __( 'Your partnership has been terminated. Approved commissions will still be paid out according to the program terms.', 'affiliate-captain' );
+				break;
+			case 'status_active':
+				/* translators: %s: site name */
+				$subject = sprintf( __( '[%s] Your partner account is active again', 'affiliate-captain' ), '{site}' );
+				$text    = __( 'Your partner account has been reactivated. Your links and codes work again.', 'affiliate-captain' );
+				break;
+			default:
+				return null;
+		}
+		if ( isset( $text ) ) {
+			/* translators: 1: name, 2: message, 3: reason */
+			$body = sprintf( __( "Hello %1\$s,\n\n%2\$s\n\n%3\$s", 'affiliate-captain' ), '{name}', $text, '{reason}' );
+		}
+		return array( $subject, isset( $body ) ? $body : '' );
+	}
+
+	/**
+	 * Stored template settings (layout and the templates changed in the admin).
+	 *
+	 * @return array layout, templates
+	 */
+	public static function template_settings() {
+		$opt = get_option( self::TEMPLATES_OPTION, array() );
+		$opt = is_array( $opt ) ? $opt : array();
+		return array(
+			'layout'    => isset( $opt['layout'] ) && 'html' === $opt['layout'] ? 'html' : 'text',
+			'templates' => isset( $opt['templates'] ) && is_array( $opt['templates'] ) ? $opt['templates'] : array(),
+		);
+	}
+
+	/**
+	 * Store the template settings (one option, not autoloaded: only read when a mail is sent).
+	 *
+	 * @param array $settings layout, templates.
+	 * @return bool
+	 */
+	private static function save_template_settings( array $settings ) {
+		return (bool) update_option( self::TEMPLATES_OPTION, $settings, false );
+	}
+
+	/**
+	 * Whether mails with a template are sent as HTML (with a plain-text alternative).
+	 *
+	 * @return bool
+	 */
+	public static function html_layout() {
+		$s = self::template_settings();
+		return 'html' === $s['layout'];
+	}
+
+	/**
+	 * Switch the layout of the template mails.
+	 *
+	 * @param string $layout text|html.
+	 * @return bool
+	 */
+	public static function set_layout( $layout ) {
+		$s           = self::template_settings();
+		$s['layout'] = 'html' === $layout ? 'html' : 'text';
+		Audit::log( 'mail.layout', 'settings', 0, array( 'layout' => $s['layout'] ) );
+		return self::save_template_settings( $s );
+	}
+
+	/**
+	 * Template changed in the admin (null = the built-in text is used).
+	 *
+	 * @param string $key Template key.
+	 * @return array|null array( subject, body )
+	 */
+	public static function custom_template( $key ) {
+		$s = self::template_settings();
+		if ( empty( $s['templates'][ $key ] ) || ! is_array( $s['templates'][ $key ] ) ) {
+			return null;
+		}
+		$t = $s['templates'][ $key ];
+		if ( ! isset( $t['subject'], $t['body'] ) || '' === trim( (string) $t['subject'] ) || '' === trim( (string) $t['body'] ) ) {
+			return null;
+		}
+		return array( (string) $t['subject'], (string) $t['body'] );
+	}
+
+	/**
+	 * Template in effect: the one changed in the admin, otherwise the built-in text.
+	 *
+	 * @param string $key Template key.
+	 * @return array array( subject, body )
+	 */
+	public static function template( $key ) {
+		$custom = self::custom_template( $key );
+		if ( $custom ) {
+			return $custom;
+		}
+		$default = self::default_template( $key );
+		return $default ? $default : array( '', '' );
+	}
+
+	/**
+	 * Save a template edited in the admin. A text equal to the built-in one is not stored (it
+	 * then follows the translation and later improvements of the built-in text).
+	 *
+	 * @param string $key     Template key.
+	 * @param string $subject Subject.
+	 * @param string $body    Body (plain text with placeholders).
+	 * @return true|\WP_Error
+	 */
+	public static function save_template( $key, $subject, $body ) {
+		$defs = self::template_defs();
+		if ( ! isset( $defs[ $key ] ) ) {
+			return new \WP_Error( 'wpac_template_unknown', __( 'Unknown e-mail template.', 'affiliate-captain' ) );
+		}
+		$subject = trim( (string) preg_replace( '/\s+/', ' ', sanitize_text_field( (string) $subject ) ) );
+		$body    = trim( str_replace( array( "\r\n", "\r" ), "\n", sanitize_textarea_field( (string) $body ) ) );
+		if ( '' === $subject || '' === $body ) {
+			return new \WP_Error( 'wpac_template_empty', __( 'Please enter a subject and a text.', 'affiliate-captain' ) );
+		}
+		$subject = \WPAffiliateCaptain\Core\Db::cut( $subject, self::TEMPLATE_SUBJECT_MAX );
+		$body    = \WPAffiliateCaptain\Core\Db::cut( $body, self::TEMPLATE_BODY_MAX );
+		$s       = self::template_settings();
+		$default = self::default_template( $key );
+		if ( $default && $subject === trim( $default[0] ) && $body === trim( str_replace( array( "\r\n", "\r" ), "\n", $default[1] ) ) ) {
+			unset( $s['templates'][ $key ] );
+		} else {
+			$s['templates'][ $key ] = array(
+				'subject' => $subject,
+				'body'    => $body,
+				'updated' => time(),
+			);
+		}
+		self::save_template_settings( $s );
+		Audit::log( 'mail.template_saved', 'settings', 0, array( 'template' => $key ) );
+		return true;
+	}
+
+	/**
+	 * Back to the built-in text of a template.
+	 *
+	 * @param string $key Template key.
+	 */
+	public static function reset_template( $key ) {
+		$s = self::template_settings();
+		if ( isset( $s['templates'][ $key ] ) ) {
+			unset( $s['templates'][ $key ] );
+			self::save_template_settings( $s );
+			Audit::log( 'mail.template_reset', 'settings', 0, array( 'template' => (string) $key ) );
+		}
+	}
+
+	/**
+	 * Subject and body of a template with the values filled in (plain text). Values are
+	 * inserted once (a value that contains "{link}" is not replaced again); placeholders the
+	 * template does not offer stay as typed.
+	 *
+	 * @param string $key  Template key.
+	 * @param array  $vars placeholder => value ("site" is added).
+	 * @return array array( subject, body )
+	 */
+	public static function render_template( $key, array $vars ) {
+		$vars += array( 'site' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+		$map   = array();
+		foreach ( $vars as $name => $value ) {
+			$map[ '{' . $name . '}' ] = (string) $value;
+		}
+		list( $subject, $body ) = self::template( $key );
+		$subject                = trim( (string) preg_replace( '/[\r\n\t]+/', ' ', strtr( (string) $subject, $map ) ) );
+		$body                   = strtr( str_replace( array( "\r\n", "\r" ), "\n", (string) $body ), $map );
+		return array( $subject, $body );
+	}
+
+	/**
+	 * Example values for the test mail of a template.
+	 *
+	 * @param string $key Template key.
+	 * @return array placeholder => value
+	 */
+	public static function sample_vars( $key ) {
+		$code     = 'MAX123';
+		$currency = (string) Settings::get( 'currency' );
+		$amount   = html_entity_decode( \WPAffiliateCaptain\Core\Money::format( 12345, '' !== $currency ? $currency : 'EUR' ), ENT_QUOTES, 'UTF-8' );
+		$portal   = self::portal_url();
+		$all      = array(
+			'name'              => __( 'Max Mustermann', 'affiliate-captain' ),
+			'link'              => 'confirm_application' === $key ? add_query_arg( 'wpac_confirm', 'example', home_url( '/' ) ) : add_query_arg( (string) Settings::get( 'referral_param' ), $code, home_url( '/' ) ),
+			'code'              => $code,
+			'rate'              => \WPAffiliateCaptain\Commissions\RuleRepository::format_rate( (string) Settings::get( 'default_rate_type' ), (string) Settings::get( 'default_rate' ) ),
+			'portal_url'        => $portal,
+			/* translators: %s: portal URL */
+			'access'            => sprintf( __( 'Your partner area with links, codes and statistics: %s', 'affiliate-captain' ), $portal ),
+			/* translators: %s: reason entered by the shop team */
+			'reason'            => 0 === strpos( (string) $key, 'status_' ) ? sprintf( __( 'Reason: %s', 'affiliate-captain' ), __( 'Example reason', 'affiliate-captain' ) ) : __( 'Example reason', 'affiliate-captain' ),
+			'amount'            => $amount,
+			'number'            => 'GS-2026-0001',
+			'storno_number'     => 'ST-2026-0001',
+			'correction_number' => 'KG-2026-0001',
+			/* translators: %s: amount */
+			'effect'            => sprintf( __( 'The difference of %s is paid with your next payout.', 'affiliate-captain' ), $amount ),
+			'events'            => __( 'New commissions (pending until the end of the hold period)', 'affiliate-captain' ) . ': 2 (' . $amount . ')',
+		);
+		$defs = self::template_defs();
+		$vars = isset( $defs[ $key ] ) ? $defs[ $key ]['vars'] : array();
+		return array_intersect_key( $all, array_flip( $vars ) );
+	}
+
+	/**
+	 * Send the template in effect with example values to an address (admin "Send test e-mail").
+	 *
+	 * @param string $key   Template key.
+	 * @param string $email Recipient (the current admin).
+	 * @return bool|\WP_Error
+	 */
+	public static function send_test( $key, $email ) {
+		$defs = self::template_defs();
+		if ( ! isset( $defs[ $key ] ) ) {
+			return new \WP_Error( 'wpac_template_unknown', __( 'Unknown e-mail template.', 'affiliate-captain' ) );
+		}
+		if ( ! is_email( $email ) ) {
+			return new \WP_Error( 'wpac_template_email', __( 'Your user account has no valid e-mail address.', 'affiliate-captain' ) );
+		}
+		list( $subject, $body ) = self::render_template( $key, self::sample_vars( $key ) );
+		return self::send(
+			$defs[ $key ]['type'],
+			$email,
+			/* translators: %s: subject */
+			sprintf( __( '[Test] %s', 'affiliate-captain' ), $subject ),
+			$body,
+			array(
+				'admin'    => true,
+				'template' => $key,
+				'test'     => true,
+			)
+		);
+	}
+
+	/**
+	 * HTML version of a plain-text mail: every text is escaped (values a partner entered, like
+	 * the name, cannot inject markup), web addresses become links, line breaks are kept.
+	 *
+	 * @param string $text    Plain text.
+	 * @param string $subject Subject (document title).
+	 * @param array  $context type, template, affiliate_id.
+	 * @return string
+	 */
+	public static function html_message( $text, $subject, array $context = array() ) {
+		$text  = trim( str_replace( array( "\r\n", "\r" ), "\n", (string) $text ) );
+		$paras = '';
+		foreach ( preg_split( "/\n{2,}/", $text ) as $para ) {
+			$paras .= '<p style="margin:0 0 16px;">' . str_replace( "\n", "<br>\n", self::linkify( esc_html( $para ) ) ) . "</p>\n";
+		}
+		$site = esc_html( wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+		$html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc_html( (string) $subject ) . '</title></head>'
+			. '<body style="margin:0;padding:0;background:#f4f4f5;">'
+			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;"><tr><td align="center" style="padding:24px 12px;">'
+			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:6px;"><tr>'
+			. '<td style="padding:24px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f2937;">' . "\n"
+			. $paras
+			. '</td></tr></table>'
+			. '<p style="margin:16px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;">' . $site . '</p>'
+			. '</td></tr></table></body></html>';
+		/**
+		 * HTML version of a template mail (layout "HTML" in the e-mail templates).
+		 *
+		 * @param string $html    HTML document.
+		 * @param string $text    Plain text (sent as the alternative part).
+		 * @param string $subject Subject.
+		 * @param array  $context type, template, affiliate_id.
+		 */
+		return (string) apply_filters( 'wpac_mail_html', $html, $text, (string) $subject, $context );
+	}
+
+	/**
+	 * Turn the web addresses in escaped text into links.
+	 *
+	 * @param string $escaped HTML-escaped text.
+	 * @return string
+	 */
+	private static function linkify( $escaped ) {
+		return (string) preg_replace_callback(
+			'#https?://[^\s<>"]+#i',
+			static function ( $m ) {
+				$url  = $m[0];
+				$tail = '';
+				while ( preg_match( '/(&quot;|&#0?39;|&gt;|&lt;|[.,;:!?)\]])$/', $url, $t ) ) {
+					$tail = $t[1] . $tail;
+					$url  = substr( $url, 0, -strlen( $t[1] ) );
+				}
+				return '<a href="' . $url . '" style="color:#2563eb;">' . $url . '</a>' . $tail;
+			},
+			(string) $escaped
 		);
 	}
 
@@ -184,7 +726,7 @@ final class Notifications {
 				$name = trim( (string) $aff->name );
 				/* translators: %s: partner name */
 				$body = ( '' !== $name ? sprintf( __( 'Hello %s,', 'affiliate-captain' ), $name ) . "\n\n" : '' ) . $state['message'];
-				if ( self::send_optional( 'broadcast', $aff, $state['subject'], $body ) ) {
+				if ( self::send_optional( 'broadcast', $aff, $state['subject'], $body, array( 'template' => 'broadcast' ) ) ) {
 					++$state['sent'];
 				}
 			} finally {
@@ -224,14 +766,22 @@ final class Notifications {
 		}
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			list( $subject, $body ) = self::render_template(
+				'credit_note',
+				array(
+					'name'       => $aff->name,
+					'number'     => $p->number,
+					'amount'     => html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ),
+					'portal_url' => add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ),
+				)
+			);
 			$sent = self::send(
 				'credit_note',
 				$aff->email,
-				/* translators: 1: site name, 2: document number */
-				sprintf( __( '[%1$s] Credit note %2$s', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
-				/* translators: 1: name, 2: document number, 3: amount, 4: portal URL */
-				sprintf( __( "Hello %1\$s,\n\nwe have issued credit note %2\$s for your commissions (total %3\$s). It is attached to this e-mail and can be downloaded in your partner area: %4\$s\n\nPlease check it. If something is wrong, you can object to it in the partner area.", 'affiliate-captain' ), $aff->name, $p->number, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				$subject,
+				$body,
 				array(
+					'template'     => 'credit_note',
 					'affiliate_id' => (int) $aff->id,
 					'attachments'  => '' !== (string) $path && is_readable( (string) $path ) ? array( (string) $path ) : array(),
 				)
@@ -260,14 +810,22 @@ final class Notifications {
 		}
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			list( $subject, $body ) = self::render_template(
+				'credit_note_cancelled',
+				array(
+					'name'          => $aff->name,
+					'number'        => $p->number,
+					'storno_number' => (string) $p->storno_number,
+					'portal_url'    => add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ),
+				)
+			);
 			$sent = self::send(
 				'credit_note_cancelled',
 				$aff->email,
-				/* translators: 1: site name, 2: cancelled credit note number */
-				sprintf( __( '[%1$s] Credit note %2$s cancelled', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
-				/* translators: 1: name, 2: credit note number, 3: cancellation number, 4: portal URL */
-				sprintf( __( "Hello %1\$s,\n\nwe have cancelled credit note %2\$s with the attached cancellation document %3\$s. The commissions remain in your account and are paid out with a new credit note.\n\nPartner area: %4\$s", 'affiliate-captain' ), $aff->name, $p->number, (string) $p->storno_number, add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				$subject,
+				$body,
 				array(
+					'template'     => 'credit_note_cancelled',
 					'affiliate_id' => (int) $aff->id,
 					'attachments'  => '' !== (string) $path && is_readable( (string) $path ) ? array( (string) $path ) : array(),
 				)
@@ -305,14 +863,23 @@ final class Notifications {
 				? sprintf( __( 'The difference of %s is paid with your next payout.', 'affiliate-captain' ), $amount )
 				/* translators: %s: amount */
 				: sprintf( __( 'The overpayment of %s is offset against your next commissions.', 'affiliate-captain' ), $amount );
+			list( $subject, $body ) = self::render_template(
+				'credit_note_corrected',
+				array(
+					'name'              => $aff->name,
+					'number'            => $p->number,
+					'correction_number' => (string) $c->number,
+					'effect'            => $effect,
+					'portal_url'        => add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ),
+				)
+			);
 			$sent = self::send(
 				'credit_note_corrected',
 				$aff->email,
-				/* translators: 1: site name, 2: correction number, 3: credit note number */
-				sprintf( __( '[%1$s] Correction credit note %2$s for credit note %3$s', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), (string) $c->number, $p->number ),
-				/* translators: 1: name, 2: credit note number, 3: correction number, 4: what happens with the difference, 5: portal URL */
-				sprintf( __( "Hello %1\$s,\n\nwe have corrected credit note %2\$s with the attached correction credit note %3\$s. %4\$s\n\nPartner area: %5\$s", 'affiliate-captain' ), $aff->name, $p->number, (string) $c->number, $effect, add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) ),
+				$subject,
+				$body,
 				array(
+					'template'     => 'credit_note_corrected',
 					'affiliate_id' => (int) $aff->id,
 					'attachments'  => '' !== (string) $path && is_readable( (string) $path ) ? array( (string) $path ) : array(),
 				)
@@ -395,7 +962,10 @@ final class Notifications {
 	 * @param string          $message Plain text body.
 	 * @param array           $args    Optional: admin (bool, mail to the operator: no Reply-To),
 	 *                                 reply_to (string; false = none), headers (array),
-	 *                                 attachments (array), affiliate_id (int).
+	 *                                 attachments (array), affiliate_id (int), template (string:
+	 *                                 key of the e-mail template the text comes from; with the
+	 *                                 HTML layout such a mail is sent as HTML with the plain text
+	 *                                 as alternative), test (bool, test mail from the admin).
 	 * @return bool Whether the mail was handed over (also true if a filter skipped it on purpose;
 	 *              false while mails are suppressed, see suppress()).
 	 */
@@ -406,6 +976,8 @@ final class Notifications {
 			'headers'      => array(),
 			'attachments'  => array(),
 			'affiliate_id' => 0,
+			'template'     => '',
+			'test'         => false,
 		);
 		if ( self::$suppressed > 0 ) {
 			// E.g. a CSV import without e-mails: nothing leaves the server, and the caller must not
@@ -457,19 +1029,36 @@ final class Notifications {
 			'type'         => (string) $type,
 			'admin'        => (bool) $args['admin'],
 			'affiliate_id' => (int) $args['affiliate_id'],
+			'template'     => (string) $args['template'],
+			'html'         => '' !== (string) $args['template'] && self::html_layout(),
+			'test'         => (bool) $args['test'],
 		);
+		// Layout "HTML" of the e-mail templates: the filled-in template (plain text) becomes the
+		// alternative part, the escaped HTML version the body. wpac_mail runs after the template,
+		// so existing filters keep working (and see the Content-Type header).
+		$plain = '';
+		$built = '';
+		if ( $context['html'] ) {
+			$plain             = $mail['message'];
+			$built             = self::html_message( $plain, $mail['subject'], $context );
+			$mail['message']   = $built;
+			$mail['headers'][] = 'Content-Type: text/html; charset=UTF-8';
+		}
 		/**
 		 * Filter an e-mail of Affiliate Captain before it is sent: change recipient, subject,
 		 * text, headers (e.g. "Content-Type: text/html; charset=UTF-8" for an HTML version) or
-		 * attachments – or return false to not send it.
+		 * attachments – or return false to not send it. Runs after the e-mail template of the
+		 * admin was applied (the message is HTML if the template layout is "HTML", see
+		 * $context['html']).
 		 *
 		 * @param array|false $mail    to, subject, message, headers, attachments.
 		 * @param string      $type    Mail type (payout_paid, application_received, monthly_partner …).
-		 * @param array       $context type, admin (mail to the operator), affiliate_id.
+		 * @param array       $context type, admin (mail to the operator), affiliate_id, template
+		 *                             (template key or ''), html, test.
 		 */
 		$mail = apply_filters( 'wpac_mail', $mail, (string) $type, $context );
 		if ( ! is_array( $mail ) ) {
-			Log::debug( 'E-mail skipped by a filter', $context );
+			Log::debug( 'E-mail skipped by a filter', self::log_context( $context ) );
 			return true;
 		}
 		$mail += array(
@@ -479,10 +1068,16 @@ final class Notifications {
 			'headers'     => array(),
 			'attachments' => array(),
 		);
+		self::$alt_body = '';
+		if ( $context['html'] && preg_grep( '/^\s*content-type:\s*text\/html/i', (array) $mail['headers'] ) ) {
+			// A filter that rewrote the HTML gets a plain-text part derived from its version.
+			self::$alt_body = $mail['message'] === $built ? $plain : trim( html_entity_decode( wp_strip_all_tags( (string) preg_replace( '#<br\s*/?>|</p>#i', "\n", (string) $mail['message'] ) ), ENT_QUOTES, 'UTF-8' ) );
+		}
 		if ( ! self::$hooked ) {
 			self::$hooked = true;
 			add_action( 'wp_mail_failed', array( __CLASS__, 'capture_mail_error' ) );
 			add_filter( 'wp_mail_from_name', array( __CLASS__, 'filter_from_name' ), 20 );
+			add_action( 'phpmailer_init', array( __CLASS__, 'set_alt_body' ) );
 		}
 		self::$last_error = null;
 		self::$from_name  = $name;
@@ -495,7 +1090,7 @@ final class Notifications {
 		}
 		if ( ! $ok ) {
 			$error = self::$last_error instanceof \WP_Error ? self::$last_error->get_error_message() : 'wp_mail() returned false';
-			Log::warning( 'E-mail could not be sent', $context + array( 'error' => \WPAffiliateCaptain\Core\Db::cut( (string) $error, 300 ) ) );
+			Log::warning( 'E-mail could not be sent', self::log_context( $context ) + array( 'error' => \WPAffiliateCaptain\Core\Db::cut( (string) $error, 300 ) ) );
 			/**
 			 * Fires when an e-mail of Affiliate Captain could not be sent.
 			 *
@@ -526,6 +1121,32 @@ final class Notifications {
 	public static function capture_mail_error( $error ) {
 		if ( self::$sending && $error instanceof \WP_Error ) {
 			self::$last_error = $error;
+		}
+	}
+
+	/**
+	 * Context of a mail for the log (the template key only if there is one).
+	 *
+	 * @param array $context Mail context.
+	 * @return array
+	 */
+	private static function log_context( array $context ) {
+		$log = array_intersect_key( $context, array_flip( array( 'type', 'admin', 'affiliate_id' ) ) );
+		if ( ! empty( $context['template'] ) ) {
+			$log['template'] = $context['template'];
+		}
+		return $log;
+	}
+
+	/**
+	 * Plain-text alternative of an HTML template mail while it is sent (phpmailer_init): the
+	 * mail becomes multipart/alternative, so clients without HTML show the plain text.
+	 *
+	 * @param object $phpmailer PHPMailer instance.
+	 */
+	public static function set_alt_body( $phpmailer ) {
+		if ( self::$sending && '' !== self::$alt_body && is_object( $phpmailer ) ) {
+			$phpmailer->AltBody = self::$alt_body; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- PHPMailer property.
 		}
 	}
 
@@ -641,32 +1262,96 @@ final class Notifications {
 	}
 
 	/**
-	 * Unsubscribe link of a mail (init): checks the signature, stores the choice and shows a
-	 * confirmation with a link to undo it.
+	 * Unsubscribe link of a mail (init). A GET only shows a confirmation page with a button
+	 * (mail scanners such as Safe Links open links in advance and must not unsubscribe the
+	 * partner); the choice is stored on the POST of that button or on the one-click POST of the
+	 * mail client (RFC 8058, "List-Unsubscribe=One-Click"). The signed link is the secret: no
+	 * nonce (no session, the mail client posts without cookies).
 	 */
 	public static function handle_unsubscribe() {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Signed link from an e-mail (no session).
 		if ( ! isset( $_GET['wpac_unsubscribe'], $_GET['wpac_aff'], $_GET['wpac_sig'] ) ) {
 			return;
 		}
-		$type = sanitize_key( wp_unslash( $_GET['wpac_unsubscribe'] ) );
-		$id   = absint( $_GET['wpac_aff'] );
-		$sig  = sanitize_text_field( wp_unslash( $_GET['wpac_sig'] ) );
-		$on   = ! empty( $_GET['wpac_on'] );
+		$query = array(
+			'wpac_unsubscribe' => sanitize_key( wp_unslash( $_GET['wpac_unsubscribe'] ) ),
+			'wpac_aff'         => absint( $_GET['wpac_aff'] ),
+			'wpac_sig'         => sanitize_text_field( wp_unslash( $_GET['wpac_sig'] ) ),
+			'wpac_on'          => empty( $_GET['wpac_on'] ) ? 0 : 1,
+		);
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-		$aff = AffiliateRepository::find( $id );
-		if ( ! $aff || ! in_array( $type, self::OPTOUT_TYPES, true ) || ! hash_equals( self::unsubscribe_sig( $id, $type ), $sig ) ) {
-			wp_die( esc_html__( 'This link is not valid.', 'affiliate-captain' ), esc_html__( 'E-mail settings', 'affiliate-captain' ), array( 'response' => 400 ) );
+		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : 'GET';
+		$result = self::unsubscribe_request( $query, 'POST' === $method );
+		if ( function_exists( 'nocache_headers' ) ) {
+			nocache_headers();
 		}
-		self::set_opt_out( $id, $type, ! $on );
+		wp_die( $result['html'], esc_html( $result['title'] ), array( 'response' => $result['status'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts in unsubscribe_request().
+	}
+
+	/**
+	 * Answer to an unsubscribe link: confirmation page (GET) or the stored choice (POST).
+	 *
+	 * @param array $query wpac_unsubscribe, wpac_aff, wpac_sig, wpac_on (sanitized).
+	 * @param bool  $post  POST request (button of the confirmation page or one-click of the mail client).
+	 * @return array status, title, html
+	 */
+	public static function unsubscribe_request( array $query, $post ) {
+		$type = isset( $query['wpac_unsubscribe'] ) ? sanitize_key( (string) $query['wpac_unsubscribe'] ) : '';
+		$id   = isset( $query['wpac_aff'] ) ? absint( $query['wpac_aff'] ) : 0;
+		$sig  = isset( $query['wpac_sig'] ) ? (string) $query['wpac_sig'] : '';
+		$on   = ! empty( $query['wpac_on'] );
+		$aff  = $id ? AffiliateRepository::find( $id ) : null;
+		if ( ! $aff || ! in_array( $type, self::OPTOUT_TYPES, true ) || ! hash_equals( self::unsubscribe_sig( $id, $type ), $sig ) ) {
+			return array(
+				'status' => 400,
+				'title'  => __( 'E-mail settings', 'affiliate-captain' ),
+				'html'   => '<p>' . esc_html__( 'This link is not valid.', 'affiliate-captain' ) . '</p>',
+			);
+		}
 		$switched = Locale::switch_for_affiliate( $aff );
-		$text     = $on
-			? __( 'You will receive these e-mails again.', 'affiliate-captain' )
-			: __( 'You have been unsubscribed. You will no longer receive these e-mails from the partner program.', 'affiliate-captain' );
-		$link     = $on ? '' : ' <a href="' . esc_url( self::unsubscribe_url( $aff, $type, false ) ) . '">' . esc_html__( 'Undo', 'affiliate-captain' ) . '</a>';
-		$title    = __( 'E-mail settings', 'affiliate-captain' );
-		Locale::restore( $switched );
-		wp_die( '<p>' . esc_html( $text ) . $link . '</p>', esc_html( $title ), array( 'response' => 200 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+		try {
+			$labels = self::optout_labels();
+			$what   = isset( $labels[ $type ] ) ? $labels[ $type ] : $type;
+			if ( $post ) {
+				self::set_opt_out( $id, $type, ! $on );
+				$html = '<p>' . esc_html(
+					$on
+						? __( 'You will receive these e-mails again.', 'affiliate-captain' )
+						: __( 'You have been unsubscribed. You will no longer receive these e-mails from the partner program.', 'affiliate-captain' )
+				) . '</p>';
+				if ( ! $on ) {
+					$html .= self::unsubscribe_form( self::unsubscribe_url( $aff, $type, false ), __( 'Undo', 'affiliate-captain' ) );
+				}
+			} else {
+				$html = '<p>' . esc_html(
+					$on
+						/* translators: %s: kind of e-mails, e.g. "Monthly summary" */
+						? sprintf( __( 'Do you want to receive these e-mails again: %s?', 'affiliate-captain' ), $what )
+						/* translators: %s: kind of e-mails, e.g. "Monthly summary" */
+						: sprintf( __( 'Do you want to unsubscribe from these e-mails of the partner program: %s?', 'affiliate-captain' ), $what )
+				) . '</p>';
+				$html .= self::unsubscribe_form( self::unsubscribe_url( $aff, $type, ! $on ), $on ? __( 'Subscribe again', 'affiliate-captain' ) : __( 'Unsubscribe', 'affiliate-captain' ) );
+			}
+			$title = __( 'E-mail settings', 'affiliate-captain' );
+		} finally {
+			Locale::restore( $switched );
+		}
+		return array(
+			'status' => 200,
+			'title'  => $title,
+			'html'   => $html,
+		);
+	}
+
+	/**
+	 * Button that posts to a signed unsubscribe link.
+	 *
+	 * @param string $url   Signed link.
+	 * @param string $label Button label.
+	 * @return string HTML.
+	 */
+	private static function unsubscribe_form( $url, $label ) {
+		return '<form method="post" action="' . esc_url( $url ) . '"><input type="hidden" name="wpac_confirm" value="1"><p><button type="submit" class="button">' . esc_html( $label ) . '</button></p></form>';
 	}
 
 	/**
@@ -689,9 +1374,11 @@ final class Notifications {
 	 * @param object $aff     Partner.
 	 * @param string $subject Subject.
 	 * @param string $message Body.
+	 * @param array  $args    Further arguments of send() (e.g. template).
 	 * @return bool
 	 */
-	public static function send_optional( $type, $aff, $subject, $message ) {
+	public static function send_optional( $type, $aff, $subject, $message, array $args = array() ) {
+		$url = self::unsubscribe_url( $aff, $type );
 		return self::send(
 			$type,
 			$aff->email,
@@ -699,8 +1386,9 @@ final class Notifications {
 			$message . self::unsubscribe_footer( $aff, $type ),
 			array(
 				'affiliate_id' => (int) $aff->id,
-				'headers'      => array( 'List-Unsubscribe: <' . self::unsubscribe_url( $aff, $type ) . '>' ),
-			)
+				// One-click unsubscribe (RFC 8058): the mail client posts to the signed link.
+				'headers'      => array( 'List-Unsubscribe: <' . $url . '>', 'List-Unsubscribe-Post: List-Unsubscribe=One-Click' ),
+			) + $args
 		);
 	}
 
@@ -801,10 +1489,16 @@ final class Notifications {
 					}
 					$lines[] = $head . ': ' . count( $by_event[ $event ] ) . ' (' . implode( ', ', $amounts ) . ')';
 				}
-				/* translators: 1: name, 2: list of events, 3: portal URL */
-				$body = sprintf( __( "Hello %1\$s,\n\nthere is news about your commissions:\n\n%2\$s\n\nDetails are in your partner area: %3\$s", 'affiliate-captain' ), $aff->name, implode( "\n", $lines ), self::portal_url( $aff ) );
-				/* translators: %s: site name */
-				if ( self::send_optional( 'commission', $aff, sprintf( __( '[%s] News about your commissions', 'affiliate-captain' ), $site ), $body ) ) {
+				list( $subject, $body ) = self::render_template(
+					'commission',
+					array(
+						'name'       => $aff->name,
+						'site'       => $site,
+						'events'     => implode( "\n", $lines ),
+						'portal_url' => self::portal_url( $aff ),
+					)
+				);
+				if ( self::send_optional( 'commission', $aff, $subject, $body, array( 'template' => 'commission' ) ) ) {
 					++$sent;
 				}
 			} finally {
@@ -840,21 +1534,25 @@ final class Notifications {
 		$portal   = (int) Settings::get( 'portal_page_id' );
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
-			$text = $manual
-				/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
-				? __( "Hello %1\$s,\n\nwe have paid out %2\$s to you with the payment method agreed with you (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'affiliate-captain' )
-				/* translators: 1: name, 2: amount, 3: number, 4: portal URL */
-				: __( "Hello %1\$s,\n\nwe have transferred %2\$s to your bank account (credit note %3\$s).\n\nYou can download the credit note in your partner area: %4\$s", 'affiliate-captain' );
+			$key                    = $manual ? 'payout_paid_manual' : 'payout_paid';
+			list( $subject, $body ) = self::render_template(
+				$key,
+				array(
+					'name'       => $aff->name,
+					'amount'     => html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ),
+					'number'     => $p->number,
+					'portal_url' => $portal ? add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) : home_url( '/' ),
+				)
+			);
 			self::send(
 				'payout_paid',
 				$aff->email,
-				$manual
-					/* translators: 1: site name, 2: payout number */
-					? sprintf( __( '[%1$s] Payout %2$s paid', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number )
-					/* translators: 1: site name, 2: payout number */
-					: sprintf( __( '[%1$s] Payout %2$s transferred', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $p->number ),
-				sprintf( $text, $aff->name, html_entity_decode( \WPAffiliateCaptain\Core\Money::format( (int) $p->amount_minor, $p->currency ), ENT_QUOTES, 'UTF-8' ), $p->number, $portal ? add_query_arg( 'wpac_tab', 'payouts', self::portal_url( $aff ) ) : home_url( '/' ) ),
-				array( 'affiliate_id' => (int) $aff->id )
+				$subject,
+				$body,
+				array(
+					'template'     => $key,
+					'affiliate_id' => (int) $aff->id,
+				)
 			);
 		} finally {
 			Locale::restore( $switched );
@@ -913,17 +1611,18 @@ final class Notifications {
 		if ( ! $aff || ! is_email( $aff->email ) ) {
 			return;
 		}
-		$site     = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			list( $subject, $body ) = self::render_template( 'application_confirmed', array() );
 			self::send(
 				'application_confirmed',
 				$aff->email,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] We have received your partner application', 'affiliate-captain' ), $site ),
-				/* translators: %s: site name */
-				sprintf( __( "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided.", 'affiliate-captain' ), $site ),
-				array( 'affiliate_id' => (int) $aff->id )
+				$subject,
+				$body,
+				array(
+					'template'     => 'application_confirmed',
+					'affiliate_id' => (int) $aff->id,
+				)
 			);
 		} finally {
 			Locale::restore( $switched );
@@ -939,15 +1638,8 @@ final class Notifications {
 	 * @param string $link  Confirmation link.
 	 */
 	public static function confirm_application( $email, $link ) {
-		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-		self::send(
-			'confirm_application',
-			$email,
-			/* translators: %s: site name */
-			sprintf( __( '[%s] Please confirm your partner application', 'affiliate-captain' ), $site ),
-			/* translators: 1: site name, 2: link */
-			sprintf( __( "Hello,\n\nsomeone (probably you) applied for the partner program of %1\$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2\$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail.", 'affiliate-captain' ), $site, $link )
-		);
+		list( $subject, $body ) = self::render_template( 'confirm_application', array( 'link' => (string) $link ) );
+		self::send( 'confirm_application', $email, $subject, $body, array( 'template' => 'confirm_application' ) );
 	}
 
 	/**
@@ -959,14 +1651,8 @@ final class Notifications {
 		$aff      = AffiliateRepository::find_by_email( $email );
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
-			self::send(
-				'already_registered',
-				$email,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] Your partner account', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-				/* translators: %s: portal URL */
-				sprintf( __( "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail.", 'affiliate-captain' ), self::portal_url( $aff ) )
-			);
+			list( $subject, $body ) = self::render_template( 'already_registered', array( 'portal_url' => self::portal_url( $aff ) ) );
+			self::send( 'already_registered', $email, $subject, $body, array( 'template' => 'already_registered' ) );
 		} finally {
 			Locale::restore( $switched );
 		}
@@ -986,14 +1672,22 @@ final class Notifications {
 		$to       = array_filter( array_unique( array( $aff->email, AffiliateRepository::previous_email( (int) $id ) ) ) );
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			list( $subject, $body ) = self::render_template(
+				'bank_details_changed',
+				array(
+					'name' => $aff->name,
+					'site' => $site,
+				)
+			);
 			self::send(
 				'bank_details_changed',
 				$to,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] Your bank details were changed', 'affiliate-captain' ), $site ),
-				/* translators: %s: name */
-				sprintf( __( "Hello %s,\n\nthe bank details for your commission payouts were just changed. If you did not make this change, please contact us immediately.", 'affiliate-captain' ), $aff->name ),
-				array( 'affiliate_id' => (int) $aff->id )
+				$subject,
+				$body,
+				array(
+					'template'     => 'bank_details_changed',
+					'affiliate_id' => (int) $aff->id,
+				)
 			);
 		} finally {
 			Locale::restore( $switched );
@@ -1059,15 +1753,17 @@ final class Notifications {
 		}
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			$key                    = $approved ? 'public_change_approved' : 'public_change_rejected';
+			list( $subject, $body ) = self::render_template( $key, array( 'name' => $aff->name ) );
 			self::send(
 				'public_change_resolved',
 				$aff->email,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] Your profile change', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-				$approved
-					? __( "Hello,\n\nyour new name or website for the partner program was approved and is shown from now on.", 'affiliate-captain' )
-					: __( "Hello,\n\nyour requested change of name or website for the partner program was not approved. The previous details remain. If you have questions, please contact us.", 'affiliate-captain' ),
-				array( 'affiliate_id' => (int) $aff->id )
+				$subject,
+				$body,
+				array(
+					'template'     => $key,
+					'affiliate_id' => (int) $aff->id,
+				)
 			);
 		} finally {
 			Locale::restore( $switched );
@@ -1086,14 +1782,16 @@ final class Notifications {
 		}
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			list( $subject, $body ) = self::render_template( 'application_approved', self::welcome_vars( $aff ) );
 			self::send(
 				'application_approved',
 				$aff->email,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] Your affiliate application was approved', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-				/* translators: 1: name, 2: access instructions */
-				sprintf( __( "Hello %1\$s,\n\nwelcome to our partner program!\n\n%2\$s", 'affiliate-captain' ), $aff->name, self::access_text( $aff ) ),
-				array( 'affiliate_id' => (int) $aff->id )
+				$subject,
+				$body,
+				array(
+					'template'     => 'application_approved',
+					'affiliate_id' => (int) $aff->id,
+				)
 			);
 		} finally {
 			Locale::restore( $switched );
@@ -1111,21 +1809,43 @@ final class Notifications {
 		if ( ! $aff || 'active' !== $aff->status ) {
 			return;
 		}
-		$site     = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			list( $subject, $body ) = self::render_template( 'partner_created', self::welcome_vars( $aff ) );
 			self::send(
 				'partner_created',
 				$aff->email,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] Welcome to our partner program', 'affiliate-captain' ), $site ),
-				/* translators: 1: name, 2: site name, 3: access instructions */
-				sprintf( __( "Hello %1\$s,\n\n%2\$s has set up a partner account for you.\n\n%3\$s", 'affiliate-captain' ), $aff->name, $site, self::access_text( $aff ) ),
-				array( 'affiliate_id' => (int) $aff->id )
+				$subject,
+				$body,
+				array(
+					'template'     => 'partner_created',
+					'affiliate_id' => (int) $aff->id,
+				)
 			);
 		} finally {
 			Locale::restore( $switched );
 		}
+	}
+
+	/**
+	 * Placeholder values of the welcome mails: partner link, code and commission rate (the
+	 * shortest way to the first share), partner area and access.
+	 *
+	 * @param object $aff Affiliate.
+	 * @return array
+	 */
+	private static function welcome_vars( $aff ) {
+		$code  = \WPAffiliateCaptain\Codes\CodeRepository::main_code( (int) $aff->id );
+		$terms = \WPAffiliateCaptain\Portal\Portal::conditions( $aff );
+		return array(
+			'name'       => $aff->name,
+			// Without a code (normally created on activation) the link points to the partner area.
+			'link'       => '' !== $code ? add_query_arg( (string) Settings::get( 'referral_param' ), rawurlencode( $code ), home_url( '/' ) ) : self::portal_url( $aff ),
+			'code'       => '' !== $code ? $code : '—',
+			'rate'       => $terms ? (string) reset( $terms ) : '',
+			'portal_url' => self::portal_url( $aff ),
+			'access'     => self::access_text( $aff ),
+		);
 	}
 
 	/**
@@ -1185,28 +1905,25 @@ final class Notifications {
 	 * @param string $reason Reason.
 	 */
 	private static function send_status_changed( $aff, $status, $reason ) {
-		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-		switch ( $status ) {
-			case 'paused':
-				/* translators: %s: site name */
-				$subject = sprintf( __( '[%s] Your partner account has been paused', 'affiliate-captain' ), $site );
-				$body    = __( 'Your partner account has been paused. During the pause, new sales are not attributed to you. Commissions already earned remain unaffected.', 'affiliate-captain' );
-				break;
-			case 'terminated':
-				/* translators: %s: site name */
-				$subject = sprintf( __( '[%s] Your partnership has been terminated', 'affiliate-captain' ), $site );
-				$body    = 'reject' === Settings::get( 'terminated_open' )
-					? __( 'Your partnership has been terminated. Open commissions that were not yet paid have been cancelled according to the program terms.', 'affiliate-captain' )
-					: __( 'Your partnership has been terminated. Approved commissions will still be paid out according to the program terms.', 'affiliate-captain' );
-				break;
-			default:
-				/* translators: %s: site name */
-				$subject = sprintf( __( '[%s] Your partner account is active again', 'affiliate-captain' ), $site );
-				$body    = __( 'Your partner account has been reactivated. Your links and codes work again.', 'affiliate-captain' );
-		}
-		/* translators: 1: name, 2: message, 3: reason */
-		$message = sprintf( __( "Hello %1\$s,\n\n%2\$s\n\n%3\$s", 'affiliate-captain' ), $aff->name, $body, $reason ? sprintf( /* translators: %s: reason entered by the shop team */ __( 'Reason: %s', 'affiliate-captain' ), $reason ) : '' );
-		self::send( 'status_changed', $aff->email, $subject, $message, array( 'affiliate_id' => (int) $aff->id ) );
+		$key                    = in_array( $status, array( 'paused', 'terminated' ), true ) ? 'status_' . $status : 'status_active';
+		list( $subject, $body ) = self::render_template(
+			$key,
+			array(
+				'name'   => $aff->name,
+				/* translators: %s: reason entered by the shop team */
+				'reason' => $reason ? sprintf( __( 'Reason: %s', 'affiliate-captain' ), $reason ) : '',
+			)
+		);
+		self::send(
+			'status_changed',
+			$aff->email,
+			$subject,
+			$body,
+			array(
+				'template'     => $key,
+				'affiliate_id' => (int) $aff->id,
+			)
+		);
 	}
 
 	/**
@@ -1222,14 +1939,22 @@ final class Notifications {
 		}
 		$switched = Locale::switch_for_affiliate( $aff );
 		try {
+			list( $subject, $body ) = self::render_template(
+				'application_rejected',
+				array(
+					'name'   => $aff->name,
+					'reason' => (string) $reason,
+				)
+			);
 			self::send(
 				'application_rejected',
 				$aff->email,
-				/* translators: %s: site name */
-				sprintf( __( '[%s] Your affiliate application', 'affiliate-captain' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
-				/* translators: 1: name, 2: reason */
-				sprintf( __( "Hello %1\$s,\n\nunfortunately we cannot accept your application at this time.\n\n%2\$s", 'affiliate-captain' ), $aff->name, $reason ),
-				array( 'affiliate_id' => (int) $aff->id )
+				$subject,
+				$body,
+				array(
+					'template'     => 'application_rejected',
+					'affiliate_id' => (int) $aff->id,
+				)
 			);
 		} finally {
 			Locale::restore( $switched );

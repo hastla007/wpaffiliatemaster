@@ -58,6 +58,7 @@ final class Admin {
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
 		// Daily work first, technical pages and settings last (R5-O46).
 		Pages\ImportExportPage::menu();
+		Pages\MailTemplatesPage::menu(); // R14-P1.
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
 		$audit = add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
 		$settings = add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
@@ -775,6 +776,11 @@ final class Admin {
 			'job_retry_all'     => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'job_dismiss'       => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_save'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			// E-mail templates (R14-P1).
+			'mail_template_save'  => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_template_reset' => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_template_test'  => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_layout_save'    => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'ropa_download'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),
