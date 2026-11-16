@@ -1010,6 +1010,9 @@ msgstr "Noch keine Buchungen. Das Konto beginnt mit der ersten freigegebenen Pro
 msgid "Account %1$s – balance %2$s"
 msgstr "Konto %1$s – Saldo %2$s"
 
+msgid "Minimum payout for this partner (partner program): %s"
+msgstr "Mindestauszahlung für diesen Partner (Partnerprogramm): %s"
+
 msgid "Including VAT (and VAT corrections of earlier credit notes): %s"
 msgstr "Einschließlich USt (und USt-Korrekturen früherer Gutschriften): %s"
 
@@ -2862,6 +2865,9 @@ msgstr "Diesen Auszahlungsantrag ablehnen? Der Partner wird mit dem Grund benach
 
 msgid "cannot be checked (no exchange rate for %s)"
 msgstr "kann nicht geprüft werden (kein Wechselkurs für %s)"
+
+msgid "%1$s: %2$s"
+msgstr "%1$s: %2$s"
 
 msgid "Search payouts"
 msgstr "Auszahlungen suchen"
@@ -7356,6 +7362,9 @@ msgstr "Hinweis für den Shopbetreiber: Das Affiliate-Cookie wird ohne Einwillig
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr "Wenn Sie unsere Website über einen Partnerlink besuchen oder einen Partnercode eingeben, speichern wir, welcher Partner Sie empfohlen hat, damit wir dem Partner eine Provision zahlen können. Ihre IP-Adresse speichern wir dafür nicht. Partner erhalten weder Ihren Namen noch Ihre Kontaktdaten."
 
+msgid "The lifetime of the affiliate cookie depends on the partner program of the partner whose link you followed: between %1$d and %2$d days."
+msgstr "Die Laufzeit des Affiliate-Cookies hängt vom Partnerprogramm des Partners ab, dessen Link Sie gefolgt sind: zwischen %1$d und %2$d Tagen."
+
 msgid "If you have a shopping cart (shop session), the partner code of the link you followed is also kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used."
 msgstr "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode des aufgerufenen Links bis zur Kasse zusätzlich mit Ihrer Shop-Sitzung auf unserem Server gespeichert. Dafür wird kein weiteres Cookie gesetzt; es wird das Sitzungs-Cookie Ihres Warenkorbs verwendet."
 
@@ -7382,6 +7391,9 @@ msgstr "Von Partnern speichern wir Bewerbungsangaben, akzeptierte Partnerbedingu
 
 msgid "link visits (without IP address): until deleted manually"
 msgstr "Link-Besuche (ohne IP-Adresse): bis zur manuellen Löschung"
+
+msgid "affiliate cookie: %1$d to %2$d days depending on the partner program"
+msgstr "Affiliate-Cookie: %1$d bis %2$d Tage je nach Partnerprogramm"
 
 msgid "customer link to the referring partner: until the partner relationship ends"
 msgstr "Kundenverknüpfung mit dem empfehlenden Partner: bis zum Ende der Partnerschaft"
