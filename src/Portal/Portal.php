@@ -1497,8 +1497,8 @@ final class Portal {
 		$min = \WPAffiliateCaptain\Reports\Reports::subid_min_group();
 		if ( $min > 1 ) {
 			// R12-L5: why small rows are missing (k-anonymity of the buyers).
-			/* translators: %d: minimum number of sales per row */
-			echo '<p class="wpac-muted">' . esc_html( sprintf( _n( 'To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as "Other". Rows with link visits only are shown on their own.', 'To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sales in the period are shown together as "Other". Rows with link visits only are shown on their own.', $min, 'affiliate-captain' ), $min ) ) . '</p>';
+			/* translators: %1$d: minimum number of link visits and sales per row */
+			echo '<p class="wpac-muted">' . esc_html( sprintf( _n( 'To protect the privacy of buyers, campaigns and sub-IDs with fewer than %1$d link visit or fewer than %1$d sale in the period are shown together as "Other".', 'To protect the privacy of buyers, campaigns and sub-IDs with fewer than %1$d link visits or fewer than %1$d sales in the period are shown together as "Other".', $min, 'affiliate-captain' ), $min ) ) . '</p>';
 		}
 		self::pager( $page, $total, 25 );
 	}

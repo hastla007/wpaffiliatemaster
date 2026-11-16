@@ -298,6 +298,7 @@ final class Cron {
 			'pending'               => array( array( Pending::class, 'purge' ), false ),
 			'migrations'            => array( array( Monitor::class, 'check_migrations' ), false ),
 			'orphaned_tables'       => array( array( Installer::class, 'drop_orphaned_tables' ), false ),
+			'uninstall_leftovers'   => array( array( Installer::class, 'retry_uninstall_leftovers' ), true ),
 			'tier_close'            => array( array( '\WPAffiliateCaptain\Commissions\TierService', 'close_due_months' ), true ),
 			'tier_recalculate'      => array( array( '\WPAffiliateCaptain\Commissions\TierService', 'recalculate_closed_months' ), true ),
 			'statements'            => array( array( '\WPAffiliateCaptain\Payouts\Statement', 'purge_expired' ), true ),

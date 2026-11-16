@@ -174,7 +174,7 @@ $l1_last = end( $l1_safe );
 check(
 	'R12-L5 "Other" row last, without campaign/sub-ID, labelled with the threshold, conversion from its own clicks',
 	array( true, '', '', true, round( 4 * 100 / 6, 1 ) ),
-	array( ! empty( $l1_last['other'] ), $l1_last['campaign'], $l1_last['sub_id'], false !== strpos( $l1_last['label'], 'fewer than 3 sales' ), $l1_last['conversion'] )
+	array( ! empty( $l1_last['other'] ), $l1_last['campaign'], $l1_last['sub_id'], false !== strpos( $l1_last['label'], 'fewer than 3 visits or sales' ), $l1_last['conversion'] )
 );
 check(
 	'R12-L5 no row shown to the partner has 1 or 2 sales except "Other"/generic; no sub-ID of a small row appears',

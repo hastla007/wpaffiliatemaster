@@ -130,6 +130,23 @@ final class Monitor {
 				sprintf( __( 'Last error: %s. Credit notes are written again automatically with growing pauses; deletions after the retention period are repeated. Affiliate Captain → Integrations → System status → Test connection.', 'affiliate-captain' ), (string) $store_error['error'] ),
 			);
 		}
+		if ( is_multisite() ) {
+			// Kept credit notes of deleted sites whose deletion after the retention period failed (R15-P3).
+			$stuck = array();
+			foreach ( (array) get_site_option( Installer::RETAINED_SITES, array() ) as $blog_id => $entry ) {
+				if ( is_array( $entry ) && ! empty( $entry['failures'] ) ) {
+					$stuck[] = sprintf( '%d (%s)', (int) $blog_id, isset( $entry['last_error'] ) ? (string) $entry['last_error'] : '' );
+				}
+			}
+			if ( $stuck ) {
+				$out['retained_objects'] = array(
+					'critical',
+					__( 'Kept credit notes of deleted sites could not be deleted', 'affiliate-captain' ),
+					/* translators: %s: site IDs with the last error */
+					sprintf( __( 'The retention period of these deleted sites has ended, but their credit notes could not be deleted from the document storage: %s. The deletion is repeated daily; check the storage configuration (WPAC_S3_* constants or the filter wpac_statement_store).', 'affiliate-captain' ), implode( '; ', $stuck ) ),
+				);
+			}
+		}
 		$public = \WPAffiliateCaptain\Payouts\Statement::publicly_accessible();
 		if ( true === $public ) {
 			$out['statement_dir'] = array( 'critical', __( 'Credit notes are publicly reachable', 'affiliate-captain' ), __( 'The statement folder can be opened from the web. Define WPAC_STATEMENT_DIR outside the web root or block the folder in the server configuration.', 'affiliate-captain' ) );

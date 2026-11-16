@@ -201,7 +201,7 @@ check(
 	array(
 		false !== strpos( $g4_doc, 'verschlüsselter Hash' ),
 		false !== strpos( $g4_doc, 'pseudonymisierter Hashwert' ),
-		false !== strpos( $g4_doc, 'Produktname, Basisbetrag, Provision, Status, Kampagne und Sub-ID' ),
+		false !== strpos( $g4_doc, 'Produktname, Basisbetrag, Provision und Status' ),
 		false !== strpos( $g4_doc, 'Einstellungen → Datenschutz' ),
 		false !== strpos( $g4_doc, 'Einstellungen → Daten & Wartung' ),
 		false !== strpos( $g4_doc, 'Beacon' ),
