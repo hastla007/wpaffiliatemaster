@@ -122,9 +122,9 @@ check(
 );
 check(
 	'F2 uniqueness: partner codes (also both hyphen forms), linked coupons, WooCommerce coupons, other partners\' slugs; own slug is fine',
-	array( 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'MARIA-F2' ),
+	array( 'wpac_code_reserved', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'wpac_code_taken', 'MARIA-F2' ),
 	array(
-		$f2_err( CodeRepository::check_new_code( strtolower( $f2_main_b ), $f2_a, 0, 20 ) ),
+		$f2_err( CodeRepository::check_new_code( strtolower( $f2_main_b ), $f2_a, 0, 20 ) ), // Generated form: reserved since R15-S1 (and taken).
 		$f2_err( CodeRepository::check_new_code( 'F2GENER8', $f2_a, 0, 20 ) ),   // Would find F2GE-NER8 typed without hyphen.
 		$f2_err( CodeRepository::check_new_code( 'F2PL-AIN8', $f2_a, 0, 20 ) ),  // Typed without hyphen it finds F2PLAIN8.
 		$f2_err( CodeRepository::check_new_code( 'F2VOUCHER', $f2_a, 0, 20 ) ),

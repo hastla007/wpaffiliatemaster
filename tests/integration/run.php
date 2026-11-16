@@ -1577,6 +1577,7 @@ require __DIR__ . '/r14-mp1.php'; // Feature mp1 (0.15.0, contract 1.5.0): sever
 require __DIR__ . '/r14-php1.php'; // PHP-1 / E10: database server minimum, Site Health warning (before r8-render).
 require __DIR__ . '/r14-c16.php'; // Agent c16 (0.16.0): no VALUES() in upserts (MySQL 9.7); remaining program-aware spots (before r8-render).
 require __DIR__ . '/r14-kosit.php'; // KoSIT: e-invoice validation in CI (before r8-render).
+require __DIR__ . '/r15-s.php'; // Round 15, fix agent s: security and money R15-S1..S6 (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1590,6 +1591,7 @@ require __DIR__ . '/r14-f3-render.php'; // After the render files: password conf
 require __DIR__ . '/r14-f2-render.php'; // After the render files: code requests (feature f2, 0.15.0).
 require __DIR__ . '/r15-l2-render.php'; // After the render files: partner area of the L2 order (no buyer data).
 require __DIR__ . '/r14-c16-render.php'; // After the render files: dashboard KPI of the selected program (agent c16).
+require __DIR__ . '/r15-s-render.php'; // After the render files: confirmation of money-creating actions, rate limit, code_status (R15-S3/S4/S6).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

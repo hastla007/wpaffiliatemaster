@@ -45,6 +45,9 @@ final class AutoCoupon {
 		// An existing cart (classic pages, Cart/Checkout blocks via the Store API).
 		add_action( 'woocommerce_cart_loaded_from_session', array( __CLASS__, 'on_cart_loaded' ), 20, 0 );
 		add_action( 'woocommerce_removed_coupon', array( __CLASS__, 'coupon_removed' ), 10, 1 );
+		// At most one partner coupon per cart (R15-S5; also without the automatic coupon).
+		add_filter( 'woocommerce_coupon_is_valid', array( __CLASS__, 'one_partner_coupon' ), 20, 3 );
+		add_action( 'woocommerce_applied_coupon', array( __CLASS__, 'coupon_applied' ), 10, 1 );
 		add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'mark_order' ), 20, 1 );
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( __CLASS__, 'mark_order' ), 20, 1 );
 	}
@@ -95,7 +98,7 @@ final class AutoCoupon {
 			return 'no_cart';
 		}
 		$state = self::state();
-		if ( ! $adding && ( ! empty( $state['applied'] ) || ! empty( $state['removed'] ) ) ) {
+		if ( ! $adding && ( ! empty( $state['applied'] ) || ! empty( $state['removed'] ) ) && ! self::touch_changed( $state ) ) {
 			return 'done';
 		}
 		// Page loads with an unchanged cart and referral repeat no checks (no queries per request).
@@ -109,12 +112,39 @@ final class AutoCoupon {
 		} finally {
 			self::$running = false;
 		}
-		if ( ! in_array( $result, array( 'applied', 'done', 'present' ), true ) ) {
-			$after          = self::state();
+		$after = self::state();
+		if ( 'applied' !== $result ) {
+			// Also after "present" (another partner coupon in the cart, R15-S2): page loads with the
+			// same cart and referral repeat nothing.
 			$after['tried'] = $signature;
-			self::save_state( $after );
 		}
+		$after['touch'] = self::touch_key(); // The referral this decision was made for (touch_changed()).
+		self::save_state( $after );
 		return $result;
+	}
+
+	/**
+	 * Whether the referral changed to another partner since the coupon was applied (or removed by
+	 * the customer): a later link of another partner (last touch) replaces the coupon the plugin
+	 * applied also when no product is added, so coupon and link agree (R15-S2). Page loads with
+	 * the same referral cost no query (key of session referral and cookie).
+	 *
+	 * @param array $state Session state.
+	 * @return bool
+	 */
+	private static function touch_changed( array $state ) {
+		$key = self::touch_key();
+		if ( isset( $state['touch'] ) && $state['touch'] === $key ) {
+			return false;
+		}
+		$touch    = Tracker::current_touch();
+		$resolved = $touch ? wpac_resolve_partner_code( (string) $touch['code'], array( 'context' => 'touch' ) ) : null;
+		$changed  = $resolved && ! empty( $resolved['affiliate_id'] ) && (int) $resolved['affiliate_id'] !== ( isset( $state['affiliate_id'] ) ? (int) $state['affiliate_id'] : 0 );
+		if ( ! $changed ) {
+			$state['touch'] = $key; // Same partner (or no valid referral): not checked again until it changes.
+			self::save_state( $state );
+		}
+		return $changed;
 	}
 
 	/**
@@ -324,6 +354,92 @@ final class AutoCoupon {
 	}
 
 	/**
+	 * Filter "woocommerce_coupon_is_valid": at most one partner coupon per cart (R15-S5). A
+	 * second coupon that credits a partner (any partner, as the attribution resolves it) is
+	 * refused while another partner coupon is in the cart – except the one the plugin applied
+	 * automatically, which the customer's coupon replaces (coupon_applied()). When the cart is
+	 * checked again, only a partner coupon after another one in the cart is refused, so the first
+	 * one stays. Costs nothing for carts with fewer than two coupons.
+	 *
+	 * @param bool   $valid     Valid so far.
+	 * @param object $coupon    WC_Coupon.
+	 * @param object $discounts WC_Discounts.
+	 * @return bool
+	 * @throws \Exception Refusal with the message for the customer (WooCommerce shows it).
+	 */
+	public static function one_partner_coupon( $valid, $coupon = null, $discounts = null ) {
+		if ( ! $valid || self::$running || ! is_object( $coupon ) || ! method_exists( $coupon, 'get_code' ) ) {
+			return $valid;
+		}
+		$cart = is_object( $discounts ) && method_exists( $discounts, 'get_object' ) ? $discounts->get_object() : ( function_exists( 'WC' ) && WC() && ! empty( WC()->cart ) ? WC()->cart : null );
+		if ( ! is_object( $cart ) || ! method_exists( $cart, 'get_applied_coupons' ) ) {
+			return $valid; // An order edited in the admin: the shop manager decides.
+		}
+		$code    = CodeRepository::normalize_coupon( (string) $coupon->get_code() );
+		$applied = array_map( array( CodeRepository::class, 'normalize_coupon' ), (array) $cart->get_applied_coupons() );
+		$pos     = array_search( $code, $applied, true );
+		$before  = false === $pos ? $applied : array_slice( $applied, 0, (int) $pos );
+		if ( ! $before ) {
+			return $valid;
+		}
+		/**
+		 * Whether a cart may hold only one partner coupon (a coupon that credits a partner).
+		 *
+		 * @since 0.16.0
+		 * @param bool   $single Default true.
+		 * @param string $coupon Coupon code being checked.
+		 */
+		if ( ! apply_filters( 'wpac_single_partner_coupon', true, $code ) || ! self::partner_of( $code ) ) {
+			return $valid;
+		}
+		$auto = '';
+		if ( false === $pos && function_exists( 'WC' ) && WC() && ! empty( WC()->session ) ) {
+			$state = self::state();
+			$auto  = ! empty( $state['applied'] ) && ! empty( $state['coupon'] ) ? CodeRepository::normalize_coupon( (string) $state['coupon'] ) : '';
+		}
+		foreach ( $before as $other ) {
+			if ( $other !== $code && $other !== $auto && self::partner_of( $other ) ) {
+				/* translators: %s: coupon code already in the cart */
+				throw new \Exception( esc_html( sprintf( __( 'Only one partner coupon can be used per order. Please remove the coupon %s first.', 'affiliate-captain' ), $other ) ), 100 );
+			}
+		}
+		return $valid;
+	}
+
+	/**
+	 * The customer applied a coupon: if it credits a partner, the partner coupon the plugin applied
+	 * automatically goes (the customer's choice wins, never two partner discounts, R15-S5) and is
+	 * not applied again in this session.
+	 *
+	 * @param string $coupon Coupon code.
+	 */
+	public static function coupon_applied( $coupon ) {
+		if ( self::$running || ! function_exists( 'WC' ) || ! WC() || empty( WC()->session ) || empty( WC()->cart ) ) {
+			return;
+		}
+		$state = self::state();
+		if ( empty( $state['applied'] ) || empty( $state['coupon'] ) ) {
+			return;
+		}
+		$auto   = CodeRepository::normalize_coupon( (string) $state['coupon'] );
+		$coupon = CodeRepository::normalize_coupon( (string) $coupon );
+		$cart   = WC()->cart;
+		if ( $auto === $coupon || ! in_array( $auto, array_map( array( CodeRepository::class, 'normalize_coupon' ), (array) $cart->get_applied_coupons() ), true ) || ! self::partner_of( $coupon ) ) {
+			return;
+		}
+		self::$removing = true;
+		$cart->remove_coupon( $auto );
+		self::$removing   = false;
+		$state['applied'] = 0;
+		$state['removed'] = 1;
+		self::save_state( $state );
+		if ( function_exists( 'wc_add_notice' ) && ! self::rest_request() ) {
+			/* translators: %s: coupon code */
+			wc_add_notice( sprintf( __( 'The partner discount applied automatically (coupon %s) was removed: only one partner coupon can be used per order.', 'affiliate-captain' ), $auto ), 'notice' );
+		}
+	}
+
+	/**
 	 * Remember on the order that it carries the automatically applied coupon (classic and block
 	 * checkout). Only when the coupon is still part of the order.
 	 *
@@ -443,13 +559,22 @@ final class AutoCoupon {
 	 * @return string
 	 */
 	private static function signature( $cart ) {
-		$hash  = method_exists( $cart, 'get_cart_hash' ) ? (string) $cart->get_cart_hash() : md5( (string) wp_json_encode( method_exists( $cart, 'get_cart_for_session' ) ? $cart->get_cart_for_session() : array() ) );
+		$hash = method_exists( $cart, 'get_cart_hash' ) ? (string) $cart->get_cart_hash() : md5( (string) wp_json_encode( method_exists( $cart, 'get_cart_for_session' ) ? $cart->get_cart_for_session() : array() ) );
+		return md5( $hash . '|' . self::touch_key() );
+	}
+
+	/**
+	 * Key of the stored referral of this request (session code with its time, cookie, user).
+	 *
+	 * @return string
+	 */
+	private static function touch_key() {
 		$touch = WC()->session->get( Tracker::SESSION_KEY );
 		$code  = is_array( $touch ) && isset( $touch['code'] ) ? (string) $touch['code'] . '@' . ( isset( $touch['ts'] ) ? (int) $touch['ts'] : 0 ) : '';
 		$name  = Tracker::cookie_name();
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- only hashed.
 		$cookie = isset( $_COOKIE[ $name ] ) ? md5( (string) $_COOKIE[ $name ] ) : '';
-		return md5( $hash . '|' . $code . '|' . $cookie . '|' . Tracker::visitor_user_id() );
+		return md5( $code . '|' . $cookie . '|' . Tracker::visitor_user_id() );
 	}
 
 	/**

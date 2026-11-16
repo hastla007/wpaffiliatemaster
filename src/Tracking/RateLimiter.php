@@ -94,6 +94,51 @@ final class RateLimiter {
 	}
 
 	/**
+	 * Take back the hit allow() counted for the current client in this window, e.g. after a
+	 * successful attempt when only failures should count (R15-S4). Never below 0; best effort
+	 * (nothing happens without storage or in the fallback rows of a pending migration).
+	 *
+	 * @param string $bucket Bucket name.
+	 * @param int    $window Seconds.
+	 */
+	public static function refund( $bucket, $window = 60 ) {
+		self::uncount( $bucket, 'ip:' . self::bucket_ip( self::current_ip() ), $window );
+	}
+
+	/**
+	 * Take back the hit allow_for() counted for a subject in this window (see refund()).
+	 *
+	 * @param string     $bucket  Bucket name.
+	 * @param string|int $subject Subject.
+	 * @param int        $window  Seconds.
+	 */
+	public static function refund_for( $bucket, $subject, $window = 60 ) {
+		self::uncount( $bucket, 'subject:' . (string) $subject, $window );
+	}
+
+	/**
+	 * Decrement the counter of bucket + subject in the current fixed window (not below 0).
+	 *
+	 * @param string $bucket  Bucket.
+	 * @param string $subject Subject.
+	 * @param int    $window  Seconds.
+	 */
+	private static function uncount( $bucket, $subject, $window ) {
+		global $wpdb;
+		$window = max( 1, (int) $window );
+		$key    = self::key( $bucket . '|' . $subject . '|' . (int) floor( time() / $window ) );
+		if ( self::use_object_cache() && false !== wp_cache_get( 'wpac_rl_' . $key, 'wpac_rl' ) ) {
+			wp_cache_decr( 'wpac_rl_' . $key, 1, 'wpac_rl' ); // WordPress keeps it at 0 or above.
+			return;
+		}
+		$table    = \WPAffiliateCaptain\Core\Db::table( 'rate_limits' );
+		$suppress = $wpdb->suppress_errors( true );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET hits = hits - 1 WHERE rl_key = UNHEX(%s) AND hits > 0", $key ) );
+		$wpdb->suppress_errors( $suppress );
+	}
+
+	/**
 	 * Effective limit of a bucket. Every limit can be changed with the filter
 	 * `wpac_rate_limit` (e.g. a higher `code_check` or `register` limit behind a proxy
 	 * whose visitors share one address).
