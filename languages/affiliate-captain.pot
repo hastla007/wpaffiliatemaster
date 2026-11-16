@@ -5335,7 +5335,7 @@ msgstr ""
 msgid "The chain of recruiters is too long."
 msgstr ""
 
-#: src/Affiliates/AffiliateRepository.php
+#: src/Affiliates/AffiliateRepository.php src/Core/WorkflowRead.php
 msgid "Affiliate not found."
 msgstr ""
 
@@ -7124,12 +7124,12 @@ msgid "These fields cannot be changed: %s"
 msgstr ""
 
 #. translators: %s: argument name
-#: src/Core/PublicApi.php
+#: src/Core/PublicApi.php src/Core/WorkflowRead.php
 msgid "Unknown argument \"%s\"."
 msgstr ""
 
 #. translators: %s: argument name
-#: src/Core/PublicApi.php
+#: src/Core/PublicApi.php src/Core/WorkflowRead.php
 msgid "Invalid value for \"%s\"."
 msgstr ""
 
@@ -7421,6 +7421,18 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "New Zealand"
+msgstr ""
+
+#: src/Core/WorkflowRead.php
+msgid "Unknown read action."
+msgstr ""
+
+#: src/Core/WorkflowRead.php
+msgid "The period must start before it ends and be at most 366 days long."
+msgstr ""
+
+#: src/Core/WorkflowRead.php
+msgid "You are not allowed to read these figures."
 msgstr ""
 
 #. translators: %s: coupon code

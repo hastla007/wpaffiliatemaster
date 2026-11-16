@@ -240,7 +240,11 @@ final class AffiliateRepository {
 		 * @param int    $id     Affiliate ID.
 		 * @param string $status Initial status.
 		 */
-		do_action( 'wpac_affiliate_created', $id, $status );
+		Db::after_commit( // Post-commit like all events (AFF-WF-02); right away outside a transaction.
+			static function () use ( $id, $status ) {
+				do_action( 'wpac_affiliate_created', $id, $status );
+			}
+		);
 		return $id;
 	}
 
@@ -718,7 +722,12 @@ final class AffiliateRepository {
 			Notifications::status_changed( (int) $id, $status, $aff->status, $reason );
 		}
 
-		do_action( 'wpac_affiliate_status_changed', (int) $id, $status, $aff->status );
+		$old = (string) $aff->status;
+		Db::after_commit( // Post-commit like all events (AFF-WF-02); right away outside a transaction.
+			static function () use ( $id, $status, $old ) {
+				do_action( 'wpac_affiliate_status_changed', (int) $id, $status, $old );
+			}
+		);
 		return true;
 	}
 

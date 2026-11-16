@@ -237,7 +237,12 @@ final class Creatives {
 			 * @param int   $id   Creative version ID.
 			 * @param array $info id, family_id, version, status, type, title, group_id.
 			 */
-			do_action( 'wpac_creative_created', $id, self::hook_info( $id ) );
+			$info = self::hook_info( $id );
+			Db::after_commit( // Post-commit like all events (AFF-WF-02).
+				static function () use ( $id, $info ) {
+					do_action( 'wpac_creative_created', $id, $info );
+				}
+			);
 		} else {
 			self::changed( $id );
 		}
@@ -277,7 +282,12 @@ final class Creatives {
 		 * @param int   $id   Creative version ID.
 		 * @param array $info id, family_id, version, status, type, title, group_id.
 		 */
-		do_action( 'wpac_creative_updated', (int) $id, self::hook_info( $id ) );
+		$info = self::hook_info( $id );
+		Db::after_commit( // Post-commit like all events (AFF-WF-02).
+			static function () use ( $id, $info ) {
+				do_action( 'wpac_creative_updated', (int) $id, $info );
+			}
+		);
 	}
 
 	/**

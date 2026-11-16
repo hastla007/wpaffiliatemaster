@@ -2346,6 +2346,7 @@
  "The payout request could not be created.": "Der Auszahlungsantrag konnte nicht erstellt werden.",
  "The payout request could not be saved. Please try again.": "Der Auszahlungsantrag konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
  "The payout was already cancelled (cancellation document issued); its commissions are paid with the next run and a new credit note. Describe below what was done; the partner receives this text.": "Die Auszahlung wurde bereits storniert (Stornobeleg ausgestellt); ihre Provisionen werden mit dem nächsten Lauf und einer neuen Gutschrift ausgezahlt. Beschreiben Sie unten, was getan wurde; der Partner erhält diesen Text.",
+ "The period must start before it ends and be at most 366 days long.": "Der Zeitraum muss vor seinem Ende beginnen und darf höchstens 366 Tage lang sein.",
  "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number.": "Die Präfixe für Gutschriften, Stornobelege und Korrekturgutschriften müssen sich voneinander unterscheiden – sonst erhalten zwei Belege dieselbe Nummer.",
  "The previous attempt did not finish (timeout or fatal error).": "Der vorige Versuch wurde nicht abgeschlossen (Zeitüberschreitung oder schwerer Fehler).",
  "The private partner group \"%s\" opens only from a form in the content of a published page last saved by a partner manager.": "Die private Partnergruppe „%s“ öffnet sich nur über ein Formular im Inhalt einer veröffentlichten Seite, die zuletzt von einem Partnerverwalter gespeichert wurde.",
@@ -2512,6 +2513,7 @@
  "Unknown argument \"%s\".": "Unbekanntes Argument „%s“.",
  "Unknown e-mail template.": "Unbekannte E-Mail-Vorlage.",
  "Unknown partner or currency.": "Unbekannter Partner oder unbekannte Währung.",
+ "Unknown read action.": "Unbekannte Lese-Aktion.",
  "Unlink the WordPress account of a partner": "WordPress-Konto eines Partners trennen",
  "Unsubscribe": "Abmelden",
  "Unsubscribed from these e-mails": "Von diesen E-Mails abgemeldet",
@@ -2624,6 +2626,7 @@
  "You are not allowed to change payout details.": "Sie dürfen Auszahlungsdaten nicht ändern.",
  "You are not allowed to do this.": "Sie dürfen diese Aktion nicht ausführen.",
  "You are not allowed to export tax and bank data.": "Sie dürfen keine Steuer- und Bankdaten exportieren.",
+ "You are not allowed to read these figures.": "Sie dürfen diese Kennzahlen nicht lesen.",
  "You are not allowed to view tax and bank details.": "Sie dürfen Steuer- und Bankdaten nicht einsehen.",
  "You can request %d code within 30 days. Please try again later.": [
   "Sie können innerhalb von 30 Tagen %d Code beantragen. Bitte versuchen Sie es später erneut.",

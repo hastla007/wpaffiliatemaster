@@ -2165,7 +2165,13 @@ final class Ledger {
 		}
 		ReviewAlert::flush(); // Menu bubble count, also when the hooks are fired later.
 		if ( $fire_hooks ) {
-			do_action( 'wpac_commission_' . $to, (int) $id );
+			// transition() may run inside an outer transaction (it nests): the hook waits for the
+			// COMMIT of that one and is dropped on its rollback (AFF-WF-02).
+			Db::after_commit(
+				static function () use ( $to, $id ) {
+					do_action( 'wpac_commission_' . $to, (int) $id );
+				}
+			);
 		}
 		return true;
 	}
