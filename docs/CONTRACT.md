@@ -205,7 +205,7 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 
 | `wpac_contract_not_queued` | `string $what` (`sale`/`refund`), `array $data` – Verkauf/Erstattung konnte weder verbucht noch für die Wiederholung gespeichert werden (z. B. Datenbank weg); die Quelle muss selbst erneut senden. Steht zusätzlich im Plugin-Log. |
 
-Ereignisse sind Benachrichtigungen ohne Kundendaten, kein Ersatz für die idempotenten Funktionen oben. Alle Buchungs- und Auszahlungsereignisse feuern erst nach dem Commit der Datenbanktransaktion; wird eine Buchung zurückgerollt, feuert nichts.
+Ereignisse sind Benachrichtigungen ohne Kundendaten (Ausnahmen: `wpac_contract_not_queued`, `wpac_mail_sent`/`_failed` und der Freitext `reason` bei Erstattungen, siehe „Review Captain: keine Einladungen, keine Käuferdaten“), kein Ersatz für die idempotenten Funktionen oben. Alle Buchungs- und Auszahlungsereignisse feuern erst nach dem Commit der Datenbanktransaktion; wird eine Buchung zurückgerollt, feuert nichts.
 
 ## Betrieb und Anpassung (Filter/Actions)
 
@@ -355,6 +355,77 @@ Der Kern speichert, welcher Partner einen neuen Partner geworben hat (`referred_
 | WP Pass Captain | `src/Integrations/AffiliateCaptain/Adapter.php` (ab Pass Captain 0.9.0, nur über vorhandene Pass-Captain-Hooks) | Meldet bezahlte Bestellungen (Online-Checkout, Kasse, Abendkasse, Warteliste) als `source = pass-captain`. Bestellungen über WooCommerce werden übersprungen – die erfasst Affiliate Captain selbst. Optionales Feld „Partnercode“ im Checkout (geprüft, Fehlversuchs-Limit), Referral-Link/Cookie wird mit der Bestellung gespeichert; Kasse/Abendkasse übernehmen nie das Referral der Mitarbeitenden. Basis je Position: bezahlter Anteil (nach Kampagnenrabatt und eingelöstem Gutschein) ohne gespeicherte USt; SKU `PASS-E{Event}-T{Ticketart}` für Regeln (z. B. `PASS-E12-*`); Provision bis Terminende gesperrt (`hold_until`). Erstattungen (auch Teil- und Terminabsage-Erstattungen) → anteilige Umkehr; Vollerstattung/Storno → Umkehr des Rests. |
 | Voucher Captain | `src/Compat/AffiliateCaptain.php` (ab Voucher Captain 1.2.0) | Ordnet ganze Code-Kampagnen (Gutscheine → Codes erzeugen → Kampagnen → Partner) einem Partnercode zu und beantwortet `wpac_coupon_affiliate` (Priorität 20 – direkte Gutschein-Verknüpfung in Affiliate Captain gewinnt). Gekaufte Gutscheine/Geschenkkarten werden nie zugeordnet. Optional keine Provision auf Gutscheinverkäufe: `add_filter( 'vcap_affiliate_commission_on_voucher_sales', '__return_false' );`. |
 
-## Geplante Review-Captain-Anbindung (read-only, noch nicht Teil von Vertrag v1.3)
+### Eine Provision je Bestellung über alle Quellen
 
-Review Captain darf keine Provisionen verändern und keine Einladungen aus Affiliate-Ereignissen auslösen. Eine spätere Verbindung darf ausschließlich aggregierte, freigegebene Review-Kennzahlen einer Partner-/Kampagnenreferenz liefern. Der bestehende Vertrag veröffentlicht keine Review-Aggregatfunktion und keine Review-zu-Partner-Zuordnung. Vor einer Umsetzung sind Mindeststichprobe, Zeitraum, erlaubte Kennzahlen, Rollen-/Capability-Prüfung, Datenschutz-/Löschfolgen und Vermeidung von Rückschlüssen auf einzelne Käufer festzulegen. Einzelne Reviews, Freitext, Empfänger- oder Kundendaten werden nicht offengelegt.
+Gebucht wird höchstens einmal je `source` + `order_id` (eindeutiger Schlüssel der Zuordnung) und je Position (`idempotency_key` der Provisionszeile) – gleich, ob der Verkauf über `wpac_record_sale()`, `do_action( 'wpac_v1_record_sale' )` oder `POST /sales` kommt. `source` wird klein geschrieben (`sanitize_key`), `order_id` ohne umgebende Leerzeichen verglichen. Jede weitere Meldung liefert `duplicate` und ändert weder Partner noch Betrag (auch mit anderem `partner_code` oder anderem `idempotency_key`).
+
+Über **verschiedene** Quellen dedupliziert der Ledger nicht: Dieselbe Kaufhandlung darf nur eine Quelle melden. Deshalb überspringt Pass Captain WooCommerce-Bestellungen (`wpcap_affiliate_skip_channels`, Standard `woocommerce`; Kanal oder Zahlungsanbieter), und Voucher Captain meldet keine Verkäufe, sondern beantwortet nur `wpac_coupon_affiliate`. Eine WooCommerce-Bestellung mit Pass-Ticket und Partner-Gutschein wird so genau einmal (als `woocommerce`) provisioniert.
+
+Nachgewiesen in `tests/integration/r15-l2.php` (`L2-DEDUP-a` bis `-d`): Partner-Gutschein über Voucher Captain (Priorität 20) und Vorrang der direkten Gutschein-Verknüpfung, mehrfacher Statuswechsel derselben WooCommerce-Bestellung, Wiederholung einer Pass-Captain-Meldung (gleiche Nutzlast, Zahl statt Text, anderer `idempotency_key`, Hook-Variante, anderer Partnercode), WooCommerce-Bestellung mit Pass-Ticket, dieselbe externe Bestellung über REST und PHP in beiden Reihenfolgen.
+
+## Review Captain: keine Einladungen, keine Käuferdaten
+
+Review Captain darf keine Provisionen verändern und keine Einladungen aus Affiliate-Ereignissen auslösen – weder aus `wpac_commission_created`, `wpac_affiliate_attributed` noch aus einem Provisionsstatuswechsel (`wpac_commission_{status}`). Bewertungen ändern niemals Provisionen. Review Captain bleibt Eigentümer von Einladungen und Rezensionen.
+
+**Ereignisse ohne Kundendaten.** Diese Actions übergeben nur IDs, Status, Codes, Beträge und Dateipfade – nie Käufer-E-Mail, Name, Anschrift oder Telefonnummer:
+
+- Verkauf und Provision: `wpac_affiliate_attributed` (Bestell-ID, Partner-ID, Methode, Quelle), `wpac_commission_created`, `wpac_commission_approved`/`_rejected`/`_paid`/`_pending`/`_review` (Provisions-ID), `wpac_referral_captured` (Code, Kampagne, Inhalt, Zeitpunkt, Sub-ID, Besuchs-ID).
+- Auszahlung und Belege: `wpac_payout_created`/`_paid`/`_cancelled`, `wpac_correction_generated`, `wpac_statement_generated`, `wpac_storno_generated`.
+- Partner, Codes, Werbemittel: `wpac_affiliate_created`/`_status_changed`/`_recruited`/`_erased`, `wpac_code_requested`/`wpac_code_request_approved`/`_rejected`, `wpac_creative_created`/`_updated`. Daten des Partners (nicht des Käufers) liest ein Empfänger bei Bedarf über die Lese-API.
+
+**Ausnahmen – nicht an Partner oder Review Captain weitergeben:** `wpac_contract_not_queued` übergibt den normalisierten Verkauf einschließlich `customer` (für die eigene Wiederholung der Quelle, die diese Daten ohnehin hat). `wpac_commission_adjusted` und `wpac_refund_after_correction` enthalten den Freitext `reason` der Quelle (z. B. den Erstattungsgrund des Shops). `wpac_mail_sent`/`wpac_mail_failed` enthalten die ganze Mail samt Empfänger.
+
+**Partner-Ausgaben ohne Käuferdaten.** Partnerbereich (alle Reiter), Partner-REST (`/me`, `/me/commissions`, `/me/payouts`), Partner-CSV (Provisionen, Auszahlungen), Partner-Mails (Provisionshinweis, Monatsübersicht) und die Lese-API (`wpac_get_commission(s)`, `wpac_get_affiliate()`) zeigen zu einer WooCommerce-Bestellung nur Bestellnummer, Produktname, Basis, Satz, Betrag und Status. Käufer-E-Mail, Name und Anschrift dienen nur dem Self-Referral-Abgleich und werden nicht gespeichert; Zuordnungs- und Provisionszeilen enthalten sie nicht. Regressionstest: `L2-PII` in `tests/integration/r15-l2.php` und `tests/integration/r15-l2-render.php`.
+
+### Vorschlag (nicht implementiert): read-only Aggregatmodell
+
+Noch nicht Teil des Vertrags; die Inhaberin bzw. der Inhaber entscheidet.
+
+- **Richtung:** Review Captain stellt eine Lesefunktion bereit, Affiliate Captain fragt nur ab (Admin-Partnerseite, Bericht). Kein Schreibzugriff, keine Rückwirkung auf Provisionen, Regeln, Stufen oder Auszahlungen. Vorschlag: `rcap_affiliate_quality( array $ref, array $args ): array|WP_Error` mit `$ref = array( 'affiliate_id' => int )` oder `array( 'affiliate_id' => int, 'campaign' => string )`; `$args`: `days`.
+- **Zuordnung Review → Partner:** nur über die Bestellung, die Review Captain selbst kennt (`source` + `order_id`). Dafür braucht der Vertrag eine neue Lesefunktion, z. B. `wpac_get_order_attribution( string $source, string $order_id ): ?array` mit `affiliate_id`, `campaign`, `method` (Recht `wpac_manage_affiliates`). Affiliate Captain speichert keine Review-IDs.
+- **Freigegebene Quellen:** nur Reviews mit Bestellbezug (verifizierter Kauf), nur veröffentlichte Reviews; keine importierten, anonymen oder nicht freigegebenen Reviews.
+- **Kennzahlen:** Anzahl Reviews, Durchschnitt (eine Nachkommastelle), Anteil 4–5 Sterne, Anteil 1–2 Sterne. Keine Texte, keine Einzelwerte, keine Zeitpunkte einzelner Reviews.
+- **Mindeststichprobe:** mindestens **10** Reviews aus mindestens **5** verschiedenen Bestellungen im Zeitraum; darunter nur `insufficient_sample` ohne Zahlen (kein Rückschluss auf einzelne Käufer).
+- **Zeitraum:** rollierend **90 Tage** (wählbar 30/90/365) nach Datum der Review; Ergebnis mit `from`, `to`, `computed_at`.
+- **Lösch-/Widerrufsfolgen:** gelöschte, widerrufene oder zurückgezogene Reviews und Reviews gelöschter Kunden fallen bei der nächsten Berechnung heraus. Affiliate Captain speichert das Aggregat nicht (höchstens ein Cache von bis zu 24 Stunden). Nach Art. 17 gelöschte Partner liefern `not_found`.
+- **Sichtbarkeit:** nur für `wpac_manage_affiliates` im Admin; nie im Partnerbereich, in Partner-Mails, Partner-REST oder CSV.
+
+## Form Captain: Bewertung des eigenen Bewerbungsablaufs
+
+**Bewertung (Stand 0.15.0).** Der eingebaute Ablauf (`[wpac_affiliate_registration]` bzw. Block „Partner-Bewerbungsformular“) deckt die Partnerbewerbung vollständig ab:
+
+- Name, E-Mail (bei angemeldeten Benutzern die Kontoadresse), Website/Kanal, Notiz;
+- Partnergruppen, öffentlich wählbar oder per signiertem Shortcode/Block fest vorgegeben, mit eigenen Zusatzfeldern je Gruppe (`text`, `textarea`, `url`, `number`, `checkbox`, Pflichtfelder);
+- Teilnahmebedingungen je Gruppe mit Version und SHA-256 des angenommenen Textes;
+- Double-Opt-in per E-Mail (die Daten warten höchstens zwei Tage, ohne Auskunft, ob die Adresse schon existiert); Honeypot, Nonce, Rate-Limit;
+- Status `pending` (oder `active` mit „Automatisch freigeben“), Werber-Erfassung, Admin-Mail, Freigabe/Ablehnung mit Grund, Auskunft und Löschung der Bewerbungsdaten (Art. 15/17).
+
+Ein Formular-Builder brächte zusätzlich: weitere Feldtypen (Auswahl, Radio, Datum, Datei-Upload), bedingte Logik und mehrstufige Formulare, freie Gestaltung, CAPTCHA-/Antispam-Dienste, Weitergabe an andere Systeme (CRM, Newsletter) und Formularstatistik.
+
+**Empfehlung:** keine Form-Captain-Anbindung für die Partnerbewerbung, solange keine dieser Zusatzfunktionen konkret gebraucht wird. Eine zweite Registrierung würde Double-Opt-in, Bedingungsnachweis, Gruppenprüfung und Datenschutzpflichten doppeln und Bewerbungsdaten parallel speichern. Fehlen nur einzelne Feldtypen (Auswahl, Datum), ist ihre Ergänzung in `Groups::parse_fields()` kleiner als eine Anbindung. Erst bei Bedarf an Datei-Uploads, bedingter Logik oder CRM-Weitergabe die Schnittstelle unten umsetzen.
+
+### Vorschlag (nicht implementiert): Formularübergabe
+
+Noch nicht Teil des Vertrags; die Inhaberin bzw. der Inhaber entscheidet.
+
+```php
+/**
+ * @param array $data    name, email (Pflicht); website, channel, note, group_id,
+ *                       fields (key => Wert der Gruppenfelder), terms_accepted (bool),
+ *                       terms_version, user_id (0 = Gast).
+ * @param array $context source (z. B. 'form-captain', a-z0-9_-), submission_id (stabile ID
+ *                       der Einsendung, max. 64), confirmed (bool: E-Mail im Formular per
+ *                       Double-Opt-in bestätigt).
+ * @return array|WP_Error array( status => created|duplicate|confirm_sent, affiliate_id )
+ */
+wpac_submit_application( array $data, array $context );
+// Versioniertes REST-Gegenstück: POST /wpac/v1/applications
+```
+
+- **Ergebnis:** immer Status `pending`, auch wenn „Automatisch freigeben“ aktiv ist; nie Freigabe, Partnercode, Gutschein, Provisionsregel oder Provision. Freigabe und Ablehnung bleiben im Admin von Affiliate Captain.
+- **Prüfungen wie beim eigenen Ablauf:** Name, E-Mail, Gruppe aktiv und öffentlich (oder ausdrücklich für die Quelle freigegeben), Pflichtfelder der Gruppe, aktuelle Bedingungen angenommen, Rate-Limit je E-Mail-Adresse. Fehler als `WP_Error` (`wpac_invalid_field`, `wpac_terms_required`, `wpac_group_invalid`, `wpac_rate_limited`).
+- **Double-Opt-in:** ohne `confirmed = true` schickt Affiliate Captain die eigene Bestätigungsmail (`confirm_sent`); angelegt wird erst nach dem Klick.
+- **Berechtigung:** PHP-Aufruf nur aus dem serverseitigen Formular-Handler; Nonce/CSRF prüft das aufrufende Formular. Die REST-Route verlangt `wpac_manage_affiliates` (Server-zu-Server, z. B. Application Password) und ist nie öffentlich.
+- **Idempotenz:** höchstens ein Partner je `source` + `submission_id`; eine erneute Übergabe liefert `duplicate` mit derselben `affiliate_id`. Gibt es die E-Mail schon als Partner, wird nichts angelegt (`duplicate`, ohne dem Formular Details zu verraten).
+- **Audit:** `affiliate.application_submitted` mit `source`, `submission_id`, `group_id`, ohne E-Mail oder Anschrift; danach wie bisher `wpac_affiliate_created( $id, 'pending' )`.
+- **Daten:** Zusatzfelder landen wie beim eigenen Formular in `application_data` (Auskunft und Löschung inklusive). Form Captain löscht seine Kopie nach erfolgreicher Übergabe oder dokumentiert die eigene Aufbewahrung.
