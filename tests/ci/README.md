@@ -9,6 +9,8 @@
 
 Ausgabe: `PRODUCT_ID=…` und `PARTNER_CODE=…` für `tests/e2e/run.js`.
 
+`e2e-data.php <wp-dir> <url>` (im Browser-Job nach `install-wp.sh`) legt die Daten für die Browser-Tests „Automatischer Partner-Gutschein“ und „Passwortbestätigung“ an: Partner mit verknüpftem 10-%-Gutschein, Kunden-Gutschein „nur einzeln verwendbar“, Seite mit dem klassischen Warenkorb und drei offene Auszahlungen. Ausgabe: `E2E_*`-Variablen.
+
 ```bash
 WPAC_DB_USER=root WPAC_DB_PASSWORD=root tests/ci/install-wp.sh /tmp/wp --siblings ..
 ```
