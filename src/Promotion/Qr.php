@@ -9,6 +9,8 @@
 
 namespace WPAffiliateCaptain\Promotion;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Qr {
 
 	/** Version => [ ec codewords per block, blocks group 1, data cw g1, blocks group 2, data cw g2 ] (level M). */

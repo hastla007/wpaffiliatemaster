@@ -142,29 +142,125 @@ document.addEventListener( 'click', function ( e ) {
 		}, 250 );
 	} );
 } )();
-/* Payout bulk action: a file download ends without a page change – reload the list afterwards,
-   so the new status and the message about the download are shown. */
+/* Payout bulk action: a file download ends without a page change. The form sends a token; the
+   download response sets the cookie wpac_dl_<token> (PayoutsPage::download_started()). Only once
+   it is there is the list reloaded (new status, message about the download), so a reload never
+   cancels a download that has not started yet. If it takes too long, a "Refresh page" link is
+   shown instead. Without JavaScript the download works the same; the status shows on refresh. */
 document.addEventListener( 'submit', function ( e ) {
 	var form = e.target;
 	if ( ! form.classList || ! form.classList.contains( 'wpac-bulk-form' ) ) {
 		return;
 	}
 	var s = form.querySelector( '[name="bulk_action"]' );
-	if ( s && [ 'sepa', 'csv', 'paypal' ].indexOf( s.value ) > -1 && ! e.defaultPrevented ) {
-		window.setTimeout( function () {
-			window.location.reload();
-		}, 2500 );
+	if ( ! s || [ 'sepa', 'csv', 'paypal' ].indexOf( s.value ) === -1 || e.defaultPrevented ) {
+		return;
 	}
+	var token = '';
+	while ( token.length < 24 ) {
+		token += Math.random().toString( 36 ).slice( 2 );
+	}
+	token = token.slice( 0, 24 ).replace( /[^a-z0-9]/g, '0' );
+	var field = form.querySelector( 'input[name="wpac_dl_token"]' );
+	if ( ! field ) {
+		field = document.createElement( 'input' );
+		field.type = 'hidden';
+		field.name = 'wpac_dl_token';
+		form.appendChild( field );
+	}
+	field.value = token;
+	var name = 'wpac_dl_' + token + '=';
+	var started = Date.now();
+	var hinted = false;
+	var timer = window.setInterval( function () {
+		if ( ( '; ' + document.cookie ).indexOf( '; ' + name ) > -1 ) {
+			window.clearInterval( timer );
+			var dir = window.location.pathname.replace( /[^\/]*$/, '' ) || '/';
+			[ dir, dir.replace( /\/$/, '' ) || '/' ].forEach( function ( path ) {
+				document.cookie = name + '; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=' + path;
+			} );
+			window.setTimeout( function () {
+				window.location.reload();
+			}, 1000 );
+			return;
+		}
+		var waited = Date.now() - started;
+		if ( ! hinted && waited > 30000 ) {
+			// Still waiting for the server: offer a manual refresh, keep watching for the download.
+			hinted = true;
+			var box = document.querySelector( '.wpac-download-status' );
+			if ( box ) {
+				var p = document.createElement( 'p' );
+				var a = document.createElement( 'a' );
+				p.textContent = box.getAttribute( 'data-wpac-download-wait' ) + ' ';
+				a.href = window.location.href;
+				a.textContent = box.getAttribute( 'data-wpac-download-refresh' );
+				p.appendChild( a );
+				box.className += ' notice notice-info inline';
+				box.appendChild( p );
+			}
+		}
+		if ( waited > 600000 ) {
+			window.clearInterval( timer );
+		}
+	}, 500 );
 } );
-/* Wide tables scroll inside their own box instead of widening the page (small screens). */
+/* Wide tables scroll inside their own box instead of widening the page (small screens). Only a
+   box whose table overflows is a focusable, named region (keyboard scrolling); it is named after
+   the table's caption or the heading right before it, so several tables on a page differ. */
 document.addEventListener( 'DOMContentLoaded', function () {
+	var heading = function ( table ) {
+		var caption = table.querySelector( 'caption' );
+		if ( caption && caption.textContent.trim() ) {
+			return caption.textContent.trim();
+		}
+		if ( table.getAttribute( 'aria-label' ) ) {
+			return table.getAttribute( 'aria-label' );
+		}
+		// The nearest preceding h2/h3 (also inside a preceding sibling, e.g. a form or a card).
+		for ( var el = table; el && ! ( el.classList && el.classList.contains( 'wrap' ) ); el = el.parentNode ) {
+			for ( var sib = el.previousElementSibling; sib; sib = sib.previousElementSibling ) {
+				if ( /^H[23]$/.test( sib.tagName ) && sib.textContent.trim() ) {
+					return sib.textContent.trim();
+				}
+				var inner = sib.querySelectorAll ? sib.querySelectorAll( 'h2, h3' ) : [];
+				if ( inner.length && inner[ inner.length - 1 ].textContent.trim() ) {
+					return inner[ inner.length - 1 ].textContent.trim();
+				}
+			}
+		}
+		var h1 = document.querySelector( '.wrap h1' );
+		return ( h1 && h1.textContent.trim() ) || document.title;
+	};
+	var boxes = [];
+	var update = function () {
+		boxes.forEach( function ( box ) {
+			if ( box.scrollWidth > box.clientWidth ) {
+				box.setAttribute( 'tabindex', '0' );
+				box.setAttribute( 'role', 'region' );
+				box.setAttribute( 'aria-label', box.getAttribute( 'data-wpac-label' ) );
+			} else {
+				box.removeAttribute( 'tabindex' );
+				box.removeAttribute( 'role' );
+				box.removeAttribute( 'aria-label' );
+			}
+		} );
+	};
 	Array.prototype.forEach.call( document.querySelectorAll( '.wrap table.widefat:not(.table-view-list)' ), function ( table ) {
 		if ( table.parentNode.classList.contains( 'wpac-table-scroll' ) ) {
 			return;
 		}
 		var box = document.createElement( 'div' );
 		box.className = 'wpac-table-scroll';
+		box.setAttribute( 'data-wpac-label', heading( table ) );
 		table.parentNode.insertBefore( box, table );
 		box.appendChild( table );
+		boxes.push( box );
+	} );
+	update();
+	var timer;
+	window.addEventListener( 'resize', function () {
+		window.clearTimeout( timer );
+		timer = window.setTimeout( update, 150 );
 	} );
 } );

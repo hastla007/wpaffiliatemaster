@@ -12,6 +12,8 @@ namespace WPAffiliateCaptain\Payouts;
 use WPAffiliateCaptain\Core\Iban;
 use WPAffiliateCaptain\Core\Money;
 
+defined( 'ABSPATH' ) || exit;
+
 final class SepaXml {
 
 	/**

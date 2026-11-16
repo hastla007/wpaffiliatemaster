@@ -1,7 +1,9 @@
 /* Colors follow the theme's text color (light and dark themes): borders and muted text are derived
    from currentColor, no fixed light/dark palette that could clash with the theme. */
 .wpac-portal,.wpac-form,.wpac-notice,.wpac-welcome{--wpac-accent:#0b6e99;--wpac-border:rgba(128,128,128,.4);--wpac-muted:currentColor;--wpac-focus:#1f4e79}
-@supports (color:color-mix(in srgb,red 50%,blue)){.wpac-portal,.wpac-form,.wpac-notice,.wpac-welcome{--wpac-border:color-mix(in srgb,currentColor 20%,transparent);--wpac-muted:color-mix(in srgb,currentColor 75%,transparent)}}
+@supports (color:color-mix(in srgb,red 50%,blue)){.wpac-portal,.wpac-form,.wpac-notice,.wpac-welcome{--wpac-border:color-mix(in srgb,currentColor 20%,transparent);--wpac-muted:color-mix(in srgb,currentColor 90%,#808080)}}
+/* Muted text is mixed towards mid-grey, not made transparent: grey theme text keeps (nearly) its
+   contrast, black or white text gets lighter/darker. (R12-M27) */
 .wpac-portal,.wpac-form{max-width:960px}
 .wpac-form p{margin:0 0 1em}
 .wpac-form label{display:block;font-weight:600;margin-bottom:.25em}
@@ -26,6 +28,8 @@
 .wpac-table{width:100%;border-collapse:collapse;font-size:.95em}
 .wpac-table th,.wpac-table td{border-bottom:1px solid var(--wpac-border);padding:.5em;text-align:left}
 .wpac-negative{color:#c62828}
+/* Mixed with the text colour: dark red on light themes, light red on dark ones (R12-M27). */
+@supports (color:color-mix(in srgb,red 50%,blue)){.wpac-negative{color:color-mix(in srgb,#c62828 50%,currentColor)}}
 .wpac-copy{width:100%;font-family:monospace}
 .wpac-code{font-family:monospace;font-size:1.1em;letter-spacing:.05em}
 .wpac-muted{color:var(--wpac-muted);font-size:.9em}
@@ -44,6 +48,7 @@
 .wpac-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}
 .wpac-copy-row{display:flex;gap:.5em;align-items:stretch;margin:0 0 1em}
 .wpac-copy-row .wpac-copy{flex:1;min-width:0}
+.wpac-copy-btn[hidden]{display:none!important}
 .wpac-copy-btn{border:1px solid var(--wpac-accent,#0b6e99);background:transparent;color:inherit;border-radius:4px;padding:.4em .8em;cursor:pointer}
 .wpac-hero{border:1px solid var(--wpac-border);border-left:4px solid var(--wpac-accent);border-radius:6px;padding:1em 1.25em;margin:0 0 1.25em}
 .wpac-hero h3{margin-top:0}
@@ -56,7 +61,8 @@
 .wpac-status--approved,.wpac-status--paid{background:#e8f5e9;color:#1b5e20}
 .wpac-status--pending,.wpac-status--review{background:#fff8e1;color:#6d4c00}
 .wpac-status--rejected,.wpac-status--cancelled{background:#ffebee;color:#8e1c1c}
-.wpac-field-error{color:#c62828;font-size:.9em;margin:.25em 0 0}
+/* Error text on its own light chip: readable on light, grey and dark themes alike (R12-M27). */
+.wpac-field-error{color:#b71c1c;background:#fdecea;display:inline-block;padding:.1em .4em;border-radius:3px;font-size:.9em;margin:.25em 0 0}
 .wpac-form [aria-invalid="true"]{border-color:#c62828;outline:1px solid #c62828}
 .wpac-required-note{font-size:.9em;color:var(--wpac-muted)}
 .wpac-conditions{display:grid;grid-template-columns:minmax(10em,max-content) 1fr;gap:.35em 1em;margin:0 0 1em}
@@ -69,10 +75,28 @@
 .wpac-chart__label{font-size:.75em;margin-top:.25em;color:var(--wpac-muted);white-space:nowrap}
 .wpac-broadcast summary{cursor:pointer}
 
-/* Phones: table rows as stacked cards (labels from data-label). */
+/* Phones: table rows as stacked cards. Safari/VoiceOver drops the table semantics of
+   display:block rows, so Portal.php sets explicit ARIA table roles; the visible column label of
+   each cell is a span with aria-hidden="true" (generated ::before content would be read in
+   addition to the column header). */
+.wpac-cell-label { display: none; }
 @media (max-width: 600px) {
 	.wpac-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 	.wpac-table tr { display: block; border-bottom: 1px solid var(--wpac-border); padding: .5em 0; }
 	.wpac-table td { display: block; border: 0; padding: .15em 0; }
-	.wpac-table td[data-label]::before { content: attr(data-label) ": "; font-weight: 600; }
+	.wpac-table td .wpac-cell-label { display: inline; font-weight: 600; }
 }
+/* Narrow content columns (block themes, sidebars): the tab is a size container, so wide tables
+   also switch to cards when the column – not the viewport – is narrow (R14-U8). */
+.wpac-tab { container-type: inline-size; }
+@container (max-width: 640px) {
+	.wpac-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+	.wpac-table tr { display: block; border-bottom: 1px solid var(--wpac-border); padding: .5em 0; }
+	.wpac-table td { display: block; border: 0; padding: .15em 0; }
+	.wpac-table td .wpac-cell-label { display: inline; font-weight: 600; }
+}
+/* Monthly bonus: progress towards the next step (R14-U4). */
+.wpac-tier progress { display: block; width: 100%; max-width: 30em; height: 1em; margin: 0 0 .5em; accent-color: var(--wpac-accent, #0b6e99); }
+/* HTML text link snippet next to a partner link (R14-T10). */
+.wpac-snippet { margin: .25em 0 1em; }
+.wpac-snippet summary { cursor: pointer; font-size: .9em; }

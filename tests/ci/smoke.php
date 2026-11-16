@@ -148,12 +148,14 @@ if ( is_readable( $log ) ) {
 	clearstatcache();
 	$new = (string) file_get_contents( $log, false, null, $log_start );
 	foreach ( explode( "\n", $new ) as $line ) {
-		if ( preg_match( '/PHP (Fatal error|Warning|Parse error)/', $line ) && ( false !== strpos( $line, $own ) || false !== strpos( $line, 'plugins/affiliate-captain/' ) ) ) {
+		// Deprecations and notices too (R14-A4): PHP 8.x deprecations and WordPress' notices such as
+		// _load_textdomain_just_in_time (which name the text domain, not a file of the plugin).
+		if ( preg_match( '/PHP (Fatal error|Warning|Parse error|Deprecated|Notice)/', $line ) && ( false !== strpos( $line, $own ) || false !== strpos( $line, 'plugins/affiliate-captain/' ) || false !== strpos( $line, '<code>affiliate-captain</code>' ) ) ) {
 			$problems[] = trim( $line );
 		}
 	}
 }
-chk( 'no PHP errors or warnings from the plugin in debug.log during this run', ! $problems, implode( ' | ', array_slice( array_unique( $problems ), 0, 5 ) ) );
+chk( 'no PHP errors, warnings, deprecations or notices from the plugin in debug.log during this run', ! $problems, implode( ' | ', array_slice( array_unique( $problems ), 0, 5 ) ) );
 
 echo "\n$ok ok, $fail failed\n";
 exit( $fail ? 1 : 0 );

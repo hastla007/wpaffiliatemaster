@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to deploy (e.g. v0.11.0); the CI release for this tag must be green"
+        description: "Release tag to deploy (e.g. v0.11.0); refused unless the CI of this tag succeeded"
         required: true
         type: string
       slug:
@@ -32,6 +32,9 @@ jobs:
     name: SVN deploy
     runs-on: ubuntu-latest
     environment: wordpress-org
+    permissions:
+      contents: read
+      actions: read # Read the CI runs of the tag (no extra secret: the job token).
     env:
       HAS_SVN_SECRETS: ${{ secrets.SVN_USERNAME != '' && secrets.SVN_PASSWORD != '' }}
     steps:
@@ -58,6 +61,21 @@ jobs:
           php-version: "8.3"
           extensions: sodium, dom, mbstring
           coverage: none
+      # Only a tag whose CI succeeded (the tag push or the merge to main that created the release)
+      # and that has a GitHub release is deployed.
+      - name: CI of the tag succeeded
+        if: env.HAS_SVN_SECRETS == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          sha="$(git rev-parse HEAD)"
+          # Only the push run of the tag itself or of main counts (not branch pushes or PR runs).
+          ok="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$sha" --status success --limit 50 --json event,headBranch --jq '[.[] | select(.event == "push" and (.headBranch == $ENV.TAG or .headBranch == "main"))] | length')"
+          [ "${ok:-0}" -gt 0 ] || { echo "::error::No successful CI run of the tag or main for $TAG ($sha) – deploy refused."; exit 1; }
+          state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq 'if .isDraft or .isPrerelease then "withdrawn" else "ok" end')" || { echo "::error::No GitHub release $TAG – deploy refused."; exit 1; }
+          # A release set back to draft or pre-release is withdrawn (rollback, RELEASE.md §3a).
+          [ "$state" = "ok" ] || { echo "::error::Release $TAG is a draft or pre-release – deploy refused."; exit 1; }
       # Same checks as the release ZIP: versions in header, constant, readme and tag match; unit tests;
       # the .distignore selection contains the runtime files and no development files.
       - name: Verify the tag

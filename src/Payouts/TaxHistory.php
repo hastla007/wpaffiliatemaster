@@ -80,8 +80,8 @@ final class TaxHistory {
 	 * @param string $new New rate.
 	 */
 	public static function record_rate( $old, $new ) {
-		if ( (string) $old === (string) $new || '' === (string) $old ) {
-			return;
+		if ( Vat::rate_key( (string) $old ) === Vat::rate_key( (string) $new ) || '' === (string) $old ) {
+			return; // "19" → "19.0" is no change of the rate (R13-N8).
 		}
 		$h   = self::rates();
 		$h[] = array(
@@ -192,7 +192,8 @@ final class TaxHistory {
 	}
 
 	/**
-	 * Delete the tax history of a partner (privacy eraser, after the retention period).
+	 * Delete the tax history of a partner (with the payout details, privacy eraser). Correction
+	 * credit notes do not read it (they use the payout's items and profile snapshot).
 	 *
 	 * @param int $affiliate_id Partner.
 	 */

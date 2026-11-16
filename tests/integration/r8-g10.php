@@ -80,11 +80,11 @@ $g10_rates_old = array( 'JPY' => '0.0062', 'USD' => '0.92' );
 check( 'R5-O2 conversion with the new currency in the old rates', array( 8065, 'rate' ), WPAffiliateCaptain\Core\Settings::convert_minor( 5000, 'EUR', 'JPY', $g10_rates_old, array() ) );
 check( 'R5-O2 conversion with the old currency in the new rates', array( 5435, 'rate' ), Settings::convert_minor( 5000, 'EUR', 'USD', array(), array( 'EUR' => '1.087' ) ) );
 check( 'R5-O2 without a rate the shown value is kept (50.00 EUR → 50 JPY)', array( array( 50, 'scaled' ), array( 5000, 'same' ) ), array( Settings::convert_minor( 5000, 'EUR', 'JPY', array(), array() ), Settings::convert_minor( 5000, 'EUR', 'eur', array(), array() ) ) );
-check( 'R7-AD18 exchange rates are rebased to the new program currency', array( 'EUR' => '161.290323', 'USD' => '148.387097' ), Settings::rebase_rates( $g10_rates_old, 'EUR', 'JPY' ) );
+check( 'R7-AD18 exchange rates are rebased to the new program currency', array( 'EUR' => '161.290322581', 'USD' => '148.387096774' ), Settings::rebase_rates( $g10_rates_old, 'EUR', 'JPY' ) );
 check( 'R7-AD18 no rebase without a rate of the new currency', null, Settings::rebase_rates( array( 'USD' => '0.92' ), 'EUR', 'JPY' ) );
 $g10_set( array( 'currency' => 'EUR', 'exchange_rates' => "JPY=0.0062\nUSD=0.92", 'min_payout_minor' => 5000, 'fraud_max_order_minor' => 200000, 'default_rate_type' => 'fixed', 'default_rate' => '2500' ) );
 $g10_out = Settings::sanitize( array( 'currency' => 'JPY', 'exchange_rates' => "JPY=0.0062\nUSD=0.92", 'default_rate_type' => 'fixed', 'default_rate' => '25,00' ), $g10_err, $g10_notes );
-check( 'R5-O2 / R7-AD18 EUR → JPY: minimum payout, review limit, fixed default rate and rates converted', array( 'JPY', 8065, 322581, '4032', "EUR=161.290323\nUSD=148.387097", true, true, array() ), array( $g10_out['currency'], $g10_out['min_payout_minor'], $g10_out['fraud_max_order_minor'], $g10_out['default_rate'], $g10_out['exchange_rates'], isset( $g10_notes['currency'] ), isset( $g10_notes['exchange_rates'] ), $g10_err ) );
+check( 'R5-O2 / R7-AD18 EUR → JPY: minimum payout, review limit, fixed default rate and rates converted', array( 'JPY', 8065, 322581, '4032', "EUR=161.290322581\nUSD=148.387096774", true, true, array() ), array( $g10_out['currency'], $g10_out['min_payout_minor'], $g10_out['fraud_max_order_minor'], $g10_out['default_rate'], $g10_out['exchange_rates'], isset( $g10_notes['currency'] ), isset( $g10_notes['exchange_rates'] ), $g10_err ) );
 $g10_out = Settings::sanitize( array( 'currency' => 'CHF', 'exchange_rates' => '' ), $g10_err, $g10_notes );
 check( 'R5-O2 EUR → CHF without a rate: value kept and a warning', array( 5000, 200000, true ), array( $g10_out['min_payout_minor'], $g10_out['fraud_max_order_minor'], false !== strpos( (string) $g10_notes['currency'], 'CHF' ) ) );
 $g10_out = Settings::sanitize( array( 'default_rate_type' => 'fixed' ), $g10_err, $g10_notes );
@@ -198,10 +198,12 @@ if ( ! function_exists( 'get_edit_post_link' ) ) {
 	function get_edit_post_link( $id, $context = 'display' ) { return ''; }
 }
 // R5-O44 / R5-W61: checklist with optional items; setup notice until the required items are done.
+$GLOBALS['g10_post_status'] = array(); // No page is published here (the bootstrap stub defaults to "publish").
 $g10_items = DashboardPage::checklist_items();
-check( 'R5-O44 sales source checked; SEPA account and own key optional', array( 9, true, false, false ), array( count( $g10_items ), $g10_items[0][3], $g10_items[7][3], $g10_items[8][3] ) );
+check( 'R5-O44 sales source checked; SEPA account and own key optional', array( 10, true, false, false ), array( count( $g10_items ), $g10_items[0][3], $g10_items[7][3], $g10_items[8][3] ) );
 check( 'R5-O44 terms template with the self-billing agreement', true, false !== strpos( DashboardPage::terms_template(), 'self-billing' ) );
 check( 'R5-W61 setup notice follows the checklist, not only the partner area page', true, DashboardPage::setup_open() && false !== strpos( $g10_src( 'src/Admin/Admin.php' ), 'DashboardPage::setup_open()' ) );
+unset( $GLOBALS['g10_post_status'] );
 update_option( 'wpac_activation_redirect', 4242 );
 Admin::activation_redirect();
 check( 'R5-W61 the redirect after activation waits for the user who activated the plugin', 4242, get_option( 'wpac_activation_redirect' ) );

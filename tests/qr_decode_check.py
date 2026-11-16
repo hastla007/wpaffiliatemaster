@@ -7,6 +7,7 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DUMP = r'''<?php
+define( 'ABSPATH', __DIR__ . '/' ); // Shipped files exit without it (R12-N11).
 require $argv[1];
 foreach ( WPAffiliateCaptain\Promotion\Qr::matrix( $argv[2] ) as $row ) {
 	echo implode( '', array_map( function ( $b ) { return $b ? '1' : '0'; }, $row ) ), "\n";

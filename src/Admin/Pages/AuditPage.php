@@ -8,6 +8,7 @@
 namespace WPAffiliateCaptain\Admin\Pages;
 
 use WPAffiliateCaptain\Admin\Admin;
+use WPAffiliateCaptain\Admin\Tables\AuditTable;
 use WPAffiliateCaptain\Core\Audit;
 
 defined( 'ABSPATH' ) || exit;
@@ -71,6 +72,11 @@ final class AuditPage {
 				'code.batch_created'                => __( 'Code batch created', 'affiliate-captain' ),
 				'code.coupon_linked'                => __( 'Coupon linked', 'affiliate-captain' ),
 				'code.exported'                     => __( 'Codes exported', 'affiliate-captain' ),
+				'code.requested'                    => __( 'Own code requested by the partner', 'affiliate-captain' ),
+				'code.request_withdrawn'            => __( 'Code request withdrawn by the partner', 'affiliate-captain' ),
+				'code.request_approved'             => __( 'Code request approved', 'affiliate-captain' ),
+				'code.request_rejected'             => __( 'Code request rejected', 'affiliate-captain' ),
+				'coupon.renamed'                    => __( 'Coupon renamed', 'affiliate-captain' ),
 				'commission.dunning'                => __( 'Payment request sent', 'affiliate-captain' ),
 				'commission.exported'               => __( 'Commissions exported', 'affiliate-captain' ),
 				'commission.reinstated'             => __( 'Commission reinstated', 'affiliate-captain' ),
@@ -101,6 +107,9 @@ final class AuditPage {
 				'payout_profile.updated'            => __( 'Payout details changed', 'affiliate-captain' ),
 				'payout_profile.vies_checked'       => __( 'VAT ID checked with VIES', 'affiliate-captain' ),
 				'payout_profile.reencrypted'        => __( 'Bank details re-encrypted', 'affiliate-captain' ),
+				'payout_profile.bank_change_requested' => __( 'New bank details wait for approval (account access changed recently)', 'affiliate-captain' ),
+				'payout_profile.bank_change_approved'  => __( 'New bank details approved', 'affiliate-captain' ),
+				'payout_profile.bank_change_rejected'  => __( 'New bank details rejected', 'affiliate-captain' ),
 				'payout_request.created'            => __( 'Payout requested', 'affiliate-captain' ),
 				'payout_request.processed'          => __( 'Payout request processed', 'affiliate-captain' ),
 				'payout_request.rejected'           => __( 'Payout request rejected', 'affiliate-captain' ),
@@ -120,6 +129,8 @@ final class AuditPage {
 				'rule.deleted'                      => __( 'Rule deleted', 'affiliate-captain' ),
 				'schema.stuck'                      => __( 'Database update stuck', 'affiliate-captain' ),
 				'settings.updated'                  => __( 'Settings changed', 'affiliate-captain' ),
+				'security.reauth_confirmed'         => __( 'Password confirmed for a money-relevant action', 'affiliate-captain' ),
+				'security.reauth_failed'            => __( 'Password confirmation failed', 'affiliate-captain' ),
 				'settings.maintenance'              => __( 'Maintenance mode switched', 'affiliate-captain' ),
 				'setup.pages_created'               => __( 'Pages created', 'affiliate-captain' ),
 				'statement.generated'               => __( 'Credit note created', 'affiliate-captain' ),
@@ -133,6 +144,12 @@ final class AuditPage {
 				'statement.objection'               => __( 'Objection to a credit note', 'affiliate-captain' ),
 				'statement.objection_resolved'      => __( 'Objection handled', 'affiliate-captain' ),
 				'statement.moved'                   => __( 'Credit notes moved to the new folder', 'affiliate-captain' ),
+				'payout.correction_issued'          => __( 'Correction credit note issued', 'affiliate-captain' ),
+				'statement.correction_generated'    => __( 'Correction credit note created', 'affiliate-captain' ),
+				'statement.correction_downloaded'   => __( 'Correction credit note downloaded', 'affiliate-captain' ),
+				'statement.correction_sent'         => __( 'Correction credit note sent to the partner', 'affiliate-captain' ),
+				'statement.correction_write_failed' => __( 'Correction credit note could not be written', 'affiliate-captain' ),
+				'statement.correction_retention_deleted' => __( 'Correction credit note deleted after the retention period', 'affiliate-captain' ),
 				'tier.created'                      => __( 'Bonus tier created', 'affiliate-captain' ),
 				'tier.deactivated'                  => __( 'Bonus tier deactivated', 'affiliate-captain' ),
 				'tier.month_closed'                 => __( 'Bonus month closed', 'affiliate-captain' ),
@@ -186,6 +203,7 @@ final class AuditPage {
 			'tab'             => __( 'Settings section', 'affiliate-captain' ),
 			'month'           => __( 'Month', 'affiliate-captain' ),
 			'number'          => _x( 'Number', 'document number', 'affiliate-captain' ),
+			'action'          => __( 'Action', 'affiliate-captain' ),
 			'payouts'         => __( 'Payouts', 'affiliate-captain' ),
 			'moved'           => __( 'Moved', 'affiliate-captain' ),
 		);
@@ -196,6 +214,12 @@ final class AuditPage {
 			'mail'          => array(
 				'sent'   => __( 'sent', 'affiliate-captain' ),
 				'failed' => __( 'failed', 'affiliate-captain' ),
+			),
+			'action'        => array_combine( \WPAffiliateCaptain\Admin\Reauth::ACTIONS, array_map( array( \WPAffiliateCaptain\Admin\Reauth::class, 'action_label' ), \WPAffiliateCaptain\Admin\Reauth::ACTIONS ) ),
+			'reason'        => array(
+				'password'      => __( 'wrong password', 'affiliate-captain' ),
+				'second_factor' => __( 'second factor not confirmed', 'affiliate-captain' ),
+				'rate_limited'  => __( 'too many attempts', 'affiliate-captain' ),
 			),
 			'type'          => array(
 				'export'   => __( 'Data export', 'affiliate-captain' ),
@@ -260,8 +284,33 @@ final class AuditPage {
 			'action'      => preg_match( '/^[a-z_]+\.([a-z_]+)?$/', $action ) ? $action : '',
 			'from'        => $date( Admin::get( 'from' ) ),
 			'to'          => $date( Admin::get( 'to' ) ),
-			'order'       => ltrim( trim( sanitize_text_field( (string) Admin::get( 'order' ) ) ), '#' ),
+			'order'       => ltrim( trim( self::order_number() ), '#' ),
 		);
+	}
+
+	/**
+	 * Order number filter. "order_no" since the list sorts with orderby/order (R5-O47); an older
+	 * link with the order number in "order" still works unless it is a sort direction.
+	 *
+	 * @return string
+	 */
+	private static function order_number() {
+		$no = (string) Admin::get( 'order_no' );
+		if ( '' === $no ) {
+			$legacy = (string) Admin::get( 'order' );
+			$no     = in_array( strtolower( $legacy ), array( 'asc', 'desc' ), true ) ? '' : $legacy;
+		}
+		return $no;
+	}
+
+	/**
+	 * Text of the empty list.
+	 *
+	 * @param bool $filtered Whether a filter or search is active.
+	 * @return string
+	 */
+	public static function empty_text( $filtered ) {
+		return $filtered ? __( 'No entries match this filter.', 'affiliate-captain' ) : __( 'No entries yet. Changes to partners, commissions, payouts and settings are recorded here.', 'affiliate-captain' );
 	}
 
 	/**
@@ -284,6 +333,7 @@ final class AuditPage {
 			'job'        => __( 'Job', 'affiliate-captain' ),
 			'report'     => __( 'Report', 'affiliate-captain' ),
 			'settings'   => __( 'Settings', 'affiliate-captain' ),
+			'user'       => __( 'WordPress user', 'affiliate-captain' ),
 			'setup'      => __( 'Setup', 'affiliate-captain' ),
 			'cron'       => __( 'Scheduled tasks', 'affiliate-captain' ),
 		);
@@ -325,17 +375,13 @@ final class AuditPage {
 	 * Render.
 	 */
 	public static function render() {
-		$per     = 100;
 		$filters = self::filters();
-		$rows    = Audit::query(
-			$filters + array(
-				'limit'  => $per,
-				'offset' => ( Admin::paged() - 1 ) * $per,
-			)
-		);
+		$table   = new AuditTable( $filters );
+		$table->prepare_items();
 		echo '<div class="wrap"><h1>' . esc_html__( 'Audit log', 'affiliate-captain' ) . '</h1>';
+		// One GET form: filters, search, sorting and paging keep each other (R5-O47).
 		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac-audit">';
-		echo '<label for="wpac-audit-order">' . esc_html__( 'Order', 'affiliate-captain' ) . '</label> <input type="text" id="wpac-audit-order" name="order" inputmode="numeric" class="small-text" value="' . esc_attr( $filters['order'] ) . '"> ';
+		echo '<label for="wpac-audit-order">' . esc_html__( 'Order', 'affiliate-captain' ) . '</label> <input type="text" id="wpac-audit-order" name="order_no" inputmode="numeric" class="small-text" value="' . esc_attr( $filters['order'] ) . '"> ';
 		echo '<label for="wpac-audit-action" class="screen-reader-text">' . esc_html__( 'Action', 'affiliate-captain' ) . '</label><select id="wpac-audit-action" name="audit_action"><option value="">' . esc_html__( 'All actions', 'affiliate-captain' ) . '</option>';
 		foreach ( self::action_choices() as $value => $label ) {
 			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $filters['action'], $value, false ), esc_html( $label ) );
@@ -351,33 +397,15 @@ final class AuditPage {
 		foreach ( $types as $key => $label ) {
 			echo '<option value="' . esc_attr( $key ) . '"' . selected( $filters['object_type'], $key, false ) . '>' . esc_html( $label ) . '</option>';
 		}
-		echo '</select> <label for="wpac-audit-id">' . esc_html__( 'ID (e.g. partner number)', 'affiliate-captain' ) . '</label> <input type="number" min="1" id="wpac-audit-id" name="object_id" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" class="small-text"> <button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button></form>';
+		echo '</select> <label for="wpac-audit-id">' . esc_html__( 'ID (e.g. partner number)', 'affiliate-captain' ) . '</label> <input type="number" min="1" id="wpac-audit-id" name="object_id" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" class="small-text"> <button class="button">' . esc_html__( 'Filter', 'affiliate-captain' ) . '</button>';
 		echo '<p class="description">' . esc_html__( 'Order: everything about one order (attribution, commissions, refunds, manual changes). Dates are UTC.', 'affiliate-captain' ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'User', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Action', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Object', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Details', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
-		if ( ! $rows ) {
-			echo '<tr><td colspan="5">' . esc_html( array_filter( $filters ) ? __( 'No entries match this filter.', 'affiliate-captain' ) : __( 'No entries yet. Changes to partners, commissions, payouts and settings are recorded here.', 'affiliate-captain' ) ) . '</td></tr>';
+		$days = Audit::search_days();
+		if ( $days > 0 ) {
+			/* translators: %d: number of days */
+			echo '<p class="description">' . esc_html( sprintf( _n( 'The search covers the last %d day unless a start date is set.', 'The search covers the last %d days unless a start date is set.', $days, 'affiliate-captain' ), $days ) ) . '</p>';
 		}
-		$types = self::object_types();
-		foreach ( $rows as $r ) {
-			$user = $r->actor_id ? get_userdata( (int) $r->actor_id ) : null;
-			printf(
-				'<tr><td>%s</td><td>%s</td><td title="%s">%s</td><td>%s</td><td title="%s">%s</td></tr>',
-				esc_html( Admin::date( $r->created_at, true ) ),
-				esc_html( $user ? $user->display_name : __( 'System', 'affiliate-captain' ) ),
-				esc_attr( $r->action ),
-				esc_html( self::action_label( $r->action ) ),
-				esc_html( ( isset( $types[ $r->object_type ] ) ? $types[ $r->object_type ] : $r->object_type ) . ( $r->object_id ? ' #' . $r->object_id : '' ) ),
-				esc_attr( (string) $r->details ),
-				esc_html( self::details_text( (string) $r->details ) )
-			);
-		}
-		echo '</tbody></table>';
-		if ( ! $rows ) {
-			echo '<p>' . esc_html__( 'No entries match the filter.', 'affiliate-captain' ) . '</p>';
-		}
-		if ( count( $rows ) === $per ) {
-			echo '<p><a class="button" href="' . esc_url( add_query_arg( 'paged', Admin::paged() + 1 ) ) . '">' . esc_html__( 'Older entries', 'affiliate-captain' ) . '</a></p>';
-		}
-		echo '</div>';
+		$table->search_box( __( 'Search audit log', 'affiliate-captain' ), 'wpac-audit' );
+		$table->display();
+		echo '</form></div>';
 	}
 }

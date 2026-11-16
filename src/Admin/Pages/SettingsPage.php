@@ -25,8 +25,9 @@ final class SettingsPage {
 		if ( 'ropa_download' === $do ) {
 			nocache_headers();
 			header( 'Content-Type: text/markdown; charset=utf-8' );
-			header( 'Content-Disposition: attachment; filename="verarbeitungsverzeichnis-affiliate.md"' );
-			echo \WPAffiliateCaptain\Privacy\Privacy::ropa(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
+			$lang = \WPAffiliateCaptain\Privacy\Privacy::ropa_language();
+			header( 'Content-Disposition: attachment; filename="' . ( 'de' === $lang ? 'verarbeitungsverzeichnis-affiliate.md' : 'record-of-processing-affiliate.md' ) . '"' );
+			echo \WPAffiliateCaptain\Privacy\Privacy::ropa( $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
 			exit;
 		}
 		if ( 'settings_save' !== $do ) {
@@ -124,6 +125,17 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Warning for a cookie lifetime beyond what is usually proportionate (R14-L8).
+	 *
+	 * @param int $days Cookie lifetime.
+	 * @return string
+	 */
+	public static function cookie_days_warning( $days ) {
+		/* translators: 1: configured cookie lifetime in days, 2: advised maximum in days */
+		return sprintf( __( 'A cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days, about 13 months). Choose a shorter lifetime unless you have documented reasons; the lifetime must also be stated in your consent banner.', 'affiliate-captain' ), (int) $days, \WPAffiliateCaptain\Core\Settings::COOKIE_DAYS_ADVISED );
+	}
+
+	/**
 	 * Labels of the validated fields (form field name => label) for error messages.
 	 *
 	 * @return array
@@ -134,6 +146,7 @@ final class SettingsPage {
 			'lifetime_rate'              => __( 'Lifetime rate in % (empty = normal rules)', 'affiliate-captain' ),
 			'audit_retention_days'       => __( 'Keep audit log (days, 0 = forever)', 'affiliate-captain' ),
 			'application_retention_days' => __( 'Keep rejected applications (days, 0 = forever)', 'affiliate-captain' ),
+			'pending_application_days'   => __( 'Keep undecided applications (days, 0 = forever)', 'affiliate-captain' ),
 			'fraud_max_orders_day'       => __( 'Max. orders per partner in 24 hours', 'affiliate-captain' ),
 			'fraud_min_click_seconds'    => __( 'Min. seconds between click and order', 'affiliate-captain' ),
 			'fraud_max_refund_rate'      => __( 'Max. refund rate of a partner in % (90 days, min. 5 orders)', 'affiliate-captain' ),
@@ -162,6 +175,7 @@ final class SettingsPage {
 			'vat_rate'                   => __( 'VAT rate in %', 'affiliate-captain' ),
 			'credit_prefix'              => __( 'Prefix credit note numbers', 'affiliate-captain' ),
 			'storno_prefix'              => __( 'Prefix cancellation numbers', 'affiliate-captain' ),
+			'correction_prefix'          => __( 'Prefix correction credit note numbers', 'affiliate-captain' ),
 			'debtor_bic'                 => __( 'Company BIC (optional)', 'affiliate-captain' ),
 			'debtor_iban'                => __( 'Company IBAN (SEPA)', 'affiliate-captain' ),
 		);
@@ -181,6 +195,7 @@ final class SettingsPage {
 				'terms_page_id'         => __( 'Partner program terms', 'affiliate-captain' ),
 				'auto_approve'          => __( 'Approve applications automatically', 'affiliate-captain' ),
 				'terminated_open'       => __( 'Open commissions on termination', 'affiliate-captain' ),
+				'code_requests'         => __( 'Partners can request an own partner code (e.g. MARIA10) in the partner area', 'affiliate-captain' ),
 				'mail_from_name'        => __( 'Sender name', 'affiliate-captain' ),
 				'notify_payout_paid'    => __( 'E-mail to the partner when a payout was paid', 'affiliate-captain' ),
 				'notify_commissions'    => __( 'E-mail to partners about new, approved and rejected commissions', 'affiliate-captain' ),
@@ -195,6 +210,7 @@ final class SettingsPage {
 				'fraud_max_order_minor' => __( 'Review orders above (net)', 'affiliate-captain' ),
 				'fraud_check_domains'   => __( 'Review orders with disposable or blocked e-mail domains', 'affiliate-captain' ),
 				'fraud_blocked_domains' => __( 'Additional blocked domains', 'affiliate-captain' ),
+				'reauth_required'       => __( 'Ask for the password again before payout files, marking payouts as paid, bank details and account links', 'affiliate-captain' ),
 				'default_rate_type'     => __( 'Default commission type', 'affiliate-captain' ),
 				'lifetime_enabled'      => __( 'Lifetime commissions: repeat purchases of referred customers go to the same partner', 'affiliate-captain' ),
 				'hold_start'            => __( 'Hold period starts', 'affiliate-captain' ),
@@ -202,6 +218,8 @@ final class SettingsPage {
 				'rule_precedence'       => __( 'Rule precedence', 'affiliate-captain' ),
 				'landing_page_id'       => __( 'Default landing page', 'affiliate-captain' ),
 				'promotion_guidelines'  => __( 'Promotion guidelines for partners', 'affiliate-captain' ),
+				'embed_disclosure_label' => __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ),
+				'auto_apply_coupon'     => __( 'Apply the partner\'s coupon automatically after a partner link', 'affiliate-captain' ),
 				'min_payout_minor'      => __( 'Minimum payout', 'affiliate-captain' ),
 				'payout_requests'       => __( 'Partners can request payouts in the partner area', 'affiliate-captain' ),
 				'payout_method_manual'  => __( 'Partners may choose another payment method (e.g. PayPal, Wise), paid manually', 'affiliate-captain' ),
@@ -211,6 +229,8 @@ final class SettingsPage {
 				'operator_vat_id'       => __( 'Your VAT ID', 'affiliate-captain' ),
 				'vies_check'            => __( 'VIES check: verify partner VAT IDs with the EU Commission', 'affiliate-captain' ),
 				'operator_tax_number'   => __( 'Your tax number (if no VAT ID)', 'affiliate-captain' ),
+				'einvoice_mail'         => __( 'Send e-invoice (XML) with the credit note e-mail', 'affiliate-captain' ),
+				'einvoice_buyer_reference' => __( 'Buyer reference on e-invoices (e.g. Leitweg-ID)', 'affiliate-captain' ),
 				'debtor_name'           => __( 'Company account holder (SEPA)', 'affiliate-captain' ),
 				'remittance_prefix'     => __( 'Remittance text prefix', 'affiliate-captain' ),
 				'report_admin'          => __( 'Monthly summary e-mail to the operator', 'affiliate-captain' ),
@@ -261,15 +281,15 @@ final class SettingsPage {
 	 */
 	public static function tab_keys() {
 		return array(
-			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open' ),
+			'program'     => array( 'registration_page_id', 'portal_page_id', 'terms_page_id', 'terms_version', 'auto_approve', 'terminated_open', 'code_requests' ),
 			'emails'      => array( 'admin_email', 'mail_from_name', 'mail_from_email', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'report_admin', 'report_partners' ),
 			'tracking'    => array( 'referral_param', 'checkout_field', 'use_wc_session', 'cookie_mode', 'cookie_days', 'cookie_domain', 'touch_model', 'coupon_priority', 'self_referral', 'js_tracking', 'visit_log_percent' ),
-			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies' ),
+			'security'    => array( 'fraud_max_orders_day', 'fraud_max_order_minor', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'fraud_check_domains', 'fraud_blocked_domains', 'rate_limit_per_minute', 'trusted_proxies', 'reauth_required' ),
 			'commissions' => array( 'currency', 'exchange_rates', 'default_rate_type', 'default_rate', 'lifetime_enabled', 'lifetime_days', 'lifetime_rate', 'hold_days', 'hold_start', 'renewal_commission', 'renewal_limit_months', 'rule_precedence' ),
-			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'promotion_guidelines' ),
-			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
+			'promotion'   => array( 'landing_prefix', 'landing_page_id', 'default_disclosure', 'embed_disclosure_label', 'auto_apply_coupon', 'promotion_guidelines' ),
+			'payouts'     => array( 'min_payout_minor', 'payout_requests', 'payout_method_manual', 'self_billing', 'vat_rate', 'operator_country', 'operator_address', 'operator_vat_id', 'vies_check', 'operator_tax_number', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'einvoice_mail', 'einvoice_buyer_reference', 'debtor_name', 'debtor_iban', 'debtor_bic', 'remittance_prefix' ),
 			// All retention periods, maintenance and uninstall in one place (R5-O45).
-			'data'        => array( 'visit_retention_days', 'application_retention_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
+			'data'        => array( 'visit_retention_days', 'application_retention_days', 'pending_application_days', 'audit_retention_days', 'statement_retention_years', 'retention_hold', 'maintenance_mode', 'monitor_token', 'delete_on_uninstall' ),
 		);
 	}
 
@@ -294,8 +314,12 @@ final class SettingsPage {
 			self::text( 'currency', __( 'Program currency', 'affiliate-captain' ), $s, $desc );
 			return;
 		}
-		$options = array();
+		$options  = array();
+		$accepted = \WPAffiliateCaptain\Sales\ContractApi::currencies();
 		foreach ( (array) get_woocommerce_currencies() as $code => $name ) {
+			if ( ! in_array( strtoupper( (string) $code ), $accepted, true ) ) {
+				continue; // Removed by the filter wpac_contract_currencies: sales would be refused.
+			}
 			/* translators: 1: currency name, 2: ISO code */
 			$options[ (string) $code ] = sprintf( __( '%1$s (%2$s)', 'affiliate-captain' ), html_entity_decode( (string) $name, ENT_QUOTES, 'UTF-8' ), $code );
 		}
@@ -357,6 +381,31 @@ final class SettingsPage {
 		Admin::form_open( 'settings_save', 'wpac-tabs-content' );
 		echo '<input type="hidden" name="tab" value="' . esc_attr( self::$tab ) . '">';
 
+		self::render_program_tab( $s );
+		self::render_emails_tab( $s );
+		self::render_tracking_tab( $s );
+		self::render_security_tab( $s, $currency );
+		self::render_commissions_tab( $s, $currency );
+		self::render_promotion_tab( $s );
+		self::render_payouts_tab( $s, $currency );
+		self::render_data_tab( $s );
+
+		submit_button();
+		echo '</form>';
+		if ( 'data' === self::$tab ) {
+			echo '<h2>' . esc_html__( 'Record of processing activities', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'affiliate-captain' ) . '</p>';
+			Admin::form_open( 'ropa_download' );
+			echo '<p><button class="button">' . esc_html__( 'Download template (Markdown)', 'affiliate-captain' ) . '</button></p></form>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Fields of the 'Program' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_program_tab( array $s ) {
 		self::section( __( 'Pages & terms', 'affiliate-captain' ), 'program' );
 		self::page_select( 'registration_page_id', __( 'Application page', 'affiliate-captain' ), $s, '[wpac_affiliate_registration]' );
 		self::page_select( 'portal_page_id', __( 'Partner area page', 'affiliate-captain' ), $s, '[wpac_affiliate_portal]' );
@@ -367,8 +416,16 @@ final class SettingsPage {
 		self::section( __( 'Applications & termination', 'affiliate-captain' ), 'program' );
 		self::checkbox( 'auto_approve', __( 'Approve applications automatically', 'affiliate-captain' ), $s );
 		self::select( 'terminated_open', __( 'Open commissions on termination', 'affiliate-captain' ), $s, array( 'pay' => __( 'Remain payable', 'affiliate-captain' ), 'reject' => __( 'Are rejected', 'affiliate-captain' ) ) );
+		self::checkbox( 'code_requests', __( 'Partners can request an own partner code (e.g. MARIA10) in the partner area', 'affiliate-captain' ), $s, __( 'Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page.', 'affiliate-captain' ) );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'E-mails & reports' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_emails_tab( array $s ) {
 		self::section( __( 'Addresses', 'affiliate-captain' ), 'emails' );
 		self::text( 'admin_email', __( 'Notification e-mail', 'affiliate-captain' ), $s, __( 'Defaults to the site admin e-mail.', 'affiliate-captain' ) );
 		self::text( 'mail_from_name', __( 'Sender name', 'affiliate-captain' ), $s, __( 'Empty: WordPress default (or the setting of your SMTP plugin).', 'affiliate-captain' ) );
@@ -388,10 +445,20 @@ final class SettingsPage {
 		self::checkbox( 'report_admin', __( 'Monthly summary e-mail to the operator', 'affiliate-captain' ), $s );
 		self::checkbox( 'report_partners', __( 'Monthly summary e-mail to active partners', 'affiliate-captain' ), $s, __( 'Sent on the first days of the month for the previous month.', 'affiliate-captain' ) );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Tracking' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_tracking_tab( array $s ) {
 		self::section( __( 'Tracking & attribution', 'affiliate-captain' ), 'tracking' );
 		self::text( 'referral_param', __( 'Link parameter', 'affiliate-captain' ), $s, sprintf( /* translators: %s: example URL with the link parameter */ __( 'Example: %s', 'affiliate-captain' ), home_url( '/?' . $s['referral_param'] . '=CODE' ) ) );
 		self::checkbox( 'checkout_field', __( 'Show partner code field at checkout (classic + blocks)', 'affiliate-captain' ), $s );
+		if ( class_exists( 'WooCommerce' ) && ! function_exists( 'woocommerce_register_additional_checkout_field' ) ) {
+			self::desc_row( __( 'The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it.', 'affiliate-captain' ) );
+		}
 		self::checkbox( 'use_wc_session', __( 'Keep the code from a partner link in the WooCommerce shop session', 'affiliate-captain' ), $s, __( 'Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie.', 'affiliate-captain' ) );
 		self::select(
 			'cookie_mode',
@@ -406,15 +473,30 @@ final class SettingsPage {
 		if ( 'always' === $s['cookie_mode'] ) {
 			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html__( 'An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use "Only with marketing consent" unless your shop is outside the EU and you checked the local law.', 'affiliate-captain' ) . '</p></div></td></tr>';
 		}
-		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'affiliate-captain' ), $s );
+		self::number( 'cookie_days', __( 'Cookie lifetime (days)', 'affiliate-captain' ), $s, __( 'Named in the privacy policy text and in the cookie details for your consent banner. Data protection authorities consider up to 13 months (395 days) proportionate for consent-based cookies.', 'affiliate-captain' ) );
+		if ( (int) $s['cookie_days'] > \WPAffiliateCaptain\Core\Settings::COOKIE_DAYS_ADVISED ) {
+			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html( self::cookie_days_warning( (int) $s['cookie_days'] ) ) . '</p></div></td></tr>';
+		}
 		self::text( 'cookie_domain', __( 'Cookie domain', 'affiliate-captain' ), $s, __( 'Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both.', 'affiliate-captain' ) );
 		self::checkbox( 'js_tracking', __( 'Also record partner links via JavaScript (for full-page caches/CDNs)', 'affiliate-captain' ), $s, __( 'Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare "Cache Everything"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice.', 'affiliate-captain' ) );
+		$edge = \WPAffiliateCaptain\Tracking\Tracker::edge_cache_hint();
+		if ( '' !== $edge ) {
+			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html( $edge ) . '</p></div></td></tr>';
+		}
 		self::number( 'visit_log_percent', __( 'Record link visits (%)', 'affiliate-captain' ), $s, __( '100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected.', 'affiliate-captain' ) );
 		self::select( 'touch_model', __( 'Link attribution', 'affiliate-captain' ), $s, array( 'last' => __( 'Last touch', 'affiliate-captain' ), 'first' => __( 'First touch', 'affiliate-captain' ) ) );
 		self::checkbox( 'coupon_priority', __( 'Affiliate coupon has priority over partner links', 'affiliate-captain' ), $s );
 		self::select( 'self_referral', __( 'Self-referrals', 'affiliate-captain' ), $s, array( 'block' => __( 'Block', 'affiliate-captain' ), 'review' => __( 'Flag for review', 'affiliate-captain' ) ) );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Fraud & abuse' tab.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function render_security_tab( array $s, $currency ) {
 		self::section( __( 'Fraud rules', 'affiliate-captain' ), 'security' );
 		echo '<tr><td colspan="2" class="description">' . esc_html__( 'Matches do not block a sale: its commissions get the status "needs review" with the reason. 0 = rule off.', 'affiliate-captain' ) . '</td></tr>';
 		if ( ! (int) $s['fraud_max_orders_day'] && ! (int) $s['fraud_max_order_minor'] && ! (int) $s['fraud_min_click_seconds'] && ! (int) $s['fraud_max_refund_rate'] ) {
@@ -435,8 +517,17 @@ final class SettingsPage {
 		self::number( 'rate_limit_per_minute', __( 'Max. counted link visits per client and minute', 'affiliate-captain' ), $s );
 		$err = self::error_parts( 'trusted_proxies' );
 		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html__( 'Trusted proxies / CDN', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html__( 'IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy.', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		self::checkbox( 'reauth_required', __( 'Ask for the password again before payout files, marking payouts as paid, bank details and account links', 'affiliate-captain' ), $s, __( 'Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too.', 'affiliate-captain' ) );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Commissions' tab.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function render_commissions_tab( array $s, $currency ) {
 		self::section( __( 'Program currency', 'affiliate-captain' ), 'commissions' );
 		self::currency_field( $s );
 		$err = self::error_parts( 'exchange_rates' );
@@ -484,14 +575,31 @@ final class SettingsPage {
 			)
 		);
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Promotion' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_promotion_tab( array $s ) {
 		self::section( __( 'Promotion', 'affiliate-captain' ), 'promotion' );
 		self::text( 'landing_prefix', __( 'Landing page path', 'affiliate-captain' ), $s, sprintf( /* translators: %s: example URL of a partner landing page */ __( 'Partner landing URLs look like %s', 'affiliate-captain' ), home_url( '/' . $s['landing_prefix'] . '/partner-slug/' ) ) );
 		self::page_select( 'landing_page_id', __( 'Default landing page', 'affiliate-captain' ), $s, __( 'Add [wpac_partner_welcome] to show "Recommended by …".', 'affiliate-captain' ) );
 		self::text( 'default_disclosure', __( 'Default disclosure note', 'affiliate-captain' ), $s );
+		self::checkbox( 'embed_disclosure_label', __( 'Show the disclosure note visibly above the banner embed code', 'affiliate-captain' ), $s, __( 'The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. "Advertisement"), so the label stays with the banner on the partner\'s website.', 'affiliate-captain' ) );
+		self::checkbox( 'auto_apply_coupon', __( 'Apply the partner\'s coupon automatically after a partner link', 'affiliate-captain' ), $s, __( 'WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an "individual use" coupon is not combined. Not for the partner\'s own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before.', 'affiliate-captain' ) );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html__( 'Promotion guidelines for partners', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html__( 'Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area.', 'affiliate-captain' ) . '</p></td></tr>';
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Payouts & credit notes' tab.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function render_payouts_tab( array $s, $currency ) {
 		self::section( __( 'Payouts', 'affiliate-captain' ), 'payouts' );
 		$err = self::error_parts( 'min_payout' );
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html__( 'Minimum payout', 'affiliate-captain' ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( self::shown( 'min_payout', Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
@@ -517,6 +625,22 @@ final class SettingsPage {
 		self::text( 'vat_rate', __( 'VAT rate in %', 'affiliate-captain' ), $s, __( 'E.g. 19 or 7,7 – "%" may be typed.', 'affiliate-captain' ) );
 		self::text( 'credit_prefix', __( 'Prefix credit note numbers', 'affiliate-captain' ), $s, __( 'Numbers are gapless per year, e.g. GS-2026-000001.', 'affiliate-captain' ) );
 		self::text( 'storno_prefix', __( 'Prefix cancellation numbers', 'affiliate-captain' ), $s );
+		self::text( 'correction_prefix', __( 'Prefix correction credit note numbers', 'affiliate-captain' ), $s, __( 'Correction credit notes of paid payouts, e.g. KG-2026-000001.', 'affiliate-captain' ) );
+		self::end();
+
+		self::section( __( 'Electronic invoice (EN 16931)', 'affiliate-captain' ), 'payouts' );
+		self::select(
+			'einvoice_mail',
+			__( 'Send e-invoice (XML) with the credit note e-mail', 'affiliate-captain' ),
+			$s,
+			array(
+				'auto' => __( 'Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)', 'affiliate-captain' ),
+				'on'   => __( 'Always', 'affiliate-captain' ),
+				'off'  => __( 'Never (download only)', 'affiliate-captain' ),
+			),
+			__( 'Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy.', 'affiliate-captain' )
+		);
+		self::text( 'einvoice_buyer_reference', __( 'Buyer reference on e-invoices (e.g. Leitweg-ID)', 'affiliate-captain' ), $s, __( 'Optional. Empty: the document number is used.', 'affiliate-captain' ) );
 		self::end();
 
 		self::section( __( 'VAT ID check (VIES)', 'affiliate-captain' ), 'payouts' );
@@ -529,10 +653,18 @@ final class SettingsPage {
 		self::text( 'debtor_bic', __( 'Company BIC (optional)', 'affiliate-captain' ), $s );
 		self::text( 'remittance_prefix', __( 'Remittance text prefix', 'affiliate-captain' ), $s );
 		self::end();
+	}
 
+	/**
+	 * Fields of the 'Data & maintenance' tab.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function render_data_tab( array $s ) {
 		self::section( __( 'Retention periods', 'affiliate-captain' ), 'data' );
 		self::number( 'visit_retention_days', __( 'Keep visit data (days)', 'affiliate-captain' ), $s );
 		self::number( 'application_retention_days', __( 'Keep rejected applications (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised.', 'affiliate-captain' ) );
+		self::number( 'pending_application_days', __( 'Keep undecided applications (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days.', 'affiliate-captain' ) );
 		self::number( 'audit_retention_days', __( 'Keep audit log (days, 0 = forever)', 'affiliate-captain' ), $s, __( 'Terms acceptance records and booking-relevant entries are kept as long as the credit notes.', 'affiliate-captain' ) );
 		self::number( 'statement_retention_years', __( 'Keep statements (years, 0 = forever)', 'affiliate-captain' ), $s, __( 'At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain.', 'affiliate-captain' ) );
 		self::checkbox( 'retention_hold', __( 'Tax audit or legal hold: do not delete any statements', 'affiliate-captain' ), $s, __( 'The retention period is suspended while a tax audit is running (§147 Abs. 3 AO).', 'affiliate-captain' ) );
@@ -546,15 +678,6 @@ final class SettingsPage {
 		self::section( __( 'Uninstall', 'affiliate-captain' ), 'data' );
 		self::checkbox( 'delete_on_uninstall', __( 'Delete all data when the plugin is deleted', 'affiliate-captain' ), $s, __( 'Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.', 'affiliate-captain' ) );
 		self::end();
-
-		submit_button();
-		echo '</form>';
-		if ( 'data' === self::$tab ) {
-			echo '<h2>' . esc_html__( 'Record of processing activities', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'affiliate-captain' ) . '</p>';
-			Admin::form_open( 'ropa_download' );
-			echo '<p><button class="button">' . esc_html__( 'Download template (Markdown)', 'affiliate-captain' ) . '</button></p></form>';
-		}
-		echo '</div>';
 	}
 
 	/**
@@ -670,14 +793,17 @@ final class SettingsPage {
 	 * @param string $label   Label.
 	 * @param array  $s       Settings.
 	 * @param array  $options Options.
+	 * @param string $desc    Description.
 	 */
-	private static function select( $key, $label, $s, array $options ) {
+	private static function select( $key, $label, $s, array $options, $desc = '' ) {
 		$err = self::error_parts( $key );
 		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]"%3$s>', esc_attr( $key ), esc_html( $label ), $err[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		foreach ( $options as $v => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $v ), selected( self::shown( $key, $s[ $key ] ), (string) $v, false ), esc_html( $l ) );
 		}
-		echo '</select>' . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		echo '</select>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc );
+		echo '</td></tr>';
 	}
 
 	/**

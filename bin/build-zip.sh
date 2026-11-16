@@ -21,6 +21,11 @@ if [ -n "${1:-}" ] && [ "${1#v}" != "$HEADER_VERSION" ]; then
 	echo "Version mismatch: expected ${1#v}, plugin is $HEADER_VERSION" >&2
 	exit 1
 fi
+# The release notes are taken from the changelog entry of the version: it must exist.
+if ! sed -n '/^== Changelog ==/,/^== /p' readme.txt | tr -d '\r' | grep -qxF "= $HEADER_VERSION ="; then
+	echo "readme.txt has no changelog entry \"= $HEADER_VERSION =\" under == Changelog ==" >&2
+	exit 1
+fi
 
 php tests/run.php
 
@@ -34,10 +39,10 @@ for f in $(find "$BUILD/$SLUG" -name '*.php'); do php -l "$f" >/dev/null; done
 
 # The ZIP must contain the runtime files and nothing from development.
 for need in affiliate-captain.php uninstall.php readme.txt src assets blocks languages \
-	docs/VERARBEITUNGSVERZEICHNIS.md tools/purge-retained.php languages/affiliate-captain-de_DE.mo; do
+	docs/VERARBEITUNGSVERZEICHNIS.md docs/RECORD-OF-PROCESSING.md tools/purge-retained.php languages/affiliate-captain-de_DE.mo; do
 	[ -e "$BUILD/$SLUG/$need" ] || { echo "Missing in the ZIP: $need" >&2; exit 1; }
 done
-for dev in README.md TODO.md tests bin examples composer.json phpcs.xml.dist phpstan.neon.dist \
+for dev in README.md TODO.md tests bin examples composer.json phpcs.xml.dist phpstan.neon.dist phpstan-baseline.neon \
 	languages/de_DE.json docs/FREE-PREMIUM.md .github .distignore; do
 	[ ! -e "$BUILD/$SLUG/$dev" ] || { echo "Development file in the ZIP: $dev" >&2; exit 1; }
 done

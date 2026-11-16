@@ -2,7 +2,9 @@
 
 Dieser Ordner wird vom Workflow „Deploy to WordPress.org“ (`.github/workflows/wordpress-org-deploy.yml`) in den SVN-Ordner `assets/` des Plugins kopiert. Er ist nicht Teil des Plugin-ZIPs (`.distignore`). Diese README wird vor dem Deploy entfernt – im SVN-Ordner `assets/` sind nur Bilder erlaubt.
 
-Noch keine Bilder vorhanden. Benötigt werden (Dateinamen exakt so, PNG oder JPG, Banner/Icons zusätzlich als SVG möglich):
+Vorhanden sind alle Dateien der Tabelle. Quellen und Skripte zum Neu-Erzeugen liegen in `bin/wporg-assets/` (nicht im ZIP): `icon.svg` und `banner.html` → `node bin/wporg-assets/render.js`; Screenshots einer Demo-Seite (fiktive Daten, example.com) → `bin/wporg-assets/screenshots/shots.sh` (Ablauf im Skriptkopf); danach `python3 bin/wporg-assets/optimize.py` (Palette mit 256 Farben).
+
+Dateinamen (exakt so, PNG oder JPG, Banner/Icons zusätzlich als SVG möglich):
 
 | Datei | Größe | Zweck |
 |---|---|---|
@@ -22,11 +24,11 @@ Regeln von WordPress.org:
 
 Reihenfolge der Screenshots (muss zu `readme.txt` passen):
 
-1. Dashboard mit Einrichtungs-Checkliste und Kennzahlen
-2. Partnerliste mit Status, Codes und Guthaben
-3. Partnerdetails mit Codes, Auszahlungsdaten und Kontoauszug
-4. Provisionsregeln und Partnergruppen
-5. Auszahlungslauf mit Vorschau, Gutschriften und SEPA-Export
-6. Partnerbereich (Portal) mit Partnerlink, Statistik und Provisionen
-7. Bewerbungsformular (Block)
+1. Dashboard mit Kennzahlen und Bericht nach Partner, Inhalt und Kampagne
+2. Partnerliste mit Status, Codes, Guthaben, Auszahlungsdaten und Bedingungen
+3. Partnerdetails mit Kennzahlen und Kontoauszug (Integritätsprüfung)
+4. Provisionsregeln (alle Partner, Gruppen, Produkte, Kategorien, SKUs, Ausschlüsse)
+5. Auszahlungslauf mit Vorschau und Liste der Auszahlungen
+6. Partnerbereich (Portal) mit Partnerlink, Kennzahlen und Provisionen
+7. Bewerbungsformular (Block) mit Feldern je Partnergruppe
 8. Import & Export (CSV-Import mit Prüfung)

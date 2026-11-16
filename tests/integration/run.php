@@ -1336,8 +1336,8 @@ update_option( 'wpac_settings', array_merge( get_option( 'wpac_settings' ), arra
 Settings::flush_cache();
 $zd_keep = get_option( 'wpac_settings' );
 // K2: common inputs are understood.
-$zd = Settings::sanitize( array( 'default_rate_type' => 'percent', 'default_rate' => '15 %', 'vat_rate' => '20 %', 'lifetime_rate' => '15,5', 'min_payout' => '1.000,00 €', 'fraud_max_order' => '1.000 €' ), $zd_err );
-check( 'ZD K2 "15 %", "20 %", "15,5", "1.000,00 €" and "1.000 €" are accepted', array( '15', '20', '15.5', 100000, 100000, array() ), array( $zd['default_rate'], $zd['vat_rate'], $zd['lifetime_rate'], $zd['min_payout_minor'], $zd['fraud_max_order_minor'], $zd_err ) );
+$zd = Settings::sanitize( array( 'default_rate_type' => 'percent', 'default_rate' => '15 %', 'vat_rate' => '20 %', 'lifetime_rate' => '15,5', 'min_payout' => '1.000,00 €', 'fraud_max_order' => '1000 €' ), $zd_err );
+check( 'ZD K2 "15 %", "20 %", "15,5", "1.000,00 €" and "1000 €" are accepted (R13-K6: "1.000 €" is ambiguous)', array( '15', '20', '15.5', 100000, 100000, array() ), array( $zd['default_rate'], $zd['vat_rate'], $zd['lifetime_rate'], $zd['min_payout_minor'], $zd['fraud_max_order_minor'], $zd_err ) );
 $zd = Settings::sanitize( array( 'default_rate_type' => 'fixed', 'default_rate' => '25 €' ), $zd_err );
 check( 'ZD K2 fixed default rate "25 €" = 2500 minor units', array( 'fixed', '2500', array() ), array( $zd['default_rate_type'], $zd['default_rate'], $zd_err ) );
 check( 'ZD K2 amount parser: "€ 25,50", "1,000.00", "EUR 7"', array( '25.50', '1000.00', '7' ), array( Settings::parse_amount( '€ 25,50' ), Settings::parse_amount( '1,000.00' ), Settings::parse_amount( 'EUR 7' ) ) );
@@ -1538,8 +1538,51 @@ require __DIR__ . '/r8-g10.php';
 require __DIR__ . '/r9-h1.php';
 require __DIR__ . '/r9-h2.php';
 require __DIR__ . '/r9-h3.php';
+require __DIR__ . '/r10-pu5.php';
+require __DIR__ . '/r10-cc5.php';
+require __DIR__ . '/r10-w10.php';
+require __DIR__ . '/r10-w55.php';
+require __DIR__ . '/r10-w55b.php';
+require __DIR__ . '/r11-payout-api.php';
+require __DIR__ . '/r11-api.php';
+require __DIR__ . '/r12-a1.php';
+require __DIR__ . '/r12-a2.php';
+require __DIR__ . '/r12-b.php';
+require __DIR__ . '/r12-d.php'; // Round 12, part D (before r8-render: no template stubs needed).
+require __DIR__ . '/r12-e.php'; // Round 12, part E (before r8-render: no template stubs needed).
+require __DIR__ . '/r13-c.php'; // Round 13, part C (before r8-render: no template stubs needed).
+require __DIR__ . '/r13-a1.php'; // Round 13, part a1 (concurrency; before r8-render).
+require __DIR__ . '/r13-a2.php'; // Round 13, fix agent a2 (before r8-render: no template stubs needed).
+require __DIR__ . '/r13-e.php'; // Round 13, part E (before r8-render: no template stubs needed).
+require __DIR__ . '/r13-d.php'; // Round 13, part D (privacy).
+require __DIR__ . '/r13-pro.php'; // Core requests of the Pro audit (before r8-render).
+require __DIR__ . '/r14-g4.php'; // Round 14, fix agent g4 (legal; before r8-render).
+require __DIR__ . '/r14-g3.php'; // Round 14, fix agent g3 (before r8-render).
+require __DIR__ . '/r14-g2.php'; // Round 14, fix agent g2 (before r8-render: no template stubs needed).
+require __DIR__ . '/r14-g5.php'; // Round 14, fix agent g5 (before r8-render).
+require __DIR__ . '/r14-g6.php'; // Round 14, fix agent g6: e-invoice (before r8-render).
+require __DIR__ . '/r14-g1.php'; // Round 14, fix agent g1 (before r8-render: no template stubs needed).
+require __DIR__ . '/r14-g7.php'; // Round 14, fix agent g7: performance and caching (before r8-render).
+require __DIR__ . '/r14-g8.php'; // Round 14, fix agent g8: daily visit aggregate (before r8-render).
+require __DIR__ . '/r14-f4.php'; // Round 14, feature agent f4 (before r8-render).
+require __DIR__ . '/r14-f1.php'; // Feature f1: automatic partner coupon (before r8-render).
+require __DIR__ . '/r14-f3.php'; // Feature f3: password confirmation rules (before r8-render).
+require __DIR__ . '/r14-f2.php'; // Feature f2 (0.15.0): partner code requests (before r8-render).
+require __DIR__ . '/r14-p15.php'; // Feature p15 (0.15.0): contract wishes of the Pro add-on (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
+require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
+require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
+require __DIR__ . '/r12-c.php'; // After r8-render.php: renders pages with its template stubs.
+require __DIR__ . '/r12-d-render.php'; // After r8-render.php: renders admin pages with its stubs.
+require __DIR__ . '/r13-c-render.php'; // After r8-render.php: renders the partner area with its stubs.
+require __DIR__ . '/r14-g3-render.php'; // After r8-render.php: renders the partner area with its stubs.
+require __DIR__ . '/r14-g5-render.php'; // After the render files: e-mail templates page (R14-P1).
+require __DIR__ . '/r14-g8-render.php'; // After the render files: paged campaign statistics (R14-D9).
+require __DIR__ . '/r14-f3-render.php'; // After the render files: password confirmation flows (feature f3).
+require __DIR__ . '/r14-f2-render.php'; // After the render files: code requests (feature f2, 0.15.0).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
+$GLOBALS['wpac_test_deprecations_reported'] = true;
+check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );
 
 echo "\n{$count} integration checks, {$fails} failures\n";
 exit( $fails ? 1 : 0 );

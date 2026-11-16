@@ -84,6 +84,11 @@ final class IntegrationsPage {
 			\WPAffiliateCaptain\Core\Monitor::check_migrations();
 			Admin::back( $message );
 		}
+		if ( 'customer_key_confirm' === $do ) {
+			$deleted = \WPAffiliateCaptain\Tracking\CustomerLinks::confirm_key_change( '1' === (string) Admin::post( 'delete_old' ) );
+			/* translators: %d: number of customer links */
+			Admin::back( $deleted ? sprintf( _n( 'Key change confirmed; %d customer link made with the earlier key was deleted.', 'Key change confirmed; %d customer links made with the earlier key were deleted.', $deleted, 'affiliate-captain' ), $deleted ) : __( 'Key change confirmed.', 'affiliate-captain' ) );
+		}
 		if ( 'statements_move' === $do ) {
 			list( $moved, $failed ) = \WPAffiliateCaptain\Payouts\Statement::move_misplaced();
 			/* translators: %d: number of files */
@@ -243,6 +248,7 @@ final class IntegrationsPage {
 		if ( 'status' === $tab ) {
 			self::migration_notices();
 			self::render_status();
+			self::render_rejected();
 		} elseif ( 'queue' === $tab ) {
 			self::render_queue();
 		} else {
@@ -287,7 +293,7 @@ final class IntegrationsPage {
 		$checks = array(
 			array( class_exists( 'WooCommerce' ), __( 'WooCommerce active', 'affiliate-captain' ) . ( class_exists( 'WooCommerce' ) ? ' (' . ( $hpos ? 'HPOS' : __( 'legacy order storage', 'affiliate-captain' ) ) . ')' : '' ) ),
 			array( function_exists( 'woocommerce_register_additional_checkout_field' ), __( 'Partner code field available in block checkout (WooCommerce 8.9+)', 'affiliate-captain' ) ),
-			array( function_exists( 'wp_has_consent' ), __( 'WP Consent API detected (marketing consent for the affiliate cookie)', 'affiliate-captain' ) ),
+			self::consent_check(),
 			array( Crypto::has_dedicated_key(), Crypto::has_dedicated_key() ? __( 'Dedicated encryption key WPAC_ENCRYPTION_KEY defined', 'affiliate-captain' ) : __( 'No dedicated encryption key: add define( \'WPAC_ENCRYPTION_KEY\', \'…64 hex characters…\' ); to wp-config.php (generate it e.g. with "openssl rand -hex 32"). Existing bank details stay readable and can then be re-encrypted here.', 'affiliate-captain' ) ),
 			array( '' !== (string) Settings::get( 'debtor_iban' ), __( 'Company account for SEPA export configured', 'affiliate-captain' ) ),
 			self::statement_dir_check(),
@@ -295,10 +301,83 @@ final class IntegrationsPage {
 			array( ! \WPAffiliateCaptain\Commissions\Balance::verify_all( 200 ), __( 'Partner accounts: booking chains intact and balances match the commission ledger', 'affiliate-captain' ) ),
 			array( \WPAffiliateCaptain\Core\Monitor::cron_running(), __( 'Scheduled tasks active (hold period release, retries)', 'affiliate-captain' ) ),
 		);
+		if ( defined( 'WPAC_CUSTOMER_KEY' ) ) {
+			$customer = \WPAffiliateCaptain\Tracking\CustomerLinks::key_status();
+			$checks[] = 'constant' === $customer['source'] && ! $customer['missing']
+				? array( true, __( 'Customer hashes use WPAC_CUSTOMER_KEY from wp-config.php', 'affiliate-captain' ) )
+				: array( false, $customer['ignored'] ? __( 'WPAC_CUSTOMER_KEY is ignored: customer links already exist with hashes made from the key stored in the database, and they cannot be recalculated (e-mail addresses are not stored).', 'affiliate-captain' ) : __( 'The existing customer links were made with an earlier WPAC_CUSTOMER_KEY. Restore it in wp-config.php, otherwise returning customers are no longer recognised and erasure requests no longer find their links.', 'affiliate-captain' ) );
+		}
 		foreach ( $checks as $c ) {
 			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '"><span aria-hidden="true">' . ( $c[0] ? '✔' : '!' ) . '</span> ' . esc_html( $c[1] ) . '<span class="screen-reader-text"> – ' . esc_html( $c[0] ? __( 'OK', 'affiliate-captain' ) : __( 'check', 'affiliate-captain' ) ) . '</span></li>';
 		}
 		echo '</ul>';
+		self::render_customer_key_change();
+	}
+
+	/**
+	 * Consent banner check (R14-L2): green only when consent can really reach the plugin – the
+	 * WP Consent API with a banner that registered a consent type, or the filter
+	 * wpac_has_marketing_consent. The API plugin alone answers nothing.
+	 *
+	 * @return array [ ok, label ]
+	 */
+	public static function consent_check() {
+		$c = \WPAffiliateCaptain\Tracking\Consent::integration_status();
+		if ( ! $c['needed'] ) {
+			return array( true, __( 'Consent banner: not needed for the current cookie setting', 'affiliate-captain' ) );
+		}
+		if ( $c['connected'] ) {
+			return array( true, __( 'Consent banner connected (WP Consent API with a registered banner or the filter wpac_has_marketing_consent) – the affiliate cookie is set after marketing consent', 'affiliate-captain' ) );
+		}
+		return array(
+			false,
+			$c['api']
+				? __( 'WP Consent API installed, but no consent banner has registered with it: the affiliate cookie is never set. Use a banner with WP Consent API support or add the filter wpac_has_marketing_consent (recipes in the handbook, section "Consent banners"). Partner codes keep working.', 'affiliate-captain' )
+				: __( 'No consent banner connected: the affiliate cookie is never set. Install a banner with WP Consent API support or add the filter wpac_has_marketing_consent (recipes in the handbook, section "Consent banners"). Partner codes keep working.', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * WPAC_CUSTOMER_KEY was changed or removed while customer links exist (R13-K9): the warning
+	 * stays until an admin confirms here, with or without deleting the links made with the
+	 * earlier key.
+	 */
+	private static function render_customer_key_change() {
+		$change = \WPAffiliateCaptain\Tracking\CustomerLinks::key_change();
+		if ( ! $change || ! \WPAffiliateCaptain\Tracking\CustomerLinks::key_status()['missing'] || ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::MANAGE_PROGRAM ) ) {
+			return;
+		}
+		/* translators: %d: number of customer links */
+		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( '%d customer link was made with an earlier WPAC_CUSTOMER_KEY.', '%d customer links were made with an earlier WPAC_CUSTOMER_KEY.', $change['links'], 'affiliate-captain' ), $change['links'] ) ) . '</strong> ' . esc_html__( 'If you can, restore the earlier key in wp-config.php. If it is lost, these links can no longer be matched to a customer (no lifetime commissions, not found by access or erasure requests): delete them. If only the WordPress salts were changed and the key itself is the same, confirm without deleting.', 'affiliate-captain' ) . '</p>';
+		Admin::form_open( 'customer_key_confirm' );
+		echo '<p><button class="button button-primary" name="delete_old" value="1">' . esc_html__( 'Delete links made with the earlier key and confirm', 'affiliate-captain' ) . '</button> <button class="button" name="delete_old" value="0">' . esc_html__( 'Key unchanged – confirm without deleting', 'affiliate-captain' ) . '</button></p></form></div>';
+	}
+
+	/**
+	 * Payloads refused on the action path of the contract (do_action( 'wpac_v1_record_sale' )
+	 * etc.), which gives the sender no return value (R12-M10).
+	 */
+	private static function render_rejected() {
+		$list = ContractApi::rejected();
+		if ( ! $list ) {
+			return;
+		}
+		echo '<h2>' . esc_html__( 'Refused through the action hooks', 'affiliate-captain' ) . '</h2>';
+		echo '<p>' . esc_html__( 'These sales, refunds or reinstatements were sent through do_action() and refused by the validation. They were not booked and are not retried: please fix the sending integration and send them again.', 'affiliate-captain' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Action', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Source', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Order', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Error', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $list as $e ) {
+			$e = wp_parse_args( (array) $e, array( 'time' => 0, 'hook' => '', 'source' => '', 'order' => '', 'code' => '', 'message' => '' ) );
+			printf(
+				'<tr><td>%s</td><td><code>%s</code></td><td>%s</td><td>%s</td><td><code>%s</code> %s</td></tr>',
+				esc_html( Admin::date( gmdate( 'Y-m-d H:i:s', (int) $e['time'] ), true ) ),
+				esc_html( (string) $e['hook'] ),
+				esc_html( '' !== (string) $e['source'] ? (string) $e['source'] : '—' ),
+				esc_html( '' !== (string) $e['order'] ? (string) $e['order'] : '—' ),
+				esc_html( (string) $e['code'] ),
+				esc_html( (string) $e['message'] )
+			);
+		}
+		echo '</tbody></table>';
 	}
 
 	/**
@@ -329,7 +408,7 @@ final class IntegrationsPage {
 					$edit = $wc ? (string) $wc->get_edit_order_url() : '';
 				}
 				$cell = ( '' !== $edit ? '<a href="' . esc_url( $edit ) . '">#' . esc_html( $order[1] ) . '</a>' : '#' . esc_html( $order[1] ) )
-					. ' <small>(<a href="' . esc_url( Admin::url( 'wpac-audit', array( 'order' => $order[1] ) ) ) . '">' . esc_html__( 'log', 'affiliate-captain' ) . '</a>)</small><br>' . $cell;
+					. ' <small>(<a href="' . esc_url( Admin::url( 'wpac-audit', array( 'order_no' => $order[1] ) ) ) . '">' . esc_html__( 'log', 'affiliate-captain' ) . '</a>)</small><br>' . $cell;
 			}
 			printf(
 				'<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s<br><small><code>%s</code> %s</small></td><td>%s</td><td>',

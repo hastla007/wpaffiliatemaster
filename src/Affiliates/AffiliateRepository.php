@@ -181,7 +181,8 @@ final class AffiliateRepository {
 	/**
 	 * Create an affiliate.
 	 *
-	 * @param array $data name, email, website, channel, application_note, user_id, group_id, status, slug.
+	 * @param array $data name, email, website, channel, application_note, user_id, group_id, status, slug,
+	 *                    referred_by (recruiting partner; ignored when unknown).
 	 * @return int|\WP_Error New ID.
 	 */
 	public static function create( array $data ) {
@@ -195,6 +196,12 @@ final class AffiliateRepository {
 		}
 		$name   = sanitize_text_field( isset( $data['name'] ) ? $data['name'] : '' );
 		$status = isset( $data['status'] ) && in_array( $data['status'], self::STATUSES, true ) ? $data['status'] : 'pending';
+		// Recruiting partner (sub-affiliate add-ons): only an existing partner; a new account cannot
+		// be its own recruiter or close a cycle.
+		$referred_by = isset( $data['referred_by'] ) ? absint( $data['referred_by'] ) : 0;
+		if ( $referred_by && ! self::find( $referred_by ) ) {
+			$referred_by = 0;
+		}
 		$slug   = self::unique_slug( ! empty( $data['slug'] ) ? $data['slug'] : $name );
 		$now    = Db::now();
 
@@ -211,6 +218,7 @@ final class AffiliateRepository {
 				'channel'          => sanitize_text_field( isset( $data['channel'] ) ? $data['channel'] : '' ),
 				'application_note' => sanitize_textarea_field( isset( $data['application_note'] ) ? $data['application_note'] : '' ),
 				'application_data' => ! empty( $data['application_data'] ) ? wp_json_encode( $data['application_data'] ) : null,
+				'referred_by'      => $referred_by,
 				'created_at'       => $now,
 				'updated_at'       => $now,
 			)
@@ -220,10 +228,11 @@ final class AffiliateRepository {
 		}
 		$id = (int) $wpdb->insert_id;
 		self::clear_cache( $id );
-		Audit::log( 'affiliate.created', 'affiliate', $id, array( 'status' => $status ) );
+		Audit::log( 'affiliate.created', 'affiliate', $id, $referred_by ? array( 'status' => $status, 'referred_by' => $referred_by ) : array( 'status' => $status ) );
 
 		if ( 'active' === $status ) {
 			self::on_activated( $id );
+			self::recruited( $id );
 		}
 		/**
 		 * A partner account was created (admin, application or API).
@@ -233,6 +242,123 @@ final class AffiliateRepository {
 		 */
 		do_action( 'wpac_affiliate_created', $id, $status );
 		return $id;
+	}
+
+	/** Most recruiter levels followed when checking for a cycle (deeper chains are refused). */
+	const RECRUITER_DEPTH = 1000;
+
+	/**
+	 * Why a partner cannot be recorded as recruiter of another one: unknown partner, the partner
+	 * itself, or a cycle (the recruiter was recruited – directly or further up – by the partner).
+	 *
+	 * @param int $id        Partner.
+	 * @param int $recruiter Recruiting partner (0 = none: always fine).
+	 * @return \WP_Error|null
+	 */
+	public static function recruiter_problem( $id, $recruiter ) {
+		global $wpdb;
+		$id        = (int) $id;
+		$recruiter = (int) $recruiter;
+		if ( 0 === $recruiter ) {
+			return null;
+		}
+		if ( $recruiter < 0 || ! self::find( $recruiter ) ) {
+			return new \WP_Error( 'wpac_invalid_recruiter', __( 'The recruiting partner does not exist.', 'affiliate-captain' ) );
+		}
+		if ( $recruiter === $id ) {
+			return new \WP_Error( 'wpac_invalid_recruiter', __( 'A partner cannot be their own recruiter.', 'affiliate-captain' ) );
+		}
+		$t    = Db::table( 'affiliates' );
+		$seen = array( $recruiter => true );
+		$next = $recruiter;
+		for ( $i = 0; $i < self::RECRUITER_DEPTH; $i++ ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$next = (int) $wpdb->get_var( $wpdb->prepare( "SELECT referred_by FROM {$t} WHERE id = %d", $next ) );
+			if ( 0 === $next ) {
+				return null;
+			}
+			if ( $next === $id || isset( $seen[ $next ] ) ) {
+				return new \WP_Error( 'wpac_recruiter_cycle', __( 'The chosen recruiter was recruited (directly or indirectly) by this partner: that would form a cycle.', 'affiliate-captain' ) );
+			}
+			$seen[ $next ] = true;
+		}
+		return new \WP_Error( 'wpac_recruiter_cycle', __( 'The chain of recruiters is too long.', 'affiliate-captain' ) );
+	}
+
+	/**
+	 * Set or remove the recruiting partner (admin, wpac_update_affiliate()). Validated (existing
+	 * partner, not the partner itself, no cycle) and audited. Does not fire
+	 * wpac_affiliate_recruited (that follows the registration/approval only).
+	 *
+	 * @param int $id        Partner.
+	 * @param int $recruiter Recruiting partner (0 = none).
+	 * @return true|\WP_Error
+	 */
+	public static function set_referred_by( $id, $recruiter ) {
+		global $wpdb;
+		$aff = self::find( (int) $id );
+		if ( ! $aff ) {
+			return new \WP_Error( 'wpac_not_found', __( 'Affiliate not found.', 'affiliate-captain' ) );
+		}
+		$recruiter = (int) $recruiter;
+		$before    = isset( $aff->referred_by ) ? (int) $aff->referred_by : 0;
+		if ( $before === $recruiter ) {
+			return true;
+		}
+		$problem = self::recruiter_problem( (int) $id, $recruiter );
+		if ( $problem ) {
+			return $problem;
+		}
+		$saved = $wpdb->update(
+			Db::table( 'affiliates' ),
+			array(
+				'referred_by' => max( 0, $recruiter ),
+				'updated_at'  => Db::now(),
+			),
+			array( 'id' => (int) $id )
+		);
+		self::clear_cache( (int) $id );
+		if ( false === $saved ) {
+			return new \WP_Error( 'wpac_affiliate_db', __( 'The partner data could not be saved. Please try again; the previous data are unchanged.', 'affiliate-captain' ) );
+		}
+		Audit::log(
+			'affiliate.referred_by',
+			'affiliate',
+			(int) $id,
+			array(
+				'from' => $before,
+				'to'   => $recruiter,
+			)
+		);
+		return true;
+	}
+
+	/**
+	 * Fire wpac_affiliate_recruited for a partner that has a recruiter and just became active
+	 * through the registration or the approval of the application (after COMMIT).
+	 *
+	 * @param int $id Partner.
+	 */
+	private static function recruited( $id ) {
+		$aff       = self::find( (int) $id );
+		$recruiter = $aff && isset( $aff->referred_by ) ? (int) $aff->referred_by : 0;
+		if ( ! $recruiter ) {
+			return;
+		}
+		Db::after_commit(
+			static function () use ( $id, $recruiter ) {
+				/**
+				 * A partner recruited by another partner was registered and is active (registered with
+				 * automatic approval, or the application was approved). Fired once, after COMMIT. For
+				 * sub-affiliate add-ons: the core only stores the link (affiliates.referred_by).
+				 *
+				 * @since 0.15.0
+				 * @param int $affiliate_id New partner.
+				 * @param int $recruiter_id Recruiting partner.
+				 */
+				do_action( 'wpac_affiliate_recruited', (int) $id, $recruiter );
+			}
+		);
 	}
 
 	/**
@@ -346,6 +472,7 @@ final class AffiliateRepository {
 			// Tell the previous address (a hijacked session must not silently take over the account)
 			// and keep sending security alerts there for 30 days.
 			update_option( 'wpac_prev_email_' . (int) $id, array( 'email' => $before->email, 'until' => time() + 30 * DAY_IN_SECONDS ), false );
+			self::mark_access_change( (int) $id );
 			$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $before );
 			try {
 				$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
@@ -459,6 +586,47 @@ final class AffiliateRepository {
 		return (string) $prev['email'];
 	}
 
+	/** Days after an account link or an e-mail change in which new bank details wait for approval. */
+	const ACCESS_CHANGE_DAYS = 30;
+
+	/**
+	 * Remember that the access to the partner account changed (e-mail address, linked user): for
+	 * ACCESS_CHANGE_DAYS a new payout destination entered in the partner area waits for the
+	 * approval of someone with the payout permission (R14-S1).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	public static function mark_access_change( $id ) {
+		update_option( 'wpac_access_changed_' . (int) $id, time(), false );
+	}
+
+	/**
+	 * Whether the e-mail address or the linked user changed within ACCESS_CHANGE_DAYS.
+	 *
+	 * @param int $id Affiliate ID.
+	 * @return bool
+	 */
+	public static function access_changed_recently( $id ) {
+		$at = (int) get_option( 'wpac_access_changed_' . (int) $id, 0 );
+		if ( $at && $at < time() - self::ACCESS_CHANGE_DAYS * DAY_IN_SECONDS ) {
+			delete_option( 'wpac_access_changed_' . (int) $id );
+			$at = 0;
+		}
+		return $at > 0 || '' !== self::previous_email( (int) $id );
+	}
+
+	/**
+	 * Recipients of a security notice to the partner: the partner e-mail and, within 30 days after
+	 * a change, the previous address too.
+	 *
+	 * @param object $aff Partner.
+	 * @return string|string[]
+	 */
+	public static function alert_recipients( $aff ) {
+		$previous = self::previous_email( (int) $aff->id );
+		return '' !== $previous && strtolower( $previous ) !== strtolower( (string) $aff->email ) ? array( (string) $aff->email, $previous ) : (string) $aff->email;
+	}
+
 	/**
 	 * a***@example.com
 	 *
@@ -515,7 +683,7 @@ final class AffiliateRepository {
 		$saved = $wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id, 'status' => $aff->status ) );
 		self::clear_cache( $id );
 		if ( ! $saved ) {
-			Log::error( 'Partner status could not be saved', array( 'affiliate' => (int) $id, 'to' => $status, 'error' => (string) $wpdb->last_error ) );
+			Log::error( 'Partner status could not be saved', array( 'affiliate' => (int) $id, 'to' => $status, 'error' => Log::mask_error( (string) $wpdb->last_error ) ) );
 			return new \WP_Error( 'wpac_status_not_saved', __( 'The status could not be saved (database error or changed meanwhile). Nothing was changed; please try again.', 'affiliate-captain' ) );
 		}
 		Audit::log(
@@ -531,6 +699,9 @@ final class AffiliateRepository {
 
 		if ( 'active' === $status ) {
 			self::on_activated( (int) $id );
+			if ( ! $aff->approved_at && in_array( $aff->status, array( 'pending', 'rejected' ), true ) ) {
+				self::recruited( (int) $id ); // The application of a recruited partner was approved.
+			}
 			if ( $notify && in_array( $aff->status, array( 'pending', 'rejected' ), true ) ) {
 				Notifications::application_approved( (int) $id );
 			}
@@ -783,6 +954,7 @@ final class AffiliateRepository {
 				'same_email' => $same_email,
 			)
 		);
+		self::mark_access_change( (int) $id );
 		self::notify_manual_link( $aff, $wp, $same_email );
 		return true;
 	}
@@ -815,6 +987,11 @@ final class AffiliateRepository {
 				'reason' => sanitize_key( $reason ),
 			)
 		);
+		if ( 'manual' === $reason ) {
+			// Disconnecting is the first step of linking another account: the partner (also at the
+			// address used before a recent change) and the program admin learn of it (R14-S1).
+			self::notify_unlink( $aff );
+		}
 		return true;
 	}
 
@@ -888,23 +1065,29 @@ final class AffiliateRepository {
 	}
 
 	/**
-	 * Inform the partner (at the partner e-mail) and the program admin about a manual account link.
+	 * Inform the partner (at the partner e-mail and, within 30 days after a change, at the
+	 * previous one) and the program admin about an account link.
 	 *
 	 * @param object   $aff        Partner.
 	 * @param \WP_User $wp         Linked user.
 	 * @param bool     $same_email Whether the account has the partner's e-mail address.
+	 * @param bool     $manual     Linked by the shop team (false: confirmed from the e-mail link).
 	 */
-	private static function notify_manual_link( $aff, $wp, $same_email ) {
+	private static function notify_manual_link( $aff, $wp, $same_email, $manual = true ) {
 		$site        = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$previous    = self::previous_email( (int) $aff->id );
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		try {
 			Notifications::send(
 				'account_linked',
-				$aff->email,
+				self::alert_recipients( $aff ),
 				/* translators: %s: site name */
 				sprintf( __( '[%s] An account was linked to your partner access', 'affiliate-captain' ), $site ),
-				/* translators: 1: partner name, 2: login name */
-				sprintf( __( "Hello %1\$s,\n\nthe shop team linked the user account \"%2\$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away.", 'affiliate-captain' ), $aff->name, $wp->user_login ),
+				$manual
+					/* translators: 1: partner name, 2: login name */
+					? sprintf( __( "Hello %1\$s,\n\nthe shop team linked the user account \"%2\$s\" to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away.", 'affiliate-captain' ), $aff->name, $wp->user_login )
+					/* translators: 1: partner name, 2: login name */
+					: sprintf( __( "Hello %1\$s,\n\nthe user account \"%2\$s\" was linked to your partner access. Whoever logs in with it sees your partner area, commissions and payout details.\n\nIf you did not ask for this, please contact us right away.", 'affiliate-captain' ), $aff->name, $wp->user_login ),
 				array( 'affiliate_id' => (int) $aff->id )
 			);
 		} finally {
@@ -913,13 +1096,71 @@ final class AffiliateRepository {
 		$actor       = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
 		$wpac_locale = Notifications::switch_for_admin();
 		try {
+			$note = $same_email ? '' : ' ' . __( 'The account has a different e-mail address than the partner.', 'affiliate-captain' );
+			if ( '' !== $previous ) {
+				/* translators: %s: previous address, partly hidden */
+				$note .= ' ' . sprintf( __( 'The partner\'s e-mail address was changed within the last 30 days (before: %s). Please make sure the account belongs to the partner; new bank details entered in the partner area wait for approval for 30 days.', 'affiliate-captain' ), self::mask_email( $previous ) );
+			}
 			Notifications::send(
 				'account_linked_admin',
 				Notifications::admin_email(),
-				/* translators: %s: site name */
-				sprintf( __( '[%s] Partner account linked manually', 'affiliate-captain' ), $site ),
+				$manual
+					/* translators: %s: site name */
+					? sprintf( __( '[%s] Partner account linked manually', 'affiliate-captain' ), $site )
+					/* translators: %s: site name */
+					: sprintf( __( '[%s] Partner account linked', 'affiliate-captain' ), $site ),
 				/* translators: 1: partner ID, 2: login name, 3: user who linked it, 4: note */
-				sprintf( __( "Partner #%1\$d was linked to the user account \"%2\$s\" by %3\$s.%4\$s", 'affiliate-captain' ), (int) $aff->id, $wp->user_login, $actor && $actor->exists() ? $actor->user_login : '-', $same_email ? '' : ' ' . __( 'The account has a different e-mail address than the partner.', 'affiliate-captain' ) ),
+				sprintf( __( "Partner #%1\$d was linked to the user account \"%2\$s\" by %3\$s.%4\$s", 'affiliate-captain' ), (int) $aff->id, $wp->user_login, $actor && $actor->exists() ? $actor->user_login : '-', $note ),
+				array(
+					'admin'        => true,
+					'affiliate_id' => (int) $aff->id,
+				)
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
+	}
+
+	/**
+	 * Inform the partner (current and recent previous address) and the program admin that the
+	 * shop team disconnected the user account.
+	 *
+	 * @param object $aff Partner (before the change).
+	 */
+	private static function notify_unlink( $aff ) {
+		$site        = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$previous    = self::previous_email( (int) $aff->id );
+		$old_user    = get_userdata( (int) $aff->user_id );
+		$login       = $old_user ? (string) $old_user->user_login : '#' . (int) $aff->user_id;
+		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
+		try {
+			Notifications::send(
+				'account_unlinked',
+				self::alert_recipients( $aff ),
+				/* translators: %s: site name */
+				sprintf( __( '[%s] An account was disconnected from your partner access', 'affiliate-captain' ), $site ),
+				/* translators: 1: partner name, 2: login name */
+				sprintf( __( "Hello %1\$s,\n\nthe shop team disconnected the user account \"%2\$s\" from your partner access. It no longer opens your partner area.\n\nIf you did not ask for this, please contact us right away.", 'affiliate-captain' ), $aff->name, $login ),
+				array( 'affiliate_id' => (int) $aff->id )
+			);
+		} finally {
+			\WPAffiliateCaptain\Core\Locale::restore( $wpac_locale );
+		}
+		$actor       = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		$wpac_locale = Notifications::switch_for_admin();
+		try {
+			$note = '';
+			if ( '' !== $previous ) {
+				/* translators: %s: previous address, partly hidden */
+				$note = ' ' . sprintf( __( 'The partner\'s e-mail address was changed within the last 30 days (before: %s).', 'affiliate-captain' ), self::mask_email( $previous ) );
+			}
+			Notifications::send(
+				'account_unlinked_admin',
+				Notifications::admin_email(),
+				/* translators: %s: site name */
+				sprintf( __( '[%s] Partner account disconnected', 'affiliate-captain' ), $site ),
+				/* translators: 1: partner ID, 2: login name, 3: user who disconnected it, 4: note */
+				sprintf( __( "The user account \"%2\$s\" was disconnected from partner #%1\$d by %3\$s.%4\$s", 'affiliate-captain' ), (int) $aff->id, $login, $actor && $actor->exists() ? $actor->user_login : '-', $note ),
 				array(
 					'admin'        => true,
 					'affiliate_id' => (int) $aff->id,
@@ -998,6 +1239,12 @@ final class AffiliateRepository {
 		self::clear_cache( (int) $id );
 		if ( $done ) {
 			Audit::log( 'affiliate.user_linked', 'affiliate', (int) $id, array( 'user' => (int) $user->ID ) );
+			if ( '' !== self::previous_email( (int) $id ) ) {
+				// The address was changed shortly before (possibly by the shop team, then the link was
+				// resent to the new address): the old address and the admin are told (R14-S1).
+				self::notify_manual_link( $aff, $user, true, false );
+			}
+			self::mark_access_change( (int) $id );
 		}
 		return (bool) $done;
 	}
@@ -1019,7 +1266,8 @@ final class AffiliateRepository {
 		$cut = (string) preg_replace( '/%[0-9a-f]?$/i', '', substr( $slug, 0, $max ) );
 		if ( preg_match( '/(?:%[0-9a-f]{2})+$/i', $cut, $m ) ) {
 			$bytes = rawurldecode( $m[0] );
-			while ( '' !== $bytes && ! mb_check_encoding( $bytes, 'UTF-8' ) ) {
+			// Without mbstring: a PCRE /u match fails on invalid UTF-8 (R12-N12).
+			while ( '' !== $bytes && ! ( function_exists( 'mb_check_encoding' ) ? mb_check_encoding( $bytes, 'UTF-8' ) : 1 === preg_match( '//u', $bytes ) ) ) {
 				$bytes = substr( $bytes, 0, -1 );
 			}
 			$encoded = '';
@@ -1140,7 +1388,7 @@ final class AffiliateRepository {
 	/**
 	 * List affiliates.
 	 *
-	 * @param array $args status, search, limit, offset.
+	 * @param array $args status, group_id, referred_by (recruiting partner, 0 = none), search, limit, offset.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -1151,6 +1399,14 @@ final class AffiliateRepository {
 		if ( ! empty( $args['status'] ) ) {
 			$where   .= ' AND status = %s';
 			$params[] = $args['status'];
+		}
+		if ( isset( $args['group_id'] ) && '' !== (string) $args['group_id'] && (int) $args['group_id'] >= 0 ) {
+			$where   .= ' AND group_id = %d';
+			$params[] = (int) $args['group_id'];
+		}
+		if ( isset( $args['referred_by'] ) && '' !== (string) $args['referred_by'] && (int) $args['referred_by'] >= 0 ) {
+			$where   .= ' AND referred_by = %d';
+			$params[] = (int) $args['referred_by'];
 		}
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';

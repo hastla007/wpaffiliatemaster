@@ -197,6 +197,9 @@ final class Retention {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p} SET note = '' WHERE affiliate_id = %d", $affiliate_id ) );
 		// Write-off reasons are stored as the description; sales keep the product name.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$c} SET description = '' WHERE affiliate_id = %d AND kind = 'writeoff'", $affiliate_id ) );
+		// Reasons of correction credit notes (the documents are past their retention by now).
+		$wpdb->query( $wpdb->prepare( "UPDATE {$c} SET description = '' WHERE affiliate_id = %d AND kind = 'correction'", $affiliate_id ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payout_corrections' ) . " SET reason = '', profile_snapshot = NULL WHERE affiliate_id = %d", $affiliate_id ) );
 		// Objections to the partner's credit notes.
 		$objections = \WPAffiliateCaptain\Payouts\Objections::all();
 		foreach ( $objections as $pid => $o ) {
@@ -207,8 +210,166 @@ final class Retention {
 		update_option( \WPAffiliateCaptain\Payouts\Objections::OPTION, $objections, false );
 		// Change log of the partner's payouts (e.g. the reason of a cancellation).
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'payout' AND object_id IN (SELECT id FROM {$p} WHERE affiliate_id = %d)", $affiliate_id ) );
+		// Change log of the partner's payout details and requests, kept unchanged by the erasure
+		// during the retention period (acceptance records go with delete_agreements()).
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'audit' ) . " SET details = NULL WHERE object_type = 'affiliate' AND object_id = %d AND action NOT LIKE 'agreement.%%'", $affiliate_id ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQuery
+		// Leftover tax data history (normally deleted with the payout details already).
+		\WPAffiliateCaptain\Payouts\TaxHistory::delete( (int) $affiliate_id );
 		// phpcs:enable
 	}
+
+	/**
+	 * Daily: attributions (order number, partner, method, campaign, sub ID, visit ID) are booking
+	 * records only as long as the commissions of their order: once the attribution and every
+	 * commission of the order are past the retention period and nothing of it is open any more, the
+	 * attribution row is deleted (storage limitation, R12-M13). Nothing is deleted during a tax
+	 * audit / legal hold or with "keep forever" (cutoff() is null). The commissions themselves keep
+	 * their amounts (statistics before the cutoff lose the campaign breakdown); their order number,
+	 * product and description are pseudonymised afterwards (pseudonymise_commissions(), R13-M3).
+	 *
+	 * @return int Rows deleted.
+	 */
+	public static function purge_attributions() {
+		global $wpdb;
+		$cutoff = self::cutoff();
+		if ( null === $cutoff ) {
+			return 0;
+		}
+		$at = Db::table( 'attributions' );
+		$c  = Db::table( 'commissions' );
+		/**
+		 * Attribution IDs checked per statement (one short transaction each).
+		 *
+		 * @param int $batch IDs (default 1000).
+		 */
+		$batch = max( 1, (int) apply_filters( 'wpac_attribution_purge_batch', 1000 ) );
+		// ID windows with a cursor (R13-N12) instead of DELETE … LIMIT: rows kept because their
+		// order is still open were scanned again by every LIMIT batch. Bounds from the created_at
+		// index; the cursor continues in the rest of the daily run, a new day starts at the front
+		// (kept rows can expire meanwhile).
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- Table names; values are placeholders.
+		$bounds = $wpdb->get_row( $wpdb->prepare( "SELECT MIN(id) AS lo, MAX(id) AS hi FROM {$at} WHERE created_at < %s", $cutoff ) );
+		if ( ! $bounds || null === $bounds->lo ) {
+			delete_option( self::ATTR_CURSOR );
+			self::pseudonymise_commissions();
+			return 0;
+		}
+		$from   = (int) $bounds->lo;
+		$cursor = get_option( self::ATTR_CURSOR );
+		if ( is_array( $cursor ) && isset( $cursor['day'], $cursor['id'] ) && gmdate( 'Y-m-d' ) === $cursor['day'] ) {
+			$from = max( $from, (int) $cursor['id'] );
+		}
+		$total = 0;
+		$done  = 0;
+		while ( $from <= (int) $bounds->hi ) {
+			if ( $done++ > 0 && \WPAffiliateCaptain\Core\Cron::over_budget() ) { // At least one window per call.
+				update_option(
+					self::ATTR_CURSOR,
+					array(
+						'day' => gmdate( 'Y-m-d' ),
+						'id'  => $from,
+					),
+					false
+				);
+				\WPAffiliateCaptain\Core\Cron::mark_unfinished();
+				self::pseudonymise_commissions();
+				return $total;
+			}
+			$total += max( 0, (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$at} WHERE id >= %d AND id < %d AND created_at < %s AND NOT EXISTS ( SELECT 1 FROM {$c} c WHERE c.source = {$at}.source AND c.source_order_id = {$at}.source_order_id AND ( c.updated_at >= %s OR c.status IN ('pending','review') OR ( c.status = 'approved' AND c.payout_id = 0 ) ) )", $from, $from + $batch, $cutoff, $cutoff ) ) );
+			$from  += $batch;
+		}
+		// phpcs:enable
+		delete_option( self::ATTR_CURSOR );
+		self::pseudonymise_commissions();
+		return $total;
+	}
+
+	/** Prefix of a pseudonymised idempotency key. */
+	const PSEUDONYM_KEY = 'p:';
+
+	/**
+	 * Pseudonym of an order (source and order number) or an idempotency key: keyed hash (the
+	 * WordPress auth salt from wp-config.php), so sequential order numbers cannot simply be
+	 * hashed and compared with a database dump alone. 'x' + 40 hex characters fit source_order_id.
+	 *
+	 * @param string $value Value.
+	 * @return string
+	 */
+	public static function pseudonym( $value ) {
+		return 'x' . substr( hash_hmac( 'sha256', 'wpac-retention:' . (string) $value, wp_salt( 'auth' ) ), 0, 40 );
+	}
+
+	/**
+	 * Pseudonymised idempotency key of a booking (see Ledger::find_by_key(): a re-delivered event
+	 * still finds it and is not booked twice).
+	 *
+	 * @param string $key Idempotency key.
+	 * @return string
+	 */
+	public static function pseudonym_key( $key ) {
+		return self::PSEUDONYM_KEY . hash_hmac( 'sha256', 'wpac-key:' . (string) $key, wp_salt( 'auth' ) );
+	}
+
+	/**
+	 * Daily, after purge_attributions(): the commissions of an order whose attribution is gone, that
+	 * are all past the retention period and of which nothing is open any more keep partner, kind,
+	 * amounts, currency, status and dates (balances, reports and the booking chain stay intact),
+	 * but lose what links them to the order and the customer: the order number becomes a
+	 * pseudonym (one per order, so order counts stay right), product and description are emptied,
+	 * the idempotency key is hashed (a re-delivered event is still recognised) and the reasons of
+	 * their status changes (e.g. the shop's refund reason) are deleted. Nothing happens during a
+	 * tax audit / legal hold or with "keep forever". Works in batches within the daily time budget;
+	 * the rest follows in the next run.
+	 *
+	 * @return int Orders pseudonymised.
+	 */
+	public static function pseudonymise_commissions() {
+		global $wpdb;
+		$cutoff = self::cutoff();
+		if ( null === $cutoff ) {
+			return 0;
+		}
+		$at = Db::table( 'attributions' );
+		$c  = Db::table( 'commissions' );
+		$e  = Db::table( 'commission_events' );
+		$n  = 0;
+		for ( $round = 0; $round < 50; $round++ ) {
+			if ( $round > 0 && \WPAffiliateCaptain\Core\Cron::over_budget() ) {
+				\WPAffiliateCaptain\Core\Cron::mark_unfinished();
+				break;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- Table names; values are placeholders.
+			$orders = (array) $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT c.source, c.source_order_id FROM {$c} c WHERE c.created_at < %s AND c.source_order_id <> '' AND c.idempotency_key NOT LIKE %s AND NOT EXISTS ( SELECT 1 FROM {$at} a WHERE a.source = c.source AND a.source_order_id = c.source_order_id ) AND NOT EXISTS ( SELECT 1 FROM {$c} o WHERE o.source = c.source AND o.source_order_id = c.source_order_id AND ( o.created_at >= %s OR o.updated_at >= %s OR o.status IN ('pending','review') OR ( o.status = 'approved' AND o.payout_id = 0 ) ) ) LIMIT 200", $cutoff, $wpdb->esc_like( self::PSEUDONYM_KEY ) . '%', $cutoff, $cutoff ) );
+			foreach ( $orders as $o ) {
+				$pseudo = self::pseudonym( $o->source . ':' . $o->source_order_id );
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+				$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, idempotency_key FROM {$c} WHERE source = %s AND source_order_id = %s", $o->source, $o->source_order_id ) );
+				foreach ( $rows as $r ) {
+					$key = 0 === strpos( (string) $r->idempotency_key, self::PSEUDONYM_KEY ) ? (string) $r->idempotency_key : self::pseudonym_key( (string) $r->idempotency_key );
+					$wpdb->update(
+						$c,
+						array(
+							'source_order_id' => $pseudo,
+							'description'     => '',
+							'product_ref'     => '',
+							'idempotency_key' => $key,
+						),
+						array( 'id' => (int) $r->id )
+					);
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+					$wpdb->query( $wpdb->prepare( "UPDATE {$e} SET reason = '' WHERE commission_id = %d", (int) $r->id ) );
+				}
+				++$n;
+			}
+			if ( count( $orders ) < 200 ) {
+				break;
+			}
+		}
+		return $n;
+	}
+
+	/** Option: position of an attribution clean-up that continues in the rest of the daily run. */
+	const ATTR_CURSOR = 'wpac_attr_purge_cursor';
 
 	/**
 	 * Delete the partner's acceptance records (kept as proof of the self-billing agreement as long

@@ -230,6 +230,9 @@ final class Command {
 				if ( $problems ) {
 					return array( 'Migration incomplete: ' . implode( '; ', $problems ) );
 				}
+				foreach ( (array) get_option( 'wpac_schema_warnings', array() ) as $warning ) {
+					\WP_CLI::warning( (string) $warning ); // E.g. a performance index that could not be added online.
+				}
 				\WP_CLI::success( 'Schema version ' . get_option( Installer::DB_OPTION ) );
 				return array();
 			}
@@ -418,6 +421,63 @@ final class Command {
 				\WP_CLI\Utils\format_items( isset( $assoc['format'] ) ? $assoc['format'] : 'table', $rows, array( 'check', 'status', 'label', 'details' ) );
 				// Critical problems give a non-zero exit code for scripts and monitoring.
 				return array_keys( Monitor::problems( true ) );
+			}
+		);
+	}
+
+	/**
+	 * Credit note files on this app server.
+	 *
+	 * `sweep` deletes the local copies of credit notes and cancellations that were deleted after
+	 * the retention period (the database decides; the daily cron only reaches the server it runs
+	 * on). The plugin's hourly cron sweeps the server it runs on at most every 6 hours (filter
+	 * wpac_statement_sweep_interval); visitor requests never sweep. Without shared storage run
+	 * this on every app server, e.g. from its system cron. Only files whose SHA-256 belongs to a deleted document are removed;
+	 * other unreferenced files are listed as unknown and kept.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <action>
+	 * : sweep
+	 *
+	 * [--budget=<seconds>]
+	 * : Stop after this many seconds (default 0 = until done).
+	 *
+	 * [--full]
+	 * : Hash files remembered as unknown again.
+	 *
+	 * [--network]
+	 * : On every site of the network where the plugin is active.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp wpac statements sweep
+	 *     wp wpac statements sweep --network
+	 *
+	 * @param array $args  Positional.
+	 * @param array $assoc Options.
+	 */
+	public function statements( $args, $assoc ) {
+		if ( ! isset( $args[0] ) || 'sweep' !== $args[0] ) {
+			\WP_CLI::error( 'Use: wp wpac statements sweep' );
+		}
+		self::each_site(
+			$assoc,
+			static function () use ( $assoc ) {
+				$stats = \WPAffiliateCaptain\Payouts\StatementSweep::run( isset( $assoc['budget'] ) ? max( 0, (float) $assoc['budget'] ) : 0.0, ! empty( $assoc['full'] ) );
+				if ( $stats['locked'] ) {
+					return array( 'a sweep is already running on this server' );
+				}
+				foreach ( $stats['unknown'] as $path ) {
+					\WP_CLI::log( 'Unknown file kept: ' . $path );
+				}
+				$msg = sprintf( '%s (%s): %d files, %d deleted after the retention period, %d unknown kept.', gethostname(), \WPAffiliateCaptain\Payouts\Statement::configured_dir(), $stats['files'], $stats['deleted'], count( $stats['unknown'] ) );
+				if ( ! $stats['complete'] ) {
+					\WP_CLI::warning( $msg . ' Time budget used up; run it again.' );
+					return array();
+				}
+				\WP_CLI::success( $msg );
+				return array();
 			}
 		);
 	}

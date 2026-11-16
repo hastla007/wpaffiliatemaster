@@ -28,11 +28,15 @@ final class Admin {
 	public static function register_hooks() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_post_wpac', array( __CLASS__, 'dispatch' ) );
+		Reauth::register_hooks(); // Password confirmation before money-relevant actions (R14-P2).
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'setup_notice' ) );
 		add_action( 'admin_init', array( __CLASS__, 'activation_redirect' ) );
 		add_filter( 'set_screen_option_wpac_partners_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
 		add_filter( 'set_screen_option_wpac_commissions_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set_screen_option_wpac_payouts_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set_screen_option_wpac_creatives_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
+		add_filter( 'set_screen_option_wpac_audit_per_page', array( __CLASS__, 'save_screen_option' ), 10, 3 );
 		add_filter( 'set-screen-option', array( __CLASS__, 'save_screen_option' ), 10, 3 ); // WordPress before 5.4.2.
 		add_filter( 'default_hidden_columns', array( __CLASS__, 'default_hidden_columns' ), 10, 2 );
 		add_action( 'admin_notices', array( __CLASS__, 'cron_notice' ) );
@@ -51,16 +55,20 @@ final class Admin {
 		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
 		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
 		$payouts = add_submenu_page( 'wpac', __( 'Payouts', 'affiliate-captain' ), __( 'Payouts', 'affiliate-captain' ), Capabilities::payouts_page_cap(), 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
+		$creatives = add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
 		// Daily work first, technical pages and settings last (R5-O46).
 		Pages\ImportExportPage::menu();
+		Pages\MailTemplatesPage::menu(); // R14-P1.
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
-		add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
+		$audit = add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
 		$settings = add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
 		// Screen options (rows per page, columns) and help tabs (R5-O47).
 		add_action( 'load-' . $partners, array( __CLASS__, 'screen_partners' ) );
 		add_action( 'load-' . $ledger, array( __CLASS__, 'screen_commissions' ) );
+		add_action( 'load-' . $payouts, array( __CLASS__, 'screen_payouts' ) );
+		add_action( 'load-' . $creatives, array( __CLASS__, 'screen_creatives' ) );
+		add_action( 'load-' . $audit, array( __CLASS__, 'screen_audit' ) );
 		foreach ( array( $dashboard, $partners, $ledger, $payouts, $settings ) as $hook ) {
 			add_action( 'load-' . $hook, array( __CLASS__, 'help_tabs' ) );
 		}
@@ -142,6 +150,45 @@ final class Admin {
 	}
 
 	/**
+	 * Screen option of the payout list: rows per page.
+	 */
+	public static function screen_payouts() {
+		self::per_page_option( __( 'Payouts per page', 'affiliate-captain' ), 50, 'wpac_payouts_per_page' );
+	}
+
+	/**
+	 * Screen option of the creatives list: rows per page.
+	 */
+	public static function screen_creatives() {
+		self::per_page_option( __( 'Creatives per page', 'affiliate-captain' ), 50, 'wpac_creatives_per_page' );
+	}
+
+	/**
+	 * Screen option of the audit log: rows per page.
+	 */
+	public static function screen_audit() {
+		self::per_page_option( __( 'Entries per page', 'affiliate-captain' ), 100, 'wpac_audit_per_page' );
+	}
+
+	/**
+	 * Register a rows-per-page screen option.
+	 *
+	 * @param string $label   Label.
+	 * @param int    $default Default rows.
+	 * @param string $option  User option name.
+	 */
+	private static function per_page_option( $label, $default, $option ) {
+		add_screen_option(
+			'per_page',
+			array(
+				'label'   => $label,
+				'default' => $default,
+				'option'  => $option,
+			)
+		);
+	}
+
+	/**
 	 * Store a rows-per-page screen option of the plugin (1–500).
 	 *
 	 * @param mixed  $keep   Value to keep (false = do not store).
@@ -150,7 +197,7 @@ final class Admin {
 	 * @return mixed
 	 */
 	public static function save_screen_option( $keep, $option, $value ) {
-		if ( in_array( $option, array( 'wpac_partners_per_page', 'wpac_commissions_per_page' ), true ) ) {
+		if ( in_array( $option, array( 'wpac_partners_per_page', 'wpac_commissions_per_page', 'wpac_payouts_per_page', 'wpac_creatives_per_page', 'wpac_audit_per_page' ), true ) ) {
 			return max( 1, min( 500, (int) $value ) );
 		}
 		return $keep;
@@ -307,6 +354,10 @@ final class Admin {
 		} else {
 			echo esc_html__( 'WordPress starts scheduled tasks only when someone visits the site; with few visits or when the server blocks requests to itself, they stall. Ask your host to set up a "cron job" that runs "wp cron event run --due-now" every 5 minutes.', 'affiliate-captain' );
 		}
+		if ( is_multisite() ) {
+			// R12-M31: without --url the command only runs the main site of the network.
+			echo ' ' . esc_html( \WPAffiliateCaptain\Core\Monitor::network_cron_hint() );
+		}
 		echo self::hide_link( 'cron', $state ) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in hide_link().
 	}
 
@@ -395,7 +446,7 @@ final class Admin {
 		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['ids'] ) || $cache['state'] !== $state ) {
 			$ids = array();
 			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
-			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( gmdate( 'Y-m-d' ), $currency ) as $row ) {
+			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( wp_date( 'Y-m-d' ), $currency ) as $row ) {
 				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
 					$ids[] = array( (int) $row['affiliate']->id, isset( $row['code'] ) ? (string) $row['code'] : '' );
 				}
@@ -635,6 +686,27 @@ final class Admin {
 	}
 
 	/**
+	 * Message for an amount Money::parse_minor() refused (nothing is rounded silently). The
+	 * examples use the number format of the admin's locale (number_format_i18n()).
+	 *
+	 * @param string $problem  'precision', 'ambiguous' or 'invalid'.
+	 * @param string $currency Currency.
+	 * @return string
+	 */
+	public static function amount_error( $problem, $currency ) {
+		if ( 'precision' === $problem ) {
+			/* translators: 1: number of decimals, 2: currency */
+			return sprintf( __( 'The amount has more than %1$d decimal places, which %2$s does not have. Please enter it exactly (nothing was rounded or booked).', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Money::decimals( $currency ), $currency );
+		}
+		if ( 'ambiguous' === $problem ) {
+			/* translators: 1: example without grouping (1000), 2: the same amount with grouping and decimals in the site's number format (e.g. 1,000.00) */
+			return sprintf( __( 'The amount is ambiguous (thousands separator or decimal places?). Please write it as %1$s or %2$s.', 'affiliate-captain' ), '1000', number_format_i18n( 1000, 2 ) );
+		}
+		/* translators: 1: example amount (25), 2: example amount with grouping and decimals in the site's number format (e.g. 1,000.50) */
+		return sprintf( __( 'Please enter a valid amount (e.g. %1$s or %2$s).', 'affiliate-captain' ), number_format_i18n( 25 ), number_format_i18n( 1000.5, 2 ) );
+	}
+
+	/**
 	 * Route admin-post actions to page handlers.
 	 */
 	public static function dispatch() {
@@ -655,21 +727,27 @@ final class Admin {
 			'affiliate_update'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'affiliate_status'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'public_change'     => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'vies_check'        => array( AffiliatesPage::class, Capabilities::VIEW_TAX_DATA ),
+			'vies_check'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Sends data to the EU; "invalid" blocks payouts (R14-S4).
 			'tax_approve'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'tax_reject'        => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
-			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
-			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'bank_approve'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'bank_reject'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'user_link_resend'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
+			'user_link_manual'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
+			'user_unlink'       => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Account access = access to the payout details (R14-S1).
 			'terms_remind'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'broadcast_send'    => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'reencrypt'         => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statements_move'   => array( IntegrationsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'customer_key_confirm' => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'restriction'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_create'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_batch'        => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_status'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_coupon'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'code_coupon_create' => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
+			'code_request'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ), // Approve/reject a partner's code request (since 0.15.0).
 			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'dunning_send'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
@@ -685,6 +763,8 @@ final class Admin {
 			'payout_request_process' => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'payout_request_reject'  => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'statement_download'     => array( PayoutsPage::class, Capabilities::VIEW_TAX_DATA ),
+			'payout_correction'      => array( PayoutsPage::class, Capabilities::MANAGE_PAYOUTS ),
+			'correction_download'    => array( PayoutsPage::class, Capabilities::VIEW_TAX_DATA ),
 			'rule_save'         => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'rule_delete'       => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'group_create'      => array( RulesPage::class, Capabilities::MANAGE_PROGRAM ),
@@ -700,6 +780,11 @@ final class Admin {
 			'job_retry_all'     => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'job_dismiss'       => array( IntegrationsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_save'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			// E-mail templates (R14-P1).
+			'mail_template_save'  => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_template_reset' => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_template_test'  => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
+			'mail_layout_save'    => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'ropa_download'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),
@@ -710,6 +795,12 @@ final class Admin {
 		list( $class, $cap ) = $routes[ $do ];
 		if ( ! current_user_can( $cap ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'affiliate-captain' ), 403 );
+		}
+		// Money-relevant actions need a recent password confirmation (R14-P2): the request is kept
+		// and carried out after the confirmation step.
+		$reauth = Reauth::action_key( $do );
+		if ( Reauth::required( $reauth ) && ! Reauth::confirmed() ) {
+			Reauth::challenge( $reauth );
 		}
 		try {
 			call_user_func( array( $class, 'handle' ), $do );

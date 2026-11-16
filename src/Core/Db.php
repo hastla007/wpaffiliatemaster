@@ -19,12 +19,14 @@ final class Db {
 		'agreements',
 		'payout_profiles',
 		'visits',
+		'visits_daily',
 		'attributions',
 		'rules',
 		'commissions',
 		'commission_events',
 		'payouts',
 		'payout_items',
+		'payout_corrections',
 		'jobs',
 		'audit',
 		'tiers',
@@ -258,6 +260,17 @@ final class Db {
 	/**
 	 * Run a callback in a transaction (InnoDB). Rolls back and rethrows on error.
 	 *
+	 * The real wpdb never throws: after a deadlock (1213) InnoDB has already rolled back the
+	 * whole transaction, after a lock wait timeout (1205) the statement, after a lost connection
+	 * wpdb reconnects without a transaction – and the queries return false/null. A callback that
+	 * goes on (a skipped line, an unchecked UPDATE) would then report success for a booking that
+	 * was not (or only partly) made, and the queries after the abort would run in autocommit
+	 * (R13-K1). So during a transaction every query first checks the error of the previous one
+	 * (guard_query()): after such an abort all further queries are refused, and the transaction
+	 * ends with an IntegrationException 'db_deadlock' (rolled back; the job queue retries).
+	 * Before the COMMIT a savepoint set at the start must still exist – it does not after a
+	 * rollback by the server or a reconnect.
+	 *
 	 * @param callable $fn Callback.
 	 * @return mixed
 	 * @throws \Throwable On failure.
@@ -268,31 +281,152 @@ final class Db {
 		if ( self::$depth > 0 ) {
 			return $fn();
 		}
+		if ( ! self::$guarded && function_exists( 'add_filter' ) ) {
+			add_filter( 'query', array( __CLASS__, 'guard_query' ), PHP_INT_MAX );
+			self::$guarded = true;
+		}
 		// A transaction that could not be started or committed must never look like success
 		// (ledger and payout data would be partly written or not at all).
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			throw new IntegrationException( 'db_transaction', esc_html( 'Could not start a database transaction: ' . $wpdb->last_error ) );
 		}
-		self::$depth = 1;
+		self::$depth   = 1;
+		self::$aborted = '';
 		try {
+			if ( false === $wpdb->query( 'SAVEPOINT wpac_tx' ) ) {
+				throw new IntegrationException( 'db_transaction', esc_html( 'Could not start a database transaction: ' . $wpdb->last_error ) );
+			}
 			$result = $fn();
+			// The savepoint is gone when the server rolled the transaction back (deadlock) or wpdb
+			// reconnected (lost connection); the guard also catches an error of the last query.
+			if ( false === $wpdb->query( 'RELEASE SAVEPOINT wpac_tx' ) && '' === self::$aborted ) {
+				self::$aborted = '' !== (string) $wpdb->last_error ? (string) $wpdb->last_error : 'transaction lost';
+			}
+			if ( '' !== self::$aborted ) {
+				throw self::aborted_exception();
+			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new IntegrationException( 'db_commit', 'Could not commit the database transaction: ' . $wpdb->last_error );
 			}
 		} catch ( \Throwable $e ) {
+			// Also when the callback threw right after the failed query (no further query ran).
+			$aborted       = '' !== self::$aborted ? self::$aborted : self::fatal_error();
+			self::$depth   = 0; // Lets the ROLLBACK through the guard.
+			self::$aborted = '';
 			$wpdb->query( 'ROLLBACK' );
 			self::$after_commit = array();
+			if ( '' !== $aborted && ! ( $e instanceof IntegrationException && 'db_deadlock' === $e->error_code ) ) {
+				// The callback failed because its queries were refused or returned nothing after
+				// the abort: report the abort (retry), not the follow-up error.
+				self::$aborted = $aborted;
+				$wrapped       = self::aborted_exception();
+				self::$aborted = '';
+				throw $wrapped;
+			}
 			throw $e;
 		} finally {
-			self::$depth = 0;
+			self::$depth   = 0;
+			self::$aborted = '';
 		}
 		$queued             = self::$after_commit;
 		self::$after_commit = array();
 		foreach ( $queued as $cb ) {
-			$cb();
+			// The booking is committed: a failing listener (mail, hook of an add-on) must neither
+			// make it look failed nor stop the callbacks after it.
+			try {
+				$cb();
+			} catch ( \Throwable $e ) {
+				Log::exception( 'Callback after a committed booking failed', $e );
+			}
 		}
 		return $result;
 	}
+
+	/**
+	 * Filter "query" while a transaction runs: when the previous query failed with a deadlock,
+	 * a lock wait timeout or a lost connection, the transaction is (partly) gone. Every further
+	 * query is refused – replaced by a statement that fails without touching anything (an empty
+	 * query would make wpdb return the previous query's rows) – so nothing is written outside
+	 * the transaction and every read returns nothing; transaction() then rolls back and throws.
+	 *
+	 * @param string $query SQL.
+	 * @return string
+	 */
+	public static function guard_query( $query ) {
+		if ( self::$depth < 1 ) {
+			return $query;
+		}
+		if ( '' === self::$aborted ) {
+			self::$aborted = self::fatal_error();
+		}
+		return '' === self::$aborted ? $query : self::REFUSED_SQL;
+	}
+
+	/** Statement that replaces queries after an abort: fails at once (unknown function), changes nothing. */
+	const REFUSED_SQL = 'SELECT wpac_transaction_aborted_by_database()';
+
+	/**
+	 * Error of the last query when it ended the transaction (or the statement inside it):
+	 * deadlock, lock wait timeout, lost connection. '' otherwise.
+	 *
+	 * @return string
+	 */
+	public static function fatal_error() {
+		global $wpdb;
+		$error = (string) $wpdb->last_error;
+		$errno = 0;
+		$dbh   = isset( $wpdb->dbh ) ? $wpdb->dbh : null;
+		if ( $dbh instanceof \mysqli ) {
+			$errno = (int) mysqli_errno( $dbh ); // phpcs:ignore WordPress.DB.RestrictedFunctions.mysql_mysqli_errno -- error number of the last wpdb query (language independent).
+		}
+		if ( in_array( $errno, self::FATAL_ERRNO, true ) ) {
+			return '' !== $error ? $error : 'MySQL error ' . $errno;
+		}
+		if ( '' !== $error && preg_match( '/deadlock|lock wait timeout|gone away|lost connection|try restarting transaction/i', $error ) ) {
+			return $error;
+		}
+		return '';
+	}
+
+	/**
+	 * Throw when the last query failed (for locking reads and critical writes inside a
+	 * transaction whose result decides what is booked: "no row" must not be mistaken for
+	 * "nothing to do" when the query failed).
+	 *
+	 * @param string $what What was read or written (for the log).
+	 * @throws IntegrationException When the last query failed.
+	 */
+	public static function check( $what ) {
+		global $wpdb;
+		if ( '' !== self::$aborted || '' !== self::fatal_error() ) {
+			if ( '' === self::$aborted ) {
+				self::$aborted = self::fatal_error();
+			}
+			throw self::aborted_exception();
+		}
+		if ( '' !== (string) $wpdb->last_error ) {
+			throw new IntegrationException( 'db_error', esc_html( $what . ': ' . $wpdb->last_error ) );
+		}
+	}
+
+	/**
+	 * Exception for a transaction the database aborted.
+	 *
+	 * @return IntegrationException
+	 */
+	private static function aborted_exception() {
+		Log::warning( 'Database transaction aborted, rolled back', array( 'error' => self::cut( self::$aborted, 200 ) ) );
+		return new IntegrationException( 'db_deadlock', esc_html__( 'The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again.', 'affiliate-captain' ) );
+	}
+
+	/** MySQL error numbers that abort a transaction or a statement in it: lock wait timeout, deadlock, server gone away, lost connection, disconnected (MySQL 8). */
+	const FATAL_ERRNO = array( 1205, 1213, 2006, 2013, 4031 );
+
+	/** @var string Error that aborted the running transaction ('' = none). */
+	private static $aborted = '';
+
+	/** @var bool Whether the query guard is registered. */
+	private static $guarded = false;
 
 	/** @var int Transaction nesting depth. */
 	private static $depth = 0;

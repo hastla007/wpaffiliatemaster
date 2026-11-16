@@ -57,6 +57,7 @@ final class Settings {
 			'visit_retention_days'    => 90,
 			'audit_retention_days'    => 1095,
 			'application_retention_days' => 180,
+			'pending_application_days' => 365,     // Undecided applications are deleted after this (0 = never).
 			// Commissions.
 			'currency'                => 'EUR',
 			'exchange_rates'          => '',
@@ -76,6 +77,7 @@ final class Settings {
 			'portal_page_id'          => 0,
 			'registration_page_id'    => 0,
 			'terminated_open'         => 'pay',      // pay|reject.
+			'code_requests'           => 1,          // Partners can request an own code in the partner area (since 0.15.0).
 			'admin_email'             => '',
 			// E-mails: sender ('' = WordPress default) and optional partner notices.
 			'mail_from_name'          => '',
@@ -91,6 +93,8 @@ final class Settings {
 			// Translated once translations can load (before "init" WordPress warns about early loading).
 			'default_disclosure'      => function_exists( 'did_action' ) && did_action( 'init' ) ? __( 'Advertisement', 'affiliate-captain' ) : 'Advertisement',
 			'promotion_guidelines'    => '',
+			'embed_disclosure_label'  => 1,          // Visible disclosure label above the banner embed code (R14-L3).
+			'auto_apply_coupon'       => 0,          // Apply the partner's linked WooCommerce coupon after a partner link (0.15.0).
 			// Payouts.
 			'min_payout_minor'        => 5000,
 			'payout_requests'         => 0,
@@ -111,6 +115,9 @@ final class Settings {
 			'operator_tax_number'     => '',
 			'credit_prefix'           => 'GS',
 			'storno_prefix'           => 'ST',
+			'correction_prefix'       => 'KG', // Correction credit notes of paid payouts.
+			'einvoice_mail'           => 'auto', // E-invoice (EN 16931 XML) with the credit note mail: auto|on|off (R14-L1).
+			'einvoice_buyer_reference' => '',    // Buyer reference (e.g. Leitweg-ID) on e-invoices; '' = document number.
 			'vies_check'              => 0, // Check partner VAT IDs with the EU Commission's VIES service (external request).
 			// Fraud rules (0 = off).
 			'fraud_max_orders_day'    => 0,
@@ -119,6 +126,7 @@ final class Settings {
 			'fraud_max_refund_rate'   => 0,
 			'fraud_check_domains'     => 1,
 			'fraud_blocked_domains'   => '',
+			'reauth_required'         => 1, // Password confirmation before money-relevant admin actions (R14-P2).
 			// Reporting.
 			'report_admin'            => 1,
 			'report_partners'         => 0,
@@ -266,12 +274,20 @@ final class Settings {
 	}
 
 	/**
+	 * Longest cookie lifetime (days) that data protection authorities usually consider
+	 * proportionate for a consent-based cookie, about 13 months (R14-L8). Longer values are
+	 * allowed but warned about.
+	 */
+	const COOKIE_DAYS_ADVISED = 395;
+
+	/**
 	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
 	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
 	 */
 	const INT_MAX = array(
 		'audit_retention_days'       => 36500,
 		'application_retention_days' => 36500,
+		'pending_application_days'   => 36500,
 		'visit_retention_days'       => 36500,
 		'fraud_max_orders_day'       => 1000000,
 		'fraud_min_click_seconds'    => 86400,
@@ -320,6 +336,54 @@ final class Settings {
 	}
 
 	/**
+	 * Whether a name cannot be the referral parameter (R14-T6): a public query variable of
+	 * WordPress (also those of post types and taxonomies), a WooCommerce parameter, a campaign
+	 * parameter or click ID, or a parameter of the plugin.
+	 *
+	 * @param string $param Parameter name (lower case).
+	 * @return bool
+	 */
+	public static function reserved_param( $param ) {
+		$param    = (string) $param;
+		$reserved = array(
+			// WP::$public_query_vars (core, without registered post types/taxonomies).
+			'm', 'p', 'posts', 'w', 'cat', 'withcomments', 'withoutcomments', 's', 'search', 'exact', 'sentence', 'calendar', 'page', 'paged', 'more', 'tb', 'pb', 'author', 'order', 'orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'tag', 'feed', 'author_name', 'pagename', 'page_id', 'error', 'attachment', 'attachment_id', 'subpost', 'subpost_id', 'preview', 'robots', 'favicon', 'taxonomy', 'term', 'cpage', 'post_type', 'embed', 'sitemap', 'sitemap-subtype', 'sitemap-stylesheet', 'rest_route', 'static', 'lang', 'p_id', 'preview_id', 'preview_nonce', 'customize_changeset_uuid', 'action', 'redirect_to', 'loggedout', 'replytocom',
+			// WooCommerce.
+			'add-to-cart', 'quantity', 'variation_id', 'product', 'product_cat', 'product_tag', 'product_shipping_class', 'wc-ajax', 'wc-api', 'remove_item', 'removed_item', 'undo_item', 'key', 'order', 'order-pay', 'order-received', 'pay_for_order', 'coupon_code', 'min_price', 'max_price', 'rating_filter', 'filter', 'query_type', 'wc_order_attribution',
+			// Campaign parameters and click IDs.
+			'utm_campaign', 'utm_source', 'utm_medium', 'utm_content', 'utm_term', 'utm_id',
+			// The plugin.
+			\WPAffiliateCaptain\Tracking\Tracker::sub_param(), \WPAffiliateCaptain\Promotion\Landing::QUERY_VAR,
+		);
+		$reserved = array_merge( $reserved, \WPAffiliateCaptain\Promotion\Landing::CLICK_IDS );
+		if ( isset( $GLOBALS['wp'] ) && is_object( $GLOBALS['wp'] ) && isset( $GLOBALS['wp']->public_query_vars ) ) {
+			$reserved = array_merge( $reserved, (array) $GLOBALS['wp']->public_query_vars );
+		}
+		if ( function_exists( 'get_post_types' ) ) {
+			foreach ( get_post_types( array(), 'objects' ) as $type ) {
+				if ( ! empty( $type->query_var ) && is_string( $type->query_var ) ) {
+					$reserved[] = $type->query_var;
+				}
+			}
+		}
+		if ( function_exists( 'get_taxonomies' ) ) {
+			foreach ( get_taxonomies( array(), 'objects' ) as $tax ) {
+				if ( ! empty( $tax->query_var ) && is_string( $tax->query_var ) ) {
+					$reserved[] = $tax->query_var;
+				}
+			}
+		}
+		/**
+		 * Names that cannot be used as the referral parameter.
+		 *
+		 * @since 0.14.0
+		 * @param string[] $reserved Names.
+		 */
+		$reserved = (array) apply_filters( 'wpac_reserved_referral_params', $reserved );
+		return in_array( $param, $reserved, true ) || 0 === strpos( $param, 'wpac_' ) || 0 === strpos( $param, 'utm_' ) || 0 === strpos( $param, 'filter_' ) || 0 === strpos( $param, 'query_type_' );
+	}
+
+	/**
 	 * Sanitize and validate raw input from the settings form.
 	 *
 	 * Invalid input is never replaced silently: the field keeps its stored value and an error
@@ -350,6 +414,10 @@ final class Settings {
 			} elseif ( ! preg_match( '/^[a-z0-9_\-]+$/', $param ) ) {
 				$errors['referral_param'] = __( 'Only lowercase letters, digits, "-" and "_" are allowed.', 'affiliate-captain' );
 				$out['referral_param']    = $old( 'referral_param' );
+			} elseif ( $param !== $old( 'referral_param' ) && self::reserved_param( $param ) ) {
+				// R14-T6: "p", "s", "page", "add-to-cart", "sub" … would break pages or every partner link.
+				$errors['referral_param'] = __( 'This name is already used by WordPress, WooCommerce, campaign tracking or the plugin itself. Please choose another one, e.g. "ref" or "partner".', 'affiliate-captain' );
+				$out['referral_param']    = $old( 'referral_param' );
 			} else {
 				$out['referral_param'] = $param;
 			}
@@ -375,11 +443,11 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual' ) as $flag ) {
+		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label', 'auto_apply_coupon', 'reauth_required', 'code_requests' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 
-		foreach ( array( 'audit_retention_days', 'application_retention_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		foreach ( array( 'audit_retention_days', 'application_retention_days', 'pending_application_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
 			if ( ! isset( $in[ $int ] ) ) {
 				$out[ $int ] = $d[ $int ];
 				continue;
@@ -405,34 +473,21 @@ final class Settings {
 			$out['fraud_max_refund_rate']    = (int) $old( 'fraud_max_refund_rate' );
 		}
 
-		// Not posted (another tab): the stored country, which also sets the retention minimum below.
-		$out['operator_country'] = (string) $old( 'operator_country' );
-		if ( isset( $in['operator_country'] ) ) {
-			$country = strtoupper( trim( (string) $in['operator_country'] ) );
-			if ( isset( self::countries()[ $country ] ) ) {
-				$out['operator_country'] = $country;
-			} else {
-				$errors['operator_country'] = __( 'Please choose your country from the list.', 'affiliate-captain' );
-				$out['operator_country']    = (string) $old( 'operator_country' );
-			}
+		if ( isset( $in['cookie_days'] ) && ! isset( $errors['cookie_days'] ) && $out['cookie_days'] > self::COOKIE_DAYS_ADVISED ) {
+			// R14-L8: allowed (non-EU shops, documented reasons), but not silently.
+			/* translators: 1: configured cookie lifetime in days, 2: advised maximum in days */
+			$notices['cookie_days'] = sprintf( __( 'Saved, but please check: a cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days).', 'affiliate-captain' ), $out['cookie_days'], self::COOKIE_DAYS_ADVISED );
 		}
-		// Credit notes: at least the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years); 0 = forever.
-		if ( $out['statement_retention_years'] > 0 ) {
-			$minimum = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $out['operator_country'] );
-			if ( $out['statement_retention_years'] < $minimum ) {
-				if ( isset( $in['statement_retention_years'] ) ) {
-					/* translators: %d: years */
-					$notices['statement_retention_years'] = sprintf( __( 'Raised to the legal minimum of %d years for your country.', 'affiliate-captain' ), $minimum );
-				}
-				$out['statement_retention_years'] = $minimum;
-			}
-		}
+
+		self::sanitize_operator_country( $in, $out, $errors, $notices, $old );
 
 		// Fields of other tabs are not posted: fall back to the stored value (needed for amount conversions).
 		$out['currency'] = self::get( 'currency' ) ? (string) self::get( 'currency' ) : $d['currency'];
 		if ( isset( $in['currency'] ) ) {
 			$currency = strtoupper( trim( (string) $in['currency'] ) );
-			if ( preg_match( '/^[A-Z]{3}$/', $currency ) ) {
+			// Only codes the contract accepts: sales in another currency would all be refused.
+			// The stored currency stays valid (e.g. IRT while WooCommerce is inactive, R13-N10).
+			if ( preg_match( '/^[A-Z]{3}$/', $currency ) && ( $currency === $out['currency'] || in_array( $currency, \WPAffiliateCaptain\Sales\ContractApi::currencies(), true ) ) ) {
 				$out['currency'] = $currency;
 			} else {
 				$errors['currency'] = __( 'Please enter a three-letter currency code (ISO 4217, e.g. EUR).', 'affiliate-captain' );
@@ -505,13 +560,13 @@ final class Settings {
 				// Fixed default rate is entered as a decimal amount, stored as minor units. The form
 				// showed it in the stored currency: after a currency change it is converted.
 				$shown_in = $fx_change && 'fixed' === (string) $old( 'default_rate_type' ) ? $old_currency : $out['currency'];
-				$rate     = self::parse_amount( $in['default_rate'], $shown_in );
+				$rate     = self::parse_amount( $in['default_rate'], $shown_in, $problem );
 				$ok       = null !== $rate && (float) $rate >= 0;
 				if ( $ok ) {
 					$minor               = Money::to_minor( $rate, $shown_in );
 					$out['default_rate'] = (string) ( $shown_in !== $out['currency'] ? self::convert_minor( $minor, $shown_in, $out['currency'], $old_rates, $new_rates )[0] : $minor );
 				} else {
-					$errors['default_rate'] = __( 'Please enter an amount (e.g. 25 or 25,50).', 'affiliate-captain' );
+					$errors['default_rate'] = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 25 or 25,50).', 'affiliate-captain' );
 				}
 			} else {
 				$rate = self::parse_percent( $in['default_rate'] );
@@ -533,6 +588,60 @@ final class Settings {
 			}
 		}
 
+		self::sanitize_tracking_fields( $in, $out, $errors, $old, $d );
+
+		self::sanitize_amount_fields( $in, $out, $errors, $old, $d );
+
+		self::sanitize_promotion_mail_fields( $in, $out, $errors, $old, $d );
+		self::sanitize_billing_fields( $in, $out, $errors, $old, $d );
+
+		return $out;
+	}
+
+	/**
+	 * Sanitize: operator country and the statement retention minimum it sets.
+	 *
+	 * @param array    $in      Raw input.
+	 * @param array    $out     Sanitized settings so far (extended).
+	 * @param array    $errors  Rejected fields (extended).
+	 * @param array    $notices Adjusted fields (extended).
+	 * @param callable $old     Stored value of a key.
+	 */
+	private static function sanitize_operator_country( array $in, array &$out, array &$errors, array &$notices, callable $old ) {
+		// Not posted (another tab): the stored country, which also sets the retention minimum below.
+		$out['operator_country'] = (string) $old( 'operator_country' );
+		if ( isset( $in['operator_country'] ) ) {
+			$country = strtoupper( trim( (string) $in['operator_country'] ) );
+			if ( isset( self::countries()[ $country ] ) ) {
+				$out['operator_country'] = $country;
+			} else {
+				$errors['operator_country'] = __( 'Please choose your country from the list.', 'affiliate-captain' );
+				$out['operator_country']    = (string) $old( 'operator_country' );
+			}
+		}
+		// Credit notes: at least the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years); 0 = forever.
+		if ( $out['statement_retention_years'] > 0 ) {
+			$minimum = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $out['operator_country'] );
+			if ( $out['statement_retention_years'] < $minimum ) {
+				if ( isset( $in['statement_retention_years'] ) ) {
+					/* translators: %d: years */
+					$notices['statement_retention_years'] = sprintf( __( 'Raised to the legal minimum of %d years for your country.', 'affiliate-captain' ), $minimum );
+				}
+				$out['statement_retention_years'] = $minimum;
+			}
+		}
+	}
+
+	/**
+	 * Sanitize: visit sample rate, cookie domain and trusted proxies.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_tracking_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['visit_log_percent'] = $d['visit_log_percent'];
 		if ( isset( $in['visit_log_percent'] ) ) {
 			$raw = trim( (string) $in['visit_log_percent'] );
@@ -580,12 +689,25 @@ final class Settings {
 				$out['trusted_proxies'] = implode( "\n", $proxies );
 			}
 		}
+	}
 
+	/**
+	 * Sanitize: review limit for large orders, blocked domains and minimum payout (amounts in
+	 * the program currency already sanitized in $out).
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_amount_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['fraud_max_order_minor'] = isset( $out['fraud_max_order_minor'] ) ? $out['fraud_max_order_minor'] : 0; // Converted above after a currency change.
 		if ( isset( $in['fraud_max_order'] ) && '' !== trim( (string) $in['fraud_max_order'] ) ) {
-			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'] );
+			$max_order = self::parse_amount( $in['fraud_max_order'], $out['currency'], $problem );
 			if ( null === $max_order || (float) $max_order < 0 ) {
-				$errors['fraud_max_order']    = __( 'Please enter an amount (e.g. 1.000 or 1000,00; 0 = rule off).', 'affiliate-captain' );
+				/* translators: 1: example amount (1000), 2: the same amount in the site's number format (e.g. 1,000.00) */
+				$errors['fraud_max_order']    = 'ambiguous' === $problem ? self::ambiguous_amount() : sprintf( __( 'Please enter an amount (e.g. %1$s or %2$s; 0 = rule off).', 'affiliate-captain' ), '1000', number_format_i18n( 1000, 2 ) );
 				$out['fraud_max_order_minor'] = (int) $old( 'fraud_max_order_minor' );
 			} else {
 				$out['fraud_max_order_minor'] = Money::to_minor( $max_order, $out['currency'] );
@@ -595,15 +717,28 @@ final class Settings {
 
 		$out['min_payout_minor'] = isset( $out['min_payout_minor'] ) ? $out['min_payout_minor'] : $d['min_payout_minor'];
 		if ( isset( $in['min_payout'] ) ) {
-			$min = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'], $out['currency'] );
+			$problem = '';
+			$min     = '' === trim( (string) $in['min_payout'] ) ? null : self::parse_amount( $in['min_payout'], $out['currency'], $problem );
 			if ( null === $min || (float) $min < 0 ) {
-				$errors['min_payout']    = __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'affiliate-captain' );
+				$errors['min_payout']    = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 50 or 50,00; 0 = no minimum).', 'affiliate-captain' );
 				$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
 			} else {
 				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
 			}
 		}
+	}
 
+	/**
+	 * Sanitize: landing pages, disclosure, guidelines, terms version, e-mail addresses and the
+	 * monitor token.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_promotion_mail_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['landing_prefix'] = $d['landing_prefix'];
 		if ( isset( $in['landing_prefix'] ) ) {
 			$landing = sanitize_title( (string) $in['landing_prefix'] );
@@ -670,6 +805,18 @@ final class Settings {
 				$out['monitor_token'] = self::monitor_token_hash( $token );
 			}
 		}
+	}
+
+	/**
+	 * Sanitize: company details for credit notes, VAT rate, number prefixes and the SEPA account.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_billing_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['debtor_name'] = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
 		$out['vat_rate']    = $d['vat_rate'];
 		if ( isset( $in['vat_rate'] ) ) {
@@ -684,7 +831,9 @@ final class Settings {
 		$out['operator_address']    = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
 		$out['operator_vat_id']     = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
 		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
-		foreach ( array( 'credit_prefix', 'storno_prefix' ) as $k ) {
+		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', array( 'auto', 'on', 'off' ), $d );
+		$out['einvoice_buyer_reference'] = isset( $in['einvoice_buyer_reference'] ) ? substr( trim( sanitize_text_field( (string) $in['einvoice_buyer_reference'] ) ), 0, 100 ) : '';
+		foreach ( array( 'credit_prefix', 'storno_prefix', 'correction_prefix' ) as $k ) {
 			$out[ $k ] = $d[ $k ];
 			if ( ! isset( $in[ $k ] ) ) {
 				continue;
@@ -695,6 +844,20 @@ final class Settings {
 				$out[ $k ]    = (string) $old( $k );
 			} else {
 				$out[ $k ] = $prefix;
+			}
+		}
+		// Credit notes, cancellations and correction credit notes each have their own sequence:
+		// the same prefix would give two documents with the same number (§ 14 UStG, R12-K7).
+		$prefix_keys = array( 'credit_prefix', 'storno_prefix', 'correction_prefix' );
+		$counts      = array_count_values( array_map( 'strval', array_intersect_key( $out, array_flip( $prefix_keys ) ) ) );
+		if ( max( $counts ) > 1 ) {
+			foreach ( $prefix_keys as $k ) {
+				if ( $counts[ (string) $out[ $k ] ] > 1 && ! isset( $errors[ $k ] ) ) {
+					$errors[ $k ] = __( 'The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number.', 'affiliate-captain' );
+				}
+			}
+			foreach ( $prefix_keys as $k ) {
+				$out[ $k ] = (string) $old( $k ); // Keep the stored prefixes.
 			}
 		}
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];
@@ -716,8 +879,6 @@ final class Settings {
 				: __( 'This IBAN is not valid (check digits).', 'affiliate-captain' );
 			$out['debtor_iban']    = (string) self::get( 'debtor_iban' );
 		}
-
-		return $out;
 	}
 
 	/**
@@ -764,7 +925,9 @@ final class Settings {
 		}
 		$base = (float) $rates[ $new ];
 		$fmt  = static function ( $value ) {
-			$text = rtrim( rtrim( sprintf( '%.6F', $value ), '0' ), '.' );
+			// 12 significant digits (R12-N2: no rounding to 6 decimals, small rates keep their value).
+			$dec  = $value > 0 ? (int) max( 0, min( 18, 11 - (int) floor( log10( $value ) ) ) ) : 6;
+			$text = rtrim( rtrim( sprintf( '%.' . $dec . 'F', $value ), '0' ), '.' );
 			return '0' === $text || '' === $text ? '0.000001' : $text;
 		};
 		$out = array( $old => $fmt( 1 / $base ) );
@@ -788,16 +951,28 @@ final class Settings {
 	}
 
 	/**
-	 * Parse an amount as typed by people: "25", "25 €", "€ 25,50", "1.000", "1.000,00 EUR",
-	 * "1,000.00". See Money::parse_amount(): grouped thousands are recognized, but for currencies
-	 * with three decimals (KWD …) "5.000" means 5 – the way the value is shown in the form.
+	 * Parse an amount as typed by people: "25", "25 €", "€ 25,50", "1.000,00 EUR", "1,000.00",
+	 * "1.000.000". See Money::parse_amount(): unambiguous thousands groups are recognized, a lone
+	 * group ("1.000") is refused as ambiguous, and for currencies with three decimals (KWD …)
+	 * "5.000" means 5 – the way the value is shown in the form.
 	 *
-	 * @param mixed  $raw      Input.
-	 * @param string $currency Currency of the amount ('' = no three-decimal rule).
+	 * @param mixed       $raw      Input.
+	 * @param string      $currency Currency of the amount ('' = unknown).
+	 * @param string|null $problem  Set to '' (fine), 'invalid' or 'ambiguous'.
 	 * @return string|null Normalized decimal or null.
 	 */
-	public static function parse_amount( $raw, $currency = '' ) {
-		return Money::parse_amount( (string) $raw, (string) $currency );
+	public static function parse_amount( $raw, $currency = '', &$problem = null ) {
+		return Money::parse_amount( (string) $raw, (string) $currency, $problem );
+	}
+
+	/**
+	 * Error for an amount with a lone thousands group ("1.000", "12,345"), see parse_amount().
+	 *
+	 * @return string
+	 */
+	private static function ambiguous_amount() {
+		/* translators: 1: example without grouping (1000), 2: the same amount with grouping and decimals in the site's number format (e.g. 1,000.00) */
+		return sprintf( __( 'The amount is ambiguous (thousands separator or decimal places?). Please write it as %1$s or %2$s.', 'affiliate-captain' ), '1000', number_format_i18n( 1000, 2 ) );
 	}
 
 	/**

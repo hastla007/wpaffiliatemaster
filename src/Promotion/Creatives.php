@@ -76,6 +76,42 @@ final class Creatives {
 	}
 
 	/**
+	 * One page of versions for the admin list (R5-O47).
+	 *
+	 * @param array $args search (title, text, disclosure), orderby (title|version|status; anything
+	 *                    else: newest family and version first), order (asc|desc), limit, offset.
+	 * @return array [ rows, total ]
+	 */
+	public static function query( array $args = array() ) {
+		global $wpdb;
+		$t      = Db::table( 'creatives' );
+		$where  = '1=1';
+		$params = array();
+		$search = isset( $args['search'] ) ? trim( (string) $args['search'] ) : '';
+		if ( '' !== $search ) {
+			$like     = '%' . $wpdb->esc_like( Db::cut( $search, 100 ) ) . '%';
+			$where   .= ' AND ( title LIKE %s OR content LIKE %s OR disclosure LIKE %s )';
+			$params   = array( $like, $like, $like );
+		}
+		// ORDER BY only from fixed fragments (whitelist), never from the request.
+		$dir     = isset( $args['order'] ) && 'asc' === strtolower( (string) $args['order'] ) ? 'ASC' : 'DESC';
+		$orderby = isset( $args['orderby'] ) ? (string) $args['orderby'] : '';
+		$columns = array(
+			'title'   => 'title',
+			'version' => 'version',
+			'status'  => 'status',
+		);
+		$order   = isset( $columns[ $orderby ] ) ? $columns[ $orderby ] . ' ' . $dir . ', family_id DESC, version DESC' : 'family_id DESC, version DESC';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Placeholders are in $where.
+		$total    = (int) ( $params ? $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t} WHERE {$where}", $params ) ) : $wpdb->get_var( "SELECT COUNT(*) FROM {$t}" ) );
+		$params[] = isset( $args['limit'] ) ? max( 1, (int) $args['limit'] ) : 50;
+		$params[] = isset( $args['offset'] ) ? max( 0, (int) $args['offset'] ) : 0;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Placeholders of $where plus LIMIT/OFFSET.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$where} ORDER BY {$order} LIMIT %d OFFSET %d", $params ) );
+		return array( $rows, $total );
+	}
+
+	/**
 	 * Approved creatives visible for a partner group.
 	 *
 	 * @param int $group_id Group (0 = no group).
@@ -109,6 +145,15 @@ final class Creatives {
 			'disclosure'    => sanitize_text_field( isset( $in['disclosure'] ) && '' !== trim( $in['disclosure'] ) ? $in['disclosure'] : Settings::get( 'default_disclosure' ) ),
 			'group_id'      => absint( isset( $in['group_id'] ) ? $in['group_id'] : 0 ),
 		);
+		// The target page is checked like in the link generator (R14-T9): also with or without "www.",
+		// another letter case or a host inside the cookie domain; stored normalized.
+		if ( '' !== $data['landing_url'] ) {
+			$own = \WPAffiliateCaptain\Portal\Portal::own_page_url( $data['landing_url'] );
+			if ( '' === $own ) {
+				return new \WP_Error( 'wpac_url', __( 'The target page must be on this website.', 'affiliate-captain' ) );
+			}
+			$data['landing_url'] = esc_url_raw( $own );
+		}
 		// Column limits: wpdb refuses the whole INSERT for a longer value (no draft would be saved).
 		foreach ( array(
 			'title'       => array( 190, __( 'Title', 'affiliate-captain' ) ),
@@ -129,9 +174,6 @@ final class Creatives {
 		}
 		if ( 'text' === $type && '' === $data['content'] ) {
 			return new \WP_Error( 'wpac_content', __( 'Please enter the text.', 'affiliate-captain' ) );
-		}
-		if ( $data['landing_url'] && wp_parse_url( $data['landing_url'], PHP_URL_HOST ) !== wp_parse_url( home_url(), PHP_URL_HOST ) ) {
-			return new \WP_Error( 'wpac_url', __( 'The target page must be on this website.', 'affiliate-captain' ) );
 		}
 		return $data;
 	}
@@ -168,7 +210,8 @@ final class Creatives {
 		if ( ! $ok ) {
 			return $failed;
 		}
-		$id = (int) $wpdb->insert_id;
+		$id  = (int) $wpdb->insert_id;
+		$new = ! $family_id;
 		if ( ! $family_id ) {
 			if ( false === $wpdb->update( $t, array( 'family_id' => $id ), array( 'id' => $id ) ) ) {
 				$wpdb->delete( $t, array( 'id' => $id ) ); // Without a family the version would be orphaned.
@@ -186,7 +229,55 @@ final class Creatives {
 				'note'    => $note,
 			)
 		);
+		if ( $new ) {
+			/**
+			 * A new creative was saved (first version of a new family, status "draft"). Since 0.15.0.
+			 * Partners see a creative only once a version is approved: see wpac_creative_updated.
+			 *
+			 * @param int   $id   Creative version ID.
+			 * @param array $info id, family_id, version, status, type, title, group_id.
+			 */
+			do_action( 'wpac_creative_created', $id, self::hook_info( $id ) );
+		} else {
+			self::changed( $id );
+		}
 		return $id;
+	}
+
+	/**
+	 * Fields of a creative version for the hooks wpac_creative_created/_updated (since 0.15.0).
+	 *
+	 * @param int $id Version ID.
+	 * @return array id, family_id, version, status (draft|approved|archived), type, title, group_id.
+	 */
+	public static function hook_info( $id ) {
+		$c = self::find( (int) $id );
+		return $c ? array(
+			'id'        => (int) $c->id,
+			'family_id' => (int) $c->family_id,
+			'version'   => (int) $c->version,
+			'status'    => (string) $c->status,
+			'type'      => (string) $c->type,
+			'title'     => (string) $c->title,
+			'group_id'  => (int) $c->group_id,
+		) : array( 'id' => (int) $id );
+	}
+
+	/**
+	 * Fire wpac_creative_updated after a successful change of a version.
+	 *
+	 * @param int $id Version ID.
+	 */
+	private static function changed( $id ) {
+		/**
+		 * A creative was changed: a new draft version of an existing family was saved, or a
+		 * version was approved (status "approved": now visible to partners of its group) or
+		 * archived. Since 0.15.0.
+		 *
+		 * @param int   $id   Creative version ID.
+		 * @param array $info id, family_id, version, status, type, title, group_id.
+		 */
+		do_action( 'wpac_creative_updated', (int) $id, self::hook_info( $id ) );
 	}
 
 	/**
@@ -204,7 +295,7 @@ final class Creatives {
 		$t = Db::table( 'creatives' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( $wpdb->prepare( "UPDATE {$t} SET status = 'archived' WHERE family_id = %d AND status = 'approved'", $c->family_id ) );
-		$wpdb->update(
+		$ok = $wpdb->update(
 			$t,
 			array(
 				'status'      => 'approved',
@@ -222,6 +313,9 @@ final class Creatives {
 				'version' => (int) $c->version,
 			)
 		);
+		if ( $ok ) {
+			self::changed( (int) $id );
+		}
 		return true;
 	}
 
@@ -232,8 +326,11 @@ final class Creatives {
 	 */
 	public static function archive( $id ) {
 		global $wpdb;
-		$wpdb->update( Db::table( 'creatives' ), array( 'status' => 'archived' ), array( 'id' => (int) $id ) );
+		$ok = $wpdb->update( Db::table( 'creatives' ), array( 'status' => 'archived' ), array( 'id' => (int) $id ) );
 		Audit::log( 'creative.archived', 'creative', (int) $id );
+		if ( $ok ) {
+			self::changed( (int) $id ); // Only when the status really changed (0 rows: already archived).
+		}
 	}
 
 	/**

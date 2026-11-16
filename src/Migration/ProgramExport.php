@@ -1,8 +1,8 @@
 <?php
 /**
  * Full program export as a ZIP of CSV files (admin page and `wp wpac export`):
- * partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items
- * and payout requests – for backups, audits and moving to another system.
+ * partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items,
+ * correction credit notes and payout requests – for backups, audits and moving to another system.
  *
  * Tax and bank data (payout details with the decrypted IBAN, tax snapshots of payouts) are only
  * included when explicitly requested by a user with the capability wpac_view_tax_data.
@@ -24,16 +24,53 @@ final class ProgramExport {
 
 	/** File name in the ZIP → table. */
 	const FILES = array(
-		'partners.csv'        => 'affiliates',
-		'groups.csv'          => 'partner_groups',
-		'codes.csv'           => 'partner_codes',
-		'rules.csv'           => 'rules',
-		'tiers.csv'           => 'tiers',
-		'agreements.csv'      => 'agreements',
-		'commissions.csv'     => 'commissions',
-		'payouts.csv'         => 'payouts',
-		'payout_items.csv'    => 'payout_items',
-		'payout_requests.csv' => 'payout_requests',
+		'partners.csv'           => 'affiliates',
+		'groups.csv'             => 'partner_groups',
+		'codes.csv'              => 'partner_codes',
+		'rules.csv'              => 'rules',
+		'tiers.csv'              => 'tiers',
+		'agreements.csv'         => 'agreements',
+		'commissions.csv'        => 'commissions',
+		'payouts.csv'            => 'payouts',
+		'payout_items.csv'       => 'payout_items',
+		'payout_corrections.csv' => 'payout_corrections',
+		'payout_requests.csv'    => 'payout_requests',
+	);
+
+	/**
+	 * Columns of payout_corrections.csv (correction credit notes of paid payouts): the database columns
+	 * plus the payout number, the gross amounts, the differences and the state of the PDF. The
+	 * one-time request key of the form is internal and not exported.
+	 */
+	const CORRECTION_COLUMNS = array(
+		'id',
+		'number',
+		'created_at',
+		'payout_id',
+		'payout_number',
+		'base_number',
+		'affiliate_id',
+		'currency',
+		'prev_net_minor',
+		'prev_vat_minor',
+		'prev_gross_minor',
+		'net_minor',
+		'vat_minor',
+		'gross_minor',
+		'diff_net_minor',
+		'diff_vat_minor',
+		'diff_gross_minor',
+		'vat_mode',
+		'vat_rate',
+		'reason',
+		'commission_id',
+		'profile_snapshot',
+		'operator_snapshot',
+		'file',
+		'hash',
+		'file_status',
+		'file_deleted_at',
+		'created_by',
 	);
 
 	/** Rows per query. */
@@ -143,10 +180,21 @@ final class ProgramExport {
 		$key  = 'payout_profiles' === $table ? 'affiliate_id' : 'id';
 		$last = 0;
 		while ( true ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$key} > %d ORDER BY {$key} ASC LIMIT %d", $last, self::BATCH ), ARRAY_A );
+			if ( 'payout_corrections' === $table ) {
+				// With the number of the corrected payout (its credit note may have been corrected before).
+				$p = Db::table( 'payouts' );
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.*, p.number AS payout_number FROM {$t} c LEFT JOIN {$p} p ON p.id = c.payout_id WHERE c.id > %d ORDER BY c.id ASC LIMIT %d", $last, self::BATCH ), ARRAY_A );
+			} else {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE {$key} > %d ORDER BY {$key} ASC LIMIT %d", $last, self::BATCH ), ARRAY_A );
+			}
 			if ( null === $header ) {
-				$header = $rows ? array_keys( self::row( $table, $rows[0], $include_tax_data ) ) : self::columns( $t );
+				if ( 'payout_corrections' === $table ) {
+					$header = self::CORRECTION_COLUMNS;
+				} else {
+					$header = $rows ? array_keys( self::row( $table, $rows[0], $include_tax_data ) ) : self::columns( $t );
+				}
 				Csv::put( $fh, $header, ';' );
 			}
 			foreach ( $rows as $row ) {
@@ -184,6 +232,9 @@ final class ProgramExport {
 	 * @return array
 	 */
 	private static function row( $table, array $row, $include_tax_data ) {
+		if ( 'payout_corrections' === $table ) {
+			return self::correction_row( $row, $include_tax_data );
+		}
 		if ( 'payouts' === $table && ! $include_tax_data ) {
 			$row['profile_snapshot'] = ''; // Legal name, address, VAT ID of the partner.
 			// The random file names are the only protection of a credit note folder that is
@@ -211,6 +262,66 @@ final class ProgramExport {
 	}
 
 	/**
+	 * Row of payout_corrections.csv: amounts before, after and the difference (net, VAT, gross) and the
+	 * state of the PDF. Without tax data the same is left out as for payouts: the tax snapshot of
+	 * the partner, the VAT treatment and the stored (random) file name of the PDF.
+	 *
+	 * @param array $row              Row of payout_corrections (with payout_number).
+	 * @param bool  $include_tax_data Tax data allowed.
+	 * @return array Column => value, in the order of CORRECTION_COLUMNS.
+	 */
+	private static function correction_row( array $row, $include_tax_data ) {
+		$int  = static function ( $key ) use ( $row ) {
+			return isset( $row[ $key ] ) ? (int) $row[ $key ] : 0;
+		};
+		$str  = static function ( $key ) use ( $row ) {
+			return isset( $row[ $key ] ) ? (string) $row[ $key ] : '';
+		};
+		$file = $str( 'file' );
+		if ( '' !== $str( 'file_deleted_at' ) ) {
+			$state = 'deleted'; // After the retention period (Statement::purge_expired()).
+		} else {
+			$state = '' !== $file ? 'stored' : 'pending';
+		}
+		$out = array(
+			'id'                => $int( 'id' ),
+			'number'            => $str( 'number' ),
+			'created_at'        => $str( 'created_at' ),
+			'payout_id'         => $int( 'payout_id' ),
+			'payout_number'     => $str( 'payout_number' ),
+			'base_number'       => $str( 'base_number' ),
+			'affiliate_id'      => $int( 'affiliate_id' ),
+			'currency'          => $str( 'currency' ),
+			'prev_net_minor'    => $int( 'prev_net_minor' ),
+			'prev_vat_minor'    => $int( 'prev_vat_minor' ),
+			'prev_gross_minor'  => $int( 'prev_net_minor' ) + $int( 'prev_vat_minor' ),
+			'net_minor'         => $int( 'net_minor' ),
+			'vat_minor'         => $int( 'vat_minor' ),
+			'gross_minor'       => $int( 'net_minor' ) + $int( 'vat_minor' ),
+			'diff_net_minor'    => $int( 'net_minor' ) - $int( 'prev_net_minor' ),
+			'diff_vat_minor'    => $int( 'vat_minor' ) - $int( 'prev_vat_minor' ),
+			'diff_gross_minor'  => ( $int( 'net_minor' ) + $int( 'vat_minor' ) ) - ( $int( 'prev_net_minor' ) + $int( 'prev_vat_minor' ) ),
+			'vat_mode'          => $str( 'vat_mode' ),
+			'vat_rate'          => $str( 'vat_rate' ),
+			'reason'            => $str( 'reason' ),
+			'commission_id'     => $int( 'commission_id' ),
+			'profile_snapshot'  => $str( 'profile_snapshot' ),
+			'operator_snapshot' => $str( 'operator_snapshot' ),
+			'file'              => $file,
+			'hash'              => $str( 'hash' ),
+			'file_status'       => $state,
+			'file_deleted_at'   => $str( 'file_deleted_at' ),
+			'created_by'        => $int( 'created_by' ),
+		);
+		if ( ! $include_tax_data ) {
+			$out['profile_snapshot'] = ''; // Legal name, address, VAT ID of the partner.
+			$out['vat_mode']         = ''; // Reveals the partner's tax status.
+			$out['file']             = '' !== $file ? 'yes' : '';
+		}
+		return $out;
+	}
+
+	/**
 	 * Explanation inside the ZIP.
 	 *
 	 * @param bool $include_tax_data Tax data included.
@@ -225,8 +336,8 @@ final class ProgramExport {
 		$lines[] = 'Columns are the database columns of the plugin; see docs/IMPORT-EXPORT.md.';
 		$lines[] = '';
 		$lines[] = $include_tax_data
-			? 'CONTAINS TAX AND BANK DATA (payout_details.csv with decrypted IBANs or – column payout_method "manual" – the decrypted payment details of another payment method such as PayPal; tax snapshots in payouts.csv). Store and transfer it encrypted, delete it when no longer needed.'
-			: 'Tax and bank data are not included (payout details, IBANs, payment details, the tax snapshots and the VAT treatment (vat_mode) of payouts; statement_file/storno_file only say "yes" instead of the stored file names).';
+			? 'CONTAINS TAX AND BANK DATA (payout_details.csv with decrypted IBANs or – column payout_method "manual" – the decrypted payment details of another payment method such as PayPal; tax snapshots in payouts.csv and payout_corrections.csv). Store and transfer it encrypted, delete it when no longer needed.'
+			: 'Tax and bank data are not included (payout details, IBANs, payment details, the tax snapshots and the VAT treatment (vat_mode) of payouts and correction credit notes; statement_file/storno_file and file in payout_corrections.csv only say "yes" instead of the stored file names).';
 		$lines[] = 'The export contains personal data of partners: handle it according to your privacy policy.';
 		return implode( "\n", $lines ) . "\n";
 	}

@@ -478,12 +478,12 @@ if ( preg_match( '/== Upgrade Notice ==\s*(.*?)(?:\n== |\z)/s', $g6_readme, $g6_
 check( 'R5-W4 upgrade notices have at most 300 characters', array(), $g6_long );
 // R5-W3: the release notes are read from the Changelog section only (the Upgrade Notice has the
 // same "= x.y.z =" headings and would otherwise become the release text).
-check( 'R5-W3 release notes awk reads only the Changelog section', true, (bool) preg_match( '/notes="\$\(awk[^\n]*Changelog/', $g6_ci ) );
+check( 'R5-W3 release notes awk reads only the Changelog section (R13-N11: CR stripped first)', true, (bool) preg_match( '/notes="\$\([^\n]*readme\.txt \| awk[^\n]*Changelog/', $g6_ci ) );
 // R8 package G4b (pure logic).
 check( 'R5-W6 "5.000" KWD is 5 dinars (as shown), not 5000', 5000, Money::to_minor( Money::parse_amount( Money::to_decimal( 5000, 'KWD' ), 'KWD' ), 'KWD' ) );
 check( 'R5-W6 saving a shown 3-decimal amount again keeps it (no x1000)', '12.345', Money::parse_amount( '12.345', 'BHD' ) );
 check( 'R5-W6 "1.000.000" KWD is still thousands grouping', '1000000', Money::parse_amount( '1.000.000', 'KWD' ) );
-check( 'R5-W6 English "1,000" EUR is one thousand, not 1,00', '1000', Money::parse_amount( '1,000', 'EUR' ) );
+check( 'R5-W6/R13-K6 "1,000" EUR is ambiguous (neither 1000 nor 1,00 is guessed), "1,000.00" is one thousand', array( null, '1000.00' ), array( Money::parse_amount( '1,000', 'EUR' ), Money::parse_amount( '1,000.00', 'EUR' ) ) );
 check( 'R5-W6 German "1.000,00 €" and "50,00" unchanged', array( '1000.00', '50.00', '0.500' ), array( Money::parse_amount( '1.000,00 €', 'EUR' ), Money::parse_amount( '50,00', 'EUR' ), Money::parse_amount( '0,500', 'EUR' ) ) );
 check( 'R6-QA12 SEPA names are transliterated, not cut', array( 'Lukasz Zolc', 'Oyvind Aero', 'Ivan Petrov', 'Mueller GmbH', 'Jose Nunez' ), array( SepaXml::clean( 'Łukasz Żółć', 70 ), SepaXml::clean( 'Øyvind Ærø', 70 ), SepaXml::clean( 'Иван Петров', 70 ), SepaXml::clean( 'Müller GmbH', 70 ), SepaXml::clean( 'José Núñez', 70 ) ) );
 // R8 G4a: VAT treatment of repayments/write-offs, history by service date, VAT ID format, PDFs.
@@ -538,6 +538,84 @@ check( 'R6-QA11 "15 Euro", "15 eur", "15 Dollar" are fixed amounts', array( arra
 check( 'R6-QA11 "1.500 JPY" is 1500 yen (no decimals), "1.234,50 €" thousands', array( array( 'fixed', '1500' ), array( 'fixed', '1234.50' ) ), array( $g7_rate( '1.500 JPY', '', 'JPY' ), $g7_rate( '1.234,50 €', '', 'EUR' ) ) );
 check( 'R6-QA11 amount in another currency than the shop and unknown words are refused', array( null, null ), array( $g7_rate( '15 USD', '', 'EUR' ), $g7_rate( '15 Punkte' ) ) );
 check( 'R6-QA11 percentages unchanged', array( array( 'percent', '15' ), array( 'percent', '12.5' ) ), array( $g7_rate( '15' ), $g7_rate( '12,5 %' ) ) );
+
+/* R13-K6: thousands separators only where they are unambiguous. ------------------------------ */
+$k6 = array();
+foreach ( array(
+	array( '1.000', 'EUR' ), array( '12,345', 'EUR' ), array( '2,500', 'EUR' ), array( '1,000', '' ),
+	array( '1.000,50', 'EUR' ), array( '1,000.50', 'EUR' ), array( '1 000,50', 'EUR' ), array( "1\u{00A0}000,50 €", 'EUR' ),
+	array( '1.000.000', 'EUR' ), array( '1,000,000.25', 'USD' ), array( '25', 'EUR' ), array( '25,5', 'EUR' ), array( '-0', 'EUR' ),
+	array( '12.50,00', 'EUR' ), array( '1.2.3', 'EUR' ), array( '1,00,000', 'EUR' ), array( '1000.000,00', 'EUR' ), array( '1.000,5.0', 'EUR' ),
+	array( '0,500', 'EUR' ), array( '1000,345', 'EUR' ), array( '5.000', 'KWD' ), array( '1.500', 'JPY' ), array( '1.000', 'BTC' ), array( '-1.000,50', 'EUR' ),
+) as $k6_in ) {
+	$k6_v = Money::parse_minor( $k6_in[0], $k6_in[1], $k6_p );
+	$k6[] = null === $k6_v ? $k6_p : $k6_v;
+}
+check(
+	'R13-K6 parse_minor: lone 3-digit group ambiguous, both separators / several groups are thousands, misplaced separators invalid',
+	array(
+		'ambiguous', 'ambiguous', 'ambiguous', 'ambiguous',
+		100050, 100050, 100050, 100050,
+		100000000, 100000025, 2500, 2550, 0,
+		'invalid', 'invalid', 'invalid', 'invalid', 'invalid',
+		50, 'precision', 5000, 1500, 100000000, -100050,
+	),
+	$k6
+);
+check( 'R13-K6 parse_amount reports the problem too', array( null, 'ambiguous', null, 'invalid', '1000.50', '' ), array( Money::parse_amount( '12,345', 'EUR', $k6_a ), $k6_a, Money::parse_amount( '12.50,00', 'EUR', $k6_b ), $k6_b, Money::parse_amount( '1.000,50', 'EUR', $k6_c ), $k6_c ) );
+
+/* R13-K7: every accepted currency has a known precision (BTC: 8 decimals). ------------------- */
+check( 'R13-K7 BTC has 8 decimals: 0.0045 / 0.016 / 0.12345678 BTC in satoshi', array( 8, 450000, 1600000, 12345678 ), array( Money::decimals( 'btc' ), Money::to_minor( '0.00450000', 'BTC' ), Money::to_minor( '0.016', 'BTC' ), Money::to_minor( '0.12345678', 'BTC' ) ) );
+check( 'R13-K7 10 % commission of 0.0045 BTC is 0.00045 BTC (not 0)', array( 45000, '0.00045000' ), array( Money::percent_of( 450000, '10' ), Money::to_decimal( Money::percent_of( 450000, '10' ), 'BTC' ) ) );
+check( 'R13-K7 parse_minor "0,0045" BTC and too many decimals', array( 450000, 'precision' ), array( Money::parse_minor( '0,0045', 'BTC' ), null === Money::parse_minor( '0.000000001', 'BTC', $k7_p ) ? $k7_p : 'x' ) );
+check( 'R13-K7 precision of non-ISO WooCommerce codes known (IRT 0, GGP 2), unknown code not', array( true, 0, true, 2, false ), array( Money::has_decimals( 'IRT' ), Money::decimals( 'IRT' ), Money::has_decimals( 'ggp' ), Money::decimals( 'GGP' ), Money::has_decimals( 'QQZ' ) ) );
+$k7_iso = explode( ' ', \WPAffiliateCaptain\Sales\ContractApi::CURRENCIES );
+$k7_odd = array();
+foreach ( array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' ) as $k7_c ) {
+	if ( 0 !== Money::decimals( $k7_c ) || ! in_array( $k7_c, $k7_iso, true ) ) {
+		$k7_odd[] = $k7_c;
+	}
+}
+foreach ( array( 'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND' ) as $k7_c ) {
+	if ( 3 !== Money::decimals( $k7_c ) ) {
+		$k7_odd[] = $k7_c;
+	}
+}
+foreach ( array( 'XCG', 'ZWG', 'VED', 'SLE', 'EUR', 'USD', 'MRU', 'IRR' ) as $k7_c ) {
+	if ( 2 !== Money::decimals( $k7_c ) || ! in_array( $k7_c, $k7_iso, true ) ) {
+		$k7_odd[] = $k7_c;
+	}
+}
+check( 'R13-K7 ISO 4217 minor units of the contract list (0, 3 and 2 decimals incl. XCG/ZWG/VED)', array(), $k7_odd );
+
+/* R14-L1: e-invoice XML without WordPress (VAT categories, totals, business rule checks). */
+use WPAffiliateCaptain\Payouts\EInvoice;
+check( 'R14-L1 VAT categories of the treatments', array( array( 'S', '19' ), array( 'S', '7.5' ), array( 'Z', '0' ), array( 'AE', '0' ), array( 'E', '0' ), array( 'O', '' ) ), array( EInvoice::category( 'standard', '19.00' ), EInvoice::category( 'standard', '7.5' ), EInvoice::category( 'standard', '0' ), EInvoice::category( 'reverse_charge', '0' ), EInvoice::category( 'small_business', '0' ), EInvoice::category( 'private', '0' ) ) );
+$l1_doc = array(
+	'number'          => 'GS-2026-000009',
+	'type'            => '389',
+	'issue_date'      => '20261115',
+	'currency'        => 'EUR',
+	'buyer_reference' => 'GS-2026-000009',
+	'seller'          => array( 'id' => '9', 'name' => 'Partner', 'lines' => array( 'Kai 5' ), 'postcode' => '24103', 'city' => 'Kiel', 'country' => 'DE', 'vat_id' => 'DE123456789', 'tax_number' => '', 'email' => 'p@example.de', 'phone' => '' ),
+	'buyer'           => array( 'name' => 'Shop', 'lines' => array( 'Hafen 1' ), 'postcode' => '20457', 'city' => 'Hamburg', 'country' => 'DE', 'vat_id' => 'DE999999999', 'email' => 'b@example.de' ),
+	'lines'           => array(
+		array( 'name' => 'A', 'note' => '', 'net' => 3333, 'category' => 'S', 'rate' => '19' ),
+		array( 'name' => 'B', 'note' => '', 'net' => 3333, 'category' => 'S', 'rate' => '19' ),
+		array( 'name' => 'C', 'note' => '', 'net' => -1000, 'category' => 'AE', 'rate' => '0' ),
+	),
+	'exemptions'      => array( 'AE' => array( 'Reverse charge', 'VATEX-EU-AE' ) ),
+	'prepaid'         => 500,
+	'payment'         => array( 'code' => 'ZZZ', 'info' => 'SEPA' ),
+	'terms'           => 'With the payout',
+);
+$l1_t = EInvoice::totals( $l1_doc );
+check( 'R14-L1 totals: VAT per category and rate on the summed basis, due = total − paid amount', array( 5666, 1267, 6933, 6433 ), array( $l1_t['lines'], $l1_t['tax'], $l1_t['grand'], $l1_t['due'] ) );
+check( 'R14-L1 XML passes the business rules; EN 16931 profile without seller phone', array( array(), EInvoice::EN16931 ), array( EInvoice::check( EInvoice::xml( $l1_doc ) ), EInvoice::profile( $l1_doc ) ) );
+$l1_doc['seller']['phone'] = '+49 1';
+check( 'R14-L1 XRechnung profile with all its data, still valid', array( array(), EInvoice::XRECHNUNG ), array( EInvoice::check( EInvoice::xml( $l1_doc ) ), EInvoice::profile( $l1_doc ) ) );
+$l1_doc['payment'] = array( 'code' => '58', 'info' => 'SEPA' );
+check( 'R14-L1 checker: SEPA credit transfer without IBAN (BR-61)', array( 'BR-61' ), array_keys( EInvoice::check( EInvoice::xml( $l1_doc ) ) ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

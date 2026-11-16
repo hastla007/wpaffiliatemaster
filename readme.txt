@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.11.0
+Stable tag: 0.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,7 +88,7 @@ Yes. Network activation sets up every site (in batches for large networks), new 
 
 = Is it GDPR compliant? =
 
-The plugin is built for data minimisation: no IP addresses for attribution, cookie only with consent, customers are never shown to partners, lifetime links store only a keyed hash, bank details are encrypted, retention periods delete old data automatically, and personal data export and erasure (including restriction of processing for records that must be kept) are connected to the WordPress privacy tools. It adds a suggested text to the privacy policy guide and ships a record of processing activities template (Settings → Reports & data). Whether your setup is compliant depends on your situation – have it reviewed by your data protection advisor.
+The plugin is built for data minimisation: no IP addresses for attribution, cookie only with consent, partners never see customer names, e-mail or addresses (only order number, product, date, amounts, status and their own sub-ID), lifetime links store only a keyed hash, bank details are encrypted, retention periods delete old data automatically, and personal data export and erasure (including restriction of processing for records that must be kept) are connected to the WordPress privacy tools. It adds a suggested text to the privacy policy guide and ships a record of processing activities template (Settings → Data & maintenance). Whether your setup is compliant depends on your situation – have it reviewed by your data protection advisor.
 
 = Does it work with Pass Captain and Voucher Captain? =
 
@@ -104,16 +104,81 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Screenshots ==
 
-1. Dashboard with the setup checklist and the key figures of the partner program.
-2. Partner list with status, partner codes and balances.
-3. Partner details: codes, payout details, account statement and status history.
-4. Commission rules and partner groups.
-5. Payout run with preview, credit notes and SEPA export.
-6. Partner area: partner link with copy button, statistics and commissions.
-7. Partner application form block.
+1. Dashboard with the key figures of the partner program and the report by partner, content and campaign.
+2. Partner list with status, partner codes, balances, payout details and terms acceptance.
+3. Partner details: key figures and the account statement with integrity check (further tabs: profile, codes, payout details, history).
+4. Commission rules for all partners, partner groups, products, categories and SKUs, including exclusions.
+5. Payout run: preview with minimum payout, then credit notes, SEPA export and the list of payouts.
+6. Partner area: partner link with copy button, key figures and commissions.
+7. Partner application form block with fields per partner group.
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= Unreleased =
+New features; database schema 16 (new column on the partner table):
+* New: apply the partner's coupon automatically after a partner link (Settings → Promotion, default off) – once per shop session, classic and block cart/checkout, respects WooCommerce validity, usage limits and "individual use", never removes the customer's coupons, not for self-referrals or paused/blocked partners; the partner area shows the discount next to the link, the welcome box optionally too; filter wpac_auto_apply_coupon
+* New: partners can request their own code (e.g. MARIA10) in the partner area – checked like admin codes, one open request and 3 per 30 days, approval or rejection with reason on the partner page (optionally as main code – earlier codes stay valid – and with a WooCommerce coupon), e-mail templates, audit log, data export and erasure; can be switched off under Settings → Program
+* Security: money-relevant admin actions (approving bank details, linking/unlinking partner accounts, changing payout details, downloading SEPA/transfer/PayPal files, marking payouts as paid) require a password confirmation valid for 15 minutes in the login session, with the Two-Factor plugin's second factor when active; setting under Fraud & abuse (on by default); WP-CLI and REST unaffected
+* New: "Recruited by" – the partner through whose referral a new partner registered is stored, shown and editable on the partner page, available in wpac_get_affiliate(s)() / wpac_update_affiliate() and via the new action wpac_affiliate_recruited for sub-affiliate add-ons
+* Add-ons: wpac_create_adjustment() can refer to a commission (parent_id, reference – information only, refunds leave the booking untouched); new functions wpac_portal_url() and wpac_mail_sender(); new actions wpac_creative_created and wpac_creative_updated
+* Changed: manual bookings for a commission (e.g. a penalty or a bonus) stay untouched when the order is refunded; the refund only reduces the calculated commission in proportion
+
+= 0.14.0 =
+Expert audit round 14 (12 perspectives); database schema 15 (one index widened online, new table visits_daily):
+* New: credit notes, correction credit notes and cancellations as electronic invoice (EN 16931 CII XML; XRechnung 3.0 profile when all its data are known) – download next to every PDF in the partner area and admin, optional attachment to the partner e-mail (setting "Send e-invoice", automatic for domestic VAT-registered partners), Leitweg-ID setting, filters wpac_einvoice_xml / wpac_einvoice_data
+* New: e-mail templates in the admin (Affiliate Captain → E-mail templates): subject and text of every partner e-mail with placeholders ({name}, {link}, {code}, {rate}, {portal_url}, {amount} …), reset to default, test send, optional simple HTML layout with plain-text part; the approval/welcome e-mail contains partner link, code and commission rate
+* Security: linking, disconnecting and re-sending the account link, changing the e-mail of a partner with portal access or payout details and the VIES check need the payout permission; new bank details entered within 30 days after an e-mail change or account link wait for approval; partner (also at the previous address) and admin are informed
+* Security: no code validity oracle via consent script, cookie or landing status; IP limit for unknown codes
+* Fixed: unsubscribe links only act after confirmation (mail scanners no longer unsubscribe partners); one-click unsubscribe (RFC 8058) for Gmail/Yahoo
+* Fixed: the self-referral address check compares whole words and the exact house number (neighbours no longer lose their commission)
+* Fixed: unpublished landing pages and links of paused, terminated or unknown partners lead to the default landing page instead of a 404; new monitor check
+* Fixed: partner statistics, monthly table and CSV export use the site time zone; the date filter of the partner payouts tab works
+* Fixed: partners whose partnership ended can update their payout details while money is open
+* Fixed: refund rate counts only refunds, cancellations and chargebacks; conversion rate counts only sales from link clicks and shows "—" without visits
+* Fixed: after a reinstall, stale coupon and order meta no longer point to new partners; uninstall and tools/purge-retained.php handle deleted network sites and pending scheduled tasks
+* SEO: "noindex, follow" for pages with partner parameters, the partner area and confirmation pages; landing redirects pass on all utm_* parameters and click IDs; bot filter extended; reserved names are refused as referral parameter
+* Partner area: tier bonus explained in plain words with a progress bar; copyable HTML text link with rel="sponsored noopener"; labelling duty with channel examples and an optional visible disclosure label in banner embed codes; status-specific messages for pending, rejected and terminated applicants
+* Privacy: consent banner status is only green with a connected banner (handbook recipes for Borlabs, Complianz, Real Cookie Banner, Usercentrics, CCM19, Cookiebot); customers' right to object in the privacy policy text; record of processing activities corrected, English template; terms proof covers the rendered page; notice for cookie lifetimes above 395 days
+* Terms template: independence (§ 89b HGB), credit note format incl. e-invoice, small business status, labelling duty, data protection roles
+* Performance (database schema 14): partner statistics by campaign and sub-ID are answered from a widened visit index (changed online, without locking the table) and cached for 10 minutes per partner and period; the editor's "Partner traffic" box is cached; the report cache generation is no longer autoloaded
+* Performance: daily aggregation of partner link visits (table visits_daily): partner area, admin reports and monthly e-mails read visit counts per partner, day, campaign and sub-ID from a few rows instead of millions; existing visits are added in the background, until then the raw data are used; deleted on partner erasure and after the retention period; the campaign table in the partner area shows 25 rows per page
+* Performance: the rate-limit clean-up continues with a time budget until no expired counter is left; the monitor warns when it falls behind
+* Privacy: erasing a partner with millions of link visits deletes them in short batches; the WordPress eraser continues page by page and a background task finishes the rest
+* Tracking: the beacon route stays reachable when security plugins block the REST API for guests, falls back to admin-ajax.php, and Site Health and the monitor report a blocked beacon; reloads no longer resend the beacon; the WooCommerce cart is only loaded for visitors with a shop session; the beacon is excluded from "delay JavaScript" in WP Rocket, LiteSpeed Cache, Perfmatters and FlyingPress
+* Dev: CI checks deprecations and notices, integration tests on PHP 7.4 and 8.4, smoke test on PHP 8.4, PHPStan level 3
+
+= 0.13.0 =
+Expert audit (8 reviewers); database schema 13 (indexes only):
+* Fixed: a payout claimed by a payment provider add-on can no longer be exported again (SEPA, transfer list, PayPal file) – it could have been paid twice; a claimed payout can be cancelled in the admin only 45 days after the claim (filter wpac_claim_cancel_after)
+* Fixed: a cancelled payout no longer gets a credit note without its cancellation document
+* Fixed: correction credit notes compute VAT per VAT group of the corrected credit note (treatment at the time of the service), leave non-taxable amounts out and no longer accumulate rounding; mixed credit notes are corrected per group; settled corrections are shown separately on the next credit note
+* Fixed: amounts like "1.000" in repayments and manual bookings were read as 1.00; input with too many decimals is refused
+* Fixed: credit, cancellation and correction prefixes must differ (no duplicate document numbers)
+* Fixed: the partner broadcast e-mail could never be sent
+* Fixed: a cancelled order with a not yet released increase could recover too much; a deleted WooCommerce refund now gives its deduction back
+* Security: creating a WooCommerce coupon for a partner also needs the WooCommerce permission to publish coupons; blocked or expired partner codes are not offered
+* Privacy: the statement sweep marker stores only hashes and covers correction credit notes; attributions are deleted after the retention period; applications never decided are anonymised after a configurable period; customer erasure removes the order meta and reports what is kept; the personal data export includes audit entries, tax history and mail opt-outs; e-mail addresses are masked in logs; uninstall removes all options, user meta and cron hooks
+* Performance: portal.css only loads where the partner area or a block is shown; the statement sweep runs in cron instead of visitor requests; new indexes and cached totals for the audit log and commissions; reports cached for 10 minutes and cleared on bookings
+* Accessibility: labels for all admin form fields, autocomplete in the partner area, per-field registration errors, better contrast, payout method switch without JavaScript, announced notices
+* Admin: the payout export reloads the page only after the download started; payout run cut-off and month in the site time zone
+* Fixed (audit round 13, 9 reviewers): a deadlock or lock timeout in the middle of a booking is rolled back and retried instead of reporting success; order edits, refunds and refund deletions run under a per-order lock
+* Fixed: repayments and write-offs no longer count as taxable net on credit notes, the annual summary and the small business warning; a deleted refund gives back exactly what was deducted (also for fixed rates per piece); a partial refund of a raised line takes back the open increase first
+* Fixed: ambiguous amounts like "12,345" are refused instead of read as thousands; currencies use their real number of decimals (BTC 8)
+* Privacy: the personal data export no longer contains internal reasons or fraud markers and masks bank details; a changed customer key keeps old links and warns until confirmed; old commissions are pseudonymised after the retention period
+* Add-ons: new action wpac_affiliate_erased after a partner erasure; wpac_commission_review and the error codes wpac_affiliate_db / wpac_status_not_saved are documented in the contract; wpac_get_payouts() loads payout profiles once per page
+* Compatibility: all WooCommerce currencies accepted; refused payloads of the integration contract are listed under Integrations; hints for edge caches and multisite cron; read/write API validates arguments strictly
+
+= 0.12.0 =
+Database schema 12:
+* Payouts: correction credit notes for paid payouts (own gapless number series "KG-…", prefix configurable): corrected net amount with reason, before/after/difference with the VAT treatment frozen on the original credit note; the difference is booked to the partner account (shortfall paid in the next run, overpayment offset later); an open objection is resolved automatically; PDF by e-mail and in the partner area
+* Money: line items raised or added after payment are booked automatically ("Order increase", at the rate of the original commission; new lines with the current rules); refunds afterwards include the increase
+* Partners: "Create coupon for partner" creates a WooCommerce coupon and links it to a partner code in one step
+* Admin: audit log, payouts and creatives lists with sortable columns, search, paging and rows-per-page screen options
+* Privacy: credit notes deleted after the retention period are also removed on every other app server (per-server sweep, new command wp wpac statements sweep); deleted credit notes are never served or rebuilt
+* WordPress.org: icon, banner and screenshots
+* Add-ons (contract 1.3.0): public read/write functions for partners and commissions (wpac_get_affiliate(s), wpac_get_commission(s), wpac_update_affiliate, wpac_set_affiliate_status, wpac_set_commission_status, wpac_create_adjustment), portal hooks for white-label add-ons (wpac_portal_before/after, wpac_portal_classes, wpac_portal_labels, wpac_mail_from_name), wpac_commission_created for every new ledger booking and new action wpac_payout_cancelled
+* Add-ons (contract 1.3.0): payouts can be paid through a payment provider add-on – read, claim, mark paid or release a payout with the same guards against paying twice as the export files; a claimed payout cannot be cancelled in the admin for 7 days
 
 = 0.11.0 =
 Renamed to "Affiliate Captain" (folder and text domain "affiliate-captain"); expert review rounds 5 to 7 (money, VAT, privacy, tracking, operations, partner area); database schema 11:
@@ -237,6 +302,15 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.14.0 =
+Security and compliance update: e-invoice (EN 16931 XML) for credit notes, editable e-mail templates, approval for bank-detail changes after account changes. Back up first; schema 15 widens one index online and adds a visit summary table filled in the background.
+
+= 0.13.0 =
+Audit fixes: no double payouts of claimed payouts, correct VAT on correction credit notes, safe retries after database deadlocks. Back up first; schema 13 only adds indexes (waits at most 10 s for locks, retried later by cron).
+
+= 0.12.0 =
+Make a backup first; the database update to schema 12 (new table for correction credit notes) runs automatically. New: correction credit notes for paid payouts, automatic booking of raised order lines, coupon creation for partners, sortable admin lists and the add-on contract 1.3.0.
 
 = 0.11.0 =
 Renamed to "Affiliate Captain" (folder "affiliate-captain"). Make a backup first; the database update to schema 11 runs automatically. Install it next to "WP Affiliate Captain" and activate it: the old copy is switched off, all data stays. Then delete the old copy. Needs WordPress 6.3+.

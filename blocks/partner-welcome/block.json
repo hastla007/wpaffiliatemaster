@@ -11,6 +11,10 @@
 		"text": {
 			"type": "string",
 			"default": ""
+		},
+		"showDiscount": {
+			"type": "boolean",
+			"default": false
 		}
 	},
 	"supports": {
@@ -23,5 +27,5 @@
 		}
 	},
 	"editorScript": "wpac-blocks",
-	"style": "wpac-portal"
+	"editorStyle": "wpac-portal"
 }

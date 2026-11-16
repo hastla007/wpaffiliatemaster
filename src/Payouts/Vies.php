@@ -105,6 +105,10 @@ final class Vies {
 		if ( ! self::enabled() ) {
 			return null;
 		}
+		if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $affiliate_id ) ) {
+			// Processing restricted (Art. 18 GDPR): the VAT ID is not sent to VIES, whoever asks (R14-S4).
+			return null;
+		}
 		$profile = ProfileRepository::get( (int) $affiliate_id );
 		$vat_id  = $profile ? strtoupper( (string) $profile->vat_id ) : '';
 		// A change waiting for the admin's approval: check the requested VAT ID (the result
@@ -285,6 +289,9 @@ final class Vies {
 		$cap = max( 1, (int) apply_filters( 'wpac_vies_daily_cap', self::DAILY_CAP ) );
 		$n   = 0;
 		foreach ( $ids as $id ) {
+			if ( \WPAffiliateCaptain\Privacy\Restriction::is_restricted( (int) $id ) ) {
+				continue; // Restricted processing (Art. 18 GDPR): no transfer to VIES (R12-N17).
+			}
 			$r = self::result( (int) $id );
 			if ( $r && self::next_check( $r ) > time() ) {
 				continue;

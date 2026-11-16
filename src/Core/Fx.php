@@ -14,6 +14,8 @@
 
 namespace WPAffiliateCaptain\Core;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Fx {
 
 	/**
@@ -54,10 +56,11 @@ final class Fx {
 		if ( ! isset( $rates[ $from ] ) ) {
 			return null;
 		}
-		$rate = Money::scale( $rates[ $from ], 6 );
-		$num  = (int) $minor * $rate * ( 10 ** Money::decimals( $program ) );
-		$den  = 1000000 * ( 10 ** Money::decimals( $from ) );
-		return Money::round_div( $num, $den );
+		$rate = self::ratio( $rates[ $from ] );
+		if ( null === $rate ) {
+			return null;
+		}
+		return self::mul_div( (int) $minor, array( $rate[0], 10 ** Money::decimals( $program ) ), array( $rate[1], 10 ** Money::decimals( $from ) ) );
 	}
 
 	/**
@@ -78,10 +81,73 @@ final class Fx {
 		if ( ! isset( $rates[ $to ] ) ) {
 			return null;
 		}
-		$rate = Money::scale( $rates[ $to ], 6 );
-		$num  = (int) $minor * 1000000 * ( 10 ** Money::decimals( $to ) );
-		$den  = $rate * ( 10 ** Money::decimals( $program ) );
-		return Money::round_div( $num, $den );
+		$rate = self::ratio( $rates[ $to ] );
+		if ( null === $rate ) {
+			return null; // No usable rate (0 or too small): never a division by zero.
+		}
+		return self::mul_div( (int) $minor, array( $rate[1], 10 ** Money::decimals( $to ) ), array( $rate[0], 10 ** Money::decimals( $program ) ) );
+	}
+
+	/** Significant digits of a rate that are used (and kept when rates are rebased). */
+	const PRECISION = 15;
+
+	/**
+	 * A rate as an exact fraction [ numerator, denominator ] of its decimal digits (at most
+	 * PRECISION significant digits, at most 18 decimals) – no rounding to a fixed number of
+	 * decimals, so small rates (e.g. 1 IRR = 0.0000213 EUR) keep their precision.
+	 *
+	 * @param string $rate Decimal string.
+	 * @return array|null Null for a rate that is not positive (or too small to use).
+	 */
+	public static function ratio( $rate ) {
+		$rate = Money::normalize_decimal( (string) $rate );
+		if ( null === $rate || '-' === $rate[0] ) {
+			return null;
+		}
+		$parts = explode( '.', $rate, 2 );
+		$int   = ltrim( $parts[0], '0' );
+		$frac  = substr( isset( $parts[1] ) ? $parts[1] : '', 0, 18 );
+		$sig   = ltrim( $int . $frac, '0' );
+		if ( strlen( $sig ) > self::PRECISION ) {
+			// Too many digits: drop the least significant decimals.
+			$frac = substr( $frac, 0, max( 0, strlen( $frac ) - ( strlen( $sig ) - self::PRECISION ) ) );
+		}
+		$num = ltrim( $int . $frac, '0' );
+		if ( '' === $num || strlen( $num ) > 18 ) {
+			return null;
+		}
+		return array( (int) $num, 10 ** strlen( $frac ) );
+	}
+
+	/**
+	 * Round( $minor × Π $num / Π $den ) half away from zero: exact integer arithmetic while the
+	 * products fit, floating point (about 15 significant digits) beyond.
+	 *
+	 * @param int   $minor Amount.
+	 * @param int[] $num   Factors of the numerator.
+	 * @param int[] $den   Factors of the denominator.
+	 * @return int|null Null on a zero denominator or a result out of range.
+	 */
+	private static function mul_div( $minor, array $num, array $den ) {
+		$n = $minor;
+		foreach ( $num as $f ) {
+			$n *= $f; // Becomes a float on integer overflow.
+		}
+		$d = 1;
+		foreach ( $den as $f ) {
+			$d *= $f;
+		}
+		if ( 0 == $d ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- int or float.
+			return null;
+		}
+		if ( is_int( $n ) && is_int( $d ) ) {
+			return Money::round_div( $n, $d );
+		}
+		$q = (float) $n / (float) $d;
+		if ( ! is_finite( $q ) || abs( $q ) >= (float) PHP_INT_MAX ) {
+			return null;
+		}
+		return (int) ( $q < 0 ? -floor( -$q + 0.5 ) : floor( $q + 0.5 ) );
 	}
 
 	/**

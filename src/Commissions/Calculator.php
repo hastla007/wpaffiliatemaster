@@ -25,6 +25,8 @@ namespace WPAffiliateCaptain\Commissions;
 
 use WPAffiliateCaptain\Core\Money;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Calculator {
 
 	const SCOPE_WEIGHT  = array(

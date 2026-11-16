@@ -14,6 +14,8 @@
 
 namespace WPAffiliateCaptain\Payouts;
 
+defined( 'ABSPATH' ) || exit;
+
 final class Pdf {
 
 	const WIDTH  = 595.28;
