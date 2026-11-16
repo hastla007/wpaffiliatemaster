@@ -10,7 +10,9 @@
  *
  * and delete the plugin again. It runs the normal uninstall, which deletes everything that is
  * past the retention period and keeps the rest (the run can be repeated later). On a network it
- * checks every site (no --url needed) and the kept records of deleted sites.
+ * checks every site (no --url needed) and the kept records of deleted sites. Documents the
+ * uninstall could not delete from the object storage within its time budget (or because the
+ * storage failed) are recorded and deleted by this run as well (R15-P2, R15-P3).
  *
  * Several app servers without shared statement storage: the files are deleted on the server this
  * runs on. While the plugin is active each server removes its own copies of deleted credit notes
@@ -44,12 +46,16 @@ if ( ! function_exists( 'wpac_purge_retained_sites' ) ) {
 		$sites = array();
 		if ( ! is_multisite() ) {
 			wp_cache_delete( 'wpac_retained_after_uninstall', 'options' );
-			return array( get_option( 'wpac_retained_after_uninstall' ) ? array( 0 ) : array(), false );
+			wp_cache_delete( 'wpac_uninstall_store_left', 'options' );
+			return array( get_option( 'wpac_retained_after_uninstall' ) || get_option( 'wpac_uninstall_store_left' ) ? array( 0 ) : array(), false );
 		}
 		foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $wpac_site_id ) {
 			switch_to_blog( (int) $wpac_site_id );
 			wp_cache_delete( 'wpac_retained_after_uninstall', 'options' );
-			if ( get_option( 'wpac_retained_after_uninstall' ) ) {
+			wp_cache_delete( 'wpac_uninstall_store_left', 'options' );
+			// Kept booking records, or documents the uninstall could not delete from the document
+			// store in time (R15-P2, option wpac_uninstall_store_left).
+			if ( get_option( 'wpac_retained_after_uninstall' ) || get_option( 'wpac_uninstall_store_left' ) ) {
 				$sites[] = (int) $wpac_site_id;
 			}
 			restore_current_blog();
@@ -73,7 +79,7 @@ define( 'WP_UNINSTALL_PLUGIN', $wpac_plugin );
 require dirname( __DIR__ ) . '/uninstall.php';
 list( $wpac_sites, $wpac_deleted ) = wpac_purge_retained_sites();
 if ( $wpac_sites || $wpac_deleted ) {
-	WP_CLI::warning( 'Some credit notes are still within the retention period (or a legal hold is set); their records are kept. Run this again later.' );
+	WP_CLI::warning( 'Some credit notes are still within the retention period (or a legal hold is set), or could not be deleted from the document storage; their records are kept. Run this again later.' );
 } else {
 	WP_CLI::success( 'All retained data was deleted.' );
 }

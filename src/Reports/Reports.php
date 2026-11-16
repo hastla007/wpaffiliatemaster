@@ -718,16 +718,18 @@ final class Reports {
 	 * and commission per currency. Only the partner's own visits and orders are counted, so
 	 * campaigns with the same name of other partners never mix.
 	 *
-	 * With $min_group > 1 (partner area, R12-L5) every row with at least one but fewer than
-	 * $min_group sales is combined into one last row "Other" (other = true, empty campaign and
-	 * sub-ID): its visits, sales and commission are the sums of the combined rows. Rows without
-	 * sales (visits only, no buyer) and the row without campaign and sub-ID (no label chosen by
-	 * the partner) stay on their own.
+	 * With $min_group > 1 (partner area, R12-L5, R15-P1) every row with fewer than $min_group
+	 * visits, or with at least one but fewer than $min_group sales, is combined into one last
+	 * row "Other" (other = true, empty campaign and sub-ID): its visits, sales and commission are
+	 * the sums of the combined rows. The threshold is bound to the visits too, so a sub-ID with a
+	 * single reader is in "Other" already before the purchase and never disappears only when the
+	 * reader buys. Only the row without campaign and sub-ID (no label chosen by the partner)
+	 * stays on its own.
 	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $from         Y-m-d.
 	 * @param string $to           Y-m-d.
-	 * @param int    $min_group    Minimum sales per row (0/1 = every row, as for admins).
+	 * @param int    $min_group    Minimum visits and sales per row (0/1 = every row, as for admins).
 	 * @return array[] campaign, sub_id, label, visits, orders, conversion, commission (currency => minor)[, other]
 	 */
 	public static function partner_campaigns( $affiliate_id, $from, $to, $min_group = 0 ) {
@@ -791,14 +793,19 @@ final class Reports {
 		$other     = null;
 		if ( $min_group > 1 ) {
 			foreach ( $rows as $k => $r ) {
-				if ( $r['orders'] < 1 || $r['orders'] >= $min_group || ( '' === $r['campaign'] && '' === $r['sub_id'] ) ) {
+				if ( '' === $r['campaign'] && '' === $r['sub_id'] ) {
+					continue;
+				}
+				$small_sales  = $r['orders'] >= 1 && $r['orders'] < $min_group;
+				$small_visits = $r['visits'] < $min_group;
+				if ( ! $small_sales && ! $small_visits ) {
 					continue;
 				}
 				if ( null === $other ) {
 					$other          = $init( '', '' );
 					$other['label'] = sprintf(
-						/* translators: %d: minimum number of sales per row */
-						_n( 'Other (campaigns and sub-IDs with fewer than %d sale)', 'Other (campaigns and sub-IDs with fewer than %d sales)', $min_group, 'affiliate-captain' ),
+						/* translators: %d: minimum number of visits and sales per row */
+						_n( 'Other (campaigns and sub-IDs with fewer than %d visit or sale)', 'Other (campaigns and sub-IDs with fewer than %d visits or sales)', $min_group, 'affiliate-captain' ),
 						$min_group
 					);
 					$other['other'] = true;

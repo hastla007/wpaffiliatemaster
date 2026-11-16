@@ -325,7 +325,8 @@ final class AutoCoupon {
 
 	/**
 	 * Remember on the order that it carries the automatically applied coupon (classic and block
-	 * checkout). Only when the coupon is still part of the order.
+	 * checkout). Only when the coupon is still part of the order and the referral of the session is
+	 * still valid (consent not withdrawn).
 	 *
 	 * @param \WC_Order $order Order.
 	 */
@@ -340,6 +341,14 @@ final class AutoCoupon {
 		$codes = method_exists( $order, 'get_coupon_codes' ) ? (array) $order->get_coupon_codes() : ( ! empty( WC()->cart ) ? (array) WC()->cart->get_applied_coupons() : array() );
 		$codes = array_map( array( CodeRepository::class, 'normalize_coupon' ), $codes );
 		if ( ! in_array( CodeRepository::normalize_coupon( (string) $state['coupon'] ), $codes, true ) ) {
+			return;
+		}
+		// Only while the referral of this session is still valid for the same partner (R15-P6): after
+		// the marketing consent was withdrawn (or the referral expired) the order does not record
+		// that the customer came through the partner's link.
+		$touch    = Tracker::current_touch();
+		$resolved = $touch ? wpac_resolve_partner_code( (string) $touch['code'], array( 'context' => 'touch' ) ) : null;
+		if ( ! $resolved || (int) $resolved['affiliate_id'] !== (int) $state['affiliate_id'] ) {
 			return;
 		}
 		$order->update_meta_data(
