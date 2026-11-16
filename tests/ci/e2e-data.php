@@ -114,6 +114,12 @@ if ( ! ProfileRepository::get( $pay_aff ) || true !== ProfileRepository::missing
 	$wpdb->query( $wpdb->prepare( 'UPDATE ' . WPAffiliateCaptain\Core\Db::table( 'payout_profiles' ) . " SET updated_at = '2020-01-01 00:00:00' WHERE affiliate_id = %d", $pay_aff ) );
 }
 $pay_code = CodeRepository::main_code( $pay_aff );
+// The plugin took the shop currency at activation (WooCommerce default USD, data.php switches the
+// shop to EUR afterwards). Bank transfers are EUR only and the minimum payout needs the program
+// currency, so the program currency follows the shop here.
+if ( 'EUR' !== (string) Settings::get( 'currency' ) ) {
+	Settings::update( array( 'currency' => 'EUR' ) );
+}
 // Self-billing needs accepted partner terms; the CI site has none (setting restored below).
 $self_billing = (int) Settings::get( 'self_billing' );
 Settings::update( array( 'self_billing' => 0 ) );
@@ -137,7 +143,8 @@ for ( $i = count( $payouts ); $i < 3; $i++ ) {
 		e2e_fail( 'payout ' . $i . ': ' . $e->getMessage() );
 	}
 	if ( ! $pid ) {
-		e2e_fail( 'payout ' . $i . ': nothing payable' );
+		$states = $wpdb->get_col( $wpdb->prepare( 'SELECT CONCAT(status, \'/\', currency, \'/\', amount_minor) FROM ' . WPAffiliateCaptain\Core\Db::table( 'commissions' ) . ' WHERE affiliate_id = %d AND payout_id = 0', $pay_aff ) );
+		e2e_fail( 'payout ' . $i . ': nothing payable (program currency ' . Settings::get( 'currency' ) . ', commissions ' . implode( ', ', $states ) . ')' );
 	}
 	$payouts[] = PayoutService::find( $pid );
 }
