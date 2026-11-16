@@ -121,9 +121,9 @@ Ebenfalls Kern und dauerhaft frei sind alle früher ausgelieferten Funktionen, d
 
 Einschränkung: PayPal Payouts ist bisher nur gegen einen nachgebauten Zahlungsdienst geprüft, nicht gegen die PayPal-Sandbox, und gilt deshalb als teilweise erledigt. Das Add-on ist noch nicht veröffentlicht (Version 0.1.0; Adresse und Signaturschlüssel des Lizenzservers fehlen dort).
 
-### 7.3 Für das Add-on geplant, noch nicht gebaut
+### 7.3 Weitere Add-on-Funktionen (Stand 16.11.2026 nachmittags)
 
-Die Schlüssel stehen im Katalog des Lizenzservers; in captain-pro gibt es dazu keinen Code. Reihenfolge und Umfang sind offen (`TODO.md`, Entscheidung E4); entschieden ist seit dem 16.11.2026 nur, dass „Mehrere Programme“ gebaut wird.
+Bestenliste, Stripe Connect, Shop-Guthaben und mehrstufige Provision sind in captain-pro gebaut, aber noch nicht in `main` (PR hastla007/captain-pro#7; 616 PHPUnit-Tests grün, nicht gegen echtes Stripe/WooCommerce geprüft). „Mehrere Programme“ ist entschieden (Variante A); die Erweiterungspunkte im Kern gibt es seit 0.16.0, im Add-on ist die Funktion noch nicht gebaut.
 
 | Funktion | Rechteschlüssel im Katalog | Grundlage im Kern | Anmerkung |
 |---|---|---|---|
