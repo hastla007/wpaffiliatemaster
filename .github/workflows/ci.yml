@@ -299,8 +299,10 @@ jobs:
       - name: Test site (WordPress, WooCommerce, all three plugins)
         run: |
           tests/ci/install-wp.sh "$RUNNER_TEMP/wp" --siblings "$GITHUB_WORKSPACE/siblings" > "$RUNNER_TEMP/site.env"
+          # Partner coupon and payouts for the auto-coupon and password-confirmation browser tests.
+          php tests/ci/e2e-data.php "$RUNNER_TEMP/wp" http://127.0.0.1:8088 >> "$RUNNER_TEMP/site.env"
           cat "$RUNNER_TEMP/site.env"
-          grep -E '^(PRODUCT_ID|PARTNER_CODE)=[A-Za-z0-9-]+$' "$RUNNER_TEMP/site.env" >> "$GITHUB_ENV"
+          grep -E '^(PRODUCT_ID|PARTNER_CODE|E2E_[A-Z_]+)=[A-Za-z0-9-]+$' "$RUNNER_TEMP/site.env" >> "$GITHUB_ENV"
       - name: Redis object cache
         if: matrix.cache == 'redis'
         run: |
