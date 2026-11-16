@@ -1,6 +1,6 @@
 # Integrationsvertrag v1 (`WPAC_CONTRACT_VERSION = 1.4.0`)
 
-Öffentliche Schnittstelle von Affiliate Captain für Verkaufsquellen (Pass Captain, Voucher Captain, WooCommerce-Adapter, Connector-Add-ons wie LearnBoating). Kompatibel ist jede Version mit gleicher Major-Version; andere Versionen werden abgelehnt (`incompatible_contract`) und im Integrationsstatus angezeigt.
+Öffentliche Schnittstelle von Affiliate Captain für Verkaufsquellen (Pass Captain, Voucher Captain, WooCommerce-Adapter, Connector-Add-ons wie LearnBoating). Ein Projekt-Connector (z. B. für BoatingSchool oder LearnBoating, Entscheidung 17) ist ein eigenes Plugin und bringt seine Lizenz und deren Prüfung selbst mit; der Kern prüft keine Lizenz. Kompatibel ist jede Version mit gleicher Major-Version; andere Versionen werden abgelehnt (`incompatible_contract`) und im Integrationsstatus angezeigt.
 
 Versionsregel: Die Vertragsversion folgt SemVer und ist unabhängig von der Plugin-Version. Neue abwärtskompatible Funktionen, Actions, Filter, Argumente oder Felder erhöhen die Minor-Version; eine Änderung, die bestehende Aufrufer bricht, erhöht die Major-Version; reine Korrekturen die Patch-Version. Angaben wie „seit 1.3.0“ meinen die Vertragsversion, „seit Plugin 0.15.0“ die Plugin-Version. Ein Add-on, das eine bestimmte Funktion braucht, prüft sie mit `function_exists()` oder vergleicht `wpac_contract_version()` mit `version_compare()`.
 
