@@ -68,7 +68,7 @@ foreach ( $o47_bad as $o47_ob ) {
 }
 check( 'R5-O47 audit search escapes LIKE wildcards (o4_. finds nothing)', 0, Audit::page( array( 'search' => 'o4_.' ) )[1] );
 check( 'R5-O47 audit search for a literal percent sign', array( 'o47.mid' ), wp_list_pluck( Audit::page( array( 'search' => 'third 100%' ) )[0], 'action' ) );
-check( 'R5-O47 audit search for a number finds the object ID', array( 'o47.alpha' ), wp_list_pluck( Audit::page( array( 'search' => '470002' ) )[0], 'action' ) );
+check( 'R5-O47 audit search for a number finds the object ID', array( 'o47.alpha' ), array_values( array_filter( wp_list_pluck( Audit::page( array( 'search' => '470002' ) )[0], 'action' ), static function ( $a ) { return 0 === strpos( $a, 'o47.' ); } ) ) ); // Other entries may contain 470002 by chance (e.g. a hash).
 check( 'R5-O47 audit search combines with the filters', array( 'o47.zeta' ), wp_list_pluck( Audit::page( array( 'search' => 'o47', 'object_type' => 'affiliate', 'object_id' => 470001 ) )[0], 'action' ) );
 $o47_p = Audit::page( array( 'search' => 'o47.', 'orderby' => 'action', 'sort' => 'asc', 'limit' => 2, 'offset' => 2 ) );
 check( 'R5-O47 audit paging: second page, total of all', array( array( 'o47.zeta' ), 3 ), array( wp_list_pluck( $o47_p[0], 'action' ), $o47_p[1] ) );

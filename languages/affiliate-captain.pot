@@ -878,7 +878,7 @@ msgstr ""
 msgid "Code"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Coupon"
 msgstr ""
 
@@ -7096,6 +7096,15 @@ msgid "Last error: %s. Credit notes are written again automatically with growing
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "Kept credit notes of deleted sites could not be deleted"
+msgstr ""
+
+#. translators: %s: site IDs with the last error
+#: src/Core/Monitor.php
+msgid "The retention period of these deleted sites has ended, but their credit notes could not be deleted from the document storage: %s. The deletion is repeated daily; check the storage configuration (WPAC_S3_* constants or the filter wpac_statement_store)."
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Credit notes are publicly reachable"
 msgstr ""
 
@@ -8943,10 +8952,10 @@ msgid_plural "%1$s more orders to %2$s."
 msgstr[0] ""
 msgstr[1] ""
 
-#. translators: %d: minimum number of sales per row
+#. translators: %1$d: minimum number of link visits and sales per row
 #: src/Portal/Portal.php
-msgid "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
-msgid_plural "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sales in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgid "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %1$d link visit or fewer than %1$d sale in the period are shown together as \"Other\"."
+msgid_plural "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %1$d link visits or fewer than %1$d sales in the period are shown together as \"Other\"."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -10036,6 +10045,10 @@ msgid "Partner account entries"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Partner coupon applied automatically"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Partner referral (lifetime link)"
 msgstr ""
 
@@ -10211,6 +10224,10 @@ msgid "payment provider of the other payment method chosen by the partner (e.g. 
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "processor storing the credit note PDFs: object storage provider ([provider, location, for a third country the safeguards under Art. 44 ff. GDPR – to be completed by the operator]), "
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Note for the shop operator: the affiliate cookie is set without consent (cookie mode \"Always, without consent\"). Storing and reading information on the visitor's device without consent is only allowed if it is strictly necessary for a service the visitor explicitly requested (§ 25(2) no. 2 TDDDG, Art. 5(3) ePrivacy Directive). Affiliate cookies are usually not considered strictly necessary, so in the EU they usually require consent. Have this assessed by your data protection advisor and complete the legal basis, or switch the affiliate cookie to \"Only with marketing consent\"."
 msgstr ""
 
@@ -10252,7 +10269,15 @@ msgid "Pages served from a cache report the partner code in the page address to 
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "If you apply to become a partner yourself, the referral described above is also used to record which partner recruited you."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "If you applied through the link of another partner, we store which partner recruited you (partner ID) with your partner account, so that partner can be credited for the recruitment (contract with the partners, Art. 6(1)(b) GDPR). It is kept as long as your partner account and the related booking records."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10326,6 +10351,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR)."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Credit notes, cancellations and correction credit notes (with the partner's name, address and VAT ID) are stored with an object storage provider on our behalf (Art. 28 GDPR): [provider, location of the storage and, for a location outside the EU/EEA, the safeguards for the transfer (Art. 44 ff. GDPR) – to be completed by the shop operator]."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10437,10 +10470,10 @@ msgstr ""
 msgid "Partner program %s"
 msgstr ""
 
-#. translators: %d: minimum number of sales per row
+#. translators: %d: minimum number of visits and sales per row
 #: src/Reports/Reports.php
-msgid "Other (campaigns and sub-IDs with fewer than %d sale)"
-msgid_plural "Other (campaigns and sub-IDs with fewer than %d sales)"
+msgid "Other (campaigns and sub-IDs with fewer than %d visit or sale)"
+msgid_plural "Other (campaigns and sub-IDs with fewer than %d visits or sales)"
 msgstr[0] ""
 msgstr[1] ""
 

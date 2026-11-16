@@ -134,6 +134,12 @@ Newest platform versions and several partner programs; add-on contract 1.5.0, da
 * Dev: CI on PHP 8.5 (PHP 8.6 as experimental cell), MySQL 9.7 and MariaDB 12.3 (also lower_case_table_names=1 on MySQL 9.7); browser, smoke, minimum-version, multisite, upgrade and Plugin Check jobs on PHP 8.5; a test keeps all PHP minimum statements in sync
 * Dev: new CI job "E-invoice (KoSIT validator)": sample e-invoices of every document kind and VAT category (EN 16931 and XRechnung 3.0) are checked with the official KoSIT validator and the XRechnung configuration (pinned versions, SHA-256 checked); every error-level finding fails the run – no findings, the e-invoice is unchanged
 * Tests: browser tests against real WordPress and WooCommerce for the automatic partner coupon (classic cart, cart/checkout blocks, order) and the password confirmation before payout actions.
+* Privacy: partner sub-ID statistics combine rows with fewer than 3 visits as well, so a sub-ID no longer disappears only when its reader buys
+* Uninstall deletes credit notes in object storage before dropping the tables, in batches (S3 DeleteObjects) within a time budget; the rest is recorded and deleted by tools/purge-retained.php or later
+* Kept credit notes of deleted network sites are only forgotten after they were really deleted, also from custom stores; failures are retried daily and shown in Site Health
+* Privacy policy text and record of processing name the object storage provider when one is used and the recruiter (referred_by) purpose; recruiter changes are in the personal data export
+* The automatic coupon note on orders is included in customer export/erasure and no longer set after consent was withdrawn
+* "Keep data" uninstall keeps the partners' main code choice and code request history
 
 = 0.15.0 =
 New partner functions and add-on contract 1.4.0; database schema 16 (one new column with an index on the partner table):

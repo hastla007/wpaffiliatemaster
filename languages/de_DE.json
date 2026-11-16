@@ -829,6 +829,7 @@
  "Credit notes are publicly reachable": "Gutschriften sind öffentlich erreichbar",
  "Credit notes moved to the new folder": "Gutschriften in den neuen Ordner verschoben",
  "Credit notes with VAT or reverse charge to this partner are blocked until the VAT ID is corrected.": "Gutschriften mit USt oder Reverse Charge an diesen Partner sind gesperrt, bis die USt-IdNr. korrigiert ist.",
+ "Credit notes, cancellations and correction credit notes (with the partner's name, address and VAT ID) are stored with an object storage provider on our behalf (Art. 28 GDPR): [provider, location of the storage and, for a location outside the EU/EEA, the safeguards for the transfer (Art. 44 ff. GDPR) – to be completed by the shop operator].": "Gutschriften, Stornobelege und Korrekturgutschriften (mit Name, Anschrift und USt-IdNr. des Partners) werden in unserem Auftrag bei einem Objektspeicher-Anbieter gespeichert (Art. 28 DSGVO): [Anbieter, Speicherort und bei einem Standort außerhalb von EU/EWR die Garantien für die Übermittlung (Art. 44 ff. DSGVO) – vom Shopbetreiber zu ergänzen].",
  "Croatia": "Kroatien",
  "Currency": "Währung",
  "Current amounts (%1$s): net %2$s, VAT %3$s, gross %4$s. The difference is taxed as on the credit note and booked to the partner account: a shortfall is paid with the next payout, an overpayment is offset against the next commissions.": "Aktuelle Beträge (%1$s): netto %2$s, USt %3$s, brutto %4$s. Die Differenz wird wie auf der Gutschrift besteuert und auf dem Partnerkonto gebucht: Ein Fehlbetrag wird mit der nächsten Auszahlung ausgezahlt, eine Überzahlung mit den nächsten Provisionen verrechnet.",
@@ -1096,6 +1097,8 @@
  "Iceland": "Island",
  "Idempotency key": "Technische Kennung",
  "If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.": "Wenn Sie bereits einen Warenkorb (Shop-Sitzung) haben oder Marketing-Cookies zugestimmt haben, wird der Partnercode bis zur Bestellung in Ihrer Shop-Sitzung gehalten.",
+ "If you applied through the link of another partner, we store which partner recruited you (partner ID) with your partner account, so that partner can be credited for the recruitment (contract with the partners, Art. 6(1)(b) GDPR). It is kept as long as your partner account and the related booking records.": "Wenn Sie sich über den Link eines anderen Partners beworben haben, speichern wir bei Ihrem Partnerkonto, welcher Partner Sie geworben hat (Partner-ID), damit ihm die Werbung gutgeschrieben werden kann (Vertrag mit den Partnern, Art. 6 Abs. 1 lit. b DSGVO). Die Angabe bleibt so lange gespeichert wie Ihr Partnerkonto und die zugehörigen Buchungsunterlagen.",
+ "If you apply to become a partner yourself, the referral described above is also used to record which partner recruited you.": "Wenn Sie sich selbst als Partner bewerben, wird das oben beschriebene Referral auch verwendet, um festzuhalten, welcher Partner Sie geworben hat.",
  "If you can, restore the earlier key in wp-config.php. If it is lost, these links can no longer be matched to a customer (no lifetime commissions, not found by access or erasure requests): delete them. If only the WordPress salts were changed and the key itself is the same, confirm without deleting.": "Stellen Sie nach Möglichkeit den früheren Schlüssel in der wp-config.php wieder her. Ist er verloren, lassen sich diese Verknüpfungen keinem Kunden mehr zuordnen (keine Lifetime-Provisionen, von Auskunfts- und Löschanträgen nicht gefunden): Löschen Sie sie. Wurden nur die WordPress-Salts geändert und der Schlüssel selbst ist gleich geblieben, bestätigen Sie ohne Löschen.",
  "If you have a shopping cart (shop session), the partner code of the link you followed is also kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used.": "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode des aufgerufenen Links bis zur Kasse zusätzlich mit Ihrer Shop-Sitzung auf unserem Server gespeichert. Dafür wird kein weiteres Cookie gesetzt; es wird das Sitzungs-Cookie Ihres Warenkorbs verwendet.",
  "If you have a shopping cart (shop session), the partner code of the link you followed is kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used. This does not depend on your consent to marketing cookies.": "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode des aufgerufenen Links bis zur Kasse mit Ihrer Shop-Sitzung auf unserem Server gespeichert. Dafür wird kein weiteres Cookie gesetzt; es wird das Sitzungs-Cookie Ihres Warenkorbs verwendet. Dies hängt nicht von Ihrer Einwilligung in Marketing-Cookies ab.",
@@ -1171,6 +1174,7 @@
  "Keep the code from a partner link in the WooCommerce shop session": "Code aus einem Partnerlink in der WooCommerce-Shop-Sitzung halten",
  "Keep undecided applications (days, 0 = forever)": "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)",
  "Keep visit data (days)": "Besuchsdaten aufbewahren (Tage)",
+ "Kept credit notes of deleted sites could not be deleted": "Aufbewahrte Gutschriften gelöschter Websites konnten nicht gelöscht werden",
  "Key": "Schlüssel",
  "Key change confirmed.": "Schlüsseländerung bestätigt.",
  "Key change confirmed; %d customer link made with the earlier key was deleted.": [
@@ -1531,6 +1535,10 @@
   "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Verkauf)",
   "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Verkäufen)"
  ],
+ "Other (campaigns and sub-IDs with fewer than %d visit or sale)": [
+  "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Besuch oder Verkauf)",
+  "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Besuchen oder Verkäufen)"
+ ],
  "Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.": "Andere Auszahlungsarten sind nicht in der SEPA-Datei enthalten: Die Überweisungsliste enthält die Zahlungsangaben; zahlen Sie manuell und markieren Sie die Auszahlung dann als bezahlt.",
  "Other payment method": "Andere Auszahlungsart",
  "Other payment method (e.g. PayPal), paid manually": "Andere Auszahlungsart (z. B. PayPal), manuelle Zahlung",
@@ -1586,6 +1594,7 @@
  "Partner code received": "Partnercode erhalten",
  "Partner codes": "Partnercodes",
  "Partner commission reinstated.": "Partnerprovision wiederhergestellt.",
+ "Partner coupon applied automatically": "Partnergutschein automatisch angewendet",
  "Partner coupon for %s (Affiliate Captain)": "Partnergutschein für %s (Affiliate Captain)",
  "Partner created": "Partner angelegt",
  "Partner created and activated.": "Partner angelegt und aktiviert.",
@@ -1874,6 +1883,7 @@
  "Reassigned to another partner: %s": "Einem anderen Partner zugeordnet: %s",
  "Rebuilt after a refund": "Nach einer Erstattung neu erstellt",
  "Recipients": "Empfänger",
+ "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR).": "Empfänger: Partner sehen nur ihre eigenen Bestellungen, ohne Namen oder Kontaktdaten der Kunden; Auszahlungsdaten gehen für die Überweisung an unsere Bank und im Rahmen unserer Buchführung an unsere Steuerberatung und die Finanzbehörden; unser Hosting-Anbieter verarbeitet die Daten in unserem Auftrag (Art. 28 DSGVO).",
  "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.": "Empfänger: Partner sehen ihre Bestellungen nur ohne Namen oder Kontaktdaten der Kunden; Auszahlungsdaten gehen für die Überweisung an unsere Bank und im Rahmen der Buchhaltung an unsere Steuerberatung und die Finanzbehörden; unser Hosting-Anbieter verarbeitet die Daten in unserem Auftrag (Art. 28 DSGVO). Dieses Plugin übermittelt keine Daten in Drittländer.",
  "Recommend as partner target": "Als Partner-Ziel empfehlen",
  "Recommendation": "Empfehlung",
@@ -2418,6 +2428,7 @@
  "The restriction could not be saved. Nothing was changed; please try again.": "Die Einschränkung konnte nicht gespeichert werden. Es wurde nichts geändert; bitte versuchen Sie es erneut.",
  "The restriction of processing could not be saved. Please restrict the partner manually on the partner page.": "Die Einschränkung der Verarbeitung konnte nicht gespeichert werden. Bitte schränken Sie den Partner manuell auf der Partnerseite ein.",
  "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO).": "Während einer Außenprüfung ist die Aufbewahrungsfrist gehemmt (§147 Abs. 3 AO).",
+ "The retention period of these deleted sites has ended, but their credit notes could not be deleted from the document storage: %s. The deletion is repeated daily; check the storage configuration (WPAC_S3_* constants or the filter wpac_statement_store).": "Die Aufbewahrungsfrist dieser gelöschten Websites ist abgelaufen, ihre Gutschriften konnten aber nicht aus dem Belegspeicher gelöscht werden: %s. Das Löschen wird täglich wiederholt; prüfen Sie die Speicherkonfiguration (WPAC_S3_*-Konstanten oder Filter wpac_statement_store).",
  "The sale could not be processed and was queued for retry.": "Der Verkauf konnte nicht verarbeitet werden und wurde zur Wiederholung eingeplant.",
  "The sale of this order was not reported yet; the refund is booked once it is.": "Der Verkauf dieser Bestellung wurde noch nicht gemeldet; die Erstattung wird gebucht, sobald er gemeldet ist.",
  "The sale or refund could not be processed and could not be stored for a retry. Please send it again later.": "Der Verkauf bzw. die Erstattung konnte nicht verarbeitet und auch nicht für eine Wiederholung gespeichert werden. Bitte später erneut senden.",
@@ -2531,6 +2542,10 @@
  "To": "Bis",
  "To delete your data or get a copy, use the %1$s tab. To end the partnership, write to %2$s.": "Um Ihre Daten zu löschen oder eine Kopie zu erhalten, nutzen Sie den Tab %1$s. Um die Partnerschaft zu beenden, schreiben Sie an %2$s.",
  "To end the partnership or delete your data, write to %s.": "Um die Partnerschaft zu beenden oder Ihre Daten zu löschen, schreiben Sie an %s.",
+ "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %1$d link visit or fewer than %1$d sale in the period are shown together as \"Other\".": [
+  "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %1$d Linkbesuch oder weniger als %1$d Verkauf im Zeitraum zusammen als „Sonstige“ angezeigt.",
+  "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %1$d Linkbesuchen oder weniger als %1$d Verkäufen im Zeitraum zusammen als „Sonstige“ angezeigt."
+ ],
  "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as \"Other\". Rows with link visits only are shown on their own.": [
   "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %d Verkauf im Zeitraum zusammen als „Sonstige“ angezeigt. Zeilen nur mit Linkaufrufen werden einzeln angezeigt.",
   "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %d Verkäufen im Zeitraum zusammen als „Sonstige“ angezeigt. Zeilen nur mit Linkaufrufen werden einzeln angezeigt."
@@ -2950,6 +2965,7 @@
  "plus VAT %s %%": "zzgl. USt %s %%",
  "previous year %1$s, this year %2$s": "Vorjahr %1$s, dieses Jahr %2$s",
  "private individual, no VAT": "Privatperson, keine USt",
+ "processor storing the credit note PDFs: object storage provider ([provider, location, for a third country the safeguards under Art. 44 ff. GDPR – to be completed by the operator]), ": "Auftragsverarbeiter für die Ablage der Gutschrift-PDFs: Objektspeicher-Anbieter ([Anbieter, Standort, bei Drittland die Garantien nach Art. 44 ff. DSGVO – vom Betreiber zu ergänzen]), ",
  "program default": "Programmstandard",
  "reading": "beim Lesen",
  "refund": "Rückerstattung",

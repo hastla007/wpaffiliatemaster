@@ -185,7 +185,7 @@ check(
 		false !== strpos( $p15_src( 'docs/CONTRACT.md' ), '`wpac_uninstall_store_budget`' ),
 		false !== strpos( $p15_src( 'docs/CONTRACT.md' ), '`wpac_retained_purge_budget`' ),
 		false !== strpos( $p15_src( 'docs/HANDBOOK.md' ), 'wpac_uninstall_store_left' ),
-		false !== strpos( $p15_src( 'languages/de_DE.r15-p.json' ), 'Partnergutschein automatisch angewendet' ),
+		false !== strpos( $p15_src( 'languages/de_DE.json' ), 'Partnergutschein automatisch angewendet' ),
 	)
 );
 
