@@ -3,7 +3,7 @@
 Stand: 16.11.2026, Branch `claude/sharp-mendel-xiiwf3` (enthält `main`), Plugin 0.15.0, Datenbankschema 16, Integrationsvertrag 1.4.0.  
 Die Datei sammelt alle Prüfrunden seit dem 12.11.2026 in zeitlicher Reihenfolge; die jüngste Runde („Review vom 16.11.2026“) steht am Ende. Bis 0.10.0 hieß das Plugin „WP Affiliate Captain“; ältere Einträge nennen deshalb noch diesen Namen.
 
-**Übersicht (gezählte Haken, Stand 16.11.2026 nach der Zusammenführung mit `main`):** 614 erledigt, 14 offen. Von den offenen brauchen 4 die gemeinsame Suite-Spezifikation (AFF-SU-01 bis -03, AFF-WF-07; E1), 3 eine fachliche Bewertung (R12-L1 bis R12-L3; E7), 3 Arbeit in captain-pro (B5, B10, B11), 1 Arbeit in wp-passmaster (Mehrzweckgutschein-Basis), 3 eine Entscheidung des Inhabers (A9 mit E5, MP-1 mit E4, PHP-1 mit E10). Keine offene Aufgabe lässt sich ohne fremde Hilfe erledigen. `php tests/run.php` prüft, dass die beiden Zahlen stimmen. Nachzählen: `grep -c '^\s*- \[x\]' TODO.md` und `grep -c '^\s*- \[ \]' TODO.md`.
+**Übersicht (gezählte Haken, Stand 16.11.2026 nach der Zusammenführung mit `main`):** 614 erledigt, 21 offen. Von den offenen brauchen 4 die gemeinsame Suite-Spezifikation (AFF-SU-01 bis -03, AFF-WF-07; E1), 3 eine fachliche Bewertung (R12-L1 bis R12-L3; E7), 3 Arbeit in captain-pro (B5, B10, B11), 1 Arbeit in wp-passmaster (Mehrzweckgutschein-Basis), 3 eine Entscheidung des Inhabers (A9 mit E5, MP-1 mit E4, PHP-1 mit E10). Keine offene Aufgabe lässt sich ohne fremde Hilfe erledigen. `php tests/run.php` prüft, dass die beiden Zahlen stimmen. Nachzählen: `grep -c '^\s*- \[x\]' TODO.md` und `grep -c '^\s*- \[ \]' TODO.md`.
 
 ## Offene Entscheidungen
 
@@ -1076,3 +1076,15 @@ Nur gelesen, nichts daran geändert. Stand 16.11.2026:
   6. **Übersetzungen.** `languages/*.po`, `.pot` und `.mo` tragen „Project-Id-Version 0.15.0“; nach Textänderungen mit `python3 bin/i18n.py pot` und `python3 bin/i18n.py build de_DE` neu bauen statt die Dateien von Hand zusammenzuführen.
   7. **CI.** Die Matrix prüft jetzt auch PHP 8.5.
   8. **Inhaltlich offen:** E9 (ob die Provider-Seite mit 0.15.0 erscheint) und AFF-WF-07 (Abgleich mit der gemeinsamen Spezifikation: Benutzer-ID fehlt im Umschlag, Partnercode in `code_request.*`, `wpac_create_adjustment()` durch Workflows).
+
+### Entscheidung D13 (16.11.2026): Workflow-Schnittstelle vor dem Release herausnehmen
+
+Der Inhaber hat am 16.11.2026 entschieden (D13, beantwortet die Frage E9): Die vorläufige Workflow-Schnittstelle, die mit Pull Request 33 vor seinen Workflow-Entscheidungen nach `main` kam, wird **vor dem Release 0.15.0 aus dem freien Kern genommen**. Sie kommt zurück, sobald die gemeinsame Spezifikation der Suite abgenommen ist (Repository `wp-workflowmaster`, `docs/SPEC-suite-events.md`). Die fachlichen Actions des Kerns (`wpac_*`, `docs/CONTRACT.md`) bleiben unverändert; sie sind nach D5 der Transport. Ein Haken wird erst gesetzt, wenn die Aufgabe erledigt und geprüft ist.
+
+- [ ] **D13-1 — Bestand aufnehmen.** **Fertig heißt:** Eine Liste nennt jede Datei, jedes Symbol, jeden Test, jede Dokumentstelle, jeden Übersetzungstext und jeden Eintrag in `readme.txt`, der zur vorläufigen Workflow-Schnittstelle gehört, und trennt sie von den fachlichen Actions und dem Hook-Vertrag, die bleiben.
+- [ ] **D13-2 — Schnittstelle aus Code, Tests, Dokumenten und Changelog entfernen.** **Fertig heißt:** Der ausgelieferte Kern enthält weder `wpac_workflow_event` noch `wpac_workflow_read()` noch `docs/WORKFLOW-PROVIDER.md`; die Tests der Schnittstelle sind mit ihr entfernt und einzeln genannt; Tests für Verhalten, das bleibt, bleiben; die Commits, die die Schnittstelle eingeführt haben, stehen hier, damit sie später wiederhergestellt werden kann.
+- [ ] **D13-3 — Vertrag 1.4.0 ohne Workflow-Schnittstelle.** **Fertig heißt:** `docs/CONTRACT.md`, die Konstante `WPAC_CONTRACT_VERSION` und die Vertragstests stimmen überein; der Changelog sagt, dass die Workflow-Schnittstelle nicht Teil von 0.15.0 ist.
+- [ ] **D13-4 — Wächtertest.** **Fertig heißt:** Ein Test in `php tests/run.php` schlägt fehl, sobald `wpac_workflow_event` oder `wpac_workflow_read` wieder im Kern steht, solange AFF-WF-08 nicht abgehakt ist.
+- [ ] **D13-5 — Zeitplan „Was ist wann zu tun“ eintragen und AFF-WF-07 anpassen.** **Fertig heißt:** Unter diesem Abschnitt steht, was jetzt, was beim Branch von Pull Request 33 und was nach dem Verkaufsstart zu tun ist; AFF-WF-07 nennt, welche Punkte entfallen und welche bleiben; die Wiedereinführung steht als offene Aufgabe AFF-WF-08 mit ihren Bedingungen in der Liste.
+- [ ] **D13-6 — Abschluss.** **Fertig heißt:** Alles, was die CI prüft und lokal lauffähig ist, ist grün; die Commits sind ohne Force gepusht; was lokal nicht prüfbar war, ist genannt.
+- [ ] **AFF-WF-08 — Workflow-Schnittstelle wieder einführen (nach der Spezifikation).** Noch nicht begonnen; Zeitpunkt und Bedingungen folgen mit D13-5.
