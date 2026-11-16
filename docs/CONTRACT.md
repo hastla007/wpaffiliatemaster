@@ -107,6 +107,8 @@ wpac_record_refund( array(
 ) );
 ```
 
+Ohne harte Abhängigkeit: `do_action( 'wpac_v1_record_refund', $payload );` (ohne Rückgabewert; abgelehnte Payloads wie bei `wpac_v1_record_sale`).
+
 `cancellation` und `chargeback` kehren immer die gesamte verbleibende Provision um. Korrekturen nach einer Auszahlung werden im nächsten Lauf verrechnet.
 
 Rückgabe: `array( status, adjustment_ids )` mit `status` = `adjusted` (gebucht), `unchanged` (nichts mehr abzuziehen oder schon gebucht), `unknown_items` (keine der `item_id` hat eine Provision; zusätzlich `unknown_items => [ … ]`, Eintrag im Audit-Log), `no_commission` (Bestellung ohne Provision), `queued`/`parked` (wartet auf den Verkauf, REST `202`), `superseded` (schon im gebuchten Verkauf abgezogen) – oder `WP_Error` wie beim Verkauf.
@@ -189,7 +191,11 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_affiliate_attributed` | `string $order_id, int $affiliate_id, string $method, string $source` |
 | `wpac_commission_created` | `int $commission_id` – jede neue Buchung im Provisionskonto außer Erstattungs-Korrekturen: Verkauf, Bestellerhöhung, manuelle Buchung, Monatsbonus und Bonuskorrektur, Abschreibung (`writeoff`), Rückzahlung (`repayment`), Wiederherstellung (`reinstatement`), Korrekturgutschrift (`correction`; seit 1.3.0 für alle). Art über `wpac_get_commission( $id )['kind']`. |
 | `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` – Erstattung, Storno, Chargeback (Buchungsarten `refund`, `cancellation`, `chargeback`; dafür kein `wpac_commission_created`). Wird eine WooCommerce-Erstattung gelöscht, kommen die zurückgenommenen, noch nicht freigegebenen Erstattungszeilen mit `$refund['deleted'] = true`; bereits freigegebene bekommen eine Wiederherstellung (`reinstatement`, `wpac_commission_created`). |
-| `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` / `_review` | `int $commission_id` – `_review` feuert, wenn eine abgelehnte Provision zur Prüfung wieder geöffnet wird. |
+| `wpac_commission_approved` | `int $commission_id` – Provision freigegeben. |
+| `wpac_commission_rejected` | `int $commission_id` – Provision abgelehnt, auch eine offene Bestellerhöhung, die bei Erstattung oder Storno der Bestellung zurückgenommen wird. |
+| `wpac_commission_paid` | `int $commission_id` – Provision mit einer Auszahlung bezahlt. |
+| `wpac_commission_pending` | `int $commission_id` – eine Provision in Prüfung (`review`) wurde freigegeben, ihre Haltefrist läuft aber noch: Status `pending`, die Freigabe folgt nach der Frist mit `wpac_commission_approved`. |
+| `wpac_commission_review` | `int $commission_id` – eine abgelehnte Provision wurde zur Prüfung wieder geöffnet. |
 | `wpac_affiliate_erased` | `int $affiliate_id, bool $open` – nach der Löschung der personenbezogenen Daten eines Partners (Art. 17 DSGVO); Add-ons löschen ihre eigenen Daten des Partners. `$open`: offene Provisionen/Auszahlungen haben einen Teil der Löschung aufgeschoben. |
 | `wpac_payout_created` | `int $payout_id, int $affiliate_id` (siehe „Add-ons“) |
 | `wpac_payout_paid` | `int $payout_id` (auch nach `wpac_complete_payout()`) |
@@ -204,10 +210,53 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_code_request_rejected` | `int $affiliate_id, string $code, string $reason, int $row_id` – Antrag abgelehnt, die Zeile ist gelöscht, der Code wieder frei. Seit Plugin 0.15.0; `$row_id` (die gelöschte Zeile) seit 0.15.0. |
 | `wpac_creative_created` | `int $creative_id, array $info` – ein neues Werbemittel wurde gespeichert (erste Version, Status `draft`; Partner sehen es erst nach der Freigabe). `$info`: `id`, `family_id`, `version`, `status` (`draft`, `approved`, `archived`), `type` (`text`, `image`), `title`, `group_id` (`0` = alle Partner). Seit Plugin 0.15.0. |
 | `wpac_creative_updated` | `int $creative_id, array $info` (wie oben) – eine neue Version eines vorhandenen Werbemittels wurde gespeichert (`draft`), eine Version freigegeben (`approved`: ab jetzt für die Partner der Gruppe sichtbar – der richtige Zeitpunkt z. B. für eine Mail „neue Werbemittel“) oder archiviert (`archived`). Feuert nur nach erfolgreichem Speichern und nur bei einer echten Änderung; die beim Freigeben automatisch archivierte Vorversion meldet kein eigenes Ereignis. Seit Plugin 0.15.0. |
-
 | `wpac_contract_not_queued` | `string $what` (`sale`/`refund`), `array $data` – Verkauf/Erstattung konnte weder verbucht noch für die Wiederholung gespeichert werden (z. B. Datenbank weg); die Quelle muss selbst erneut senden. Steht zusätzlich im Plugin-Log. |
 
 Ereignisse sind Benachrichtigungen ohne Kundendaten (Ausnahmen: `wpac_contract_not_queued`, `wpac_mail_sent`/`_failed` und der Freitext `reason` bei Erstattungen, siehe „Review Captain: keine Einladungen, keine Käuferdaten“), kein Ersatz für die idempotenten Funktionen oben. Alle Ereignisse dieser Tabelle feuern erst nach dem Commit der Datenbanktransaktion – seit Plugin 0.15.0 auch, wenn die auslösende Funktion innerhalb einer äußeren Transaktion läuft (sie warten auf deren Commit); wird eine Buchung zurückgerollt, feuert nichts.
+
+### Seit wann es jede Action gibt
+
+Alle öffentlichen Actions des Kerns mit der Vertragsversion, seit der es sie gibt, und der ersten Plugin-Version. *Ereignis*: die Tabelle oben; *Erweiterungspunkt*: Actions aus „Betrieb und Anpassung“ und „Add-ons“; *Eingang*: Actions, die eine Quelle auslöst und der Kern verarbeitet. Eine neue Action kommt mit ihrer Vertragsversion in diese Tabelle; `php tests/run.php` (Prüfung „AC-2“) schlägt fehl, wenn sie nicht zu den Actions im Code passt. Werte ermittelt aus den Tags v0.7.0 bis v0.15.0 und dem Git-Verlauf; der älteste Stand im Repository ist Plugin 0.3.0 mit Vertrag 1.0.0, er enthält alle Actions mit „1.0.0“ bereits (frühere Plugin-Versionen sind dort nicht nachvollziehbar, „0.1.0“ ist die erste Version des Vertrags 1.0.0).
+
+| Action | Art | Vertrag | Plugin | Hinweis |
+|---|---|---|---|---|
+| `wpac_loaded` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_referral_captured` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_affiliate_attributed` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_commission_created` | Ereignis | 1.0.0 | 0.1.0 | für jede Buchungsart seit 1.3.0 (Plugin 0.12.0) |
+| `wpac_commission_adjusted` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_commission_approved` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_commission_rejected` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_commission_paid` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_commission_pending` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_commission_review` | Ereignis | 1.3.0 | 0.13.0 | erstmals dokumentiert; ausgelöst über die allgemeine Status-Action schon seit 1.0.0 |
+| `wpac_affiliate_created` | Ereignis | 1.2.0 | 0.11.0 | im Code schon in Plugin 0.10.0 (Vertrag 1.1.0), dokumentiert seit Plugin 0.11.0 |
+| `wpac_affiliate_status_changed` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_affiliate_recruited` | Ereignis | 1.4.0 | 0.15.0 | – |
+| `wpac_affiliate_erased` | Ereignis | 1.3.0 | 0.13.0 | – |
+| `wpac_payout_created` | Ereignis | 1.2.0 | 0.11.0 | – |
+| `wpac_payout_paid` | Ereignis | 1.0.0 | 0.1.0 | – |
+| `wpac_payout_cancelled` | Ereignis | 1.3.0 | 0.12.0 | – |
+| `wpac_correction_generated` | Ereignis | 1.3.0 | 0.12.0 | – |
+| `wpac_refund_after_correction` | Ereignis | 1.3.0 | 0.13.0 | – |
+| `wpac_code_requested` | Ereignis | 1.4.0 | 0.15.0 | – |
+| `wpac_code_request_approved` | Ereignis | 1.4.0 | 0.15.0 | – |
+| `wpac_code_request_rejected` | Ereignis | 1.4.0 | 0.15.0 | – |
+| `wpac_creative_created` | Ereignis | 1.4.0 | 0.15.0 | – |
+| `wpac_creative_updated` | Ereignis | 1.4.0 | 0.15.0 | – |
+| `wpac_contract_not_queued` | Ereignis | 1.2.0 | 0.11.0 | im Code schon in Plugin 0.10.0 (Vertrag 1.1.0), dokumentiert seit Plugin 0.11.0 |
+| `wpac_mail_sent` | Erweiterungspunkt | 1.2.0 | 0.11.0 | – |
+| `wpac_mail_failed` | Erweiterungspunkt | 1.2.0 | 0.11.0 | – |
+| `wpac_reauth_form` | Erweiterungspunkt | 1.4.0 | 0.15.0 | – |
+| `wpac_admin_menu` | Erweiterungspunkt | 1.2.0 | 0.11.0 | – |
+| `wpac_portal_tab_{key}` | Erweiterungspunkt | 1.2.0 | 0.11.0 | – |
+| `wpac_portal_before` | Erweiterungspunkt | 1.3.0 | 0.12.0 | – |
+| `wpac_portal_after` | Erweiterungspunkt | 1.3.0 | 0.12.0 | – |
+| `wpac_statement_generated` | Erweiterungspunkt | 1.2.0 | 0.11.0 | – |
+| `wpac_storno_generated` | Erweiterungspunkt | 1.2.0 | 0.11.0 | – |
+| `wpac_v1_record_sale` | Eingang | 1.0.0 | 0.1.0 | – |
+| `wpac_v1_record_refund` | Eingang | 1.0.0 | 0.1.0 | – |
+| `wpac_v1_record_reinstatement` | Eingang | 1.2.0 | 0.11.0 | Ergänzung ohne Versionswechsel (siehe „Änderungen“) |
 
 ## Betrieb und Anpassung (Filter/Actions)
 
