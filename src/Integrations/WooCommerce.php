@@ -94,6 +94,7 @@ final class WooCommerce {
 		add_action( 'admin_notices', array( OrderMetaBox::class, 'admin_notice' ) );
 		add_action( 'woocommerce_coupon_options', array( CouponLink::class, 'coupon_field' ), 10, 2 );
 		add_action( 'woocommerce_coupon_options_save', array( CouponLink::class, 'coupon_save' ), 10, 2 );
+		add_action( 'woocommerce_coupon_options_save', array( CouponLink::class, 'coupon_saved_check' ), 20, 2 ); // Code equals a partner code (R15-S1).
 
 		// Partner coupon applied automatically after a partner link (setting, default off; since 0.15.0).
 		AutoCoupon::register_hooks();

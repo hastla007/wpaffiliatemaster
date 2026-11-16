@@ -60,4 +60,5 @@ Template for the entries that concern Affiliate Captain. The download in **Affil
 - JavaScript tracking (optional, for page caches) only sends what the page request contains; the host of the previous page only with consent (checked again on the server)
 - Credit note PDFs outside the public web directory or protected, download only for the partner
 - Changes of bank details are reported to the partner (and for 30 days also to the previous address)
+- Self-recruitment check on applications (since 0.16.0): the applicant's IP address and browser identifier are compared in memory with the login sessions WordPress already keeps for the recruiting partner's account; nothing is stored, a match only means that no recruiter is recorded
 - Access and erasure requests through the WordPress privacy tools

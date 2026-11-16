@@ -350,7 +350,10 @@ final class AffiliatesPage {
 				break;
 
 			case 'code_status':
-				CodeRepository::set_status( absint( Admin::post( 'code_id' ) ), sanitize_key( Admin::post( 'status' ) ) );
+				if ( ! CodeRepository::set_status( absint( Admin::post( 'code_id' ) ), sanitize_key( Admin::post( 'status' ) ) ) ) {
+					// A requested code is decided with Approve/Reject only (checks and history, R15-S6).
+					Admin::back( __( 'This code cannot be changed here. A requested code is approved or rejected in the list of code requests.', 'affiliate-captain' ), 'error' );
+				}
 				Admin::back( __( 'Code updated.', 'affiliate-captain' ) );
 				break;
 

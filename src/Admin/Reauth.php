@@ -4,8 +4,10 @@
  * (R14-P2, since plugin 0.15.0).
  *
  * Approving held bank details, linking or unlinking a partner's WordPress account, changing a
- * partner's payout details, downloading payout files with IBANs and marking payouts as paid need
- * a recent password confirmation of the admin. A stolen session cookie alone is then not enough.
+ * partner's payout details or e-mail address, downloading payout files with IBANs, marking payouts
+ * as paid and the actions that create money (manual bookings, approving commissions, creating
+ * payouts, write-offs, repayments; since plugin 0.16.0) need a recent password confirmation of the
+ * admin. A stolen session cookie alone is then not enough.
  *
  * - The confirmation is kept in the WordPress login session (WP_Session_Tokens, bound to
  *   wp_get_session_token()): another browser or a new login needs its own confirmation, a logout
@@ -53,7 +55,7 @@ final class Reauth {
 	const ATTEMPT_WINDOW = 900;
 
 	/** Actions (see action_key()) that need a confirmation by default. */
-	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off' );
+	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change' );
 
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
@@ -77,7 +79,9 @@ final class Reauth {
 	/**
 	 * Key of an admin-post action for the confirmation rules: payout_bulk per bulk action
 	 * (payout_bulk_sepa, …), settings_save that switches the confirmation off becomes
-	 * settings_reauth_off, all others their "do" value.
+	 * settings_reauth_off, commission_status that approves commissions becomes
+	 * commission_status_approved, affiliate_update that changes the partner's e-mail address
+	 * becomes affiliate_email_change (since plugin 0.16.0), all others their "do" value.
 	 *
 	 * @param string $do Action.
 	 * @return string
@@ -86,6 +90,18 @@ final class Reauth {
 		$do = (string) $do;
 		if ( 'payout_bulk' === $do ) {
 			return 'payout_bulk_' . sanitize_key( (string) Admin::post( 'bulk_action' ) );
+		}
+		if ( 'commission_status' === $do && 'approved' === sanitize_key( (string) Admin::post( 'to' ) ) ) {
+			return 'commission_status_approved'; // Approving makes commissions payable (R15-S3).
+		}
+		if ( 'affiliate_update' === $do ) {
+			// The address decides which account can be linked and where security alerts go (R14-S1,
+			// R15-S3); the same comparison as the handler.
+			$email = sanitize_email( (string) Admin::post( 'email' ) );
+			$aff   = '' !== $email ? \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( absint( Admin::post( 'id', 0 ) ) ) : null;
+			if ( $aff && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
+				return 'affiliate_email_change';
+			}
 		}
 		if ( 'settings_save' === $do && (int) Settings::get( 'reauth_required' ) && 'security' === Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) ) ) {
 			$raw = Admin::post( 'wpac', array() );
@@ -174,7 +190,9 @@ final class Reauth {
 		$pending = self::payload( $token, false );
 		$key     = $pending ? (string) $pending['action'] : '';
 		$back    = Admin::url( self::SLUG, '' !== $token ? array( 'wpac_reauth' => $token ) : array() );
-		// Counted before the check: guessing is limited per account and per client address.
+		// Counted before the check (parallel guesses cannot slip through), taken back after a
+		// successful confirmation: only failed attempts use up the limit per account and per client
+		// address (R15-S4), so admins who confirm often are never locked out by their own success.
 		if ( ! RateLimiter::allow_for( 'reauth', $uid, self::ATTEMPTS, self::ATTEMPT_WINDOW ) || ! RateLimiter::allow( 'reauth_ip', self::ATTEMPTS_IP, self::ATTEMPT_WINDOW ) ) {
 			self::failed( $uid, $key, 'rate_limited' );
 			Admin::back( __( 'Too many attempts. Please wait 15 minutes and try again.', 'affiliate-captain' ), 'error', $back );
@@ -191,6 +209,8 @@ final class Reauth {
 			self::failed( $uid, $key, 'second_factor' );
 			Admin::back( $second->get_error_message(), 'error', $back );
 		}
+		RateLimiter::refund_for( 'reauth', $uid, self::ATTEMPT_WINDOW );
+		RateLimiter::refund( 'reauth_ip', self::ATTEMPT_WINDOW );
 		self::grant();
 		Audit::log( 'security.reauth_confirmed', 'user', $uid, array( 'action' => $key ) );
 		$pending = '' !== $token ? self::payload( $token, true ) : null;
@@ -277,6 +297,13 @@ final class Reauth {
 			'payout_bulk_paypal'  => __( 'Download PayPal payouts file (CSV)', 'affiliate-captain' ),
 			'payout_bulk_paid'    => __( 'Mark as paid', 'affiliate-captain' ),
 			'settings_reauth_off' => __( 'Switch off the password confirmation', 'affiliate-captain' ),
+			'commission_manual'   => __( 'Book a manual commission or deduction', 'affiliate-captain' ),
+			'commission_status_approved' => __( 'Approve commissions', 'affiliate-captain' ),
+			'payout_run'          => __( 'Create payouts', 'affiliate-captain' ),
+			'payout_request_process' => __( 'Create a payout from a payout request', 'affiliate-captain' ),
+			'balance_writeoff'    => __( 'Write off a negative balance', 'affiliate-captain' ),
+			'repayment'           => __( 'Book a repayment', 'affiliate-captain' ),
+			'affiliate_email_change' => __( 'Change the e-mail address of a partner', 'affiliate-captain' ),
 		);
 		return isset( $labels[ $key ] ) ? $labels[ $key ] : (string) $key;
 	}
