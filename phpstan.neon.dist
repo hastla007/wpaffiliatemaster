@@ -6,7 +6,7 @@ parameters:
 	level: 3
 	# Stub versions differ between local runs and CI: a baseline entry that does not occur is fine.
 	reportUnmatchedIgnoredErrors: false
-	phpVersion: 70400
+	phpVersion: 80500
 	paths:
 		- affiliate-captain.php
 		- uninstall.php

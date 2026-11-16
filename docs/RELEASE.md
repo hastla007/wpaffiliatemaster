@@ -7,8 +7,16 @@ Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 1. Version an drei Stellen gleich setzen: Header `Version:` und `WPAC_VERSION` in `affiliate-captain.php`, `Stable tag:` in `readme.txt`.
 2. `readme.txt`: Abschnitt `== Changelog ==` (neueste Version oben) und `== Upgrade Notice ==` (bei Schemaänderung „Backup vorher“) ergänzen; `Tested up to` und im Plugin-Header `WC tested up to` auf die in CI geprüften Versionen setzen.
 3. Übersetzungen: `python3 bin/i18n.py missing de_DE` muss leer sein, dann `python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE`.
-4. Mindestversionen ändern sich nur zusammen: `Requires at least` (Header + readme), `minimum_wp_version` in `phpcs.xml.dist`, `WP_VERSION`/`WC_VERSION`/PHP im CI-Job „Minimum versions“. Aktuell WordPress 6.3 (Blöcke mit `apiVersion: 3`), WooCommerce 8.0, PHP 7.4.
+4. Mindestversionen ändern sich nur zusammen: `Requires at least` (Header + readme), `minimum_wp_version` in `phpcs.xml.dist`, `WP_VERSION`/`WC_VERSION`/PHP im CI-Job „Minimum versions“; für PHP zusätzlich `Requires PHP` (Header + readme) und die Laufzeitprüfung in `affiliate-captain.php`, die Anforderungszeile in `readme.txt`, `README.md`, `docs/HANDBOOK.md`, `composer.json` (`php`) samt `content-hash` und `platform` in `composer.lock`, `testVersion` in `phpcs.xml.dist`, `phpVersion` in `phpstan.neon.dist` (Prüfung „PHP-1“ in `tests/run.php`); für die Datenbank `Requirements::MYSQL`/`Requirements::MARIADB` (`src/Core/Requirements.php`) und die Images der CI-Jobs. Aktuell WordPress 6.3 (Blöcke mit `apiVersion: 3`), WooCommerce 8.0, PHP 8.5, MySQL 9.7 (LTS), MariaDB 12.3 (LTS) (Entscheidung E10, 16.11.2026).
 5. `WPAC_CONTRACT_VERSION` nach der Versionsregel in `docs/CONTRACT.md` erhöhen, wenn der Vertrag neue Funktionen, Hooks oder Felder bekommt (Minor) oder bricht (Major); Titel und „Änderungen“ in `docs/CONTRACT.md`, die Statuszeile der README und `tests/integration/bootstrap.php` nennen dieselben Werte. `php tests/run.php` (Prüfungen „R16-1“) schlägt fehl, wenn Header, `WPAC_VERSION`, `Stable tag`, der neueste Changelog-Eintrag, der neueste Eintrag unter `== Upgrade Notice ==`, README oder Vertragsdokument auseinanderlaufen oder ein „since X“ im Code über der Version liegt.
+
+### Nächstes Release: vorgemerkte Changelog-Zeilen
+
+Noch nicht in `readme.txt`, weil die Prüfung „R16-1“ verlangt, dass der neueste Changelog-Eintrag die Plugin-Version nennt (kein Eintrag „Unreleased“). Beim Festlegen der Version in den Eintrag `= X.Y.Z =` übernehmen und hier löschen:
+
+- Changelog: `* Changed: requires PHP 8.5 or newer (was 7.4); supported database servers are MySQL 9.7 (LTS) or newer and MariaDB 12.3 (LTS) or newer – an older server is not blocked, Site Health shows a warning (filter wpac_minimum_db_versions)`
+- Changelog: `* Dev: CI on PHP 8.5 (PHP 8.6 as experimental cell), MySQL 9.7 and MariaDB 12.3 (also lower_case_table_names=1 on MySQL 9.7); browser, smoke, minimum-version, multisite, upgrade and Plugin Check jobs on PHP 8.5`
+- Upgrade Notice: `Requires PHP 8.5 or newer. Check the PHP version of your host before updating (Tools → Site Health → Info → Server).`
 
 ## 2. GitHub-Release
 

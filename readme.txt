@@ -3,7 +3,7 @@ Contributors: wpaffiliatecaptain
 Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
-Requires PHP: 7.4
+Requires PHP: 8.5
 Stable tag: 0.15.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -36,7 +36,7 @@ Legal note: cookie consent, VAT treatment of credit notes and retention periods 
 4. Recommended in wp-config.php: `define( 'WPAC_ENCRYPTION_KEY', '<64 hex characters>' );` and `define( 'WPAC_STATEMENT_DIR', '/path/outside/webroot' );`
 5. Moving from another affiliate plugin? Import your partners under Affiliate Captain → Import & export.
 
-Requirements: WordPress 6.3+, PHP 7.4+ with the extensions sodium and dom (zip for the program export). WooCommerce is optional (8.0+).
+Requirements: WordPress 6.3+, PHP 8.5+ with the extensions sodium and dom (zip for the program export), MySQL 9.7+ or MariaDB 12.3+ (an older database server is not blocked, Site Health shows a warning). WooCommerce is optional (8.0+).
 
 == External services ==
 

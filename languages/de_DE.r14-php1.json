@@ -1,0 +1,5 @@
+{
+ "Affiliate Captain requires PHP 8.5 or newer.": "Affiliate Captain benötigt PHP 8.5 oder neuer.",
+ "The database server is older than the supported minimum": "Der Datenbankserver ist älter als die unterstützte Mindestversion",
+ "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer; this site uses %3$s %4$s. The plugin keeps working and nothing is blocked, but older database servers are no longer tested. Ask your host for an update.": "Affiliate Captain unterstützt MySQL %1$s oder neuer und MariaDB %2$s oder neuer; diese Website nutzt %3$s %4$s. Das Plugin arbeitet weiter und nichts wird blockiert, ältere Datenbankserver werden aber nicht mehr getestet. Bitten Sie Ihren Hoster um ein Update."
+}
