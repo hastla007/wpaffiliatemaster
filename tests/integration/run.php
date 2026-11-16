@@ -1576,6 +1576,7 @@ require __DIR__ . '/r15-l3.php'; // Package L3 (0.15.0): domain actions after CO
 require __DIR__ . '/r14-mp1.php'; // Feature mp1 (0.15.0, contract 1.5.0): several partner programs, variant A (before r8-render).
 require __DIR__ . '/r14-php1.php'; // PHP-1 / E10: database server minimum, Site Health warning (before r8-render).
 require __DIR__ . '/r14-c16.php'; // Agent c16 (0.16.0): no VALUES() in upserts (MySQL 9.7); remaining program-aware spots (before r8-render).
+require __DIR__ . '/r14-kosit.php'; // KoSIT: e-invoice validation in CI (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

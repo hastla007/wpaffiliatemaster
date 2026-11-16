@@ -213,7 +213,7 @@ check(
 		// PHP-1 / decision E10: the minimum is 8.5; 8.6 runs as experimental cell.
 		1 === preg_match( '/^ \* Requires PHP:\s*(\d+\.\d+)/m', $g1_src( 'affiliate-captain.php' ), $g1_php ) && false !== strpos( $g1_ci, 'php: "' . $g1_php[1] . '"' ) && false !== strpos( $g1_ci, "Smoke test (current WordPress and WooCommerce, PHP {$g1_php[1]})" ),
 		(bool) preg_match( '/php: "8\.6"\n\s+experimental: true/', $g1_ci ),
-		false !== strpos( $g1_ci, 'latest-php:' ) && false !== strpos( $g1_ci, 'latest-php, plugin-check]' ),
+		false !== strpos( $g1_ci, 'latest-php:' ) && 1 === preg_match( '/needs: \[[^\]]*\blatest-php\b[^\]]*\]/', $g1_ci ),
 		(bool) preg_match( '/level:\s*3\b/', $g1_neon ),
 		false !== strpos( $g1_neon, 'phpstan-baseline.neon' ) && is_file( $g1_root . '/phpstan-baseline.neon' ),
 	)

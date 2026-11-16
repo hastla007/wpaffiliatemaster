@@ -190,6 +190,56 @@ jobs:
       - name: PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
+  # Electronic invoices (src/Payouts/EInvoice.php) checked with the official KoSIT validator and
+  # the XRechnung validator configuration (pinned versions, SHA-256 checked in validate.sh):
+  # samples of every document kind and VAT category, EN 16931 core profile (scenario
+  # "EN16931 (CII)": CII D16B schema + EN 16931 CII schematron) and XRechnung 3.0 (scenario
+  # "EN16931 XRechnung (CII)": additionally the XRechnung CII schematron). Any error-level
+  # finding, a rejected document or an unexpected scenario fails the job.
+  einvoice:
+    name: E-invoice (KoSIT validator)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_DATABASE: wpac_test
+          MARIADB_USER: wpac
+          MARIADB_PASSWORD: wpac
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.5"
+          extensions: mysqli, sodium, dom, mbstring
+          coverage: none
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Generate sample e-invoices
+        env:
+          WPAC_TEST_DB_HOST: 127.0.0.1
+        run: php tests/einvoice/generate.php "$RUNNER_TEMP/einvoice/samples"
+      - name: Validate with the KoSIT validator
+        run: tests/einvoice/validate.sh "$RUNNER_TEMP/einvoice/samples" "$RUNNER_TEMP/einvoice/work"
+      - name: Copy samples and reports
+        if: always()
+        run: |
+          mkdir -p einvoice-artifacts
+          cp -r "$RUNNER_TEMP/einvoice/samples" einvoice-artifacts/ 2>/dev/null || true
+          cp -r "$RUNNER_TEMP/einvoice/work/reports" einvoice-artifacts/ 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: einvoice-kosit
+          path: einvoice-artifacts/
+
   qr-decode:
     name: QR decode + translations
     runs-on: ubuntu-latest
@@ -493,7 +543,7 @@ jobs:
 
   release:
     name: Release ZIP
-    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade, minimum-versions, latest-php, plugin-check]
+    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade, minimum-versions, latest-php, plugin-check, einvoice]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -132,6 +132,7 @@ Newest platform versions and several partner programs; add-on contract 1.5.0, da
 * Add-ons (several partner programs): a partner whose program has a longer hold period gets the monthly bonus only after that period (the daily recalculation books it); the admin shows the partner's own minimum payout on the partner page and differing program minimums at the payout run; the REST report route accepts program (invalid key: wpac_invalid_program); the dashboard figure "Active partners" counts the selected program; the suggested privacy text names the range of cookie lifetimes when a program changes it. Without an add-on nothing changes
 * Compatibility: no VALUES() in INSERT … ON DUPLICATE KEY UPDATE any more (deprecated on MySQL 9.7); the daily visit summary uses a form that works without warning on MySQL 9.7 and MariaDB 12.3
 * Dev: CI on PHP 8.5 (PHP 8.6 as experimental cell), MySQL 9.7 and MariaDB 12.3 (also lower_case_table_names=1 on MySQL 9.7); browser, smoke, minimum-version, multisite, upgrade and Plugin Check jobs on PHP 8.5; a test keeps all PHP minimum statements in sync
+* Dev: new CI job "E-invoice (KoSIT validator)": sample e-invoices of every document kind and VAT category (EN 16931 and XRechnung 3.0) are checked with the official KoSIT validator and the XRechnung configuration (pinned versions, SHA-256 checked); every error-level finding fails the run – no findings, the e-invoice is unchanged
 
 = 0.15.0 =
 New partner functions and add-on contract 1.4.0; database schema 16 (one new column with an index on the partner table):
