@@ -668,6 +668,11 @@ final class AffiliatesPage {
 		ob_start();
 		self::render_access_terms_boxes( $a, $id );
 		$parts['overview'][] = ob_get_clean();
+		if ( ! in_array( Admin::get( 'tab' ), array( 'profile', 'codes', 'payout', 'balance', 'history' ), true ) && \WPAffiliateCaptain\Reports\ReviewQuality::available() ) {
+			ob_start();
+			self::render_review_box( $id ); // AFF-SU-03: only with a review plugin, only on this tab (asks the plugin).
+			$parts['overview'][] = ob_get_clean();
+		}
 		ob_start();
 		self::render_codes_box( $id );
 		$parts['codes'][] = ob_get_clean();
@@ -682,6 +687,49 @@ final class AffiliatesPage {
 		$parts['balance'][] = ob_get_clean();
 		self::render_tabs( $id, $parts );
 		echo '</div>';
+	}
+
+	/**
+	 * Detail view: review quality of the partner from a review plugin (AFF-SU-03, since plugin 0.17.0,
+	 * provisional). Read only, never stored; nothing below the minimum sample.
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_review_box( $id ) {
+		$days = \WPAffiliateCaptain\Reports\ReviewQuality::days( Admin::get( 'review_days' ) );
+		$res  = \WPAffiliateCaptain\Reports\ReviewQuality::get( array( array( 'affiliate_id' => $id ) ), $days );
+		$r    = $res ? reset( $res ) : array( 'status' => 'no_provider' );
+		if ( 'forbidden' === $r['status'] ) {
+			return;
+		}
+		echo '<div class="postbox wpac-review-quality"><h2 class="hndle">' . esc_html__( 'Review quality', 'affiliate-captain' ) . '</h2><div class="inside"><p>';
+		$links = array();
+		foreach ( \WPAffiliateCaptain\Reports\ReviewQuality::DAYS as $d ) {
+			/* translators: %d: number of days */
+			$label   = sprintf( _n( '%d day', '%d days', $d, 'affiliate-captain' ), $d );
+			$links[] = $d === $days ? '<strong>' . esc_html( $label ) . '</strong>' : '<a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $id, 'tab' => 'overview', 'review_days' => $d ) ) ) . '">' . esc_html( $label ) . '</a>';
+		}
+		echo esc_html__( 'Period:', 'affiliate-captain' ) . ' ' . implode( ' | ', $links ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+		if ( 'ok' === $r['status'] ) {
+			echo '<table class="widefat striped"><tbody>';
+			foreach (
+				array(
+					__( 'Reviews', 'affiliate-captain' ) => number_format_i18n( $r['reviews'] ),
+					__( 'Different orders', 'affiliate-captain' ) => number_format_i18n( $r['orders'] ),
+					__( 'Average rating', 'affiliate-captain' ) => number_format_i18n( $r['average'], 1 ) . ' / 5',
+					__( '4–5 stars', 'affiliate-captain' ) => number_format_i18n( $r['positive'] ) . ' %',
+					__( '1–2 stars', 'affiliate-captain' ) => number_format_i18n( $r['negative'] ) . ' %',
+				) as $label => $value
+			) {
+				echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( $value ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+			/* translators: 1: start date, 2: end date */
+			echo '<p class="description">' . esc_html( sprintf( __( 'Reviews from %1$s to %2$s.', 'affiliate-captain' ), Admin::date( $r['from'] ), Admin::date( $r['to'] ) ) ) . '</p>';
+		} else {
+			echo '<p>' . esc_html( \WPAffiliateCaptain\Reports\ReviewQuality::reason( $r ) ) . '</p>';
+		}
+		echo '<p class="description">' . esc_html__( 'From the review plugin: only verified, published reviews of orders attributed to this partner. Read only, not stored, never shown to the partner; it never changes commissions, rules or payouts.', 'affiliate-captain' ) . '</p></div></div>';
 	}
 
 	/**

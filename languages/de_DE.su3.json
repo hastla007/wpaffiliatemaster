@@ -1,0 +1,18 @@
+{
+ "%1$s / 5 (%2$s reviews)": "%1$s / 5 (%2$s Bewertungen)",
+ "Not enough reviews in this period (at least %1$d reviews from %2$d different orders). No figures are shown.": "Zu wenige Bewertungen in diesem Zeitraum (mindestens %1$d Bewertungen aus %2$d verschiedenen Bestellungen). Es werden keine Zahlen angezeigt.",
+ "Processing of this partner is restricted (Art. 18 GDPR). No review figures are shown.": "Die Verarbeitung dieses Partners ist eingeschränkt (Art. 18 DSGVO). Es werden keine Bewertungszahlen angezeigt.",
+ "The review plugin returned no valid data.": "Das Review-Plugin hat keine gültigen Daten geliefert.",
+ "No review figures available.": "Keine Bewertungszahlen verfügbar.",
+ "Review quality": "Review-Qualität",
+ "Period:": "Zeitraum:",
+ "Reviews": "Bewertungen",
+ "Different orders": "Verschiedene Bestellungen",
+ "Average rating": "Durchschnittliche Bewertung",
+ "4–5 stars": "4–5 Sterne",
+ "1–2 stars": "1–2 Sterne",
+ "Reviews from %1$s to %2$s.": "Bewertungen vom %1$s bis %2$s.",
+ "From the review plugin: only verified, published reviews of orders attributed to this partner. Read only, not stored, never shown to the partner; it never changes commissions, rules or payouts.": "Aus dem Review-Plugin: nur verifizierte, veröffentlichte Bewertungen von Bestellungen, die diesem Partner zugeordnet sind. Nur lesend, nicht gespeichert, nie dem Partner angezeigt; ändert nie Provisionen, Regeln oder Auszahlungen.",
+ "Reviews (%d days)": "Bewertungen (%d Tage)",
+ "Reviews: average rating of the verified, published reviews of the last %1$d days from the review plugin, by the partner and campaign of the order; shown from %2$d reviews from %3$d different orders, otherwise \"–\". Read only and not stored; independent of the period above.": "Bewertungen: durchschnittliche Bewertung der verifizierten, veröffentlichten Bewertungen der letzten %1$d Tage aus dem Review-Plugin, nach Partner und Kampagne der Bestellung; angezeigt ab %2$d Bewertungen aus %3$d verschiedenen Bestellungen, sonst „–“. Nur lesend und nicht gespeichert; unabhängig vom Zeitraum oben."
+}

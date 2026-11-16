@@ -103,6 +103,43 @@ final class PublicApi {
 	}
 
 	/**
+	 * Partner and campaign an order is attributed to (since plugin 0.17.0, provisional until the
+	 * shared suite specification is accepted; AFF-SU-03). Lets a review plugin count its reviews
+	 * per partner and campaign without the core storing review IDs.
+	 *
+	 * @param string $source   Source of the order (e.g. "woocommerce").
+	 * @param string $order_id Order ID of the source.
+	 * @return array|null|\WP_Error { source, order_id, affiliate_id, campaign, method, status
+	 *                              (attributed|review), created_at } or null when the order has no
+	 *                              attribution or its partner was erased (Art. 17 GDPR).
+	 */
+	public static function get_order_attribution( $source, $order_id ) {
+		if ( ! is_string( $source ) || '' === $source || strlen( $source ) > 40 ) {
+			return self::invalid( 'source' );
+		}
+		if ( ( ! is_string( $order_id ) && ! is_int( $order_id ) ) || '' === (string) $order_id || strlen( (string) $order_id ) > 64 ) {
+			return self::invalid( 'order_id' );
+		}
+		$row = Ledger::attribution_for( $source, (string) $order_id );
+		if ( ! $row || (int) $row->affiliate_id < 1 ) {
+			return null;
+		}
+		$restriction = \WPAffiliateCaptain\Privacy\Restriction::get( (int) $row->affiliate_id );
+		if ( ( $restriction && \WPAffiliateCaptain\Privacy\Restriction::ERASURE === $restriction['kind'] ) || ! AffiliateRepository::find( (int) $row->affiliate_id ) ) {
+			return null;
+		}
+		return array(
+			'source'       => (string) $row->source,
+			'order_id'     => (string) $row->source_order_id,
+			'affiliate_id' => (int) $row->affiliate_id,
+			'campaign'     => (string) $row->campaign,
+			'method'       => (string) $row->method,
+			'status'       => (string) $row->status,
+			'created_at'   => (string) $row->created_at,
+		);
+	}
+
+	/**
 	 * List ledger rows.
 	 *
 	 * @param array $args affiliate_id, status, kind, from, to (Y-m-d, local days), program (program

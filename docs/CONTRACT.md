@@ -440,18 +440,36 @@ Review Captain darf keine Provisionen verändern und keine Einladungen aus Affil
 
 **Partner-Ausgaben ohne Käuferdaten.** Partnerbereich (alle Reiter), Partner-REST (`/me`, `/me/commissions`, `/me/payouts`), Partner-CSV (Provisionen, Auszahlungen), Partner-Mails (Provisionshinweis, Monatsübersicht) und die Lese-API (`wpac_get_commission(s)`, `wpac_get_affiliate()`) zeigen zu einer WooCommerce-Bestellung nur Bestellnummer, Produktname, Basis, Satz, Betrag und Status. Käufer-E-Mail, Name und Anschrift dienen nur dem Self-Referral-Abgleich und werden nicht gespeichert; Zuordnungs- und Provisionszeilen enthalten sie nicht. Regressionstest: `L2-PII` in `tests/integration/r15-l2.php` und `tests/integration/r15-l2-render.php`.
 
-### Vorschlag (nicht implementiert): read-only Aggregatmodell
+### Review-Qualität: nur lesendes Aggregatmodell (Plugin 0.17.0, vorläufig)
 
-Noch nicht Teil des Vertrags; die Inhaberin bzw. der Inhaber entscheidet.
+**Stand:** gebaut für Plugin 0.17.0 (Entscheidung des Inhabers vom 16.11.2026, `TODO.md`, AFF-SU-03), **vorläufig, bis die gemeinsame Spezifikation der Suite abgenommen ist**; Namen, Felder und Schwellen können sich bis dahin ändern. Vorgeschlagene Vertragsversion: **1.6.0** (abwärtskompatibel, nur neue Funktion und neue Filter; `WPAC_CONTRACT_VERSION` wird mit dem Release erhöht). Review Captain ist noch nicht veröffentlicht; solange kein Plugin den Filter füllt, ändert sich nichts.
 
-- **Richtung:** Review Captain stellt eine Lesefunktion bereit, Affiliate Captain fragt nur ab (Admin-Partnerseite, Bericht). Kein Schreibzugriff, keine Rückwirkung auf Provisionen, Regeln, Stufen oder Auszahlungen. Vorschlag: `rcap_affiliate_quality( array $ref, array $args ): array|WP_Error` mit `$ref = array( 'affiliate_id' => int )` oder `array( 'affiliate_id' => int, 'campaign' => string )`; `$args`: `days`.
-- **Zuordnung Review → Partner:** nur über die Bestellung, die Review Captain selbst kennt (`source` + `order_id`). Dafür braucht der Vertrag eine neue Lesefunktion, z. B. `wpac_get_order_attribution( string $source, string $order_id ): ?array` mit `affiliate_id`, `campaign`, `method` (Recht `wpac_manage_affiliates`). Affiliate Captain speichert keine Review-IDs.
-- **Freigegebene Quellen:** nur Reviews mit Bestellbezug (verifizierter Kauf), nur veröffentlichte Reviews; keine importierten, anonymen oder nicht freigegebenen Reviews.
-- **Kennzahlen:** Anzahl Reviews, Durchschnitt (eine Nachkommastelle), Anteil 4–5 Sterne, Anteil 1–2 Sterne. Keine Texte, keine Einzelwerte, keine Zeitpunkte einzelner Reviews.
-- **Mindeststichprobe:** mindestens **10** Reviews aus mindestens **5** verschiedenen Bestellungen im Zeitraum; darunter nur `insufficient_sample` ohne Zahlen (kein Rückschluss auf einzelne Käufer).
-- **Zeitraum:** rollierend **90 Tage** (wählbar 30/90/365) nach Datum der Review; Ergebnis mit `from`, `to`, `computed_at`.
-- **Lösch-/Widerrufsfolgen:** gelöschte, widerrufene oder zurückgezogene Reviews und Reviews gelöschter Kunden fallen bei der nächsten Berechnung heraus. Affiliate Captain speichert das Aggregat nicht (höchstens ein Cache von bis zu 24 Stunden). Nach Art. 17 gelöschte Partner liefern `not_found`.
-- **Sichtbarkeit:** nur für `wpac_manage_affiliates` im Admin; nie im Partnerbereich, in Partner-Mails, Partner-REST oder CSV.
+**Richtung.** Ein Review-Plugin füllt einen Filter, Affiliate Captain fragt nur ab, wendet Mindeststichprobe und Zeitraum an und zeigt das Ergebnis in der Verwaltung. Kein Schreibzugriff, keine Rückwirkung auf Provisionen, Regeln, Stufen, Status oder Auszahlungen. Der Kern prüft keine Lizenz und weiß über das Review-Plugin nur, dass der Filter einen Callback hat (`has_filter()`).
+
+**Filter `wpac_review_aggregates( array $aggregates, array $query ): array`** (Review-Plugin → Affiliate Captain)
+
+- `$aggregates`: leeres Array.
+- `$query`: `version` (`1`), `refs` (Schlüssel ⇒ `array( 'affiliate_id' => int, 'campaign' => string|null )`; Schlüssel `a:<Partner-ID>` = alle Bewertungen des Partners, `a:<Partner-ID>|c:<Kampagne>` = Bewertungen der Bestellungen dieses Partners mit dieser Kampagne, `c:` mit leerer Kampagne = ohne Kampagne), `days` (30, 90 oder 365), `from`, `to` (UTC, `Y-m-d H:i:s`, rollierend: `to` = jetzt), `verified_only` (`true`), `published_only` (`true`). Alle Referenzen einer Seite kommen in **einem** Aufruf.
+- Rückgabe je Schlüssel: `array( 'reviews' => int, 'orders' => int, 'stars' => array( 1 => int, 2 => int, 3 => int, 4 => int, 5 => int ) )`: Anzahl der Bewertungen, Anzahl verschiedener Bestellungen, Anzahl je Sternzahl. Gezählt werden nur verifizierte (mit Bestellbezug `source` + `order_id`) und veröffentlichte Bewertungen mit Datum zwischen `from` und `to`; keine importierten, anonymen, nicht freigegebenen oder fremden Plattformbewertungen. Keine Texte, keine Einzelwerte, keine Zeitpunkte, keine Kundendaten. Ein fehlender Schlüssel heißt „keine Bewertungen“. Werte sind ganze Zahlen ≥ 0 (auch als Ziffernfolge); die Summe der Sterne muss `reviews` ergeben, `orders` ≤ `reviews` und bei Bewertungen ≥ 1 – sonst Status `invalid`.
+- Wirft der Callback eine Ausnahme, wird sie abgefangen (Status `error`; ins Protokoll kommt nur der Klassenname, nicht der Text); die Seite bleibt bedienbar.
+
+**Zuordnung Bewertung → Partner** nur über die Bestellung, die das Review-Plugin selbst kennt: `wpac_get_order_attribution( string $source, string $order_id ): array|null|WP_Error` liefert `source`, `order_id`, `affiliate_id`, `campaign`, `method`, `status` (`attributed` oder `review`) und `created_at` (UTC); `null`, wenn die Bestellung keine Zuordnung hat oder ihr Partner gelöscht ist (Art. 17); `wpac_invalid_source` bzw. `wpac_invalid_order_id` bei ungültigen Argumenten (leer, kein String, länger als 40 bzw. 64 Zeichen; die Bestell-ID darf eine ganze Zahl sein). Wie die übrige Lese-API ohne Prüfung des Benutzers (PHP-API für vertrauenswürdigen Code). Affiliate Captain speichert keine Review-IDs.
+
+**Kennzahlen (berechnet vom Kern):** Anzahl Bewertungen, Anzahl Bestellungen, Durchschnitt (eine Nachkommastelle), Anteil 4–5 Sterne und Anteil 1–2 Sterne (ganze Prozent).
+
+**Mindeststichprobe:** mindestens **10** Bewertungen aus mindestens **5** verschiedenen Bestellungen im Zeitraum; darunter nur `insufficient_sample` ohne Zahlen (kein Rückschluss auf einzelne Käufer). Der Filter `wpac_review_aggregate_minimum( array( 'reviews' => 10, 'orders' => 5 ) )` kann die Werte nur erhöhen (ganze Zahlen), nie senken.
+
+**Zeitraum:** rollierend **90 Tage** nach Datum der Bewertung, wählbar 30/90/365 (Parameter `review_days` der Partnerseite und des Berichts nach Kampagne), unabhängig vom Datumsfilter des Berichts. Jedes Ergebnis nennt `days`, `from`, `to`, `computed_at`.
+
+**Status je Referenz:** `ok` (mit Zahlen), `insufficient_sample`, `no_provider` (kein Callback), `forbidden` (Benutzer ohne `wpac_manage_affiliates`), `not_found` (unbekannter oder nach Art. 17 gelöschter Partner), `restricted` (Verarbeitung nach Art. 18 eingeschränkt), `invalid`, `error`. Bei `forbidden`, `not_found` und `restricted` wird das Review-Plugin für diese Referenz gar nicht gefragt.
+
+**Lösch- und Widerrufsfolgen:** Affiliate Captain speichert weder Bewertungen noch Aggregate (kein Cache, keine Option, kein Transient, keine Tabellenzeile, kein Protokolleintrag mit Bewertungsdaten); jede Anzeige rechnet neu. Gelöschte, widerrufene oder zurückgezogene Bewertungen und Bewertungen gelöschter Kunden fallen deshalb beim nächsten Aufruf heraus, sobald das Review-Plugin sie nicht mehr zählt (seine Pflicht); fällt eine Kennzahl dadurch unter die Mindeststichprobe, verschwinden die Zahlen. Nach Art. 17 gelöschte Partner ergeben `not_found`, und `wpac_get_order_attribution()` liefert für ihre Bestellungen `null`; bei Einschränkung nach Art. 18 `restricted`. Ist eine Zuordnung nach Ablauf der Aufbewahrung gelöscht (täglicher Lauf), kann das Review-Plugin die Bestellung keinem Partner mehr zuordnen; ihre Bewertungen zählen dann nicht mehr. Auskunft (Art. 15): Es ist nichts gespeichert, also nichts im Export.
+
+**Sichtbarkeit:** nur für `wpac_manage_affiliates` in der Verwaltung: Partnerseite, Reiter „Übersicht“, Kasten „Review-Qualität“ (das Review-Plugin wird nur auf diesem Reiter gefragt); Bericht „Nach Kampagne“, Spalte „Bewertungen (90 Tage)“ mit „Ø / 5 (Anzahl)“ oder „–“. Nie im Partnerbereich, in Partner-Mails, in der Partner-REST-API, in Partner-CSV-Dateien, im CSV-Export der Berichte oder in der REST-Route `/reports`. Ohne Review-Plugin erscheinen weder Kasten noch Spalte.
+
+**Datenschutz:** Verzeichnis von Verarbeitungstätigkeiten, Eintrag 5 (`docs/VERARBEITUNGSVERZEICHNIS.md`, `docs/RECORD-OF-PROCESSING.md`); er erscheint im Download nur, solange ein Plugin den Filter füllt.
+
+**Tests:** `tests/integration/su3.php` (Logik, Schwellen, Zeitraum, Rechte, Speicherfreiheit, Löschfolgen, fehlerhafte Antworten) und `tests/integration/su3-render.php` (Admin-Seiten, Partnerbereich).
 
 ## Form Captain: Bewertung des eigenen Bewerbungsablaufs
 

@@ -221,6 +221,24 @@ if ( ! function_exists( 'wpac_get_affiliate' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wpac_get_order_attribution' ) ) {
+	/**
+	 * Partner and campaign an order is attributed to, e.g. for a review plugin that fills the
+	 * filter wpac_review_aggregates (docs/CONTRACT.md, "Review-Qualität").
+	 *
+	 * @since plugin 0.17.0 (provisional until the shared suite specification is accepted)
+	 * @param string $source   Source of the order (e.g. "woocommerce").
+	 * @param string $order_id Order ID of the source.
+	 * @return array|null|WP_Error { source, order_id, affiliate_id, campaign, method, status
+	 *                             (attributed|review), created_at }; null without attribution or
+	 *                             when the partner was erased; WP_Error wpac_invalid_source /
+	 *                             wpac_invalid_order_id.
+	 */
+	function wpac_get_order_attribution( $source, $order_id ) {
+		return \WPAffiliateCaptain\Core\PublicApi::get_order_attribution( $source, $order_id );
+	}
+}
+
 if ( ! function_exists( 'wpac_get_affiliates' ) ) {
 	/**
 	 * List partners.

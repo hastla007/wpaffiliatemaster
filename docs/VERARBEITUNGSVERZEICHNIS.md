@@ -51,6 +51,19 @@ Vorlage für die Einträge, die Affiliate Captain betreffen. Die Werte in `{gesc
 | Rechtsgrundlage | Art. 6 Abs. 1 lit. c und f DSGVO |
 | Löschfristen | buchungsrelevante Einträge {retention_years} Jahre; übrige {audit_retention_days} Tage |
 
+<!-- review-quality -->
+## 5. Review-Qualität der Partner (nur mit einem Review-Plugin)
+
+| | |
+|---|---|
+| Zweck | Qualität von Partnern und Kampagnen in der Verwaltung beurteilen, anhand zusammengefasster Bewertungen der vermittelten Bestellungen (vorläufig ab Plugin 0.17.0, bis die gemeinsame Spezifikation der Suite abgenommen ist) |
+| Betroffene | Partner (die Kennzahl betrifft den Partner); Kunden nur mittelbar – Affiliate Captain erhält keine Daten einzelner Kunden oder Bewertungen |
+| Daten | Je Partner bzw. Partner und Kampagne: Anzahl der Bewertungen, Anzahl verschiedener Bestellungen und Anzahl je Sternzahl (1–5) im gewählten Zeitraum (rollierend 30, 90 oder 365 Tage), daraus Durchschnitt und Anteile. Nur verifizierte (mit Bestellung), veröffentlichte Bewertungen; Zahlen erst ab 10 Bewertungen aus 5 verschiedenen Bestellungen, darunter keine. Keine Texte, keine Einzelwerte, keine Zeitpunkte einzelner Bewertungen, keine Kundendaten. Das Review-Plugin liest bei Affiliate Captain zu einer Bestellung Partner-ID, Kampagne und Zuordnungsart (`wpac_get_order_attribution()`) |
+| Rechtsgrundlage | Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Qualität des Partnerprogramms); vom Verantwortlichen zu prüfen. Keine automatisierte Entscheidung (Art. 22 DSGVO): Die Kennzahl ändert nie Provisionen, Regeln, Stufen, Status oder Auszahlungen |
+| Empfänger | Nur Benutzer mit dem Recht „Partner verwalten“ in der Verwaltung (Partnerseite, Bericht nach Kampagne); nie der Partner (Partnerbereich, Mails, REST, CSV) und nicht im CSV-Export der Berichte |
+| Löschfristen | Keine Speicherung in Affiliate Captain: Die Werte werden bei jedem Aufruf aus den aktuellen Daten des Review-Plugins berechnet; gelöschte, widerrufene oder nicht mehr veröffentlichte Bewertungen und Bewertungen gelöschter Kunden fallen beim nächsten Aufruf heraus. Ist die Verarbeitung des Partners eingeschränkt (Art. 18) oder ist er gelöscht (Art. 17), wird nichts angezeigt und das Review-Plugin nicht gefragt. Die Bewertungen selbst verarbeitet das Review-Plugin (eigener Eintrag) |
+<!-- /review-quality -->
+
 ## Technische und organisatorische Maßnahmen (Auszug, Art. 32 DSGVO)
 
 - IBAN verschlüsselt gespeichert (eigener Schlüssel `WPAC_ENCRYPTION_KEY`), in Listen nur maskiert
