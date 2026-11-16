@@ -1569,6 +1569,10 @@ require __DIR__ . '/r14-f1.php'; // Feature f1: automatic partner coupon (before
 require __DIR__ . '/r14-f3.php'; // Feature f3: password confirmation rules (before r8-render).
 require __DIR__ . '/r14-f2.php'; // Feature f2 (0.15.0): partner code requests (before r8-render).
 require __DIR__ . '/r14-p15.php'; // Feature p15 (0.15.0): contract wishes of the Pro add-on (before r8-render).
+require __DIR__ . '/r15-k3.php'; // K3 (R6-CC5): statement storage, local / S3 (before r8-render).
+require __DIR__ . '/r15-l1.php'; // Package L1 (R12-L4/L5: privacy text, sub-ID grouping; before r8-render).
+require __DIR__ . '/r15-l2.php'; // Package L2 (suite integration: dedup across sales sources, no buyer data for partners; before r8-render).
+require __DIR__ . '/r15-l3.php'; // Package L3 (0.15.x): Workflow Captain provider contract (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1580,6 +1584,7 @@ require __DIR__ . '/r14-g5-render.php'; // After the render files: e-mail templa
 require __DIR__ . '/r14-g8-render.php'; // After the render files: paged campaign statistics (R14-D9).
 require __DIR__ . '/r14-f3-render.php'; // After the render files: password confirmation flows (feature f3).
 require __DIR__ . '/r14-f2-render.php'; // After the render files: code requests (feature f2, 0.15.0).
+require __DIR__ . '/r15-l2-render.php'; // After the render files: partner area of the L2 order (no buyer data).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );
