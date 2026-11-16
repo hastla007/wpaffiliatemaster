@@ -139,7 +139,6 @@ final class PayoutService {
 		// $from is built by payable_sql() from constants; its values are placeholders in $params.
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.affiliate_id, SUM(c.amount_minor) total, COUNT(*) c {$from} GROUP BY c.affiliate_id ORDER BY total DESC", $params ) );
-		$min      = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
 		$operator = self::operator_missing();
 		$out      = array();
 		// One query for all partners instead of one per row; profiles are only loaded for
@@ -147,6 +146,7 @@ final class PayoutService {
 		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
 		foreach ( $rows as $r ) {
 			$aff    = AffiliateRepository::find( (int) $r->affiliate_id );
+			$min    = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $r->affiliate_id ); // Per program (wpac_setting).
 			$total  = (int) $r->total;
 			$reason = '';
 			$code   = '';
@@ -741,7 +741,7 @@ final class PayoutService {
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
 				}
-				$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+				$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $affiliate_id );
 				if ( ! $rows || ( ! $settle && ( $total <= 0 || null === $min ) ) ) {
 					return 0;
 				}

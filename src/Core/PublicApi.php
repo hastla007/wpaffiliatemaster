@@ -16,6 +16,7 @@ namespace WPAffiliateCaptain\Core;
 
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Affiliates\Groups;
+use WPAffiliateCaptain\Affiliates\Programs;
 use WPAffiliateCaptain\Commissions\Ledger;
 
 defined( 'ABSPATH' ) || exit;
@@ -43,12 +44,13 @@ final class PublicApi {
 	 * List partners.
 	 *
 	 * @param array $args status, group (ID, 0 = without group), referred_by (recruiting partner ID,
-	 *                    0 = without recruiter; since 0.15.0), search, per_page (≤ 100), page,
+	 *                    0 = without recruiter; since 0.15.0), program (program key, '' = default
+	 *                    program; since contract 1.5.0), search, per_page (≤ 100), page,
 	 *                    orderby (id|name|status|created_at), order (asc|desc).
 	 * @return array|\WP_Error { items, total, page, per_page }
 	 */
 	public static function get_affiliates( array $args = array() ) {
-		$bad = self::non_scalar( $args, array( 'status', 'group', 'referred_by', 'search', 'per_page', 'page', 'orderby', 'order' ) );
+		$bad = self::non_scalar( $args, array( 'status', 'group', 'referred_by', 'program', 'search', 'per_page', 'page', 'orderby', 'order' ) );
 		if ( $bad ) {
 			return $bad;
 		}
@@ -74,6 +76,13 @@ final class PublicApi {
 			}
 			$query['referred_by'] = $recruiter; // 0 = partners without a recruiter.
 		}
+		if ( array_key_exists( 'program', $args ) && null !== $args['program'] ) {
+			$program = Programs::clean( $args['program'] );
+			if ( null === $program ) {
+				return self::invalid( 'program' );
+			}
+			$query['group_ids'] = Programs::groups_of( $program ); // Empty = no partner.
+		}
 		$paging = self::paging( $args, array( 'id', 'name', 'status', 'created_at' ) );
 		if ( is_wp_error( $paging ) ) {
 			return $paging;
@@ -96,12 +105,13 @@ final class PublicApi {
 	/**
 	 * List ledger rows.
 	 *
-	 * @param array $args affiliate_id, status, kind, from, to (Y-m-d, local days), per_page (≤ 100),
-	 *                    page, orderby (id|created_at|amount_minor|status), order.
+	 * @param array $args affiliate_id, status, kind, from, to (Y-m-d, local days), program (program
+	 *                    key of the partner, '' = default program; since contract 1.5.0),
+	 *                    per_page (≤ 100), page, orderby (id|created_at|amount_minor|status), order.
 	 * @return array|\WP_Error { items, total, page, per_page }
 	 */
 	public static function get_commissions( array $args = array() ) {
-		$bad = self::non_scalar( $args, array( 'affiliate_id', 'status', 'kind', 'from', 'to', 'per_page', 'page', 'orderby', 'order' ) );
+		$bad = self::non_scalar( $args, array( 'affiliate_id', 'status', 'kind', 'from', 'to', 'program', 'per_page', 'page', 'orderby', 'order' ) );
 		if ( $bad ) {
 			return $bad;
 		}
@@ -133,6 +143,13 @@ final class PublicApi {
 			}
 			$query[ $key ] = $date;
 		}
+		if ( array_key_exists( 'program', $args ) && null !== $args['program'] ) {
+			$program = Programs::clean( $args['program'] );
+			if ( null === $program ) {
+				return self::invalid( 'program' );
+			}
+			$query['group_ids'] = Programs::groups_of( $program ); // Empty = no commission.
+		}
 		$paging = self::paging( $args, array( 'id', 'created_at', 'amount_minor', 'status' ) );
 		if ( is_wp_error( $paging ) ) {
 			return $paging;
@@ -141,6 +158,7 @@ final class PublicApi {
 		list( $rows, $total ) = Ledger::query( $query + $paging['query'] + array( 'count' => 'cached' ) );
 		$rows  = (array) $rows;
 		$links = Ledger::links( wp_list_pluck( $rows, 'id' ) ); // One query for the page (P15-1).
+		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) ); // Programs of the page in one query.
 		$items = array();
 		foreach ( $rows as $row ) {
 			$items[] = self::commission_data( $row, $links );
@@ -364,6 +382,7 @@ final class PublicApi {
 			'updated_at'    => (string) $a->updated_at,
 			'approved_at'   => $a->approved_at ? (string) $a->approved_at : null,
 			'referred_by'   => isset( $a->referred_by ) ? (int) $a->referred_by : 0, // Since 0.15.0.
+			'program'       => Programs::of_affiliate( (int) $a->id ), // Since contract 1.5.0.
 		);
 	}
 
@@ -404,6 +423,8 @@ final class PublicApi {
 			'payout_id'    => (int) $c->payout_id,
 			'created_at'   => (string) $c->created_at,
 			'updated_at'   => (string) $c->updated_at,
+			// Current program of the partner (variant A: not stored with the booking; since contract 1.5.0).
+			'program'      => Programs::of_affiliate( (int) $c->affiliate_id ),
 		);
 	}
 

@@ -211,7 +211,7 @@ final class Ledger {
 		}
 
 		list( $rules, $default, $precedence ) = self::rules_for( $aff, $sale['currency'], (string) $attr['method'] );
-		$hold    = self::hold_until( $sale );
+		$hold    = self::hold_until( $sale, (int) $attr['affiliate_id'] );
 		$status  = $attr['review'] ? 'review' : 'pending';
 
 		$result = Db::transaction(
@@ -392,7 +392,7 @@ final class Ledger {
 	private static function rules_for( $aff, $currency, $method ) {
 		// Only the rules that can apply to this partner (global, own, own group).
 		$rules      = RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id );
-		$default    = RuleRepository::default_rate();
+		$default    = RuleRepository::default_rate( (int) $aff->id );
 		$precedence = RuleRepository::precedence();
 		$program = strtoupper( (string) Settings::get( 'currency' ) );
 		if ( $program !== $currency ) {
@@ -1950,14 +1950,18 @@ final class Ledger {
 	 */
 	public static function restart_hold( $source, $order_id, $from ) {
 		global $wpdb;
-		$t    = Db::table( 'commissions' );
+		$t = Db::table( 'commissions' );
+		// The partner of the order (one attribution per order): its program may have its own hold days.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$aff  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT affiliate_id FROM {$t} WHERE source = %s AND source_order_id = %s AND status IN ('pending','review') ORDER BY id ASC LIMIT 1", (string) $source, (string) $order_id ) );
 		$hold = self::hold_until(
 			array(
 				'source'     => (string) $source,
 				'order_id'   => (string) $order_id,
 				'paid_at'    => gmdate( 'Y-m-d H:i:s', (int) $from ),
 				'hold_until' => '',
-			)
+			),
+			$aff
 		);
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return (int) $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET hold_until = %s, updated_at = %s WHERE source = %s AND source_order_id = %s AND status IN ('pending','review') AND hold_until > %s", Db::now( $hold ), Db::now(), (string) $source, (string) $order_id, Db::now( $hold ) ) );
@@ -2218,22 +2222,25 @@ final class Ledger {
 	 * Hold-until timestamp: paid date + hold days, extended by integrations
 	 * (e.g. guarantee end) via the payload or the `wpac_hold_until` filter. The later date wins.
 	 *
-	 * @param array $sale Sale.
+	 * @param array $sale         Sale.
+	 * @param int   $affiliate_id Partner of the sale (0 = unknown): the hold days pass the filter
+	 *                            wpac_setting with the partner's program.
 	 * @return int
 	 */
-	public static function hold_until( array $sale ) {
+	public static function hold_until( array $sale, $affiliate_id = 0 ) {
 		$paid = $sale['paid_at'] ? strtotime( $sale['paid_at'] . ' UTC' ) : time();
-		$hold = $paid + DAY_IN_SECONDS * (int) Settings::get( 'hold_days' );
+		$hold = $paid + DAY_IN_SECONDS * max( 0, (int) Settings::for_affiliate( 'hold_days', (int) $affiliate_id ) );
 		if ( ! empty( $sale['hold_until'] ) ) {
 			$hold = max( $hold, (int) strtotime( $sale['hold_until'] . ' UTC' ) );
 		}
 		/**
 		 * Latest guarantee/withdrawal end for the order (UNIX timestamp). Only later dates extend the hold.
 		 *
-		 * @param int   $hold Timestamp.
-		 * @param array $sale Sale.
+		 * @param int   $hold         Timestamp.
+		 * @param array $sale         Sale.
+		 * @param int   $affiliate_id Partner of the sale (0 = unknown; since contract 1.5.0).
 		 */
-		$filtered = (int) apply_filters( 'wpac_hold_until', $hold, $sale );
+		$filtered = (int) apply_filters( 'wpac_hold_until', $hold, $sale, (int) $affiliate_id );
 		return max( $hold, $filtered );
 	}
 
@@ -2448,7 +2455,8 @@ final class Ledger {
 	/**
 	 * List commissions.
 	 *
-	 * @param array $args affiliate_id, status, kind, source, from, to (Y-m-d), order_id, limit, offset.
+	 * @param array $args affiliate_id, status, kind, source, from, to (Y-m-d), order_id, group_ids
+	 *                    (list: partners of these groups, empty = none), limit, offset.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -2504,6 +2512,17 @@ final class Ledger {
 		if ( ! empty( $args['affiliate_id'] ) ) {
 			$where   .= ' AND affiliate_id = %d';
 			$params[] = (int) $args['affiliate_id'];
+		}
+		if ( isset( $args['group_ids'] ) && is_array( $args['group_ids'] ) ) {
+			// Program filter (variant A: the partner's current group).
+			$groups = array_values( array_unique( array_map( 'intval', $args['group_ids'] ) ) );
+			if ( $groups ) {
+				$where .= ' AND affiliate_id IN (SELECT id FROM ' . Db::table( 'affiliates' ) . ' WHERE group_id IN (' . implode( ',', array_fill( 0, count( $groups ), '%d' ) ) . '))';
+				$params = array_merge( $params, $groups );
+			} else {
+				$where   .= ' AND 1 = %d';
+				$params[] = 0;
+			}
 		}
 		if ( ! empty( $args['status'] ) && in_array( $args['status'], self::STATUSES, true ) ) {
 			$where   .= ' AND status = %s';

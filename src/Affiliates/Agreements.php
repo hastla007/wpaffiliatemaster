@@ -18,14 +18,16 @@ final class Agreements {
 
 	/**
 	 * Current terms: page, version and SHA-256 of the page content.
-	 * A partner group may define its own terms page and version.
+	 * A partner group may define its own terms page and version; terms_page_id and terms_version
+	 * pass the filter wpac_setting with the group and its program as context.
 	 *
 	 * @param int $group_id Group (0 = program terms).
 	 * @return array { page_id, version, hash, url }
 	 */
 	public static function current( $group_id = 0 ) {
-		$page_id = (int) Settings::get( 'terms_page_id' );
-		$version = (string) Settings::get( 'terms_version' );
+		$context = array( 'group_id' => max( 0, (int) $group_id ) );
+		$page_id = (int) Settings::get( 'terms_page_id', $context );
+		$version = (string) Settings::get( 'terms_version', $context );
 		$group   = $group_id ? Groups::find( (int) $group_id ) : null;
 		if ( $group && (int) $group->terms_page_id ) {
 			$page_id = (int) $group->terms_page_id;

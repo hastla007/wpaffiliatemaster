@@ -155,7 +155,7 @@ final class AttributionResolver {
 				'sub_id'      => '',
 				'visit_id'    => 0,
 				'consent'     => 'cookie' === $candidates[0]['method'] ? 1 : 0,
-				'touch_model' => (string) Settings::get( 'touch_model' ),
+				'touch_model' => (string) Settings::for_affiliate( 'touch_model', isset( $candidates[0]['affiliate_id'] ) ? (int) $candidates[0]['affiliate_id'] : 0 ),
 				'review'      => false,
 				'note'        => '',
 			),

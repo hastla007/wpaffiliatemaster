@@ -829,7 +829,7 @@ final class RestApi {
 				},
 				PayoutRequests::available_all( (int) $aff->id )
 			),
-			'min_payout_minor'  => (int) Settings::get( 'min_payout_minor' ),
+			'min_payout_minor'  => max( 0, (int) Settings::for_affiliate( 'min_payout_minor', (int) $aff->id ) ),
 			'codes'             => array_values(
 				array_map(
 					static function ( $c ) {

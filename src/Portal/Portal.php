@@ -761,10 +761,11 @@ final class Portal {
 		 * the partnership ended only commissions, payouts, privacy and – while money is still to
 		 * be paid out – the payout details are shown).
 		 *
-		 * @param array  $tabs Tabs.
-		 * @param object $aff  Partner.
+		 * @param array  $tabs    Tabs.
+		 * @param object $aff     Partner.
+		 * @param string $program Program of the partner (wpac_affiliate_program(); since contract 1.5.0).
 		 */
-		$extra = apply_filters( 'wpac_portal_tabs', $tabs, $aff );
+		$extra = apply_filters( 'wpac_portal_tabs', $tabs, $aff, \WPAffiliateCaptain\Affiliates\Programs::of_affiliate( (int) $aff->id ) );
 		if ( is_array( $extra ) ) {
 			foreach ( array( 'overview', 'statistics', 'links', 'promotion', 'commissions', 'payouts' ) as $key ) {
 				if ( isset( $tabs[ $key ] ) && ! array_key_exists( $key, $extra ) ) {
@@ -880,10 +881,11 @@ final class Portal {
 		 * Labels of the partner area (white-label add-ons): return key => text, e.g.
 		 * array( 'tab_overview' => 'Dashboard', 'nav' => 'Partner programme' ). Since contract 1.3.0.
 		 *
-		 * @param array  $labels Labels to replace (empty by default).
-		 * @param object $aff    Partner.
+		 * @param array  $labels  Labels to replace (empty by default).
+		 * @param object $aff     Partner.
+		 * @param string $program Program of the partner (wpac_affiliate_program(); since contract 1.5.0).
 		 */
-		$labels = apply_filters( 'wpac_portal_labels', array(), $aff );
+		$labels = apply_filters( 'wpac_portal_labels', array(), $aff, \WPAffiliateCaptain\Affiliates\Programs::of_affiliate( (int) $aff->id ) );
 		$out    = array();
 		foreach ( is_array( $labels ) ? $labels : array() as $key => $text ) {
 			$text = is_scalar( $text ) ? trim( sanitize_text_field( (string) $text ) ) : '';
@@ -1173,7 +1175,7 @@ final class Portal {
 	 */
 	public static function conditions( $aff ) {
 		$rank    = array( 'global' => 1, 'group' => 2, 'affiliate' => 3 );
-		$base    = \WPAffiliateCaptain\Commissions\RuleRepository::default_rate();
+		$base    = \WPAffiliateCaptain\Commissions\RuleRepository::default_rate( (int) $aff->id );
 		$best    = null;
 		$special = 0;
 		foreach ( \WPAffiliateCaptain\Commissions\RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id ) as $r ) {
@@ -1195,15 +1197,19 @@ final class Portal {
 		if ( $special ) {
 			$out[ __( 'Special rates', 'affiliate-captain' ) ] = __( 'Some products or categories have their own rate; each commission in the list shows the rate used.', 'affiliate-captain' );
 		}
-		$days = (int) Settings::get( 'cookie_days' );
+		$days = (int) Settings::for_affiliate( 'cookie_days', (int) $aff->id );
 		/* translators: %d: days */
 		$out[ __( 'Referral valid for', 'affiliate-captain' ) ] = sprintf( _n( '%d day after the click', '%d days after the click', $days, 'affiliate-captain' ), $days );
-		$hold = (int) Settings::get( 'hold_days' );
+		$hold = max( 0, (int) Settings::for_affiliate( 'hold_days', (int) $aff->id ) );
 		/* translators: %d: days */
 		$out[ __( 'Hold period', 'affiliate-captain' ) ] = $hold > 0 ? sprintf( _n( '%d day (returns and cancellations), then the commission is approved', '%d days (returns and cancellations), then the commission is approved', $hold, 'affiliate-captain' ), $hold ) : __( 'None – commissions are approved right away', 'affiliate-captain' );
 		$group = (int) $aff->group_id ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) : null;
 		if ( $group ) {
 			$out[ __( 'Partner group', 'affiliate-captain' ) ] = (string) $group->name;
+		}
+		$program = \WPAffiliateCaptain\Affiliates\Programs::label( $aff ); // Filter wpac_portal_program_label ('' = no line).
+		if ( '' !== $program ) {
+			$out[ __( 'Partner program', 'affiliate-captain' ) ] = $program;
 		}
 		$plan = \WPAffiliateCaptain\Commissions\TierService::plan_for( $aff );
 		if ( $plan ) {
@@ -1213,7 +1219,7 @@ final class Portal {
 				$out[ __( 'Monthly bonus', 'affiliate-captain' ) ] = implode( '; ', $steps ) . '. ' . __( 'The bonus is calculated after the end of the month from the orders that were not refunded.', 'affiliate-captain' );
 			}
 		}
-		$min = (int) Settings::get( 'min_payout_minor' );
+		$min = max( 0, (int) Settings::for_affiliate( 'min_payout_minor', (int) $aff->id ) );
 		$out[ __( 'Minimum payout amount', 'affiliate-captain' ) ] = $min > 0 ? Money::format( $min, (string) Settings::get( 'currency' ) ) : __( 'No minimum amount', 'affiliate-captain' );
 		return $out;
 	}
