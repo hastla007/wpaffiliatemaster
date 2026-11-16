@@ -382,6 +382,7 @@
  "Affiliate Captain: this looks like a copy of the site.": "Affiliate Captain: Dies sieht nach einer Kopie der Website aus.",
  "Affiliate cookie": "Affiliate-Cookie",
  "Affiliate cookie is never set: no consent banner connected": "Affiliate-Cookie wird nie gesetzt: kein Consent-Banner angebunden",
+ "Affiliate cookie is set without consent": "Affiliate-Cookie wird ohne Einwilligung gesetzt",
  "Affiliate cookie only with consent (not \"always\")": "Affiliate-Cookie nur mit Einwilligung (nicht „immer“)",
  "Affiliate coupon has priority over partner links": "Affiliate-Gutschein hat Vorrang vor Partnerlinks",
  "Affiliate not found": "Partner nicht gefunden",
@@ -429,9 +430,9 @@
   "Ein Affiliate-Cookie (wpac_ref, %d Tag) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es.",
   "Ein Affiliate-Cookie (wpac_ref, %d Tage) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
  ],
- "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.": [
-  "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tag) gesetzt.",
-  "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tage) gesetzt."
+ "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link, without asking for your consent.": [
+  "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tag) gesetzt, ohne dass Ihre Einwilligung eingeholt wird.",
+  "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tage) gesetzt, ohne dass Ihre Einwilligung eingeholt wird."
  ],
  "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.": "Ein Affiliate-Cookie (wpac_ref, %d Tage) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es.",
  "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.": "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tage) gesetzt.",
@@ -1072,7 +1073,8 @@
  "Idempotency key": "Technische Kennung",
  "If you already have a shopping cart (shop session) or consented to marketing cookies, the partner code is kept in your shop session until checkout.": "Wenn Sie bereits einen Warenkorb (Shop-Sitzung) haben oder Marketing-Cookies zugestimmt haben, wird der Partnercode bis zur Bestellung in Ihrer Shop-Sitzung gehalten.",
  "If you can, restore the earlier key in wp-config.php. If it is lost, these links can no longer be matched to a customer (no lifetime commissions, not found by access or erasure requests): delete them. If only the WordPress salts were changed and the key itself is the same, confirm without deleting.": "Stellen Sie nach Möglichkeit den früheren Schlüssel in der wp-config.php wieder her. Ist er verloren, lassen sich diese Verknüpfungen keinem Kunden mehr zuordnen (keine Lifetime-Provisionen, von Auskunfts- und Löschanträgen nicht gefunden): Löschen Sie sie. Wurden nur die WordPress-Salts geändert und der Schlüssel selbst ist gleich geblieben, bestätigen Sie ohne Löschen.",
- "If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout.": "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode bis zur Kasse in Ihrer Shop-Sitzung gespeichert.",
+ "If you have a shopping cart (shop session), the partner code of the link you followed is also kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used.": "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode des aufgerufenen Links bis zur Kasse zusätzlich mit Ihrer Shop-Sitzung auf unserem Server gespeichert. Dafür wird kein weiteres Cookie gesetzt; es wird das Sitzungs-Cookie Ihres Warenkorbs verwendet.",
+ "If you have a shopping cart (shop session), the partner code of the link you followed is kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used. This does not depend on your consent to marketing cookies.": "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode des aufgerufenen Links bis zur Kasse mit Ihrer Shop-Sitzung auf unserem Server gespeichert. Dafür wird kein weiteres Cookie gesetzt; es wird das Sitzungs-Cookie Ihres Warenkorbs verwendet. Dies hängt nicht von Ihrer Einwilligung in Marketing-Cookies ab.",
  "If your e-mail address belongs to a partner account waiting to be connected, we have sent you a new link. Please check your e-mail (also the spam folder).": "Falls Ihre E-Mail-Adresse zu einem Partnerkonto gehört, das auf die Verknüpfung wartet, haben wir Ihnen einen neuen Link gesendet. Bitte prüfen Sie Ihre E-Mails (auch den Spam-Ordner).",
  "Ignored columns:": "Ignorierte Spalten:",
  "Image": "Bild",
@@ -1176,7 +1178,7 @@
  "Layout saved.": "Layout gespeichert.",
  "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both.": "Normalerweise leer lassen. Nur wenn Landingpages und Shop auf verschiedenen Subdomains laufen (z. B. www.example.com und shop.example.com): Tragen Sie die gemeinsame Domain .example.com ein, damit Empfehlungs-Cookie und Warenkorb-Rückfall auf beiden funktionieren.",
  "Leave empty to keep": "Leer lassen, um beizubehalten",
- "Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR).": "Rechtsgrundlagen: Zuordnung einer Bestellung zu einem Partner ohne Cookie: berechtigtes Interesse an der korrekten Vergütung des Partners (Art. 6 Abs. 1 lit. f DSGVO); Affiliate-Cookie und Lesen der vorherigen Seite: Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 TDDDG); Partnerprogramm, Provisionen und Auszahlungen: Vertrag mit dem Partner (Art. 6 Abs. 1 lit. b DSGVO); Buchhaltung und Aufbewahrung der Gutschriften: rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c DSGVO, § 147 AO / § 132 BAO / Art. 958f OR).",
+ "Legal bases:": "Rechtsgrundlagen:",
  "Legal name": "Rechtlicher Name",
  "Level": "Stufe",
  "Level %1$d sent on %2$s": "Stufe %1$d gesendet am %2$s",
@@ -1394,6 +1396,7 @@
  "Not understood: %s. Use one line per currency, e.g. USD=0.92.": "Nicht verstanden: %s. Bitte eine Zeile pro Währung, z. B. USD=0.92.",
  "Note": "Notiz",
  "Note for partners": "Hinweis für Partner",
+ "Note for the shop operator: the affiliate cookie is set without consent (cookie mode \"Always, without consent\"). Storing and reading information on the visitor's device without consent is only allowed if it is strictly necessary for a service the visitor explicitly requested (§ 25(2) no. 2 TDDDG, Art. 5(3) ePrivacy Directive). Affiliate cookies are usually not considered strictly necessary, so in the EU they usually require consent. Have this assessed by your data protection advisor and complete the legal basis, or switch the affiliate cookie to \"Only with marketing consent\".": "Hinweis für den Shopbetreiber: Das Affiliate-Cookie wird ohne Einwilligung gesetzt (Cookie-Modus „Immer, ohne Einwilligung“). Informationen ohne Einwilligung auf dem Endgerät zu speichern und auszulesen, ist nur zulässig, wenn dies für einen vom Besucher ausdrücklich gewünschten Dienst unbedingt erforderlich ist (§ 25 Abs. 2 Nr. 2 TDDDG, Art. 5 Abs. 3 ePrivacy-Richtlinie). Affiliate-Cookies gelten in der Regel nicht als unbedingt erforderlich und benötigen in der EU daher meist eine Einwilligung. Lassen Sie dies von Ihrer Datenschutzberatung prüfen und ergänzen Sie die Rechtsgrundlage, oder stellen Sie das Affiliate-Cookie auf „Nur mit Marketing-Einwilligung“ um.",
  "Nothing payable any more (changed meanwhile) – carried forward": "Nichts mehr auszahlbar (inzwischen geändert) – vorgetragen",
  "Nothing was saved.": "Es wurde nichts gespeichert.",
  "Notices to partners": "Benachrichtigungen an Partner",
@@ -1494,6 +1497,10 @@
  "Orders in other currencies are compared after conversion with the reference exchange rates; without a rate for a currency this rule cannot check them (a warning is logged).": "Bestellungen in anderen Währungen werden nach Umrechnung mit den Referenz-Wechselkursen verglichen; ohne Kurs für eine Währung kann diese Regel sie nicht prüfen (eine Warnung wird protokolliert).",
  "Orders on this credit note: %s. A later refund or cancellation of these orders is deducted from the partner account automatically – do not include it in a correction credit note, or the partner is charged twice.": "Bestellungen auf dieser Gutschrift: %s. Eine spätere Erstattung oder Stornierung dieser Bestellungen wird automatisch vom Partnerkonto abgezogen – nehmen Sie sie nicht in eine Korrekturgutschrift auf, sonst wird dem Partner doppelt abgezogen.",
  "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon.": "Bestellungen mit diesem Gutschein werden dem Partner zugeordnet. Den Rabatt steuert weiterhin der Gutschein.",
+ "Other (campaigns and sub-IDs with fewer than %d sale)": [
+  "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Verkauf)",
+  "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Verkäufen)"
+ ],
  "Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.": "Andere Auszahlungsarten sind nicht in der SEPA-Datei enthalten: Die Überweisungsliste enthält die Zahlungsangaben; zahlen Sie manuell und markieren Sie die Auszahlung dann als bezahlt.",
  "Other payment method": "Andere Auszahlungsart",
  "Other payment method (e.g. PayPal), paid manually": "Andere Auszahlungsart (z. B. PayPal), manuelle Zahlung",
@@ -1512,7 +1519,9 @@
  "Pages created": "Seiten angelegt",
  "Pages created and selected in the settings.": "Seiten angelegt und in den Einstellungen ausgewählt.",
  "Pages recommended as partner targets, with personal partner links.": "Als Partner-Ziel empfohlene Seiten mit persönlichen Partnerlinks.",
+ "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is not stored.": "Seiten aus einem Cache melden den Partnercode in der Seitenadresse mit einem kleinen Skript an unseren Server (dieselben Angaben, die der Seitenaufruf selbst enthält: Partnercode, Kampagne, Seite). Die Adresse der vorherigen Website wird nicht gespeichert.",
  "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.": "Seiten aus einem Cache melden den Partnercode in der Seitenadresse mit einem kleinen Skript an unseren Server (dieselben Angaben, die der Seitenaufruf selbst enthält: Partnercode, Kampagne, Seite). Die Adresse der vorherigen Website wird nur als Hostname und nur mit Ihrer Marketing-Einwilligung übermittelt.",
+ "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is sent only as its host name, without asking for your consent.": "Seiten aus einem Cache melden den Partnercode in der Seitenadresse mit einem kleinen Skript an unseren Server (dieselben Angaben, die der Seitenaufruf selbst enthält: Partnercode, Kampagne, Seite). Die Adresse der vorherigen Website wird nur als Hostname übermittelt, ohne dass Ihre Einwilligung eingeholt wird.",
  "Paid": "Bezahlt",
  "Paid by the issuer of this credit note (recipient of the service) by transfer with the payout; the partner does not have to pay anything.": "Zahlung durch den Aussteller dieser Gutschrift (Leistungsempfänger) per Überweisung mit der Auszahlung; der Partner muss nichts zahlen.",
  "Paid in total": "Insgesamt ausgezahlt",
@@ -2482,6 +2491,10 @@
  "To": "Bis",
  "To delete your data or get a copy, use the %1$s tab. To end the partnership, write to %2$s.": "Um Ihre Daten zu löschen oder eine Kopie zu erhalten, nutzen Sie den Tab %1$s. Um die Partnerschaft zu beenden, schreiben Sie an %2$s.",
  "To end the partnership or delete your data, write to %s.": "Um die Partnerschaft zu beenden oder Ihre Daten zu löschen, schreiben Sie an %s.",
+ "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as \"Other\". Rows with link visits only are shown on their own.": [
+  "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %d Verkauf im Zeitraum zusammen als „Sonstige“ angezeigt. Zeilen nur mit Linkaufrufen werden einzeln angezeigt.",
+  "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %d Verkäufen im Zeitraum zusammen als „Sonstige“ angezeigt. Zeilen nur mit Linkaufrufen werden einzeln angezeigt."
+ ],
  "Too many attempts. Please try again later.": "Zu viele Versuche. Bitte versuchen Sie es später erneut.",
  "Too many attempts. Please wait 15 minutes and try again.": "Zu viele Versuche. Bitte warten Sie 15 Minuten und versuchen Sie es dann erneut.",
  "Too many attempts. Please wait a minute and try again.": "Zu viele Versuche. Bitte warten Sie eine Minute und versuchen Sie es erneut.",
@@ -2787,7 +2800,10 @@
   "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung; danach behalten die Provisionszeilen der Bestellung nur Partner, Beträge und Daten (Bestellnummer pseudonymisiert, Produkt und Buchungstexte gelöscht)"
  ],
  "attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order": "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
+ "attribution of an order to a partner without cookie and keeping the partner code in the shop session: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)": "Zuordnung einer Bestellung zu einem Partner ohne Cookie und Speichern des Partnercodes in der Shop-Sitzung: berechtigtes Interesse an der korrekten Vergütung des Partners (Art. 6 Abs. 1 lit. f DSGVO)",
+ "attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)": "Zuordnung einer Bestellung zu einem Partner ohne Cookie: berechtigtes Interesse an der korrekten Vergütung des Partners (Art. 6 Abs. 1 lit. f DSGVO)",
  "being reviewed": "wird geprüft",
+ "bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)": "Buchhaltung und Aufbewahrung der Gutschriften: rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c DSGVO, § 147 AO / § 132 BAO / Art. 958f OR)",
  "cancellation": "Stornierung",
  "cancels %s": "storniert %s",
  "cannot be checked (no exchange rate for %s)": "kann nicht geprüft werden (kein Wechselkurs für %s)",
@@ -2883,6 +2899,7 @@
  "partner group #%s does not exist – use an existing group or leave the cell empty": "Partnergruppe #%s existiert nicht – verwenden Sie eine bestehende Gruppe oder lassen Sie die Zelle leer",
  "partner program": "Partnerprogramm",
  "partner program terms": "Partnerbedingungen",
+ "partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR)": "Partnerprogramm, Provisionen und Auszahlungen: Vertrag mit dem Partner (Art. 6 Abs. 1 lit. b DSGVO)",
  "payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), ": "Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ",
  "per product sold": "pro verkauftem Produkt",
  "per unit": "pro Stück",
@@ -2909,6 +2926,8 @@
  "since %s": "seit %s",
  "small business, no VAT": "Kleinunternehmer, keine USt",
  "stored": "gespeichert",
+ "storing and reading the affiliate cookie on your device and reading the previous page without consent: [legal basis to be assessed and completed by the shop operator]": "Speichern und Auslesen des Affiliate-Cookies auf Ihrem Endgerät und Lesen der vorherigen Seite ohne Einwilligung: [Rechtsgrundlage vom Shopbetreiber zu prüfen und zu ergänzen]",
+ "storing and reading the affiliate cookie on your device and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25(1) TDDDG)": "Speichern und Auslesen des Affiliate-Cookies auf Ihrem Endgerät und Lesen der vorherigen Seite: Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG)",
  "tax number or VAT ID (small business)": "Steuernummer oder USt-IdNr. (Kleinunternehmen)",
  "tax status": "Steuerstatus",
  "the commission rule was not created – add it under Commission rules": "die Provisionsregel wurde nicht angelegt – legen Sie sie unter Provisionsregeln an",

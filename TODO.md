@@ -691,8 +691,8 @@ Kompatibilität
 - [ ] **R12-L1** USt-Behandlung nachträglich erhöhter Positionen (`increase`) übernimmt die der ursprünglichen Gutschrift.
 - [ ] **R12-L2** Kleinunternehmer im EU-Ausland werden als Reverse Charge behandelt (EU-Kleinunternehmerregelung ab 2025, § 19a UStG).
 - [ ] **R12-L3** Getrennter Ausweis je Steuersatz in einer KG bei gemischten Behandlungen; eigener KG-Nummernkreis zulässig?
-- [ ] **R12-L4** Rechtsgrundlage Cookie (§ 25 TDDDG): Text nennt pauschal Einwilligung, auch bei `cookie_mode='always'`; `use_wc_session` speichert Zuordnung ohne Einwilligung.
-- [ ] **R12-L5** sub_id-Bericht kann Rückschlüsse auf einzelne Käufer erlauben, wenn Partner eindeutige sub_ids vergeben.
+- [x] **R12-L4** Rechtsgrundlage Cookie (§ 25 TDDDG): Text nennt pauschal Einwilligung, auch bei `cookie_mode='always'`; `use_wc_session` speichert Zuordnung ohne Einwilligung. **Erledigt (0.15.x):** Datenschutztext je Cookie-Modus: „consent“ → Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG; „always“ → keine Rechtsgrundlage behauptet, Platzhalter + Betreiberhinweis (`privacy-policy-tutorial`, § 25 Abs. 2 Nr. 2 TDDDG, in der EU meist Einwilligung nötig), gleiche Empfehlung in Site Health; Shop-Sitzung als serverseitige Speicherung ohne eigenes Cookie mit Art. 6 Abs. 1 lit. f DSGVO beschrieben; Referrer-Satz je Modus. Standardwerte unverändert; HANDBOOK/Verarbeitungsverzeichnis angepasst (Prüfung durch Datenschutzberatung empfohlen).
+- [x] **R12-L5** sub_id-Bericht kann Rückschlüsse auf einzelne Käufer erlauben, wenn Partner eindeutige sub_ids vergeben. **Erledigt (0.15.x):** Mindestgruppengröße im Partnerbereich (`Reports::partner_campaigns_page()`/`partner_cached('campaigns')`): Zeilen mit 1 bis N−1 Verkäufen (N = 3, Filter `wpac_subid_min_group`, 1 = aus) werden zu „Sonstige“ zusammengefasst; reine Klickzeilen und die Zeile ohne Kampagne/Sub-ID bleiben; Admin-Berichte unverändert; Hinweis unter der Tabelle. Provisionsliste, CSV und `/me/commissions` enthalten keine Kampagne/Sub-ID je Bestellung.
 
 ## Audit-Panel (2026-11-15, Runde 13, Stand 0.13.0 vor Release)
 

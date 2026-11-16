@@ -8794,6 +8794,13 @@ msgid_plural "%1$s more orders to %2$s."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: minimum number of sales per row
+#: src/Portal/Portal.php
+msgid "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgid_plural "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sales in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Portal/Portal.php
 msgid "The link has expired."
 msgstr ""
@@ -9767,8 +9774,8 @@ msgstr[1] ""
 
 #. translators: %d: days
 #: src/Privacy/Privacy.php
-msgid "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link."
-msgid_plural "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link."
+msgid "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link, without asking for your consent."
+msgid_plural "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link, without asking for your consent."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -10055,11 +10062,19 @@ msgid "payment provider of the other payment method chosen by the partner (e.g. 
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Note for the shop operator: the affiliate cookie is set without consent (cookie mode \"Always, without consent\"). Storing and reading information on the visitor's device without consent is only allowed if it is strictly necessary for a service the visitor explicitly requested (§ 25(2) no. 2 TDDDG, Art. 5(3) ePrivacy Directive). Affiliate cookies are usually not considered strictly necessary, so in the EU they usually require consent. Have this assessed by your data protection advisor and complete the legal basis, or switch the affiliate cookie to \"Only with marketing consent\"."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout."
+msgid "If you have a shopping cart (shop session), the partner code of the link you followed is also kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "If you have a shopping cart (shop session), the partner code of the link you followed is kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used. This does not depend on your consent to marketing cookies."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10071,7 +10086,15 @@ msgid "This link is only created for purchases with a customer account that earn
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is sent only as its host name, without asking for your consent."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is not stored."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10115,7 +10138,31 @@ msgid "Storage periods:"
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)."
+msgid "attribution of an order to a partner without cookie and keeping the partner code in the shop session: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "storing and reading the affiliate cookie on your device and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25(1) TDDDG)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "storing and reading the affiliate cookie on your device and reading the previous page without consent: [legal basis to be assessed and completed by the shop operator]"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Legal bases:"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10230,6 +10277,13 @@ msgstr ""
 #: src/Reports/MonthlyMail.php
 msgid "Partner program %s"
 msgstr ""
+
+#. translators: %d: minimum number of sales per row
+#: src/Reports/Reports.php
+msgid "Other (campaigns and sub-IDs with fewer than %d sale)"
+msgid_plural "Other (campaigns and sub-IDs with fewer than %d sales)"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Reports/Reports.php
 msgid "(no content / direct)"
@@ -10348,6 +10402,10 @@ msgstr ""
 #. translators: %s: cookie name
 #: src/Tracking/Tracker.php
 msgid "This host only passes allow-listed cookies to WordPress; \"%s\" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Affiliate cookie is set without consent"
 msgstr ""
 
 #: src/Tracking/Tracker.php
