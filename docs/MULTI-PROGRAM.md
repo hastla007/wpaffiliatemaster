@@ -1,6 +1,6 @@
-# Mehrere Partnerprogramme (MP-1) – Entwurf zur Abstimmung
+# Mehrere Partnerprogramme (MP-1) – Entwurf und Stand
 
-> Stand 16.11.2026. **Entwurf, noch nicht gebaut.** Der Inhaber hat entschieden, dass ein Add-on (`affiliate.multiple_programs` in captain-pro) mehrere Partnerprogramme anbietet. Gebaut wird die Funktion im Add-on; der Kern bekommt nur neutrale Erweiterungspunkte und kennt weder Lizenz noch Tarif. Offen ist die Wahl der Variante (Entscheidung E4). Die Bestandsaufnahme, wo der Kern heute von genau einem Programm ausgeht, steht in `TODO.md` unter MP-1.
+> Stand 16.11.2026. **Variante A ist im Kern gebaut** (Entscheidung des Inhabers vom 16.11.2026, Vertrag 1.5.0, Plugin 0.15.0); beschrieben in `docs/CONTRACT.md`, Abschnitt „Partnerprogramme (seit Vertrag 1.5.0)“, geprüft in `tests/integration/r14-mp1.php`. Variante B bleibt ein Entwurf. Der Inhaber hat entschieden, dass ein Add-on (`affiliate.multiple_programs` in captain-pro) mehrere Partnerprogramme anbietet. Gebaut wird die Funktion im Add-on; der Kern bekommt nur neutrale Erweiterungspunkte und kennt weder Lizenz noch Tarif. Die Bestandsaufnahme, wo der Kern heute von genau einem Programm ausgeht, steht in `TODO.md` unter MP-1.
 >
 > Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 
@@ -13,7 +13,7 @@
 
 Variante A lässt sich später zu B ausbauen, ohne die Hooks aus A zu brechen.
 
-## 2. Variante A – Erweiterungspunkte im Kern
+## 2. Variante A – Erweiterungspunkte im Kern (gebaut)
 
 Programm-Schlüssel = `group:<group_id>` (leer = Standardprogramm). Vertrag 1.5.0, kein Schemawechsel.
 
@@ -29,6 +29,15 @@ Programm-Schlüssel = `group:<group_id>` (leer = Standardprogramm). Vertrag 1.5.
 Unverändert in A: ein Cookie (`wpac_ref`), eine Zuordnung je Bestellung, Auszahlungen/Guthaben/Belegnummern je Partner und Währung.
 
 **Aufwand A:** mittel (etwa `Settings`, `Calculator`, `Ledger`, `Tracker`, `PayoutService`, `Portal`, `Reports`, `PublicApi`, `functions.php`, Vertrag, Tests).
+
+### Umsetzung (16.11.2026)
+
+- **A1:** `Settings::get( $key, $context )` – der Filter `wpac_setting` läuft nur mit Kontext und nur, wenn ein Callback hängt; ohne Callback ist jeder Wert wie vorher. Kontext übergeben: Provisionsberechnung (`RuleRepository::default_rate( $affiliate_id )`), Sperrfrist (`Ledger::hold_until( $sale, $affiliate_id )`, `restart_hold()`, WooCommerce „Sperrfrist ab Abschluss“), Cookie-Laufzeit und Zuordnungsfenster (`Tracker::cookie_days()`), Zuordnungsmodell (Modell des früheren Referrals; in der Zuordnung gespeichert), Mindestauszahlung (`Fx::min_payout( $currency, $affiliate_id )` in Auszahlungslauf, Antrag, Admin-Hinweis, REST `/me`), Bedingungsseite (`Agreements::current()` mit Gruppe), Konditionen im Partnerbereich. Bewusst ohne Kontext: Monatsbonus-Abschluss (`TierService::is_due()`, monatsweit), Datenschutztexte, die allgemeine Anzeige „Mindestauszahlung“ im Admin.
+- **A2:** `wpac_affiliate_program()` und `Affiliates\Programs::of_affiliate()` mit Filter `wpac_affiliate_program`; dazu `wpac_program_groups` (welche Gruppen zu einem Programm gehören – für Listen und Berichte).
+- **A3:** Feld `program` in `wpac_get_affiliate(s)()` und `wpac_get_commission(s)()` (aktuelles Programm des Partners), Argument `program` in beiden Listen (`wpac_invalid_program` bei ungültigem Schlüssel).
+- **A4:** `$program` in `Reports::partners()`, `by_dimension()`, `cached()` (eigener Cache-Schlüssel) und im Filter `wpac_report_partners`; Auswahl „Programm“ im Dashboard und CSV-Export nur, wenn `wpac_report_programs` Programme liefert.
+- **A5:** `wpac_portal_program_label` (Zeile „Partnerprogramm“ in den Konditionen) und dritter Parameter `$program` in `wpac_portal_tabs`/`wpac_portal_labels`.
+- **A6:** `wpac_affiliate_program_changed( $affiliate_id, $from, $to )` bei Gruppenwechsel (`AffiliateRepository::update()`, also Admin und `wpac_update_affiliate()`) und beim Löschen einer Gruppe; nicht beim Anlegen. Programmwahl bei der Bewerbung = vorhandene Gruppe je Formular (Handbuch).
 
 ## 3. Variante B – zusätzlich zu A
 

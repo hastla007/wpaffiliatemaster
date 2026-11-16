@@ -222,15 +222,68 @@ final class Settings {
 	/**
 	 * One setting (or runtime state, see RUNTIME).
 	 *
-	 * @param string $key Key.
+	 * With a context (the partner or partner group the value is needed for) the value passes the
+	 * filter wpac_setting, so an add-on can return a different value per program (variant A of
+	 * docs/MULTI-PROGRAM.md). Without a context, or without a callback on the filter, the stored
+	 * value is returned unchanged.
+	 *
+	 * @param string $key     Key.
+	 * @param array  $context Optional: affiliate_id, group_id, program (completed by context()).
 	 * @return mixed
 	 */
-	public static function get( $key ) {
+	public static function get( $key, array $context = array() ) {
 		if ( isset( self::RUNTIME[ $key ] ) ) {
 			return self::state( $key );
 		}
-		$all = self::all();
-		return array_key_exists( $key, $all ) ? $all[ $key ] : null;
+		$all   = self::all();
+		$value = array_key_exists( $key, $all ) ? $all[ $key ] : null;
+		if ( ! $context || ( function_exists( 'has_filter' ) && false === has_filter( 'wpac_setting' ) ) ) {
+			return $value;
+		}
+		/**
+		 * A setting for one partner, partner group or program (e.g. default_rate, default_rate_type,
+		 * hold_days, cookie_days, min_payout_minor, touch_model, terms_page_id, terms_version).
+		 * Only applied where the core knows the partner or group; return $value unchanged for
+		 * keys and programs you do not handle. Since contract 1.5.0.
+		 *
+		 * @param mixed  $value   Stored value (type as in the settings).
+		 * @param string $key     Setting key.
+		 * @param array  $context { affiliate_id (0 = unknown), group_id (0 = none), program (key, '' = default program) }.
+		 */
+		return apply_filters( 'wpac_setting', $value, (string) $key, self::context( $context ) );
+	}
+
+	/**
+	 * A setting for a partner (Settings::get() with the partner as context; 0 = no context).
+	 *
+	 * @param string $key          Key.
+	 * @param int    $affiliate_id Partner.
+	 * @return mixed
+	 */
+	public static function for_affiliate( $key, $affiliate_id ) {
+		return (int) $affiliate_id > 0 ? self::get( $key, array( 'affiliate_id' => (int) $affiliate_id ) ) : self::get( $key );
+	}
+
+	/**
+	 * Complete a context of wpac_setting: the group and program of the partner, the program of the
+	 * group.
+	 *
+	 * @param array $context affiliate_id, group_id, program (each optional).
+	 * @return array { affiliate_id, group_id, program }
+	 */
+	public static function context( array $context ) {
+		$aff   = isset( $context['affiliate_id'] ) ? max( 0, (int) $context['affiliate_id'] ) : 0;
+		$group = isset( $context['group_id'] ) ? max( 0, (int) $context['group_id'] ) : \WPAffiliateCaptain\Affiliates\Programs::group_of( $aff );
+		if ( isset( $context['program'] ) && null !== \WPAffiliateCaptain\Affiliates\Programs::clean( $context['program'] ) ) {
+			$program = (string) \WPAffiliateCaptain\Affiliates\Programs::clean( $context['program'] );
+		} else {
+			$program = $aff ? \WPAffiliateCaptain\Affiliates\Programs::of_affiliate( $aff ) : \WPAffiliateCaptain\Affiliates\Programs::for_group( $group );
+		}
+		return array(
+			'affiliate_id' => $aff,
+			'group_id'     => $group,
+			'program'      => $program,
+		);
 	}
 
 	/**

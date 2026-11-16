@@ -83,7 +83,7 @@ final class WooCommerce {
 		add_action( 'woocommerce_saved_order_items', array( OrderSync::class, 'items_changed' ), 20 );
 		// No release while the order is on hold or disputed; optional hold period from completion.
 		add_filter( 'wpac_hold_release', array( OrderSync::class, 'hold_release' ), 10, 3 );
-		add_filter( 'wpac_hold_until', array( OrderSync::class, 'hold_until' ), 10, 2 );
+		add_filter( 'wpac_hold_until', array( OrderSync::class, 'hold_until' ), 10, 3 );
 		add_filter( 'wpac_run_job', array( OrderSync::class, 'run_job' ), 10, 3 );
 		// WooCommerce Subscriptions must not copy the partner code/touch to renewals (loaded by then).
 		add_action( 'init', array( OrderSync::class, 'register_subscription_hooks' ), 1 );
