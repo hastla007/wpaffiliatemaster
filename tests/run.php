@@ -716,5 +716,30 @@ if ( is_readable( $r16_root . '/TODO.md' ) ) {
 	check( 'R16-10 TODO.md overview matches the counted boxes', array( (string) preg_match_all( '/^\s*- \[x\]/m', $r16_todo ), (string) preg_match_all( '/^\s*- \[ \]/m', $r16_todo ) ), preg_match( '/^\*\*Übersicht[^\n]*?(\d+) erledigt, (\d+) offen/mu', $r16_todo, $r16_m ) ? array( $r16_m[1], $r16_m[2] ) : array() );
 }
 
+// PHP-1 (preparation): every statement of the PHP minimum names the same version, so raising it
+// after decision E10 is one consistent change (header is the reference).
+$php1_root = dirname( __DIR__ );
+$php1_read = static function ( $f ) use ( $php1_root ) {
+	return (string) file_get_contents( $php1_root . '/' . $f );
+};
+$php1_min  = preg_match( '/^\s*\*\s*Requires PHP:\s*(\d+\.\d+)/m', $php1_read( 'affiliate-captain.php' ), $php1_m ) ? $php1_m[1] : '';
+$php1_id   = $php1_min ? str_replace( '.', '0', $php1_min ) . '00' : '';
+$php1_ci   = $php1_read( '.github/workflows/ci.yml' );
+check(
+	'PHP-1 PHP minimum agrees in header, runtime check, readme, README, composer, phpcs, phpstan and the CI minimum-versions job',
+	array( true, true, true, true, true, true, true, true, true ),
+	array(
+		'' !== $php1_min,
+		false !== strpos( $php1_read( 'affiliate-captain.php' ), "version_compare( PHP_VERSION, '{$php1_min}', '<' )" ),
+		1 === preg_match( '/^Requires PHP:\s*' . preg_quote( $php1_min, '/' ) . '\s*$/m', $php1_read( 'readme.txt' ) ),
+		false !== strpos( $php1_read( 'readme.txt' ), "PHP {$php1_min}+" ),
+		false !== strpos( $php1_read( 'README.md' ), "PHP {$php1_min}+" ),
+		false !== strpos( $php1_read( 'composer.json' ), '"php": ">=' . $php1_min . '"' ),
+		false !== strpos( $php1_read( 'phpcs.xml.dist' ), 'name="testVersion" value="' . $php1_min . '-"' ),
+		false !== strpos( $php1_read( 'phpstan.neon.dist' ), 'phpVersion: ' . $php1_id ),
+		1 === preg_match( '/Minimum versions \([^)]*PHP ' . preg_quote( $php1_min, '/' ) . '\)/', $php1_ci ) && false !== strpos( $php1_ci, 'php-version: "' . $php1_min . '"' ),
+	)
+);
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );
