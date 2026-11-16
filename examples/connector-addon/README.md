@@ -4,6 +4,8 @@ This example plugin shows how an add-on can report paid sales and refunds from a
 
 This is a generic starter for future integrations. LearnBoating already has its own project-specific connector in the LearnBoating repository; this example does not replace it.
 
+A project connector (for example for BoatingSchool or LearnBoating) is its own plugin and brings its own licence and licence check; Affiliate Captain itself checks no licence and contains no project code.
+
 ## Install
 
 1. Copy this folder into `wp-content/plugins/` on a WordPress site that runs Affiliate Captain.
