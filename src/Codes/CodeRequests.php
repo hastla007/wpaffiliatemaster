@@ -515,7 +515,7 @@ final class CodeRequests {
 		 * @param int    $affiliate_id Partner.
 		 * @param string $code         Code.
 		 * @param string $reason       Reason sent to the partner.
-		 * @param int    $row_id       Deleted row in partner_codes (since 0.15.0, for the workflow event).
+		 * @param int    $row_id       Deleted row in partner_codes.
 		 */
 		$code = (string) $row->code;
 		$rid  = (int) $row->id;
