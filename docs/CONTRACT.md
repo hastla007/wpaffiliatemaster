@@ -242,6 +242,7 @@ Ereignisse sind Benachrichtigungen ohne Kundendaten (Ausnahmen: `wpac_contract_n
 | `wpac_reauth_ttl` ( `$seconds`, `$user_id` ) | Filter | Gültigkeit einer Passwortbestätigung in der Login-Sitzung (Standard 900 s, 0 = jede Aktion fragt). Seit Plugin 0.15.0. |
 | `wpac_reauth_verify` ( `$result`, `$user` ) | Filter | Zweiter Faktor der Passwortbestätigung für 2FA-Plugins ohne Two-Factor-API (Wordfence, miniOrange …): `true` annehmen, `WP_Error` (Meldung wird gezeigt) oder `false` ablehnen. Läuft nach korrektem Passwort; `$result` ist das Ergebnis des Two-Factor-Plugins, falls aktiv; die Formularfelder stehen in `$_POST`. Seit Plugin 0.15.0. |
 | `wpac_reauth_form` ( `$user` ) | Action | Zusätzliche Felder im Bestätigungsformular ausgeben (z. B. Codefeld, das in `wpac_reauth_verify` geprüft wird). Seit Plugin 0.15.0. |
+| `wpac_minimum_db_versions` ( `$versions` ) | Filter | Mindestversionen des Datenbankservers, ab denen Website-Zustand nicht warnt: `array( 'mysql' => '9.7', 'mariadb' => '12.3' )` (Konstanten `WPAffiliateCaptain\Core\Requirements::MYSQL`/`MARIADB`). Ungültige Werte (keine Versionsnummer) werden ignoriert. Ein älterer Server wird nie blockiert, nur gemeldet (Prüfung `db_server`, Status „empfohlen“, keine Alarm-Mail). Seit Plugin 0.16.0. |
 
 **Plugin-Log:** WooCommerce → Status → Protokolle, Quelle `affiliate-captain` (bis 0.10 `wp-affiliate-captain`); ohne WooCommerce das PHP-Fehlerprotokoll (`Affiliate Captain error: …`). Einträge zu Exceptions enthalten Klasse, Fehlercode, Datei und Zeile, nie personenbezogene Daten.
 

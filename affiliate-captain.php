@@ -3,9 +3,9 @@
  * Plugin Name:       Affiliate Captain
  * Plugin URI:        https://github.com/hastla007/wpaffiliatemaster
  * Description:       Your own partner program in WordPress: affiliate applications, partner codes and referral links, attribution, commission ledger with refund corrections, payouts with SEPA export and an affiliate portal.
- * Version:           0.15.0
+ * Version:           0.16.0
  * Requires at least: 6.3
- * Requires PHP:      7.4
+ * Requires PHP:      8.5
  * Author:            Affiliate Captain
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -18,6 +18,18 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+
+// Before the takeover below: on an unsupported PHP version an old copy keeps serving the site
+// instead of being replaced by a copy that cannot run (PHP-1).
+if ( version_compare( PHP_VERSION, '8.5', '<' ) ) {
+	add_action(
+		'admin_notices',
+		static function () {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain requires PHP 8.5 or newer.', 'affiliate-captain' ) . '</p></div>';
+		}
+	);
+	return;
+}
 
 /*
  * Until 0.10 the plugin lived in the folder "wp-affiliate-captain" (WordPress.org does not allow
@@ -35,23 +47,13 @@ if ( defined( 'WPAC_VERSION' ) ) {
 	return;
 }
 
-define( 'WPAC_VERSION', '0.15.0' );
+define( 'WPAC_VERSION', '0.16.0' );
 define( 'WPAC_DB_VERSION', 16 );
 /** Version of the public integration contract (hooks + payload schema). */
 define( 'WPAC_CONTRACT_VERSION', '1.5.0' );
 define( 'WPAC_FILE', __FILE__ );
 define( 'WPAC_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WPAC_URL', plugin_dir_url( __FILE__ ) );
-
-if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
-	add_action(
-		'admin_notices',
-		static function () {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain requires PHP 7.4 or newer.', 'affiliate-captain' ) . '</p></div>';
-		}
-	);
-	return;
-}
 
 // PSR-4 autoloader (Composer's autoloader is used when present).
 if ( file_exists( WPAC_DIR . 'vendor/autoload.php' ) ) {

@@ -1574,6 +1574,7 @@ require __DIR__ . '/r15-l1.php'; // Package L1 (R12-L4/L5: privacy text, sub-ID 
 require __DIR__ . '/r15-l2.php'; // Package L2 (suite integration: dedup across sales sources, no buyer data for partners; before r8-render).
 require __DIR__ . '/r15-l3.php'; // Package L3 (0.15.0): domain actions after COMMIT, also in an outer transaction (before r8-render).
 require __DIR__ . '/r14-mp1.php'; // Feature mp1 (0.15.0, contract 1.5.0): several partner programs, variant A (before r8-render).
+require __DIR__ . '/r14-php1.php'; // PHP-1 / E10: database server minimum, Site Health warning (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

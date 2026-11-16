@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.15.0\n"
+"Project-Id-Version: Affiliate Captain 0.16.0\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -5257,6 +5257,12 @@ msgstr "Unbekanntes Argument „%s“."
 
 msgid "Invalid value for \"%s\"."
 msgstr "Ungültiger Wert für „%s“."
+
+msgid "The database server is older than the supported minimum"
+msgstr "Der Datenbankserver ist älter als die unterstützte Mindestversion"
+
+msgid "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer; this site uses %3$s %4$s. The plugin keeps working and nothing is blocked, but older database servers are no longer tested. Ask your host for an update."
+msgstr "Affiliate Captain unterstützt MySQL %1$s oder neuer und MariaDB %2$s oder neuer; diese Website nutzt %3$s %4$s. Das Plugin arbeitet weiter und nichts wird blockiert, ältere Datenbankserver werden aber nicht mehr getestet. Bitten Sie Ihren Hoster um ein Update."
 
 msgid "Advertisement"
 msgstr "Werbung"

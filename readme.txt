@@ -3,8 +3,8 @@ Contributors: wpaffiliatecaptain
 Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
-Requires PHP: 7.4
-Stable tag: 0.15.0
+Requires PHP: 8.5
+Stable tag: 0.16.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,7 @@ Legal note: cookie consent, VAT treatment of credit notes and retention periods 
 4. Recommended in wp-config.php: `define( 'WPAC_ENCRYPTION_KEY', '<64 hex characters>' );` and `define( 'WPAC_STATEMENT_DIR', '/path/outside/webroot' );`
 5. Moving from another affiliate plugin? Import your partners under Affiliate Captain → Import & export.
 
-Requirements: WordPress 6.3+, PHP 7.4+ with the extensions sodium and dom (zip for the program export). WooCommerce is optional (8.0+).
+Requirements: WordPress 6.3+, PHP 8.5+ with the extensions sodium and dom (zip for the program export), MySQL 9.7+ or MariaDB 12.3+ (an older database server is not blocked, Site Health shows a warning). WooCommerce is optional (8.0+).
 
 == External services ==
 
@@ -123,6 +123,13 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.16.0 =
+Newest platform versions and several partner programs; add-on contract 1.5.0, database schema 16 (unchanged):
+* Changed: requires PHP 8.5 or newer (was 7.4); supported database servers are MySQL 9.7 (LTS) or newer and MariaDB 12.3 (LTS) or newer – an older server is not blocked, Site Health shows a warning (filter wpac_minimum_db_versions); a new copy on a too old PHP no longer takes over an older copy of the plugin
+* Add-ons (contract 1.5.0, backwards compatible): extension points for several partner programs ("a program is a partner group"): filter wpac_setting with partner/group/program context for default rate, hold period, cookie lifetime, attribution model, minimum payout and terms; wpac_affiliate_program() with filter; field and list filter "program" in wpac_get_affiliate(s)() and wpac_get_commission(s)(); program argument for the partner and campaign/content reports, filters wpac_report_programs, wpac_program_groups and wpac_portal_program_label; program parameter in wpac_portal_tabs/wpac_portal_labels, partner parameter in wpac_hold_until; new action wpac_affiliate_program_changed. Without an add-on nothing changes
+* Docs: a project connector (e.g. for a customer project) brings its own licence; the core checks none
+* Dev: CI on PHP 8.5 (PHP 8.6 as experimental cell), MySQL 9.7 and MariaDB 12.3 (also lower_case_table_names=1 on MySQL 9.7); browser, smoke, minimum-version, multisite, upgrade and Plugin Check jobs on PHP 8.5; a test keeps all PHP minimum statements in sync
 
 = 0.15.0 =
 New partner functions and add-on contract 1.4.0; database schema 16 (one new column with an index on the partner table):
@@ -319,6 +326,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.16.0 =
+Requires PHP 8.5 or newer; MySQL 9.7 or MariaDB 12.3 recommended. Check the PHP version of your host before updating (Tools → Site Health → Info → Server). No database change.
 
 = 0.15.0 =
 New: automatic partner coupon after a partner link, code requests by partners, password confirmation before money-relevant admin actions, "Recruited by" and the add-on contract 1.4.0. Back up first; schema 16 adds one column with an index to the partner table.

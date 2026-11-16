@@ -4,13 +4,14 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.15.0** (Datenbankschema 16, Integrationsvertrag 1.5.0; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 10.11 und MySQL 8.4 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
+> Status: **0.16.0** (Datenbankschema 16, Integrationsvertrag 1.5.0; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 12.3 und MySQL 9.7 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
 
 ## Anforderungen
 
-- WordPress 6.3+ (Blöcke mit `apiVersion: 3`), PHP 7.4+ (mit `sodium`, `dom`; `zip` für den Programm-Export)
+- WordPress 6.3+ (Blöcke mit `apiVersion: 3`), PHP 8.5+ (mit `sodium`, `dom`; `zip` für den Programm-Export)
+- MySQL 9.7+ (LTS) oder MariaDB 12.3+ (LTS) mit InnoDB. Ein älterer Datenbankserver wird nicht blockiert; Website-Zustand zeigt dann eine Warnung (Mindestversionen in `WPAffiliateCaptain\Core\Requirements`, Filter `wpac_minimum_db_versions`)
 - Optional: WooCommerce 8.0+ (HPOS und Classic-/Blocks-Checkout; Partnercode-Feld im Blocks-Checkout ab 8.9), geprüft bis 11.3
-- Die Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) prüft der CI-Job „Minimum versions“ (Aktivierung, Bestellung + Erstattung, REST, alle Admin-Seiten).
+- Die Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 8.5, MariaDB 12.3) prüft der CI-Job „Minimum versions“ (Aktivierung, Bestellung + Erstattung, REST, alle Admin-Seiten).
 
 Betreiber-Handbuch (englisch): [docs/HANDBOOK.md](docs/HANDBOOK.md). Import/Export: [docs/IMPORT-EXPORT.md](docs/IMPORT-EXPORT.md). Release und WordPress.org: [docs/RELEASE.md](docs/RELEASE.md); Free/Premium-Entscheidung: [docs/FREE-PREMIUM.md](docs/FREE-PREMIUM.md).
 
@@ -102,7 +103,7 @@ bin/build-zip.sh
 python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
 ```
 
-CI (GitHub Actions) prüft PHP 7.4–8.5 (Smoke-Test mit WordPress und WooCommerce auf 8.4), Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
+CI (GitHub Actions) prüft PHP 8.5 (8.6 als experimentelle Zelle, die den Lauf nicht scheitern lässt), MySQL 9.7 und MariaDB 12.3 (Smoke-Test mit den aktuellen WordPress- und WooCommerce-Versionen auf 8.5), Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 8.5) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
 
 Optional (braucht `zbarimg` und Pillow): QR-Codes wirklich dekodieren:
 

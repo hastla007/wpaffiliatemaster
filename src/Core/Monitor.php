@@ -39,6 +39,10 @@ final class Monitor {
 		if ( $warnings ) {
 			$out['engine'] = array( 'recommended', __( 'Some tables do not use InnoDB', 'affiliate-captain' ), implode( '; ', (array) $warnings ) );
 		}
+		$db_server = Requirements::database_check();
+		if ( $db_server ) {
+			$out['db_server'] = $db_server; // Decision E10: warn, never block.
+		}
 
 		$out['cron']   = self::cron_running()
 			? array( 'good', __( 'Scheduled tasks are running', 'affiliate-captain' ), '' )

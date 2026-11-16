@@ -26,7 +26,7 @@ WP_VERSION=6.3 WC_VERSION=8.0.0 tests/ci/install-wp.sh /tmp/wp-min
 php tests/ci/smoke.php /tmp/wp-min http://127.0.0.1:8088
 ```
 
-Der CI-Job „Minimum versions“ führt das mit WordPress 6.3, WooCommerce 8.0.0 und PHP 7.4 aus (die im Plugin-Header erklärten Mindestversionen); der Browser-Job zusätzlich mit den neuesten Versionen.
+Der CI-Job „Minimum versions“ führt das mit WordPress 6.3, WooCommerce 8.0.0, PHP 8.5 und MariaDB 12.3 aus (die im Plugin-Header erklärten Mindestversionen); der Browser-Job zusätzlich mit den neuesten Versionen.
 
 ## Plugin Check
 
