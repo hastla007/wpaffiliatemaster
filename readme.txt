@@ -133,6 +133,7 @@ Newest platform versions and several partner programs; add-on contract 1.5.0, da
 * Compatibility: no VALUES() in INSERT … ON DUPLICATE KEY UPDATE any more (deprecated on MySQL 9.7); the daily visit summary uses a form that works without warning on MySQL 9.7 and MariaDB 12.3
 * Dev: CI on PHP 8.5 (PHP 8.6 as experimental cell), MySQL 9.7 and MariaDB 12.3 (also lower_case_table_names=1 on MySQL 9.7); browser, smoke, minimum-version, multisite, upgrade and Plugin Check jobs on PHP 8.5; a test keeps all PHP minimum statements in sync
 * Dev: new CI job "E-invoice (KoSIT validator)": sample e-invoices of every document kind and VAT category (EN 16931 and XRechnung 3.0) are checked with the official KoSIT validator and the XRechnung configuration (pinned versions, SHA-256 checked); every error-level finding fails the run – no findings, the e-invoice is unchanged
+* Tests: browser tests against real WordPress and WooCommerce for the automatic partner coupon (classic cart, cart/checkout blocks, order) and the password confirmation before payout actions.
 
 = 0.15.0 =
 New partner functions and add-on contract 1.4.0; database schema 16 (one new column with an index on the partner table):
