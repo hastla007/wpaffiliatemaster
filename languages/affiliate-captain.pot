@@ -1910,7 +1910,7 @@ msgstr ""
 msgid "sent"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php
+#: src/Admin/Pages/AuditPage.php src/Integrations/WorkflowCaptainStatus.php
 msgid "failed"
 msgstr ""
 
@@ -2203,7 +2203,7 @@ msgstr ""
 msgid "Book correction"
 msgstr ""
 
-#: src/Admin/Pages/CommissionsPage.php
+#: src/Admin/Pages/CommissionsPage.php src/Integrations/WorkflowCaptainStatus.php
 msgid "Events"
 msgstr ""
 
@@ -2504,7 +2504,7 @@ msgstr ""
 msgid "Setup checklist"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php src/Portal/Portal.php
+#: src/Admin/Pages/DashboardPage.php src/Integrations/WorkflowCaptainStatus.php src/Portal/Portal.php
 msgid "done"
 msgstr ""
 
@@ -7928,6 +7928,90 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "Partner commission reinstated."
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "received"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "processing"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "waiting for retry"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "discarded"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "stopped as a loop"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "paused"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Workflow Captain"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Workflow Captain is active but does not report a status yet."
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Registered"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Refused"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Not registered: Workflow Captain does not know an adapter for Affiliate Captain yet."
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Workflows"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Runs"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Providers"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Adapter"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Contract version"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Active workflows"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Events by state"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "none yet"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Last correlation ID"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptainStatus.php
+msgid "Open in Workflow Captain:"
 msgstr ""
 
 #: src/Migration/PartnerImport.php

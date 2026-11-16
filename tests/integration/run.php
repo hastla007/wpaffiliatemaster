@@ -1586,6 +1586,7 @@ require __DIR__ . '/r14-g8-render.php'; // After the render files: paged campaig
 require __DIR__ . '/r14-f3-render.php'; // After the render files: password confirmation flows (feature f3).
 require __DIR__ . '/r14-f2-render.php'; // After the render files: code requests (feature f2, 0.15.0).
 require __DIR__ . '/r15-l2-render.php'; // After the render files: partner area of the L2 order (no buyer data).
+require __DIR__ . '/r16-wfc-render.php'; // After the render files: optional Workflow Captain status (defines workflow_captain_status_for()).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

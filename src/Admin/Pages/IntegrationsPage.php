@@ -12,6 +12,7 @@ use WPAffiliateCaptain\Core\Crypto;
 use WPAffiliateCaptain\Core\Jobs;
 use WPAffiliateCaptain\Core\Scheduler;
 use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Integrations\WorkflowCaptainStatus;
 use WPAffiliateCaptain\Sales\ContractApi;
 
 defined( 'ABSPATH' ) || exit;
@@ -273,6 +274,7 @@ final class IntegrationsPage {
 			self::render_queue();
 		} else {
 			self::render_connections();
+			WorkflowCaptainStatus::render();
 		}
 		echo '</div>';
 	}

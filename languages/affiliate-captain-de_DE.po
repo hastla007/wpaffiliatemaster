@@ -5465,6 +5465,69 @@ msgstr "Australien"
 msgid "New Zealand"
 msgstr "Neuseeland"
 
+msgid "received"
+msgstr "empfangen"
+
+msgid "processing"
+msgstr "in Bearbeitung"
+
+msgid "waiting for retry"
+msgstr "wartet auf Wiederholung"
+
+msgid "discarded"
+msgstr "verworfen"
+
+msgid "stopped as a loop"
+msgstr "als Schleife gestoppt"
+
+msgid "paused"
+msgstr "pausiert"
+
+msgid "Workflow Captain"
+msgstr "Workflow Captain"
+
+msgid "Workflow Captain is active but does not report a status yet."
+msgstr "Workflow Captain ist aktiv, meldet aber noch keinen Status."
+
+msgid "Registered"
+msgstr "Angemeldet"
+
+msgid "Refused"
+msgstr "Abgelehnt"
+
+msgid "Not registered: Workflow Captain does not know an adapter for Affiliate Captain yet."
+msgstr "Nicht angemeldet: Workflow Captain kennt noch keinen Adapter für Affiliate Captain."
+
+msgid "Workflows"
+msgstr "Workflows"
+
+msgid "Runs"
+msgstr "Läufe"
+
+msgid "Providers"
+msgstr "Anbieter"
+
+msgid "Adapter"
+msgstr "Adapter"
+
+msgid "Contract version"
+msgstr "Vertragsversion"
+
+msgid "Active workflows"
+msgstr "Aktive Workflows"
+
+msgid "Events by state"
+msgstr "Ereignisse je Zustand"
+
+msgid "none yet"
+msgstr "noch keine"
+
+msgid "Last correlation ID"
+msgstr "Letzte Korrelations-ID"
+
+msgid "Open in Workflow Captain:"
+msgstr "In Workflow Captain öffnen:"
+
 msgid "Your partner discount (coupon %s) was applied automatically."
 msgstr "Ihr Partnerrabatt (Gutschein %s) wurde automatisch eingelöst."
 

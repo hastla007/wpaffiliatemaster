@@ -140,6 +140,7 @@ New partner functions and add-on contract 1.4.0; database schema 16 (one new col
 * Fixed: no PHP warning in credit note PDFs when the frozen operator data has no address
 * Docs/tests: one commission per order across WooCommerce, Pass Captain, Voucher Captain and REST/PHP is covered by tests; partners never see buyer data; Form Captain assessment and Review Captain proposal in docs/CONTRACT.md
 * Dev: CI also runs the unit tests and one integration cell on PHP 8.5
+* New: Integrations → Connections shows the status of Workflow Captain for Affiliate Captain when Workflow Captain is active (adapter, contract version, active workflows, events per state, last correlation ID, links); it only reads Workflow Captain's public status function – counts and links, no personal data, nothing shown without Workflow Captain
 
 = 0.14.0 =
 Expert audit round 14 (12 perspectives); database schema 15 (one index widened online, new table visits_daily):
