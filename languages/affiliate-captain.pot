@@ -30,7 +30,7 @@ msgid_plural "Affiliate Captain: %d partners with a payable balance cannot be pa
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Admin.php src/Admin/Pages/DashboardPage.php src/Content/Editor.php src/Integrations/WooCommerce/OrderMetaBox.php
+#: src/Admin/Admin.php src/Admin/Pages/DashboardPage.php src/Content/Editor.php src/Integrations/FormCaptain/Connector.php src/Integrations/WooCommerce/OrderMetaBox.php
 msgid "Affiliate Captain"
 msgstr ""
 
@@ -612,15 +612,15 @@ msgstr ""
 msgid "Name / company"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/MailTemplatesPage.php src/Affiliates/Registration.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/MailTemplatesPage.php src/Affiliates/Registration.php src/Integrations/FormCaptain/Connector.php src/Privacy/Privacy.php
 msgid "E-mail"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Integrations/FormCaptain/Connector.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Website"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Integrations/FormCaptain/Connector.php src/Privacy/Privacy.php
 msgid "Channel"
 msgstr ""
 
@@ -7547,6 +7547,48 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "New Zealand"
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Affiliate Captain needs a published registration page (Affiliate Captain → Settings): applicants confirm their e-mail address there."
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Applications are created in Affiliate Captain with status \"pending\" after the applicant confirmed the e-mail address. Approval stays in Affiliate Captain."
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Partner application to Affiliate Captain"
+msgstr ""
+
+#. translators: %s: list of public partner groups, e.g. "3 = Influencer"
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Partner group (ID, 0 = none). Public groups: %s"
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "none"
+msgstr ""
+
+#. translators: %s: current terms version in Affiliate Captain
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Version of the partner program terms shown in the form (current version in Affiliate Captain: %s)"
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Name or company"
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Message"
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Consent to the partner program terms"
+msgstr ""
+
+#: src/Integrations/FormCaptain/Connector.php
+msgid "Referring partner code"
 msgstr ""
 
 #. translators: %s: coupon code
