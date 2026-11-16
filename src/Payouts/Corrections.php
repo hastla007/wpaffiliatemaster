@@ -617,7 +617,7 @@ final class Corrections {
 		$y   += 14;
 		$left = array_merge(
 			array( (string) $op['name'] ),
-			preg_split( '/\r\n|\r|\n/', (string) $op['address'] ),
+			preg_split( '/\r\n|\r|\n/', isset( $op['address'] ) ? (string) $op['address'] : '' ),
 			array_filter(
 				array(
 					! empty( $op['vat_id'] ) ? __( 'VAT ID', 'affiliate-captain' ) . ': ' . $op['vat_id'] : '',
