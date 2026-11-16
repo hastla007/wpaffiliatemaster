@@ -102,7 +102,7 @@ bin/build-zip.sh
 python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
 ```
 
-CI (GitHub Actions) prüft PHP 7.4–8.4, Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
+CI (GitHub Actions) prüft PHP 7.4–8.5 (Smoke-Test mit WordPress und WooCommerce auf 8.4), Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
 
 Optional (braucht `zbarimg` und Pillow): QR-Codes wirklich dekodieren:
 
