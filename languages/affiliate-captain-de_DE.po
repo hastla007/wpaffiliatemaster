@@ -1941,6 +1941,12 @@ msgstr "Provisionen prüfen"
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr "Beträge in %s sind in den Geldspalten nicht enthalten (kein Referenzkurs in den Einstellungen)."
 
+msgid "Program"
+msgstr "Programm"
+
+msgid "All programs"
+msgstr "Alle Programme"
+
 msgid "Apply"
 msgstr "Anwenden"
 
@@ -3555,9 +3561,6 @@ msgstr "Eine Änderung rechnet Mindestauszahlung, Prüfgrenze und einen festen S
 
 msgid "%1$s (%2$s)"
 msgstr "%1$s (%2$s)"
-
-msgid "Program"
-msgstr "Programm"
 
 msgid "E-mails & reports"
 msgstr "E-Mails & Berichte"

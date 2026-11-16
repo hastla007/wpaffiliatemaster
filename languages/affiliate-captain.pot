@@ -2533,6 +2533,14 @@ msgstr ""
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr ""
 
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SettingsPage.php
+msgid "Program"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "All programs"
+msgstr ""
+
 #: src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
 msgid "Apply"
 msgstr ""
@@ -4753,10 +4761,6 @@ msgstr ""
 #. translators: 1: currency name, 2: ISO code
 #: src/Admin/Pages/SettingsPage.php
 msgid "%1$s (%2$s)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Program"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -7158,7 +7162,7 @@ msgstr ""
 msgid "The partner program is working"
 msgstr ""
 
-#: src/Core/Monitor.php src/Tracking/Tracker.php
+#: src/Core/Monitor.php src/Portal/Portal.php src/Tracking/Tracker.php
 msgid "Partner program"
 msgstr ""
 
