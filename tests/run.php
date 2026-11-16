@@ -362,6 +362,41 @@ foreach ( $wpac_guard_files as $wpac_f ) {
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
 
+// D13 (owner decision of 16 Nov 2026): the provisional workflow interface is not part of the free
+// core. It may only come back with the task AFF-WF-08 in TODO.md (after the shared suite
+// specification is accepted); until that task is ticked this scan fails when the action, the read
+// function, their classes or their document reappear in the shipped files. The domain actions
+// of docs/CONTRACT.md (wpac_commission_created etc.) are not affected.
+$d13_root     = dirname( __DIR__ );
+$d13_todo     = is_readable( $d13_root . '/TODO.md' ) ? (string) file_get_contents( $d13_root . '/TODO.md' ) : '';
+$d13_released = 1 === preg_match( '/^\s*- \[x\] \*\*AFF-WF-08\b/mu', $d13_todo );
+if ( '' !== $d13_todo ) {
+	check( 'D13 TODO.md lists the re-introduction of the workflow interface as task AFF-WF-08', 1, preg_match( '/^\s*- \[[ x]\] \*\*AFF-WF-08\b/mu', $d13_todo ) );
+}
+if ( ! $d13_released ) {
+	$d13_patterns = array(
+		'wpac_workflow_event'            => '/wpac_workflow_event/',
+		'wpac_workflow_read'             => '/wpac_workflow_read/',
+		'WorkflowEvents/WorkflowRead'    => '/\bWorkflow(Events|Read)\b/',
+		'docs/WORKFLOW-PROVIDER.md'      => '/WORKFLOW-PROVIDER/',
+	);
+	$d13_hits     = array();
+	foreach ( array_merge( $wpac_guard_files, array( 'docs/CONTRACT.md', 'docs/HANDBOOK.md', 'languages/affiliate-captain.pot' ) ) as $d13_f ) {
+		$d13_src = (string) file_get_contents( $d13_root . '/' . $d13_f );
+		foreach ( $d13_patterns as $d13_label => $d13_re ) {
+			if ( preg_match( $d13_re, $d13_src ) ) {
+				$d13_hits[] = $d13_f . ': ' . $d13_label;
+			}
+		}
+	}
+	foreach ( array( 'docs/WORKFLOW-PROVIDER.md', 'src/Core/WorkflowEvents.php', 'src/Core/WorkflowRead.php' ) as $d13_f ) {
+		if ( file_exists( $d13_root . '/' . $d13_f ) ) {
+			$d13_hits[] = $d13_f . ': file exists';
+		}
+	}
+	check( 'D13 no workflow interface in the core before AFF-WF-08 is ticked (' . ( count( $wpac_guard_files ) + 3 ) . ' files)', array(), $d13_hits );
+}
+
 // R6-CC3: behind a trusted proxy only X-Forwarded-For is read by default; CF-Connecting-IP and
 // X-Real-IP (any client can send them) only when enabled.
 check( 'R6-CC3 forged CF-Connecting-IP via a trusted non-Cloudflare proxy ignored', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_CF_CONNECTING_IP' => '6.6.6.6', 'HTTP_X_FORWARDED_FOR' => '198.51.100.9' ), array( '10.0.0.0/8' ) ) );
