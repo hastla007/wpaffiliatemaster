@@ -237,7 +237,8 @@ function add_option( $k, $v, $x = '', $a = null ) {
 	// Like WordPress core: a cached read, then an UPSERT – NOT atomic (use Db::lock() for locks).
 	global $wpdb;
 	if ( array_key_exists( $k, $GLOBALS['test_options'] ) ) { return false; }
-	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)", $k, is_scalar( $v ) ? (string) $v : serialize( $v ) ) );
+	$wpac_v = is_scalar( $v ) ? (string) $v : serialize( $v );
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = %s", $k, $wpac_v, $wpac_v ) ); // No VALUES(): deprecated on MySQL 9.7.
 	$GLOBALS['test_options'][ $k ] = $v;
 	return true;
 }

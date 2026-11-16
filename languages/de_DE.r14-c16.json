@@ -1,0 +1,6 @@
+{
+ "%1$s: %2$s": "%1$s: %2$s",
+ "Minimum payout for this partner (partner program): %s": "Mindestauszahlung für diesen Partner (Partnerprogramm): %s",
+ "The lifetime of the affiliate cookie depends on the partner program of the partner whose link you followed: between %1$d and %2$d days.": "Die Laufzeit des Affiliate-Cookies hängt vom Partnerprogramm des Partners ab, dessen Link Sie gefolgt sind: zwischen %1$d und %2$d Tagen.",
+ "affiliate cookie: %1$d to %2$d days depending on the partner program": "Affiliate-Cookie: %1$d bis %2$d Tage je nach Partnerprogramm"
+}

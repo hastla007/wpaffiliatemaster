@@ -436,8 +436,10 @@ final class RestApi {
 				'permission_callback' => self::can( Capabilities::MANAGE_AFFILIATES ),
 				'callback'            => array( __CLASS__, 'report' ),
 				'args'                => array(
-					'from' => array( 'type' => 'string' ),
-					'to'   => array( 'type' => 'string' ),
+					'from'    => array( 'type' => 'string' ),
+					'to'      => array( 'type' => 'string' ),
+					// No type: the callback answers an unusable value with wpac_invalid_program.
+					'program' => array( 'description' => 'Program key (\'\' = default program; contract 1.5.0).' ),
 				),
 			)
 		);
@@ -781,20 +783,35 @@ final class RestApi {
 	/**
 	 * Reports.
 	 *
+	 * Optional argument program (since contract 1.5.0): only the partners of that program
+	 * ('' = default program; checked like the list functions, invalid → wpac_invalid_program).
+	 *
 	 * @param \WP_REST_Request $r Request.
-	 * @return array
+	 * @return array|\WP_Error
 	 */
 	public static function report( \WP_REST_Request $r ) {
+		$program = null;
+		if ( isset( $r['program'] ) ) {
+			$program = \WPAffiliateCaptain\Affiliates\Programs::clean( $r['program'] );
+			if ( null === $program ) {
+				/* translators: %s: argument name */
+				return new \WP_Error( 'wpac_invalid_program', sprintf( __( 'Invalid value for "%s".', 'affiliate-captain' ), 'program' ), array( 'status' => 400 ) );
+			}
+		}
 		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['from'] ) ? (string) $r['from'] : wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
 		$to   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $r['to'] ) ? (string) $r['to'] : wp_date( 'Y-m-d' );
-		$rows = Reports::cached( 'partners' === $r['view'] ? 'partners' : ( 'content' === $r['view'] ? 'content_id' : 'campaign' ), $from, $to ); // Shared with the dashboard (R12-M23).
-		return array(
+		$rows = Reports::cached( 'partners' === $r['view'] ? 'partners' : ( 'content' === $r['view'] ? 'content_id' : 'campaign' ), $from, $to, $program ); // Shared with the dashboard (R12-M23).
+		$out  = array(
 			'from'        => $from,
 			'to'          => $to,
 			'currency'    => (string) Settings::get( 'currency' ),
 			'unconverted' => array_keys( Reports::$unconverted ),
 			'rows'        => $rows,
 		);
+		if ( null !== $program ) {
+			$out['program'] = $program;
+		}
+		return $out;
 	}
 
 	/**
