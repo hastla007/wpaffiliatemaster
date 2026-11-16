@@ -2,7 +2,7 @@
 
 > **Entschieden (2026-11-13): Option A** – das Kernplugin bleibt vollständig kostenlos und kommt auf WordPress.org; Premium wird ein eigenes Add-on-Plugin außerhalb von WordPress.org. Name und Slug: **„Affiliate Captain“ / `affiliate-captain`** (umgesetzt in 0.11.0, siehe 6.). Die Erweiterungspunkte für Add-ons stehen in `docs/CONTRACT.md` („Add-ons“).
 >
-> Umgesetzt im Kernplugin: keine Lizenzprüfung, keine gesperrten Funktionen, Hooks `wpac_admin_menu`, `wpac_portal_tabs`, `wpac_portal_tab_{key}`. **Noch offen (Inhaber/Lizenz-Team):** Repository für das Add-on anlegen, PRs #9–#12 dorthin übertragen und in diesem Repository schließen.
+> Umgesetzt im Kernplugin: keine Lizenzprüfung, keine gesperrten Funktionen (Wächtertest A2 in `tests/run.php`), Erweiterungspunkte für Add-ons im Vertrag (`docs/CONTRACT.md`, Abschnitt „Add-ons“). **Stand 16.11.2026:** Die PRs #9–#12 sind geschlossen. Das Add-on „Affiliate Captain Pro“ (Produktschlüssel `affiliate-captain-pro`, Rechtepräfix `affiliate.`) wird im Repository `hastla007/captain-pro` gebaut; was dort gebaut und was nur geplant ist, steht in Abschnitt 7. Die Abschnitte 1 bis 5 sind die Entscheidungsvorlage vom 13.11.2026 und beschreiben den Stand von damals.
 >
 > Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 
@@ -85,19 +85,52 @@ Nächste Schritte nach der Entscheidung für A/C:
 
 ## Geplante Captain-Suite-Integrationen
 
-Die bestehenden Integrationsverträge für Verkauf, Attribution und Provision bleiben für WooCommerce, Pass Captain und Voucher Captain zuständig. Form Captain ersetzt den Affiliate-Bewerbungsablauf nicht; eine optionale Formularübergabe kann nur einen wartenden Antrag einreichen, während Prüfung und Freigabe in Affiliate Captain verbleiben. Review Captain erhält keinen Zugriff auf Provisionsdetails: die spätere Verbindung ist auf freigegebene, aggregierte Qualitätswerte begrenzt und darf keine Einladung oder Provision auslösen. Dafür sind neue, explizite Verträge nötig; die bestehenden Affiliate-Verträge v1.3 stellen diese Funktionen noch nicht bereit.
+Stand 16.11.2026: Die gemeinsame Spezifikation für Form Captain, Review Captain und Workflow Captain liegt als Entwurf vor und ist noch nicht abgenommen (Repository `wp-workflowmaster`, `docs/SPEC-suite-events.md`). Entschieden ist (Inhaber, 16.11.2026; `TODO.md`, „Offene Entscheidungen“): Jeder Kern führt eine eigene versionierte Vertragskonstante (hier `WPAC_CONTRACT_VERSION`, `docs/CONTRACT.md`); der Transport sind die vorhandenen PHP-Hooks; ein Workflow bucht in der ersten Version keine Provision und löst keine Auszahlung aus. Eine eigene Schnittstelle für Workflow Captain ist nicht Teil von 0.15.0; ein Entwurf dafür wurde vor dem Release herausgenommen und kommt erst nach der Abnahme der Spezifikation zurück (`TODO.md`, Abschnitt „Entscheidung D13“, Aufgabe AFF-WF-08). Der Adapter für Workflow Captain liegt im Add-on. Auch für diese Anbindungen gilt: Der Kern prüft keine Rechte; ob eine Anbindung bezahlt ist, entscheidet das jeweilige Add-on. Eine produktübergreifende Automatisierung braucht Workflow Pro und die Pro-Lizenz des Produkt-Add-ons; geprüft wird das nur in den Add-ons.
 
-## 7. Aufteilung der Wettbewerbs-Funktionen (entschieden 2026-11-15)
+Die bestehenden Integrationsverträge für Verkauf, Attribution und Provision bleiben für WooCommerce, Pass Captain und Voucher Captain zuständig. Form Captain ersetzt den Affiliate-Bewerbungsablauf nicht; eine optionale Formularübergabe kann nur einen wartenden Antrag einreichen, während Prüfung und Freigabe in Affiliate Captain verbleiben. Review Captain erhält keinen Zugriff auf Provisionsdetails: die spätere Verbindung ist auf freigegebene, aggregierte Qualitätswerte begrenzt und darf keine Einladung oder Provision auslösen. Dafür sind neue, ausdrücklich vereinbarte Schnittstellen nötig; der bestehende Vertrag (1.4.0) stellt für Form Captain und Review Captain keine Funktionen bereit (Vorschläge dazu stehen in `docs/CONTRACT.md`).
+
+## 7. Aufteilung der Funktionen: Kern und Add-on (entschieden 2026-11-15, Stand 16.11.2026)
 
 Grundlage: Audit-Runde 14 (R14-P2), Abgleich mit AffiliateWP (Pro/Plus-Tarife), Solid Affiliate und SliceWP. Die Inhaberin hat die Aufteilung dem Entwicklungsteam überlassen.
 
-| Funktion | Ort | Begründung |
+Regeln:
+
+- Alles, was der Kern ausliefert, ist und bleibt frei. Der Kern enthält keine Lizenzprüfung und kennt keinen Rechteschlüssel.
+- Bezahlte Funktionen liegen im Add-on „Affiliate Captain Pro“ (Repository `hastla007/captain-pro`, Ordner `addons/affiliate-captain-pro`). Nur das Add-on prüft Rechte, je Funktion genau einen Schlüssel mit Präfix `affiliate.` aus dem Katalog des Lizenzservers (`hastla007/wp-license`, `src/Catalog/EntitlementCatalog.php`).
+- Die Tarife des Add-ons (`single`, `business`, `agency` mit 1, 5 und 25 Live-Websites) enthalten alle denselben Funktionsumfang.
+
+### 7.1 Im Kern (frei, in diesem Repository)
+
+| Funktion | Seit | Begründung |
 |---|---|---|
-| Gutschein automatisch per Partnerlink einlösen | Kern (0.15.0) | Gutscheine sind Kern; bei Solid Affiliate Grundumfang; größter Conversion-Hebel. |
-| Wunschcode auf Antrag des Partners | Kern (0.15.0) | Wunschcodes gibt es bereits im Admin; nur der Antragsweg kommt dazu. |
-| Erneute Anmeldung / 2FA vor Geld-Aktionen | Kern (0.15.0) | Sicherheit gehört nicht hinter eine Bezahlschranke. |
-| „Geworben von“ (Daten + Hook `wpac_affiliate_recruited`) | Kern (0.15.0) | Grundlage für Sub-Affiliate-Add-ons, nützt auch Dritten. |
-| Leaderboard + Meilenstein-Mails | Pro | AffiliateWP: Plus-Tarif. |
-| Stripe Connect, Auszahlung als Shop-Guthaben | Pro | Weitere Auszahlungswege sind Pro (siehe 3., Option A). |
-| Sub-Affiliates / mehrstufige Provision | Pro | Siehe 3., Option A; nutzt den Kern-Hook. |
-| Ausgehende Webhooks | Pro | Bereits im Add-on vorhanden. |
+| Gutschein automatisch per Partnerlink einlösen | 0.15.0 | Gutscheine sind Kern; bei Solid Affiliate Grundumfang; größter Conversion-Hebel. |
+| Wunschcode auf Antrag des Partners | 0.15.0 | Wunschcodes gibt es bereits im Admin; nur der Antragsweg kommt dazu. |
+| Erneute Anmeldung / 2FA vor Geld-Aktionen | 0.15.0 | Sicherheit gehört nicht hinter eine Bezahlschranke. |
+| „Geworben von“ (Daten + Hook `wpac_affiliate_recruited`) | 0.15.0 | Grundlage für Sub-Affiliate-Add-ons, nützt auch Dritten. |
+
+Ebenfalls Kern und dauerhaft frei sind alle früher ausgelieferten Funktionen, darunter Partnerportal, Zuordnung über Gutscheine, Erstattungen und Stornos, Provisionen mit Regeln je Produkt und Kategorie, Partnergruppen, Provisionen auf Abo-Verlängerungen, Monatsstufen (Boni), Auszahlungsläufe mit SEPA-, Überweisungs- und CSV-Export, Gutschriften und E-Rechnung. Der Katalog des Lizenzservers führte am 16.11.2026 noch acht Schlüssel, die solche Kernfunktionen benennen (`affiliate.partner_portal`, `affiliate.coupon_attribution`, `affiliate.order_refund_handling`, `affiliate.basic_commissions`, `affiliate.manual_payout_csv`, `affiliate.partner_groups`, `affiliate.product_category_rates`, `affiliate.recurring_commissions`). Sie werden dort entfernt; weder der Kern noch das Add-on prüft sie, und keine dieser Funktionen wird je gesperrt.
+
+### 7.2 Im Add-on gebaut (captain-pro `main`, Stand 16.11.2026)
+
+| Funktion | Rechteschlüssel | Beschreibung dort | Nutzt im Kern |
+|---|---|---|---|
+| REST-API für Partner, Provisionen und Auszahlungen | `affiliate.extended_api` | `docs/EXTENDED-API.md` | Lese- und Schreib-API des Vertrags (seit 1.3.0) |
+| Automatische Auszahlung über PayPal Payouts | `affiliate.automated_payouts` | `docs/PAYPAL-PAYOUTS.md` | `wpac_claim_payout()`, `wpac_complete_payout()`, `wpac_release_payout()` |
+| Ausgehende, signierte Webhooks | `affiliate.webhooks` | `docs/WEBHOOKS.md` | Actions des Vertrags (`wpac_commission_created`, `wpac_payout_paid` …) |
+| White-Label-Partnerportal | `affiliate.white_label_portal` | `docs/WHITE-LABEL.md` | `wpac_portal_before`/`_after`, `wpac_portal_classes`, `wpac_portal_labels`, `wpac_mail_from_name` |
+
+Einschränkung: PayPal Payouts ist bisher nur gegen einen nachgebauten Zahlungsdienst geprüft, nicht gegen die PayPal-Sandbox, und gilt deshalb als teilweise erledigt. Das Add-on ist noch nicht veröffentlicht (Version 0.1.0; Adresse und Signaturschlüssel des Lizenzservers fehlen dort).
+
+### 7.3 Für das Add-on geplant, noch nicht gebaut
+
+Die Schlüssel stehen im Katalog des Lizenzservers; in captain-pro gibt es dazu keinen Code. Reihenfolge und Umfang sind offen (`TODO.md`, Entscheidung E4); entschieden ist seit dem 16.11.2026 nur, dass „Mehrere Programme“ gebaut wird.
+
+| Funktion | Rechteschlüssel im Katalog | Grundlage im Kern | Anmerkung |
+|---|---|---|---|
+| Bestenliste und Meilenstein-Mails | `affiliate.leaderboard` | `wpac_creative_created`, `wpac_portal_url()`, `wpac_mail_sender()` (seit 0.15.0) | AffiliateWP: Plus-Tarif. |
+| Auszahlung über Stripe Connect | `affiliate.stripe_connect` | Auszahlungs-API des Vertrags (seit 1.3.0) | Weitere Auszahlungswege sind Add-on (siehe 3., Option A). |
+| Auszahlung als Shop-Guthaben | `affiliate.store_credit` | Auszahlungs-API des Vertrags (seit 1.3.0) | wie oben |
+| Sub-Affiliates / mehrstufige Provision | `affiliate.multi_tier` | `referred_by`, `wpac_affiliate_recruited`, `wpac_create_adjustment()` mit `parent_id` (seit 0.15.0) | Der Kern speichert nur den Werber; die Buchung weiterer Stufen ist Sache des Add-ons. |
+| Mehrere Programme | `affiliate.multiple_programs` | noch keine; im Vertrag gibt es dafür keinen Erweiterungspunkt. Partnergruppen mit eigenen Bedingungen und Regeln sind eine Vorstufe. | Bleibt als geplant im Katalog und wird gebaut (Entscheidung des Inhabers vom 16.11.2026). Was der Kern dafür braucht: `TODO.md`, Aufgabe MP-1. |
+
+`affiliate.priority_support` beschreibt eine Dienstleistung, keine Funktion; dafür gibt es im Add-on nichts zu sperren.

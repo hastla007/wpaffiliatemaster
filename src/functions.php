@@ -363,37 +363,3 @@ if ( ! function_exists( 'wpac_mail_sender' ) ) {
 		return \WPAffiliateCaptain\Affiliates\Notifications::sender( (string) $type, (int) $affiliate_id );
 	}
 }
-
-/*
- * ---------------------------------------------------------------------------
- * Workflow provider (Workflow Captain, AFF-WF-01..06; docs/WORKFLOW-PROVIDER.md). Additions
- * without a contract version change: events arrive as the action wpac_workflow_event( $envelope ).
- * ---------------------------------------------------------------------------
- */
-
-if ( ! function_exists( 'wpac_workflow_read' ) ) {
-	/**
-	 * Read action for workflow engines: partner status, campaign status, aggregated figures. Read
-	 * only. Checks the current user (wpac_manage_affiliates); without a user only in WP-Cron/WP-CLI.
-	 *
-	 * @since 0.15.x
-	 * @param string $action partner.status | campaign.status | metrics.summary | metrics.monthly.
-	 * @param array  $args   affiliate_id, campaign, from, to (Y-m-d, local days), months.
-	 * @return array|WP_Error See docs/WORKFLOW-PROVIDER.md.
-	 */
-	function wpac_workflow_read( $action, array $args = array() ) {
-		return \WPAffiliateCaptain\Core\WorkflowRead::read( (string) $action, $args );
-	}
-}
-
-if ( ! function_exists( 'wpac_workflow_event_types' ) ) {
-	/**
-	 * Workflow event types and the fields of their "data" (envelope version 1).
-	 *
-	 * @since 0.15.x
-	 * @return array type => string[] fields
-	 */
-	function wpac_workflow_event_types() {
-		return \WPAffiliateCaptain\Core\WorkflowEvents::types();
-	}
-}

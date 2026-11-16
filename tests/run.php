@@ -362,6 +362,41 @@ foreach ( $wpac_guard_files as $wpac_f ) {
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
 
+// D13 (owner decision of 16 Nov 2026): the provisional workflow interface is not part of the free
+// core. It may only come back with the task AFF-WF-08 in TODO.md (after the shared suite
+// specification is accepted); until that task is ticked this scan fails when the action, the read
+// function, their classes or their document reappear in the shipped files. The domain actions
+// of docs/CONTRACT.md (wpac_commission_created etc.) are not affected.
+$d13_root     = dirname( __DIR__ );
+$d13_todo     = is_readable( $d13_root . '/TODO.md' ) ? (string) file_get_contents( $d13_root . '/TODO.md' ) : '';
+$d13_released = 1 === preg_match( '/^\s*- \[x\] \*\*AFF-WF-08\b/mu', $d13_todo );
+if ( '' !== $d13_todo ) {
+	check( 'D13 TODO.md lists the re-introduction of the workflow interface as task AFF-WF-08', 1, preg_match( '/^\s*- \[[ x]\] \*\*AFF-WF-08\b/mu', $d13_todo ) );
+}
+if ( ! $d13_released ) {
+	$d13_patterns = array(
+		'wpac_workflow_event'            => '/wpac_workflow_event/',
+		'wpac_workflow_read'             => '/wpac_workflow_read/',
+		'WorkflowEvents/WorkflowRead'    => '/\bWorkflow(Events|Read)\b/',
+		'docs/WORKFLOW-PROVIDER.md'      => '/WORKFLOW-PROVIDER/',
+	);
+	$d13_hits     = array();
+	foreach ( array_merge( $wpac_guard_files, array( 'docs/CONTRACT.md', 'docs/HANDBOOK.md', 'languages/affiliate-captain.pot' ) ) as $d13_f ) {
+		$d13_src = (string) file_get_contents( $d13_root . '/' . $d13_f );
+		foreach ( $d13_patterns as $d13_label => $d13_re ) {
+			if ( preg_match( $d13_re, $d13_src ) ) {
+				$d13_hits[] = $d13_f . ': ' . $d13_label;
+			}
+		}
+	}
+	foreach ( array( 'docs/WORKFLOW-PROVIDER.md', 'src/Core/WorkflowEvents.php', 'src/Core/WorkflowRead.php' ) as $d13_f ) {
+		if ( file_exists( $d13_root . '/' . $d13_f ) ) {
+			$d13_hits[] = $d13_f . ': file exists';
+		}
+	}
+	check( 'D13 no workflow interface in the core before AFF-WF-08 is ticked (' . ( count( $wpac_guard_files ) + 3 ) . ' files)', array(), $d13_hits );
+}
+
 // R6-CC3: behind a trusted proxy only X-Forwarded-For is read by default; CF-Connecting-IP and
 // X-Real-IP (any client can send them) only when enabled.
 check( 'R6-CC3 forged CF-Connecting-IP via a trusted non-Cloudflare proxy ignored', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_CF_CONNECTING_IP' => '6.6.6.6', 'HTTP_X_FORWARDED_FOR' => '198.51.100.9' ), array( '10.0.0.0/8' ) ) );
@@ -616,6 +651,70 @@ $l1_doc['seller']['phone'] = '+49 1';
 check( 'R14-L1 XRechnung profile with all its data, still valid', array( array(), EInvoice::XRECHNUNG ), array( EInvoice::check( EInvoice::xml( $l1_doc ) ), EInvoice::profile( $l1_doc ) ) );
 $l1_doc['payment'] = array( 'code' => '58', 'info' => 'SEPA' );
 check( 'R14-L1 checker: SEPA credit transfer without IBAN (BR-61)', array( 'BR-61' ), array_keys( EInvoice::check( EInvoice::xml( $l1_doc ) ) ) );
+
+// R16-1: the version statements agree. Header, WPAC_VERSION, "Stable tag" and the newest changelog
+// entry name the same plugin version, the documents name the constants of the main file, and no
+// "since X" in the shipped code or the contract document is ahead of the plugin or contract version.
+$r16_root = dirname( __DIR__ );
+$r16_main = (string) file_get_contents( $r16_root . '/affiliate-captain.php' );
+$r16_get  = static function ( $re, $text ) {
+	return preg_match( $re, $text, $m ) ? $m[1] : '';
+};
+$r16_header   = $r16_get( '/^ \* Version:\s*(\S+)/m', $r16_main );
+$r16_const    = $r16_get( "/^define\( 'WPAC_VERSION', '([^']+)' \);/m", $r16_main );
+$r16_contract = $r16_get( "/^define\( 'WPAC_CONTRACT_VERSION', '([^']+)' \);/m", $r16_main );
+$r16_schema   = $r16_get( "/^define\( 'WPAC_DB_VERSION', (\d+) \);/m", $r16_main );
+$r16_readme   = str_replace( "\r", '', (string) file_get_contents( $r16_root . '/readme.txt' ) );
+$r16_log      = (string) substr( $r16_readme, (int) strpos( $r16_readme, '== Changelog ==' ) );
+$r16_notice   = (string) substr( $r16_readme, (int) strpos( $r16_readme, '== Upgrade Notice ==' ) );
+check( 'R16-1 plugin version is a release version', 1, preg_match( '/^\d+\.\d+\.\d+$/', $r16_header ) );
+check( 'R16-1 header, WPAC_VERSION, Stable tag, newest changelog entry and newest upgrade notice agree', array( $r16_header, $r16_header, $r16_header, $r16_header ), array( $r16_const, $r16_get( '/^Stable tag:\s*(\S+)/m', $r16_readme ), $r16_get( '/^= (\S+) =$/m', $r16_log ), $r16_get( '/^= (\S+) =$/m', $r16_notice ) ) );
+$r16_docs_readme = (string) file_get_contents( $r16_root . '/README.md' );
+check( 'R16-1 README names plugin version, schema and contract of the main file', array( $r16_header, $r16_schema, $r16_contract ), array( $r16_get( '/^> Status: \*\*([0-9.]+)\*\*/m', $r16_docs_readme ), $r16_get( '/^> Status: .*?Datenbankschema (\d+)/m', $r16_docs_readme ), $r16_get( '/^> Status: .*?Integrationsvertrag ([0-9.]+)/m', $r16_docs_readme ) ) );
+$r16_contract_doc = (string) file_get_contents( $r16_root . '/docs/CONTRACT.md' );
+check( 'R16-1 docs/CONTRACT.md names the contract version and lists it first under the changes', array( $r16_contract, $r16_contract ), array( $r16_get( '/^# .*WPAC_CONTRACT_VERSION = ([0-9.]+)/m', $r16_contract_doc ), $r16_get( '/^Änderungen: \*\*([0-9.]+)\*\*/mu', $r16_contract_doc ) ) );
+check( 'R16-1 the newest changelog entry names the schema of the main file', 1, preg_match( '/^= ' . preg_quote( $r16_header, '/' ) . " =\n[^\n]*schema " . $r16_schema . '\b/m', $r16_log ) );
+foreach ( array( 'tests/integration/bootstrap.php' ) as $r16_f ) {
+	$r16_boot = (string) file_get_contents( $r16_root . '/' . $r16_f );
+	check( 'R16-1 ' . $r16_f . ' uses the schema and contract of the main file', array( $r16_schema, $r16_contract ), array( $r16_get( "/^define\( 'WPAC_DB_VERSION', (\d+) \);/m", $r16_boot ), $r16_get( "/^define\( 'WPAC_CONTRACT_VERSION', '([^']+)' \);/m", $r16_boot ) ) );
+}
+// "since contract X" is a contract version, every other "since X.Y.Z" a plugin version.
+$r16_ahead = array();
+foreach ( $wpac_guard_files as $r16_f ) {
+	if ( preg_match_all( '/\bsince\s+(contract\s+)?(\d+\.\d+\.\d+)/i', (string) file_get_contents( $r16_root . '/' . $r16_f ), $r16_m, PREG_SET_ORDER ) ) {
+		foreach ( $r16_m as $r16_hit ) {
+			if ( version_compare( $r16_hit[2], '' !== $r16_hit[1] ? $r16_contract : $r16_header, '>' ) ) {
+				$r16_ahead[] = $r16_f . ': ' . $r16_hit[0];
+			}
+		}
+	}
+}
+// Documents: "seit Plugin X" / "since X" is a plugin version; a bare "seit X" in the contract
+// document is a contract version or (0.x) a plugin version.
+foreach ( array( 'docs/CONTRACT.md', 'docs/HANDBOOK.md', 'README.md', 'readme.txt' ) as $r16_f ) {
+	if ( preg_match_all( '/\b(?:seit|since)\s+(Plugin\s+|Vertrag\s+|contract\s+)?(\d+\.\d+\.\d+)/iu', (string) file_get_contents( $r16_root . '/' . $r16_f ), $r16_m, PREG_SET_ORDER ) ) {
+		foreach ( $r16_m as $r16_hit ) {
+			$r16_kind = strtolower( trim( $r16_hit[1] ) );
+			$r16_ok   = 'plugin' === $r16_kind ? version_compare( $r16_hit[2], $r16_header, '<=' ) : ( '' !== $r16_kind ? version_compare( $r16_hit[2], $r16_contract, '<=' ) : ( version_compare( $r16_hit[2], $r16_header, '<=' ) || version_compare( $r16_hit[2], $r16_contract, '<=' ) ) );
+			if ( ! $r16_ok ) {
+				$r16_ahead[] = $r16_f . ': ' . $r16_hit[0];
+			}
+		}
+	}
+}
+// A placeholder version ("since 0.15.x") says nothing an add-on could compare against.
+foreach ( array_merge( $wpac_guard_files, array( 'docs/CONTRACT.md', 'docs/HANDBOOK.md', 'README.md', 'readme.txt' ) ) as $r16_f ) {
+	if ( preg_match_all( '/\b\d+\.\d+\.x\b/', (string) file_get_contents( $r16_root . '/' . $r16_f ), $r16_m ) ) {
+		$r16_ahead[] = $r16_f . ': ' . implode( ', ', array_unique( $r16_m[0] ) );
+	}
+}
+check( 'R16-1 no "since X" is ahead of plugin ' . $r16_header . ' / contract ' . $r16_contract, array(), $r16_ahead );
+
+// R16-10: the overview line of TODO.md names the counted check boxes (the file is not in the ZIP).
+if ( is_readable( $r16_root . '/TODO.md' ) ) {
+	$r16_todo = (string) file_get_contents( $r16_root . '/TODO.md' );
+	check( 'R16-10 TODO.md overview matches the counted boxes', array( (string) preg_match_all( '/^\s*- \[x\]/m', $r16_todo ), (string) preg_match_all( '/^\s*- \[ \]/m', $r16_todo ) ), preg_match( '/^\*\*Übersicht[^\n]*?(\d+) erledigt, (\d+) offen/mu', $r16_todo, $r16_m ) ? array( $r16_m[1], $r16_m[2] ) : array() );
+}
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

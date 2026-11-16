@@ -4,7 +4,7 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.14.0** (Datenbankschema 15, Integrationsvertrag 1.3.0; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 10.11 und MySQL 8.4 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
+> Status: **0.15.0** (Datenbankschema 16, Integrationsvertrag 1.4.0; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 10.11 und MySQL 8.4 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
 
 ## Anforderungen
 
@@ -102,7 +102,7 @@ bin/build-zip.sh
 python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
 ```
 
-CI (GitHub Actions) prüft PHP 7.4–8.4, Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
+CI (GitHub Actions) prüft PHP 7.4–8.5 (Smoke-Test mit WordPress und WooCommerce auf 8.4), Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
 
 Optional (braucht `zbarimg` und Pillow): QR-Codes wirklich dekodieren:
 
@@ -118,9 +118,15 @@ Struktur: `src/Core` (inkl. `Paged` für Listenabfragen) (Lifecycle, Schema, Gel
 
 ## Captain-Suite-Integration
 
-Affiliate Captain bleibt System of Record für Partner, Attribution, Provisionsledger, Auszahlungen und Partnerstatus. Grundlage für Provisionen bleiben der Vertrag v1.3 (`docs/CONTRACT.md`) und die vorhandenen Verkaufsquellen: WooCommerce (eigener Adapter) und Pass Captain (meldet nur eigene, nicht über WooCommerce laufende Bestellungen). Voucher Captain meldet keine Verkäufe, sondern ordnet Gutschein-Kampagnen über `wpac_coupon_affiliate` einem Partner zu; gebucht wird über die WooCommerce-Bestellung. Neue Suite-Anbindungen müssen dieselbe Idempotenz (Quelle + Bestellung + Position) nutzen und dürfen keinen zweiten Verkauf für dieselbe Bestellung melden.
+**Stand 16.11.2026: Die gemeinsame Spezifikation der Suite liegt als Entwurf vor und ist noch nicht abgenommen** (Repository `wp-workflowmaster`, `docs/SPEC-suite-events.md`). Entschieden ist (Inhaber, 16.11.2026; `TODO.md`, „Offene Entscheidungen“): Jeder Kern führt eine eigene versionierte Vertragskonstante (hier `WPAC_CONTRACT_VERSION`). Der Transport sind die vorhandenen fachlichen PHP-Actions derselben Installation; neu gebaut wird nur der Abnehmer in Workflow Captain, der seinen Umschlag selbst baut, speichert und wiederholt. Nutzdaten dürfen öffentliche Kennungen, die Benutzer-ID, den öffentlichen Partnercode und Geldbeträge enthalten, aber keine geheimen Codes und keine E-Mail-Adressen. Die Kerne behalten ihre eigenen Mails. Ein Workflow darf in der ersten Version keine Provision buchen und keine Auszahlung auslösen. Die Workflow-Arbeit folgt nach dem Verkaufsstart der drei Add-ons.
 
-Workflow Captain bekommt normalisierte Ereignisse nach dem Commit (`wpac_workflow_event`: stabile Ereignis-ID, redigierte Daten ohne Käufer-, Bank- oder Steuerdaten) und Lese-Aktionen für Partnerstatus, Kampagnen und Kennzahlen (`wpac_workflow_read()`); Ereignisse buchen nie, Freigaben, Provisionen und Auszahlungen bleiben in Affiliate Captain. Siehe [docs/WORKFLOW-PROVIDER.md](docs/WORKFLOW-PROVIDER.md).
+Was dieser Kern heute anbietet, steht in [docs/CONTRACT.md](docs/CONTRACT.md): ein versionierter Hook-Vertrag (`WPAC_CONTRACT_VERSION`, aktuell 1.4.0, mit ausgeschriebener Versionsregel) samt der Liste aller Actions, Filter und Funktionen mit ihren Nutzdaten.
+
+Eine eigene Schnittstelle für Workflow Captain enthält 0.15.0 **nicht**. Ein Entwurf dafür (ein Umschlag, den der Kern baut, und eigene Lesefunktionen) entstand vor den Entscheidungen des Inhabers und wurde vor dem Release wieder herausgenommen. Ein Abnehmer nutzt die fachlichen Actions und die Lese-API des Vertrags; sein Adapter liegt im Add-on. Was wann zu tun ist, steht in `TODO.md` (Abschnitt „Entscheidung D13“, Aufgabe AFF-WF-08).
+
+Der Kern bleibt dabei vollständig frei: Er kennt weder Lizenz noch Tarif und bietet nur allgemeine Erweiterungspunkte an. Ob eine Anbindung bezahlt ist, entscheidet allein das jeweilige Add-on.
+
+Affiliate Captain bleibt System of Record für Partner, Attribution, Provisionsledger, Auszahlungen und Partnerstatus. Grundlage für Provisionen bleiben der Vertrag 1.x (`docs/CONTRACT.md`, aktuell 1.4.0) und die vorhandenen Verkaufsquellen: WooCommerce (eigener Adapter) und Pass Captain (meldet nur eigene, nicht über WooCommerce laufende Bestellungen). Voucher Captain meldet keine Verkäufe, sondern ordnet Gutschein-Kampagnen über `wpac_coupon_affiliate` einem Partner zu; gebucht wird über die WooCommerce-Bestellung. Neue Suite-Anbindungen müssen dieselbe Idempotenz (Quelle + Bestellung + Position) nutzen und dürfen keinen zweiten Verkauf für dieselbe Bestellung melden.
 
 Form Captain kann später Partnerbewerbungen oder ergänzende Angaben erfassen. Das ist optional, weil Affiliate Captain bereits einen eigenen Bewerbungs-/Partnerablauf besitzt. Eine Übergabe darf höchstens einen Partner im Status `pending` anlegen; Freigabe, Ablehnung, Code-Erzeugung und Provisionsregeln bleiben in Affiliate Captain. Der aktuelle öffentliche Vertrag hat keine allgemeine Formular-zu-Partner-Anlage; dafür wäre eine eng begrenzte, berechtigte und auditierte Erweiterung erforderlich.
 

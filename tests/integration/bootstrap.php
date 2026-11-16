@@ -19,7 +19,7 @@ define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
 define( 'WPAC_DB_VERSION', 16 );
-define( 'WPAC_CONTRACT_VERSION', '1.3.0' );
+define( 'WPAC_CONTRACT_VERSION', '1.4.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
 define( 'WPAC_URL', 'http://example.test/wp-content/plugins/affiliate-captain/' );
@@ -228,7 +228,7 @@ function do_action( $tag, ...$args ) {
 	}
 }
 function remove_all_filters( $tag ) { unset( $GLOBALS['test_hooks'][ $tag ] ); }
-// Workflow events check for a listener first (AFF-WF-02); WP-Cron context for the read actions.
+// has_action() for the portal tabs of add-ons; WP-Cron context for the installer.
 if ( ! function_exists( 'has_action' ) ) { function has_action( $tag, $cb = false ) { return ! empty( $GLOBALS['test_hooks'][ $tag ] ); } }
 if ( ! function_exists( 'wp_doing_cron' ) ) { function wp_doing_cron() { return ! empty( $GLOBALS['test_doing_cron'] ); } }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['test_options'] ) ? $GLOBALS['test_options'][ $k ] : $d; }

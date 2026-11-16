@@ -1572,7 +1572,7 @@ require __DIR__ . '/r14-p15.php'; // Feature p15 (0.15.0): contract wishes of th
 require __DIR__ . '/r15-k3.php'; // K3 (R6-CC5): statement storage, local / S3 (before r8-render).
 require __DIR__ . '/r15-l1.php'; // Package L1 (R12-L4/L5: privacy text, sub-ID grouping; before r8-render).
 require __DIR__ . '/r15-l2.php'; // Package L2 (suite integration: dedup across sales sources, no buyer data for partners; before r8-render).
-require __DIR__ . '/r15-l3.php'; // Package L3 (0.15.x): Workflow Captain provider contract (before r8-render).
+require __DIR__ . '/r15-l3.php'; // Package L3 (0.15.0): domain actions after COMMIT, also in an outer transaction (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
