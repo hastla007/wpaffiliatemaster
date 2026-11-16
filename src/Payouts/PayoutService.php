@@ -661,8 +661,13 @@ final class PayoutService {
 		if ( ! $p || '' === (string) $p->statement_file ) {
 			throw new IntegrationException( 'statement', esc_html( 'The credit note of payout ' . $id . ' could not be written yet.' ) );
 		}
-		/** This action is documented in create_for_affiliate(). */
-		do_action( 'wpac_payout_created', $id, (int) $p->affiliate_id );
+		$aff_id = (int) $p->affiliate_id;
+		Db::after_commit(
+			static function () use ( $id, $aff_id ) {
+				/** This action is documented in create_for_affiliate(). */
+				do_action( 'wpac_payout_created', $id, $aff_id );
+			}
+		);
 		return true;
 	}
 
@@ -1100,10 +1105,15 @@ final class PayoutService {
 		}
 		list( $p, $ids ) = $paid;
 		Audit::log( 'payout.paid', 'payout', (int) $id, array( 'number' => $p->number ) );
-		foreach ( $ids as $cid ) {
-			do_action( 'wpac_commission_paid', $cid );
-		}
-		do_action( 'wpac_payout_paid', (int) $id );
+		// After COMMIT also when called inside an outer transaction (dropped on its rollback, AFF-WF-02).
+		Db::after_commit(
+			static function () use ( $ids, $id ) {
+				foreach ( $ids as $cid ) {
+					do_action( 'wpac_commission_paid', $cid );
+				}
+				do_action( 'wpac_payout_paid', (int) $id );
+			}
+		);
 		return true;
 	}
 

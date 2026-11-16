@@ -1257,7 +1257,13 @@ final class Privacy {
 		 * @param int  $affiliate_id Partner.
 		 * @param bool $open         Whether open commissions or payouts delayed part of the erasure.
 		 */
-		do_action( 'wpac_affiliate_erased', (int) $aff->id, (bool) $open );
+		$erased = (int) $aff->id;
+		$open   = (bool) $open;
+		\WPAffiliateCaptain\Core\Db::after_commit( // Post-commit like all events (AFF-WF-02).
+			static function () use ( $erased, $open ) {
+				do_action( 'wpac_affiliate_erased', $erased, $open );
+			}
+		);
 		return $messages;
 	}
 
@@ -1425,6 +1431,16 @@ final class Privacy {
 	}
 
 	/**
+	 * Note for the shop operator when the affiliate cookie is set without consent (cookie mode
+	 * "always", R12-L4): shown in the privacy policy guide and in Site Health. Not legal advice.
+	 *
+	 * @return string
+	 */
+	public static function always_mode_note() {
+		return __( 'Note for the shop operator: the affiliate cookie is set without consent (cookie mode "Always, without consent"). Storing and reading information on the visitor\'s device without consent is only allowed if it is strictly necessary for a service the visitor explicitly requested (§ 25(2) no. 2 TDDDG, Art. 5(3) ePrivacy Directive). Affiliate cookies are usually not considered strictly necessary, so in the EU they usually require consent. Have this assessed by your data protection advisor and complete the legal basis, or switch the affiliate cookie to "Only with marketing consent".', 'affiliate-captain' );
+	}
+
+	/**
 	 * Suggested privacy policy text.
 	 */
 	public static function policy_text() {
@@ -1440,10 +1456,15 @@ final class Privacy {
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it.', 'An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		} elseif ( 'always' === $mode ) {
 			/* translators: %d: days */
-			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link.', $cookie_days, 'affiliate-captain' ), $cookie_days );
+			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link, without asking for your consent.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link, without asking for your consent.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
-		if ( Settings::get( 'use_wc_session' ) ) {
-			$p[] = __( 'If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout.', 'affiliate-captain' );
+		$session = (bool) Settings::get( 'use_wc_session' );
+		if ( $session ) {
+			// R12-L4: Tracker::store_touch() keeps the touch in an existing shop session whatever the
+			// cookie mode is (server-side; no cookie of its own) – say so instead of implying consent.
+			$p[] = 'always' === $mode
+				? __( 'If you have a shopping cart (shop session), the partner code of the link you followed is also kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used.', 'affiliate-captain' )
+				: __( 'If you have a shopping cart (shop session), the partner code of the link you followed is kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used. This does not depend on your consent to marketing cookies.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days = (int) Settings::get( 'lifetime_days' );
@@ -1454,7 +1475,11 @@ final class Privacy {
 			$p[]  = __( 'This link is only created for purchases with a customer account that earned the partner a commission (never for guest orders), and it is deleted at the latest when the partnership ends or the shop stops crediting later purchases.', 'affiliate-captain' );
 		}
 		if ( Settings::get( 'js_tracking' ) ) {
-			$p[] = __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.', 'affiliate-captain' );
+			$p[] = 'always' === $mode
+				? __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is sent only as its host name, without asking for your consent.', 'affiliate-captain' )
+				: ( 'consent' === $mode
+					? __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.', 'affiliate-captain' )
+					: __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is not stored.', 'affiliate-captain' ) );
 		}
 		$p[] = __( 'For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted.', 'affiliate-captain' );
 
@@ -1496,7 +1521,19 @@ final class Privacy {
 		$p[] = __( 'Storage periods:', 'affiliate-captain' ) . ' ' . implode( '; ', $periods ) . '.';
 
 		// Legal bases.
-		$p[] = __( 'Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR).', 'affiliate-captain' );
+		// R12-L4: the basis named for the cookie follows the cookie mode; "always" claims none.
+		$bases   = array();
+		$bases[] = $session
+			? __( 'attribution of an order to a partner without cookie and keeping the partner code in the shop session: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)', 'affiliate-captain' )
+			: __( 'attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)', 'affiliate-captain' );
+		if ( 'consent' === $mode ) {
+			$bases[] = __( 'storing and reading the affiliate cookie on your device and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25(1) TDDDG)', 'affiliate-captain' );
+		} elseif ( 'always' === $mode ) {
+			$bases[] = __( 'storing and reading the affiliate cookie on your device and reading the previous page without consent: [legal basis to be assessed and completed by the shop operator]', 'affiliate-captain' );
+		}
+		$bases[] = __( 'partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR)', 'affiliate-captain' );
+		$bases[] = __( 'bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)', 'affiliate-captain' );
+		$p[]     = __( 'Legal bases:', 'affiliate-captain' ) . ' ' . implode( '; ', $bases ) . '.';
 
 		// Recipients.
 		$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'affiliate-captain' );
@@ -1517,6 +1554,10 @@ final class Privacy {
 		$html = '';
 		foreach ( $p as $para ) {
 			$html .= '<p>' . esc_html( $para ) . '</p>';
+		}
+		if ( 'always' === $mode ) {
+			// Note for the operator in the policy guide (WordPress marks it as instructions, not policy text).
+			$html .= '<p class="privacy-policy-tutorial"><strong>' . esc_html( self::always_mode_note() ) . '</strong></p>';
 		}
 		$html .= '<p><em>' . esc_html__( 'This text is a suggestion based on your current settings and must be reviewed by your data protection advisor.', 'affiliate-captain' ) . '</em></p>';
 		wp_add_privacy_policy_content( 'Affiliate Captain', wp_kses_post( $html ) );

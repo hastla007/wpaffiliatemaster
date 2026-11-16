@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.14.0
+Stable tag: 0.15.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,7 +40,7 @@ Requirements: WordPress 6.3+, PHP 7.4+ with the extensions sodium and dom (zip f
 
 == External services ==
 
-The plugin contacts two services. Nothing else is sent anywhere, and no tracking or telemetry data leaves your site.
+The plugin contacts two services, and a third one only if you configure it (object storage). Nothing else is sent anywhere, and no tracking or telemetry data leaves your site.
 
 **EU VIES VAT number validation (European Commission)**
 
@@ -55,6 +55,15 @@ Used to confirm the EU VAT ID of a partner before reverse-charge credit notes ar
 **Loopback request to your own site**
 
 To warn you when credit notes stored in the uploads folder could be downloaded by anyone, the plugin writes a random probe file into its statement folder and requests it over HTTP from your own site (`wp-content/uploads/wpac-statements/…`) – at most once a day, when Site Health, the monitoring check or the Integrations page needs the result. The request goes to your own domain only, contains no personal data, and the probe file is deleted immediately. It is skipped when the statement folder is outside the web root (`WPAC_STATEMENT_DIR`, recommended).
+
+**Optional: S3-compatible object storage for credit notes (only when you configure it)**
+
+Off by default. Only when you define the `WPAC_S3_*` constants in wp-config.php, the plugin stores the PDFs of credit notes, correction credit notes and cancellations in the S3-compatible bucket you name (for example AWS S3, Hetzner Object Storage, Wasabi, MinIO or Cloudflare R2) instead of a local folder, so that every app server reaches the same documents.
+
+* What is sent: the credit note PDFs (they contain the partner's name, address, tax number or VAT ID and masked IBAN), their file names, and requests to read, list and delete them. Requests are signed with your access key; the secret itself is never sent.
+* When: when a credit note, correction or cancellation is issued, downloaded or rebuilt, during the daily deletion after the retention period, when you run the migration or the connection test, and on uninstall with "delete all data".
+* Endpoint: the endpoint you define in `WPAC_S3_ENDPOINT` (required; nothing is contacted unless all `WPAC_S3_*` constants are set).
+* The service is chosen and contracted by you; its terms and privacy policy apply (for example [AWS S3](https://aws.amazon.com/service-terms/) / [AWS privacy](https://aws.amazon.com/privacy/), [Hetzner](https://www.hetzner.com/legal/privacy-policy), [Wasabi](https://wasabi.com/legal/privacy-policy), [Cloudflare](https://www.cloudflare.com/privacypolicy/)). Conclude a data processing agreement with the provider and choose the data location of the bucket.
 
 == Frequently Asked Questions ==
 
@@ -115,14 +124,22 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
-= Unreleased =
-New features; database schema 16 (new column on the partner table):
+= 0.15.0 =
+New partner functions and add-on contract 1.4.0; database schema 16 (one new column with an index on the partner table):
 * New: apply the partner's coupon automatically after a partner link (Settings → Promotion, default off) – once per shop session, classic and block cart/checkout, respects WooCommerce validity, usage limits and "individual use", never removes the customer's coupons, not for self-referrals or paused/blocked partners; the partner area shows the discount next to the link, the welcome box optionally too; filter wpac_auto_apply_coupon
 * New: partners can request their own code (e.g. MARIA10) in the partner area – checked like admin codes, one open request and 3 per 30 days, approval or rejection with reason on the partner page (optionally as main code – earlier codes stay valid – and with a WooCommerce coupon), e-mail templates, audit log, data export and erasure; can be switched off under Settings → Program
 * Security: money-relevant admin actions (approving bank details, linking/unlinking partner accounts, changing payout details, downloading SEPA/transfer/PayPal files, marking payouts as paid) require a password confirmation valid for 15 minutes in the login session, with the Two-Factor plugin's second factor when active; setting under Fraud & abuse (on by default); WP-CLI and REST unaffected
 * New: "Recruited by" – the partner through whose referral a new partner registered is stored, shown and editable on the partner page, available in wpac_get_affiliate(s)() / wpac_update_affiliate() and via the new action wpac_affiliate_recruited for sub-affiliate add-ons
-* Add-ons: wpac_create_adjustment() can refer to a commission (parent_id, reference – information only, refunds leave the booking untouched); new functions wpac_portal_url() and wpac_mail_sender(); new actions wpac_creative_created and wpac_creative_updated
+* Add-ons (contract 1.4.0, backwards compatible): wpac_create_adjustment() can refer to a commission (parent_id, reference – information only, refunds leave the booking untouched); new functions wpac_portal_url() and wpac_mail_sender(); new actions wpac_creative_created and wpac_creative_updated
 * Changed: manual bookings for a commission (e.g. a penalty or a bonus) stay untouched when the order is refunded; the refund only reduces the calculated commission in proportion
+* New: optional S3-compatible object storage for credit notes, correction credit notes and cancellations (AWS S3, Hetzner, Wasabi, MinIO, Cloudflare R2), configured only via WPAC_S3_* constants; Integrations → System status shows the store with a "Test connection" button; wp wpac statements migrate --to=s3 [--dry-run]; filter wpac_statement_store; retention deletion only marks a document deleted once the store confirmed it
+* Privacy: the privacy policy text matches the cookie mode (consent: Art. 6(1)(a) GDPR and § 25(1) TDDDG; "always": no claimed legal basis plus an operator note, also in Site Health); shop-session storage is described as server-side
+* Privacy: partner statistics by campaign and sub-ID combine rows with fewer than 3 sales into one "Other" row (filter wpac_subid_min_group); admin reports unchanged
+* Fixed: commission status hooks and wpac_commission_paid/wpac_payout_paid could fire before the commit inside an outer transaction; all core events now wait for the commit and are dropped on rollback; wpac_code_request_rejected passes the row ID as fourth argument
+* Not part of 0.15.0: a separate interface for workflow engines. A provisional draft (a core-built event envelope and workflow read functions) was taken out before the release and returns only after the shared suite specification is accepted; the documented actions and the read API of contract 1.4.0 are unchanged
+* Fixed: no PHP warning in credit note PDFs when the frozen operator data has no address
+* Docs/tests: one commission per order across WooCommerce, Pass Captain, Voucher Captain and REST/PHP is covered by tests; partners never see buyer data; Form Captain assessment and Review Captain proposal in docs/CONTRACT.md
+* Dev: CI also runs the unit tests and one integration cell on PHP 8.5
 
 = 0.14.0 =
 Expert audit round 14 (12 perspectives); database schema 15 (one index widened online, new table visits_daily):
@@ -302,6 +319,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.15.0 =
+New: automatic partner coupon after a partner link, code requests by partners, password confirmation before money-relevant admin actions, "Recruited by" and the add-on contract 1.4.0. Back up first; schema 16 adds one column with an index to the partner table.
 
 = 0.14.0 =
 Security and compliance update: e-invoice (EN 16931 XML) for credit notes, editable e-mail templates, approval for bank-detail changes after account changes. Back up first; schema 15 widens one index online and adds a visit summary table filled in the background.

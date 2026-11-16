@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.14.0\n"
+"Project-Id-Version: Affiliate Captain 0.15.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -2411,7 +2411,7 @@ msgstr ""
 msgid "Partner program terms"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/IntegrationsPage.php
 msgid "unknown error"
 msgstr ""
 
@@ -2880,6 +2880,13 @@ msgstr[1] ""
 
 #. translators: %d: number of files
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "%d credit note file was copied to the document storage and verified."
+msgid_plural "%d credit note files were copied to the document storage and verified."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of files
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "%d file could not be moved (is the new folder writable?)."
 msgid_plural "%d files could not be moved (is the new folder writable?)."
 msgstr[0] ""
@@ -2896,6 +2903,13 @@ msgstr[1] ""
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "The bank details of %d partner cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
 msgid_plural "The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of files
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d credit note file is still in the local folder of this server and not in the document storage."
+msgid_plural "%d credit note files are still in the local folder of this server and not in the document storage."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2950,6 +2964,27 @@ msgid "Key change confirmed."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Document storage works: a test file was written, read and deleted."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "writing"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "reading"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "deleting"
+msgstr ""
+
+#. translators: 1: failed step (writing, reading, deleting), 2: error (no secrets)
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Document storage test failed while %1$s: %2$s"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them."
 msgstr ""
 
@@ -2959,6 +2994,14 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Partner IDs:"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "They are still downloadable from this server. Copy them to the document storage (each copy is read back and compared before the local file is deleted), or use \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Copy credit notes to the document storage"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -3047,6 +3090,10 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Database error."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements stored in the document storage (object storage) – not in a folder of the web server"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -3168,6 +3215,44 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "check"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Document storage (credit notes)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "S3-compatible object storage (WPAC_S3_* constants in wp-config.php)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php src/Core/Monitor.php
+msgid "Local folder on this server"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Custom store (filter wpac_statement_store)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Active store:"
+msgstr ""
+
+#. translators: %s: names of missing or invalid constants
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The object storage configuration in wp-config.php is incomplete or invalid (%s). Credit notes are stored in the local folder until it is complete."
+msgstr ""
+
+#. translators: 1: date and time, 2: error
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Last storage failure (%1$s): %2$s. Credit notes are written again automatically."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "With several app servers the folder must be shared storage – or use object storage (see the handbook, section \"Credit notes on several servers\")."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Test connection"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -6854,6 +6939,13 @@ msgstr[1] ""
 
 #. translators: %d: number of files
 #: src/Core/Monitor.php
+msgid "%d credit note is not in the document storage yet"
+msgid_plural "%d credit notes are not in the document storage yet"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of files
+#: src/Core/Monitor.php
 msgid "%d credit note is still in the previous statement folder"
 msgid_plural "%d credit notes are still in the previous statement folder"
 msgstr[0] ""
@@ -6934,6 +7026,10 @@ msgid "Affiliate Captain → Integrations: re-encrypt them with WPAC_ENCRYPTION_
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "They are only in the local folder of a server. Affiliate Captain → Integrations: copy them to the document storage, or run \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Affiliate Captain → Integrations: move them to the current folder."
 msgstr ""
 
@@ -6961,6 +7057,28 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "Check that the statement folder is writable."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Check the document storage: Affiliate Captain → Integrations → System status → Test connection."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Object storage for credit notes is not configured completely"
+msgstr ""
+
+#. translators: %s: names of missing or invalid constants
+#: src/Core/Monitor.php
+msgid "Some WPAC_S3_* constants are defined in wp-config.php, but %s are missing or invalid. Credit notes are stored in the local folder of each server until the configuration is complete."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The document storage for credit notes failed"
+msgstr ""
+
+#. translators: %s: error (no secrets)
+#: src/Core/Monitor.php
+msgid "Last error: %s. Credit notes are written again automatically with growing pauses; deletions after the retention period are repeated. Affiliate Captain → Integrations → System status → Test connection."
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -7106,6 +7224,14 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "deletion paused: legal hold"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Credit note storage"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Object storage / custom store"
 msgstr ""
 
 #. translators: %s: site name
@@ -8794,6 +8920,13 @@ msgid_plural "%1$s more orders to %2$s."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: minimum number of sales per row
+#: src/Portal/Portal.php
+msgid "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgid_plural "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sales in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Portal/Portal.php
 msgid "The link has expired."
 msgstr ""
@@ -9767,8 +9900,8 @@ msgstr[1] ""
 
 #. translators: %d: days
 #: src/Privacy/Privacy.php
-msgid "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link."
-msgid_plural "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link."
+msgid "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link, without asking for your consent."
+msgid_plural "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link, without asking for your consent."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -10055,11 +10188,19 @@ msgid "payment provider of the other payment method chosen by the partner (e.g. 
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Note for the shop operator: the affiliate cookie is set without consent (cookie mode \"Always, without consent\"). Storing and reading information on the visitor's device without consent is only allowed if it is strictly necessary for a service the visitor explicitly requested (§ 25(2) no. 2 TDDDG, Art. 5(3) ePrivacy Directive). Affiliate cookies are usually not considered strictly necessary, so in the EU they usually require consent. Have this assessed by your data protection advisor and complete the legal basis, or switch the affiliate cookie to \"Only with marketing consent\"."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout."
+msgid "If you have a shopping cart (shop session), the partner code of the link you followed is also kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "If you have a shopping cart (shop session), the partner code of the link you followed is kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used. This does not depend on your consent to marketing cookies."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10071,7 +10212,15 @@ msgid "This link is only created for purchases with a customer account that earn
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is sent only as its host name, without asking for your consent."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is not stored."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10115,7 +10264,31 @@ msgid "Storage periods:"
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)."
+msgid "attribution of an order to a partner without cookie and keeping the partner code in the shop session: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "storing and reading the affiliate cookie on your device and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25(1) TDDDG)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "storing and reading the affiliate cookie on your device and reading the previous page without consent: [legal basis to be assessed and completed by the shop operator]"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Legal bases:"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10230,6 +10403,13 @@ msgstr ""
 #: src/Reports/MonthlyMail.php
 msgid "Partner program %s"
 msgstr ""
+
+#. translators: %d: minimum number of sales per row
+#: src/Reports/Reports.php
+msgid "Other (campaigns and sub-IDs with fewer than %d sale)"
+msgid_plural "Other (campaigns and sub-IDs with fewer than %d sales)"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Reports/Reports.php
 msgid "(no content / direct)"
@@ -10348,6 +10528,10 @@ msgstr ""
 #. translators: %s: cookie name
 #: src/Tracking/Tracker.php
 msgid "This host only passes allow-listed cookies to WordPress; \"%s\" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref."
+msgstr ""
+
+#: src/Tracking/Tracker.php
+msgid "Affiliate cookie is set without consent"
 msgstr ""
 
 #: src/Tracking/Tracker.php

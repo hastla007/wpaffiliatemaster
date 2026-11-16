@@ -396,6 +396,11 @@ final class Installer {
 		$all                       = (array) get_site_option( self::RETAINED_SITES, array() );
 		$all[ $blog_id ]           = isset( $all[ $blog_id ] ) ? (array) $all[ $blog_id ] : array( 'years' => 10, 'hold' => 0, 'time' => time() );
 		$all[ $blog_id ]['folder'] = $folder;
+		// With object storage the documents stay in the bucket under the site's prefix; they are
+		// deleted from there after the retention period (delete_retained_objects()).
+		switch_to_blog( $blog_id );
+		$all[ $blog_id ]['store'] = (string) \WPAffiliateCaptain\Payouts\Statement::store()->id();
+		restore_current_blog();
 		update_site_option( self::RETAINED_SITES, $all );
 	}
 
@@ -450,6 +455,7 @@ final class Installer {
 			// Retention over: the kept credit notes go as well.
 			if ( isset( $retained[ $blog_id ] ) ) {
 				self::delete_retained_folder( isset( $retained[ $blog_id ]['folder'] ) ? (string) $retained[ $blog_id ]['folder'] : '' );
+				self::delete_retained_objects( (int) $blog_id, (array) $retained[ $blog_id ] );
 				unset( $retained[ $blog_id ] );
 				update_site_option( self::RETAINED_SITES, $retained );
 			}
@@ -464,6 +470,7 @@ final class Installer {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base . (int) $blog_id . '_wpac_payouts' ) ) ) ) {
 				self::delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
+				self::delete_retained_objects( (int) $blog_id, (array) $entry );
 				unset( $retained[ $blog_id ] );
 				update_site_option( self::RETAINED_SITES, $retained );
 			}
@@ -503,6 +510,31 @@ final class Installer {
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
 		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM `' . esc_sql( $k ) . '` WHERE created_at > %s LIMIT 1', $cutoff ) );
+	}
+
+	/**
+	 * Delete the kept credit notes of a deleted site from the object storage (after the retention
+	 * period): every object under the site's prefix (site-<ID>/).
+	 *
+	 * @param int   $blog_id Deleted site.
+	 * @param array $entry   Retention data remembered when the site was deleted.
+	 */
+	private static function delete_retained_objects( $blog_id, array $entry ) {
+		if ( empty( $entry['store'] ) || 's3' !== $entry['store'] ) {
+			return;
+		}
+		$store = \WPAffiliateCaptain\Payouts\Storage\S3Store::from_constants( (int) $blog_id );
+		if ( ! $store ) {
+			Log::warning( 'Credit notes of a deleted site could not be deleted from the object storage (not configured)', array( 'site' => (int) $blog_id ) );
+			return;
+		}
+		$failed = 0;
+		foreach ( $store->list_older_than( time() + DAY_IN_SECONDS ) as $name ) {
+			$failed += $store->delete( $name ) ? 0 : 1;
+		}
+		if ( $failed || '' !== $store->last_error() ) {
+			Log::error( 'Credit notes of a deleted site could not be deleted from the object storage', array( 'site' => (int) $blog_id, 'failed' => $failed, 'cause' => Db::cut( $store->last_error(), 300 ) ) );
+		}
 	}
 
 	/**

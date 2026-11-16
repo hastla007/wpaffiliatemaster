@@ -1190,7 +1190,7 @@ final class Notifications {
 		$name = trim( (string) Settings::get( 'mail_from_name' ) );
 		/**
 		 * Sender name of an e-mail of the plugin (e.g. the brand of a white-label add-on). Empty:
-		 * the site name (with a sender address set) or the WordPress/SMTP default. Since 1.3.0.
+		 * the site name (with a sender address set) or the WordPress/SMTP default. Since contract 1.3.0.
 		 *
 		 * @param string $name    Sender name from the settings ('' = not set).
 		 * @param string $type    Mail type.
@@ -1507,7 +1507,7 @@ final class Notifications {
 		}
 		if ( 'created' === $event && ( in_array( (string) $c->kind, array( 'writeoff', 'repayment', 'correction', 'reinstatement' ), true ) || ( 'bonus' === (string) $c->kind && (int) $c->parent_id ) ) ) {
 			// Settlements, correction credit notes (own mail), reinstatements and bonus corrections
-			// are no "new commission" for the partner (wpac_commission_created fires for them since 1.3.0).
+			// are no "new commission" for the partner (wpac_commission_created fires for them since contract 1.3.0).
 			return;
 		}
 		if ( ! self::$commission_events ) {

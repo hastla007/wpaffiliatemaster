@@ -81,7 +81,10 @@ final class Monitor {
 				/* translators: %d: number of partners */
 				$out['reencrypt'] = array( 'recommended', sprintf( _n( 'Bank details of %d partner still use the old key', 'Bank details of %d partners still use the old key', (int) $migration['legacy'], 'affiliate-captain' ), (int) $migration['legacy'] ), __( 'Affiliate Captain → Integrations: re-encrypt them with WPAC_ENCRYPTION_KEY.', 'affiliate-captain' ) );
 			}
-			if ( ! empty( $migration['misplaced'] ) ) {
+			if ( ! empty( $migration['misplaced'] ) && ! \WPAffiliateCaptain\Payouts\Statement::local_store() ) {
+				/* translators: %d: number of files */
+				$out['statement_files'] = array( 'recommended', sprintf( _n( '%d credit note is not in the document storage yet', '%d credit notes are not in the document storage yet', (int) $migration['misplaced'], 'affiliate-captain' ), (int) $migration['misplaced'] ), __( 'They are only in the local folder of a server. Affiliate Captain → Integrations: copy them to the document storage, or run "wp wpac statements migrate --to=s3" on every app server.', 'affiliate-captain' ) );
+			} elseif ( ! empty( $migration['misplaced'] ) ) {
 				/* translators: %d: number of files */
 				$out['statement_files'] = array( 'recommended', sprintf( _n( '%d credit note is still in the previous statement folder', '%d credit notes are still in the previous statement folder', (int) $migration['misplaced'], 'affiliate-captain' ), (int) $migration['misplaced'] ), __( 'Affiliate Captain → Integrations: move them to the current folder.', 'affiliate-captain' ) );
 			}
@@ -100,10 +103,28 @@ final class Monitor {
 			? array( 'critical', sprintf( __( '%d partner accounts differ from their bookings', 'affiliate-captain' ), count( $balance['accounts'] ) ), implode( ', ', array_slice( $balance['accounts'], 0, 20 ) ) )
 			: array( 'good', __( 'Partner accounts match their bookings', 'affiliate-captain' ), '' );
 
-		$stmt = \WPAffiliateCaptain\Payouts\Statement::waiting();
+		$local = \WPAffiliateCaptain\Payouts\Statement::local_store();
+		$stmt  = \WPAffiliateCaptain\Payouts\Statement::waiting();
 		if ( $stmt ) {
 			/* translators: %d: number */
-			$out['statements'] = array( 'critical', sprintf( __( '%d credit notes could not be written', 'affiliate-captain' ), count( $stmt ) ), __( 'Check that the statement folder is writable.', 'affiliate-captain' ) );
+			$out['statements'] = array( 'critical', sprintf( __( '%d credit notes could not be written', 'affiliate-captain' ), count( $stmt ) ), $local ? __( 'Check that the statement folder is writable.', 'affiliate-captain' ) : __( 'Check the document storage: Affiliate Captain → Integrations → System status → Test connection.', 'affiliate-captain' ) );
+		}
+		$store_problems = \WPAffiliateCaptain\Payouts\Storage\S3Store::config_problems();
+		$store_error    = \WPAffiliateCaptain\Payouts\Statement::store_error();
+		if ( $store_problems ) {
+			$out['statement_store'] = array(
+				'critical',
+				__( 'Object storage for credit notes is not configured completely', 'affiliate-captain' ),
+				/* translators: %s: names of missing or invalid constants */
+				sprintf( __( 'Some WPAC_S3_* constants are defined in wp-config.php, but %s are missing or invalid. Credit notes are stored in the local folder of each server until the configuration is complete.', 'affiliate-captain' ), implode( ', ', $store_problems ) ),
+			);
+		} elseif ( $store_error ) {
+			$out['statement_store'] = array(
+				'critical',
+				__( 'The document storage for credit notes failed', 'affiliate-captain' ),
+				/* translators: %s: error (no secrets) */
+				sprintf( __( 'Last error: %s. Credit notes are written again automatically with growing pauses; deletions after the retention period are repeated. Affiliate Captain → Integrations → System status → Test connection.', 'affiliate-captain' ), (string) $store_error['error'] ),
+			);
 		}
 		$public = \WPAffiliateCaptain\Payouts\Statement::publicly_accessible();
 		if ( true === $public ) {
@@ -352,6 +373,11 @@ final class Monitor {
 				'value' => ( $years > 0 ? sprintf( _n( '%d year', '%d years', $years, 'affiliate-captain' ), $years ) : __( 'forever', 'affiliate-captain' ) ) . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (' . __( 'deletion paused: legal hold', 'affiliate-captain' ) . ')' : '' ),
 				'debug' => (string) $years . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (hold)' : '' ),
 			),
+			'statement_store' => array(
+				'label' => __( 'Credit note storage', 'affiliate-captain' ),
+				'value' => \WPAffiliateCaptain\Payouts\Statement::local_store() ? __( 'Local folder on this server', 'affiliate-captain' ) : __( 'Object storage / custom store', 'affiliate-captain' ),
+				'debug' => (string) \WPAffiliateCaptain\Payouts\Statement::store()->id(),
+			),
 			'maintenance'  => array(
 				'label' => __( 'Maintenance mode', 'affiliate-captain' ),
 				'value' => $yes_no( Settings::get( 'maintenance_mode' ) ),
@@ -458,6 +484,7 @@ final class Monitor {
 				'WPAC_ENCRYPTION_KEY'      => $yes( Crypto::has_dedicated_key() ),
 				'WPAC_STATEMENT_DIR'       => $yes( defined( 'WPAC_STATEMENT_DIR' ) ),
 				'WPAC_CUSTOMER_KEY'        => \WPAffiliateCaptain\Tracking\CustomerLinks::key_status()['source'],
+				'statement_store'          => (string) \WPAffiliateCaptain\Payouts\Statement::store()->id(),
 				'statements_public'        => true === \WPAffiliateCaptain\Payouts\Statement::publicly_accessible() ? 'yes' : 'no/unknown',
 				'trusted_proxies'          => (string) count( $proxy ),
 			),
