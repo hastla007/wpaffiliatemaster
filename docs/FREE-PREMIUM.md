@@ -83,7 +83,6 @@ Nächste Schritte nach der Entscheidung für A/C:
 - Bestehende Installationen (GitHub-ZIP) wechseln nicht automatisch auf den neuen Ordner: Hinweis im Changelog „Plugin löschen (Daten bleiben, wenn ‚Alle Daten löschen‘ aus ist) und aus dem Verzeichnis neu installieren“.
 - **Umgesetzt (0.11.0):** Name „Affiliate Captain“, Ordner/Hauptdatei `affiliate-captain/affiliate-captain.php`, Textdomain `affiliate-captain`. Eine noch aktive alte Kopie (`wp-affiliate-captain`) wird beim ersten Aufruf der neuen deaktiviert; ihr Löschen entfernt keine Daten (die neue Kopie schützt die gemeinsamen Daten). Interne Kennungen (Präfix `wpac_`, Tabellen, Optionen, Hooks, Blocknamen, REST `wpac/v1`, Action-Scheduler-Gruppe) bleiben gleich. Verfügbarkeit des Slugs bei WordPress.org vor der Einreichung prüfen.
 
-
 ## Geplante Captain-Suite-Integrationen
 
 Stand 16.11.2026: Für Form Captain, Review Captain und Workflow Captain gibt es noch keine gemeinsame Spezifikation, nur Aufgabenlisten in den einzelnen Repositories. Vor einer Umsetzung muss eine gemeinsame Spezifikation Ereignisnamen, Umschlag, Transport, Versionierung, Wiederholungen und Fehlercodes festlegen; ihren Ort entscheidet der Inhaber (`TODO.md`, Entscheidung E1). Dieser Kern bietet dafür heute seinen versionierten Hook-Vertrag an (`docs/CONTRACT.md`, `WPAC_CONTRACT_VERSION`); er ist ein mögliches Muster für die anderen Kerne (Hinweis, keine Entscheidung). Auch für diese Anbindungen gilt: Der Kern prüft keine Rechte; ob eine Anbindung bezahlt ist, entscheidet das jeweilige Add-on.

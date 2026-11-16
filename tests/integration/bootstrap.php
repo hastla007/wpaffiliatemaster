@@ -228,6 +228,9 @@ function do_action( $tag, ...$args ) {
 	}
 }
 function remove_all_filters( $tag ) { unset( $GLOBALS['test_hooks'][ $tag ] ); }
+// Workflow events check for a listener first (AFF-WF-02); WP-Cron context for the read actions.
+if ( ! function_exists( 'has_action' ) ) { function has_action( $tag, $cb = false ) { return ! empty( $GLOBALS['test_hooks'][ $tag ] ); } }
+if ( ! function_exists( 'wp_doing_cron' ) ) { function wp_doing_cron() { return ! empty( $GLOBALS['test_doing_cron'] ); } }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['test_options'] ) ? $GLOBALS['test_options'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { if ( ! empty( $GLOBALS['test_option_fail'][ $k ] ) ) { return false; } $GLOBALS['test_options'][ $k ] = $v; return true; } // test_option_fail: simulate a failed write.
 function add_option( $k, $v, $x = '', $a = null ) {

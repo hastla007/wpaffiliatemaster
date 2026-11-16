@@ -1062,6 +1062,13 @@ final class Tracker {
 				sprintf( __( 'This host only passes allow-listed cookies to WordPress; "%s" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref.', 'affiliate-captain' ), $name ),
 			);
 		}
+		if ( 'always' === Settings::get( 'cookie_mode' ) ) {
+			// R12-L4: a recommendation, not a verdict – the operator has to assess § 25(2) no. 2 TDDDG.
+			$out[] = array(
+				__( 'Affiliate cookie is set without consent', 'affiliate-captain' ),
+				\WPAffiliateCaptain\Privacy\Privacy::always_mode_note(),
+			);
+		}
 		$consent = Consent::integration_status();
 		if ( $consent['needed'] && ! $consent['connected'] ) {
 			// R14-L2: "only with consent" but nothing can give it – the cookie is silently never set.

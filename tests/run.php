@@ -667,6 +667,12 @@ foreach ( array( 'docs/CONTRACT.md', 'docs/HANDBOOK.md', 'README.md', 'readme.tx
 		}
 	}
 }
+// A placeholder version ("since 0.15.x") says nothing an add-on could compare against.
+foreach ( array_merge( $wpac_guard_files, array( 'docs/CONTRACT.md', 'docs/WORKFLOW-PROVIDER.md', 'docs/HANDBOOK.md', 'README.md', 'readme.txt' ) ) as $r16_f ) {
+	if ( preg_match_all( '/\b\d+\.\d+\.x\b/', (string) file_get_contents( $r16_root . '/' . $r16_f ), $r16_m ) ) {
+		$r16_ahead[] = $r16_f . ': ' . implode( ', ', array_unique( $r16_m[0] ) );
+	}
+}
 check( 'R16-1 no "since X" is ahead of plugin ' . $r16_header . ' / contract ' . $r16_contract, array(), $r16_ahead );
 
 // R16-10: the overview line of TODO.md names the counted check boxes (the file is not in the ZIP).

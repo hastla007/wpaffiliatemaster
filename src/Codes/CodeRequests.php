@@ -265,7 +265,11 @@ final class CodeRequests {
 		 * @param string $code         Code.
 		 * @param int    $row_id       Row in partner_codes (status "requested").
 		 */
-		do_action( 'wpac_code_requested', $id, $norm, $row_id );
+		Db::after_commit( // Post-commit like all events (AFF-WF-02).
+			static function () use ( $id, $norm, $row_id ) {
+				do_action( 'wpac_code_requested', $id, $norm, $row_id );
+			}
+		);
 		return $row_id;
 	}
 
@@ -409,7 +413,14 @@ final class CodeRequests {
 		 * @param int    $row_id       Row in partner_codes.
 		 * @param bool   $make_main    Whether it was made the main code.
 		 */
-		do_action( 'wpac_code_request_approved', $aff_id, (string) $row->code, (int) $row->id, ! empty( $opts['make_main'] ) );
+		$code    = (string) $row->code;
+		$rid     = (int) $row->id;
+		$as_main = ! empty( $opts['make_main'] );
+		Db::after_commit( // Post-commit like all events (AFF-WF-02).
+			static function () use ( $aff_id, $code, $rid, $as_main ) {
+				do_action( 'wpac_code_request_approved', $aff_id, $code, $rid, $as_main );
+			}
+		);
 		return array(
 			'code'     => (string) $row->code,
 			'blocked'  => $blocked,
@@ -504,8 +515,15 @@ final class CodeRequests {
 		 * @param int    $affiliate_id Partner.
 		 * @param string $code         Code.
 		 * @param string $reason       Reason sent to the partner.
+		 * @param int    $row_id       Deleted row in partner_codes (since 0.15.0, for the workflow event).
 		 */
-		do_action( 'wpac_code_request_rejected', $aff_id, (string) $row->code, $reason );
+		$code = (string) $row->code;
+		$rid  = (int) $row->id;
+		Db::after_commit( // Post-commit like all events (AFF-WF-02).
+			static function () use ( $aff_id, $code, $reason, $rid ) {
+				do_action( 'wpac_code_request_rejected', $aff_id, $code, $reason, $rid );
+			}
+		);
 		return true;
 	}
 

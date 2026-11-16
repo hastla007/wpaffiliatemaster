@@ -2194,6 +2194,11 @@ msgid_plural "%d credit note files were moved to the new statement folder."
 msgstr[0] "%d Gutschrift-Datei wurde in den neuen Belegordner verschoben."
 msgstr[1] "%d Gutschrift-Dateien wurden in den neuen Belegordner verschoben."
 
+msgid "%d credit note file was copied to the document storage and verified."
+msgid_plural "%d credit note files were copied to the document storage and verified."
+msgstr[0] "%d Gutschriftdatei wurde in den Belegspeicher kopiert und geprüft."
+msgstr[1] "%d Gutschriftdateien wurden in den Belegspeicher kopiert und geprüft."
+
 msgid "%d file could not be moved (is the new folder writable?)."
 msgid_plural "%d files could not be moved (is the new folder writable?)."
 msgstr[0] "%d Datei konnte nicht verschoben werden (ist der neue Ordner beschreibbar?)."
@@ -2208,6 +2213,11 @@ msgid "The bank details of %d partner cannot be decrypted with either key (the W
 msgid_plural "The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
 msgstr[0] "Die Bankdaten von %d Partner lassen sich mit keinem der beiden Schlüssel entschlüsseln (die WordPress-Salts wurden vermutlich geändert, bevor WPAC_ENCRYPTION_KEY gesetzt war). Bitten Sie diesen Partner, seine IBAN erneut einzugeben; bis dahin ist kein SEPA-Export für ihn möglich."
 msgstr[1] "Die Bankdaten von %d Partnern lassen sich mit keinem der beiden Schlüssel entschlüsseln (die WordPress-Salts wurden vermutlich geändert, bevor WPAC_ENCRYPTION_KEY gesetzt war). Bitten Sie diese Partner, ihre IBAN erneut einzugeben; bis dahin ist kein SEPA-Export für sie möglich."
+
+msgid "%d credit note file is still in the local folder of this server and not in the document storage."
+msgid_plural "%d credit note files are still in the local folder of this server and not in the document storage."
+msgstr[0] "%d Gutschriftdatei liegt noch im lokalen Ordner dieses Servers und nicht im Belegspeicher."
+msgstr[1] "%d Gutschriftdateien liegen noch im lokalen Ordner dieses Servers und nicht im Belegspeicher."
 
 msgid "%d credit note file is still in the previous statement folder."
 msgid_plural "%d credit note files are still in the previous statement folder."
@@ -2246,6 +2256,21 @@ msgstr "Der Rest wird im Hintergrund verarbeitet."
 msgid "Key change confirmed."
 msgstr "Schlüsseländerung bestätigt."
 
+msgid "Document storage works: a test file was written, read and deleted."
+msgstr "Der Belegspeicher funktioniert: Eine Testdatei wurde geschrieben, gelesen und gelöscht."
+
+msgid "writing"
+msgstr "beim Schreiben"
+
+msgid "reading"
+msgstr "beim Lesen"
+
+msgid "deleting"
+msgstr "beim Löschen"
+
+msgid "Document storage test failed while %1$s: %2$s"
+msgstr "Test des Belegspeichers fehlgeschlagen (%1$s): %2$s"
+
 msgid "They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them."
 msgstr "Sie bleiben lesbar, solange sich die Salts in der wp-config.php nicht ändern. Verschlüsseln Sie sie jetzt mit Ihrem neuen WPAC_ENCRYPTION_KEY – danach wirkt sich eine Änderung der Salts nicht mehr auf sie aus."
 
@@ -2254,6 +2279,12 @@ msgstr "Bankdaten mit dem neuen Schlüssel neu verschlüsseln"
 
 msgid "Partner IDs:"
 msgstr "Partner-IDs:"
+
+msgid "They are still downloadable from this server. Copy them to the document storage (each copy is read back and compared before the local file is deleted), or use \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr "Sie können weiterhin über diesen Server heruntergeladen werden. Kopieren Sie sie in den Belegspeicher (jede Kopie wird zurückgelesen und verglichen, bevor die lokale Datei gelöscht wird) oder führen Sie „wp wpac statements migrate --to=s3“ auf jedem App-Server aus."
+
+msgid "Copy credit notes to the document storage"
+msgstr "Gutschriften in den Belegspeicher kopieren"
 
 msgid "The statement folder was changed (e.g. WPAC_STATEMENT_DIR defined later). The files are still found and downloadable, but they stay in the old, possibly public folder until you move them."
 msgstr "Der Belegordner wurde geändert (z. B. WPAC_STATEMENT_DIR nachträglich definiert). Die Dateien werden weiterhin gefunden und können heruntergeladen werden, bleiben aber im alten, möglicherweise öffentlichen Ordner, bis Sie sie verschieben."
@@ -2320,6 +2351,9 @@ msgstr "Eine Provision wurde gleichzeitig geändert."
 
 msgid "Database error."
 msgstr "Datenbankfehler."
+
+msgid "Statements stored in the document storage (object storage) – not in a folder of the web server"
+msgstr "Belege liegen im Belegspeicher (Objektspeicher) – nicht in einem Ordner des Webservers"
 
 msgid "Statements stored in their own folder (WPAC_STATEMENT_DIR / wpac_statement_dir) – make sure it is outside the web root"
 msgstr "Belege liegen in einem eigenen Ordner (WPAC_STATEMENT_DIR / wpac_statement_dir) – achten Sie darauf, dass er außerhalb des Webverzeichnisses liegt"
@@ -2410,6 +2444,33 @@ msgstr "Die bestehenden Kundenverknüpfungen wurden mit einem früheren WPAC_CUS
 
 msgid "check"
 msgstr "prüfen"
+
+msgid "Document storage (credit notes)"
+msgstr "Belegspeicher (Gutschriften)"
+
+msgid "S3-compatible object storage (WPAC_S3_* constants in wp-config.php)"
+msgstr "S3-kompatibler Objektspeicher (WPAC_S3_*-Konstanten in der wp-config.php)"
+
+msgid "Local folder on this server"
+msgstr "Lokaler Ordner auf diesem Server"
+
+msgid "Custom store (filter wpac_statement_store)"
+msgstr "Eigener Speicher (Filter wpac_statement_store)"
+
+msgid "Active store:"
+msgstr "Aktiver Speicher:"
+
+msgid "The object storage configuration in wp-config.php is incomplete or invalid (%s). Credit notes are stored in the local folder until it is complete."
+msgstr "Die Konfiguration des Objektspeichers in der wp-config.php ist unvollständig oder ungültig (%s). Bis sie vollständig ist, werden Gutschriften im lokalen Ordner gespeichert."
+
+msgid "Last storage failure (%1$s): %2$s. Credit notes are written again automatically."
+msgstr "Letzter Speicherfehler (%1$s): %2$s. Gutschriften werden automatisch erneut geschrieben."
+
+msgid "With several app servers the folder must be shared storage – or use object storage (see the handbook, section \"Credit notes on several servers\")."
+msgstr "Bei mehreren App-Servern muss der Ordner ein gemeinsamer Speicher sein – oder verwenden Sie einen Objektspeicher (siehe Handbuch, Abschnitt „Credit notes on several servers“)."
+
+msgid "Test connection"
+msgstr "Verbindung testen"
 
 msgid "Consent banner: not needed for the current cookie setting"
 msgstr "Consent-Banner: für die aktuelle Cookie-Einstellung nicht nötig"
@@ -4964,6 +5025,11 @@ msgid_plural "Bank details of %d partners still use the old key"
 msgstr[0] "Bankdaten von %d Partner nutzen noch den alten Schlüssel"
 msgstr[1] "Bankdaten von %d Partnern nutzen noch den alten Schlüssel"
 
+msgid "%d credit note is not in the document storage yet"
+msgid_plural "%d credit notes are not in the document storage yet"
+msgstr[0] "%d Gutschrift ist noch nicht im Belegspeicher"
+msgstr[1] "%d Gutschriften sind noch nicht im Belegspeicher"
+
 msgid "%d credit note is still in the previous statement folder"
 msgid_plural "%d credit notes are still in the previous statement folder"
 msgstr[0] "%d Gutschrift liegt noch im bisherigen Belegordner"
@@ -5021,6 +5087,9 @@ msgstr "Die WordPress-Salts wurden vermutlich ohne WPAC_ENCRYPTION_KEY geändert
 msgid "Affiliate Captain → Integrations: re-encrypt them with WPAC_ENCRYPTION_KEY."
 msgstr "Affiliate Captain → Integrationen: mit WPAC_ENCRYPTION_KEY neu verschlüsseln."
 
+msgid "They are only in the local folder of a server. Affiliate Captain → Integrations: copy them to the document storage, or run \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr "Sie liegen nur im lokalen Ordner eines Servers. Affiliate Captain → Integrationen: Kopieren Sie sie in den Belegspeicher oder führen Sie „wp wpac statements migrate --to=s3“ auf jedem App-Server aus."
+
 msgid "Affiliate Captain → Integrations: move them to the current folder."
 msgstr "Affiliate Captain → Integrationen: in den aktuellen Ordner verschieben."
 
@@ -5041,6 +5110,21 @@ msgstr "%d Gutschriften konnten nicht geschrieben werden"
 
 msgid "Check that the statement folder is writable."
 msgstr "Prüfen Sie, ob der Belegordner beschreibbar ist."
+
+msgid "Check the document storage: Affiliate Captain → Integrations → System status → Test connection."
+msgstr "Prüfen Sie den Belegspeicher: Affiliate Captain → Integrationen → Systemstatus → Verbindung testen."
+
+msgid "Object storage for credit notes is not configured completely"
+msgstr "Objektspeicher für Gutschriften ist nicht vollständig konfiguriert"
+
+msgid "Some WPAC_S3_* constants are defined in wp-config.php, but %s are missing or invalid. Credit notes are stored in the local folder of each server until the configuration is complete."
+msgstr "In der wp-config.php sind WPAC_S3_*-Konstanten definiert, aber %s fehlen oder sind ungültig. Bis die Konfiguration vollständig ist, werden Gutschriften im lokalen Ordner des jeweiligen Servers gespeichert."
+
+msgid "The document storage for credit notes failed"
+msgstr "Der Belegspeicher für Gutschriften ist ausgefallen"
+
+msgid "Last error: %s. Credit notes are written again automatically with growing pauses; deletions after the retention period are repeated. Affiliate Captain → Integrations → System status → Test connection."
+msgstr "Letzter Fehler: %s. Gutschriften werden automatisch mit wachsenden Pausen erneut geschrieben; Löschungen nach Ablauf der Aufbewahrungsfrist werden wiederholt. Affiliate Captain → Integrationen → Systemstatus → Verbindung testen."
 
 msgid "Credit notes are publicly reachable"
 msgstr "Gutschriften sind öffentlich erreichbar"
@@ -5149,6 +5233,12 @@ msgstr "unbegrenzt"
 
 msgid "deletion paused: legal hold"
 msgstr "Löschung angehalten: Aufbewahrungssperre"
+
+msgid "Credit note storage"
+msgstr "Speicher der Gutschriften"
+
+msgid "Object storage / custom store"
+msgstr "Objektspeicher / eigener Speicher"
 
 msgid "[%s] Partner program needs attention"
 msgstr "[%s] Partnerprogramm braucht Aufmerksamkeit"
@@ -5374,6 +5464,15 @@ msgstr "Australien"
 
 msgid "New Zealand"
 msgstr "Neuseeland"
+
+msgid "Unknown read action."
+msgstr "Unbekannte Lese-Aktion."
+
+msgid "The period must start before it ends and be at most 366 days long."
+msgstr "Der Zeitraum muss vor seinem Ende beginnen und darf höchstens 366 Tage lang sein."
+
+msgid "You are not allowed to read these figures."
+msgstr "Sie dürfen diese Kennzahlen nicht lesen."
 
 msgid "Your partner discount (coupon %s) was applied automatically."
 msgstr "Ihr Partnerrabatt (Gutschein %s) wurde automatisch eingelöst."
@@ -6333,6 +6432,11 @@ msgid_plural "%1$s more orders to %2$s."
 msgstr[0] "Noch %1$s Bestellung bis %2$s."
 msgstr[1] "Noch %1$s Bestellungen bis %2$s."
 
+msgid "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgid_plural "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sales in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgstr[0] "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %d Verkauf im Zeitraum zusammen als „Sonstige“ angezeigt. Zeilen nur mit Linkaufrufen werden einzeln angezeigt."
+msgstr[1] "Zum Schutz der Käufer werden Kampagnen und Sub-IDs mit weniger als %d Verkäufen im Zeitraum zusammen als „Sonstige“ angezeigt. Zeilen nur mit Linkaufrufen werden einzeln angezeigt."
+
 msgid "The link has expired."
 msgstr "Der Link ist abgelaufen."
 
@@ -7034,10 +7138,10 @@ msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consent
 msgstr[0] "Ein Affiliate-Cookie (wpac_ref, %d Tag) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
 msgstr[1] "Ein Affiliate-Cookie (wpac_ref, %d Tage) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
 
-msgid "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link."
-msgid_plural "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link."
-msgstr[0] "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tag) gesetzt."
-msgstr[1] "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tage) gesetzt."
+msgid "An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link, without asking for your consent."
+msgid_plural "An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link, without asking for your consent."
+msgstr[0] "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tag) gesetzt, ohne dass Ihre Einwilligung eingeholt wird."
+msgstr[1] "Wenn Sie einem Partnerlink folgen, wird ein Affiliate-Cookie (wpac_ref, %d Tage) gesetzt, ohne dass Ihre Einwilligung eingeholt wird."
 
 msgid "After a purchase via a partner, later purchases within %d day are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
 msgid_plural "After a purchase via a partner, later purchases within %d days are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
@@ -7246,11 +7350,17 @@ msgstr "bis Vertragsende"
 msgid "payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), "
 msgstr "Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), "
 
+msgid "Note for the shop operator: the affiliate cookie is set without consent (cookie mode \"Always, without consent\"). Storing and reading information on the visitor's device without consent is only allowed if it is strictly necessary for a service the visitor explicitly requested (§ 25(2) no. 2 TDDDG, Art. 5(3) ePrivacy Directive). Affiliate cookies are usually not considered strictly necessary, so in the EU they usually require consent. Have this assessed by your data protection advisor and complete the legal basis, or switch the affiliate cookie to \"Only with marketing consent\"."
+msgstr "Hinweis für den Shopbetreiber: Das Affiliate-Cookie wird ohne Einwilligung gesetzt (Cookie-Modus „Immer, ohne Einwilligung“). Informationen ohne Einwilligung auf dem Endgerät zu speichern und auszulesen, ist nur zulässig, wenn dies für einen vom Besucher ausdrücklich gewünschten Dienst unbedingt erforderlich ist (§ 25 Abs. 2 Nr. 2 TDDDG, Art. 5 Abs. 3 ePrivacy-Richtlinie). Affiliate-Cookies gelten in der Regel nicht als unbedingt erforderlich und benötigen in der EU daher meist eine Einwilligung. Lassen Sie dies von Ihrer Datenschutzberatung prüfen und ergänzen Sie die Rechtsgrundlage, oder stellen Sie das Affiliate-Cookie auf „Nur mit Marketing-Einwilligung“ um."
+
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
 msgstr "Wenn Sie unsere Website über einen Partnerlink besuchen oder einen Partnercode eingeben, speichern wir, welcher Partner Sie empfohlen hat, damit wir dem Partner eine Provision zahlen können. Ihre IP-Adresse speichern wir dafür nicht. Partner erhalten weder Ihren Namen noch Ihre Kontaktdaten."
 
-msgid "If you have a shopping cart (shop session), the partner code is kept in your shop session until checkout."
-msgstr "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode bis zur Kasse in Ihrer Shop-Sitzung gespeichert."
+msgid "If you have a shopping cart (shop session), the partner code of the link you followed is also kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used."
+msgstr "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode des aufgerufenen Links bis zur Kasse zusätzlich mit Ihrer Shop-Sitzung auf unserem Server gespeichert. Dafür wird kein weiteres Cookie gesetzt; es wird das Sitzungs-Cookie Ihres Warenkorbs verwendet."
+
+msgid "If you have a shopping cart (shop session), the partner code of the link you followed is kept with your shop session on our server until checkout. No additional cookie is set for this; the session cookie of your shopping cart is used. This does not depend on your consent to marketing cookies."
+msgstr "Haben Sie einen Warenkorb (Shop-Sitzung), wird der Partnercode des aufgerufenen Links bis zur Kasse mit Ihrer Shop-Sitzung auf unserem Server gespeichert. Dafür wird kein weiteres Cookie gesetzt; es wird das Sitzungs-Cookie Ihres Warenkorbs verwendet. Dies hängt nicht von Ihrer Einwilligung in Marketing-Cookies ab."
 
 msgid "After a purchase via a partner, later purchases are also credited to this partner. For this we store a keyed hash of your customer account and e-mail address, not the address itself."
 msgstr "Nach einem Kauf über einen Partner werden auch spätere Käufe diesem Partner gutgeschrieben. Dafür speichern wir einen pseudonymisierten Hashwert Ihres Kundenkontos und Ihrer E-Mail-Adresse, nicht die Adresse selbst."
@@ -7258,8 +7368,14 @@ msgstr "Nach einem Kauf über einen Partner werden auch spätere Käufe diesem P
 msgid "This link is only created for purchases with a customer account that earned the partner a commission (never for guest orders), and it is deleted at the latest when the partnership ends or the shop stops crediting later purchases."
 msgstr "Diese Verknüpfung entsteht nur bei Käufen mit Kundenkonto, für die der Partner eine Provision erhalten hat (nie bei Gastbestellungen), und wird spätestens gelöscht, wenn die Partnerschaft endet oder der Shop spätere Käufe nicht mehr gutschreibt."
 
+msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is sent only as its host name, without asking for your consent."
+msgstr "Seiten aus einem Cache melden den Partnercode in der Seitenadresse mit einem kleinen Skript an unseren Server (dieselben Angaben, die der Seitenaufruf selbst enthält: Partnercode, Kampagne, Seite). Die Adresse der vorherigen Website wird nur als Hostname übermittelt, ohne dass Ihre Einwilligung eingeholt wird."
+
 msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent."
 msgstr "Seiten aus einem Cache melden den Partnercode in der Seitenadresse mit einem kleinen Skript an unseren Server (dieselben Angaben, die der Seitenaufruf selbst enthält: Partnercode, Kampagne, Seite). Die Adresse der vorherigen Website wird nur als Hostname und nur mit Ihrer Marketing-Einwilligung übermittelt."
+
+msgid "Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is not stored."
+msgstr "Seiten aus einem Cache melden den Partnercode in der Seitenadresse mit einem kleinen Skript an unseren Server (dieselben Angaben, die der Seitenaufruf selbst enthält: Partnercode, Kampagne, Seite). Die Adresse der vorherigen Website wird nicht gespeichert."
 
 msgid "For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted."
 msgstr "Von Partnern speichern wir Bewerbungsangaben, akzeptierte Partnerbedingungen (Version, Zeitpunkt und den akzeptierten Text), Partnercodes, Provisionsdaten und Auszahlungsdaten. Bankdaten werden verschlüsselt gespeichert."
@@ -7291,8 +7407,26 @@ msgstr "Änderungsprotokoll: bis zur manuellen Löschung"
 msgid "Storage periods:"
 msgstr "Speicherdauer:"
 
-msgid "Legal bases: attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR); affiliate cookie and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25 TDDDG); partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR); bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)."
-msgstr "Rechtsgrundlagen: Zuordnung einer Bestellung zu einem Partner ohne Cookie: berechtigtes Interesse an der korrekten Vergütung des Partners (Art. 6 Abs. 1 lit. f DSGVO); Affiliate-Cookie und Lesen der vorherigen Seite: Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 TDDDG); Partnerprogramm, Provisionen und Auszahlungen: Vertrag mit dem Partner (Art. 6 Abs. 1 lit. b DSGVO); Buchhaltung und Aufbewahrung der Gutschriften: rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c DSGVO, § 147 AO / § 132 BAO / Art. 958f OR)."
+msgid "attribution of an order to a partner without cookie and keeping the partner code in the shop session: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)"
+msgstr "Zuordnung einer Bestellung zu einem Partner ohne Cookie und Speichern des Partnercodes in der Shop-Sitzung: berechtigtes Interesse an der korrekten Vergütung des Partners (Art. 6 Abs. 1 lit. f DSGVO)"
+
+msgid "attribution of an order to a partner without cookie: legitimate interest in paying the partner correctly (Art. 6(1)(f) GDPR)"
+msgstr "Zuordnung einer Bestellung zu einem Partner ohne Cookie: berechtigtes Interesse an der korrekten Vergütung des Partners (Art. 6 Abs. 1 lit. f DSGVO)"
+
+msgid "storing and reading the affiliate cookie on your device and reading the previous page: your consent (Art. 6(1)(a) GDPR, § 25(1) TDDDG)"
+msgstr "Speichern und Auslesen des Affiliate-Cookies auf Ihrem Endgerät und Lesen der vorherigen Seite: Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG)"
+
+msgid "storing and reading the affiliate cookie on your device and reading the previous page without consent: [legal basis to be assessed and completed by the shop operator]"
+msgstr "Speichern und Auslesen des Affiliate-Cookies auf Ihrem Endgerät und Lesen der vorherigen Seite ohne Einwilligung: [Rechtsgrundlage vom Shopbetreiber zu prüfen und zu ergänzen]"
+
+msgid "partner program, commissions and payouts: contract with the partner (Art. 6(1)(b) GDPR)"
+msgstr "Partnerprogramm, Provisionen und Auszahlungen: Vertrag mit dem Partner (Art. 6 Abs. 1 lit. b DSGVO)"
+
+msgid "bookkeeping and retention of credit notes: legal obligation (Art. 6(1)(c) GDPR, § 147 AO / § 132 BAO / Art. 958f OR)"
+msgstr "Buchhaltung und Aufbewahrung der Gutschriften: rechtliche Verpflichtung (Art. 6 Abs. 1 lit. c DSGVO, § 147 AO / § 132 BAO / Art. 958f OR)"
+
+msgid "Legal bases:"
+msgstr "Rechtsgrundlagen:"
 
 msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin."
 msgstr "Empfänger: Partner sehen ihre Bestellungen nur ohne Namen oder Kontaktdaten der Kunden; Auszahlungsdaten gehen für die Überweisung an unsere Bank und im Rahmen der Buchhaltung an unsere Steuerberatung und die Finanzbehörden; unser Hosting-Anbieter verarbeitet die Daten in unserem Auftrag (Art. 28 DSGVO). Dieses Plugin übermittelt keine Daten in Drittländer."
@@ -7374,6 +7508,11 @@ msgstr "Top-Partner"
 
 msgid "Partner program %s"
 msgstr "Partnerprogramm %s"
+
+msgid "Other (campaigns and sub-IDs with fewer than %d sale)"
+msgid_plural "Other (campaigns and sub-IDs with fewer than %d sales)"
+msgstr[0] "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Verkauf)"
+msgstr[1] "Sonstige (Kampagnen und Sub-IDs mit weniger als %d Verkäufen)"
 
 msgid "(no content / direct)"
 msgstr "(kein Inhalt / direkt)"
@@ -7461,6 +7600,9 @@ msgstr "Empfehlungs-Cookie wird vom Hoster gefiltert"
 
 msgid "This host only passes allow-listed cookies to WordPress; \"%s\" never arrives. Rename it with the filter wpac_cookie_name, e.g. to STYXKEY_wpac_ref."
 msgstr "Dieser Hoster leitet nur freigegebene Cookies an WordPress weiter; „%s“ kommt nie an. Benennen Sie es mit dem Filter wpac_cookie_name um, z. B. in STYXKEY_wpac_ref."
+
+msgid "Affiliate cookie is set without consent"
+msgstr "Affiliate-Cookie wird ohne Einwilligung gesetzt"
 
 msgid "Affiliate cookie is never set: no consent banner connected"
 msgstr "Affiliate-Cookie wird nie gesetzt: kein Consent-Banner angebunden"

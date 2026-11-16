@@ -89,10 +89,22 @@ final class IntegrationsPage {
 			/* translators: %d: number of customer links */
 			Admin::back( $deleted ? sprintf( _n( 'Key change confirmed; %d customer link made with the earlier key was deleted.', 'Key change confirmed; %d customer links made with the earlier key were deleted.', $deleted, 'affiliate-captain' ), $deleted ) : __( 'Key change confirmed.', 'affiliate-captain' ) );
 		}
+		if ( 'statement_store_test' === $do ) {
+			$res = \WPAffiliateCaptain\Payouts\Statement::test_store();
+			if ( $res['ok'] ) {
+				Admin::back( __( 'Document storage works: a test file was written, read and deleted.', 'affiliate-captain' ) );
+			}
+			$step = ! $res['write'] ? __( 'writing', 'affiliate-captain' ) : ( ! $res['read'] ? __( 'reading', 'affiliate-captain' ) : __( 'deleting', 'affiliate-captain' ) );
+			/* translators: 1: failed step (writing, reading, deleting), 2: error (no secrets) */
+			Admin::back( sprintf( __( 'Document storage test failed while %1$s: %2$s', 'affiliate-captain' ), $step, '' !== $res['error'] ? $res['error'] : __( 'unknown error', 'affiliate-captain' ) ), 'error' );
+		}
 		if ( 'statements_move' === $do ) {
 			list( $moved, $failed ) = \WPAffiliateCaptain\Payouts\Statement::move_misplaced();
-			/* translators: %d: number of files */
-			$message = sprintf( _n( '%d credit note file was moved to the new statement folder.', '%d credit note files were moved to the new statement folder.', $moved, 'affiliate-captain' ), $moved );
+			$message = \WPAffiliateCaptain\Payouts\Statement::local_store()
+				/* translators: %d: number of files */
+				? sprintf( _n( '%d credit note file was moved to the new statement folder.', '%d credit note files were moved to the new statement folder.', $moved, 'affiliate-captain' ), $moved )
+				/* translators: %d: number of files */
+				: sprintf( _n( '%d credit note file was copied to the document storage and verified.', '%d credit note files were copied to the document storage and verified.', $moved, 'affiliate-captain' ), $moved );
 			if ( $failed ) {
 				/* translators: %d: number of files */
 				$message .= ' ' . sprintf( _n( '%d file could not be moved (is the new folder writable?).', '%d files could not be moved (is the new folder writable?).', $failed, 'affiliate-captain' ), $failed );
@@ -126,7 +138,12 @@ final class IntegrationsPage {
 			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( _n( 'The bank details of %d partner cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', 'The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then.', $broken, 'affiliate-captain' ), $broken ) ) . '</p><p>' . esc_html__( 'Partner IDs:', 'affiliate-captain' ) . ' ' . esc_html( implode( ', ', array_map( 'intval', $status['broken_ids'] ) ) . ( $broken > count( $status['broken_ids'] ) ? ', …' : '' ) ) . '</p></div>';
 		}
 		$misplaced = (int) $status['misplaced'];
-		if ( $misplaced ) {
+		if ( $misplaced && ! \WPAffiliateCaptain\Payouts\Statement::local_store() ) {
+			/* translators: %d: number of files */
+			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( '%d credit note file is still in the local folder of this server and not in the document storage.', '%d credit note files are still in the local folder of this server and not in the document storage.', $misplaced, 'affiliate-captain' ), $misplaced ) ) . '</strong> ' . esc_html__( 'They are still downloadable from this server. Copy them to the document storage (each copy is read back and compared before the local file is deleted), or use "wp wpac statements migrate --to=s3" on every app server.', 'affiliate-captain' ) . '</p>';
+			Admin::form_open( 'statements_move' );
+			echo '<p><button class="button button-primary">' . esc_html__( 'Copy credit notes to the document storage', 'affiliate-captain' ) . '</button></p></form></div>';
+		} elseif ( $misplaced ) {
 			/* translators: %d: number of files */
 			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( _n( '%d credit note file is still in the previous statement folder.', '%d credit note files are still in the previous statement folder.', $misplaced, 'affiliate-captain' ), $misplaced ) ) . '</strong> ' . esc_html__( 'The statement folder was changed (e.g. WPAC_STATEMENT_DIR defined later). The files are still found and downloadable, but they stay in the old, possibly public folder until you move them.', 'affiliate-captain' ) . '</p>';
 			Admin::form_open( 'statements_move' );
@@ -203,6 +220,9 @@ final class IntegrationsPage {
 	 * @return array
 	 */
 	private static function statement_dir_check() {
+		if ( ! \WPAffiliateCaptain\Payouts\Statement::local_store() ) {
+			return array( true, __( 'Statements stored in the document storage (object storage) – not in a folder of the web server', 'affiliate-captain' ) );
+		}
 		if ( \WPAffiliateCaptain\Payouts\Statement::custom_dir() ) {
 			return array( true, __( 'Statements stored in their own folder (WPAC_STATEMENT_DIR / wpac_statement_dir) – make sure it is outside the web root', 'affiliate-captain' ) );
 		}
@@ -311,7 +331,40 @@ final class IntegrationsPage {
 			echo '<li class="' . ( $c[0] ? 'ok' : 'warn' ) . '"><span aria-hidden="true">' . ( $c[0] ? '✔' : '!' ) . '</span> ' . esc_html( $c[1] ) . '<span class="screen-reader-text"> – ' . esc_html( $c[0] ? __( 'OK', 'affiliate-captain' ) : __( 'check', 'affiliate-captain' ) ) . '</span></li>';
 		}
 		echo '</ul>';
+		self::render_store();
 		self::render_customer_key_change();
+	}
+
+	/**
+	 * Document storage: which store is active (no secrets), configuration problems, last failure
+	 * and a connection test (write, read and delete a probe file).
+	 */
+	private static function render_store() {
+		$store = \WPAffiliateCaptain\Payouts\Statement::store();
+		echo '<h2>' . esc_html__( 'Document storage (credit notes)', 'affiliate-captain' ) . '</h2>';
+		if ( $store instanceof \WPAffiliateCaptain\Payouts\Storage\S3Store ) {
+			$kind = __( 'S3-compatible object storage (WPAC_S3_* constants in wp-config.php)', 'affiliate-captain' );
+		} elseif ( $store instanceof \WPAffiliateCaptain\Payouts\Storage\LocalStore ) {
+			$kind = __( 'Local folder on this server', 'affiliate-captain' );
+		} else {
+			$kind = __( 'Custom store (filter wpac_statement_store)', 'affiliate-captain' );
+		}
+		echo '<p>' . esc_html__( 'Active store:', 'affiliate-captain' ) . ' <strong>' . esc_html( $kind ) . '</strong> – <code>' . esc_html( $store->label() ) . '</code></p>';
+		$problems = \WPAffiliateCaptain\Payouts\Storage\S3Store::config_problems();
+		if ( $problems ) {
+			/* translators: %s: names of missing or invalid constants */
+			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( __( 'The object storage configuration in wp-config.php is incomplete or invalid (%s). Credit notes are stored in the local folder until it is complete.', 'affiliate-captain' ), implode( ', ', $problems ) ) ) . '</p></div>';
+		}
+		$error = \WPAffiliateCaptain\Payouts\Statement::store_error();
+		if ( $error ) {
+			/* translators: 1: date and time, 2: error */
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Last storage failure (%1$s): %2$s. Credit notes are written again automatically.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $error['time'] ), (string) $error['error'] ) ) . '</p></div>';
+		}
+		if ( $store instanceof \WPAffiliateCaptain\Payouts\Storage\LocalStore ) {
+			echo '<p class="description">' . esc_html__( 'With several app servers the folder must be shared storage – or use object storage (see the handbook, section "Credit notes on several servers").', 'affiliate-captain' ) . '</p>';
+		}
+		Admin::form_open( 'statement_store_test' );
+		echo '<p><button class="button">' . esc_html__( 'Test connection', 'affiliate-captain' ) . '</button></p></form>';
 	}
 
 	/**
