@@ -229,8 +229,8 @@ check(
 		false !== strpos( $s_src( 'docs/HANDBOOK.md' ), 'Approve commissions' ),
 		false !== strpos( $s_src( 'docs/CONTRACT.md' ), '`wpac_single_partner_coupon`' ),
 		false !== strpos( $s_src( 'docs/CONTRACT.md' ), '`wpac_is_self_recruitment`' ),
-		false !== strpos( $s_src( 'languages/de_DE.r15-s.json' ), 'Only one partner coupon can be used per order. Please remove the coupon %s first.' ),
-		false !== strpos( $s_src( 'languages/de_DE.r15-s.json' ), 'Create payouts' ),
+		false !== strpos( $s_src( 'languages/de_DE.json' ), 'Only one partner coupon can be used per order. Please remove the coupon %s first.' ),
+		false !== strpos( $s_src( 'languages/de_DE.json' ), 'Create payouts' ),
 	)
 );
 

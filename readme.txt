@@ -140,6 +140,11 @@ Newest platform versions and several partner programs; add-on contract 1.5.0, da
 * Privacy policy text and record of processing name the object storage provider when one is used and the recruiter (referred_by) purpose; recruiter changes are in the personal data export
 * The automatic coupon note on orders is included in customer export/erasure and no longer set after consent was withdrawn
 * "Keep data" uninstall keeps the partners' main code choice and code request history
+* Security: an unlinked coupon credits a partner by name only when the partner code was generated; chosen codes (code requests, custom codes) need a coupon link. Code requests refuse typical campaign names (WELCOME, SALE, …) and the generated form. The coupon screen warns about coupons named like a partner code
+* Security: the password confirmation now also covers manual bookings, approving commissions, creating payouts (also from requests), write-offs, repayments and changing a partner's e-mail address; only failed confirmations count towards the rate limit
+* Fix: a later link of another partner replaces the automatically applied coupon also without adding a product
+* Fix: only one partner coupon per order; a partner coupon entered by the customer replaces the automatic one
+* Fix: requested codes cannot be activated through the code status form; self-recruitment is also detected by the recruiter's account e-mail and login device
 
 = 0.15.0 =
 New partner functions and add-on contract 1.4.0; database schema 16 (one new column with an index on the partner table):
@@ -338,7 +343,7 @@ Review of all modules (security, money, legal, operations, usability):
 == Upgrade Notice ==
 
 = 0.16.0 =
-Requires PHP 8.5 or newer; MySQL 9.7 or MariaDB 12.3 recommended. Check the PHP version of your host before updating (Tools → Site Health → Info → Server). No database change.
+Requires PHP 8.5 or newer; MySQL 9.7 or MariaDB 12.3 recommended. Check the PHP version of your host before updating (Tools → Site Health → Info → Server). No database change. Coupons named like a chosen partner code now need a coupon link.
 
 = 0.15.0 =
 New: automatic partner coupon after a partner link, code requests by partners, password confirmation before money-relevant admin actions, "Recruited by" and the add-on contract 1.4.0. Back up first; schema 16 adds one column with an index to the partner table.

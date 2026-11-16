@@ -519,6 +519,10 @@ msgid "Code created."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "This code cannot be changed here. A requested code is approved or rejected in the list of code requests."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Code updated."
 msgstr ""
 
@@ -5256,6 +5260,34 @@ msgid "Switch off the password confirmation"
 msgstr ""
 
 #: src/Admin/Reauth.php
+msgid "Book a manual commission or deduction"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Approve commissions"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Create payouts"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Create a payout from a payout request"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Write off a negative balance"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Book a repayment"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Change the e-mail address of a partner"
+msgstr ""
+
+#: src/Admin/Reauth.php
 msgid "The second factor (e.g. the code of your authenticator app) is not correct."
 msgstr ""
 
@@ -7586,6 +7618,16 @@ msgstr ""
 msgid "Your partner discount (coupon %s) was applied automatically."
 msgstr ""
 
+#. translators: %s: coupon code already in the cart
+#: src/Integrations/WooCommerce/AutoCoupon.php
+msgid "Only one partner coupon can be used per order. Please remove the coupon %s first."
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Integrations/WooCommerce/AutoCoupon.php
+msgid "The partner discount applied automatically (coupon %s) was removed: only one partner coupon can be used per order."
+msgstr ""
+
 #. translators: %s: amount, e.g. 2,00 €
 #: src/Integrations/WooCommerce/AutoCoupon.php
 msgid "%s per product"
@@ -7618,6 +7660,21 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/CouponLink.php
 msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
+msgstr ""
+
+#. translators: 1: partner code, 2: partner name or number
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Affiliate Captain: partner \"%2$s\" has requested the partner code %1$s, which equals this coupon code. The request can no longer be approved while this coupon exists."
+msgstr ""
+
+#. translators: 1: partner code, 2: partner name or number
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Affiliate Captain: this coupon code equals the generated partner code %1$s of partner \"%2$s\". Orders with this coupon are credited to that partner."
+msgstr ""
+
+#. translators: 1: partner code, 2: partner name or number
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Affiliate Captain: this coupon code equals the partner code %1$s of partner \"%2$s\", but the coupon is not linked to the partner, so orders with it are not credited to them. Link the coupon to the partner (field \"Affiliate partner\") if it is meant for them, otherwise better choose another code: customers could mistake one for the other."
 msgstr ""
 
 #. translators: %s: error message
