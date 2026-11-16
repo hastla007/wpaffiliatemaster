@@ -1414,12 +1414,13 @@ final class Privacy {
 			// Other payment method on: the payment provider receives the payout (e.g. PayPal; outside the EU possible).
 			$providers = $de ? 'Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ' : __( 'payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), ', 'affiliate-captain' );
 		}
-		$map = array(
-			'{operator_name}'              => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
+		$cookie_range = self::program_cookie_days();
+		$map          = array(
+			'{operator_name}'             => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'{operator_address}'           => str_replace( array( "\r\n", "\n" ), ', ', (string) Settings::get( 'operator_address' ) ),
 			'{date}'                       => wp_date( 'Y-m-d' ),
 			'{visit_retention_days}'       => $days( 'visit_retention_days' ),
-			'{cookie_days}'                => $days( 'cookie_days' ),
+			'{cookie_days}'                => $cookie_range ? implode( '–', $cookie_range ) : $days( 'cookie_days' ), // Range per partner program (wpac_setting).
 			'{lifetime_days}'              => $lifetime,
 			'{retention_years}'            => Retention::years() > 0 ? (string) Retention::years() : '∞',
 			'{application_retention_days}' => $days( 'application_retention_days' ),
@@ -1441,6 +1442,46 @@ final class Privacy {
 	}
 
 	/**
+	 * Cookie lifetimes of the partner programs when an add-on changes them (filter wpac_setting,
+	 * contract 1.5.0): the default program, the program of every partner group and the programs of
+	 * the report selector (wpac_report_programs).
+	 *
+	 * @return int[]|null [ shortest, longest ] days, or null when every program uses the setting
+	 *                    (always without a wpac_setting callback).
+	 */
+	public static function program_cookie_days() {
+		if ( function_exists( 'has_filter' ) && false === has_filter( 'wpac_setting' ) ) {
+			return null;
+		}
+		$base     = (int) Settings::get( 'cookie_days' );
+		$programs = array( '' => 0 );
+		foreach ( (array) \WPAffiliateCaptain\Affiliates\Groups::all() as $group ) {
+			$programs[ \WPAffiliateCaptain\Affiliates\Programs::for_group( (int) $group->id ) ] = (int) $group->id;
+		}
+		foreach ( array_keys( \WPAffiliateCaptain\Affiliates\Programs::report_choices() ) as $key ) {
+			if ( ! isset( $programs[ (string) $key ] ) ) {
+				$programs[ (string) $key ] = preg_match( '/^group:([1-9]\d{0,9})$/', (string) $key, $m ) ? (int) $m[1] : 0;
+			}
+		}
+		$days = array();
+		foreach ( $programs as $program => $group_id ) {
+			$days[] = max( 1, (int) Settings::get(
+				'cookie_days',
+				array(
+					'program'  => (string) $program,
+					'group_id' => (int) $group_id,
+				)
+			) );
+		}
+		$days = array_unique( $days );
+		if ( array( $base ) === array_values( $days ) ) {
+			return null;
+		}
+		$days[] = $base;
+		return array( min( $days ), max( $days ) );
+	}
+
+	/**
 	 * Suggested privacy policy text.
 	 */
 	public static function policy_text() {
@@ -1451,12 +1492,18 @@ final class Privacy {
 		$p[] = __( 'When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details.', 'affiliate-captain' );
 		$mode = Settings::get( 'cookie_mode' );
 		$cookie_days = (int) Settings::get( 'cookie_days' );
+		// Several partner programs with own cookie lifetimes (add-on, wpac_setting): name the range.
+		$range = 'off' !== $mode ? self::program_cookie_days() : null;
 		if ( 'consent' === $mode ) {
 			/* translators: %d: days */
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it.', 'An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		} elseif ( 'always' === $mode ) {
 			/* translators: %d: days */
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link, without asking for your consent.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link, without asking for your consent.', $cookie_days, 'affiliate-captain' ), $cookie_days );
+		}
+		if ( $range ) {
+			/* translators: 1: shortest lifetime in days, 2: longest lifetime in days */
+			$p[] = sprintf( __( 'The lifetime of the affiliate cookie depends on the partner program of the partner whose link you followed: between %1$d and %2$d days.', 'affiliate-captain' ), $range[0], $range[1] );
 		}
 		$session = (bool) Settings::get( 'use_wc_session' );
 		if ( $session ) {
@@ -1492,8 +1539,11 @@ final class Privacy {
 		/* translators: %d: days */
 		$periods[] = $visits > 0 ? sprintf( _n( 'link visits (without IP address): %d day', 'link visits (without IP address): %d days', $visits, 'affiliate-captain' ), $visits ) : __( 'link visits (without IP address): until deleted manually', 'affiliate-captain' );
 		if ( Settings::get( 'cookie_mode' ) !== 'off' ) {
-			/* translators: %d: days */
-			$periods[] = sprintf( _n( 'affiliate cookie: %d day', 'affiliate cookie: %d days', $cookie_days, 'affiliate-captain' ), $cookie_days );
+			$periods[] = $range
+				/* translators: 1: shortest lifetime in days, 2: longest lifetime in days */
+				? sprintf( __( 'affiliate cookie: %1$d to %2$d days depending on the partner program', 'affiliate-captain' ), $range[0], $range[1] )
+				/* translators: %d: days */
+				: sprintf( _n( 'affiliate cookie: %d day', 'affiliate cookie: %d days', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days      = (int) Settings::get( 'lifetime_days' );

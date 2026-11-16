@@ -14,7 +14,7 @@ Authentifizierung über WordPress (Cookie + `X-WP-Nonce` oder Application Passwo
 | `GET /wpac/v1/affiliates?status=&search=&page=&per_page=` | `wpac_manage_affiliates` | Partnerliste (`X-WP-Total`) |
 | `GET /wpac/v1/affiliates/{id}` | `wpac_manage_affiliates` | Partner mit Codes |
 | `GET /wpac/v1/commissions?affiliate_id=&status=&source=&order_id=&from=&to=` | `wpac_manage_affiliates` | Ledger |
-| `GET /wpac/v1/reports/{partners|content|campaign}?from=&to=` | `wpac_manage_affiliates` | Berichte (in Programmwährung umgerechnet, `unconverted` listet Währungen ohne Kurs) |
+| `GET /wpac/v1/reports/{partners|content|campaign}?from=&to=&program=` | `wpac_manage_affiliates` | Berichte (in Programmwährung umgerechnet, `unconverted` listet Währungen ohne Kurs); optional `program` (Programmschlüssel, leer = Standardprogramm; seit 0.16.0, ungültig → `wpac_invalid_program`, 400) – nur die Partner dieses Programms, die Antwort enthält dann `program` |
 | `GET /wpac/v1/me` | angemeldeter Partner | Code, Link, Landing-URL, Summen, verfügbarer Saldo |
 | `GET /wpac/v1/me/commissions` | angemeldeter Partner | eigene Provisionen (ohne Kundendaten) |
 | `GET /wpac/v1/me/payouts` | angemeldeter Partner | eigene Auszahlungen |

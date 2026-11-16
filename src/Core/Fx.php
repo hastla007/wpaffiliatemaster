@@ -172,6 +172,22 @@ final class Fx {
 	}
 
 	/**
+	 * Minimum payout of a partner program in a currency (filter wpac_setting with the program as
+	 * context, no partner; null = no rate).
+	 *
+	 * @param string $currency Currency.
+	 * @param string $program  Program key ('' = default program).
+	 * @return int|null
+	 */
+	public static function min_payout_program( $currency, $program ) {
+		$context = array( 'program' => (string) $program );
+		if ( preg_match( '/^group:([1-9]\d{0,9})$/', (string) $program, $m ) ) {
+			$context['group_id'] = (int) $m[1];
+		}
+		return self::from_program( max( 0, (int) Settings::get( 'min_payout_minor', $context ) ), $currency, (string) Settings::get( 'currency' ), self::rates() );
+	}
+
+	/**
 	 * Convert to program currency using configured rates.
 	 *
 	 * @param int    $minor Amount.

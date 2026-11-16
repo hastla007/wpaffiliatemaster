@@ -1447,14 +1447,24 @@ final class AffiliateRepository {
 	/**
 	 * Count by status.
 	 *
+	 * @param string|null $program Only partners of this program (key, '' = default program;
+	 *                             filter wpac_program_groups); null = all partners.
 	 * @return array status => count
 	 */
-	public static function count_by_status() {
+	public static function count_by_status( $program = null ) {
 		global $wpdb;
-		$t   = Db::table( 'affiliates' );
-		$out = array_fill_keys( self::STATUSES, 0 );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( $wpdb->get_results( "SELECT status, COUNT(*) c FROM {$t} GROUP BY status" ) as $r ) {
+		$t     = Db::table( 'affiliates' );
+		$out   = array_fill_keys( self::STATUSES, 0 );
+		$where = '';
+		if ( null !== $program ) {
+			$groups = Programs::groups_of( (string) $program );
+			if ( ! $groups ) {
+				return $out; // No group belongs to the program: no partner.
+			}
+			$where = ' WHERE group_id IN (' . implode( ',', array_map( 'intval', $groups ) ) . ')';
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where holds integers only.
+		foreach ( $wpdb->get_results( "SELECT status, COUNT(*) c FROM {$t}{$where} GROUP BY status" ) as $r ) {
 			$out[ $r->status ] = (int) $r->c;
 		}
 		return $out;

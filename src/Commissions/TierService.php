@@ -112,15 +112,77 @@ final class TierService {
 	 * Whether a month can be closed: it has ended and its hold period has passed
 	 * (before that, the result is still incomplete).
 	 *
-	 * @param string $month YYYY-MM.
+	 * With a partner, the hold period of the partner's program counts (filter wpac_setting,
+	 * contract 1.5.0); without one, the hold period of the settings (the month as a whole).
+	 *
+	 * @param string $month        YYYY-MM.
+	 * @param int    $affiliate_id Partner (0 = the month as a whole).
 	 * @return bool
 	 */
-	public static function is_due( $month ) {
+	public static function is_due( $month, $affiliate_id = 0 ) {
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ) {
 			return false;
 		}
 		$end = strtotime( self::range( $month )[1] . ' UTC' );
-		return time() >= $end + ( (int) Settings::get( 'hold_days' ) + 1 ) * DAY_IN_SECONDS;
+		return time() >= $end + ( max( 0, (int) Settings::for_affiliate( 'hold_days', (int) $affiliate_id ) ) + 1 ) * DAY_IN_SECONDS;
+	}
+
+	/**
+	 * Whether a partner of a month still waits for the longer hold period of their program
+	 * (filter wpac_setting): the month as a whole may be closed, the partner's bonus follows in the
+	 * recalculation once due. Never true without a longer program hold period.
+	 *
+	 * @param string $month        YYYY-MM.
+	 * @param int    $affiliate_id Partner.
+	 * @return bool
+	 */
+	public static function waits( $month, $affiliate_id ) {
+		if ( (int) Settings::for_affiliate( 'hold_days', (int) $affiliate_id ) <= (int) Settings::get( 'hold_days' ) ) {
+			return false;
+		}
+		return ! self::is_due( $month, (int) $affiliate_id );
+	}
+
+	/** Option: months closed while partners with a longer hold period of their program still waited. */
+	const DEFERRED = 'wpac_tier_deferred';
+
+	/**
+	 * Months closed while some partners still had a longer hold period of their program.
+	 *
+	 * @return string[] YYYY-MM.
+	 */
+	public static function deferred_months() {
+		return array_values(
+			array_filter(
+				array_map( 'strval', (array) get_option( self::DEFERRED, array() ) ),
+				static function ( $m ) {
+					return (bool) preg_match( '/^\d{4}-\d{2}$/', $m );
+				}
+			)
+		);
+	}
+
+	/**
+	 * Remember or forget a month with deferred partners.
+	 *
+	 * @param string $month    YYYY-MM.
+	 * @param bool   $deferred Whether partners of the month still wait.
+	 */
+	private static function set_deferred( $month, $deferred ) {
+		$months = self::deferred_months();
+		$has    = in_array( $month, $months, true );
+		if ( $deferred && ! $has ) {
+			$months[] = $month;
+			sort( $months );
+			update_option( self::DEFERRED, $months, false );
+		} elseif ( ! $deferred && $has ) {
+			$months = array_values( array_diff( $months, array( $month ) ) );
+			if ( $months ) {
+				update_option( self::DEFERRED, $months, false );
+			} else {
+				delete_option( self::DEFERRED );
+			}
+		}
 	}
 
 	/** Option: first month whose boundaries are the site's local month (earlier closed months keep UTC). */
@@ -266,6 +328,7 @@ final class TierService {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND created_at BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC", $start, $end, $after ) ); // All currencies (orders() converts).
 		$created    = 0;
+		$deferred   = false;
 		AffiliateRepository::find_many( $affiliates );
 
 		foreach ( $affiliates as $i => $affiliate_id ) {
@@ -281,6 +344,11 @@ final class TierService {
 			}
 			$key = 'bonus:tier:' . (int) $affiliate_id . ':' . $month;
 			if ( Ledger::find_by_key( $key ) ) {
+				continue;
+			}
+			if ( self::waits( $month, (int) $affiliate_id ) ) {
+				// Longer hold period of the partner's program: the recalculation books it once due.
+				$deferred = true;
 				continue;
 			}
 			$orders = self::orders( (int) $affiliate_id, $month, $currency );
@@ -352,6 +420,9 @@ final class TierService {
 		}
 		if ( $after ) {
 			delete_option( self::CURSOR );
+		}
+		if ( $deferred ) {
+			self::set_deferred( $month, true );
 		}
 		Audit::log(
 			'tier.month_closed',
@@ -429,7 +500,7 @@ final class TierService {
 				return (bool) preg_match( '/^\d{4}-\d{2}$/', $m );
 			}
 		);
-		$months   = array_values( array_unique( array_merge( $pending, $months, array_map( 'strval', (array) $changed ) ) ) );
+		$months   = array_values( array_unique( array_merge( $pending, $months, array_map( 'strval', (array) $changed ), self::deferred_months() ) ) );
 		$n        = 0;
 		$start    = microtime( true );
 		$deadline = $budget > 0 ? $start + $budget : 0.0;
@@ -505,6 +576,7 @@ final class TierService {
 		$affiliates = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$c} WHERE kind = 'sale' AND created_at BETWEEN %s AND %s AND affiliate_id > %d ORDER BY affiliate_id ASC", $start, $end, $after ) ); // All currencies (orders() converts).
 		$booked     = 0;
 		$done       = 0;
+		$waiting    = false;
 		$first      = Settings::state( 'tier_month_first' );
 		if ( '' === $first ) {
 			$first = Settings::state( 'tier_month_closed' ); // Installs from before this setting.
@@ -526,6 +598,10 @@ final class TierService {
 			}
 			if ( ! $rows && ( '' === $first || $month < $first ) ) {
 				continue; // Never closed (before the program had tiers): no retroactive bonus.
+			}
+			if ( ! $rows && self::waits( $month, $affiliate_id ) ) {
+				$waiting = true; // Hold period of the partner's program not over yet (deferred at closing).
+				continue;
 			}
 			if ( $rows ) {
 				$snap = json_decode( (string) $rows[0]->rule_snapshot, true );
@@ -626,6 +702,10 @@ final class TierService {
 		}
 		if ( ! self::$stopped && $after ) {
 			delete_option( self::CURSOR );
+		}
+		if ( ! self::$stopped && ! $after ) {
+			// A whole pass over the month: it stays deferred only while partners still wait.
+			self::set_deferred( $month, $waiting );
 		}
 		if ( $booked ) {
 			Audit::log(

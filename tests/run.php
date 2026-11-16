@@ -741,5 +741,33 @@ check(
 	)
 );
 
+// C16 (MySQL 9.7): no VALUES(col) in an ON DUPLICATE KEY UPDATE clause (deprecated since MySQL
+// 8.0.20, a warning on 9.7; the MySQL row alias does not exist on MariaDB). Scans the PHP of src/,
+// the main file, uninstall.php and the integration bootstrap; each ON DUPLICATE KEY UPDATE up to
+// the end of its statement string.
+$c16_root  = dirname( __DIR__ );
+$c16_files = array( $c16_root . '/affiliate-captain.php', $c16_root . '/uninstall.php', $c16_root . '/tests/integration/bootstrap.php' );
+foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $c16_root . '/src', FilesystemIterator::SKIP_DOTS ) ) as $c16_f ) {
+	if ( 'php' === $c16_f->getExtension() ) {
+		$c16_files[] = $c16_f->getPathname();
+	}
+}
+$c16_bad   = array();
+$c16_seen  = 0;
+foreach ( $c16_files as $c16_f ) {
+	$c16_src = (string) file_get_contents( $c16_f );
+	if ( preg_match_all( '/ON\s+DUPLICATE\s+KEY\s+UPDATE([^;"\']*)/i', $c16_src, $c16_m ) ) {
+		foreach ( $c16_m[1] as $c16_clause ) {
+			++$c16_seen;
+			if ( preg_match( '/\bVALUES\s*\(/i', $c16_clause ) ) {
+				$c16_bad[] = substr( $c16_f, strlen( $c16_root ) + 1 ) . ': ' . trim( $c16_clause );
+			}
+		}
+	}
+}
+check( 'C16 no VALUES(col) in ON DUPLICATE KEY UPDATE (MySQL 9.7 deprecation; scanned clauses > 4)', array( array(), true ), array( $c16_bad, $c16_seen > 4 ) );
+// The scan itself finds the old form (guards against a pattern that never matches).
+check( 'C16 scan detects the old form', 1, preg_match_all( '/ON\s+DUPLICATE\s+KEY\s+UPDATE([^;"\']*)/i', "x ON DUPLICATE KEY UPDATE visits = visits + VALUES(visits)'", $c16_t ) && preg_match( '/\bVALUES\s*\(/i', $c16_t[1][0] ) ? 1 : 0 );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

@@ -186,7 +186,9 @@ final class VisitsDaily {
 			\WPAffiliateCaptain\Core\Cron::delete_in_batches( 'DELETE FROM ' . self::table(), 5000, 0 );
 		}
 		$v = Db::table( 'visits' );
-		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) SELECT %s, COALESCE(MAX(id), 0), 'off' FROM {$v} ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)", self::UPTO ) );
+		// The new value comes from a derived table (src.upto), not from VALUES(): that is deprecated
+		// since MySQL 8.0.20 (a warning on 9.7), and the row alias of MySQL does not exist on MariaDB.
+		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) SELECT %s, src.upto, 'off' FROM ( SELECT COALESCE(MAX(id), 0) AS upto FROM {$v} ) AS src ON DUPLICATE KEY UPDATE option_value = src.upto", self::UPTO ) );
 		// phpcs:enable
 		wp_cache_delete( self::UPTO, 'options' );
 		update_option( self::TZ, $tz, false );
@@ -333,10 +335,13 @@ final class VisitsDaily {
 		foreach ( array_chunk( $sums, 500 ) as $chunk ) {
 			$values = array();
 			foreach ( $chunk as $s ) {
-				$values[] = $wpdb->prepare( '(%d, %s, %s, %s, %d)', $s[0], $s[1], $s[2], $s[3], $s[4] );
+				$values[] = $wpdb->prepare( 'SELECT %d AS a, %s AS d, %s AS c, %s AS s, %d AS n', $s[0], $s[1], $s[2], $s[3], $s[4] );
 			}
+			// The rows come from a derived table, so the update adds src.n: VALUES(col) in ON DUPLICATE
+			// KEY UPDATE is deprecated since MySQL 8.0.20 (a warning on 9.7), and the row alias
+			// "AS new" of MySQL does not exist on MariaDB. This form works on both without a warning.
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery -- values prepared above.
-			$wpdb->query( "INSERT INTO {$t} (affiliate_id, day, campaign, sub_id, visits) VALUES " . implode( ',', $values ) . ' ON DUPLICATE KEY UPDATE visits = visits + VALUES(visits)' );
+			$wpdb->query( "INSERT INTO {$t} (affiliate_id, day, campaign, sub_id, visits) SELECT src.a, src.d, src.c, src.s, src.n FROM ( " . implode( ' UNION ALL ', $values ) . ' ) AS src ON DUPLICATE KEY UPDATE visits = visits + src.n' );
 			Db::check( 'Daily visit aggregation' );
 		}
 	}

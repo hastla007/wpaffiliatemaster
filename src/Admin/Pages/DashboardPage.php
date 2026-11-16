@@ -317,7 +317,7 @@ final class DashboardPage {
 		echo '<div class="wpac-kpis">';
 		foreach (
 			array(
-				__( 'Active partners', 'affiliate-captain' )  => number_format_i18n( $counts['active'] ),
+				__( 'Active partners', 'affiliate-captain' )  => number_format_i18n( null === $program ? $counts['active'] : AffiliateRepository::count_by_status( $program )['active'] ), // Selected program (wpac_report_programs).
 				__( 'Link visits', 'affiliate-captain' )      => number_format_i18n( $sum['visits'] ),
 				__( 'Attributed orders', 'affiliate-captain' ) => number_format_i18n( $sum['orders'] ),
 				__( 'Net revenue', 'affiliate-captain' )      => Money::format( $sum['revenue'], $currency ),
