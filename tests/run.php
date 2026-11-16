@@ -397,6 +397,128 @@ if ( ! $d13_released ) {
 	check( 'D13 no workflow interface in the core before AFF-WF-08 is ticked (' . ( count( $wpac_guard_files ) + 3 ) . ' files)', array(), $d13_hits );
 }
 
+// AC-1/AC-2 (suite specification R-3.4, R-3.5, Z-08, Z-09): the "since" table of docs/CONTRACT.md
+// ("Seit wann es jede Action gibt") lists exactly the public actions of the code, each with a
+// contract and a plugin version that are not ahead of the main file, and agrees with the action
+// rows of the other tables of the document. Fired: every do_action( 'wpac_…' ) in src/ (dynamic
+// names are expanded below); received: every add_action( 'wpac_v1_…' ) in src/.
+$ac2_root     = dirname( __DIR__ );
+$ac2_doc      = (string) file_get_contents( $ac2_root . '/docs/CONTRACT.md' );
+$ac2_main     = (string) file_get_contents( $ac2_root . '/affiliate-captain.php' );
+$ac2_contract = preg_match( "/define\(\s*'WPAC_CONTRACT_VERSION',\s*'([^']+)'/", $ac2_main, $ac2_m ) ? $ac2_m[1] : '';
+$ac2_plugin   = preg_match( '/^\s*\*\s*Version:\s*(\S+)/m', $ac2_main, $ac2_m ) ? $ac2_m[1] : '';
+$ac2_section  = static function ( $doc, $heading ) {
+	$start = strpos( $doc, "\n" . $heading . "\n" );
+	if ( false === $start ) {
+		return '';
+	}
+	$rest = substr( $doc, $start + strlen( $heading ) + 2 );
+	return preg_match( '/^#{2,3} /m', $rest, $m, PREG_OFFSET_CAPTURE ) ? substr( $rest, 0, $m[0][1] ) : $rest;
+};
+// The since table: one row per action.
+$ac2_since = array();
+$ac2_bad   = array();
+foreach ( explode( "\n", $ac2_section( $ac2_doc, '### Seit wann es jede Action gibt' ) ) as $ac2_line ) {
+	if ( ! preg_match( '/^\| `(wpac_[a-z0-9_{}]+)` \| ([^|]+?) \| ([^|]+?) \| ([^|]+?) \|/', $ac2_line, $ac2_m ) ) {
+		continue;
+	}
+	if ( isset( $ac2_since[ $ac2_m[1] ] ) ) {
+		$ac2_bad[] = $ac2_m[1] . ': listed twice';
+	}
+	$ac2_since[ $ac2_m[1] ] = $ac2_m[2];
+	if ( ! in_array( $ac2_m[2], array( 'Ereignis', 'Erweiterungspunkt', 'Eingang' ), true ) ) {
+		$ac2_bad[] = $ac2_m[1] . ': unknown kind ' . $ac2_m[2];
+	}
+	if ( ! preg_match( '/^\d+\.\d+\.\d+$/', $ac2_m[3] ) || version_compare( $ac2_m[3], $ac2_contract, '>' ) ) {
+		$ac2_bad[] = $ac2_m[1] . ': contract version ' . $ac2_m[3] . ' (current ' . $ac2_contract . ')';
+	}
+	if ( ! preg_match( '/^\d+\.\d+\.\d+$/', $ac2_m[4] ) || version_compare( $ac2_m[4], $ac2_plugin, '>' ) ) {
+		$ac2_bad[] = $ac2_m[1] . ': plugin version ' . $ac2_m[4] . ' (current ' . $ac2_plugin . ')';
+	}
+}
+check( 'AC-1 docs/CONTRACT.md has the since table with a valid contract and plugin version per action', array( true, array() ), array( count( $ac2_since ) > 0, $ac2_bad ) );
+// Actions in the code.
+$ac2_dynamic = array(
+	// Ledger::transition(): do_action( 'wpac_commission_' . $to ) for every target status.
+	'wpac_commission_' => array_map(
+		static function ( $s ) {
+			return 'wpac_commission_' . $s;
+		},
+		preg_match( '/const TRANSITIONS = array\((.*?)\n\t\);/s', (string) file_get_contents( $ac2_root . '/src/Commissions/Ledger.php' ), $ac2_m ) && preg_match_all( "/^\s*'([a-z]+)'\s*=>/m", $ac2_m[1], $ac2_t ) ? $ac2_t[1] : array()
+	),
+	// Portal: do_action( 'wpac_portal_tab_' . $tab ) for the tabs added with wpac_portal_tabs.
+	'wpac_portal_tab_' => array( 'wpac_portal_tab_{key}' ),
+);
+$ac2_fired    = array();
+$ac2_received = array();
+$ac2_unknown  = array();
+$ac2_it       = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $ac2_root . '/src', FilesystemIterator::SKIP_DOTS ) );
+foreach ( $ac2_it as $ac2_f ) {
+	if ( '.php' !== substr( $ac2_f->getFilename(), -4 ) ) {
+		continue;
+	}
+	$ac2_src = (string) file_get_contents( $ac2_f->getPathname() );
+	// Comments are not code (ContractApi's docblock mentions do_action( 'wpac_v1_record_sale' )).
+	$ac2_code = '';
+	foreach ( token_get_all( $ac2_src ) as $ac2_tok ) {
+		$ac2_code .= is_array( $ac2_tok ) ? ( in_array( $ac2_tok[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ? ' ' : $ac2_tok[1] ) : $ac2_tok;
+	}
+	if ( preg_match_all( '/\bdo_action(?:_ref_array|_deprecated)?\(\s*([\'"])(wpac_[a-z0-9_]*)\1\s*(\.)?/', $ac2_code, $ac2_m, PREG_SET_ORDER ) ) {
+		foreach ( $ac2_m as $ac2_hit ) {
+			if ( empty( $ac2_hit[3] ) ) {
+				$ac2_fired[ $ac2_hit[2] ] = true;
+			} elseif ( isset( $ac2_dynamic[ $ac2_hit[2] ] ) ) {
+				$ac2_fired += array_fill_keys( $ac2_dynamic[ $ac2_hit[2] ], true );
+			} else {
+				$ac2_unknown[] = substr( $ac2_f->getPathname(), strlen( $ac2_root ) + 1 ) . ': ' . $ac2_hit[2] . ' . …';
+			}
+		}
+	}
+	if ( preg_match_all( '/\bdo_action(?:_ref_array|_deprecated)?\(\s*\$/', $ac2_code, $ac2_m ) ) {
+		$ac2_unknown[] = substr( $ac2_f->getPathname(), strlen( $ac2_root ) + 1 ) . ': do_action( $variable )';
+	}
+	if ( preg_match_all( '/\badd_action\(\s*([\'"])(wpac_v\d+_[a-z0-9_]+)\1/', $ac2_code, $ac2_m ) ) {
+		$ac2_received += array_fill_keys( $ac2_m[2], true );
+	}
+}
+check( 'AC-2 every action name in src/ is a literal wpac_ name or an expanded dynamic one', array(), $ac2_unknown );
+check( 'AC-2 the code fires wpac_commission_rejected, wpac_commission_pending, wpac_code_request_approved', array( true, true, true ), array( isset( $ac2_fired['wpac_commission_rejected'] ), isset( $ac2_fired['wpac_commission_pending'] ), isset( $ac2_fired['wpac_code_request_approved'] ) ) );
+$ac2_doc_out = array_keys( array_filter( $ac2_since, static function ( $k ) { return 'Eingang' !== $k; } ) );
+$ac2_doc_in  = array_keys( array_filter( $ac2_since, static function ( $k ) { return 'Eingang' === $k; } ) );
+$ac2_code_out = array_keys( $ac2_fired );
+$ac2_code_in  = array_keys( $ac2_received );
+check( 'AC-2 every action fired in src/ is in the since table of docs/CONTRACT.md', array(), array_values( array_diff( $ac2_code_out, $ac2_doc_out ) ) );
+check( 'AC-2 every fired action of the since table is fired somewhere in src/', array(), array_values( array_diff( $ac2_doc_out, $ac2_code_out ) ) );
+check( 'AC-2 received actions (add_action wpac_v1_*) and the since table agree', array( array(), array() ), array( array_values( array_diff( $ac2_code_in, $ac2_doc_in ) ), array_values( array_diff( $ac2_doc_in, $ac2_code_in ) ) ) );
+// The other tables of the document: the event table and every row of kind "Action".
+$ac2_rows   = array();
+$ac2_events = $ac2_section( $ac2_doc, '## Ereignisse (Affiliate Captain → Integrationen)' );
+$ac2_table  = preg_match( '/^\| Action \| Parameter \|\n\|[-|]+\|\n((?:\|[^\n]*\n)+)/m', $ac2_events, $ac2_m ) ? $ac2_m[1] : '';
+foreach ( explode( "\n", trim( $ac2_table ) ) as $ac2_line ) {
+	if ( preg_match( '/^\| `(wpac_[a-z0-9_{}]+)` \|/', $ac2_line, $ac2_m ) ) {
+		$ac2_rows[ $ac2_m[1] ] = 'Ereignis';
+	}
+}
+check( 'AC-2 the event table of docs/CONTRACT.md is one table (no blank line inside) and ends with wpac_contract_not_queued', array( true, true ), array( isset( $ac2_rows['wpac_contract_not_queued'] ), 0 === preg_match( '/\n\n\| `wpac_[a-z_]+` \| `/', $ac2_events ) ) );
+if ( preg_match_all( '/^\| ([^|]*?) \| Action \|/m', $ac2_doc, $ac2_m ) ) {
+	foreach ( $ac2_m[1] as $ac2_cell ) {
+		if ( preg_match_all( '/`(wpac_[a-z0-9_{}]+)`/', $ac2_cell, $ac2_n ) ) {
+			foreach ( $ac2_n[1] as $ac2_name ) {
+				$ac2_rows += array( $ac2_name => 'Erweiterungspunkt' );
+			}
+		}
+	}
+}
+foreach ( $ac2_doc_in as $ac2_name ) {
+	if ( false !== strpos( $ac2_doc, "do_action( '{$ac2_name}'" ) ) {
+		$ac2_rows[ $ac2_name ] = 'Eingang';
+	}
+}
+ksort( $ac2_rows );
+$ac2_sorted = $ac2_since;
+ksort( $ac2_sorted );
+check( 'AC-2 the since table lists the actions of the event table, the "Action" rows and the documented do_action( \'wpac_v1_…\' ) calls, with that kind', $ac2_rows, $ac2_sorted );
+
 // R6-CC3: behind a trusted proxy only X-Forwarded-For is read by default; CF-Connecting-IP and
 // X-Real-IP (any client can send them) only when enabled.
 check( 'R6-CC3 forged CF-Connecting-IP via a trusted non-Cloudflare proxy ignored', '198.51.100.9', RateLimiter::client_ip( array( 'REMOTE_ADDR' => '10.0.0.1', 'HTTP_CF_CONNECTING_IP' => '6.6.6.6', 'HTTP_X_FORWARDED_FOR' => '198.51.100.9' ), array( '10.0.0.0/8' ) ) );
