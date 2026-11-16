@@ -1580,6 +1580,7 @@ require __DIR__ . '/r14-kosit.php'; // KoSIT: e-invoice validation in CI (before
 require __DIR__ . '/r15-p.php'; // Round 15, fix agent p: privacy and performance (before r8-render).
 require __DIR__ . '/r15-s.php'; // Round 15, fix agent s: security and money R15-S1..S6 (before r8-render).
 require __DIR__ . '/su3.php'; // Agent su3: review quality from a review plugin, AFF-SU-03 (before r8-render).
+require __DIR__ . '/wf8.php'; // AFF-WF-08 (0.17.0): since table of all actions, parameters, after COMMIT (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
