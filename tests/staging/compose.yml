@@ -1,0 +1,107 @@
+# Staging stack for the live test PHP-2 (TODO.md): WordPress on PHP 8.5 (Apache), MariaDB 12.3
+# or MySQL 9.7, WooCommerce and Affiliate Captain from this checkout. Not part of the plugin ZIP.
+#
+#   docker compose up -d                                   # MariaDB 12.3 (default)
+#   docker compose --env-file env/mysql-9.7.env up -d      # MySQL 9.7
+#   docker compose --env-file env/mariadb-10.11.env up -d  # older server: Site Health warning
+#
+# Every env file sets its own project name, so each database keeps its own volumes and the
+# stacks can run side by side (different ports). Details: README.md in this folder.
+
+name: ${WPAC_STAGING_NAME:-wpac-staging-mariadb-12-3}
+
+x-wp-env: &wp-env
+  WORDPRESS_DB_HOST: db
+  WORDPRESS_DB_NAME: wordpress
+  WORDPRESS_DB_USER: wordpress
+  WORDPRESS_DB_PASSWORD: wordpress
+  WORDPRESS_DEBUG: "1"
+  # Staging only: fixed keys so the encrypted bank details survive a restart. Never use them live.
+  WORDPRESS_CONFIG_EXTRA: |
+    define( 'WP_DEBUG_LOG', true );
+    define( 'WP_DEBUG_DISPLAY', false );
+    define( 'WP_ENVIRONMENT_TYPE', 'staging' );
+    define( 'WPAC_ENCRYPTION_KEY', '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff' );
+    define( 'WPAC_CUSTOMER_KEY', 'staging-only-customer-key-0123456789abcdef' );
+    define( 'WPAC_STATEMENT_DIR', '/var/www/private/wpac-statements' );
+
+services:
+  db:
+    image: ${WPAC_DB_IMAGE:-mariadb:12.3}
+    restart: unless-stopped
+    environment:
+      # Understood by the MariaDB and the MySQL image alike.
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      # mariadb-admin (MariaDB 11+) or mysqladmin (MySQL), whichever the image has.
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -proot --silent 2>/dev/null || mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  wordpress:
+    # Official image: PHP 8.5 with mysqli, zip, intl, gd, exif, bcmath; sodium, dom and mbstring
+    # are part of PHP. Override WPAC_WP_IMAGE for PHP 8.6 (e.g. wordpress:php8.6-apache).
+    image: ${WPAC_WP_IMAGE:-wordpress:php8.5-apache}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WPAC_HTTP_PORT:-8085}:80"
+    environment: *wp-env
+    volumes:
+      - wp-html:/var/www/html
+      - wp-private:/var/www/private
+      - ../..:/opt/affiliate-captain:ro
+    # Statement folder outside the web root, writable for Apache (www-data); then the image's
+    # normal start (copies WordPress into the volume on the first start, writes wp-config.php).
+    entrypoint: ["sh", "-c", "mkdir -p /var/www/private/wpac-statements && chown -R www-data:www-data /var/www/private && exec docker-entrypoint.sh apache2-foreground"]
+
+  # One-shot: installs WordPress, WooCommerce and the plugin (setup.sh), then exits.
+  # Also used for WP-CLI: docker compose run --rm wpcli wp wpac health
+  # (setup.sh passes every command other than install/update-to-checkout/use-release to wp-cli).
+  wpcli:
+    image: ${WPAC_CLI_IMAGE:-wordpress:cli-php8.5}
+    # The CLI image is Alpine (www-data = 82), the Apache image Debian (www-data = 33).
+    user: "33:33"
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    environment:
+      <<: *wp-env
+      HOME: /tmp
+      WPAC_URL: http://localhost:${WPAC_HTTP_PORT:-8085}
+      WPAC_MAIL_URL: http://localhost:${WPAC_MAIL_PORT:-8025}
+      WPAC_PLUGIN: ${WPAC_PLUGIN:-checkout}
+      WPAC_RELEASE_URL: ${WPAC_RELEASE_URL:-https://github.com/hastla007/wpaffiliatemaster/releases/download/v0.15.0/affiliate-captain-0.15.0.zip}
+      WPAC_WOO_VERSION: ${WPAC_WOO_VERSION:-}
+      WPAC_WOO_SOURCE: ${WPAC_WOO_SOURCE:-}
+    volumes:
+      - wp-html:/var/www/html
+      - wp-private:/var/www/private
+      - ../..:/opt/affiliate-captain:ro
+      - .:/opt/wpac-staging:ro
+    working_dir: /var/www/html
+    entrypoint: ["sh", "/opt/wpac-staging/setup.sh"]
+    command: ["install"]
+
+  # Catches every e-mail (credit notes with PDF/XML attachment): http://localhost:8025
+  mail:
+    image: axllent/mailpit:v1.33
+    restart: unless-stopped
+    ports:
+      - "${WPAC_MAIL_PORT:-8025}:8025"
+
+volumes:
+  db-data:
+  wp-html:
+  wp-private:
