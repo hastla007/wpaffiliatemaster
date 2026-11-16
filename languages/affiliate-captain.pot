@@ -2411,7 +2411,7 @@ msgstr ""
 msgid "Partner program terms"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/IntegrationsPage.php
 msgid "unknown error"
 msgstr ""
 
@@ -2880,6 +2880,13 @@ msgstr[1] ""
 
 #. translators: %d: number of files
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "%d credit note file was copied to the document storage and verified."
+msgid_plural "%d credit note files were copied to the document storage and verified."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of files
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "%d file could not be moved (is the new folder writable?)."
 msgid_plural "%d files could not be moved (is the new folder writable?)."
 msgstr[0] ""
@@ -2896,6 +2903,13 @@ msgstr[1] ""
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "The bank details of %d partner cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
 msgid_plural "The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of files
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "%d credit note file is still in the local folder of this server and not in the document storage."
+msgid_plural "%d credit note files are still in the local folder of this server and not in the document storage."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2950,6 +2964,27 @@ msgid "Key change confirmed."
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
+msgid "Document storage works: a test file was written, read and deleted."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "writing"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "reading"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "deleting"
+msgstr ""
+
+#. translators: 1: failed step (writing, reading, deleting), 2: error (no secrets)
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Document storage test failed while %1$s: %2$s"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
 msgid "They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them."
 msgstr ""
 
@@ -2959,6 +2994,14 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Partner IDs:"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "They are still downloadable from this server. Copy them to the document storage (each copy is read back and compared before the local file is deleted), or use \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Copy credit notes to the document storage"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -3047,6 +3090,10 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "Database error."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Statements stored in the document storage (object storage) – not in a folder of the web server"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -3168,6 +3215,44 @@ msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
 msgid "check"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Document storage (credit notes)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "S3-compatible object storage (WPAC_S3_* constants in wp-config.php)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php src/Core/Monitor.php
+msgid "Local folder on this server"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Custom store (filter wpac_statement_store)"
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Active store:"
+msgstr ""
+
+#. translators: %s: names of missing or invalid constants
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "The object storage configuration in wp-config.php is incomplete or invalid (%s). Credit notes are stored in the local folder until it is complete."
+msgstr ""
+
+#. translators: 1: date and time, 2: error
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Last storage failure (%1$s): %2$s. Credit notes are written again automatically."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "With several app servers the folder must be shared storage – or use object storage (see the handbook, section \"Credit notes on several servers\")."
+msgstr ""
+
+#: src/Admin/Pages/IntegrationsPage.php
+msgid "Test connection"
 msgstr ""
 
 #: src/Admin/Pages/IntegrationsPage.php
@@ -6854,6 +6939,13 @@ msgstr[1] ""
 
 #. translators: %d: number of files
 #: src/Core/Monitor.php
+msgid "%d credit note is not in the document storage yet"
+msgid_plural "%d credit notes are not in the document storage yet"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of files
+#: src/Core/Monitor.php
 msgid "%d credit note is still in the previous statement folder"
 msgid_plural "%d credit notes are still in the previous statement folder"
 msgstr[0] ""
@@ -6934,6 +7026,10 @@ msgid "Affiliate Captain → Integrations: re-encrypt them with WPAC_ENCRYPTION_
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "They are only in the local folder of a server. Affiliate Captain → Integrations: copy them to the document storage, or run \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Affiliate Captain → Integrations: move them to the current folder."
 msgstr ""
 
@@ -6961,6 +7057,28 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "Check that the statement folder is writable."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Check the document storage: Affiliate Captain → Integrations → System status → Test connection."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Object storage for credit notes is not configured completely"
+msgstr ""
+
+#. translators: %s: names of missing or invalid constants
+#: src/Core/Monitor.php
+msgid "Some WPAC_S3_* constants are defined in wp-config.php, but %s are missing or invalid. Credit notes are stored in the local folder of each server until the configuration is complete."
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "The document storage for credit notes failed"
+msgstr ""
+
+#. translators: %s: error (no secrets)
+#: src/Core/Monitor.php
+msgid "Last error: %s. Credit notes are written again automatically with growing pauses; deletions after the retention period are repeated. Affiliate Captain → Integrations → System status → Test connection."
 msgstr ""
 
 #: src/Core/Monitor.php
@@ -7106,6 +7224,14 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "deletion paused: legal hold"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Credit note storage"
+msgstr ""
+
+#: src/Core/Monitor.php
+msgid "Object storage / custom store"
 msgstr ""
 
 #. translators: %s: site name

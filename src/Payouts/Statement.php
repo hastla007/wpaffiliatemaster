@@ -20,71 +20,217 @@ use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Payouts\Storage\LocalStore;
+use WPAffiliateCaptain\Payouts\Storage\S3Store;
+use WPAffiliateCaptain\Payouts\Storage\StatementStore;
 
 defined( 'ABSPATH' ) || exit;
 
 final class Statement {
 
 	/**
-	 * Storage directory (created on demand).
+	 * Local storage folder (created on demand, with deny rules and index.php): see LocalStore.
 	 *
-	 * Define WPAC_STATEMENT_DIR in wp-config.php to store statements outside the
-	 * web root (recommended, required on nginx where .htaccess is ignored). With several app
-	 * servers the folder should be shared storage (NFS, EFS …) mounted on every node – otherwise a
-	 * download on another node finds no file (it is then built again from the stored data, see
-	 * send()) and the deletion after the retention period first only reaches the local copy; the
-	 * other nodes remove theirs in their own sweep (StatementSweep). The filter wpac_statement_dir
-	 * can point the folder elsewhere (e.g. a mounted bucket).
+	 * Define WPAC_STATEMENT_DIR in wp-config.php to store statements outside the web root
+	 * (recommended, required on nginx where .htaccess is ignored). With several app servers use
+	 * object storage (WPAC_S3_* constants, see store()) – every node reads and deletes the same
+	 * documents – or shared storage (NFS, EFS …) mounted on every node. Without either, a download
+	 * on another node finds no file (it is then built again from the stored data, see send()) and
+	 * the other nodes remove their copies after the retention period in their own sweep
+	 * (StatementSweep). The filter wpac_statement_dir can point the folder elsewhere.
 	 *
 	 * @return string
 	 */
 	public static function dir() {
-		$dir = self::configured_dir();
-		if ( ! is_dir( $dir ) ) {
-			wp_mkdir_p( $dir );
-		}
-		if ( ! file_exists( $dir . '/.htaccess' ) ) {
-			file_put_contents( $dir . '/.htaccess', "Require all denied\nDeny from all\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-			file_put_contents( $dir . '/index.php', "<?php\n// Silence.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		}
-		return $dir;
+		return LocalStore::folder();
 	}
 
 	/**
-	 * Configured storage folder (constant, filter or uploads), without creating it.
+	 * Configured local storage folder (constant, filter or uploads), without creating it.
 	 *
 	 * @return string
 	 */
 	public static function configured_dir() {
-		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
-			$dir = untrailingslashit( (string) WPAC_STATEMENT_DIR );
-			if ( is_multisite() ) {
-				// All sites of a network share the constant: one subfolder per site, so the documents
-				// (and their deletion on uninstall) stay apart. Older files are moved by the v9 migration.
-				$dir .= '/site-' . (int) get_current_blog_id();
-			}
-		} else {
-			$upload = wp_upload_dir( null, false );
-			$dir    = trailingslashit( $upload['basedir'] ) . 'wpac-statements';
-		}
-		/**
-		 * Folder of the credit notes (e.g. shared storage for several app servers). Use an absolute
-		 * path outside the web root; it must be the same on every server.
-		 *
-		 * @param string $dir Folder.
-		 */
-		$filtered = (string) apply_filters( 'wpac_statement_dir', $dir );
-		return '' !== $filtered ? untrailingslashit( $filtered ) : $dir;
+		return LocalStore::configured();
 	}
 
 	/**
-	 * Whether the folder is a custom one (constant or filter) and not the uploads folder.
+	 * Whether the local folder is a custom one (constant or filter) and not the uploads folder.
 	 *
 	 * @return bool
 	 */
 	public static function custom_dir() {
-		$upload = wp_upload_dir( null, false );
-		return untrailingslashit( self::configured_dir() ) !== trailingslashit( $upload['basedir'] ) . 'wpac-statements';
+		return LocalStore::custom();
+	}
+
+	/**
+	 * The active document store for credit notes, correction credit notes and cancellations:
+	 * S3-compatible object storage when the WPAC_S3_* constants are complete, otherwise the local
+	 * folder (an incomplete configuration falls back to it and is reported in Site Health). The
+	 * filter wpac_statement_store can supply another store.
+	 *
+	 * @return StatementStore
+	 */
+	public static function store() {
+		$default = S3Store::configured() ? S3Store::from_constants() : null;
+		$default = $default ? $default : new LocalStore();
+		/**
+		 * Store of the credit note, correction and cancellation PDFs (an object implementing
+		 * WPAffiliateCaptain\Payouts\Storage\StatementStore). Must be the same on every app server.
+		 *
+		 * @param StatementStore $default Store from the configuration (S3 or local folder).
+		 */
+		$store = apply_filters( 'wpac_statement_store', $default );
+		return $store instanceof StatementStore ? $store : $default;
+	}
+
+	/**
+	 * Whether the documents are kept in the local folder (no object storage or custom store).
+	 *
+	 * @return bool
+	 */
+	public static function local_store() {
+		return self::store() instanceof LocalStore;
+	}
+
+	/** Option: last failure of the document store (time, store, error; no secrets). */
+	const STORE_ERROR_OPTION = 'wpac_statement_store_error';
+
+	/**
+	 * Remember a failure of the store (Site Health) and log it.
+	 *
+	 * @param StatementStore $store   Store.
+	 * @param string         $message Log message.
+	 * @param array          $context Log context (e.g. payout).
+	 */
+	public static function store_failed( StatementStore $store, $message, array $context = array() ) {
+		$cause = Db::cut( (string) $store->last_error(), 300 );
+		update_option(
+			self::STORE_ERROR_OPTION,
+			array(
+				'time'  => time(),
+				'store' => (string) $store->id(),
+				'error' => $cause,
+			),
+			false
+		);
+		$context += array(
+			'store' => (string) $store->id(),
+			'cause' => $cause,
+		);
+		if ( $store instanceof LocalStore ) {
+			$context['dir_writable'] = is_writable( self::dir() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+		}
+		\WPAffiliateCaptain\Core\Log::error( $message, $context );
+	}
+
+	/**
+	 * A write to the store worked: the warning of an earlier failure goes.
+	 */
+	public static function store_ok() {
+		if ( false !== get_option( self::STORE_ERROR_OPTION, false ) ) {
+			delete_option( self::STORE_ERROR_OPTION );
+		}
+	}
+
+	/**
+	 * Last failure of the store (null = none since the last successful write).
+	 *
+	 * @return array|null time, store, error.
+	 */
+	public static function store_error() {
+		$e = get_option( self::STORE_ERROR_OPTION );
+		return is_array( $e ) ? $e : null;
+	}
+
+	/**
+	 * Test the active store: write, read and delete a probe object. Nothing secret is returned.
+	 *
+	 * @return array ok, store, label, write, read, delete, error.
+	 */
+	public static function test_store() {
+		$store = self::store();
+		$name  = 'wpac-probe-' . wp_generate_password( 12, false ) . '.txt';
+		$data  = 'wpac-probe ' . wp_generate_password( 24, false );
+		$out   = array(
+			'ok'     => false,
+			'store'  => (string) $store->id(),
+			'label'  => (string) $store->label(),
+			'write'  => false,
+			'read'   => false,
+			'delete' => false,
+			'error'  => '',
+		);
+		$out['write'] = $store->put( $name, $data );
+		if ( $out['write'] ) {
+			$out['read']   = $data === $store->get( $name );
+			$out['delete'] = $store->delete( $name ) && ! $store->exists( $name );
+		}
+		$out['error'] = (string) $store->last_error();
+		$out['ok']    = $out['write'] && $out['read'] && $out['delete'];
+		if ( $out['ok'] ) {
+			self::store_ok();
+		}
+		return $out;
+	}
+
+	/**
+	 * Bytes of a stored document: from the active store; with object storage also from the local
+	 * folders of this server (documents not migrated yet).
+	 *
+	 * @param string $name Stored file name.
+	 * @return string|null
+	 */
+	public static function read_document( $name ) {
+		$store = self::store();
+		$bytes = $store->get( $name );
+		if ( null === $bytes && ! $store instanceof LocalStore ) {
+			$bytes = ( new LocalStore() )->get( $name );
+		}
+		return $bytes;
+	}
+
+	/**
+	 * Path of a just stored document for listeners (partner mail attachment): the file in the
+	 * local folder, or a private temporary copy deleted at the end of the request.
+	 *
+	 * @param StatementStore $store Store.
+	 * @param string         $name  File name.
+	 * @param string         $bytes Content.
+	 * @return string '' when no copy could be made.
+	 */
+	public static function attachment_path( StatementStore $store, $name, $bytes ) {
+		if ( $store instanceof LocalStore ) {
+			return self::dir() . '/' . $name;
+		}
+		$clean = LocalStore::clean( $name );
+		$dir   = \WPAffiliateCaptain\Core\PrivateFile::dir() . '/wpac-doc-' . wp_generate_password( 16, false );
+		$path  = $dir . '/' . $clean;
+		if ( '' === $clean || ! wp_mkdir_p( $dir ) || false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			return '';
+		}
+		@chmod( $path, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+		\WPAffiliateCaptain\Core\PrivateFile::track( $path );
+		self::$temp_dirs[] = $dir;
+		if ( 1 === count( self::$temp_dirs ) ) {
+			register_shutdown_function( array( __CLASS__, 'remove_temp_dirs' ) );
+		}
+		return $path;
+	}
+
+	/** @var string[] Folders of temporary attachment copies (removed at shutdown). */
+	private static $temp_dirs = array();
+
+	/**
+	 * Shutdown: remove the folders of temporary attachment copies (their files are removed by
+	 * PrivateFile::cleanup()).
+	 */
+	public static function remove_temp_dirs() {
+		\WPAffiliateCaptain\Core\PrivateFile::cleanup();
+		foreach ( self::$temp_dirs as $dir ) {
+			@rmdir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+		}
+		self::$temp_dirs = array();
 	}
 
 	/**
@@ -94,7 +240,7 @@ final class Statement {
 	 * @return bool|null True = exposed, false = protected, null = unknown/outside web root.
 	 */
 	public static function publicly_accessible() {
-		if ( self::custom_dir() ) {
+		if ( self::custom_dir() || ! self::local_store() ) {
 			return null;
 		}
 		static $memo = false;
@@ -876,18 +1022,11 @@ final class Statement {
 			}
 			$bytes = self::build( $p );
 			$name  = sanitize_file_name( $p->number . '-' . wp_generate_password( 16, false ) . '.pdf' );
-			$path  = self::dir() . '/' . $name;
-			if ( false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			$store = self::store();
+			if ( ! $store->put( $name, $bytes ) ) {
+				// Number and data stay with the payout: the hourly cron writes it again (growing pauses).
 				Audit::log( 'statement.write_failed', 'payout', (int) $payout_id );
-				$last = error_get_last(); // The cause (disk full, permissions, open_basedir …), hidden by @.
-				\WPAffiliateCaptain\Core\Log::error(
-					'Credit note could not be written',
-					array(
-						'payout'       => (int) $payout_id,
-						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-						'cause'        => is_array( $last ) ? Db::cut( (string) $last['message'], 300 ) : '',
-					)
-				);
+				self::store_failed( $store, 'Credit note could not be written', array( 'payout' => (int) $payout_id ) );
 				self::backoff( (int) $payout_id );
 				return false;
 			}
@@ -895,9 +1034,11 @@ final class Statement {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET statement_file = %s, statement_hash = %s WHERE id = %d AND statement_file = '' AND statement_deleted_at IS NULL AND ( status <> 'cancelled' OR storno_number <> '' )", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
 			if ( 1 !== $done ) {
-				wp_delete_file( $path );
+				$store->delete( $name );
 				return false;
 			}
+			self::store_ok();
+			$path = self::attachment_path( $store, $name, $bytes );
 			self::clear_backoff( (int) $payout_id );
 			Audit::log( 'statement.generated', 'payout', (int) $payout_id, array( 'hash' => hash( 'sha256', $bytes ) ) );
 		} finally {
@@ -908,7 +1049,8 @@ final class Statement {
 		 * partner (a credit note only takes effect once the partner received it, §14 Abs. 2 UStG).
 		 *
 		 * @param int    $payout_id Payout.
-		 * @param string $path      Stored PDF.
+		 * @param string $path      Stored PDF (with object storage: a private temporary copy that is
+		 *                          deleted at the end of the request; '' if none could be made).
 		 */
 		do_action( 'wpac_statement_generated', (int) $payout_id, $path );
 		return true;
@@ -1066,8 +1208,8 @@ final class Statement {
 	}
 
 	/**
-	 * Bytes of a stored document. A file that is missing on this server (several app servers
-	 * without shared storage, lost file) is built again from the stored data: if the result
+	 * Bytes of a stored document (read through the store). A file that is missing (several app
+	 * servers without shared storage, lost file, store unreachable) is built again from the stored data: if the result
 	 * matches the stored hash it is the original and is stored again; otherwise a copy marked
 	 * as duplicate is returned. Documents deleted after the retention period (on any server: the
 	 * database decides) are neither served nor rebuilt, and a copy left on this server is deleted.
@@ -1086,18 +1228,23 @@ final class Statement {
 			StatementSweep::forget( $path, (string) $p->statement_hash );
 			return null;
 		}
-		if ( is_readable( $path ) ) {
-			$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$bytes = self::read_document( (string) $p->statement_file );
+		if ( null !== $bytes ) {
 			return hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ? $bytes : false;
 		}
 		$bytes = self::build( $orig, $storno );
 		if ( hash_equals( (string) $p->statement_hash, hash( 'sha256', $bytes ) ) ) {
-			$target = self::dir() . '/' . basename( (string) $p->statement_file );
-			@file_put_contents( $target, $bytes ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			$store = self::store();
+			$name  = basename( (string) $p->statement_file );
+			$store->put( $name, $bytes );
 			// The retention deletion may have run meanwhile (on another server): no copy outlives it.
 			$now = PayoutService::find( (int) $p->id );
 			if ( ! $now || $now->statement_deleted_at ) {
-				StatementSweep::forget( $target, (string) $p->statement_hash );
+				if ( $store instanceof LocalStore ) {
+					StatementSweep::forget( self::dir() . '/' . $name, (string) $p->statement_hash );
+				} else {
+					$store->delete( $name, (string) $p->statement_hash );
+				}
 				return null;
 			}
 			Audit::log( 'statement.restored', 'payout', (int) $p->id, array( 'storno' => (bool) $storno ) );
@@ -1114,44 +1261,23 @@ final class Statement {
 	 * @return string[]
 	 */
 	public static function legacy_dirs() {
-		$upload = wp_upload_dir( null, false );
-		$dirs   = array( trailingslashit( $upload['basedir'] ) . 'wpac-statements' );
-		if ( defined( 'WPAC_STATEMENT_DIR' ) && '' !== (string) WPAC_STATEMENT_DIR ) {
-			$dirs[] = untrailingslashit( (string) WPAC_STATEMENT_DIR );
-		}
-		$current = untrailingslashit( self::dir() );
-		$out     = array();
-		foreach ( array_unique( $dirs ) as $dir ) {
-			if ( untrailingslashit( $dir ) !== $current && is_dir( $dir ) ) {
-				$out[] = untrailingslashit( $dir );
-			}
-		}
-		return $out;
+		return LocalStore::legacy();
 	}
 
 	/**
-	 * Full path of a stored statement: the current folder, or an earlier one when the folder
+	 * Full local path of a stored statement: the current folder, or an earlier one when the folder
 	 * was changed later (e.g. WPAC_STATEMENT_DIR defined after the first credit notes).
 	 *
 	 * @param string $file Stored file name.
 	 * @return string
 	 */
 	public static function path( $file ) {
-		$name = basename( (string) $file );
-		$path = self::dir() . '/' . $name;
-		if ( '' === $name || is_readable( $path ) ) {
-			return $path;
-		}
-		foreach ( self::legacy_dirs() as $dir ) {
-			if ( is_readable( $dir . '/' . $name ) ) {
-				return $dir . '/' . $name;
-			}
-		}
-		return $path;
+		return LocalStore::resolve( $file );
 	}
 
 	/**
-	 * Statements (and cancellations) that are still in an earlier folder.
+	 * Statements (and cancellations) that are still in an earlier folder – with object storage
+	 * (or a custom store): every document still in a local folder of this server (not migrated).
 	 *
 	 * All payouts are looked at, in pages by ID (no fixed limit: documents of later payouts were
 	 * never found before). It touches the file system for every document, so pages call
@@ -1161,6 +1287,14 @@ final class Statement {
 	 * @return array List of [ payout ID, file name, old path ].
 	 */
 	public static function misplaced( $limit = 0 ) {
+		if ( ! self::local_store() ) {
+			return array_map(
+				static function ( $doc ) {
+					return array( $doc[0], $doc[1], $doc[2] );
+				},
+				self::local_documents( $limit )
+			);
+		}
 		global $wpdb;
 		$legacy = self::legacy_dirs();
 		if ( ! $legacy ) {
@@ -1196,12 +1330,131 @@ final class Statement {
 	}
 
 	/**
+	 * Documents of this site's payouts and correction credit notes that are in a local folder of
+	 * this server (current or earlier one), with their stored hash.
+	 *
+	 * @param int $limit Max. results (0 = all).
+	 * @return array List of [ payout ID, file name, path, hash ].
+	 */
+	private static function local_documents( $limit = 0 ) {
+		global $wpdb;
+		$t    = Db::table( 'payouts' );
+		$out  = array();
+		$last = 0;
+		do {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, statement_hash, storno_file, storno_hash FROM {$t} WHERE id > %d AND ( statement_file <> '' OR storno_file <> '' ) ORDER BY id ASC LIMIT 500", $last ) );
+			foreach ( $rows as $r ) {
+				$last = (int) $r->id;
+				foreach ( array( array( $r->statement_file, $r->statement_hash ), array( $r->storno_file, $r->storno_hash ) ) as $doc ) {
+					$name = LocalStore::clean( (string) $doc[0] );
+					if ( '' === $name ) {
+						continue;
+					}
+					$path = LocalStore::resolve( $name );
+					if ( is_readable( $path ) ) {
+						$out[] = array( (int) $r->id, $name, $path, (string) $doc[1] );
+					}
+					if ( $limit > 0 && count( $out ) >= $limit ) {
+						return $out;
+					}
+				}
+			}
+		} while ( 500 === count( $rows ) );
+		// Correction credit notes (same folder and store).
+		$k    = Db::table( Corrections::TABLE );
+		$last = 0;
+		do {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, payout_id, file, hash FROM {$k} WHERE id > %d AND file <> '' ORDER BY id ASC LIMIT 500", $last ) );
+			foreach ( $rows as $r ) {
+				$last = (int) $r->id;
+				$name = LocalStore::clean( (string) $r->file );
+				$path = '' !== $name ? LocalStore::resolve( $name ) : '';
+				if ( '' !== $path && is_readable( $path ) ) {
+					$out[] = array( (int) $r->payout_id, $name, $path, (string) $r->hash );
+				}
+				if ( $limit > 0 && count( $out ) >= $limit ) {
+					return $out;
+				}
+			}
+		} while ( 500 === count( $rows ) );
+		return $out;
+	}
+
+	/**
+	 * Copy the local documents of this server into a store (e.g. object storage): upload, read
+	 * back and compare the hash; only a verified copy lets the local file go. A local file whose
+	 * content no longer matches the stored hash is not copied (it stays for inspection).
+	 *
+	 * @param StatementStore $target  Target store.
+	 * @param bool           $dry_run Only count.
+	 * @return array found, copied, failed, files (names; dry run: those that would be copied).
+	 */
+	public static function migrate( StatementStore $target, $dry_run = false ) {
+		$out = array(
+			'found'  => 0,
+			'copied' => 0,
+			'failed' => 0,
+			'files'  => array(),
+		);
+		if ( $target instanceof LocalStore ) {
+			return $out;
+		}
+		foreach ( self::local_documents() as $doc ) {
+			list( $id, $name, $path, $hash ) = $doc;
+			++$out['found'];
+			if ( $dry_run ) {
+				$out['files'][] = $name;
+				continue;
+			}
+			$bytes = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			$sum   = false === $bytes ? '' : hash( 'sha256', (string) $bytes );
+			$valid = '' !== $sum && ( '' === $hash || hash_equals( $hash, $sum ) );
+			$back  = $valid && $target->put( $name, (string) $bytes ) ? $target->get( $name ) : null;
+			if ( null === $back || ! hash_equals( $sum, hash( 'sha256', $back ) ) ) {
+				++$out['failed'];
+				\WPAffiliateCaptain\Core\Log::warning(
+					'Credit note could not be copied to the document store',
+					array(
+						'payout' => (int) $id,
+						'store'  => (string) $target->id(),
+						'cause'  => Db::cut( $valid ? (string) $target->last_error() : 'local file does not match the stored hash', 300 ),
+					)
+				);
+				continue;
+			}
+			wp_delete_file( $path );
+			++$out['copied'];
+			$out['files'][] = $name;
+		}
+		if ( ! $dry_run && ( $out['copied'] || $out['failed'] ) ) {
+			Audit::log(
+				'statement.migrated',
+				'settings',
+				0,
+				array(
+					'store'  => (string) $target->id(),
+					'copied' => $out['copied'],
+					'failed' => $out['failed'],
+				)
+			);
+		}
+		return $out;
+	}
+
+	/**
 	 * Move statements from earlier folders into the current one (copy, verify, then delete the
-	 * old file).
+	 * old file) – with object storage into the store (migrate()).
 	 *
 	 * @return array [ moved, failed ]
 	 */
 	public static function move_misplaced() {
+		$store = self::store();
+		if ( ! $store instanceof LocalStore ) {
+			$res = self::migrate( $store );
+			return array( $res['copied'], $res['failed'] );
+		}
 		$moved  = 0;
 		$failed = 0;
 		foreach ( self::misplaced() as $m ) {
@@ -1263,18 +1516,10 @@ final class Statement {
 			}
 			$bytes = self::build( $p, true );
 			$name  = sanitize_file_name( $p->storno_number . '-' . wp_generate_password( 16, false ) . '.pdf' );
-			$path  = self::dir() . '/' . $name;
-			if ( false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			$store = self::store();
+			if ( ! $store->put( $name, $bytes ) ) {
 				Audit::log( 'statement.storno_write_failed', 'payout', (int) $payout_id );
-				$last = error_get_last(); // The cause (disk full, permissions, open_basedir …), hidden by @.
-				\WPAffiliateCaptain\Core\Log::error(
-					'Cancellation document could not be written',
-					array(
-						'payout'       => (int) $payout_id,
-						'dir_writable' => is_writable( self::dir() ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-						'cause'        => is_array( $last ) ? Db::cut( (string) $last['message'], 300 ) : '',
-					)
-				);
+				self::store_failed( $store, 'Cancellation document could not be written', array( 'payout' => (int) $payout_id ) );
 				self::backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
 				return false;
 			}
@@ -1282,9 +1527,11 @@ final class Statement {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 			$done = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . Db::table( 'payouts' ) . " SET storno_file = %s, storno_hash = %s WHERE id = %d AND storno_file = '' AND statement_deleted_at IS NULL", $name, hash( 'sha256', $bytes ), (int) $payout_id ) );
 			if ( 1 !== $done ) {
-				wp_delete_file( $path );
+				$store->delete( $name );
 				return false;
 			}
+			self::store_ok();
+			$path = self::attachment_path( $store, $name, $bytes );
 			self::clear_backoff( (int) $payout_id, self::STORNO_RETRY_OPTION );
 			Audit::log( 'statement.storno_generated', 'payout', (int) $payout_id, array( 'number' => $p->storno_number ) );
 		} finally {
@@ -1294,7 +1541,7 @@ final class Statement {
 		 * A cancellation document was issued and stored (e.g. to send it to the partner).
 		 *
 		 * @param int    $payout_id Payout.
-		 * @param string $path      Stored PDF.
+		 * @param string $path      Stored PDF (object storage: temporary copy, see wpac_statement_generated).
 		 */
 		do_action( 'wpac_storno_generated', (int) $payout_id, $path );
 		return true;
@@ -1366,27 +1613,32 @@ final class Statement {
 		// Retention starts at the end of the calendar year of the statement (cancellations: of their own date).
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, statement_file, statement_hash, storno_file, storno_hash FROM {$t} WHERE statement_deleted_at IS NULL AND created_at <= %s AND ( storno_at IS NULL OR storno_at <= %s ) LIMIT 200", $cutoff, $cutoff ) );
-		// The current folder and the earlier ones (files not moved yet must not outlive the period).
-		// An earlier folder may be shared (flat WPAC_STATEMENT_DIR of a network): there only the
-		// document with this payout's hash is deleted, never another site's file of the same name.
-		$current = self::dir();
-		$legacy  = self::legacy_dirs();
+		// Through the store (with object storage the only copy, reached from every app server).
+		// The local folders are cleaned as well: the current folder and the earlier ones (files not
+		// moved or migrated yet must not outlive the period). An earlier folder may be shared (flat
+		// WPAC_STATEMENT_DIR of a network): there only the document with this payout's hash is
+		// deleted, never another site's file of the same name (LocalStore::delete()).
+		$store = self::store();
+		$local = $store instanceof LocalStore ? null : new LocalStore();
+		$done  = 0;
 		foreach ( $rows as $r ) {
+			$ok = true;
 			foreach ( array( array( $r->statement_file, $r->statement_hash ), array( $r->storno_file, $r->storno_hash ) ) as $doc ) {
-				$name = basename( (string) $doc[0] );
-				if ( '' === $name || '.' === $name[0] ) {
+				$name = LocalStore::clean( (string) $doc[0] );
+				if ( '' === $name ) {
 					continue;
 				}
-				if ( file_exists( $current . '/' . $name ) ) {
-					wp_delete_file( $current . '/' . $name );
-				}
-				foreach ( $legacy as $dir ) {
-					$path = $dir . '/' . $name;
-					if ( is_file( $path ) && ( '' === (string) $doc[1] || hash_equals( (string) $doc[1], (string) hash_file( 'sha256', $path ) ) ) ) {
-						wp_delete_file( $path );
-					}
+				$ok = $store->delete( $name, (string) $doc[1] ) && $ok;
+				if ( $local ) {
+					$local->delete( $name, (string) $doc[1] );
 				}
 			}
+			if ( ! $ok ) {
+				// Not marked as deleted while the document still exists: the next daily run tries again.
+				self::store_failed( $store, 'Credit note could not be deleted after the retention period', array( 'payout' => (int) $r->id ) );
+				continue;
+			}
+			++$done;
 			$wpdb->update(
 				$t,
 				array(
@@ -1400,6 +1652,6 @@ final class Statement {
 			Audit::log( 'statement.retention_deleted', 'payout', (int) $r->id );
 		}
 		// Correction credit notes: the period starts with their own date.
-		return count( $rows ) + Corrections::purge_expired( $cutoff );
+		return $done + Corrections::purge_expired( $cutoff );
 	}
 }

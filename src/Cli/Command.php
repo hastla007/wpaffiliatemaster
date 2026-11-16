@@ -433,12 +433,26 @@ final class Command {
 	 * on). The plugin's hourly cron sweeps the server it runs on at most every 6 hours (filter
 	 * wpac_statement_sweep_interval); visitor requests never sweep. Without shared storage run
 	 * this on every app server, e.g. from its system cron. Only files whose SHA-256 belongs to a deleted document are removed;
-	 * other unreferenced files are listed as unknown and kept.
+	 * other unreferenced files are listed as unknown and kept. With object storage (WPAC_S3_*
+	 * constants) the automatic sweep is skipped: the retention deletion removes the one shared copy.
+	 *
+	 * `migrate --to=s3` copies the credit notes, correction credit notes and cancellations in the
+	 * local folders of this server into the object storage of the WPAC_S3_* constants: every copy
+	 * is read back and its SHA-256 compared before the local file is deleted; failed copies stay
+	 * local. Run it on every app server that kept its own folder. `--dry-run` only lists them.
+	 *
+	 * `test` writes, reads and deletes a probe file in the active document store.
 	 *
 	 * ## OPTIONS
 	 *
 	 * <action>
-	 * : sweep
+	 * : sweep, migrate or test
+	 *
+	 * [--to=<store>]
+	 * : migrate: target store (only "s3").
+	 *
+	 * [--dry-run]
+	 * : migrate: only list what would be copied.
 	 *
 	 * [--budget=<seconds>]
 	 * : Stop after this many seconds (default 0 = until done).
@@ -453,13 +467,57 @@ final class Command {
 	 *
 	 *     wp wpac statements sweep
 	 *     wp wpac statements sweep --network
+	 *     wp wpac statements migrate --to=s3 --dry-run
+	 *     wp wpac statements migrate --to=s3
+	 *     wp wpac statements test
 	 *
 	 * @param array $args  Positional.
 	 * @param array $assoc Options.
 	 */
 	public function statements( $args, $assoc ) {
-		if ( ! isset( $args[0] ) || 'sweep' !== $args[0] ) {
-			\WP_CLI::error( 'Use: wp wpac statements sweep' );
+		$action = isset( $args[0] ) ? (string) $args[0] : '';
+		if ( ! in_array( $action, array( 'sweep', 'migrate', 'test' ), true ) ) {
+			\WP_CLI::error( 'Use: wp wpac statements sweep|migrate --to=s3 [--dry-run]|test' );
+		}
+		if ( 'test' === $action ) {
+			self::each_site(
+				$assoc,
+				static function () {
+					$res = \WPAffiliateCaptain\Payouts\Statement::test_store();
+					\WP_CLI::log( sprintf( 'Store: %s (%s)', $res['store'], $res['label'] ) );
+					if ( ! $res['ok'] ) {
+						return array( sprintf( 'write %s, read %s, delete %s: %s', $res['write'] ? 'ok' : 'failed', $res['read'] ? 'ok' : 'failed', $res['delete'] ? 'ok' : 'failed', '' !== $res['error'] ? $res['error'] : 'unknown error' ) );
+					}
+					\WP_CLI::success( 'Write, read and delete work.' );
+					return array();
+				}
+			);
+			return;
+		}
+		if ( 'migrate' === $action ) {
+			$dry = ! empty( $assoc['dry-run'] );
+			self::each_site(
+				$assoc,
+				static function () use ( $assoc, $dry ) {
+					$res = self::migrate_statements( isset( $assoc['to'] ) ? (string) $assoc['to'] : '', $dry );
+					if ( is_wp_error( $res ) ) {
+						return array( $res->get_error_message() );
+					}
+					if ( $dry ) {
+						foreach ( $res['files'] as $name ) {
+							\WP_CLI::log( $name );
+						}
+						\WP_CLI::success( sprintf( 'Dry run: %d document(s) would be copied to the object storage.', (int) $res['found'] ) );
+						return array();
+					}
+					if ( $res['failed'] ) {
+						return array( sprintf( '%d document(s) copied and verified, %d failed (they stay in the local folder; see the log).', (int) $res['copied'], (int) $res['failed'] ) );
+					}
+					\WP_CLI::success( sprintf( '%d document(s) copied, verified and removed from the local folder.', (int) $res['copied'] ) );
+					return array();
+				}
+			);
+			return;
 		}
 		self::each_site(
 			$assoc,
@@ -480,6 +538,25 @@ final class Command {
 				return array();
 			}
 		);
+	}
+
+	/**
+	 * `wp wpac statements migrate` without output (also used by the tests).
+	 *
+	 * @param string $to      Target ("s3").
+	 * @param bool   $dry_run Only count.
+	 * @return array|\WP_Error Result of Statement::migrate().
+	 */
+	public static function migrate_statements( $to, $dry_run ) {
+		if ( 's3' !== $to ) {
+			return new \WP_Error( 'wpac_store', 'Only --to=s3 is supported.' );
+		}
+		$target = \WPAffiliateCaptain\Payouts\Storage\S3Store::from_constants();
+		if ( ! $target ) {
+			$problems = \WPAffiliateCaptain\Payouts\Storage\S3Store::config_problems();
+			return new \WP_Error( 'wpac_store', 'The object storage is not configured: define ' . ( $problems ? implode( ', ', $problems ) : 'WPAC_S3_BUCKET, WPAC_S3_KEY, WPAC_S3_SECRET and WPAC_S3_ENDPOINT / WPAC_S3_REGION' ) . ' in wp-config.php.' );
+		}
+		return \WPAffiliateCaptain\Payouts\Statement::migrate( $target, (bool) $dry_run );
 	}
 
 	/**
