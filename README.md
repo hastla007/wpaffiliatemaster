@@ -117,9 +117,15 @@ composer lint
 Struktur: `src/Core` (inkl. `Paged` für Listenabfragen) (Lifecycle, Schema, Geld, Krypto, Jobs, Audit), `src/Affiliates`, `src/Codes`, `src/Tracking`, `src/Commissions`, `src/Sales` (öffentlicher Vertrag), `src/Integrations/WooCommerce.php` + `src/Integrations/WooCommerce/` (CheckoutField, OrderSync, OrderMetaBox, CouponLink), `src/Payouts`, `src/Portal`, `src/Admin` (+ `Tables/` mit WP_List_Table), `src/Privacy`.
 
 
-## Captain-Suite-Integration
+## Captain-Suite-Integration (geplant, noch nicht spezifiziert)
 
-Affiliate Captain bleibt System of Record für Partner, Attribution, Provisionsledger, Auszahlungen und Partnerstatus. Die bestehenden Version-1.3-Verträge und Verkaufsadapter für WooCommerce, Pass Captain und Voucher Captain bleiben die einzige Grundlage für Provisionen. Neue Suite-Anbindungen müssen dieselbe Verkaufsquelle/Idempotenz nutzen; ein paralleler Voucher- und WooCommerce-Event darf keinen doppelten Verkauf buchen.
+**Stand 16.11.2026: Es gibt noch keine gemeinsame Spezifikation.** Für Form Captain, Review Captain und Workflow Captain existieren in den Repositories der Suite nur Aufgabenlisten, kein Vertrag. Bevor eine dieser Anbindungen gebaut wird, muss **eine** gemeinsame Spezifikation festlegen: Ereignisnamen, Umschlag (Envelope) und Felder der Nutzdaten, Transport (PHP-Hook in derselben Installation oder HTTP), Versionierung, Wiederholungen und Fehlercodes. Wo diese Spezifikation liegt, entscheidet der Inhaber (`TODO.md`, Entscheidung E1). Die Absätze unten sind Leitplanken für diese Spezifikation, kein Entwurf davon.
+
+Was dieser Kern heute schon anbietet, steht in [docs/CONTRACT.md](docs/CONTRACT.md): ein versionierter Hook-Vertrag (`WPAC_CONTRACT_VERSION`, aktuell 1.4.0, mit ausgeschriebener Versionsregel) samt der Liste aller Actions, Filter und Funktionen mit ihren Nutzdaten. Hinweis, keine Entscheidung: Affiliate Captain führt als einziger der drei Kerne eine eigene SemVer-Version für seinen gesamten Hook-Vertrag (Pass Captain versioniert einzelne Hooks über das Suffix `_v1`, Voucher Captain seine REST-Routen über `vcap/v1`). Er kommt als Muster für Voucher Captain und Pass Captain in Frage (`TODO.md`, E2).
+
+Der Kern bleibt dabei vollständig frei: Er kennt weder Lizenz noch Tarif und bietet nur allgemeine Erweiterungspunkte an. Ob eine Anbindung bezahlt ist, entscheidet allein das jeweilige Add-on.
+
+Affiliate Captain bleibt System of Record für Partner, Attribution, Provisionsledger, Auszahlungen und Partnerstatus. Der bestehende Vertrag (Version 1.x) und die Verkaufsadapter für WooCommerce, Pass Captain und Voucher Captain bleiben die einzige Grundlage für Provisionen. Neue Suite-Anbindungen müssen dieselbe Verkaufsquelle/Idempotenz nutzen; ein paralleler Voucher- und WooCommerce-Event darf keinen doppelten Verkauf buchen.
 
 Form Captain kann später Partnerbewerbungen oder ergänzende Angaben erfassen. Das ist optional, weil Affiliate Captain bereits einen eigenen Bewerbungs-/Partnerablauf besitzt. Eine Übergabe darf höchstens einen Partner im Status `pending` anlegen; Freigabe, Ablehnung, Code-Erzeugung und Provisionsregeln bleiben in Affiliate Captain. Der aktuelle öffentliche Vertrag hat keine allgemeine Formular-zu-Partner-Anlage; dafür wäre eine eng begrenzte, berechtigte und auditierte Erweiterung erforderlich.
 

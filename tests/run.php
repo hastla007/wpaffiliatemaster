@@ -669,5 +669,11 @@ foreach ( array( 'docs/CONTRACT.md', 'docs/HANDBOOK.md', 'README.md', 'readme.tx
 }
 check( 'R16-1 no "since X" is ahead of plugin ' . $r16_header . ' / contract ' . $r16_contract, array(), $r16_ahead );
 
+// R16-10: the overview line of TODO.md names the counted check boxes (the file is not in the ZIP).
+if ( is_readable( $r16_root . '/TODO.md' ) ) {
+	$r16_todo = (string) file_get_contents( $r16_root . '/TODO.md' );
+	check( 'R16-10 TODO.md overview matches the counted boxes', array( (string) preg_match_all( '/^\s*- \[x\]/m', $r16_todo ), (string) preg_match_all( '/^\s*- \[ \]/m', $r16_todo ) ), preg_match( '/^\*\*Übersicht[^\n]*?(\d+) erledigt, (\d+) offen/mu', $r16_todo, $r16_m ) ? array( $r16_m[1], $r16_m[2] ) : array() );
+}
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );
