@@ -2194,6 +2194,11 @@ msgid_plural "%d credit note files were moved to the new statement folder."
 msgstr[0] "%d Gutschrift-Datei wurde in den neuen Belegordner verschoben."
 msgstr[1] "%d Gutschrift-Dateien wurden in den neuen Belegordner verschoben."
 
+msgid "%d credit note file was copied to the document storage and verified."
+msgid_plural "%d credit note files were copied to the document storage and verified."
+msgstr[0] "%d Gutschriftdatei wurde in den Belegspeicher kopiert und geprüft."
+msgstr[1] "%d Gutschriftdateien wurden in den Belegspeicher kopiert und geprüft."
+
 msgid "%d file could not be moved (is the new folder writable?)."
 msgid_plural "%d files could not be moved (is the new folder writable?)."
 msgstr[0] "%d Datei konnte nicht verschoben werden (ist der neue Ordner beschreibbar?)."
@@ -2208,6 +2213,11 @@ msgid "The bank details of %d partner cannot be decrypted with either key (the W
 msgid_plural "The bank details of %d partners cannot be decrypted with either key (the WordPress salts were probably changed before WPAC_ENCRYPTION_KEY was set). Ask these partners to enter their IBAN again; SEPA export is not possible for them until then."
 msgstr[0] "Die Bankdaten von %d Partner lassen sich mit keinem der beiden Schlüssel entschlüsseln (die WordPress-Salts wurden vermutlich geändert, bevor WPAC_ENCRYPTION_KEY gesetzt war). Bitten Sie diesen Partner, seine IBAN erneut einzugeben; bis dahin ist kein SEPA-Export für ihn möglich."
 msgstr[1] "Die Bankdaten von %d Partnern lassen sich mit keinem der beiden Schlüssel entschlüsseln (die WordPress-Salts wurden vermutlich geändert, bevor WPAC_ENCRYPTION_KEY gesetzt war). Bitten Sie diese Partner, ihre IBAN erneut einzugeben; bis dahin ist kein SEPA-Export für sie möglich."
+
+msgid "%d credit note file is still in the local folder of this server and not in the document storage."
+msgid_plural "%d credit note files are still in the local folder of this server and not in the document storage."
+msgstr[0] "%d Gutschriftdatei liegt noch im lokalen Ordner dieses Servers und nicht im Belegspeicher."
+msgstr[1] "%d Gutschriftdateien liegen noch im lokalen Ordner dieses Servers und nicht im Belegspeicher."
 
 msgid "%d credit note file is still in the previous statement folder."
 msgid_plural "%d credit note files are still in the previous statement folder."
@@ -2246,6 +2256,21 @@ msgstr "Der Rest wird im Hintergrund verarbeitet."
 msgid "Key change confirmed."
 msgstr "Schlüsseländerung bestätigt."
 
+msgid "Document storage works: a test file was written, read and deleted."
+msgstr "Der Belegspeicher funktioniert: Eine Testdatei wurde geschrieben, gelesen und gelöscht."
+
+msgid "writing"
+msgstr "beim Schreiben"
+
+msgid "reading"
+msgstr "beim Lesen"
+
+msgid "deleting"
+msgstr "beim Löschen"
+
+msgid "Document storage test failed while %1$s: %2$s"
+msgstr "Test des Belegspeichers fehlgeschlagen (%1$s): %2$s"
+
 msgid "They stay readable as long as the salts in wp-config.php do not change. Encrypt them with your new WPAC_ENCRYPTION_KEY now – afterwards changing the salts no longer affects them."
 msgstr "Sie bleiben lesbar, solange sich die Salts in der wp-config.php nicht ändern. Verschlüsseln Sie sie jetzt mit Ihrem neuen WPAC_ENCRYPTION_KEY – danach wirkt sich eine Änderung der Salts nicht mehr auf sie aus."
 
@@ -2254,6 +2279,12 @@ msgstr "Bankdaten mit dem neuen Schlüssel neu verschlüsseln"
 
 msgid "Partner IDs:"
 msgstr "Partner-IDs:"
+
+msgid "They are still downloadable from this server. Copy them to the document storage (each copy is read back and compared before the local file is deleted), or use \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr "Sie können weiterhin über diesen Server heruntergeladen werden. Kopieren Sie sie in den Belegspeicher (jede Kopie wird zurückgelesen und verglichen, bevor die lokale Datei gelöscht wird) oder führen Sie „wp wpac statements migrate --to=s3“ auf jedem App-Server aus."
+
+msgid "Copy credit notes to the document storage"
+msgstr "Gutschriften in den Belegspeicher kopieren"
 
 msgid "The statement folder was changed (e.g. WPAC_STATEMENT_DIR defined later). The files are still found and downloadable, but they stay in the old, possibly public folder until you move them."
 msgstr "Der Belegordner wurde geändert (z. B. WPAC_STATEMENT_DIR nachträglich definiert). Die Dateien werden weiterhin gefunden und können heruntergeladen werden, bleiben aber im alten, möglicherweise öffentlichen Ordner, bis Sie sie verschieben."
@@ -2320,6 +2351,9 @@ msgstr "Eine Provision wurde gleichzeitig geändert."
 
 msgid "Database error."
 msgstr "Datenbankfehler."
+
+msgid "Statements stored in the document storage (object storage) – not in a folder of the web server"
+msgstr "Belege liegen im Belegspeicher (Objektspeicher) – nicht in einem Ordner des Webservers"
 
 msgid "Statements stored in their own folder (WPAC_STATEMENT_DIR / wpac_statement_dir) – make sure it is outside the web root"
 msgstr "Belege liegen in einem eigenen Ordner (WPAC_STATEMENT_DIR / wpac_statement_dir) – achten Sie darauf, dass er außerhalb des Webverzeichnisses liegt"
@@ -2410,6 +2444,33 @@ msgstr "Die bestehenden Kundenverknüpfungen wurden mit einem früheren WPAC_CUS
 
 msgid "check"
 msgstr "prüfen"
+
+msgid "Document storage (credit notes)"
+msgstr "Belegspeicher (Gutschriften)"
+
+msgid "S3-compatible object storage (WPAC_S3_* constants in wp-config.php)"
+msgstr "S3-kompatibler Objektspeicher (WPAC_S3_*-Konstanten in der wp-config.php)"
+
+msgid "Local folder on this server"
+msgstr "Lokaler Ordner auf diesem Server"
+
+msgid "Custom store (filter wpac_statement_store)"
+msgstr "Eigener Speicher (Filter wpac_statement_store)"
+
+msgid "Active store:"
+msgstr "Aktiver Speicher:"
+
+msgid "The object storage configuration in wp-config.php is incomplete or invalid (%s). Credit notes are stored in the local folder until it is complete."
+msgstr "Die Konfiguration des Objektspeichers in der wp-config.php ist unvollständig oder ungültig (%s). Bis sie vollständig ist, werden Gutschriften im lokalen Ordner gespeichert."
+
+msgid "Last storage failure (%1$s): %2$s. Credit notes are written again automatically."
+msgstr "Letzter Speicherfehler (%1$s): %2$s. Gutschriften werden automatisch erneut geschrieben."
+
+msgid "With several app servers the folder must be shared storage – or use object storage (see the handbook, section \"Credit notes on several servers\")."
+msgstr "Bei mehreren App-Servern muss der Ordner ein gemeinsamer Speicher sein – oder verwenden Sie einen Objektspeicher (siehe Handbuch, Abschnitt „Credit notes on several servers“)."
+
+msgid "Test connection"
+msgstr "Verbindung testen"
 
 msgid "Consent banner: not needed for the current cookie setting"
 msgstr "Consent-Banner: für die aktuelle Cookie-Einstellung nicht nötig"
@@ -4964,6 +5025,11 @@ msgid_plural "Bank details of %d partners still use the old key"
 msgstr[0] "Bankdaten von %d Partner nutzen noch den alten Schlüssel"
 msgstr[1] "Bankdaten von %d Partnern nutzen noch den alten Schlüssel"
 
+msgid "%d credit note is not in the document storage yet"
+msgid_plural "%d credit notes are not in the document storage yet"
+msgstr[0] "%d Gutschrift ist noch nicht im Belegspeicher"
+msgstr[1] "%d Gutschriften sind noch nicht im Belegspeicher"
+
 msgid "%d credit note is still in the previous statement folder"
 msgid_plural "%d credit notes are still in the previous statement folder"
 msgstr[0] "%d Gutschrift liegt noch im bisherigen Belegordner"
@@ -5021,6 +5087,9 @@ msgstr "Die WordPress-Salts wurden vermutlich ohne WPAC_ENCRYPTION_KEY geändert
 msgid "Affiliate Captain → Integrations: re-encrypt them with WPAC_ENCRYPTION_KEY."
 msgstr "Affiliate Captain → Integrationen: mit WPAC_ENCRYPTION_KEY neu verschlüsseln."
 
+msgid "They are only in the local folder of a server. Affiliate Captain → Integrations: copy them to the document storage, or run \"wp wpac statements migrate --to=s3\" on every app server."
+msgstr "Sie liegen nur im lokalen Ordner eines Servers. Affiliate Captain → Integrationen: Kopieren Sie sie in den Belegspeicher oder führen Sie „wp wpac statements migrate --to=s3“ auf jedem App-Server aus."
+
 msgid "Affiliate Captain → Integrations: move them to the current folder."
 msgstr "Affiliate Captain → Integrationen: in den aktuellen Ordner verschieben."
 
@@ -5041,6 +5110,21 @@ msgstr "%d Gutschriften konnten nicht geschrieben werden"
 
 msgid "Check that the statement folder is writable."
 msgstr "Prüfen Sie, ob der Belegordner beschreibbar ist."
+
+msgid "Check the document storage: Affiliate Captain → Integrations → System status → Test connection."
+msgstr "Prüfen Sie den Belegspeicher: Affiliate Captain → Integrationen → Systemstatus → Verbindung testen."
+
+msgid "Object storage for credit notes is not configured completely"
+msgstr "Objektspeicher für Gutschriften ist nicht vollständig konfiguriert"
+
+msgid "Some WPAC_S3_* constants are defined in wp-config.php, but %s are missing or invalid. Credit notes are stored in the local folder of each server until the configuration is complete."
+msgstr "In der wp-config.php sind WPAC_S3_*-Konstanten definiert, aber %s fehlen oder sind ungültig. Bis die Konfiguration vollständig ist, werden Gutschriften im lokalen Ordner des jeweiligen Servers gespeichert."
+
+msgid "The document storage for credit notes failed"
+msgstr "Der Belegspeicher für Gutschriften ist ausgefallen"
+
+msgid "Last error: %s. Credit notes are written again automatically with growing pauses; deletions after the retention period are repeated. Affiliate Captain → Integrations → System status → Test connection."
+msgstr "Letzter Fehler: %s. Gutschriften werden automatisch mit wachsenden Pausen erneut geschrieben; Löschungen nach Ablauf der Aufbewahrungsfrist werden wiederholt. Affiliate Captain → Integrationen → Systemstatus → Verbindung testen."
 
 msgid "Credit notes are publicly reachable"
 msgstr "Gutschriften sind öffentlich erreichbar"
@@ -5149,6 +5233,12 @@ msgstr "unbegrenzt"
 
 msgid "deletion paused: legal hold"
 msgstr "Löschung angehalten: Aufbewahrungssperre"
+
+msgid "Credit note storage"
+msgstr "Speicher der Gutschriften"
+
+msgid "Object storage / custom store"
+msgstr "Objektspeicher / eigener Speicher"
 
 msgid "[%s] Partner program needs attention"
 msgstr "[%s] Partnerprogramm braucht Aufmerksamkeit"

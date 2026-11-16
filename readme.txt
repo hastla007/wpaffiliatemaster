@@ -40,7 +40,7 @@ Requirements: WordPress 6.3+, PHP 7.4+ with the extensions sodium and dom (zip f
 
 == External services ==
 
-The plugin contacts two services. Nothing else is sent anywhere, and no tracking or telemetry data leaves your site.
+The plugin contacts two services, and a third one only if you configure it (object storage). Nothing else is sent anywhere, and no tracking or telemetry data leaves your site.
 
 **EU VIES VAT number validation (European Commission)**
 
@@ -55,6 +55,15 @@ Used to confirm the EU VAT ID of a partner before reverse-charge credit notes ar
 **Loopback request to your own site**
 
 To warn you when credit notes stored in the uploads folder could be downloaded by anyone, the plugin writes a random probe file into its statement folder and requests it over HTTP from your own site (`wp-content/uploads/wpac-statements/…`) – at most once a day, when Site Health, the monitoring check or the Integrations page needs the result. The request goes to your own domain only, contains no personal data, and the probe file is deleted immediately. It is skipped when the statement folder is outside the web root (`WPAC_STATEMENT_DIR`, recommended).
+
+**Optional: S3-compatible object storage for credit notes (only when you configure it)**
+
+Off by default. Only when you define the `WPAC_S3_*` constants in wp-config.php, the plugin stores the PDFs of credit notes, correction credit notes and cancellations in the S3-compatible bucket you name (for example AWS S3, Hetzner Object Storage, Wasabi, MinIO or Cloudflare R2) instead of a local folder, so that every app server reaches the same documents.
+
+* What is sent: the credit note PDFs (they contain the partner's name, address, tax number or VAT ID and masked IBAN), their file names, and requests to read, list and delete them. Requests are signed with your access key; the secret itself is never sent.
+* When: when a credit note, correction or cancellation is issued, downloaded or rebuilt, during the daily deletion after the retention period, when you run the migration or the connection test, and on uninstall with "delete all data".
+* Endpoint: the endpoint you define in `WPAC_S3_ENDPOINT` (or `https://s3.<region>.amazonaws.com` for AWS when only `WPAC_S3_REGION` is set).
+* The service is chosen and contracted by you; its terms and privacy policy apply (for example [AWS S3](https://aws.amazon.com/service-terms/) / [AWS privacy](https://aws.amazon.com/privacy/), [Hetzner](https://www.hetzner.com/legal/privacy-policy), [Wasabi](https://wasabi.com/legal/privacy-policy), [Cloudflare](https://www.cloudflare.com/privacypolicy/)). Conclude a data processing agreement with the provider and choose the data location of the bucket.
 
 == Frequently Asked Questions ==
 

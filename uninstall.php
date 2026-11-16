@@ -119,6 +119,17 @@ function wpac_uninstall_site() {
 			// The shared root of a network keeps its protection files; the site's own folders not.
 			wpac_uninstall_remove_empty_dir( $wpac_dir, $wpac_dir !== $wpac_root || ! ( is_multisite() && $wpac_custom ) );
 		}
+		// Object storage (WPAC_S3_* constants) or a custom store (filter wpac_statement_store, e.g.
+		// from a must-use plugin): the same documents are deleted there – the only copy, which
+		// every app server shares. On a network only this site's prefix is touched.
+		$wpac_store = wpac_uninstall_store();
+		if ( $wpac_store ) {
+			foreach ( array_unique( $wpac_files ) as $wpac_name ) {
+				if ( '' !== $wpac_name && '.' !== $wpac_name[0] ) {
+					$wpac_store->delete( $wpac_name );
+				}
+			}
+		}
 	}
 
 	// Pages the setup assistant created (application, partner area, landing page) would stay
@@ -132,7 +143,7 @@ function wpac_uninstall_site() {
 	}
 
 	// Kept records keep their settings (operator data, numbering prefixes) and schema version.
-	$wpac_options = array( 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key', 'wpac_customer_key_constant', 'wpac_customer_key_changed', 'wpac_upgrade_lock', 'wpac_erasure_pending', 'wpac_cookie_signed_since', 'wpac_report_failed', 'wpac_schema_problems', 'wpac_schema_problems_since', 'wpac_schema_warnings', 'wpac_balance_problems', 'wpac_statement_retry', 'wpac_storno_retry', 'wpac_daily_rest', 'wpac_tier_recalc_pending', 'wpac_terms_remind', 'wpac_reencrypt_cursor', 'wpac_cron_last_run', 'wpac_cron_failures', 'wpac_migration_status', 'wpac_site_fingerprint', 'wpac_clone_detected', 'wpac_legacy_takeover', 'wpac_takeover_seen', 'wpac_takeover_notice', 'wpac_takeover_deletion_off', 'wpac_retained_notice', 'wpac_balance_check_pass', 'wpac_audit_purge_cursor', 'wpac_tier_cursor', 'wpac_tier_local_from', 'wpac_activation_redirect', 'wpac_review_alert', 'wpac_review_alert_sent', 'wpac_correction_retry', 'wpac_broadcast', 'wpac_touch_probe', 'wpac_visit_erasure_pending', 'wpac_rl_purge_backlog' );
+	$wpac_options = array( 'wpac_rewrite_flushed', 'wpac_report_month_sent', 'wpac_report_progress', 'wpac_customer_key', 'wpac_customer_key_constant', 'wpac_customer_key_changed', 'wpac_upgrade_lock', 'wpac_erasure_pending', 'wpac_cookie_signed_since', 'wpac_report_failed', 'wpac_schema_problems', 'wpac_schema_problems_since', 'wpac_schema_warnings', 'wpac_balance_problems', 'wpac_statement_retry', 'wpac_storno_retry', 'wpac_daily_rest', 'wpac_tier_recalc_pending', 'wpac_terms_remind', 'wpac_reencrypt_cursor', 'wpac_cron_last_run', 'wpac_cron_failures', 'wpac_migration_status', 'wpac_site_fingerprint', 'wpac_clone_detected', 'wpac_legacy_takeover', 'wpac_takeover_seen', 'wpac_takeover_notice', 'wpac_takeover_deletion_off', 'wpac_retained_notice', 'wpac_balance_check_pass', 'wpac_audit_purge_cursor', 'wpac_tier_cursor', 'wpac_tier_local_from', 'wpac_activation_redirect', 'wpac_review_alert', 'wpac_review_alert_sent', 'wpac_correction_retry', 'wpac_broadcast', 'wpac_touch_probe', 'wpac_visit_erasure_pending', 'wpac_rl_purge_backlog', 'wpac_statement_store_error' );
 	// Daily visit aggregate (R14-D9): backfill limit, cursor, time zone, completion, lock.
 	$wpac_options = array_merge( $wpac_options, array( 'wpac_vdaily_upto', 'wpac_vdaily_cursor', 'wpac_vdaily_tz', 'wpac_vdaily_done', 'wpac_vdaily_lock' ) );
 	// Keyed by partner ID: after a new installation partner 1 must not inherit a fraud flag
@@ -243,6 +254,7 @@ function wpac_uninstall_deleted_sites() {
 		}
 		if ( ! $keep && isset( $retained[ $blog_id ] ) ) {
 			wpac_uninstall_delete_retained_folder( isset( $retained[ $blog_id ]['folder'] ) ? (string) $retained[ $blog_id ]['folder'] : '' );
+			wpac_uninstall_delete_retained_objects( $blog_id, (array) $retained[ $blog_id ] );
 			unset( $retained[ $blog_id ] );
 		}
 	}
@@ -253,6 +265,7 @@ function wpac_uninstall_deleted_sites() {
 		}
 		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base . (int) $blog_id . '_wpac_payouts' ) ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			wpac_uninstall_delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
+			wpac_uninstall_delete_retained_objects( (int) $blog_id, (array) $entry );
 			unset( $retained[ $blog_id ] );
 		}
 	}
@@ -310,6 +323,54 @@ function wpac_uninstall_delete_retained_folder( $folder ) {
 		}
 	}
 	@rmdir( $folder ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+}
+
+/**
+ * Delete the kept credit notes of a deleted site from the object storage (as
+ * Core\Installer::delete_retained_objects()): every object under the site's prefix.
+ *
+ * @param int   $blog_id Deleted site.
+ * @param array $entry   Retention data remembered when the site was deleted.
+ */
+function wpac_uninstall_delete_retained_objects( $blog_id, array $entry ) {
+	if ( empty( $entry['store'] ) || 's3' !== $entry['store'] ) {
+		return;
+	}
+	wpac_uninstall_store_classes();
+	$store = \WPAffiliateCaptain\Payouts\Storage\S3Store::from_constants( (int) $blog_id );
+	if ( $store ) {
+		foreach ( $store->list_older_than( time() + DAY_IN_SECONDS ) as $name ) {
+			$store->delete( $name );
+		}
+	}
+}
+
+/**
+ * Load the store classes (the plugin is not loaded during uninstall).
+ */
+function wpac_uninstall_store_classes() {
+	foreach ( array( 'StatementStore', 'LocalStore', 'S3Store' ) as $wpac_class ) {
+		if ( ! class_exists( 'WPAffiliateCaptain\\Payouts\\Storage\\' . $wpac_class, false ) && ! interface_exists( 'WPAffiliateCaptain\\Payouts\\Storage\\' . $wpac_class, false ) ) {
+			require_once __DIR__ . '/src/Payouts/Storage/' . $wpac_class . '.php';
+		}
+	}
+}
+
+/**
+ * Document store of the current site when it is not the local folder (that one is handled by
+ * the folder clean-up): the object storage of the WPAC_S3_* constants, or a store from the
+ * filter wpac_statement_store.
+ *
+ * @return \WPAffiliateCaptain\Payouts\Storage\StatementStore|null
+ */
+function wpac_uninstall_store() {
+	wpac_uninstall_store_classes();
+	$wpac_default = \WPAffiliateCaptain\Payouts\Storage\S3Store::from_constants();
+	$wpac_default = $wpac_default ? $wpac_default : new \WPAffiliateCaptain\Payouts\Storage\LocalStore();
+	/** This filter is documented in src/Payouts/Statement.php. */
+	$wpac_store = apply_filters( 'wpac_statement_store', $wpac_default );
+	$wpac_store = $wpac_store instanceof \WPAffiliateCaptain\Payouts\Storage\StatementStore ? $wpac_store : $wpac_default;
+	return $wpac_store instanceof \WPAffiliateCaptain\Payouts\Storage\LocalStore ? null : $wpac_store;
 }
 
 /**

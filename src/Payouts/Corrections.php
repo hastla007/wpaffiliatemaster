@@ -775,9 +775,17 @@ final class Corrections {
 			}
 			$bytes = self::build( $c );
 			$name  = sanitize_file_name( $c->number . '-' . wp_generate_password( 16, false ) . '.pdf' );
-			$path  = Statement::dir() . '/' . $name;
-			if ( false === @file_put_contents( $path, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			$store = Statement::store();
+			if ( ! $store->put( $name, $bytes ) ) {
 				Audit::log( 'statement.correction_write_failed', 'payout', (int) $c->payout_id, array( 'number' => $c->number ) );
+				Statement::store_failed(
+					$store,
+					'Correction credit note could not be written',
+					array(
+						'payout'     => (int) $c->payout_id,
+						'correction' => (int) $id,
+					)
+				);
 				self::backoff( (int) $id );
 				return false;
 			}
@@ -785,10 +793,12 @@ final class Corrections {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$done = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET file = %s, hash = %s WHERE id = %d AND file = ''", $name, hash( 'sha256', $bytes ), (int) $id ) );
 			if ( 1 !== $done ) {
-				wp_delete_file( $path );
+				$store->delete( $name );
 				return false;
 			}
-			$all = get_option( self::RETRY_OPTION, array() );
+			Statement::store_ok();
+			$path = Statement::attachment_path( $store, $name, $bytes );
+			$all  = get_option( self::RETRY_OPTION, array() );
 			if ( is_array( $all ) && isset( $all[ (int) $id ] ) ) {
 				unset( $all[ (int) $id ] );
 				update_option( self::RETRY_OPTION, $all, false );
@@ -809,7 +819,7 @@ final class Corrections {
 		 * A correction credit note was issued and stored (e.g. to send it to the partner).
 		 *
 		 * @param int    $id   Correction.
-		 * @param string $path Stored PDF.
+		 * @param string $path Stored PDF (object storage: temporary copy, see wpac_statement_generated).
 		 */
 		do_action( 'wpac_correction_generated', (int) $id, $path );
 		return true;
@@ -883,13 +893,13 @@ final class Corrections {
 			StatementSweep::forget( $path, (string) $c->hash );
 			return null;
 		}
-		if ( is_readable( $path ) ) {
-			$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$bytes = Statement::read_document( (string) $c->file );
+		if ( null !== $bytes ) {
 			return hash_equals( (string) $c->hash, hash( 'sha256', $bytes ) ) ? $bytes : false;
 		}
 		$bytes = self::build( $c );
 		if ( hash_equals( (string) $c->hash, hash( 'sha256', $bytes ) ) ) {
-			@file_put_contents( Statement::dir() . '/' . basename( (string) $c->file ), $bytes ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
+			Statement::store()->put( basename( (string) $c->file ), $bytes );
 			return $bytes;
 		}
 		return self::build( $c, true );
@@ -929,20 +939,31 @@ final class Corrections {
 		$t = Db::table( self::TABLE );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, payout_id, file, hash FROM {$t} WHERE file_deleted_at IS NULL AND created_at <= %s LIMIT 200", (string) $cutoff ) );
+		// Through the store; the local folders too (an earlier folder may be shared: only the file
+		// with this document's hash goes, see LocalStore::delete()).
+		$store = Statement::store();
+		$local = $store instanceof \WPAffiliateCaptain\Payouts\Storage\LocalStore ? null : new \WPAffiliateCaptain\Payouts\Storage\LocalStore();
+		$done  = 0;
 		foreach ( $rows as $r ) {
-			$name = basename( (string) $r->file );
-			if ( '' !== $name && '.' !== $name[0] ) {
-				if ( file_exists( Statement::dir() . '/' . $name ) ) {
-					wp_delete_file( Statement::dir() . '/' . $name );
+			$name = \WPAffiliateCaptain\Payouts\Storage\LocalStore::clean( (string) $r->file );
+			if ( '' !== $name ) {
+				if ( $local ) {
+					$local->delete( $name, (string) $r->hash );
 				}
-				// An earlier folder may be shared: only the file with this document's hash goes.
-				foreach ( Statement::legacy_dirs() as $dir ) {
-					$path = $dir . '/' . $name;
-					if ( is_file( $path ) && ( '' === (string) $r->hash || hash_equals( (string) $r->hash, (string) hash_file( 'sha256', $path ) ) ) ) {
-						wp_delete_file( $path );
-					}
+				if ( ! $store->delete( $name, (string) $r->hash ) ) {
+					// Not marked as deleted while the document still exists: retried on the next run.
+					Statement::store_failed(
+						$store,
+						'Correction credit note could not be deleted after the retention period',
+						array(
+							'payout'     => (int) $r->payout_id,
+							'correction' => (int) $r->id,
+						)
+					);
+					continue;
 				}
 			}
+			++$done;
 			$wpdb->update(
 				$t,
 				array(
@@ -954,6 +975,6 @@ final class Corrections {
 			);
 			Audit::log( 'statement.correction_retention_deleted', 'payout', (int) $r->payout_id, array( 'correction' => (int) $r->id ) );
 		}
-		return count( $rows );
+		return $done;
 	}
 }

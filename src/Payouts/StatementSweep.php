@@ -9,6 +9,9 @@
  * belongs to a credit note or cancellation deleted after the retention period is removed. Nothing
  * else is ever deleted (files of other sites in a shared folder, unknown files, temporary files).
  *
+ * Only needed for the local folder: with object storage (Statement::store(), WPAC_S3_*) the
+ * retention deletion removes the one shared copy and the automatic sweep is skipped.
+ *
  * The sweep runs from the plugin's hourly cron on the server that runs it and from WP-CLI
  * (`wp wpac statements sweep`, on every server, e.g. from its system cron), throttled by a marker
  * file in the local statement folder (never an option or transient: those are shared by all
@@ -101,7 +104,10 @@ final class StatementSweep {
 			return null;
 		}
 		$interval = self::interval();
-		if ( $interval <= 0 ) {
+		// Object storage (or a custom store): every server deletes the one copy in the store, so the
+		// automatic sweep is not needed (R6-CC5). Local copies left from before the migration are
+		// moved by "wp wpac statements migrate --to=s3"; "wp wpac statements sweep" still works.
+		if ( $interval <= 0 || ! Statement::local_store() ) {
 			return null;
 		}
 		try {
