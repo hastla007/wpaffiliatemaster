@@ -260,6 +260,26 @@ final class Reports {
 	/** Prefix of the transients with the cached statistics of the partner area and editor panel. */
 	const STATS_CACHE = 'wpac_pstats';
 
+	/** Default minimum number of sales per campaign/sub-ID row shown to partners (R12-L5). */
+	const SUBID_MIN_GROUP = 3;
+
+	/**
+	 * Minimum number of sales a campaign/sub-ID row needs before a partner sees it on its own
+	 * (R12-L5, k-anonymity): with unique sub-IDs per reader, a row with one sale would tell the
+	 * partner who bought. Rows with fewer sales are combined into one "Other" row. 1 switches
+	 * the grouping off. Admin reports are not affected.
+	 *
+	 * @return int At least 1.
+	 */
+	public static function subid_min_group() {
+		/**
+		 * Filter the minimum number of sales per campaign/sub-ID row in the partner area.
+		 *
+		 * @param int $min Default 3; 1 = show every row.
+		 */
+		return max( 1, (int) apply_filters( 'wpac_subid_min_group', self::SUBID_MIN_GROUP ) );
+	}
+
 	/**
 	 * Statistics of one partner for the partner area, cached for CACHE_TTL per partner and period
 	 * (R14-D1): reloading the statistics tab must not scan the partner's visits again each time
@@ -275,12 +295,14 @@ final class Reports {
 	 */
 	public static function partner_cached( $kind, $affiliate_id, $from, $to ) {
 		$kind = 'campaigns' === $kind ? 'campaigns' : 'summary';
-		$name = self::stats_name( array( $kind, (int) $affiliate_id, (string) $from, (string) $to ) );
+		$min  = 'campaigns' === $kind ? self::subid_min_group() : 0;
+		$name = self::stats_name( array( $kind, (int) $affiliate_id, (string) $from, (string) $to, $min ) );
 		$hit  = get_transient( $name );
 		if ( is_array( $hit ) && isset( $hit['rows'] ) && is_array( $hit['rows'] ) ) {
 			return $hit['rows'];
 		}
-		$rows = 'campaigns' === $kind ? self::partner_campaigns( (int) $affiliate_id, $from, $to ) : self::partner_summary( (int) $affiliate_id, $from, $to );
+		// Partner-facing: small campaign/sub-ID rows combined (R12-L5).
+		$rows = 'campaigns' === $kind ? self::partner_campaigns( (int) $affiliate_id, $from, $to, $min ) : self::partner_summary( (int) $affiliate_id, $from, $to );
 		self::store( $name, array( 'rows' => $rows ) );
 		return $rows;
 	}
@@ -300,7 +322,8 @@ final class Reports {
 	public static function partner_campaigns_page( $affiliate_id, $from, $to, $page = 1, $per = 25 ) {
 		$per  = max( 1, (int) $per );
 		$page = max( 1, (int) $page );
-		$name = self::stats_name( array( 'campaigns_page', (int) $affiliate_id, (string) $from, (string) $to, $page, $per ) );
+		$min  = self::subid_min_group();
+		$name = self::stats_name( array( 'campaigns_page', (int) $affiliate_id, (string) $from, (string) $to, $page, $per, $min ) );
 		$hit  = get_transient( $name );
 		if ( is_array( $hit ) && isset( $hit['rows'], $hit['total'] ) && is_array( $hit['rows'] ) ) {
 			return array(
@@ -308,7 +331,7 @@ final class Reports {
 				'total' => (int) $hit['total'],
 			);
 		}
-		$all   = self::partner_campaigns( (int) $affiliate_id, $from, $to );
+		$all   = self::partner_campaigns( (int) $affiliate_id, $from, $to, $min ); // Small rows combined (R12-L5).
 		$value = array(
 			'rows'  => array_slice( $all, ( $page - 1 ) * $per, $per ),
 			'total' => count( $all ),
@@ -670,12 +693,19 @@ final class Reports {
 	 * and commission per currency. Only the partner's own visits and orders are counted, so
 	 * campaigns with the same name of other partners never mix.
 	 *
+	 * With $min_group > 1 (partner area, R12-L5) every row with at least one but fewer than
+	 * $min_group sales is combined into one last row "Other" (other = true, empty campaign and
+	 * sub-ID): its visits, sales and commission are the sums of the combined rows. Rows without
+	 * sales (visits only, no buyer) and the row without campaign and sub-ID (no label chosen by
+	 * the partner) stay on their own.
+	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $from         Y-m-d.
 	 * @param string $to           Y-m-d.
-	 * @return array[] campaign, sub_id, label, visits, orders, conversion, commission (currency => minor)
+	 * @param int    $min_group    Minimum sales per row (0/1 = every row, as for admins).
+	 * @return array[] campaign, sub_id, label, visits, orders, conversion, commission (currency => minor)[, other]
 	 */
-	public static function partner_campaigns( $affiliate_id, $from, $to ) {
+	public static function partner_campaigns( $affiliate_id, $from, $to, $min_group = 0 ) {
 		global $wpdb;
 		list( $start, $end ) = Db::local_range( $from, $to );
 		$v                   = Db::table( 'visits' );
@@ -732,6 +762,31 @@ final class Reports {
 				$rows[ $k ]['commission'][ $cur ]   = ( isset( $rows[ $k ]['commission'][ $cur ] ) ? $rows[ $k ]['commission'][ $cur ] : 0 ) + (int) $s->commission;
 			}
 		}
+		$min_group = (int) $min_group;
+		$other     = null;
+		if ( $min_group > 1 ) {
+			foreach ( $rows as $k => $r ) {
+				if ( $r['orders'] < 1 || $r['orders'] >= $min_group || ( '' === $r['campaign'] && '' === $r['sub_id'] ) ) {
+					continue;
+				}
+				if ( null === $other ) {
+					$other          = $init( '', '' );
+					$other['label'] = sprintf(
+						/* translators: %d: minimum number of sales per row */
+						_n( 'Other (campaigns and sub-IDs with fewer than %d sale)', 'Other (campaigns and sub-IDs with fewer than %d sales)', $min_group, 'affiliate-captain' ),
+						$min_group
+					);
+					$other['other'] = true;
+				}
+				$other['visits']  += $r['visits'];
+				$other['orders']  += $r['orders'];
+				$other['clicked'] += $r['clicked'];
+				foreach ( $r['commission'] as $cur => $minor ) {
+					$other['commission'][ $cur ] = ( isset( $other['commission'][ $cur ] ) ? $other['commission'][ $cur ] : 0 ) + $minor;
+				}
+				unset( $rows[ $k ] );
+			}
+		}
 		foreach ( $rows as &$r ) {
 			// Only orders from a click, and no rate without visits (R14-U6).
 			$r['conversion'] = $r['visits'] > 0 ? round( $r['clicked'] * 100 / $r['visits'], 1 ) : null;
@@ -744,6 +799,11 @@ final class Reports {
 				return array( $b['orders'], $b['visits'] ) <=> array( $a['orders'], $a['visits'] );
 			}
 		);
+		if ( null !== $other ) {
+			$other['conversion'] = $other['visits'] > 0 ? round( $other['clicked'] * 100 / $other['visits'], 1 ) : null;
+			unset( $other['clicked'] );
+			$rows[] = $other; // Always last.
+		}
 		return array_values( $rows );
 	}
 
