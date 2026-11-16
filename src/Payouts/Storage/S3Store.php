@@ -58,9 +58,6 @@ final class S3Store implements StatementStore {
 			'timeout'    => 20,
 		);
 		$cfg['region'] = '' !== (string) $cfg['region'] ? (string) $cfg['region'] : 'us-east-1';
-		if ( '' === (string) $cfg['endpoint'] ) {
-			$cfg['endpoint'] = 'https://s3.' . $cfg['region'] . '.amazonaws.com';
-		}
 		$cfg['endpoint'] = untrailingslashit( (string) $cfg['endpoint'] );
 		$prefix          = trim( (string) $cfg['prefix'], '/' );
 		$cfg['prefix']   = '' !== $prefix ? $prefix . '/' : '';
@@ -125,8 +122,8 @@ final class S3Store implements StatementStore {
 				$out[] = $name;
 			}
 		}
-		if ( ( ! defined( 'WPAC_S3_ENDPOINT' ) || '' === (string) constant( 'WPAC_S3_ENDPOINT' ) ) && ( ! defined( 'WPAC_S3_REGION' ) || '' === (string) constant( 'WPAC_S3_REGION' ) ) ) {
-			$out[] = 'WPAC_S3_ENDPOINT / WPAC_S3_REGION';
+		if ( ! defined( 'WPAC_S3_ENDPOINT' ) || '' === (string) constant( 'WPAC_S3_ENDPOINT' ) ) {
+			$out[] = 'WPAC_S3_ENDPOINT';
 		}
 		if ( defined( 'WPAC_S3_ENDPOINT' ) && '' !== (string) constant( 'WPAC_S3_ENDPOINT' ) && ! self::endpoint_ok( (string) constant( 'WPAC_S3_ENDPOINT' ) ) ) {
 			$out[] = 'WPAC_S3_ENDPOINT (https://…)';

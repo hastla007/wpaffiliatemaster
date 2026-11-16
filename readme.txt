@@ -62,7 +62,7 @@ Off by default. Only when you define the `WPAC_S3_*` constants in wp-config.php,
 
 * What is sent: the credit note PDFs (they contain the partner's name, address, tax number or VAT ID and masked IBAN), their file names, and requests to read, list and delete them. Requests are signed with your access key; the secret itself is never sent.
 * When: when a credit note, correction or cancellation is issued, downloaded or rebuilt, during the daily deletion after the retention period, when you run the migration or the connection test, and on uninstall with "delete all data".
-* Endpoint: the endpoint you define in `WPAC_S3_ENDPOINT` (or `https://s3.<region>.amazonaws.com` for AWS when only `WPAC_S3_REGION` is set).
+* Endpoint: the endpoint you define in `WPAC_S3_ENDPOINT` (required; nothing is contacted unless all `WPAC_S3_*` constants are set).
 * The service is chosen and contracted by you; its terms and privacy policy apply (for example [AWS S3](https://aws.amazon.com/service-terms/) / [AWS privacy](https://aws.amazon.com/privacy/), [Hetzner](https://www.hetzner.com/legal/privacy-policy), [Wasabi](https://wasabi.com/legal/privacy-policy), [Cloudflare](https://www.cloudflare.com/privacypolicy/)). Conclude a data processing agreement with the provider and choose the data location of the bucket.
 
 == Frequently Asked Questions ==

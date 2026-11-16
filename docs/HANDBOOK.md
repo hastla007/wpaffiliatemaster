@@ -56,7 +56,7 @@ Instead of a folder, the credit notes, correction credit notes and cancellation 
 Configuration only in `wp-config.php` (never stored in the database or shown in the admin; placeholder values):
 
 ```php
-define( 'WPAC_S3_ENDPOINT', 'https://fsn1.your-objectstorage.com' ); // AWS: may be omitted, then https://s3.<region>.amazonaws.com
+define( 'WPAC_S3_ENDPOINT', 'https://fsn1.your-objectstorage.com' ); // required, also for AWS (e.g. https://s3.eu-central-1.amazonaws.com)
 define( 'WPAC_S3_REGION', 'fsn1' );                  // e.g. eu-central-1; Cloudflare R2: auto
 define( 'WPAC_S3_BUCKET', 'example-credit-notes' );
 define( 'WPAC_S3_KEY', 'EXAMPLEACCESSKEYID' );

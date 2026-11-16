@@ -554,7 +554,7 @@ final class Command {
 		$target = \WPAffiliateCaptain\Payouts\Storage\S3Store::from_constants();
 		if ( ! $target ) {
 			$problems = \WPAffiliateCaptain\Payouts\Storage\S3Store::config_problems();
-			return new \WP_Error( 'wpac_store', 'The object storage is not configured: define ' . ( $problems ? implode( ', ', $problems ) : 'WPAC_S3_BUCKET, WPAC_S3_KEY, WPAC_S3_SECRET and WPAC_S3_ENDPOINT / WPAC_S3_REGION' ) . ' in wp-config.php.' );
+			return new \WP_Error( 'wpac_store', 'The object storage is not configured: define ' . ( $problems ? implode( ', ', $problems ) : 'WPAC_S3_BUCKET, WPAC_S3_KEY, WPAC_S3_SECRET and WPAC_S3_ENDPOINT' ) . ' in wp-config.php.' );
 		}
 		return \WPAffiliateCaptain\Payouts\Statement::migrate( $target, (bool) $dry_run );
 	}

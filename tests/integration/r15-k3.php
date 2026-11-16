@@ -119,11 +119,11 @@ check(
 	array( '%PDF-k3', true, null, false, true, false, true, '' ),
 	array( $k3_s3->get( 'GS-K3-1.pdf' ), $k3_s3->exists( 'GS-K3-1.pdf' ), $k3_s3->get( 'GS-missing.pdf' ), $k3_s3->exists( 'GS-missing.pdf' ), $k3_s3->delete( 'GS-K3-1.pdf' ), $k3_s3->exists( 'GS-K3-1.pdf' ), $k3_s3->delete( 'GS-K3-1.pdf' ), $k3_s3->last_error() )
 );
-$k3_vh = new S3Store( array( 'region' => 'eu-central-1', 'bucket' => 'k3-vh', 'key' => 'AKIDK3', 'secret' => 'k3-very-secret-value', 'sse' => 'AES256' ) );
+$k3_vh = new S3Store( array( 'endpoint' => 'https://s3.eu-central-1.amazonaws.com', 'region' => 'eu-central-1', 'bucket' => 'k3-vh', 'key' => 'AKIDK3', 'secret' => 'k3-very-secret-value', 'sse' => 'AES256' ) );
 $GLOBALS['k3_s3_log'] = array();
 $k3_vh->put( 'GS K3+2.pdf', 'x' );
 check(
-	'R6-CC5 S3 virtual-hosted URL on AWS by region, key encoded, server-side encryption header',
+	'R6-CC5 S3 virtual-hosted URL on an AWS endpoint, key encoded, server-side encryption header',
 	array( 'https://k3-vh.s3.eu-central-1.amazonaws.com/GS%20K3%2B2.pdf', 'AES256', 'x' ),
 	array( $GLOBALS['k3_s3_log'][0][1], $GLOBALS['k3_s3_log'][0][2]['x-amz-server-side-encryption'] ?? '', $k3_vh->get( 'GS K3+2.pdf' ) )
 );

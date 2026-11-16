@@ -97,7 +97,7 @@ if ( 'full' === $k3_mode ) {
 	$store = Statement::store();
 	k3(
 		'R6-CC5 incomplete WPAC_S3_* constants: fallback to the local folder',
-		array( 'local', array( 'WPAC_S3_SECRET', 'WPAC_S3_ENDPOINT / WPAC_S3_REGION' ), false ),
+		array( 'local', array( 'WPAC_S3_SECRET', 'WPAC_S3_ENDPOINT' ), false ),
 		array( $store->id(), S3Store::config_problems(), S3Store::configured() )
 	);
 	$checks = Monitor::checks();
