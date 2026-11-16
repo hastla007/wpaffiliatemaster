@@ -821,7 +821,11 @@ final class Corrections {
 		 * @param int    $id   Correction.
 		 * @param string $path Stored PDF (object storage: temporary copy, see wpac_statement_generated).
 		 */
-		do_action( 'wpac_correction_generated', (int) $id, $path );
+		Db::after_commit(
+			static function () use ( $id, $path ) {
+				do_action( 'wpac_correction_generated', (int) $id, $path );
+			}
+		);
 		return true;
 	}
 

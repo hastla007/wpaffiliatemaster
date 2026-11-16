@@ -5465,6 +5465,15 @@ msgstr "Australien"
 msgid "New Zealand"
 msgstr "Neuseeland"
 
+msgid "Unknown read action."
+msgstr "Unbekannte Lese-Aktion."
+
+msgid "The period must start before it ends and be at most 366 days long."
+msgstr "Der Zeitraum muss vor seinem Ende beginnen und darf höchstens 366 Tage lang sein."
+
+msgid "You are not allowed to read these figures."
+msgstr "Sie dürfen diese Kennzahlen nicht lesen."
+
 msgid "Your partner discount (coupon %s) was applied automatically."
 msgstr "Ihr Partnerrabatt (Gutschein %s) wurde automatisch eingelöst."
 

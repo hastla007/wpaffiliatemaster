@@ -254,6 +254,15 @@ final class Db {
 		$fn();
 	}
 
+	/**
+	 * Whether a transaction of this class is running (callbacks of after_commit() wait for it).
+	 *
+	 * @return bool
+	 */
+	public static function in_transaction() {
+		return self::$depth > 0;
+	}
+
 	/** @var callable[] Callbacks waiting for the COMMIT of the running transaction. */
 	private static $after_commit = array();
 

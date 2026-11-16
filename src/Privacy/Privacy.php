@@ -1257,7 +1257,13 @@ final class Privacy {
 		 * @param int  $affiliate_id Partner.
 		 * @param bool $open         Whether open commissions or payouts delayed part of the erasure.
 		 */
-		do_action( 'wpac_affiliate_erased', (int) $aff->id, (bool) $open );
+		$erased = (int) $aff->id;
+		$open   = (bool) $open;
+		\WPAffiliateCaptain\Core\Db::after_commit( // Post-commit like all events (AFF-WF-02).
+			static function () use ( $erased, $open ) {
+				do_action( 'wpac_affiliate_erased', $erased, $open );
+			}
+		);
 		return $messages;
 	}
 
