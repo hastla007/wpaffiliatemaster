@@ -274,7 +274,7 @@ final class Db {
 		if ( null !== $dbh && $dbh === self::$isolation_dbh ) {
 			return;
 		}
-		$info = is_callable( array( $wpdb, 'db_server_info' ) ) ? (string) call_user_func( array( $wpdb, 'db_server_info' ) ) : '';
+		$info = (string) $wpdb->db_server_info(); // wpdb since WordPress 5.6; the test stand-in has it too.
 		if ( false !== stripos( $info, 'mariadb' ) ) {
 			$suppress = $wpdb->suppress_errors( true );
 			$wpdb->query( 'SET SESSION innodb_snapshot_isolation = OFF' );
