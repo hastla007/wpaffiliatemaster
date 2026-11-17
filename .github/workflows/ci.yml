@@ -17,12 +17,20 @@ concurrency:
 
 jobs:
   test:
-    name: PHP ${{ matrix.php }}
+    name: PHP ${{ matrix.php }}${{ matrix.experimental && ' (experimental)' || '' }}
     runs-on: ubuntu-latest
+    # PHP 8.6 (GA 2026-11-19) runs as setup-php's "nightly" build until the action lists it as
+    # stable: its result is shown but does not fail the run (decision E10, PHP-1).
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
-        php: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
+        # Only supported versions: the minimum ("Requires PHP") and newer (decision E10).
+        php: ["8.5"]
+        experimental: [false]
+        include:
+          - php: "8.6"
+            experimental: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -40,34 +48,31 @@ jobs:
         run: php examples/connector-addon/tests/connector-test.php
 
   integration:
-    name: Integration (${{ matrix.db }}, PHP ${{ matrix.php }})
+    name: Integration (${{ matrix.db }}, PHP ${{ matrix.php }}${{ matrix.experimental && ', experimental' || '' }})
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
-        # Lowest and highest supported PHP version too (R14-A4): deprecations in src/ fail the run
-        # (tests/integration/bootstrap.php).
+        # The minimum database servers (MySQL 9.7 LTS, MariaDB 12.3 LTS) on the minimum PHP
+        # version (decision E10); deprecations in src/ fail the run (tests/integration/bootstrap.php).
+        # PHP 8.6 as nightly build: shown, but does not fail the run.
         include:
-          - db: "MariaDB 10.11"
-            image: mariadb:10.11
-            health: healthcheck.sh --connect --innodb_initialized
-            php: "8.3"
-          - db: "MySQL 8.4"
-            image: mysql:8.4
-            health: mysqladmin ping -h 127.0.0.1 -uroot -proot
-            php: "8.3"
-          - db: "MariaDB 10.11"
-            image: mariadb:10.11
-            health: healthcheck.sh --connect --innodb_initialized
-            php: "7.4"
-          - db: "MariaDB 10.11"
-            image: mariadb:10.11
-            health: healthcheck.sh --connect --innodb_initialized
-            php: "8.4"
-          - db: "MariaDB 10.11"
-            image: mariadb:10.11
+          - db: "MariaDB 12.3"
+            image: mariadb:12.3
             health: healthcheck.sh --connect --innodb_initialized
             php: "8.5"
+            experimental: false
+          - db: "MySQL 9.7"
+            image: mysql:9.7
+            health: mysqladmin ping -h 127.0.0.1 -uroot -proot
+            php: "8.5"
+            experimental: false
+          - db: "MariaDB 12.3"
+            image: mariadb:12.3
+            health: healthcheck.sh --connect --innodb_initialized
+            php: "8.6"
+            experimental: true
     services:
       db:
         image: ${{ matrix.image }}
@@ -99,7 +104,7 @@ jobs:
   # MySQL with lower_case_table_names=1 (Windows, some managed hosts): table names come back in
   # lower case; a mixed-case prefix shows whether the plugin still finds its tables.
   integration-lower-case:
-    name: Integration (MySQL 8.4, lower_case_table_names=1)
+    name: Integration (MySQL 9.7, lower_case_table_names=1)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -107,12 +112,12 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring
           coverage: none
       - name: MySQL with lower_case_table_names=1
         run: |
-          docker run -d --name lcdb -p 3307:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=wpac_test -e MYSQL_USER=wpac -e MYSQL_PASSWORD=wpac mysql:8.4 --lower-case-table-names=1
+          docker run -d --name lcdb -p 3307:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=wpac_test -e MYSQL_USER=wpac -e MYSQL_PASSWORD=wpac mysql:9.7 --lower-case-table-names=1
           for i in $(seq 1 60); do docker exec lcdb mysqladmin ping -uroot -proot --silent && break; sleep 2; done
           sleep 5
           docker exec lcdb mysql -uroot -proot -N -e "SELECT @@lower_case_table_names"
@@ -127,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wpac_test
           MARIADB_USER: wpac
@@ -141,7 +146,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring
           coverage: xdebug
       - name: Tests with line coverage
@@ -169,7 +174,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           tools: composer:v2
           coverage: none
       - name: Install analysis tools
@@ -184,6 +189,56 @@ jobs:
         run: vendor/bin/phpcs
       - name: PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+  # Electronic invoices (src/Payouts/EInvoice.php) checked with the official KoSIT validator and
+  # the XRechnung validator configuration (pinned versions, SHA-256 checked in validate.sh):
+  # samples of every document kind and VAT category, EN 16931 core profile (scenario
+  # "EN16931 (CII)": CII D16B schema + EN 16931 CII schematron) and XRechnung 3.0 (scenario
+  # "EN16931 XRechnung (CII)": additionally the XRechnung CII schematron). Any error-level
+  # finding, a rejected document or an unexpected scenario fails the job.
+  einvoice:
+    name: E-invoice (KoSIT validator)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_DATABASE: wpac_test
+          MARIADB_USER: wpac
+          MARIADB_PASSWORD: wpac
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.5"
+          extensions: mysqli, sodium, dom, mbstring
+          coverage: none
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Generate sample e-invoices
+        env:
+          WPAC_TEST_DB_HOST: 127.0.0.1
+        run: php tests/einvoice/generate.php "$RUNNER_TEMP/einvoice/samples"
+      - name: Validate with the KoSIT validator
+        run: tests/einvoice/validate.sh "$RUNNER_TEMP/einvoice/samples" "$RUNNER_TEMP/einvoice/work"
+      - name: Copy samples and reports
+        if: always()
+        run: |
+          mkdir -p einvoice-artifacts
+          cp -r "$RUNNER_TEMP/einvoice/samples" einvoice-artifacts/ 2>/dev/null || true
+          cp -r "$RUNNER_TEMP/einvoice/work/reports" einvoice-artifacts/ 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: einvoice-kosit
+          path: einvoice-artifacts/
 
   qr-decode:
     name: QR decode + translations
@@ -210,7 +265,7 @@ jobs:
         cache: [none, redis]
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wpac_e2e
           MARIADB_ROOT_PASSWORD: root
@@ -235,7 +290,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring, gd, zip, redis
           coverage: none
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -244,8 +299,10 @@ jobs:
       - name: Test site (WordPress, WooCommerce, all three plugins)
         run: |
           tests/ci/install-wp.sh "$RUNNER_TEMP/wp" --siblings "$GITHUB_WORKSPACE/siblings" > "$RUNNER_TEMP/site.env"
+          # Partner coupon and payouts for the auto-coupon and password-confirmation browser tests.
+          php tests/ci/e2e-data.php "$RUNNER_TEMP/wp" http://127.0.0.1:8088 >> "$RUNNER_TEMP/site.env"
           cat "$RUNNER_TEMP/site.env"
-          grep -E '^(PRODUCT_ID|PARTNER_CODE)=[A-Za-z0-9-]+$' "$RUNNER_TEMP/site.env" >> "$GITHUB_ENV"
+          grep -E '^(PRODUCT_ID|PARTNER_CODE|E2E_[A-Z_]+)=[A-Za-z0-9-]+$' "$RUNNER_TEMP/site.env" >> "$GITHUB_ENV"
       - name: Redis object cache
         if: matrix.cache == 'redis'
         run: |
@@ -289,11 +346,11 @@ jobs:
   # REST and every admin page. The Blocks-checkout field needs WooCommerce 8.9 and is covered by
   # the browser job with the latest versions.
   minimum-versions:
-    name: Minimum versions (WordPress 6.3, WooCommerce 8.0, PHP 7.4)
+    name: Minimum versions (WordPress 6.3, WooCommerce 8.0, MariaDB 12.3, PHP 8.5)
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wpac_e2e
           MARIADB_ROOT_PASSWORD: root
@@ -305,7 +362,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "7.4"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring, gd, zip
           coverage: none
       - name: Test site with the minimum versions
@@ -323,14 +380,14 @@ jobs:
           tail -n 100 "$RUNNER_TEMP/server.log" || true
           tail -n 100 "$RUNNER_TEMP/wp/wp-content/debug.log" || true
 
-  # Newest PHP with the current WordPress and WooCommerce (R14-A4): the smoke test fails on
+  # Newest stable PHP with the current WordPress and WooCommerce (R14-A4): the smoke test fails on
   # deprecations and notices from the plugin in debug.log.
   latest-php:
-    name: Smoke test (current WordPress and WooCommerce, PHP 8.4)
+    name: Smoke test (current WordPress and WooCommerce, PHP 8.5)
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wpac_e2e
           MARIADB_ROOT_PASSWORD: root
@@ -342,7 +399,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.4"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring, gd, zip
           coverage: none
       - name: Test site (current WordPress and WooCommerce)
@@ -364,7 +421,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wpac_pcp
           MARIADB_ROOT_PASSWORD: root
@@ -376,7 +433,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring, zip
           tools: wp-cli
           coverage: none
@@ -403,7 +460,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wpac_e2e
           MARIADB_ROOT_PASSWORD: root
@@ -415,7 +472,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring, gd, zip
           coverage: none
       - name: Network test
@@ -433,10 +490,12 @@ jobs:
       matrix:
         # "previous": the newest final release; v0.10.0: the last release in the old folder
         # "wp-affiliate-captain" (takeover by the new copy, uninstalling the old one keeps the data).
+        # Both declare PHP 7.4 and also run on PHP 8.5 (their integration suites pass on 8.5,
+        # checked 2026-11-16), so the old release is installed and upgraded on PHP 8.5.
         from: [previous, v0.10.0]
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wpac_e2e
           MARIADB_ROOT_PASSWORD: root
@@ -449,7 +508,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: mysqli, sodium, dom, mbstring, gd, zip
           coverage: none
       - name: Install the previous release with test data
@@ -486,7 +545,7 @@ jobs:
 
   release:
     name: Release ZIP
-    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade, minimum-versions, latest-php, plugin-check]
+    needs: [test, integration, integration-lower-case, qr-decode, e2e, static, coverage, multisite, upgrade, minimum-versions, latest-php, plugin-check, einvoice]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -496,7 +555,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           coverage: none
       # Ref names are never interpolated into the script (shell injection via tag names):
       # they are passed as environment variables and validated against a strict version pattern.

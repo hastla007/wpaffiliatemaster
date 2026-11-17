@@ -428,6 +428,15 @@ final class Installer {
 		$retained = (array) get_site_option( self::RETAINED_SITES, array() );
 		$n        = 0;
 		$seen     = array();
+		/**
+		 * Seconds the daily sweep may spend deleting kept credit notes of deleted sites from the
+		 * document store (R15-P3); what is left is retried the next day.
+		 *
+		 * @since 0.16.0
+		 * @param float $budget Seconds (default 20, 0 = no limit).
+		 */
+		$budget   = (float) apply_filters( 'wpac_retained_purge_budget', 20 );
+		$deadline = $budget > 0 ? microtime( true ) + $budget : 0;
 		foreach ( $found as $table ) {
 			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(\d+)_wpac_(affiliates|payouts)$/i', (string) $table, $m ) ) {
 				continue;
@@ -452,11 +461,10 @@ final class Installer {
 			if ( $keep ) {
 				continue;
 			}
-			// Retention over: the kept credit notes go as well.
+			// Retention over: the kept credit notes go as well. The record stays until every kept
+			// document is really gone (R15-P3), so a failure is retried the next day.
 			if ( isset( $retained[ $blog_id ] ) ) {
-				self::delete_retained_folder( isset( $retained[ $blog_id ]['folder'] ) ? (string) $retained[ $blog_id ]['folder'] : '' );
-				self::delete_retained_objects( (int) $blog_id, (array) $retained[ $blog_id ] );
-				unset( $retained[ $blog_id ] );
+				$retained = self::purge_retained_documents( (int) $blog_id, $retained, $deadline );
 				update_site_option( self::RETAINED_SITES, $retained );
 			}
 			Log::warning( 'Dropped the partner program tables of a deleted site', array( 'site' => $blog_id ) );
@@ -469,9 +477,7 @@ final class Installer {
 			}
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base . (int) $blog_id . '_wpac_payouts' ) ) ) ) {
-				self::delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
-				self::delete_retained_objects( (int) $blog_id, (array) $entry );
-				unset( $retained[ $blog_id ] );
+				$retained = self::purge_retained_documents( (int) $blog_id, $retained, $deadline );
 				update_site_option( self::RETAINED_SITES, $retained );
 			}
 		}
@@ -513,38 +519,121 @@ final class Installer {
 	}
 
 	/**
-	 * Delete the kept credit notes of a deleted site from the object storage (after the retention
-	 * period): every object under the site's prefix (site-<ID>/).
+	 * Delete the kept credit notes of a deleted site (folder and document store) after the
+	 * retention period. The record is removed only when everything is gone; otherwise it stays
+	 * with the number of failed attempts and the last error (Site Health), and the next daily
+	 * sweep tries again (R15-P3).
 	 *
-	 * @param int   $blog_id Deleted site.
-	 * @param array $entry   Retention data remembered when the site was deleted.
+	 * @param int   $blog_id  Deleted site.
+	 * @param array $retained All records (RETAINED_SITES).
+	 * @param float $deadline microtime( true ) after which no store request is started (0 = none).
+	 * @return array Records after the attempt.
 	 */
-	private static function delete_retained_objects( $blog_id, array $entry ) {
-		if ( empty( $entry['store'] ) || 's3' !== $entry['store'] ) {
-			return;
+	public static function purge_retained_documents( $blog_id, array $retained, $deadline = 0 ) {
+		$entry  = isset( $retained[ $blog_id ] ) ? (array) $retained[ $blog_id ] : array();
+		$folder = self::delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
+		$error  = '';
+		$store  = self::delete_retained_objects( (int) $blog_id, $entry, $deadline, $error );
+		if ( $folder && $store ) {
+			unset( $retained[ $blog_id ] );
+			return $retained;
 		}
-		$store = \WPAffiliateCaptain\Payouts\Storage\S3Store::from_constants( (int) $blog_id );
-		if ( ! $store ) {
-			Log::warning( 'Credit notes of a deleted site could not be deleted from the object storage (not configured)', array( 'site' => (int) $blog_id ) );
-			return;
+		$entry['failures']    = ( isset( $entry['failures'] ) ? (int) $entry['failures'] : 0 ) + 1;
+		$entry['last_error']  = Db::cut( $store ? 'folder could not be deleted' : $error, 300 );
+		$entry['last_try']    = time();
+		$retained[ $blog_id ] = $entry;
+		Log::error( 'Credit notes of a deleted site could not be deleted; tried again tomorrow', array( 'site' => (int) $blog_id, 'failures' => $entry['failures'], 'cause' => $entry['last_error'] ) );
+		return $retained;
+	}
+
+	/** Option: documents an earlier uninstall could not delete from the document store (R15-P2). */
+	const UNINSTALL_LEFT = 'wpac_uninstall_store_left';
+
+	/**
+	 * Daily: delete the documents an earlier uninstall could not delete from the document store
+	 * within its time budget (the plugin was installed again). Names the payouts or correction
+	 * credit notes of this installation refer to are never deleted (numbers can repeat after a
+	 * new installation); they are dropped from the record.
+	 *
+	 * @return int Documents deleted.
+	 */
+	public static function retry_uninstall_leftovers() {
+		global $wpdb;
+		$left = get_option( self::UNINSTALL_LEFT );
+		if ( ! is_array( $left ) ) {
+			return 0;
 		}
-		$failed = 0;
-		foreach ( $store->list_older_than( time() + DAY_IN_SECONDS ) as $name ) {
-			$failed += $store->delete( $name ) ? 0 : 1;
+		$names = isset( $left['names'] ) ? array_values( array_unique( array_map( 'strval', (array) $left['names'] ) ) ) : array();
+		$used  = array();
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery -- Table names only.
+		foreach ( (array) $wpdb->get_results( 'SELECT statement_file, storno_file FROM ' . Db::table( 'payouts' ) . " WHERE statement_file <> '' OR storno_file <> ''" ) as $row ) {
+			$used[] = basename( (string) $row->statement_file );
+			$used[] = basename( (string) $row->storno_file );
 		}
-		if ( $failed || '' !== $store->last_error() ) {
-			Log::error( 'Credit notes of a deleted site could not be deleted from the object storage', array( 'site' => (int) $blog_id, 'failed' => $failed, 'cause' => Db::cut( $store->last_error(), 300 ) ) );
+		foreach ( (array) $wpdb->get_col( 'SELECT file FROM ' . Db::table( 'payout_corrections' ) . " WHERE file <> ''" ) as $file ) {
+			$used[] = basename( (string) $file );
 		}
+		// phpcs:enable
+		$names = array_values( array_diff( $names, $used ) );
+		if ( ! $names ) {
+			delete_option( self::UNINSTALL_LEFT );
+			return 0;
+		}
+		$store = \WPAffiliateCaptain\Payouts\Statement::store();
+		if ( ! isset( $left['store'] ) || (string) $store->id() !== (string) $left['store'] ) {
+			return 0; // Another store now: kept for tools/purge-retained.php or the old store's return.
+		}
+		$res = \WPAffiliateCaptain\Payouts\Storage\StoreCleanup::delete_names( $store, $names, microtime( true ) + 20 );
+		if ( ! $res['left'] ) {
+			delete_option( self::UNINSTALL_LEFT );
+			return count( $names );
+		}
+		$left['names']    = $res['left'];
+		$left['failures'] = ( isset( $left['failures'] ) ? (int) $left['failures'] : 0 ) + 1;
+		$left['error']    = Db::cut( (string) $res['error'], 300 );
+		update_option( self::UNINSTALL_LEFT, $left, false );
+		return count( $names ) - count( $res['left'] );
+	}
+
+	/**
+	 * Delete the kept credit notes of a deleted site from its document store (after the
+	 * retention period): every document under the site's location, through the store abstraction
+	 * (object storage of the WPAC_S3_* constants or a store of the filter wpac_statement_store,
+	 * which runs while switched to the deleted site). The local folder is handled by
+	 * delete_retained_folder().
+	 *
+	 * @param int    $blog_id  Deleted site.
+	 * @param array  $entry    Retention data remembered when the site was deleted.
+	 * @param float  $deadline microtime( true ) after which no request is started (0 = none).
+	 * @param string $error    Set to the reason of a failure.
+	 * @return bool Whether nothing is left in the store.
+	 */
+	private static function delete_retained_objects( $blog_id, array $entry, $deadline, &$error ) {
+		$id = isset( $entry['store'] ) ? (string) $entry['store'] : '';
+		if ( '' === $id || 'local' === $id ) {
+			return true;
+		}
+		switch_to_blog( (int) $blog_id );
+		$store = \WPAffiliateCaptain\Payouts\Statement::store();
+		restore_current_blog();
+		if ( (string) $store->id() !== $id ) {
+			$error = 'document store "' . $id . '" not configured';
+			return false;
+		}
+		$res   = \WPAffiliateCaptain\Payouts\Storage\StoreCleanup::delete_all( $store, $deadline );
+		$error = (string) $res['error'];
+		return $res['ok'];
 	}
 
 	/**
 	 * Delete the kept credit note folder of a deleted site (after the retention period).
 	 *
 	 * @param string $folder Folder.
+	 * @return bool Whether the folder is gone (or there was none).
 	 */
 	private static function delete_retained_folder( $folder ) {
 		if ( '' === $folder || ! is_dir( $folder ) || ! preg_match( '#/site-\d+$#', untrailingslashit( $folder ) ) ) {
-			return;
+			return true;
 		}
 		foreach ( (array) scandir( $folder ) as $entry ) {
 			if ( '.' !== $entry && '..' !== $entry && is_file( $folder . '/' . $entry ) ) {
@@ -552,6 +641,8 @@ final class Installer {
 			}
 		}
 		@rmdir( $folder ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+		clearstatcache();
+		return ! is_dir( $folder );
 	}
 
 	public static function flush_site_caches() {

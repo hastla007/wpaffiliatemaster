@@ -1099,7 +1099,8 @@ final class EInvoice {
 
 	/**
 	 * Check the main business rules of EN 16931 (and XRechnung, when declared) on an XML – a
-	 * stand-in for the KoSIT validator, which is not available offline: required elements,
+	 * stand-in for the KoSIT validator at runtime (the CI validates samples with the real one,
+	 * tests/einvoice): required elements,
 	 * totals (BR-CO-10/13/14/15/16/17), VAT breakdown per category (BR-S-08, BR-AE-08, BR-E-08,
 	 * BR-O-08, BR-Z-08), exemption reasons, VAT identifiers, decimals, payment means.
 	 *

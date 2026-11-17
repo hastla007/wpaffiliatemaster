@@ -162,11 +162,29 @@ final class Fx {
 	/**
 	 * Minimum payout in a currency (null = no rate → no payout possible).
 	 *
-	 * @param string $currency Currency.
+	 * @param string $currency     Currency.
+	 * @param int    $affiliate_id Partner (0 = none; with a partner the minimum passes the filter
+	 *                             wpac_setting with the partner's program).
 	 * @return int|null
 	 */
-	public static function min_payout( $currency ) {
-		return self::from_program( (int) Settings::get( 'min_payout_minor' ), $currency, (string) Settings::get( 'currency' ), self::rates() );
+	public static function min_payout( $currency, $affiliate_id = 0 ) {
+		return self::from_program( max( 0, (int) Settings::for_affiliate( 'min_payout_minor', (int) $affiliate_id ) ), $currency, (string) Settings::get( 'currency' ), self::rates() );
+	}
+
+	/**
+	 * Minimum payout of a partner program in a currency (filter wpac_setting with the program as
+	 * context, no partner; null = no rate).
+	 *
+	 * @param string $currency Currency.
+	 * @param string $program  Program key ('' = default program).
+	 * @return int|null
+	 */
+	public static function min_payout_program( $currency, $program ) {
+		$context = array( 'program' => (string) $program );
+		if ( preg_match( '/^group:([1-9]\d{0,9})$/', (string) $program, $m ) ) {
+			$context['group_id'] = (int) $m[1];
+		}
+		return self::from_program( max( 0, (int) Settings::get( 'min_payout_minor', $context ) ), $currency, (string) Settings::get( 'currency' ), self::rates() );
 	}
 
 	/**

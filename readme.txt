@@ -3,8 +3,8 @@ Contributors: wpaffiliatecaptain
 Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 6.3
 Tested up to: 7.1
-Requires PHP: 7.4
-Stable tag: 0.15.0
+Requires PHP: 8.5
+Stable tag: 0.16.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,7 @@ Legal note: cookie consent, VAT treatment of credit notes and retention periods 
 4. Recommended in wp-config.php: `define( 'WPAC_ENCRYPTION_KEY', '<64 hex characters>' );` and `define( 'WPAC_STATEMENT_DIR', '/path/outside/webroot' );`
 5. Moving from another affiliate plugin? Import your partners under Affiliate Captain → Import & export.
 
-Requirements: WordPress 6.3+, PHP 7.4+ with the extensions sodium and dom (zip for the program export). WooCommerce is optional (8.0+).
+Requirements: WordPress 6.3+, PHP 8.5+ with the extensions sodium and dom (zip for the program export), MySQL 9.7+ or MariaDB 12.3+ (an older database server is not blocked, Site Health shows a warning). WooCommerce is optional (8.0+).
 
 == External services ==
 
@@ -123,6 +123,28 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.16.0 =
+Newest platform versions and several partner programs; add-on contract 1.5.0, database schema 16 (unchanged):
+* Changed: requires PHP 8.5 or newer (was 7.4); supported database servers are MySQL 9.7 (LTS) or newer and MariaDB 12.3 (LTS) or newer – an older server is not blocked, Site Health shows a warning (filter wpac_minimum_db_versions); a new copy on a too old PHP no longer takes over an older copy of the plugin
+* Add-ons (contract 1.5.0, backwards compatible): extension points for several partner programs ("a program is a partner group"): filter wpac_setting with partner/group/program context for default rate, hold period, cookie lifetime, attribution model, minimum payout and terms; wpac_affiliate_program() with filter; field and list filter "program" in wpac_get_affiliate(s)() and wpac_get_commission(s)(); program argument for the partner and campaign/content reports, filters wpac_report_programs, wpac_program_groups and wpac_portal_program_label; program parameter in wpac_portal_tabs/wpac_portal_labels, partner parameter in wpac_hold_until; new action wpac_affiliate_program_changed. Without an add-on nothing changes
+* Docs: a project connector (e.g. for a customer project) brings its own licence; the core checks none
+* Add-ons (several partner programs): a partner whose program has a longer hold period gets the monthly bonus only after that period (the daily recalculation books it); the admin shows the partner's own minimum payout on the partner page and differing program minimums at the payout run; the REST report route accepts program (invalid key: wpac_invalid_program); the dashboard figure "Active partners" counts the selected program; the suggested privacy text names the range of cookie lifetimes when a program changes it. Without an add-on nothing changes
+* Compatibility: no VALUES() in INSERT … ON DUPLICATE KEY UPDATE any more (deprecated on MySQL 9.7); the daily visit summary uses a form that works without warning on MySQL 9.7 and MariaDB 12.3
+* Dev: CI on PHP 8.5 (PHP 8.6 as experimental cell), MySQL 9.7 and MariaDB 12.3 (also lower_case_table_names=1 on MySQL 9.7); browser, smoke, minimum-version, multisite, upgrade and Plugin Check jobs on PHP 8.5; a test keeps all PHP minimum statements in sync
+* Dev: new CI job "E-invoice (KoSIT validator)": sample e-invoices of every document kind and VAT category (EN 16931 and XRechnung 3.0) are checked with the official KoSIT validator and the XRechnung configuration (pinned versions, SHA-256 checked); every error-level finding fails the run – no findings, the e-invoice is unchanged
+* Tests: browser tests against real WordPress and WooCommerce for the automatic partner coupon (classic cart, cart/checkout blocks, order) and the password confirmation before payout actions.
+* Privacy: partner sub-ID statistics combine rows with fewer than 3 visits as well, so a sub-ID no longer disappears only when its reader buys
+* Uninstall deletes credit notes in object storage before dropping the tables, in batches (S3 DeleteObjects) within a time budget; the rest is recorded and deleted by tools/purge-retained.php or later
+* Kept credit notes of deleted network sites are only forgotten after they were really deleted, also from custom stores; failures are retried daily and shown in Site Health
+* Privacy policy text and record of processing name the object storage provider when one is used and the recruiter (referred_by) purpose; recruiter changes are in the personal data export
+* The automatic coupon note on orders is included in customer export/erasure and no longer set after consent was withdrawn
+* "Keep data" uninstall keeps the partners' main code choice and code request history
+* Security: an unlinked coupon credits a partner by name only when the partner code was generated; chosen codes (code requests, custom codes) need a coupon link. Code requests refuse typical campaign names (WELCOME, SALE, …) and the generated form. The coupon screen warns about coupons named like a partner code
+* Security: the password confirmation now also covers manual bookings, approving commissions, creating payouts (also from requests), write-offs, repayments and changing a partner's e-mail address; only failed confirmations count towards the rate limit
+* Fix: a later link of another partner replaces the automatically applied coupon also without adding a product
+* Fix: only one partner coupon per order; a partner coupon entered by the customer replaces the automatic one
+* Fix: requested codes cannot be activated through the code status form; self-recruitment is also detected by the recruiter's account e-mail and login device
 
 = 0.15.0 =
 New partner functions and add-on contract 1.4.0; database schema 16 (one new column with an index on the partner table):
@@ -319,6 +341,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.16.0 =
+Requires PHP 8.5 or newer; MySQL 9.7 or MariaDB 12.3 recommended. Check the PHP version of your host before updating (Tools → Site Health → Info → Server). No database change. Coupons named like a chosen partner code now need a coupon link.
 
 = 0.15.0 =
 New: automatic partner coupon after a partner link, code requests by partners, password confirmation before money-relevant admin actions, "Recruited by" and the add-on contract 1.4.0. Back up first; schema 16 adds one column with an index to the partner table.

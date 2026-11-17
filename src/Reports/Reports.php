@@ -12,6 +12,7 @@
 namespace WPAffiliateCaptain\Reports;
 
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
+use WPAffiliateCaptain\Affiliates\Programs;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Fx;
 
@@ -49,17 +50,19 @@ final class Reports {
 	 *
 	 * @param string    $from         Y-m-d (local).
 	 * @param string    $to           Y-m-d (local).
-	 * @param int|int[] $affiliate_id Optional single partner, or a list of partners (e.g. one mail batch).
+	 * @param int|int[]   $affiliate_id Optional single partner, or a list of partners (e.g. one mail batch).
+	 * @param string|null $program      Only partners of this program (program key, '' = default
+	 *                                  program; null = all; since contract 1.5.0).
 	 * @return array
 	 */
-	public static function partners( $from, $to, $affiliate_id = 0 ) {
+	public static function partners( $from, $to, $affiliate_id = 0, $program = null ) {
 		global $wpdb;
 		self::$unconverted = array();
 		$c                 = Db::table( 'commissions' );
 		$v                 = Db::table( 'visits' );
 		$at                = Db::table( 'attributions' );
 		list( $start, $end ) = Db::local_range( $from, $to );
-		$aff_sql           = self::affiliate_sql( $affiliate_id );
+		$aff_sql           = self::affiliate_sql( $affiliate_id ) . self::program_sql( $program );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$money = $wpdb->get_results(
 			$wpdb->prepare(
@@ -139,8 +142,9 @@ final class Reports {
 		 * @param string $from         From (Y-m-d).
 		 * @param string $to           To (Y-m-d).
 		 * @param int    $affiliate_id Only this partner (0 = all).
+		 * @param string|null $program Only this program (null = all; since contract 1.5.0).
 		 */
-		$rows = apply_filters( 'wpac_report_partners', array_values( $rows ), $from, $to, is_array( $affiliate_id ) ? 0 : (int) $affiliate_id );
+		$rows = apply_filters( 'wpac_report_partners', array_values( $rows ), $from, $to, is_array( $affiliate_id ) ? 0 : (int) $affiliate_id, null === $program ? null : (string) $program );
 		return is_array( $rows ) ? array_values( $rows ) : array();
 	}
 
@@ -209,14 +213,15 @@ final class Reports {
 	/**
 	 * Name of the transient that holds one report (time bucket, generation and state in the key).
 	 *
-	 * @param string $kind partners|content_id|campaign.
-	 * @param string $from Y-m-d (local).
-	 * @param string $to   Y-m-d (local).
+	 * @param string      $kind    partners|content_id|campaign.
+	 * @param string      $from    Y-m-d (local).
+	 * @param string      $to      Y-m-d (local).
+	 * @param string|null $program Program (null = all).
 	 * @return string
 	 */
-	public static function cache_name( $kind, $from, $to ) {
+	public static function cache_name( $kind, $from, $to, $program = null ) {
 		global $wpdb;
-		$state = array( $kind, $from, $to, (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ), wp_json_encode( Fx::rates() ), function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '', function_exists( 'determine_locale' ) ? determine_locale() : '' ); // Labels such as "(no campaign)" are translated.
+		$state = array( null === $program ? $kind : $kind . '@' . $program . '@' . implode( ',', Programs::groups_of( (string) $program ) ), $from, $to, (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' ), wp_json_encode( Fx::rates() ), function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '', function_exists( 'determine_locale' ) ? determine_locale() : '' ); // Labels such as "(no campaign)" are translated.
 		$table = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- constants only.
 		$state[] = wp_json_encode( $wpdb->get_row( "SELECT MAX(id), MAX(updated_at) FROM {$table}" ) );
@@ -234,19 +239,20 @@ final class Reports {
 	 * its own small transient (a shared one grew to megabytes, beyond the 1 MB of Memcached, and
 	 * evicted reports in turn); bookings raise the generation in the key (R13-N12).
 	 *
-	 * @param string $kind partners|content_id|campaign.
-	 * @param string $from Y-m-d (local).
-	 * @param string $to   Y-m-d (local).
+	 * @param string      $kind    partners|content_id|campaign.
+	 * @param string      $from    Y-m-d (local).
+	 * @param string      $to      Y-m-d (local).
+	 * @param string|null $program Only this program (null = all; since contract 1.5.0).
 	 * @return array Rows (self::$unconverted is set as by the uncached call).
 	 */
-	public static function cached( $kind, $from, $to ) {
-		$name = self::cache_name( $kind, $from, $to );
+	public static function cached( $kind, $from, $to, $program = null ) {
+		$name = self::cache_name( $kind, $from, $to, $program );
 		$hit  = get_transient( $name );
 		if ( is_array( $hit ) && isset( $hit['rows'], $hit['unconverted'] ) ) {
 			self::$unconverted = (array) $hit['unconverted'];
 			return (array) $hit['rows'];
 		}
-		$rows = 'partners' === $kind ? self::partners( $from, $to ) : self::by_dimension( $kind, $from, $to );
+		$rows = 'partners' === $kind ? self::partners( $from, $to, 0, $program ) : self::by_dimension( $kind, $from, $to, $program );
 		self::store(
 			$name,
 			array(
@@ -397,6 +403,21 @@ final class Reports {
 	}
 
 	/**
+	 * Condition "partner belongs to the program" (variant A: the partner's current group).
+	 *
+	 * @param string|null $program Program key (null = all partners).
+	 * @param string      $column  Column with the partner ID (constant).
+	 * @return string SQL (values are integers).
+	 */
+	private static function program_sql( $program, $column = 'affiliate_id' ) {
+		if ( null === $program ) {
+			return '';
+		}
+		$clean = Programs::clean( $program );
+		return null === $clean ? ' AND 1=0' : Programs::affiliate_sql( $clean, $column );
+	}
+
+	/**
 	 * Partners with activity (commission, visit or attributed order) in a period, in ID order –
 	 * for cutting batches by partner (monthly mails) without computing the whole report.
 	 *
@@ -438,13 +459,15 @@ final class Reports {
 	 * partner: "summer" of partner A and "summer" of partner B are two rows. Content (the post
 	 * or page where the link landed) belongs to the shop and is summed over all partners.
 	 *
-	 * @param string $dimension content_id|campaign.
-	 * @param string $from      Y-m-d.
-	 * @param string $to        Y-m-d.
+	 * @param string      $dimension content_id|campaign.
+	 * @param string      $from      Y-m-d.
+	 * @param string      $to        Y-m-d.
+	 * @param string|null $program   Only visits and orders of partners of this program (program
+	 *                               key, '' = default program; null = all; since contract 1.5.0).
 	 * @return array Rows with key, label, affiliate_id and partner (campaign only; 0/'' for
 	 *               content), visits, partners, orders, revenue, commission, conversion.
 	 */
-	public static function by_dimension( $dimension, $from, $to ) {
+	public static function by_dimension( $dimension, $from, $to, $program = null ) {
 		global $wpdb;
 		self::$unconverted = array();
 		$dim               = 'campaign' === $dimension ? 'campaign' : 'content_id';
@@ -455,13 +478,15 @@ final class Reports {
 		// Per partner for campaigns (constant fragments, no input).
 		$aid_v = 'campaign' === $dim ? 'affiliate_id' : '0';
 		$aid_a = 'campaign' === $dim ? 'a.affiliate_id' : '0';
+		$prog  = self::program_sql( $program );
+		$prog_a = self::program_sql( $program, 'a.affiliate_id' );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( 'campaign' === $dim && VisitsDaily::usable( $from, $to ) ) {
 			// Daily aggregate (R14-D9); campaigns are per partner, so "partners" is 1.
 			$d      = VisitsDaily::table();
-			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id aid, campaign k, SUM(visits) n, 1 partners FROM {$d} WHERE day BETWEEN %s AND %s GROUP BY aid, k", $from, $to ) );
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id aid, campaign k, SUM(visits) n, 1 partners FROM {$d} WHERE day BETWEEN %s AND %s{$prog} GROUP BY aid, k", $from, $to ) );
 		} else {
-			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT {$aid_v} aid, {$dim} k, COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE created_at BETWEEN %s AND %s GROUP BY aid, k", $start, $end ) );
+			$visits = $wpdb->get_results( $wpdb->prepare( "SELECT {$aid_v} aid, {$dim} k, COUNT(*) n, COUNT(DISTINCT affiliate_id) partners FROM {$v} WHERE created_at BETWEEN %s AND %s{$prog} GROUP BY aid, k", $start, $end ) );
 		}
 		$sales  = $wpdb->get_results(
 			$wpdb->prepare(
@@ -469,7 +494,7 @@ final class Reports {
 					SUM(CASE WHEN c.kind = 'sale' THEN c.base_minor ELSE 0 END) revenue,
 					SUM(COALESCE(c.amount_minor,0)) commission
 				FROM {$at} a LEFT JOIN {$c} c ON c.source = a.source AND c.source_order_id = a.source_order_id AND c.affiliate_id = a.affiliate_id AND c.status <> 'rejected' AND c.kind <> 'bonus'
-				WHERE a.created_at BETWEEN %s AND %s GROUP BY aid, k, c.currency",
+				WHERE a.created_at BETWEEN %s AND %s{$prog_a} GROUP BY aid, k, c.currency",
 				$start,
 				$end
 			)
@@ -693,16 +718,18 @@ final class Reports {
 	 * and commission per currency. Only the partner's own visits and orders are counted, so
 	 * campaigns with the same name of other partners never mix.
 	 *
-	 * With $min_group > 1 (partner area, R12-L5) every row with at least one but fewer than
-	 * $min_group sales is combined into one last row "Other" (other = true, empty campaign and
-	 * sub-ID): its visits, sales and commission are the sums of the combined rows. Rows without
-	 * sales (visits only, no buyer) and the row without campaign and sub-ID (no label chosen by
-	 * the partner) stay on their own.
+	 * With $min_group > 1 (partner area, R12-L5, R15-P1) every row with fewer than $min_group
+	 * visits, or with at least one but fewer than $min_group sales, is combined into one last
+	 * row "Other" (other = true, empty campaign and sub-ID): its visits, sales and commission are
+	 * the sums of the combined rows. The threshold is bound to the visits too, so a sub-ID with a
+	 * single reader is in "Other" already before the purchase and never disappears only when the
+	 * reader buys. Only the row without campaign and sub-ID (no label chosen by the partner)
+	 * stays on its own.
 	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $from         Y-m-d.
 	 * @param string $to           Y-m-d.
-	 * @param int    $min_group    Minimum sales per row (0/1 = every row, as for admins).
+	 * @param int    $min_group    Minimum visits and sales per row (0/1 = every row, as for admins).
 	 * @return array[] campaign, sub_id, label, visits, orders, conversion, commission (currency => minor)[, other]
 	 */
 	public static function partner_campaigns( $affiliate_id, $from, $to, $min_group = 0 ) {
@@ -766,14 +793,19 @@ final class Reports {
 		$other     = null;
 		if ( $min_group > 1 ) {
 			foreach ( $rows as $k => $r ) {
-				if ( $r['orders'] < 1 || $r['orders'] >= $min_group || ( '' === $r['campaign'] && '' === $r['sub_id'] ) ) {
+				if ( '' === $r['campaign'] && '' === $r['sub_id'] ) {
+					continue;
+				}
+				$small_sales  = $r['orders'] >= 1 && $r['orders'] < $min_group;
+				$small_visits = $r['visits'] < $min_group;
+				if ( ! $small_sales && ! $small_visits ) {
 					continue;
 				}
 				if ( null === $other ) {
 					$other          = $init( '', '' );
 					$other['label'] = sprintf(
-						/* translators: %d: minimum number of sales per row */
-						_n( 'Other (campaigns and sub-IDs with fewer than %d sale)', 'Other (campaigns and sub-IDs with fewer than %d sales)', $min_group, 'affiliate-captain' ),
+						/* translators: %d: minimum number of visits and sales per row */
+						_n( 'Other (campaigns and sub-IDs with fewer than %d visit or sale)', 'Other (campaigns and sub-IDs with fewer than %d visits or sales)', $min_group, 'affiliate-captain' ),
 						$min_group
 					);
 					$other['other'] = true;

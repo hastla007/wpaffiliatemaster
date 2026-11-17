@@ -40,6 +40,66 @@ final class CouponLink {
 		echo '<p class="form-field wpac_coupon_affiliate_field"><label for="wpac_coupon_affiliate">' . esc_html__( 'Affiliate partner', 'affiliate-captain' ) . '</label>';
 		echo \WPAffiliateCaptain\Admin\Admin::partner_picker( 'wpac_coupon_affiliate', $current, 'active', array( 'id' => 'wpac_coupon_affiliate' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
 		echo ' <span class="description">' . esc_html__( 'Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon.', 'affiliate-captain' ) . '</span></p>';
+		$clash = $row ? '' : self::name_clash( (string) $coupon->get_code() );
+		if ( '' !== $clash ) {
+			echo '<p class="form-field wpac_coupon_clash"><span class="description" style="color:#b32d2e">' . esc_html( $clash ) . '</span></p>';
+		}
+	}
+
+	/**
+	 * Saved coupon: warn when its code equals a partner code but the coupon is not linked to a
+	 * partner (R15-S1). Runs after coupon_save() and for every user who may edit coupons.
+	 *
+	 * @param int        $coupon_id Coupon ID.
+	 * @param \WC_Coupon $coupon    Coupon.
+	 */
+	public static function coupon_saved_check( $coupon_id, $coupon ) {
+		unset( $coupon_id );
+		if ( ! is_object( $coupon ) || ! method_exists( $coupon, 'get_code' ) || ! class_exists( '\\WC_Admin_Meta_Boxes' ) ) {
+			return;
+		}
+		$code = (string) $coupon->get_code();
+		if ( '' === $code || CodeRepository::find_by_coupon( $code, true ) ) {
+			return; // Linked: credited as chosen on the coupon screen.
+		}
+		$clash = self::name_clash( $code );
+		if ( '' !== $clash ) {
+			\WC_Admin_Meta_Boxes::add_error( $clash );
+		}
+	}
+
+	/**
+	 * Warning for an unlinked coupon whose code equals a partner code ('' = no clash): such a
+	 * coupon counts for the partner only if the partner code was generated
+	 * (CodeRepository::fallback_row()); a chosen code (code request, custom code) needs a link.
+	 *
+	 * @param string $coupon Coupon code.
+	 * @return string
+	 */
+	public static function name_clash( $coupon ) {
+		$coupon = CodeRepository::normalize_coupon( $coupon );
+		if ( '' === $coupon || strtoupper( $coupon ) !== CodeRepository::normalize( $coupon ) ) {
+			return '';
+		}
+		$row = CodeRepository::find_by_code( $coupon );
+		if ( ! $row || ! in_array( (string) $row->status, array( 'active', 'requested' ), true ) ) {
+			return '';
+		}
+		$name = '#' . (int) $row->affiliate_id;
+		if ( current_user_can( Capabilities::MANAGE_AFFILIATES ) ) {
+			$aff  = AffiliateRepository::find( (int) $row->affiliate_id );
+			$name = $aff ? (string) $aff->name : $name;
+		}
+		if ( 'requested' === (string) $row->status ) {
+			/* translators: 1: partner code, 2: partner name or number */
+			return sprintf( __( 'Affiliate Captain: partner "%2$s" has requested the partner code %1$s, which equals this coupon code. The request can no longer be approved while this coupon exists.', 'affiliate-captain' ), (string) $row->code, $name );
+		}
+		if ( CodeRepository::fallback_row( $coupon ) ) {
+			/* translators: 1: partner code, 2: partner name or number */
+			return sprintf( __( 'Affiliate Captain: this coupon code equals the generated partner code %1$s of partner "%2$s". Orders with this coupon are credited to that partner.', 'affiliate-captain' ), (string) $row->code, $name );
+		}
+		/* translators: 1: partner code, 2: partner name or number */
+		return sprintf( __( 'Affiliate Captain: this coupon code equals the partner code %1$s of partner "%2$s", but the coupon is not linked to the partner, so orders with it are not credited to them. Link the coupon to the partner (field "Affiliate partner") if it is meant for them, otherwise better choose another code: customers could mistake one for the other.', 'affiliate-captain' ), (string) $row->code, $name );
 	}
 
 	/**

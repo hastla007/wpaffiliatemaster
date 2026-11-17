@@ -245,6 +245,90 @@ final class S3Store implements StatementStore {
 		return $this->ok( $res, array( 200, 204, 404 ), 'DELETE' );
 	}
 
+	/**
+	 * Timeout of each request in seconds (clean-ups use a short one, R15-P2).
+	 *
+	 * @param int $seconds Seconds (at least 1).
+	 */
+	public function set_timeout( $seconds ) {
+		$this->cfg['timeout'] = max( 1, (int) $seconds );
+	}
+
+	/**
+	 * Delete many documents with S3 DeleteObjects (up to 1000 per request), R15-P2. Providers
+	 * that refuse DeleteObjects (e.g. HTTP 501 NotImplemented) get single DELETE requests instead.
+	 * Stops starting new requests once the deadline has passed.
+	 *
+	 * @param string[] $names    File names.
+	 * @param float    $deadline microtime( true ) after which no request is started (0 = none).
+	 * @return string[] Names that were not deleted (failed or not reached); see last_error().
+	 */
+	public function delete_many( array $names, $deadline = 0 ) {
+		$names  = array_values( array_unique( array_filter( array_map( array( __CLASS__, 'clean' ), $names ), 'strlen' ) ) );
+		$left   = array();
+		$single = false;
+		$error  = '';
+		foreach ( array_chunk( $names, 1000 ) as $chunk ) {
+			if ( $deadline > 0 && microtime( true ) >= $deadline ) {
+				$left  = array_merge( $left, $chunk );
+				$error = '' !== $error ? $error : 'time budget used up';
+				continue;
+			}
+			if ( ! $single ) {
+				$xml = '<?xml version="1.0" encoding="UTF-8"?><Delete><Quiet>true</Quiet>';
+				foreach ( $chunk as $name ) {
+					$xml .= '<Object><Key>' . htmlspecialchars( $this->cfg['prefix'] . $name, ENT_XML1 | ENT_QUOTES, 'UTF-8' ) . '</Key></Object>';
+				}
+				$xml .= '</Delete>';
+				$res  = $this->request(
+					'POST',
+					'',
+					$xml,
+					array( 'delete' => '' ),
+					array(
+						'content-type' => 'application/xml',
+						'content-md5'  => base64_encode( md5( $xml, true ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Required by DeleteObjects.
+					)
+				);
+				$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
+				if ( 200 === $code ) {
+					$failed = array();
+					preg_match_all( '#<Error>(.*?)</Error>#s', (string) wp_remote_retrieve_body( $res ), $errors );
+					foreach ( $errors[1] as $item ) {
+						if ( preg_match( '#<Key>(.*?)</Key>#s', $item, $k ) ) {
+							$key = html_entity_decode( $k[1], ENT_QUOTES | ENT_XML1, 'UTF-8' );
+							if ( preg_match( '#<Code>NoSuchKey</Code>#', $item ) ) {
+								continue; // Already gone.
+							}
+							$failed[] = (string) substr( $key, strlen( $this->cfg['prefix'] ) );
+							$error    = 'S3 DeleteObjects: ' . ( preg_match( '#<Code>([A-Za-z0-9.]{1,64})</Code>#', $item, $c ) ? $c[1] : 'error' );
+						}
+					}
+					$left = array_merge( $left, array_values( array_intersect( $chunk, $failed ) ) );
+					continue;
+				}
+				if ( 0 === $code || 403 === $code ) {
+					// Not reachable or not allowed: single requests would fail the same way.
+					$this->ok( $res, array( 200 ), 'DeleteObjects' );
+					$error = $this->error;
+					$left  = array_merge( $left, $chunk );
+					continue;
+				}
+				// Refused otherwise (e.g. 501 NotImplemented, 405, 400 of a provider without
+				// DeleteObjects): one request per document from now on.
+				$single = true;
+			}
+			foreach ( $chunk as $name ) {
+				if ( ( $deadline > 0 && microtime( true ) >= $deadline ) || ! $this->delete( $name ) ) {
+					$error  = '' !== $this->error ? $this->error : ( '' !== $error ? $error : 'time budget used up' );
+					$left[] = $name;
+				}
+			}
+		}
+		$this->error = $left ? $error : '';
+		return $left;
+	}
+
 	/** {@inheritDoc} */
 	public function list_older_than( $timestamp ) {
 		$out   = array();
@@ -355,7 +439,7 @@ final class S3Store implements StatementStore {
 			array(
 				'method'      => $method,
 				'headers'     => $headers,
-				'body'        => 'PUT' === $method ? (string) $body : null,
+				'body'        => 'PUT' === $method || 'POST' === $method ? (string) $body : null,
 				'timeout'     => (int) $this->cfg['timeout'],
 				'redirection' => 0,
 			)

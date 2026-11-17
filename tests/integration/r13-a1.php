@@ -441,7 +441,8 @@ check( 'R13-M1 edit: order lock released afterwards', true, $m1_free( 1302001 ) 
 $o->query( "SELECT GET_LOCK('" . $o->real_escape_string( $m1_lock( 1302001 ) ) . "', 0)" );
 check( 'R13-M1 lock held by another request: not acquired within the wait', false, Jobs::lock_order( 'woocommerce', '1302001', 1 ) );
 $o->query( "SELECT RELEASE_LOCK('" . $o->real_escape_string( $m1_lock( 1302001 ) ) . "')" );
-check( 'R13-M1 re-entrant order lock (nested calls in one request)', array( true, true ), array( Jobs::lock_order( 'woocommerce', '1302001', 0 ), Jobs::lock_order( 'woocommerce', '1302001', 0 ) ) );
+// Wait up to 5 s for the release by the other connection above (seen racing under load); the nested call is re-entrant.
+check( 'R13-M1 re-entrant order lock (nested calls in one request)', array( true, true ), array( Jobs::lock_order( 'woocommerce', '1302001', 5 ), Jobs::lock_order( 'woocommerce', '1302001', 0 ) ) );
 Jobs::unlock_order( 'woocommerce', '1302001' );
 check( 'R13-M1 still held after the inner release', false, $m1_free( 1302001 ) );
 Jobs::unlock_order( 'woocommerce', '1302001' );

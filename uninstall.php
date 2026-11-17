@@ -23,6 +23,9 @@ function wpac_uninstall_site() {
 	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_stmt\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Per-site hidden notices of the admins (user options carry the site's table prefix).
 	delete_metadata( 'user', 0, $wpdb->get_blog_prefix() . 'wpac_hidden_notices', '', true );
+	// Documents an earlier uninstall could not delete from the document store (R15-P2): tried
+	// again first, also when the data of the site is otherwise kept.
+	wpac_uninstall_retry_store_left();
 
 	$wpac_settings = get_option( 'wpac_settings', array() );
 	if ( empty( $wpac_settings['delete_on_uninstall'] ) ) {
@@ -59,20 +62,19 @@ function wpac_uninstall_site() {
 	// no statement is within the retention period anymore). Only the files the site's payouts point
 	// to are deleted – never the whole folder: with WPAC_STATEMENT_DIR it may be shared with other
 	// sites of a network or other installations. Read before the tables are dropped.
-	$wpac_files = array();
-	if ( ! $wpac_keep && $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_payouts ) ) === $wpac_payouts ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		foreach ( (array) $wpdb->get_results( "SELECT statement_file, storno_file FROM {$wpac_payouts}" ) as $wpac_row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-			foreach ( array( $wpac_row->statement_file, $wpac_row->storno_file ) as $wpac_file ) {
-				if ( '' !== (string) $wpac_file ) {
-					$wpac_files[] = basename( (string) $wpac_file );
-				}
-			}
-		}
-		$wpac_corr = $wpdb->prefix . 'wpac_payout_corrections';
-		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpac_corr ) ) === $wpac_corr ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			foreach ( (array) $wpdb->get_col( "SELECT file FROM {$wpac_corr} WHERE file <> ''" ) as $wpac_file ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
-				$wpac_files[] = basename( (string) $wpac_file );
-			}
+	$wpac_files = $wpac_keep ? array() : wpac_uninstall_document_names();
+
+	// Object storage (WPAC_S3_* constants) or a custom store (filter wpac_statement_store, e.g.
+	// from a must-use plugin): the same documents are deleted there – the only copy, which every
+	// app server shares. On a network only this site's prefix is touched. Before the tables are
+	// dropped and within a time budget, in batches (R15-P2): the names are recorded first, and
+	// what is not deleted in time (or fails) stays recorded in the option wpac_uninstall_store_left
+	// for a later run (tools/purge-retained.php, a new uninstall or the daily task of a new
+	// installation), so no document is left in the bucket without a reference.
+	if ( ! $wpac_keep && $wpac_files ) {
+		$wpac_store = wpac_uninstall_store();
+		if ( $wpac_store ) {
+			wpac_uninstall_store_delete( $wpac_store, $wpac_files );
 		}
 	}
 
@@ -119,17 +121,6 @@ function wpac_uninstall_site() {
 			// The shared root of a network keeps its protection files; the site's own folders not.
 			wpac_uninstall_remove_empty_dir( $wpac_dir, $wpac_dir !== $wpac_root || ! ( is_multisite() && $wpac_custom ) );
 		}
-		// Object storage (WPAC_S3_* constants) or a custom store (filter wpac_statement_store, e.g.
-		// from a must-use plugin): the same documents are deleted there – the only copy, which
-		// every app server shares. On a network only this site's prefix is touched.
-		$wpac_store = wpac_uninstall_store();
-		if ( $wpac_store ) {
-			foreach ( array_unique( $wpac_files ) as $wpac_name ) {
-				if ( '' !== $wpac_name && '.' !== $wpac_name[0] ) {
-					$wpac_store->delete( $wpac_name );
-				}
-			}
-		}
 	}
 
 	// Pages the setup assistant created (application, partner area, landing page) would stay
@@ -153,15 +144,20 @@ function wpac_uninstall_site() {
 	$wpac_options = array_merge( $wpac_options, array( 'wpac_reports_gen', 'wpac_tplscan_gen', 'wpac_attr_purge_cursor' ) );
 	if ( ! $wpac_keep ) {
 		// The restriction list belongs to the kept booking records; without them it is not needed.
-		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_vat_rate_history', 'wpac_monitor_key', 'wpac_mail_templates' ) );
+		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_tier_deferred', 'wpac_vat_rate_history', 'wpac_monitor_key', 'wpac_mail_templates' ) );
 		// Stored terms texts belong to the acceptance records (agreements), which are dropped now.
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_terms\\_text\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// Main code chosen by the admin and the history of code requests (30-day limit, Art. 15
+		// information) belong to the partners and their codes: with "keep" they stay with the kept
+		// partner records, so a new installation does not silently switch the partners' main code
+		// (R15-P7).
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_code\\_request%' OR option_name LIKE 'wpac\\_main\\_code\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 	foreach ( $wpac_options as $wpac_option ) {
 		delete_option( $wpac_option );
 	}
 	// Markers of sales being booked (normally removed right away), pending applications/e-mail changes.
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%' OR option_name LIKE 'wpac\\_user\\_link\\_%' OR option_name LIKE 'wpac\\_prev\\_email\\_%' OR option_name LIKE 'wpac\\_public\\_change\\_%' OR option_name LIKE 'wpac\\_vies\\_%' OR option_name LIKE 'wpac\\_dunning\\_%' OR option_name LIKE 'wpac\\_tax\\_history\\_%' OR option_name LIKE 'wpac\\_tax\\_pending\\_%' OR option_name LIKE 'wpac\\_bank\\_pending\\_%' OR option_name LIKE 'wpac\\_access\\_changed\\_%' OR option_name LIKE 'wpac\\_reassign\\_%' OR option_name LIKE 'wpac\\_pending\\_%' OR option_name LIKE 'wpac\\_code\\_request%' OR option_name LIKE 'wpac\\_main\\_code\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_inflight\\_%' OR option_name LIKE 'wpac\\_user\\_link\\_%' OR option_name LIKE 'wpac\\_prev\\_email\\_%' OR option_name LIKE 'wpac\\_public\\_change\\_%' OR option_name LIKE 'wpac\\_vies\\_%' OR option_name LIKE 'wpac\\_dunning\\_%' OR option_name LIKE 'wpac\\_tax\\_history\\_%' OR option_name LIKE 'wpac\\_tax\\_pending\\_%' OR option_name LIKE 'wpac\\_bank\\_pending\\_%' OR option_name LIKE 'wpac\\_access\\_changed\\_%' OR option_name LIKE 'wpac\\_reassign\\_%' OR option_name LIKE 'wpac\\_pending\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Monthly report claims (one per month).
 	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_report\\_claim\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	// Rate-limit and other transients.
@@ -232,6 +228,7 @@ function wpac_uninstall_deleted_sites() {
 	);
 	$retained = (array) get_site_option( 'wpac_retained_sites', array() );
 	$seen     = array();
+	$deadline = wpac_uninstall_store_deadline();
 	foreach ( $found as $wpac_table ) {
 		if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(\d+)_wpac_(affiliates|payouts)$/i', (string) $wpac_table, $m ) ) {
 			continue;
@@ -253,9 +250,7 @@ function wpac_uninstall_deleted_sites() {
 			$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $prefix . 'wpac_' . $name ) . '`' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
 		}
 		if ( ! $keep && isset( $retained[ $blog_id ] ) ) {
-			wpac_uninstall_delete_retained_folder( isset( $retained[ $blog_id ]['folder'] ) ? (string) $retained[ $blog_id ]['folder'] : '' );
-			wpac_uninstall_delete_retained_objects( $blog_id, (array) $retained[ $blog_id ] );
-			unset( $retained[ $blog_id ] );
+			$retained = wpac_uninstall_purge_retained( $blog_id, $retained, $deadline );
 		}
 	}
 	// Kept folders of deleted sites whose tables are already gone.
@@ -264,9 +259,7 @@ function wpac_uninstall_deleted_sites() {
 			continue;
 		}
 		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $base . (int) $blog_id . '_wpac_payouts' ) ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			wpac_uninstall_delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
-			wpac_uninstall_delete_retained_objects( (int) $blog_id, (array) $entry );
-			unset( $retained[ $blog_id ] );
+			$retained = wpac_uninstall_purge_retained( (int) $blog_id, $retained, $deadline );
 		}
 	}
 	if ( $retained ) {
@@ -309,13 +302,41 @@ function wpac_uninstall_deleted_site_retained( $prefix, $entry ) {
 }
 
 /**
+ * Delete the kept credit notes of a deleted site (folder and store, as
+ * Core\Installer::purge_retained_documents()): the record stays, with the number of failed
+ * attempts, until everything is gone (R15-P3), so tools/purge-retained.php can try again.
+ *
+ * @param int   $blog_id  Deleted site.
+ * @param array $retained All records (network option wpac_retained_sites).
+ * @param float $deadline microtime( true ) after which no store request is started (0 = none).
+ * @return array Records after the attempt.
+ */
+function wpac_uninstall_purge_retained( $blog_id, array $retained, $deadline ) {
+	$entry  = isset( $retained[ $blog_id ] ) ? (array) $retained[ $blog_id ] : array();
+	$folder = wpac_uninstall_delete_retained_folder( isset( $entry['folder'] ) ? (string) $entry['folder'] : '' );
+	$error  = '';
+	$store  = wpac_uninstall_delete_retained_objects( (int) $blog_id, $entry, $deadline, $error );
+	if ( $folder && $store ) {
+		unset( $retained[ $blog_id ] );
+		return $retained;
+	}
+	$entry['failures']    = ( isset( $entry['failures'] ) ? (int) $entry['failures'] : 0 ) + 1;
+	$entry['last_error']  = substr( $store ? 'folder could not be deleted' : $error, 0, 300 );
+	$entry['last_try']    = time();
+	$retained[ $blog_id ] = $entry;
+	error_log( 'Affiliate Captain uninstall: credit notes of deleted site ' . (int) $blog_id . ' could not be deleted (' . $entry['last_error'] . '); run tools/purge-retained.php again later.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+	return $retained;
+}
+
+/**
  * Delete the kept credit note folder of a deleted site ("…/site-N" only).
  *
  * @param string $folder Folder.
+ * @return bool Whether the folder is gone (or there was none).
  */
 function wpac_uninstall_delete_retained_folder( $folder ) {
 	if ( '' === $folder || ! is_dir( $folder ) || ! preg_match( '#/site-\d+$#', untrailingslashit( $folder ) ) ) {
-		return;
+		return true;
 	}
 	foreach ( (array) scandir( $folder ) as $entry ) {
 		if ( '.' !== $entry && '..' !== $entry && is_file( $folder . '/' . $entry ) ) {
@@ -323,33 +344,44 @@ function wpac_uninstall_delete_retained_folder( $folder ) {
 		}
 	}
 	@rmdir( $folder ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+	clearstatcache();
+	return ! is_dir( $folder );
 }
 
 /**
- * Delete the kept credit notes of a deleted site from the object storage (as
- * Core\Installer::delete_retained_objects()): every object under the site's prefix.
+ * Delete the kept credit notes of a deleted site from its document store (as
+ * Core\Installer::delete_retained_objects()): every document under the site's location, through
+ * the store abstraction (WPAC_S3_* constants or the filter wpac_statement_store, which runs while
+ * switched to the deleted site).
  *
- * @param int   $blog_id Deleted site.
- * @param array $entry   Retention data remembered when the site was deleted.
+ * @param int    $blog_id  Deleted site.
+ * @param array  $entry    Retention data remembered when the site was deleted.
+ * @param float  $deadline microtime( true ) after which no request is started (0 = none).
+ * @param string $error    Set to the reason of a failure.
+ * @return bool Whether nothing is left in the store.
  */
-function wpac_uninstall_delete_retained_objects( $blog_id, array $entry ) {
-	if ( empty( $entry['store'] ) || 's3' !== $entry['store'] ) {
-		return;
+function wpac_uninstall_delete_retained_objects( $blog_id, array $entry, $deadline, &$error ) {
+	$id = isset( $entry['store'] ) ? (string) $entry['store'] : '';
+	if ( '' === $id || 'local' === $id ) {
+		return true;
 	}
-	wpac_uninstall_store_classes();
-	$store = \WPAffiliateCaptain\Payouts\Storage\S3Store::from_constants( (int) $blog_id );
-	if ( $store ) {
-		foreach ( $store->list_older_than( time() + DAY_IN_SECONDS ) as $name ) {
-			$store->delete( $name );
-		}
+	switch_to_blog( (int) $blog_id );
+	$store = wpac_uninstall_store();
+	restore_current_blog();
+	if ( ! $store || (string) $store->id() !== $id ) {
+		$error = 'document store "' . $id . '" not configured';
+		return false;
 	}
+	$res   = \WPAffiliateCaptain\Payouts\Storage\StoreCleanup::delete_all( $store, $deadline );
+	$error = (string) $res['error'];
+	return $res['ok'];
 }
 
 /**
  * Load the store classes (the plugin is not loaded during uninstall).
  */
 function wpac_uninstall_store_classes() {
-	foreach ( array( 'StatementStore', 'LocalStore', 'S3Store' ) as $wpac_class ) {
+	foreach ( array( 'StatementStore', 'LocalStore', 'S3Store', 'StoreCleanup' ) as $wpac_class ) {
 		if ( ! class_exists( 'WPAffiliateCaptain\\Payouts\\Storage\\' . $wpac_class, false ) && ! interface_exists( 'WPAffiliateCaptain\\Payouts\\Storage\\' . $wpac_class, false ) ) {
 			require_once __DIR__ . '/src/Payouts/Storage/' . $wpac_class . '.php';
 		}
@@ -371,6 +403,121 @@ function wpac_uninstall_store() {
 	$wpac_store = apply_filters( 'wpac_statement_store', $wpac_default );
 	$wpac_store = $wpac_store instanceof \WPAffiliateCaptain\Payouts\Storage\StatementStore ? $wpac_store : $wpac_default;
 	return $wpac_store instanceof \WPAffiliateCaptain\Payouts\Storage\LocalStore ? null : $wpac_store;
+}
+
+/**
+ * File names of the credit notes, cancellations and correction credit notes of the current site.
+ *
+ * @return string[]
+ */
+function wpac_uninstall_document_names() {
+	global $wpdb;
+	$names   = array();
+	$payouts = $wpdb->prefix . 'wpac_payouts';
+	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $payouts ) ) === $payouts ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		foreach ( (array) $wpdb->get_results( "SELECT statement_file, storno_file FROM {$payouts}" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			foreach ( array( $row->statement_file, $row->storno_file ) as $file ) {
+				if ( '' !== (string) $file ) {
+					$names[] = basename( (string) $file );
+				}
+			}
+		}
+	}
+	$corr = $wpdb->prefix . 'wpac_payout_corrections';
+	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $corr ) ) === $corr ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		foreach ( (array) $wpdb->get_col( "SELECT file FROM {$corr} WHERE file <> ''" ) as $file ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			$names[] = basename( (string) $file );
+		}
+	}
+	return array_values( array_unique( array_filter( $names, static function ( $n ) {
+		return '' !== $n && '.' !== $n[0];
+	} ) ) );
+}
+
+/**
+ * Point in time after which the uninstall starts no further request to the document store.
+ *
+ * @return float microtime( true ) value, 0 = no limit.
+ */
+function wpac_uninstall_store_deadline() {
+	$limit = (int) ini_get( 'max_execution_time' );
+	/**
+	 * Seconds the uninstall may spend deleting documents from the object storage or a custom
+	 * store, per site (R15-P2). What is left is recorded (option wpac_uninstall_store_left) and
+	 * deleted by a later run of tools/purge-retained.php.
+	 *
+	 * @since 0.16.0
+	 * @param float $budget Default: 20 seconds, at most 30 % of max_execution_time (0 = no limit).
+	 */
+	$budget = (float) apply_filters( 'wpac_uninstall_store_budget', $limit > 0 ? min( 20, $limit * 0.3 ) : 20 );
+	return $budget > 0 ? microtime( true ) + $budget : 0;
+}
+
+/**
+ * Delete documents of the current site from its store within the time budget. The names are
+ * recorded first (option wpac_uninstall_store_left) and only the deleted ones are removed from
+ * the record afterwards, so even an aborted request leaves a record of what is still stored.
+ *
+ * @param \WPAffiliateCaptain\Payouts\Storage\StatementStore $store Store.
+ * @param string[]                                          $names File names.
+ * @return string[] Names not deleted.
+ */
+function wpac_uninstall_store_delete( $store, array $names ) {
+	$old   = get_option( 'wpac_uninstall_store_left' );
+	$old   = is_array( $old ) && isset( $old['store'] ) && (string) $old['store'] === (string) $store->id() && isset( $old['names'] ) ? array_map( 'strval', (array) $old['names'] ) : array();
+	$names = array_values( array_unique( array_merge( $old, $names ) ) );
+	$entry = array(
+		'store'    => (string) $store->id(),
+		'names'    => $names,
+		'time'     => time(),
+		'failures' => 0,
+		'error'    => '',
+	);
+	update_option( 'wpac_uninstall_store_left', $entry, false );
+	$res = \WPAffiliateCaptain\Payouts\Storage\StoreCleanup::delete_names( $store, $names, wpac_uninstall_store_deadline() );
+	if ( ! $res['left'] ) {
+		delete_option( 'wpac_uninstall_store_left' );
+		return array();
+	}
+	$entry['names']    = $res['left'];
+	$entry['failures'] = 1;
+	$entry['error']    = substr( (string) $res['error'], 0, 300 );
+	update_option( 'wpac_uninstall_store_left', $entry, false );
+	error_log( 'Affiliate Captain uninstall: ' . count( $res['left'] ) . ' credit notes could not be deleted from the document store (' . $entry['error'] . '); run tools/purge-retained.php later.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+	return $res['left'];
+}
+
+/**
+ * Retry the documents an earlier uninstall could not delete (option wpac_uninstall_store_left).
+ * Names the current installation's payouts refer to again are never deleted (a new installation
+ * may reuse a number) – they are dropped from the record.
+ */
+function wpac_uninstall_retry_store_left() {
+	$left = get_option( 'wpac_uninstall_store_left' );
+	if ( ! is_array( $left ) ) {
+		return;
+	}
+	$names = array_values( array_diff( isset( $left['names'] ) ? array_map( 'strval', (array) $left['names'] ) : array(), wpac_uninstall_document_names() ) );
+	if ( ! $names ) {
+		delete_option( 'wpac_uninstall_store_left' );
+		return;
+	}
+	$store = wpac_uninstall_store();
+	if ( ! $store || (string) $store->id() !== (string) ( isset( $left['store'] ) ? $left['store'] : '' ) ) {
+		$left['failures'] = ( isset( $left['failures'] ) ? (int) $left['failures'] : 0 ) + 1;
+		$left['error']    = 'document store "' . ( isset( $left['store'] ) ? (string) $left['store'] : '' ) . '" not configured';
+		update_option( 'wpac_uninstall_store_left', $left, false );
+		return;
+	}
+	$res = \WPAffiliateCaptain\Payouts\Storage\StoreCleanup::delete_names( $store, $names, wpac_uninstall_store_deadline() );
+	if ( ! $res['left'] ) {
+		delete_option( 'wpac_uninstall_store_left' );
+		return;
+	}
+	$left['names']    = $res['left'];
+	$left['failures'] = ( isset( $left['failures'] ) ? (int) $left['failures'] : 0 ) + 1;
+	$left['error']    = substr( (string) $res['error'], 0, 300 );
+	update_option( 'wpac_uninstall_store_left', $left, false );
 }
 
 /**

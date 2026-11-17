@@ -445,8 +445,8 @@ final class Admin {
 		$currency = (string) \WPAffiliateCaptain\Core\Settings::get( 'currency' );
 		if ( ! is_array( $cache ) || ! isset( $cache['state'], $cache['ids'] ) || $cache['state'] !== $state ) {
 			$ids = array();
-			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
 			foreach ( \WPAffiliateCaptain\Payouts\PayoutService::preview( wp_date( 'Y-m-d' ), $currency ) as $row ) {
+				$min = $row['affiliate'] ? \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $row['affiliate']->id ) : null; // Per program (wpac_setting).
 				if ( ! $row['eligible'] && $row['affiliate'] && null !== $min && $row['total_minor'] >= $min ) {
 					$ids[] = array( (int) $row['affiliate']->id, isset( $row['code'] ) ? (string) $row['code'] : '' );
 				}

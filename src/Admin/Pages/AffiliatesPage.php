@@ -350,7 +350,10 @@ final class AffiliatesPage {
 				break;
 
 			case 'code_status':
-				CodeRepository::set_status( absint( Admin::post( 'code_id' ) ), sanitize_key( Admin::post( 'status' ) ) );
+				if ( ! CodeRepository::set_status( absint( Admin::post( 'code_id' ) ), sanitize_key( Admin::post( 'status' ) ) ) ) {
+					// A requested code is decided with Approve/Reject only (checks and history, R15-S6).
+					Admin::back( __( 'This code cannot be changed here. A requested code is approved or rejected in the list of code requests.', 'affiliate-captain' ), 'error' );
+				}
 				Admin::back( __( 'Code updated.', 'affiliate-captain' ) );
 				break;
 
@@ -1212,6 +1215,12 @@ final class AffiliatesPage {
 			$bal = \WPAffiliateCaptain\Commissions\Balance::get( $id, $cur );
 			/* translators: 1: currency, 2: balance */
 			echo '<h3>' . esc_html( sprintf( __( 'Account %1$s – balance %2$s', 'affiliate-captain' ), $cur, Money::format( $bal, $cur ) ) ) . '</h3>';
+			// Minimum payout of the partner's program, only when it differs from the general value (wpac_setting).
+			$own_min = \WPAffiliateCaptain\Core\Fx::min_payout( $cur, $id );
+			if ( null !== $own_min && \WPAffiliateCaptain\Core\Fx::min_payout( $cur ) !== $own_min ) {
+				/* translators: %s: amount */
+				echo '<p class="description wpac-partner-min-payout">' . esc_html( sprintf( __( 'Minimum payout for this partner (partner program): %s', 'affiliate-captain' ), \WPAffiliateCaptain\Admin\Pages\PayoutsPage::min_text( $cur, $id ) ) ) . '</p>';
+			}
 			// The balance is net; refunds of commissions paid out with VAT also take that VAT back.
 			$gross = \WPAffiliateCaptain\Commissions\Dunning::open( $id, $cur );
 			if ( $gross !== $bal ) {

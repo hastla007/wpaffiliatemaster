@@ -917,11 +917,12 @@ final class OrderSync {
 	 * Setting "hold period starts when the order is completed": until then the commission is
 	 * held (placeholder far in the future), afterwards the hold counts from the completion date.
 	 *
-	 * @param int   $hold Hold-until timestamp.
-	 * @param array $sale Normalized sale.
+	 * @param int   $hold         Hold-until timestamp.
+	 * @param array $sale         Normalized sale.
+	 * @param int   $affiliate_id Partner of the sale (0 = unknown).
 	 * @return int
 	 */
-	public static function hold_until( $hold, $sale ) {
+	public static function hold_until( $hold, $sale, $affiliate_id = 0 ) {
 		if ( ! is_array( $sale ) || ! isset( $sale['source'] ) || WooCommerce::SOURCE !== $sale['source'] || 'completed' !== Settings::get( 'hold_start' ) ) {
 			return $hold;
 		}
@@ -934,7 +935,7 @@ final class OrderSync {
 		}
 		$done = $order->get_date_completed();
 		$from = $done ? $done->getTimestamp() : time();
-		return max( (int) $hold, $from + DAY_IN_SECONDS * (int) Settings::get( 'hold_days' ) );
+		return max( (int) $hold, $from + DAY_IN_SECONDS * max( 0, (int) Settings::for_affiliate( 'hold_days', (int) $affiliate_id ) ) );
 	}
 
 	/**

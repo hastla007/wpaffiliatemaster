@@ -205,6 +205,14 @@ final class CodeRepository {
 		$code  = self::normalize( $code );
 		$lower = strtolower( $code );
 		$words = array( 'ADMIN', 'ADMINISTRATOR', 'ROOT', 'SYSTEM', 'SUPPORT', 'TEST', 'DEMO', 'NULL', 'NONE', 'UNDEFINED', 'TRUE', 'FALSE', 'PARTNER', 'AFFILIATE', 'REF', 'CODE', 'COUPON', 'VOUCHER', 'GUTSCHEIN', 'DISCOUNT', 'RABATT', 'FREE', 'GRATIS', 'SHOP', 'STORE', 'WPAC' );
+		// Typical names of the shop's own campaign coupons (R15-S1), also followed by digits, "-" or
+		// "_" (WELCOME10, SALE-2027, BLACKFRIDAY_24): a partner must not reserve them.
+		$prefixes = array( 'WELCOME', 'WILLKOMMEN', 'NEWSLETTER', 'SALE', 'SUMMER', 'SOMMER', 'WINTER', 'SPRING', 'FRUEHLING', 'AUTUMN', 'HERBST', 'BLACKFRIDAY', 'BLACK-FRIDAY', 'BLACK_FRIDAY', 'CYBERMONDAY', 'CYBER-MONDAY', 'CYBER_MONDAY', 'BLACKWEEK', 'XMAS', 'CHRISTMAS', 'WEIHNACHT', 'EASTER', 'OSTERN', 'BIRTHDAY', 'GEBURTSTAG', 'FIRST', 'FIRSTORDER', 'ERSTKAUF', 'NEUKUNDE', 'NEWCUSTOMER', 'VIP', 'THANKYOU', 'DANKE', 'SORRY', 'SPECIAL', 'PROMO', 'DEAL', 'GIFT', 'GESCHENK', 'SHIPPING', 'VERSAND', 'FREESHIP', 'STAFF', 'TEAM', 'MITARBEITER', 'EMPLOYEE' );
+		foreach ( $prefixes as $prefix ) {
+			if ( 0 === strpos( $code, $prefix ) && preg_match( '/^[0-9_\-]*$/', (string) substr( $code, strlen( $prefix ) ) ) ) {
+				return true; // Not "SALEMA10", "VIPER" or "TEAM-ANNA".
+			}
+		}
 		/**
 		 * Codes partners cannot request (upper case, A–Z 0–9 _ -).
 		 *
@@ -246,7 +254,9 @@ final class CodeRepository {
 			/* translators: 1: minimum length, 2: maximum length */
 			return new \WP_Error( 'wpac_code_length', sprintf( __( 'The code must have between %1$d and %2$d characters.', 'affiliate-captain' ), 3, $max ) );
 		}
-		if ( self::reserved_code( $code ) ) {
+		if ( self::reserved_code( $code ) || self::generated( $code ) ) {
+			// The form of generated codes is reserved too: such a code counts for coupons with the
+			// same name even without a link (fallback_row()).
 			return new \WP_Error( 'wpac_code_reserved', __( 'This code is reserved. Please choose another one.', 'affiliate-captain' ) );
 		}
 		$taken = new \WP_Error( 'wpac_code_taken', __( 'This code is already in use. Please choose another one.', 'affiliate-captain' ) );
@@ -429,12 +439,22 @@ final class CodeRepository {
 	 *
 	 * @param int    $id     Code.
 	 * @param string $status active|blocked.
+	 * @return bool False for an unknown code or a requested one (not approved yet).
 	 */
 	public static function set_status( $id, $status ) {
 		global $wpdb;
 		$status = 'blocked' === $status ? 'blocked' : 'active';
-		$wpdb->update( Db::table( 'partner_codes' ), array( 'status' => $status ), array( 'id' => (int) $id ) );
+		$t      = Db::table( 'partner_codes' );
+		// Never a requested code (CodeRequests): it is activated only by its approval, which checks
+		// the rules again and records the decision (R15-S6).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$done = $wpdb->query( $wpdb->prepare( "UPDATE {$t} SET status = %s WHERE id = %d AND status <> 'requested'", $status, (int) $id ) );
+		$row  = self::find( (int) $id );
+		if ( false === $done || ! $row || 'requested' === $row->status ) {
+			return false;
+		}
 		Audit::log( 'code.' . $status, 'code', (int) $id );
+		return true;
 	}
 
 	/**
@@ -588,12 +608,43 @@ final class CodeRepository {
 			// that code belongs to another code row by its ID: the stale link credits nobody (R12-N14).
 			return null;
 		}
-		if ( ! $row && strtoupper( $coupon ) === self::normalize( $coupon ) ) {
-			// A coupon whose code equals a partner code also counts – only if the coupon has no
-			// characters normalize() would drop ("müller" must not match the code "MLLER").
-			$row = self::find_by_code( $coupon );
+		if ( ! $row ) {
+			$row = self::fallback_row( $coupon );
 		}
 		return self::validate( $row );
+	}
+
+	/**
+	 * Partner code an unlinked coupon counts for because its code equals the partner code (null =
+	 * none). Only a generated code (random, "K7Q3-MX2P", also with prefix or typed without
+	 * hyphen) counts this way: nobody names a shop coupon like that by chance. A code chosen by a
+	 * person (a partner's code request, an admin's custom code) needs an explicit coupon link –
+	 * otherwise a shop coupon created later with the same name ("WELCOME10") would credit that
+	 * partner for every order (R15-S1). Only if the coupon has no characters normalize() would
+	 * drop ("müller" must not match the code "MLLER").
+	 *
+	 * @param string $coupon Coupon code (normalized: trimmed, lower case).
+	 * @return object|null Code row (not validated).
+	 */
+	public static function fallback_row( $coupon ) {
+		$coupon = self::normalize_coupon( (string) $coupon );
+		if ( '' === $coupon || strtoupper( $coupon ) !== self::normalize( $coupon ) ) {
+			return null;
+		}
+		$row = self::find_by_code( $coupon );
+		return $row && self::generated( (string) $row->code ) ? $row : null;
+	}
+
+	/**
+	 * Whether a code has the form of a generated code (random_code(): 4+4 characters of its
+	 * alphabet, optionally after a prefix). Codes partners can request never have it
+	 * (check_new_code()).
+	 *
+	 * @param string $code Code.
+	 * @return bool
+	 */
+	public static function generated( $code ) {
+		return (bool) preg_match( '/^(?:[A-Z0-9_\-]+-)?[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/', self::normalize( $code ) );
 	}
 
 	/**

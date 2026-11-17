@@ -213,7 +213,8 @@ if ( ! function_exists( 'wpac_get_affiliate' ) ) {
 	 * @param int $id Partner ID.
 	 * @return array|null { id, user_id, group_id, status, status_reason, slug, name, email, website,
 	 *                        channel, created_at, updated_at, approved_at, referred_by (recruiting
-	 *                        partner, 0 = none; since 0.15.0) }, or null when unknown.
+	 *                        partner, 0 = none; since 0.15.0), program (program key, '' = default
+	 *                        program; since contract 1.5.0) }, or null when unknown.
 	 */
 	function wpac_get_affiliate( $id ) {
 		return \WPAffiliateCaptain\Core\PublicApi::get_affiliate( $id );
@@ -225,7 +226,8 @@ if ( ! function_exists( 'wpac_get_affiliates' ) ) {
 	 * List partners.
 	 *
 	 * @since contract 1.3.0
-	 * @param array $args status, group, referred_by (since 0.15.0), search, per_page (1–100, default 20), page, orderby
+	 * @param array $args status, group, referred_by (since 0.15.0), program (program key, '' = default
+	 *                    program; since contract 1.5.0), search, per_page (1–100, default 20), page, orderby
 	 *                    (id|name|status|created_at), order (asc|desc).
 	 * @return array|WP_Error { items (as wpac_get_affiliate()), total, page, per_page }
 	 */
@@ -252,7 +254,9 @@ if ( ! function_exists( 'wpac_get_commissions' ) ) {
 	 * List ledger rows.
 	 *
 	 * @since contract 1.3.0
-	 * @param array $args affiliate_id, status, kind, from, to (Y-m-d), per_page (1–100), page, orderby, order.
+	 * @param array $args affiliate_id, status, kind, from, to (Y-m-d), program (program key of the
+	 *                    partner, '' = default program; since contract 1.5.0), per_page (1–100), page,
+	 *                    orderby, order.
 	 * @return array|WP_Error { items (as wpac_get_commission()), total, page, per_page }
 	 */
 	function wpac_get_commissions( array $args = array() ) {
@@ -325,6 +329,21 @@ if ( ! function_exists( 'wpac_create_adjustment' ) ) {
 	 */
 	function wpac_create_adjustment( $affiliate_id, $amount_minor, $currency, $reason, $args = array() ) {
 		return \WPAffiliateCaptain\Core\PublicApi::create_adjustment( $affiliate_id, $amount_minor, $currency, $reason, $args );
+	}
+}
+
+if ( ! function_exists( 'wpac_affiliate_program' ) ) {
+	/**
+	 * Program of a partner (variant A of docs/MULTI-PROGRAM.md: a program is a partner group).
+	 * Default "group:<group ID>", '' for partners without a group (default program) and unknown
+	 * partners; filter wpac_affiliate_program.
+	 *
+	 * @since contract 1.5.0
+	 * @param int $affiliate_id Partner ID.
+	 * @return string Program key.
+	 */
+	function wpac_affiliate_program( $affiliate_id ) {
+		return \WPAffiliateCaptain\Affiliates\Programs::of_affiliate( (int) $affiliate_id );
 	}
 }
 

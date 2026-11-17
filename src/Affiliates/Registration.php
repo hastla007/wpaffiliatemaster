@@ -402,12 +402,63 @@ final class Registration {
 			$resolved = $touch && ! empty( $touch['code'] ) ? wpac_resolve_partner_code( (string) $touch['code'], array( 'context' => 'touch' ) ) : null;
 		}
 		$recruiter = is_array( $resolved ) && ! empty( $resolved['affiliate_id'] ) ? (int) $resolved['affiliate_id'] : 0;
-		return $recruiter && self::recruiter_valid( $recruiter, (string) $email, (int) $user_id ) ? $recruiter : 0;
+		if ( ! $recruiter || ! self::recruiter_valid( $recruiter, (string) $email, (int) $user_id ) ) {
+			return 0;
+		}
+		$aff  = AffiliateRepository::find( $recruiter );
+		$self = $aff && self::same_device( (int) $aff->user_id );
+		/**
+		 * Whether an applicant is the recruiting partner themselves (a second partner account, e.g.
+		 * with another e-mail address): then no recruiter is recorded. The default checks the
+		 * device: the application comes from the address and browser of a login session of the
+		 * recruiter's WordPress account. Fraud plugins can add their own signals.
+		 *
+		 * @since 0.16.0
+		 * @param bool   $self      Default: same device as a login session of the recruiter.
+		 * @param int    $recruiter Recruiting partner.
+		 * @param string $email     Applicant e-mail address.
+		 * @param int    $user_id   Applicant WordPress user (0 = none).
+		 */
+		return apply_filters( 'wpac_is_self_recruitment', $self, $recruiter, (string) $email, (int) $user_id ) ? 0 : $recruiter;
+	}
+
+	/**
+	 * Whether the current request comes from the device of a login session of a WordPress user:
+	 * the same client address (as WordPress stores it in the session) and the same browser (user
+	 * agent). Read from the user's sessions for this comparison only, nothing is stored (R15-S6).
+	 * Addresses of a shared proxy (private or reserved ranges, trusted proxies) never match.
+	 *
+	 * @param int $user_id WordPress user (0 = none).
+	 * @return bool
+	 */
+	private static function same_device( $user_id ) {
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput -- compared only, never output or stored.
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? (string) wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) : '';
+		// phpcs:enable
+		if ( ! $user_id || '' === $ip || '' === $ua || ! class_exists( 'WP_Session_Tokens' ) ) {
+			return false;
+		}
+		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+			return false; // A proxy or a local network: every visitor would share the address.
+		}
+		foreach ( preg_split( '/[\s,]+/', (string) Settings::get( 'trusted_proxies' ), -1, PREG_SPLIT_NO_EMPTY ) as $proxy ) {
+			if ( RateLimiter::in_cidr( $ip, $proxy ) ) {
+				return false;
+			}
+		}
+		foreach ( (array) \WP_Session_Tokens::get_instance( (int) $user_id )->get_all() as $session ) {
+			if ( is_array( $session ) && isset( $session['ip'], $session['ua'] ) && (string) $session['ip'] === $ip && hash_equals( (string) $session['ua'], $ua ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
 	 * Whether a partner can be recorded as the recruiter of an applicant: active, processing not
-	 * restricted, and not the applicant (same WordPress user or same e-mail address).
+	 * restricted, and not the applicant (same WordPress user, or the same e-mail address as the
+	 * partner or the partner's WordPress account; compared like the self-referral check).
 	 *
 	 * @param int    $recruiter Partner.
 	 * @param string $email     Applicant e-mail address.
@@ -422,7 +473,14 @@ final class Registration {
 		if ( (int) $user_id && (int) $aff->user_id === (int) $user_id ) {
 			return false;
 		}
-		return AffiliateRepository::comparable_email( (string) $aff->email ) !== AffiliateRepository::comparable_email( (string) $email );
+		$email = AffiliateRepository::comparable_email( (string) $email );
+		if ( AffiliateRepository::comparable_email( (string) $aff->email ) === $email ) {
+			return false;
+		}
+		// Also the address of the recruiter's WordPress account, like the self-referral check of
+		// orders (AttributionResolver::is_self_referral(), R15-S6).
+		$user = $aff->user_id ? get_userdata( (int) $aff->user_id ) : null;
+		return ! ( $user && '' !== $email && AffiliateRepository::comparable_email( (string) $user->user_email ) === $email );
 	}
 
 	/**

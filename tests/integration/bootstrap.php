@@ -19,7 +19,7 @@ define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
 define( 'WPAC_DB_VERSION', 16 );
-define( 'WPAC_CONTRACT_VERSION', '1.4.0' );
+define( 'WPAC_CONTRACT_VERSION', '1.5.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
 define( 'WPAC_URL', 'http://example.test/wp-content/plugins/affiliate-captain/' );
@@ -237,7 +237,8 @@ function add_option( $k, $v, $x = '', $a = null ) {
 	// Like WordPress core: a cached read, then an UPSERT – NOT atomic (use Db::lock() for locks).
 	global $wpdb;
 	if ( array_key_exists( $k, $GLOBALS['test_options'] ) ) { return false; }
-	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)", $k, is_scalar( $v ) ? (string) $v : serialize( $v ) ) );
+	$wpac_v = is_scalar( $v ) ? (string) $v : serialize( $v );
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = %s", $k, $wpac_v, $wpac_v ) ); // No VALUES(): deprecated on MySQL 9.7.
 	$GLOBALS['test_options'][ $k ] = $v;
 	return true;
 }
