@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.16.0\n"
+"Project-Id-Version: Affiliate Captain 0.17.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -316,6 +316,14 @@ msgstr[1] ""
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "%d selected partner was skipped because it is not a pending application."
 msgid_plural "%d selected partners were skipped because they are not pending applications."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of days
+#. translators: %d: days
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
+msgid "%d day"
+msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -636,7 +644,7 @@ msgstr ""
 msgid "Create partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Integrations/WooCommerce/CouponLink.php
+#: src/Admin/Pages/AffiliatesPage.php src/Integrations/WooCommerce/CouponLink.php src/Reports/ReviewQuality.php
 msgid "Partner not found."
 msgstr ""
 
@@ -662,6 +670,43 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Commissions of this partner"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Review quality"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Period:"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reviews"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Different orders"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Average rating"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "4–5 stars"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "1–2 stars"
+msgstr ""
+
+#. translators: 1: start date, 2: end date
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reviews from %1$s to %2$s."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "From the review plugin: only verified, published reviews of orders attributed to this partner. Read only, not stored, never shown to the partner; it never changes commissions, rules or payouts."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php src/Admin/Tables/PayoutsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
@@ -2610,8 +2655,18 @@ msgstr ""
 msgid "Conversion"
 msgstr ""
 
+#. translators: %d: number of days
+#: src/Admin/Pages/DashboardPage.php
+msgid "Reviews (%d days)"
+msgstr ""
+
 #: src/Admin/Pages/DashboardPage.php
 msgid "No activity in this period."
+msgstr ""
+
+#. translators: 1: number of days, 2: minimum number of reviews, 3: minimum number of orders
+#: src/Admin/Pages/DashboardPage.php
+msgid "Reviews: average rating of the verified, published reviews of the last %1$d days from the review plugin, by the partner and campaign of the order; shown from %2$d reviews from %3$d different orders, otherwise \"–\". Read only and not stored; independent of the period above."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -8983,6 +9038,11 @@ msgstr ""
 msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
 msgstr ""
 
+#. translators: %s: minimum WooCommerce version
+#: src/Plugin.php
+msgid "Affiliate Captain requires WooCommerce %s or newer. Orders of the shop are not tracked until WooCommerce is updated."
+msgstr ""
+
 #: src/Portal/Portal.php
 msgid "%d day after the click"
 msgid_plural "%d days after the click"
@@ -9975,13 +10035,6 @@ msgstr[1] ""
 
 #. translators: %d: days
 #: src/Privacy/Privacy.php
-msgid "%d day"
-msgid_plural "%d days"
-msgstr[0] ""
-msgstr[1] ""
-
-#. translators: %d: days
-#: src/Privacy/Privacy.php
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgstr[0] ""
@@ -10545,6 +10598,28 @@ msgstr ""
 #. translators: 1: creative title, 2: version
 #: src/Reports/Reports.php
 msgid "Creative \"%1$s\" (v%2$d)"
+msgstr ""
+
+#. translators: 1: average rating, 2: number of reviews
+#: src/Reports/ReviewQuality.php
+msgid "%1$s / 5 (%2$s reviews)"
+msgstr ""
+
+#. translators: 1: minimum number of reviews, 2: minimum number of orders
+#: src/Reports/ReviewQuality.php
+msgid "Not enough reviews in this period (at least %1$d reviews from %2$d different orders). No figures are shown."
+msgstr ""
+
+#: src/Reports/ReviewQuality.php
+msgid "Processing of this partner is restricted (Art. 18 GDPR). No review figures are shown."
+msgstr ""
+
+#: src/Reports/ReviewQuality.php
+msgid "The review plugin returned no valid data."
+msgstr ""
+
+#: src/Reports/ReviewQuality.php
+msgid "No review figures available."
 msgstr ""
 
 #: src/Rest/RestApi.php

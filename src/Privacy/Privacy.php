@@ -1456,6 +1456,10 @@ final class Privacy {
 			'{payment_providers}'          => $providers,
 			'{document_storage}'           => $storage,
 		);
+		// AFF-SU-03: the entry on the review quality only while a review plugin listens.
+		$text = \WPAffiliateCaptain\Reports\ReviewQuality::available()
+			? str_replace( array( "<!-- review-quality -->\n", "<!-- /review-quality -->\n" ), '', $text )
+			: (string) preg_replace( '/<!-- review-quality -->\n.*?<!-- \/review-quality -->\n/s', '', $text );
 		return strtr( $text, $map );
 	}
 

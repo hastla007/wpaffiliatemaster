@@ -24,11 +24,11 @@ cd /tmp/wp && php -S 127.0.0.1:8088 -t . /pfad/zu/affiliate-captain/tests/ci/rou
 `smoke.php` prüft eine laufende Testseite ohne Browser: Aktivierung/Schema/Cron, eine WooCommerce-Bestellung mit Partnercode und ihre Vollerstattung, Bewerbungs- und Partnerseite, öffentliche REST-Routen (und Ablehnung ohne Login), alle Admin-Seiten des Plugins per HTTP-Login sowie neue PHP-Fehler/-Warnungen des Plugins in `debug.log`.
 
 ```bash
-WP_VERSION=6.3 WC_VERSION=8.0.0 tests/ci/install-wp.sh /tmp/wp-min
+WP_VERSION=7.0 WC_VERSION=11.2.2 tests/ci/install-wp.sh /tmp/wp-min
 php tests/ci/smoke.php /tmp/wp-min http://127.0.0.1:8088
 ```
 
-Der CI-Job „Minimum versions“ führt das mit WordPress 6.3, WooCommerce 8.0.0, PHP 8.5 und MariaDB 12.3 aus (die im Plugin-Header erklärten Mindestversionen); der Browser-Job zusätzlich mit den neuesten Versionen.
+Der CI-Job „Minimum versions“ führt das mit WordPress 7.0, WooCommerce 11.2.2, PHP 8.5 und MariaDB 12.3 aus (die im Plugin-Header erklärten Mindestversionen); der Browser-Job zusätzlich mit den neuesten Versionen.
 
 ## Plugin Check
 
