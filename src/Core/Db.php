@@ -274,7 +274,7 @@ final class Db {
 		if ( null !== $dbh && $dbh === self::$isolation_dbh ) {
 			return;
 		}
-		$info = method_exists( $wpdb, 'db_server_info' ) ? (string) $wpdb->db_server_info() : '';
+		$info = is_callable( array( $wpdb, 'db_server_info' ) ) ? (string) call_user_func( array( $wpdb, 'db_server_info' ) ) : '';
 		if ( false !== stripos( $info, 'mariadb' ) ) {
 			$suppress = $wpdb->suppress_errors( true );
 			$wpdb->query( 'SET SESSION innodb_snapshot_isolation = OFF' );
