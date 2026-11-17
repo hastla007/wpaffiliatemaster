@@ -11,7 +11,7 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       affiliate-captain
  * Domain Path:       /languages
- * WC requires at least: 11.2
+ * WC requires at least: 11.2.2
  * WC tested up to: 11.3
  *
  * @package WPAffiliateCaptain

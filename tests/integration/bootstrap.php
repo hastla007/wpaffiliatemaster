@@ -31,6 +31,7 @@ class Test_WPDB {
 	public $last_error = '';
 	public $suppress   = false;
 	public function suppress_errors( $s = true ) { $old = $this->suppress; $this->suppress = (bool) $s; return $old; }
+	public function db_server_info() { return $this->db instanceof mysqli ? (string) $this->db->server_info : ''; }
 	/** @var mysqli */
 	public $db;
 	/** @var mysqli Same connection under the name of the real wpdb (Db::fatal_error() reads its errno). */

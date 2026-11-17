@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
 final class Plugin {
 
 	/** Minimum WooCommerce version (MINVER-1, owner decision 17.11.2026). */
-	public const MIN_WC = '11.2';
+	public const MIN_WC = '11.2.2';
 
 	/**
 	 * Admin notice: WooCommerce is older than MIN_WC and therefore not connected.
