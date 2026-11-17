@@ -130,6 +130,8 @@ On a multisite network `wp cron event run` only reaches the main site. Run it fo
 
 **Sub-IDs.** Partner links accept a sub-ID next to the referral parameter (`?partner=CODE&sub=placement-1`; parameter name via the filter `wpac_sub_id_param`). It is stored with the visit and the attribution (together with the visit ID) and shown to the partner per campaign and sub-ID (rows with fewer than 3 visits or fewer than 3 sales combined into "Other", see section 8).
 
+**Review quality (plugin 0.17.0, provisional until the shared suite specification is accepted).** With a review plugin that supports it (filter `wpac_review_aggregates`, e.g. the planned Review Captain), the partner page (tab "Overview", box "Review quality") and the report "By campaign" (column "Reviews (90 days)") show how the customers of a partner's orders rated their purchase: number of reviews, average rating and the share of 4–5 and of 1–2 stars, over the last 30, 90 (default) or 365 days. Only verified, published reviews count, and figures appear only from 10 reviews from 5 different orders – below that, "Not enough reviews" without numbers. Affiliate Captain stores none of this, shows it only to users who may manage partners, never to the partner, and never changes commissions, rules or payouts because of it. Without a review plugin, box and column do not appear. Details: [CONTRACT.md](CONTRACT.md), "Review-Qualität".
+
 **Broadcast mail.** Under Partners, "Write to all active partners" sends a plain-text e-mail to all active partners or one group, in batches of 50 in the background. Every mail has an unsubscribe link (type "broadcast"); partners can also switch announcements, commission notices and the monthly summary off under "My account".
 
 ## 3. Tracking, caching and CDNs

@@ -331,6 +331,11 @@ msgid_plural "%d selected partners were skipped because they are not pending app
 msgstr[0] "%d ausgewählter Partner wurde übersprungen, da er keine offene Bewerbung ist."
 msgstr[1] "%d ausgewählte Partner wurden übersprungen, da sie keine offenen Bewerbungen sind."
 
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "%d Tag"
+msgstr[1] "%d Tage"
+
 msgid "This partner recruited %d partner."
 msgid_plural "This partner recruited %d partners."
 msgstr[0] "Dieser Partner hat %d Partner geworben."
@@ -583,6 +588,33 @@ msgstr "Bezahlt"
 
 msgid "Commissions of this partner"
 msgstr "Provisionen dieses Partners"
+
+msgid "Review quality"
+msgstr "Review-Qualität"
+
+msgid "Period:"
+msgstr "Zeitraum:"
+
+msgid "Reviews"
+msgstr "Bewertungen"
+
+msgid "Different orders"
+msgstr "Verschiedene Bestellungen"
+
+msgid "Average rating"
+msgstr "Durchschnittliche Bewertung"
+
+msgid "4–5 stars"
+msgstr "4–5 Sterne"
+
+msgid "1–2 stars"
+msgstr "1–2 Sterne"
+
+msgid "Reviews from %1$s to %2$s."
+msgstr "Bewertungen vom %1$s bis %2$s."
+
+msgid "From the review plugin: only verified, published reviews of orders attributed to this partner. Read only, not stored, never shown to the partner; it never changes commissions, rules or payouts."
+msgstr "Aus dem Review-Plugin: nur verifizierte, veröffentlichte Bewertungen von Bestellungen, die diesem Partner zugeordnet sind. Nur lesend, nicht gespeichert, nie dem Partner angezeigt; ändert nie Provisionen, Regeln oder Auszahlungen."
 
 msgid "Status"
 msgstr "Status"
@@ -2019,8 +2051,14 @@ msgstr "Bestellungen"
 msgid "Conversion"
 msgstr "Conversion"
 
+msgid "Reviews (%d days)"
+msgstr "Bewertungen (%d Tage)"
+
 msgid "No activity in this period."
 msgstr "Keine Aktivität in diesem Zeitraum."
+
+msgid "Reviews: average rating of the verified, published reviews of the last %1$d days from the review plugin, by the partner and campaign of the order; shown from %2$d reviews from %3$d different orders, otherwise \"–\". Read only and not stored; independent of the period above."
+msgstr "Bewertungen: durchschnittliche Bewertung der verifizierten, veröffentlichten Bewertungen der letzten %1$d Tage aus dem Review-Plugin, nach Partner und Kampagne der Bestellung; angezeigt ab %2$d Bewertungen aus %3$d verschiedenen Bestellungen, sonst „–“. Nur lesend und nicht gespeichert; unabhängig vom Zeitraum oben."
 
 msgid "Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution."
 msgstr "Inhalt = der Beitrag bzw. die Seite, auf der der Partnerlink gelandet ist. Bestellungen werden dem Inhalt bzw. der Kampagne ihrer Zuordnung zugerechnet."
@@ -7179,11 +7217,6 @@ msgid_plural "%d change log entries about payout details or payout requests (e.g
 msgstr[0] "%d Eintrag im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleibt als buchungsrelevanter Beleg für die gesetzliche Aufbewahrungsfrist pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); seine Verarbeitung ist eingeschränkt, die Details werden danach gelöscht."
 msgstr[1] "%d Einträge im Änderungsprotokoll zu Auszahlungsdaten oder Auszahlungsanträgen (z. B. Änderungen des Steuerstatus, USt-IdNr.-Prüfungen, Auszahlungsanträge) bleiben als buchungsrelevante Belege für die gesetzliche Aufbewahrungsfrist pseudonymisiert erhalten (Steuernummern maskiert, Namen, Anschriften und Freitexte entfernt); ihre Verarbeitung ist eingeschränkt, die Details werden danach gelöscht."
 
-msgid "%d day"
-msgid_plural "%d days"
-msgstr[0] "%d Tag"
-msgstr[1] "%d Tage"
-
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgstr[0] "Ein Affiliate-Cookie (wpac_ref, %d Tag) wird nur gesetzt, wenn Sie Marketing-Cookies zugestimmt haben; ein Widerruf entfernt es."
@@ -7597,6 +7630,21 @@ msgstr "(keine Kampagne)"
 
 msgid "Creative \"%1$s\" (v%2$d)"
 msgstr "Werbemittel „%1$s“ (v%2$d)"
+
+msgid "%1$s / 5 (%2$s reviews)"
+msgstr "%1$s / 5 (%2$s Bewertungen)"
+
+msgid "Not enough reviews in this period (at least %1$d reviews from %2$d different orders). No figures are shown."
+msgstr "Zu wenige Bewertungen in diesem Zeitraum (mindestens %1$d Bewertungen aus %2$d verschiedenen Bestellungen). Es werden keine Zahlen angezeigt."
+
+msgid "Processing of this partner is restricted (Art. 18 GDPR). No review figures are shown."
+msgstr "Die Verarbeitung dieses Partners ist eingeschränkt (Art. 18 DSGVO). Es werden keine Bewertungszahlen angezeigt."
+
+msgid "The review plugin returned no valid data."
+msgstr "Das Review-Plugin hat keine gültigen Daten geliefert."
+
+msgid "No review figures available."
+msgstr "Keine Bewertungszahlen verfügbar."
 
 msgid "JavaScript tracking is disabled."
 msgstr "JavaScript-Erfassung ist deaktiviert."

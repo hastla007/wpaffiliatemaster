@@ -1579,6 +1579,8 @@ require __DIR__ . '/r14-c16.php'; // Agent c16 (0.16.0): no VALUES() in upserts 
 require __DIR__ . '/r14-kosit.php'; // KoSIT: e-invoice validation in CI (before r8-render).
 require __DIR__ . '/r15-p.php'; // Round 15, fix agent p: privacy and performance (before r8-render).
 require __DIR__ . '/r15-s.php'; // Round 15, fix agent s: security and money R15-S1..S6 (before r8-render).
+require __DIR__ . '/su3.php'; // Agent su3: review quality from a review plugin, AFF-SU-03 (before r8-render).
+require __DIR__ . '/wf8.php'; // AFF-WF-08 (0.17.0): since table of all actions, parameters, after COMMIT (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1593,6 +1595,7 @@ require __DIR__ . '/r14-f2-render.php'; // After the render files: code requests
 require __DIR__ . '/r15-l2-render.php'; // After the render files: partner area of the L2 order (no buyer data).
 require __DIR__ . '/r14-c16-render.php'; // After the render files: dashboard KPI of the selected program (agent c16).
 require __DIR__ . '/r15-s-render.php'; // After the render files: confirmation of money-creating actions, rate limit, code_status (R15-S3/S4/S6).
+require __DIR__ . '/su3-render.php'; // After the render files: review quality on admin screens only, nothing in the partner area (AFF-SU-03).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

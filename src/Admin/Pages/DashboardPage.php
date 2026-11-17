@@ -346,7 +346,25 @@ final class DashboardPage {
 		if ( 'partners' !== $view ) {
 			$dim = Reports::cached( 'content' === $view ? 'content_id' : 'campaign', $from, $to, $program );
 			$per_partner = 'campaign' === $view; // Campaign names are chosen by each partner: one row per partner and campaign.
-			echo '<table class="widefat striped"><thead><tr>' . ( $per_partner ? '<th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th>' : '' ) . '<th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th>' . ( $per_partner ? '' : '<th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th>' ) . '<th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+			// AFF-SU-03 (since plugin 0.17.0, provisional): review quality per partner and campaign, only with a review plugin.
+			$rq_days = \WPAffiliateCaptain\Reports\ReviewQuality::days( Admin::get( 'review_days' ) );
+			$rq      = $per_partner && $dim && \WPAffiliateCaptain\Reports\ReviewQuality::available()
+				? \WPAffiliateCaptain\Reports\ReviewQuality::get(
+					array_map(
+						static function ( $r ) {
+							return array(
+								'affiliate_id' => $r['affiliate_id'],
+								'campaign'     => (string) $r['key'],
+							);
+						},
+						$dim
+					),
+					$rq_days
+				)
+				: array();
+			$rq_first = $rq ? reset( $rq ) : array();
+			$rq_on    = $rq_first && 'forbidden' !== $rq_first['status'];
+			echo '<table class="widefat striped"><thead><tr>' . ( $per_partner ? '<th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th>' : '' ) . '<th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th>' . ( $per_partner ? '' : '<th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th>' ) . '<th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th>' . ( $rq_on ? '<th>' . esc_html( sprintf( /* translators: %d: number of days */ __( 'Reviews (%d days)', 'affiliate-captain' ), $rq_days ) ) . '</th>' : '' ) . '</tr></thead><tbody>';
 			if ( ! $dim ) {
 				echo '<tr><td colspan="7">' . esc_html__( 'No activity in this period.', 'affiliate-captain' ) . '</td></tr>';
 			}
@@ -359,8 +377,13 @@ final class DashboardPage {
 				if ( 'content' === $view && (int) $r['key'] && get_edit_post_link( (int) $r['key'] ) ) {
 					$label = '<a href="' . esc_url( get_edit_post_link( (int) $r['key'] ) ) . '">' . $label . '</a> <small>(' . esc_html( get_post_type( (int) $r['key'] ) ) . ')</small>';
 				}
+				$review = '';
+				if ( $rq_on ) {
+					$rq_r   = $rq[ \WPAffiliateCaptain\Reports\ReviewQuality::key( $r['affiliate_id'], (string) $r['key'] ) ];
+					$review = '<td class="wpac-review-quality" title="' . esc_attr( \WPAffiliateCaptain\Reports\ReviewQuality::reason( $rq_r ) ) . '">' . esc_html( \WPAffiliateCaptain\Reports\ReviewQuality::short( $rq_r ) ) . '</td>';
+				}
 				printf(
-					'<tr>%s<td>%s</td><td>%s</td>%s<td>%s</td><td>%s %%</td><td>%s</td><td>%s</td></tr>',
+					'<tr>%s<td>%s</td><td>%s</td>%s<td>%s</td><td>%s %%</td><td>%s</td><td>%s</td>%s</tr>',
 					$first, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 					$label, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					esc_html( number_format_i18n( $r['visits'] ) ),
@@ -368,10 +391,16 @@ final class DashboardPage {
 					esc_html( number_format_i18n( $r['orders'] ) ),
 					esc_html( number_format_i18n( $r['conversion'], 1 ) ),
 					esc_html( Money::format( $r['revenue'], $currency ) ),
-					esc_html( Money::format( $r['commission'], $currency ) )
+					esc_html( Money::format( $r['commission'], $currency ) ),
+					$review // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 				);
 			}
 			echo '</tbody></table>';
+			if ( $rq_on ) {
+				$rq_min = \WPAffiliateCaptain\Reports\ReviewQuality::minimum();
+				/* translators: 1: number of days, 2: minimum number of reviews, 3: minimum number of orders */
+				echo '<p class="description">' . esc_html( sprintf( __( 'Reviews: average rating of the verified, published reviews of the last %1$d days from the review plugin, by the partner and campaign of the order; shown from %2$d reviews from %3$d different orders, otherwise "–". Read only and not stored; independent of the period above.', 'affiliate-captain' ), $rq_days, $rq_min['reviews'], $rq_min['orders'] ) ) . '</p>';
+			}
 			echo '<p class="description">' . esc_html__( 'Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution.', 'affiliate-captain' ) . ( $per_partner ? ' ' . esc_html__( 'Campaign names are set by each partner, so the campaigns of each partner are listed separately.', 'affiliate-captain' ) : '' ) . '</p></div>';
 			return;
 		}

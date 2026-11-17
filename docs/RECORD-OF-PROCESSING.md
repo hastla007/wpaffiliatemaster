@@ -51,6 +51,19 @@ Template for the entries that concern Affiliate Captain. The download in **Affil
 | Legal basis | Art. 6(1)(c) and (f) GDPR |
 | Erasure periods | entries relevant for bookkeeping {retention_years} years; others {audit_retention_days} days |
 
+<!-- review-quality -->
+## 5. Review quality of partners (only with a review plugin)
+
+| | |
+|---|---|
+| Purpose | Assess the quality of partners and campaigns in the administration from aggregated reviews of the referred orders (provisional from plugin 0.17.0 until the shared suite specification is accepted) |
+| Data subjects | Partners (the figure concerns the partner); customers only indirectly – Affiliate Captain receives no data of individual customers or reviews |
+| Data | Per partner or per partner and campaign: number of reviews, number of different orders and number per star rating (1–5) in the chosen window (rolling 30, 90 or 365 days), from which the average and shares are derived. Only verified (with an order), published reviews; figures only from 10 reviews from 5 different orders, none below. No texts, no single ratings, no dates of single reviews, no customer data. The review plugin reads partner ID, campaign and attribution method of an order from Affiliate Captain (`wpac_get_order_attribution()`) |
+| Legal basis | Art. 6(1)(f) GDPR (legitimate interest in the quality of the partner program); to be assessed by the controller. No automated decision (Art. 22 GDPR): the figure never changes commissions, rules, tiers, status or payouts |
+| Recipients | Only users with the capability "manage partners" in the administration (partner page, report by campaign); never the partner (partner area, e-mails, REST, CSV) and not in the CSV export of the reports |
+| Erasure periods | Not stored in Affiliate Captain: computed on every request from the current data of the review plugin; deleted, withdrawn or unpublished reviews and reviews of erased customers drop out at the next request. If processing of the partner is restricted (Art. 18) or the partner was erased (Art. 17), nothing is shown and the review plugin is not asked. The reviews themselves are processed by the review plugin (separate entry) |
+<!-- /review-quality -->
+
 ## Technical and organisational measures (excerpt, Art. 32 GDPR)
 
 - IBAN stored encrypted (own key `WPAC_ENCRYPTION_KEY`), only masked in lists
