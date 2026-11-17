@@ -351,6 +351,8 @@
  "Affiliate Captain is not fully set up yet.": "Affiliate Captain ist noch nicht vollständig eingerichtet.",
  "Affiliate Captain partner data": "Affiliate-Captain-Partnerdaten",
  "Affiliate Captain requires PHP 8.5 or newer.": "Affiliate Captain benötigt PHP 8.5 oder neuer.",
+ "Affiliate Captain requires WooCommerce %s or newer. Orders of the shop are not tracked until WooCommerce is updated.": "Affiliate Captain benötigt WooCommerce %s oder neuer. Bestellungen des Shops werden erst nach dem Update von WooCommerce erfasst.",
+ "Affiliate Captain requires WordPress 7.0 or newer.": "Affiliate Captain benötigt WordPress 7.0 oder neuer.",
  "Affiliate Captain settings": "Einstellungen Affiliate Captain",
  "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer; this site uses %3$s %4$s. The plugin keeps working and nothing is blocked, but older database servers are no longer tested. Ask your host for an update.": "Affiliate Captain unterstützt MySQL %1$s oder neuer und MariaDB %2$s oder neuer; diese Website nutzt %3$s %4$s. Das Plugin arbeitet weiter und nichts wird blockiert, ältere Datenbankserver werden aber nicht mehr getestet. Bitten Sie Ihren Hoster um ein Update.",
  "Affiliate Captain took over from the old copy (%s): data, settings and schedules are kept. You can delete the old copy under Plugins.": "Affiliate Captain hat von der alten Kopie (%s) übernommen: Daten, Einstellungen und Zeitpläne bleiben erhalten. Die alte Kopie können Sie unter Plugins löschen.",

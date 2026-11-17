@@ -4,14 +4,14 @@
  * Plugin URI:        https://github.com/hastla007/wpaffiliatemaster
  * Description:       Your own partner program in WordPress: affiliate applications, partner codes and referral links, attribution, commission ledger with refund corrections, payouts with SEPA export and an affiliate portal.
  * Version:           0.17.0
- * Requires at least: 6.3
+ * Requires at least: 7.0
  * Requires PHP:      8.5
  * Author:            Affiliate Captain
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       affiliate-captain
  * Domain Path:       /languages
- * WC requires at least: 8.0
+ * WC requires at least: 11.2
  * WC tested up to: 11.3
  *
  * @package WPAffiliateCaptain
@@ -26,6 +26,16 @@ if ( version_compare( PHP_VERSION, '8.5', '<' ) ) {
 		'admin_notices',
 		static function () {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain requires PHP 8.5 or newer.', 'affiliate-captain' ) . '</p></div>';
+		}
+	);
+	return;
+}
+// Same for WordPress (MINVER-1, owner decision 17.11.2026: WordPress 7.0+ for all Captain plugins).
+if ( isset( $GLOBALS['wp_version'] ) && version_compare( (string) $GLOBALS['wp_version'], '7.0', '<' ) ) {
+	add_action(
+		'admin_notices',
+		static function () {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Affiliate Captain requires WordPress 7.0 or newer.', 'affiliate-captain' ) . '</p></div>';
 		}
 	);
 	return;

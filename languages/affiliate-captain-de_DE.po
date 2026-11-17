@@ -8,6 +8,9 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Domain: affiliate-captain\n"
 
+msgid "Affiliate Captain requires WooCommerce %s or newer. Orders of the shop are not tracked until WooCommerce is updated."
+msgstr "Affiliate Captain benötigt WooCommerce %s oder neuer. Bestellungen des Shops werden erst nach dem Update von WooCommerce erfasst."
+
 msgid "%d commission needs review"
 msgid_plural "%d commissions need review"
 msgstr[0] "%d Provision benötigt Prüfung"

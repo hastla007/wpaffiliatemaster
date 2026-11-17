@@ -346,7 +346,7 @@ jobs:
   # REST and every admin page. The Blocks-checkout field needs WooCommerce 8.9 and is covered by
   # the browser job with the latest versions.
   minimum-versions:
-    name: Minimum versions (WordPress 6.3, WooCommerce 8.0, MariaDB 12.3, PHP 8.5)
+    name: Minimum versions (WordPress 7.0, WooCommerce 11.2, MariaDB 12.3, PHP 8.5)
     runs-on: ubuntu-latest
     services:
       mariadb:
@@ -367,8 +367,8 @@ jobs:
           coverage: none
       - name: Test site with the minimum versions
         env:
-          WP_VERSION: "6.3"
-          WC_VERSION: "8.0.0"
+          WP_VERSION: "7.0"
+          WC_VERSION: "11.2.0"
         run: tests/ci/install-wp.sh "$RUNNER_TEMP/wp"
       - name: Web server
         run: (cd "$RUNNER_TEMP/wp" && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8088 -t . "$GITHUB_WORKSPACE/tests/ci/router.php" > "$RUNNER_TEMP/server.log" 2>&1 &) && sleep 2

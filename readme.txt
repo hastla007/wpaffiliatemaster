@@ -1,7 +1,7 @@
 === Affiliate Captain ===
 Contributors: wpaffiliatecaptain
 Tags: affiliate, partner program, referral, commission, woocommerce
-Requires at least: 6.3
+Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
 Stable tag: 0.17.0
@@ -36,7 +36,7 @@ Legal note: cookie consent, VAT treatment of credit notes and retention periods 
 4. Recommended in wp-config.php: `define( 'WPAC_ENCRYPTION_KEY', '<64 hex characters>' );` and `define( 'WPAC_STATEMENT_DIR', '/path/outside/webroot' );`
 5. Moving from another affiliate plugin? Import your partners under Affiliate Captain → Import & export.
 
-Requirements: WordPress 6.3+, PHP 8.5+ with the extensions sodium and dom (zip for the program export), MySQL 9.7+ or MariaDB 12.3+ (an older database server is not blocked, Site Health shows a warning). WooCommerce is optional (8.0+).
+Requirements: WordPress 7.0+, PHP 8.5+ with the extensions sodium and dom (zip for the program export), MySQL 9.7+ or MariaDB 12.3+ (an older database server is not blocked, Site Health shows a warning). WooCommerce is optional (11.2+).
 
 == External services ==
 
@@ -126,6 +126,7 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 = 0.17.0 =
 Review quality and suite readiness; add-on contract 1.6.0, database schema 16 (unchanged):
+* Changed: requires WordPress 7.0 or newer (was 6.3) and, for the shop connection, WooCommerce 11.2 or newer (was 8.0) – same minimums for all Captain plugins; on an older WordPress the plugin does not load, with an older WooCommerce it shows an admin notice and does not track shop orders
 * New: review quality (provisional until the shared suite specification is accepted): with a review plugin that fills the filter wpac_review_aggregates, the partner page and the report by campaign show the number of reviews, the average rating and the share of 4–5 and 1–2 stars of the partner's orders (verified, published reviews only, last 30/90/365 days, only from 10 reviews of 5 orders). Admins only, never stored, never shown to partners, never changes commissions
 * New for add-ons: wpac_get_order_attribution() returns partner, campaign and method of an order (contract 1.6.0, provisional)
 * Developers: docs/CONTRACT.md lists every action of the core in a "since" table (parameters, contract and plugin version, whether it fires after the commit); a test compares the table with the code and checks that booking actions fire after the commit with the documented parameters, never after a rollback, that bookings stay when a listener throws, and that the core never checks whether anyone listens
@@ -349,7 +350,7 @@ Review of all modules (security, money, legal, operations, usability):
 == Upgrade Notice ==
 
 = 0.17.0 =
-New read-only review quality for admins (needs a review plugin) and documentation of all add-on actions. No database change.
+Requires WordPress 7.0+ and WooCommerce 11.2+. New read-only review quality for admins (needs a review plugin) and documentation of all add-on actions. No database change.
 
 = 0.16.0 =
 Requires PHP 8.5 or newer; MySQL 9.7 or MariaDB 12.3 recommended. Check the PHP version of your host before updating (Tools → Site Health → Info → Server). No database change. Coupons named like a chosen partner code now need a coupon link.

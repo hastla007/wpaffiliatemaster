@@ -9038,6 +9038,11 @@ msgstr ""
 msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
 msgstr ""
 
+#. translators: %s: minimum WooCommerce version
+#: src/Plugin.php
+msgid "Affiliate Captain requires WooCommerce %s or newer. Orders of the shop are not tracked until WooCommerce is updated."
+msgstr ""
+
 #: src/Portal/Portal.php
 msgid "%d day after the click"
 msgid_plural "%d days after the click"
