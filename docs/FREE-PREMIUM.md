@@ -6,6 +6,16 @@
 >
 > Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 
+## 0. Hinweise auf Add-on-Funktionen im Kern (Entscheidung S1 vom 23.11.2026)
+
+Die Regel vom 13.11.2026 („keine ausgegrauten Funktionen, keine Upgrade-Hinweise im Kern“) ist am 23.11.2026 vom Inhaber neu gefasst worden (S1):
+
+- Einstellungen, die nur das Add-on hat, erscheinen im kostenlosen Kern als **graue Hinweiszeile am Ende des jeweiligen Reiters**: Kennzeichen „Pro“, Titel und ein Satz, was die Funktion kann, optional ein Verweis „Mehr erfahren“ (Filter `wpac_addon_hint_url`). Umgesetzt in `src/Admin/AddonHints.php` (SET-AC-05).
+- **Kein** deaktiviertes Eingabefeld, **kein** Formularfeld, **kein** gespeicherter Wert, **kein** Code der beworbenen Funktion im Kern, keine Prüfung, ob etwas gekauft ist. Alles, was der Kern zeigt und speichert, funktioniert vollständig (Richtlinie 5).
+- Nur auf den eigenen Einstellungsseiten, dezent, vom Betreiber abschaltbar: Einstellung „Hinweise auf Add-on-Funktionen anzeigen“ (Reiter Daten & Wartung, Schlüssel `addon_hints`) und Filter `wpac_show_addon_hints` (Richtlinie 11).
+- Das Add-on meldet über `wpac_settings_rows` eine Zeile mit derselben Kennung an und ersetzt damit den Hinweis (echtes Feld oder Verweis auf seine Seite). Ob eine Freischaltung vorliegt, weiß nur das Add-on.
+- Unverändert: kein Lizenzcode, keine Rechteprüfung, keine Namen von Rechteschlüsseln im Kern (Wächtertest A2); nichts, was heute frei ist, wandert hinter Pro. Hinweise gibt es nur für veröffentlichte Add-on-Funktionen; zurückgehaltene Funktionen und solche mit noch nicht freigegebenem Rechteschlüssel bekommen erst nach der Freigabe eine Zeile (`TODO.md`, SET-AC-05).
+
 ## 1. Ausgangslage
 
 - Affiliate Captain 0.10.0 ist vollständig funktionsfähig und GPL-2.0-or-later lizenziert; alle Funktionen sind ohne Lizenz nutzbar.
@@ -24,7 +34,7 @@
 | **8 – Keine ausführbaren Inhalte/Updates von Dritten** | Das Plugin darf keine Updates, Installationen oder Code von anderen Servern als WordPress.org laden. | #10 (eigener Updater) ist unzulässig. |
 | 6 – SaaS ist erlaubt | Ein externer Dienst mit echter Funktion (nicht nur Lizenzprüfung) ist erlaubt, wenn er dokumentiert ist. | Reine Lizenzprüfung zählt nicht als Dienst. |
 | 7 – Keine Datenübertragung ohne Einwilligung/Offenlegung | Externe Aufrufe müssen in der readme (`== External services ==`) offengelegt werden. | Eine Lizenz-Aktivierung (#9) müsste offengelegt werden – ist aber wegen 5 ohnehin falsch platziert. |
-| 11 – Admin-Bereich nicht kapern | Upgrade-Hinweise sparsam, wegklickbar, nur auf eigenen Seiten. | Gilt auch für „Jetzt Premium kaufen“-Hinweise. |
+| 11 – Admin-Bereich nicht kapern | Upgrade-Hinweise sparsam, wegklickbar, nur auf eigenen Seiten. | Gilt auch für „Jetzt Premium kaufen“-Hinweise. Umsetzung seit 0.20.0: graue Textzeilen nur auf der Einstellungsseite, abschaltbar (Abschnitt 0). |
 | 17 – Marken | Siehe 6. (Name/Slug). | |
 
 Erlaubt ist dagegen: ein **kostenloses, voll funktionsfähiges Plugin auf WordPress.org** plus ein **separates Premium-Add-on**, das außerhalb von WordPress.org verkauft und aktualisiert wird und sich über Hooks einklinkt. Das Add-on darf seinen eigenen Updater und seine Lizenzprüfung haben.

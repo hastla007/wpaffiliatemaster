@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 0.19.0
+Stable tag: 0.20.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.20.0 =
+Settings register and add-on rows; add-on contract 1.8.0 (backwards compatible); database schema 16 (unchanged):
+* New: all settings come from one register (key, type, default, tab, limits, label, help text, legal/secret marks). Defaults, tabs and labels are unchanged; every setting now has a help text on the settings page.
+* New: grey notes at the end of a settings tab name features of the Affiliate Captain Pro add-on (text only – no fields, nothing locked); switch them off under Data & maintenance.
+* Add-ons (contract 1.8.0): filters wpac_settings_schema, wpac_settings_rows, wpac_show_addon_hints, wpac_addon_hint_url and the action wpac_settings_saved – add-on fields on the settings tabs, replacing a note with the real field.
 
 = 0.19.0 =
 Add-on contract 1.7.0 (backwards compatible); database schema 16 (unchanged):
@@ -361,6 +367,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.20.0 =
+Settings register with help texts for every setting; optional notes about Pro add-on features (can be switched off). No database change; add-ons keep working.
 
 = 0.19.0 =
 Add-on contract 1.7.0: commission status actions also pass the previous status. No database change; existing add-ons keep working.

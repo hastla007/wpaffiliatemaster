@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.19.0\n"
+"Project-Id-Version: Affiliate Captain 0.20.0\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -10,6 +10,51 @@ msgstr ""
 
 msgid "Affiliate Captain requires WooCommerce %s or newer. Orders of the shop are not tracked until WooCommerce is updated."
 msgstr "Affiliate Captain benötigt WooCommerce %s oder neuer. Bestellungen des Shops werden erst nach dem Update von WooCommerce erfasst."
+
+msgid "PayPal payouts"
+msgstr "PayPal-Auszahlungen"
+
+msgid "Pay partners automatically with PayPal Payouts. Available with Affiliate Captain Pro."
+msgstr "Zahle deine Partner automatisch über PayPal aus. Verfügbar mit Affiliate Captain Pro."
+
+msgid "Partner area design"
+msgstr "Gestaltung des Partnerbereichs"
+
+msgid "Show the partner area in your own design. Available with Affiliate Captain Pro."
+msgstr "Zeige den Partnerbereich in deinem eigenen Design. Verfügbar mit Affiliate Captain Pro."
+
+msgid "E-mail header and footer"
+msgstr "Kopf und Fuß der E-Mails"
+
+msgid "Add your own header and footer to partner e-mails. Available with Affiliate Captain Pro."
+msgstr "Gib Partner-Mails einen eigenen Kopf und Fuß. Verfügbar mit Affiliate Captain Pro."
+
+msgid "Webhooks"
+msgstr "Webhooks"
+
+msgid "Notify other systems about commissions and payouts. Available with Affiliate Captain Pro."
+msgstr "Melde Provisionen und Auszahlungen an andere Systeme. Verfügbar mit Affiliate Captain Pro."
+
+msgid "Extended REST API"
+msgstr "Erweiterte REST-API"
+
+msgid "Read and manage partners, commissions and payouts through the REST API. Available with Affiliate Captain Pro."
+msgstr "Lies und verwalte Partner, Provisionen und Auszahlungen über die REST-API. Verfügbar mit Affiliate Captain Pro."
+
+msgid "Add-ons"
+msgstr "Add-ons"
+
+msgid "More with Affiliate Captain Pro"
+msgstr "Mehr mit Affiliate Captain Pro"
+
+msgid "Pro"
+msgstr "Pro"
+
+msgid "Learn more"
+msgstr "Mehr erfahren"
+
+msgid "(opens in a new tab)"
+msgstr "(öffnet in neuem Tab)"
 
 msgid "%d commission needs review"
 msgid_plural "%d commissions need review"
@@ -3387,246 +3432,6 @@ msgstr "Nicht umgerechnet: %1$d aktive Regeln mit festem Betrag und %2$d Stufenp
 msgid "A cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days, about 13 months). Choose a shorter lifetime unless you have documented reasons; the lifetime must also be stated in your consent banner."
 msgstr "Eine Cookie-Laufzeit von %1$d Tagen ist länger, als Datenschutzaufsichtsbehörden es für ein einwilligungsbasiertes Cookie meist für verhältnismäßig halten (bis %2$d Tage, etwa 13 Monate). Wählen Sie eine kürzere Laufzeit, sofern Sie keine dokumentierten Gründe haben; die Laufzeit muss außerdem in Ihrem Consent-Banner angegeben sein."
 
-msgid "Link parameter"
-msgstr "Link-Parameter"
-
-msgid "Lifetime rate in % (empty = normal rules)"
-msgstr "Lifetime-Satz in % (leer = normale Regeln)"
-
-msgid "Keep audit log (days, 0 = forever)"
-msgstr "Audit-Log aufbewahren (Tage, 0 = unbegrenzt)"
-
-msgid "Keep rejected applications (days, 0 = forever)"
-msgstr "Abgelehnte Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
-
-msgid "Keep undecided applications (days, 0 = forever)"
-msgstr "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
-
-msgid "Max. orders per partner in 24 hours"
-msgstr "Max. Bestellungen pro Partner in 24 Stunden"
-
-msgid "Min. seconds between click and order"
-msgstr "Min. Sekunden zwischen Klick und Bestellung"
-
-msgid "Max. refund rate of a partner in % (90 days, min. 5 orders)"
-msgstr "Max. Rückerstattungsquote eines Partners in % (90 Tage, mind. 5 Bestellungen)"
-
-msgid "Keep statements (years, 0 = forever)"
-msgstr "Belege aufbewahren (Jahre, 0 = unbegrenzt)"
-
-msgid "Lifetime link duration (days, 0 = unlimited)"
-msgstr "Dauer der Lifetime-Bindung (Tage, 0 = unbegrenzt)"
-
-msgid "Cookie lifetime (days)"
-msgstr "Cookie-Laufzeit (Tage)"
-
-msgid "Cookie domain"
-msgstr "Cookie-Domain"
-
-msgid "Record link visits (%)"
-msgstr "Link-Besuche erfassen (%)"
-
-msgid "Max. counted link visits per client and minute"
-msgstr "Max. gezählte Link-Besuche pro Client und Minute"
-
-msgid "Keep visit data (days)"
-msgstr "Besuchsdaten aufbewahren (Tage)"
-
-msgid "Hold period (days after payment)"
-msgstr "Haltefrist (Tage nach Zahlung)"
-
-msgid "Renewal commission for (months, 0 = unlimited)"
-msgstr "Provision auf Verlängerungen für (Monate, 0 = unbegrenzt)"
-
-msgid "Your country"
-msgstr "Ihr Land"
-
-msgid "Program currency"
-msgstr "Programmwährung"
-
-msgid "Reference exchange rates"
-msgstr "Referenz-Wechselkurse"
-
-msgid "Default rate"
-msgstr "Standardsatz"
-
-msgid "Trusted proxies / CDN"
-msgstr "Vertrauenswürdige Proxys / CDN"
-
-msgid "Review orders above (net)"
-msgstr "Bestellungen prüfen ab (netto)"
-
-msgid "Minimum payout"
-msgstr "Mindestauszahlung"
-
-msgid "Landing page path"
-msgstr "URL-Pfad der Landingpages"
-
-msgid "Default disclosure note"
-msgstr "Standard-Kennzeichnungshinweis"
-
-msgid "Terms version"
-msgstr "Version der Bedingungen"
-
-msgid "Notification e-mail"
-msgstr "Benachrichtigungs-E-Mail"
-
-msgid "Sender address"
-msgstr "Absenderadresse"
-
-msgid "Monitoring token"
-msgstr "Monitoring-Token"
-
-msgid "VAT rate in %"
-msgstr "USt-Satz in %"
-
-msgid "Prefix credit note numbers"
-msgstr "Präfix Gutschriftnummern"
-
-msgid "Prefix cancellation numbers"
-msgstr "Präfix Stornonummern"
-
-msgid "Prefix correction credit note numbers"
-msgstr "Präfix Korrekturgutschriftnummern"
-
-msgid "Company BIC (optional)"
-msgstr "BIC Firmenkonto (optional)"
-
-msgid "Company IBAN (SEPA)"
-msgstr "IBAN Firmenkonto (SEPA)"
-
-msgid "Application page"
-msgstr "Bewerbungsseite"
-
-msgid "Partner area page"
-msgstr "Seite Partnerbereich"
-
-msgid "Approve applications automatically"
-msgstr "Bewerbungen automatisch freigeben"
-
-msgid "Open commissions on termination"
-msgstr "Offene Provisionen bei Beendigung"
-
-msgid "Partners can request an own partner code (e.g. MARIA10) in the partner area"
-msgstr "Partner können im Partnerbereich einen eigenen Partnercode beantragen (z. B. MARIA10)"
-
-msgid "Sender name"
-msgstr "Absendername"
-
-msgid "E-mail to the partner when a payout was paid"
-msgstr "E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde"
-
-msgid "E-mail to partners about new, approved and rejected commissions"
-msgstr "E-Mail an Partner über neue, freigegebene und abgelehnte Provisionen"
-
-msgid "E-mail to the operator when commissions need review"
-msgstr "E-Mail an den Betreiber, wenn Provisionen geprüft werden müssen"
-
-msgid "Show partner code field at checkout (classic + blocks)"
-msgstr "Partnercode-Feld an der Kasse anzeigen (Classic + Blocks)"
-
-msgid "Keep the code from a partner link in the WooCommerce shop session"
-msgstr "Code aus einem Partnerlink in der WooCommerce-Shop-Sitzung halten"
-
-msgid "Affiliate cookie"
-msgstr "Affiliate-Cookie"
-
-msgid "Link attribution"
-msgstr "Link-Zuordnung"
-
-msgid "Affiliate coupon has priority over partner links"
-msgstr "Affiliate-Gutschein hat Vorrang vor Partnerlinks"
-
-msgid "Self-referrals"
-msgstr "Eigenkäufe über eigenen Link/Code"
-
-msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
-msgstr "Partnerlinks zusätzlich per JavaScript erfassen (für Seiten-Caches/CDNs)"
-
-msgid "Review orders with disposable or blocked e-mail domains"
-msgstr "Bestellungen mit Wegwerf- oder gesperrten E-Mail-Domains prüfen"
-
-msgid "Additional blocked domains"
-msgstr "Zusätzlich gesperrte Domains"
-
-msgid "Ask for the password again before payout files, marking payouts as paid, bank details and account links"
-msgstr "Passwort erneut abfragen vor Auszahlungsdateien, „Als bezahlt markieren“, Bankdaten und Kontoverknüpfungen"
-
-msgid "Default commission type"
-msgstr "Standard-Provisionsart"
-
-msgid "Lifetime commissions: repeat purchases of referred customers go to the same partner"
-msgstr "Lifetime-Provision: Folgekäufe geworbener Kunden gehen an denselben Partner"
-
-msgid "Hold period starts"
-msgstr "Haltefrist beginnt"
-
-msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
-msgstr "Provision auf Abo-Verlängerungen (WooCommerce Subscriptions)"
-
-msgid "Rule precedence"
-msgstr "Regelvorrang"
-
-msgid "Default landing page"
-msgstr "Standard-Landingpage"
-
-msgid "Promotion guidelines for partners"
-msgstr "Werberichtlinien für Partner"
-
-msgid "Show the disclosure note visibly above the banner embed code"
-msgstr "Kennzeichnungshinweis sichtbar über dem Banner-Einbettungscode anzeigen"
-
-msgid "Apply the partner's coupon automatically after a partner link"
-msgstr "Gutschein des Partners nach einem Partnerlink automatisch einlösen"
-
-msgid "Partners can request payouts in the partner area"
-msgstr "Partner können Auszahlungen im Partnerbereich beantragen"
-
-msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
-msgstr "Partner dürfen eine andere Auszahlungsart wählen (z. B. PayPal, Wise), manuelle Zahlung"
-
-msgid "Tax audit or legal hold: do not delete any statements"
-msgstr "Steuerprüfung oder Aufbewahrungssperre: keine Belege löschen"
-
-msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
-msgstr "Abrechnungen als Gutschrift ausstellen (§ 14 Abs. 2 UStG)"
-
-msgid "Your address (for credit notes)"
-msgstr "Ihre Anschrift (für Gutschriften)"
-
-msgid "Your VAT ID"
-msgstr "Ihre USt-IdNr."
-
-msgid "VIES check: verify partner VAT IDs with the EU Commission"
-msgstr "VIES-Prüfung: USt-IdNr. der Partner bei der EU-Kommission prüfen"
-
-msgid "Your tax number (if no VAT ID)"
-msgstr "Ihre Steuernummer (falls keine USt-IdNr.)"
-
-msgid "Send e-invoice (XML) with the credit note e-mail"
-msgstr "E-Rechnung (XML) mit der Gutschrift-E-Mail senden"
-
-msgid "Buyer reference on e-invoices (e.g. Leitweg-ID)"
-msgstr "Käuferreferenz auf E-Rechnungen (z. B. Leitweg-ID)"
-
-msgid "Company account holder (SEPA)"
-msgstr "Kontoinhaber Firmenkonto (SEPA)"
-
-msgid "Remittance text prefix"
-msgstr "Präfix Verwendungszweck"
-
-msgid "Monthly summary e-mail to the operator"
-msgstr "Monatliche Zusammenfassung per E-Mail an den Betreiber"
-
-msgid "Monthly summary e-mail to active partners"
-msgstr "Monatliche Zusammenfassung per E-Mail an aktive Partner"
-
-msgid "Maintenance mode"
-msgstr "Wartungsmodus"
-
-msgid "Delete all data when the plugin is deleted"
-msgstr "Alle Daten löschen, wenn das Plugin gelöscht wird"
-
 msgid "Changing it converts the minimum payout, the review limit and a fixed default rate (with an exchange rate between the two currencies if one is entered, otherwise keeping the value); fixed rules and bonus tiers must be checked by you."
 msgstr "Eine Änderung rechnet Mindestauszahlung, Prüfgrenze und einen festen Standardsatz um (mit einem eingetragenen Wechselkurs zwischen beiden Währungen, sonst bleibt der Wert gleich); feste Regeln und Stufenpläne müssen Sie selbst prüfen."
 
@@ -3669,12 +3474,6 @@ msgstr "Vorlage herunterladen (Markdown)"
 msgid "Pages & terms"
 msgstr "Seiten & Bedingungen"
 
-msgid "Version, text and SHA-256 hash of this page are stored with every acceptance as evidence."
-msgstr "Version, Text und SHA-256-Hash dieser Seite werden bei jeder Zustimmung als Nachweis gespeichert."
-
-msgid "Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list."
-msgstr "Erhöhen Sie die Version nur bei wesentlichen Änderungen: Partner werden dann bei der nächsten Anmeldung gebeten, erneut zuzustimmen (Auszahlungen per Gutschrift warten bis dahin). Korrekturen der Seite ohne neue Version erfordern keine neue Zustimmung. Aus der Partnerliste können Sie Partner per E-Mail erinnern."
-
 msgid "Applications & termination"
 msgstr "Bewerbungen & Beendigung"
 
@@ -3684,38 +3483,17 @@ msgstr "Bleiben auszahlbar"
 msgid "Are rejected"
 msgstr "Werden abgelehnt"
 
-msgid "Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page."
-msgstr "Anträge werden wie von Ihnen angelegte Codes geprüft (Zeichen, Länge, reservierte Wörter, nicht schon als Code, Gutschein oder Partneradresse vergeben) und funktionieren erst, nachdem Sie sie auf der Seite „Partner“ freigegeben haben."
-
 msgid "Addresses"
 msgstr "Adressen"
-
-msgid "Defaults to the site admin e-mail."
-msgstr "Standard ist die Admin-E-Mail der Website."
-
-msgid "Empty: WordPress default (or the setting of your SMTP plugin)."
-msgstr "Leer: Standard von WordPress (oder die Einstellung Ihres SMTP-Plugins)."
-
-msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
-msgstr "Leer: Standard von WordPress. Verwenden Sie eine Adresse Ihrer eigenen Domain, sonst landen E-Mails eventuell im Spam. Antworten von Partnern gehen immer an die Benachrichtigungs-E-Mail (Reply-To)."
 
 msgid "Notices to partners"
 msgstr "Benachrichtigungen an Partner"
 
-msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
-msgstr "Höchstens eine E-Mail je Partner und Lauf (z. B. alle Freigaben des stündlichen Laufs zusammen). Partner können sich über einen Link in der E-Mail abmelden, wie von der Monatsübersicht."
-
 msgid "Notices to the operator"
 msgstr "Hinweise an den Betreiber"
 
-msgid "Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically."
-msgstr "Wird höchstens einmal pro Stunde an die Benachrichtigungs-E-Mail gesendet, mit der Zahl der wartenden Provisionen (z. B. Eigenempfehlungen oder von der Betrugsprüfung markierte Bestellungen). Markierte Provisionen werden nie automatisch freigegeben."
-
 msgid "Monthly reports"
 msgstr "Monatsberichte"
-
-msgid "Sent on the first days of the month for the previous month."
-msgstr "Wird in den ersten Tagen des Monats für den Vormonat versendet."
 
 msgid "Tracking & attribution"
 msgstr "Tracking & Zuordnung"
@@ -3725,9 +3503,6 @@ msgstr "Beispiel: %s"
 
 msgid "The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it."
 msgstr "Der Block-Checkout zeigt das Partnercode-Feld erst ab WooCommerce 8.9; mit dieser Version zeigt es nur der klassische Checkout."
-
-msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
-msgstr "Nur wenn eine Shop-Sitzung besteht (ein Warenkorb) oder ein Produkt in den Warenkorb gelegt wird – ein Klick allein legt nie eine Sitzung an und setzt kein Cookie."
 
 msgid "Never set"
 msgstr "Nie setzen"
@@ -3740,18 +3515,6 @@ msgstr "Immer, ohne Einwilligung (in der EU nicht zulässig – §25 TDDDG, ePri
 
 msgid "An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use \"Only with marketing consent\" unless your shop is outside the EU and you checked the local law."
 msgstr "Ein Affiliate-Cookie ist nicht unbedingt erforderlich: In der EU darf es nur mit Einwilligung gesetzt werden. Verwenden Sie „Nur mit Marketing-Einwilligung“, außer Ihr Shop liegt außerhalb der EU und Sie haben das dortige Recht geprüft."
-
-msgid "Named in the privacy policy text and in the cookie details for your consent banner. Data protection authorities consider up to 13 months (395 days) proportionate for consent-based cookies."
-msgstr "Wird im Datenschutztext und in den Cookie-Angaben für Ihr Consent-Banner genannt. Datenschutzaufsichtsbehörden halten für einwilligungsbasierte Cookies bis zu 13 Monate (395 Tage) für verhältnismäßig."
-
-msgid "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both."
-msgstr "Normalerweise leer lassen. Nur wenn Landingpages und Shop auf verschiedenen Subdomains laufen (z. B. www.example.com und shop.example.com): Tragen Sie die gemeinsame Domain .example.com ein, damit Empfehlungs-Cookie und Warenkorb-Rückfall auf beiden funktionieren."
-
-msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice."
-msgstr "Nur nötig, wenn Ihr Cache oder CDN Seiten mit ?partner=… aus dem Cache ausliefert (z. B. Cloudflare „Cache Everything“). Seiten mit Partnerlinks bleiben dann cachebar: Ein kleines Skript meldet den Parameter für Gäste; ein Besuch wird nie doppelt gezählt."
-
-msgid "100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected."
-msgstr "100 = jeder Besuch, z. B. 10 = Stichprobe jedes zehnten Besuchs (Seiten mit viel Verkehr), 0 = kein Besuchsprotokoll. Die Zuordnung von Bestellungen ist davon nicht betroffen."
 
 msgid "Last touch"
 msgstr "Letzter Kontakt"
@@ -3777,20 +3540,14 @@ msgstr "Bestellungen in anderen Währungen werden nach Umrechnung mit den Refere
 msgid "Abuse protection"
 msgstr "Missbrauchsschutz"
 
-msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
-msgstr "IP-Adressen oder Bereiche (CIDR) Ihres Reverse-Proxys oder CDN (z. B. Cloudflare). Nur bei diesen wird die Besucher-IP aus X-Forwarded-For gelesen (CF-Connecting-IP nur mit dem Filter wpac_client_ip_headers). Ohne Proxy leer lassen."
-
-msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
-msgstr "Bankdaten freigeben, ein Partnerkonto verknüpfen oder trennen, Auszahlungsdaten ändern, SEPA-, Überweisungs- oder PayPal-Dateien herunterladen und Auszahlungen als bezahlt markieren erfordern eine Passwortbestätigung, die 15 Minuten in der Login-Sitzung gilt (mit dem Plugin Two-Factor auch dessen zweiten Faktor). WP-CLI und die REST-API sind nicht betroffen. Auch das Ausschalten erfordert eine Bestätigung."
+msgid "Program currency"
+msgstr "Programmwährung"
 
 msgid "One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies."
 msgstr "Einer pro Zeile: 1 Einheit der Währung = x %s. Provisionen und Auszahlungen werden nie umgerechnet; die Kurse dienen nur Berichten und dem Mindestbetrag in anderen Währungen."
 
 msgid "Default commission"
 msgstr "Standardprovision"
-
-msgid "Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes."
-msgstr "Prozent (z. B. 10 oder 12,5 %) oder Betrag in Programmwährung bei festen Provisionen (z. B. 25 €). Nutzen Sie Regeln für Partner, Gruppen, Produkte und Kurscodes."
 
 msgid "Partner rules first: partner > group > all partners, then product > category > all; exclusions always win"
 msgstr "Partnerregeln zuerst: Partner > Gruppe > alle Partner, dann Produkt > Kategorie > alle; Ausschlüsse gewinnen immer"
@@ -3801,23 +3558,11 @@ msgstr "Genauestes Produkt zuerst: Produkt > Kategorie > alle, dann Partner > Gr
 msgid "Lifetime commissions"
 msgstr "Lifetime-Provisionen"
 
-msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
-msgstr "Gilt nur, wenn kein neuer Partnerlink, Code oder Gutschein verwendet wird. Kunden werden nur als pseudonymisierte Hashwerte gespeichert."
-
 msgid "Subscription renewals"
 msgstr "Abo-Verlängerungen"
 
-msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
-msgstr "Aus: nur die Erstbestellung eines Abos bringt Provision; Verlängerungen werden nicht zugeordnet. Verlängerungen bringen nie Provision, wenn die Provision der Erstbestellung abgelehnt, erstattet oder storniert wurde."
-
-msgid "Renewals earn commission only within this many months after the first order of the subscription."
-msgstr "Verlängerungen bringen nur so viele Monate nach der Erstbestellung des Abos Provision."
-
 msgid "Hold period"
 msgstr "Haltefrist"
-
-msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
-msgstr "Provisionen werden nach dieser Frist freigegeben. Integrationen können sie je Bestellung verlängern (z. B. Garantieende) über hold_until / wpac_hold_until. Provisionen von WooCommerce-Bestellungen „In Wartestellung“ werden erst freigegeben, wenn die Bestellung wieder in Bearbeitung oder abgeschlossen ist."
 
 msgid "At payment"
 msgstr "Bei Zahlung"
@@ -3828,38 +3573,11 @@ msgstr "Wenn die WooCommerce-Bestellung abgeschlossen (versendet) ist – für V
 msgid "Partner landing URLs look like %s"
 msgstr "Partner-Landing-URLs sehen so aus: %s"
 
-msgid "Add [wpac_partner_welcome] to show \"Recommended by …\"."
-msgstr "Fügen Sie [wpac_partner_welcome] ein, um „Empfohlen von …“ anzuzeigen."
-
-msgid "The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. \"Advertisement\"), so the label stays with the banner on the partner's website."
-msgstr "Der HTML-Code, den Partner für ein Banner kopieren, beginnt dann mit dem Kennzeichnungshinweis des Werbemittels (z. B. „Werbung“), sodass die Kennzeichnung auf der Website des Partners beim Banner bleibt."
-
-msgid "WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an \"individual use\" coupon is not combined. Not for the partner's own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before."
-msgstr "WooCommerce: Kommt ein Besucher über einen Partnerlink oder Kurzlink und hat der Partner einen verknüpften Gutschein, wird der Gutschein einmal in den Warenkorb gelegt (beim ersten Produkt, auch später in derselben Shop-Sitzung). WooCommerce prüft den Gutschein wie gewohnt (Ablaufdatum, Nutzungslimits, Mindestbestellwert); ein vom Kunden eingegebener Gutschein wird nie entfernt, und ein Gutschein „Nur einzeln verwendbar“ wird nicht kombiniert. Nicht bei eigenen Käufen des Partners, nicht bei pausierten oder gesperrten Partnern und nur mit einer Empfehlung, die nach Ihren Tracking- und Einwilligungseinstellungen erfasst wurde. Partner sehen den Rabatt neben ihrem Link. Die Bestellung wird wie bisher zugeordnet."
-
-msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
-msgstr "Erlaubte Aussagen, Kennzeichnungspflicht, verbotene Kanäle, Meldeweg bei Problemen. Wird im Partnerbereich angezeigt."
-
-msgid "Payment details are stored encrypted like the IBAN. You pay these payouts yourself (transfer list or PayPal payouts file) and then mark them as paid; the payment provider is a further recipient of the partner's data (privacy policy). Off: new partners can only enter an IBAN; partners who already use another method keep it until they change it."
-msgstr "Zahlungsangaben werden wie die IBAN verschlüsselt gespeichert. Diese Auszahlungen leisten Sie selbst (Überweisungsliste oder PayPal-Auszahlungsdatei) und markieren sie dann als bezahlt; der Zahlungsdienst ist ein weiterer Empfänger der Partnerdaten (Datenschutzerklärung). Aus: Neue Partner können nur eine IBAN eingeben; Partner, die bereits eine andere Art nutzen, behalten sie, bis sie sie ändern."
-
 msgid "Your company details (for credit notes)"
 msgstr "Ihre Firmendaten (für Gutschriften)"
 
 msgid "Credit notes & VAT"
 msgstr "Gutschriften & Umsatzsteuer"
-
-msgid "Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor."
-msgstr "Provisionssätze sind Nettobeträge; bei umsatzsteuerpflichtigen Partnern im Inland wird die USt hinzugerechnet und ausgewiesen. Ausländische Unternehmen: Reverse-Charge. Vereinbaren Sie das Gutschriftverfahren in den Partnerbedingungen und stimmen Sie die Behandlung mit Ihrer Steuerberatung ab."
-
-msgid "E.g. 19 or 7,7 – \"%\" may be typed."
-msgstr "Z. B. 19 oder 7,7 – „%“ darf mit eingegeben werden."
-
-msgid "Numbers are gapless per year, e.g. GS-2026-000001."
-msgstr "Die Nummern sind pro Jahr lückenlos, z. B. GS-2026-000001."
-
-msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
-msgstr "Korrekturgutschriften zu bezahlten Auszahlungen, z. B. KG-2026-000001."
 
 msgid "Electronic invoice (EN 16931)"
 msgstr "Elektronische Rechnung (EN 16931)"
@@ -3876,14 +3594,8 @@ msgstr "Nie (nur Download)"
 msgid "Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy."
 msgstr "Jede Gutschrift, Korrekturgutschrift und jedes Storno lässt sich neben dem PDF auch als E-Rechnung herunterladen (UN/CEFACT-CII-XML nach EN 16931; XRechnung-Profil, wenn alle dafür nötigen Angaben vorliegen), im Partnerbereich und hier. Ab 2027/2028 brauchen inländische regelbesteuerte Partner sie: Das XML ist dann die Rechnung, das PDF eine Sichtkopie."
 
-msgid "Optional. Empty: the document number is used."
-msgstr "Optional. Leer: Es wird die Belegnummer verwendet."
-
 msgid "VAT ID check (VIES)"
 msgstr "Prüfung der USt-IdNr. (VIES)"
-
-msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
-msgstr "Die USt-IdNr. der Partner (und Ihre eigene USt-IdNr.) werden beim Speichern der Auszahlungsdaten und danach alle 30 Tage an den VIES-Dienst der Europäischen Kommission (ec.europa.eu) übermittelt; die Abfragenummer wird als Nachweis für Gutschriften im Reverse-Charge-Verfahren aufbewahrt. Eine als ungültig gemeldete USt-IdNr. sperrt Auszahlungen im Reverse-Charge-Verfahren. Aus: Es wird nichts übermittelt und frühere Ergebnisse sperren keine Auszahlungen mehr."
 
 msgid "SEPA bank transfer"
 msgstr "SEPA-Überweisung"
@@ -3891,32 +3603,14 @@ msgstr "SEPA-Überweisung"
 msgid "Retention periods"
 msgstr "Aufbewahrungsfristen"
 
-msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
-msgstr "Danach werden Name, E-Mail und Bewerbungsdaten abgelehnter Bewerber ohne Provisionen anonymisiert."
-
-msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
-msgstr "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist anonymisiert (personenbezogene Daten entfernt, Status abgelehnt). Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht."
-
-msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
-msgstr "Nachweise zu den Partnerbedingungen und buchungsrelevante Einträge werden so lange aufbewahrt wie die Gutschriften."
-
-msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
-msgstr "Mindestens die gesetzliche Frist Ihres Landes (Deutschland 8, Österreich 7, Schweiz 10 Jahre; sonst 10). Gerechnet ab Ende des Kalenderjahres (Stornos ab ihrem eigenen Datum). Danach werden das PDF und die gespeicherten Partnerdaten gelöscht; die Beträge bleiben."
-
-msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
-msgstr "Während einer Außenprüfung ist die Aufbewahrungsfrist gehemmt (§147 Abs. 3 AO)."
-
 msgid "Maintenance & monitoring"
 msgstr "Wartung & Überwachung"
-
-msgid "For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off."
-msgstr "Für Migrationen oder den Buchhaltungsabschluss: Verkäufe werden weiter erfasst, aber Freigaben, Auszahlungen, Berichtsmails und Änderungen im Partnerbereich warten, bis Sie ihn ausschalten."
 
 msgid "Uninstall"
 msgstr "Deinstallation"
 
-msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
-msgstr "Provisions- und Auszahlungsdaten, Gutschriften und das Protokoll bleiben erhalten, solange eine Gutschrift in der Aufbewahrungsfrist liegt; alles andere wird gelöscht."
+msgid "Monitoring token"
+msgstr "Monitoring-Token"
 
 msgid "A token is set – enter a new one to replace it"
 msgstr "Ein Token ist gesetzt – geben Sie ein neues ein, um es zu ersetzen"
@@ -4644,9 +4338,6 @@ msgstr "Ich akzeptiere die %1$s (Version %2$s)."
 msgid "partner program terms"
 msgstr "Partnerbedingungen"
 
-msgid "(opens in a new tab)"
-msgstr "(öffnet in neuem Tab)"
-
 msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
 msgstr "Wir verwenden Ihre Angaben, um Ihre Bewerbung zu prüfen und nach einer Freigabe das Partnerprogramm mit Ihnen durchzuführen (Vertrag, Art. 6 Abs. 1 lit. b DSGVO). Abgelehnte Bewerbungen werden nach der in unserer Datenschutzerklärung genannten Frist gelöscht."
 
@@ -5302,6 +4993,9 @@ msgstr "Hintergrundaufgaben laufen mit"
 msgid "Persistent object cache"
 msgstr "Persistenter Objekt-Cache"
 
+msgid "Affiliate cookie"
+msgstr "Affiliate-Cookie"
+
 msgid "Credit notes (self-billing)"
 msgstr "Gutschriften (Gutschriftverfahren)"
 
@@ -5319,6 +5013,9 @@ msgstr "Speicher der Gutschriften"
 
 msgid "Object storage / custom store"
 msgstr "Objektspeicher / eigener Speicher"
+
+msgid "Maintenance mode"
+msgstr "Wartungsmodus"
 
 msgid "[%s] Partner program needs attention"
 msgstr "[%s] Partnerprogramm braucht Aufmerksamkeit"
@@ -5340,9 +5037,6 @@ msgstr "Der Datenbankserver ist älter als die unterstützte Mindestversion"
 
 msgid "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer; this site uses %3$s %4$s. The plugin keeps working and nothing is blocked, but older database servers are no longer tested. Ask your host for an update."
 msgstr "Affiliate Captain unterstützt MySQL %1$s oder neuer und MariaDB %2$s oder neuer; diese Website nutzt %3$s %4$s. Das Plugin arbeitet weiter und nichts wird blockiert, ältere Datenbankserver werden aber nicht mehr getestet. Bitten Sie Ihren Hoster um ein Update."
-
-msgid "Advertisement"
-msgstr "Werbung"
 
 msgid "Please enter a parameter name."
 msgstr "Bitte geben Sie einen Parameternamen ein."
@@ -5550,6 +5244,492 @@ msgstr "Australien"
 
 msgid "New Zealand"
 msgstr "Neuseeland"
+
+msgid "Advertisement"
+msgstr "Werbung"
+
+msgid "Link parameter"
+msgstr "Link-Parameter"
+
+msgid "Name of the URL parameter in partner links (e.g. ?partner=CODE). Changing it breaks links that partners already shared."
+msgstr "Name des URL-Parameters in Partnerlinks (z. B. ?partner=CODE). Eine Änderung macht Links ungültig, die Partner schon geteilt haben."
+
+msgid "Link attribution"
+msgstr "Link-Zuordnung"
+
+msgid "Which partner gets the sale when a customer used several partner links: the last one before the order or the first one."
+msgstr "Welcher Partner den Verkauf bekommt, wenn ein Kunde mehrere Partnerlinks genutzt hat: der letzte vor der Bestellung oder der erste."
+
+msgid "Whether the referral is also kept in a browser cookie. In the EU a cookie needs marketing consent; without a cookie the referral lasts only for the visit and the shop session."
+msgstr "Ob die Empfehlung auch in einem Browser-Cookie gespeichert wird. In der EU braucht ein Cookie die Marketing-Einwilligung; ohne Cookie gilt die Empfehlung nur für den Besuch und die Shop-Sitzung."
+
+msgid "Cookie lifetime (days)"
+msgstr "Cookie-Laufzeit (Tage)"
+
+msgid "Named in the privacy policy text and in the cookie details for your consent banner. Data protection authorities consider up to 13 months (395 days) proportionate for consent-based cookies."
+msgstr "Wird im Datenschutztext und in den Cookie-Angaben für Ihr Consent-Banner genannt. Datenschutzaufsichtsbehörden halten für einwilligungsbasierte Cookies bis zu 13 Monate (395 Tage) für verhältnismäßig."
+
+msgid "Keep the code from a partner link in the WooCommerce shop session"
+msgstr "Code aus einem Partnerlink in der WooCommerce-Shop-Sitzung halten"
+
+msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
+msgstr "Nur wenn eine Shop-Sitzung besteht (ein Warenkorb) oder ein Produkt in den Warenkorb gelegt wird – ein Klick allein legt nie eine Sitzung an und setzt kein Cookie."
+
+msgid "Show partner code field at checkout (classic + blocks)"
+msgstr "Partnercode-Feld an der Kasse anzeigen (Classic + Blocks)"
+
+msgid "Customers can enter a partner code at checkout; the code overrides an earlier partner link."
+msgstr "Kunden können an der Kasse einen Partnercode eingeben; der Code geht einem früheren Partnerlink vor."
+
+msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
+msgstr "Provision auf Abo-Verlängerungen (WooCommerce Subscriptions)"
+
+msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
+msgstr "Aus: nur die Erstbestellung eines Abos bringt Provision; Verlängerungen werden nicht zugeordnet. Verlängerungen bringen nie Provision, wenn die Provision der Erstbestellung abgelehnt, erstattet oder storniert wurde."
+
+msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
+msgstr "Partnerlinks zusätzlich per JavaScript erfassen (für Seiten-Caches/CDNs)"
+
+msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice."
+msgstr "Nur nötig, wenn Ihr Cache oder CDN Seiten mit ?partner=… aus dem Cache ausliefert (z. B. Cloudflare „Cache Everything“). Seiten mit Partnerlinks bleiben dann cachebar: Ein kleines Skript meldet den Parameter für Gäste; ein Besuch wird nie doppelt gezählt."
+
+msgid "Cookie domain"
+msgstr "Cookie-Domain"
+
+msgid "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both."
+msgstr "Normalerweise leer lassen. Nur wenn Landingpages und Shop auf verschiedenen Subdomains laufen (z. B. www.example.com und shop.example.com): Tragen Sie die gemeinsame Domain .example.com ein, damit Empfehlungs-Cookie und Warenkorb-Rückfall auf beiden funktionieren."
+
+msgid "Record link visits (%)"
+msgstr "Link-Besuche erfassen (%)"
+
+msgid "100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected."
+msgstr "100 = jeder Besuch, z. B. 10 = Stichprobe jedes zehnten Besuchs (Seiten mit viel Verkehr), 0 = kein Besuchsprotokoll. Die Zuordnung von Bestellungen ist davon nicht betroffen."
+
+msgid "Affiliate coupon has priority over partner links"
+msgstr "Affiliate-Gutschein hat Vorrang vor Partnerlinks"
+
+msgid "When a customer uses the coupon linked to a partner, that partner gets the sale even if another partner's link was used before."
+msgstr "Löst ein Kunde den Gutschein eines Partners ein, bekommt dieser Partner den Verkauf, auch wenn vorher der Link eines anderen Partners genutzt wurde."
+
+msgid "Self-referrals"
+msgstr "Eigenkäufe über eigenen Link/Code"
+
+msgid "Orders a partner places with their own link, code or e-mail address: block the commission or create it with the status \"needs review\"."
+msgstr "Bestellungen, die ein Partner mit seinem eigenen Link, Code oder seiner E-Mail-Adresse aufgibt: Provision sperren oder mit dem Status „Prüfung nötig“ anlegen."
+
+msgid "Max. counted link visits per client and minute"
+msgstr "Max. gezählte Link-Besuche pro Client und Minute"
+
+msgid "Protection against bots: visits above this number per client and minute are not counted (attribution of orders is not affected)."
+msgstr "Schutz vor Bots: Besuche über dieser Zahl je Client und Minute werden nicht gezählt (die Zuordnung von Bestellungen bleibt unberührt)."
+
+msgid "Trusted proxies / CDN"
+msgstr "Vertrauenswürdige Proxys / CDN"
+
+msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
+msgstr "IP-Adressen oder Bereiche (CIDR) Ihres Reverse-Proxys oder CDN (z. B. Cloudflare). Nur bei diesen wird die Besucher-IP aus X-Forwarded-For gelesen (CF-Connecting-IP nur mit dem Filter wpac_client_ip_headers). Ohne Proxy leer lassen."
+
+msgid "Keep visit data (days)"
+msgstr "Besuchsdaten aufbewahren (Tage)"
+
+msgid "Individual link visits are deleted after this many days; the daily totals for reports are kept."
+msgstr "Einzelne Linkbesuche werden nach so vielen Tagen gelöscht; die Tagessummen für Berichte bleiben."
+
+msgid "Keep audit log (days, 0 = forever)"
+msgstr "Audit-Log aufbewahren (Tage, 0 = unbegrenzt)"
+
+msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
+msgstr "Nachweise zu den Partnerbedingungen und buchungsrelevante Einträge werden so lange aufbewahrt wie die Gutschriften."
+
+msgid "Keep rejected applications (days, 0 = forever)"
+msgstr "Abgelehnte Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
+
+msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
+msgstr "Danach werden Name, E-Mail und Bewerbungsdaten abgelehnter Bewerber ohne Provisionen anonymisiert."
+
+msgid "Keep undecided applications (days, 0 = forever)"
+msgstr "Nicht entschiedene Bewerbungen aufbewahren (Tage, 0 = unbegrenzt)"
+
+msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgstr "Bewerbungen, die bestätigt, aber nie angenommen oder abgelehnt wurden, werden nach dieser Frist anonymisiert (personenbezogene Daten entfernt, Status abgelehnt). Unbestätigte Bewerbungen (E-Mail-Adresse nicht bestätigt) werden nach 2 Tagen gelöscht."
+
+msgid "Currency of commission rates, the minimum payout and the reports. Changing it converts amounts in the settings only."
+msgstr "Währung der Provisionssätze, der Mindestauszahlung und der Berichte. Eine Änderung rechnet nur Beträge in den Einstellungen um."
+
+msgid "Reference exchange rates"
+msgstr "Referenz-Wechselkurse"
+
+msgid "One per line, e.g. USD=0.92: 1 unit of the currency = x program currency. Only used for reports and minimum payouts of other currencies; commissions are never converted."
+msgstr "Einer je Zeile, z. B. USD=0.92: 1 Einheit der Währung = x Programmwährung. Nur für Berichte und Mindestauszahlungen anderer Währungen; Provisionen werden nie umgerechnet."
+
+msgid "Default commission type"
+msgstr "Standard-Provisionsart"
+
+msgid "Commission for partners without a matching rule: a percentage of the net order value or a fixed amount per unit."
+msgstr "Provision für Partner ohne passende Regel: Prozent vom Netto-Bestellwert oder fester Betrag je Stück."
+
+msgid "Default rate"
+msgstr "Standardsatz"
+
+msgid "Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes."
+msgstr "Prozent (z. B. 10 oder 12,5 %) oder Betrag in Programmwährung bei festen Provisionen (z. B. 25 €). Nutzen Sie Regeln für Partner, Gruppen, Produkte und Kurscodes."
+
+msgid "Hold period (days after payment)"
+msgstr "Haltefrist (Tage nach Zahlung)"
+
+msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
+msgstr "Provisionen werden nach dieser Frist freigegeben. Integrationen können sie je Bestellung verlängern (z. B. Garantieende) über hold_until / wpac_hold_until. Provisionen von WooCommerce-Bestellungen „In Wartestellung“ werden erst freigegeben, wenn die Bestellung wieder in Bearbeitung oder abgeschlossen ist."
+
+msgid "Lifetime commissions: repeat purchases of referred customers go to the same partner"
+msgstr "Lifetime-Provision: Folgekäufe geworbener Kunden gehen an denselben Partner"
+
+msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
+msgstr "Gilt nur, wenn kein neuer Partnerlink, Code oder Gutschein verwendet wird. Kunden werden nur als pseudonymisierte Hashwerte gespeichert."
+
+msgid "Lifetime link duration (days, 0 = unlimited)"
+msgstr "Dauer der Lifetime-Bindung (Tage, 0 = unbegrenzt)"
+
+msgid "How long a referred customer stays linked to the partner for lifetime commissions."
+msgstr "Wie lange ein geworbener Kunde für Lifetime-Provisionen mit dem Partner verbunden bleibt."
+
+msgid "Lifetime rate in % (empty = normal rules)"
+msgstr "Lifetime-Satz in % (leer = normale Regeln)"
+
+msgid "Own rate for repeat purchases of linked customers; empty = the normal rules apply."
+msgstr "Eigener Satz für Wiederholungskäufe verbundener Kunden; leer = es gelten die normalen Regeln."
+
+msgid "Hold period starts"
+msgstr "Haltefrist beginnt"
+
+msgid "When the hold period starts: at payment, or when the WooCommerce order is completed (shipped)."
+msgstr "Wann die Wartefrist beginnt: bei Zahlung oder wenn die WooCommerce-Bestellung abgeschlossen (versandt) ist."
+
+msgid "Renewal commission for (months, 0 = unlimited)"
+msgstr "Provision auf Verlängerungen für (Monate, 0 = unbegrenzt)"
+
+msgid "Renewals earn commission only within this many months after the first order of the subscription."
+msgstr "Verlängerungen bringen nur so viele Monate nach der Erstbestellung des Abos Provision."
+
+msgid "Rule precedence"
+msgstr "Regelvorrang"
+
+msgid "Which rule wins when several rules match a sale: partner rules first, or the most specific product first."
+msgstr "Welche Regel gewinnt, wenn mehrere auf einen Verkauf passen: zuerst Partnerregeln oder zuerst das genaueste Produkt."
+
+msgid "Approve applications automatically"
+msgstr "Bewerbungen automatisch freigeben"
+
+msgid "New applications become active partners right after the e-mail confirmation, without review."
+msgstr "Neue Bewerbungen werden direkt nach der Bestätigung der E-Mail-Adresse aktive Partner, ohne Prüfung."
+
+msgid "Version, text and SHA-256 hash of this page are stored with every acceptance as evidence."
+msgstr "Version, Text und SHA-256-Hash dieser Seite werden bei jeder Zustimmung als Nachweis gespeichert."
+
+msgid "Terms version"
+msgstr "Version der Bedingungen"
+
+msgid "Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list."
+msgstr "Erhöhen Sie die Version nur bei wesentlichen Änderungen: Partner werden dann bei der nächsten Anmeldung gebeten, erneut zuzustimmen (Auszahlungen per Gutschrift warten bis dahin). Korrekturen der Seite ohne neue Version erfordern keine neue Zustimmung. Aus der Partnerliste können Sie Partner per E-Mail erinnern."
+
+msgid "Partner area page"
+msgstr "Seite Partnerbereich"
+
+msgid "Page with the shortcode [wpac_affiliate_portal]: partners see links, commissions and payouts there."
+msgstr "Seite mit dem Shortcode [wpac_affiliate_portal]: Partner sehen dort Links, Provisionen und Auszahlungen."
+
+msgid "Application page"
+msgstr "Bewerbungsseite"
+
+msgid "Page with the shortcode [wpac_affiliate_registration] where new partners apply."
+msgstr "Seite mit dem Shortcode [wpac_affiliate_registration], auf der sich neue Partner bewerben."
+
+msgid "Open commissions on termination"
+msgstr "Offene Provisionen bei Beendigung"
+
+msgid "What happens to commissions that are not yet paid when a partner is terminated."
+msgstr "Was mit noch nicht ausgezahlten Provisionen geschieht, wenn einem Partner gekündigt wird."
+
+msgid "Partners can request an own partner code (e.g. MARIA10) in the partner area"
+msgstr "Partner können im Partnerbereich einen eigenen Partnercode beantragen (z. B. MARIA10)"
+
+msgid "Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page."
+msgstr "Anträge werden wie von Ihnen angelegte Codes geprüft (Zeichen, Länge, reservierte Wörter, nicht schon als Code, Gutschein oder Partneradresse vergeben) und funktionieren erst, nachdem Sie sie auf der Seite „Partner“ freigegeben haben."
+
+msgid "Notification e-mail"
+msgstr "Benachrichtigungs-E-Mail"
+
+msgid "Defaults to the site admin e-mail."
+msgstr "Standard ist die Admin-E-Mail der Website."
+
+msgid "Sender name"
+msgstr "Absendername"
+
+msgid "Empty: WordPress default (or the setting of your SMTP plugin)."
+msgstr "Leer: Standard von WordPress (oder die Einstellung Ihres SMTP-Plugins)."
+
+msgid "Sender address"
+msgstr "Absenderadresse"
+
+msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
+msgstr "Leer: Standard von WordPress. Verwenden Sie eine Adresse Ihrer eigenen Domain, sonst landen E-Mails eventuell im Spam. Antworten von Partnern gehen immer an die Benachrichtigungs-E-Mail (Reply-To)."
+
+msgid "E-mail to the partner when a payout was paid"
+msgstr "E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde"
+
+msgid "Partners get an e-mail with the amount when you mark their payout as paid."
+msgstr "Partner bekommen eine E-Mail mit dem Betrag, wenn du ihre Auszahlung als bezahlt markierst."
+
+msgid "E-mail to partners about new, approved and rejected commissions"
+msgstr "E-Mail an Partner über neue, freigegebene und abgelehnte Provisionen"
+
+msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
+msgstr "Höchstens eine E-Mail je Partner und Lauf (z. B. alle Freigaben des stündlichen Laufs zusammen). Partner können sich über einen Link in der E-Mail abmelden, wie von der Monatsübersicht."
+
+msgid "E-mail to the operator when commissions need review"
+msgstr "E-Mail an den Betreiber, wenn Provisionen geprüft werden müssen"
+
+msgid "Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically."
+msgstr "Wird höchstens einmal pro Stunde an die Benachrichtigungs-E-Mail gesendet, mit der Zahl der wartenden Provisionen (z. B. Eigenempfehlungen oder von der Betrugsprüfung markierte Bestellungen). Markierte Provisionen werden nie automatisch freigegeben."
+
+msgid "For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off."
+msgstr "Für Migrationen oder den Buchhaltungsabschluss: Verkäufe werden weiter erfasst, aber Freigaben, Auszahlungen, Berichtsmails und Änderungen im Partnerbereich warten, bis Sie ihn ausschalten."
+
+msgid "Secret for the health check of an external monitor (REST endpoint wpac/v1/health). Only a hash is stored."
+msgstr "Geheimnis für die Zustandsprüfung durch einen externen Monitor (REST-Endpunkt wpac/v1/health). Gespeichert wird nur ein Hash."
+
+msgid "Landing page path"
+msgstr "URL-Pfad der Landingpages"
+
+msgid "Path of partner landing pages, e.g. /partner/partner-name/."
+msgstr "Pfad der Partner-Landingpages, z. B. /partner/partner-name/."
+
+msgid "Default landing page"
+msgstr "Standard-Landingpage"
+
+msgid "Add [wpac_partner_welcome] to show \"Recommended by …\"."
+msgstr "Fügen Sie [wpac_partner_welcome] ein, um „Empfohlen von …“ anzuzeigen."
+
+msgid "Default disclosure note"
+msgstr "Standard-Kennzeichnungshinweis"
+
+msgid "Label shown with creatives so readers recognise advertising (e.g. \"Advertisement\"). Check the wording required in your country."
+msgstr "Kennzeichnung bei Werbemitteln, damit Leser Werbung erkennen (z. B. „Anzeige“). Prüfe den in deinem Land vorgeschriebenen Wortlaut."
+
+msgid "Promotion guidelines for partners"
+msgstr "Werberichtlinien für Partner"
+
+msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
+msgstr "Erlaubte Aussagen, Kennzeichnungspflicht, verbotene Kanäle, Meldeweg bei Problemen. Wird im Partnerbereich angezeigt."
+
+msgid "Show the disclosure note visibly above the banner embed code"
+msgstr "Kennzeichnungshinweis sichtbar über dem Banner-Einbettungscode anzeigen"
+
+msgid "The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. \"Advertisement\"), so the label stays with the banner on the partner's website."
+msgstr "Der HTML-Code, den Partner für ein Banner kopieren, beginnt dann mit dem Kennzeichnungshinweis des Werbemittels (z. B. „Werbung“), sodass die Kennzeichnung auf der Website des Partners beim Banner bleibt."
+
+msgid "Apply the partner's coupon automatically after a partner link"
+msgstr "Gutschein des Partners nach einem Partnerlink automatisch einlösen"
+
+msgid "WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an \"individual use\" coupon is not combined. Not for the partner's own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before."
+msgstr "WooCommerce: Kommt ein Besucher über einen Partnerlink oder Kurzlink und hat der Partner einen verknüpften Gutschein, wird der Gutschein einmal in den Warenkorb gelegt (beim ersten Produkt, auch später in derselben Shop-Sitzung). WooCommerce prüft den Gutschein wie gewohnt (Ablaufdatum, Nutzungslimits, Mindestbestellwert); ein vom Kunden eingegebener Gutschein wird nie entfernt, und ein Gutschein „Nur einzeln verwendbar“ wird nicht kombiniert. Nicht bei eigenen Käufen des Partners, nicht bei pausierten oder gesperrten Partnern und nur mit einer Empfehlung, die nach Ihren Tracking- und Einwilligungseinstellungen erfasst wurde. Partner sehen den Rabatt neben ihrem Link. Die Bestellung wird wie bisher zugeordnet."
+
+msgid "Minimum payout"
+msgstr "Mindestauszahlung"
+
+msgid "Partners are only included in a payout run when their payable balance reaches this amount."
+msgstr "Partner kommen erst in einen Auszahlungslauf, wenn ihr auszahlbares Guthaben diesen Betrag erreicht."
+
+msgid "Partners can request payouts in the partner area"
+msgstr "Partner können Auszahlungen im Partnerbereich beantragen"
+
+msgid "Partners can ask for a payout in the partner area once their balance reaches the minimum; you still start the payout."
+msgstr "Partner können im Partnerbereich eine Auszahlung beantragen, sobald ihr Guthaben den Mindestbetrag erreicht; die Auszahlung startest weiterhin du."
+
+msgid "Keep statements (years, 0 = forever)"
+msgstr "Belege aufbewahren (Jahre, 0 = unbegrenzt)"
+
+msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
+msgstr "Mindestens die gesetzliche Frist Ihres Landes (Deutschland 8, Österreich 7, Schweiz 10 Jahre; sonst 10). Gerechnet ab Ende des Kalenderjahres (Stornos ab ihrem eigenen Datum). Danach werden das PDF und die gespeicherten Partnerdaten gelöscht; die Beträge bleiben."
+
+msgid "Tax audit or legal hold: do not delete any statements"
+msgstr "Steuerprüfung oder Aufbewahrungssperre: keine Belege löschen"
+
+msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
+msgstr "Während einer Außenprüfung ist die Aufbewahrungsfrist gehemmt (§147 Abs. 3 AO)."
+
+msgid "Payout period (no effect)"
+msgstr "Auszahlungsrhythmus (ohne Wirkung)"
+
+msgid "Former setting without effect; kept only for stored settings."
+msgstr "Frühere Einstellung ohne Wirkung; nur für gespeicherte Einstellungen erhalten."
+
+msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
+msgstr "Partner dürfen eine andere Auszahlungsart wählen (z. B. PayPal, Wise), manuelle Zahlung"
+
+msgid "Payment details are stored encrypted like the IBAN. You pay these payouts yourself (transfer list or PayPal payouts file) and then mark them as paid; the payment provider is a further recipient of the partner's data (privacy policy). Off: new partners can only enter an IBAN; partners who already use another method keep it until they change it."
+msgstr "Zahlungsangaben werden wie die IBAN verschlüsselt gespeichert. Diese Auszahlungen leisten Sie selbst (Überweisungsliste oder PayPal-Auszahlungsdatei) und markieren sie dann als bezahlt; der Zahlungsdienst ist ein weiterer Empfänger der Partnerdaten (Datenschutzerklärung). Aus: Neue Partner können nur eine IBAN eingeben; Partner, die bereits eine andere Art nutzen, behalten sie, bis sie sie ändern."
+
+msgid "Company account holder (SEPA)"
+msgstr "Kontoinhaber Firmenkonto (SEPA)"
+
+msgid "Account holder of your company account; appears in the SEPA payment file."
+msgstr "Inhaber deines Firmenkontos; erscheint in der SEPA-Zahlungsdatei."
+
+msgid "Company IBAN (SEPA)"
+msgstr "IBAN Firmenkonto (SEPA)"
+
+msgid "IBAN of the account the payouts are paid from (SEPA payment file)."
+msgstr "IBAN des Kontos, von dem die Auszahlungen überwiesen werden (SEPA-Zahlungsdatei)."
+
+msgid "Company BIC (optional)"
+msgstr "BIC Firmenkonto (optional)"
+
+msgid "BIC of your bank; only needed by some banks."
+msgstr "BIC deiner Bank; nur bei manchen Banken nötig."
+
+msgid "Remittance text prefix"
+msgstr "Präfix Verwendungszweck"
+
+msgid "Start of the remittance text on the partner's bank statement, followed by the payout number."
+msgstr "Anfang des Verwendungszwecks auf dem Kontoauszug des Partners, gefolgt von der Auszahlungsnummer."
+
+msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
+msgstr "Abrechnungen als Gutschrift ausstellen (§ 14 Abs. 2 UStG)"
+
+msgid "Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor."
+msgstr "Provisionssätze sind Nettobeträge; bei umsatzsteuerpflichtigen Partnern im Inland wird die USt hinzugerechnet und ausgewiesen. Ausländische Unternehmen: Reverse-Charge. Vereinbaren Sie das Gutschriftverfahren in den Partnerbedingungen und stimmen Sie die Behandlung mit Ihrer Steuerberatung ab."
+
+msgid "VAT rate in %"
+msgstr "USt-Satz in %"
+
+msgid "E.g. 19 or 7,7 – \"%\" may be typed."
+msgstr "Z. B. 19 oder 7,7 – „%“ darf mit eingegeben werden."
+
+msgid "Your country"
+msgstr "Ihr Land"
+
+msgid "Country of your company: decides domestic VAT, reverse charge and the notes on credit notes."
+msgstr "Land deines Unternehmens: entscheidet über inländische Umsatzsteuer, Umkehr der Steuerschuld und die Hinweise auf Gutschriften."
+
+msgid "Your address (for credit notes)"
+msgstr "Ihre Anschrift (für Gutschriften)"
+
+msgid "Your company name and address as printed on credit notes."
+msgstr "Firmenname und Anschrift, wie sie auf Gutschriften stehen."
+
+msgid "Your VAT ID"
+msgstr "Ihre USt-IdNr."
+
+msgid "Your VAT ID, printed on credit notes; required for reverse-charge credit notes."
+msgstr "Deine USt-IdNr., steht auf Gutschriften; Pflicht für Gutschriften mit Umkehr der Steuerschuld."
+
+msgid "Your tax number (if no VAT ID)"
+msgstr "Ihre Steuernummer (falls keine USt-IdNr.)"
+
+msgid "Your tax number; printed on credit notes when you have no VAT ID."
+msgstr "Deine Steuernummer; steht auf Gutschriften, wenn du keine USt-IdNr. hast."
+
+msgid "Prefix credit note numbers"
+msgstr "Präfix Gutschriftnummern"
+
+msgid "Numbers are gapless per year, e.g. GS-2026-000001."
+msgstr "Die Nummern sind pro Jahr lückenlos, z. B. GS-2026-000001."
+
+msgid "Prefix cancellation numbers"
+msgstr "Präfix Stornonummern"
+
+msgid "Prefix of cancellation documents, e.g. ST-2026-000001."
+msgstr "Präfix der Stornobelege, z. B. ST-2026-000001."
+
+msgid "Prefix correction credit note numbers"
+msgstr "Präfix Korrekturgutschriftnummern"
+
+msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
+msgstr "Korrekturgutschriften zu bezahlten Auszahlungen, z. B. KG-2026-000001."
+
+msgid "Send e-invoice (XML) with the credit note e-mail"
+msgstr "E-Rechnung (XML) mit der Gutschrift-E-Mail senden"
+
+msgid "Whether the electronic invoice (XML) is attached to the credit note e-mail."
+msgstr "Ob die E-Rechnung (XML) an die Gutschrift-E-Mail angehängt wird."
+
+msgid "Buyer reference on e-invoices (e.g. Leitweg-ID)"
+msgstr "Käuferreferenz auf E-Rechnungen (z. B. Leitweg-ID)"
+
+msgid "Optional. Empty: the document number is used."
+msgstr "Optional. Leer: Es wird die Belegnummer verwendet."
+
+msgid "VIES check: verify partner VAT IDs with the EU Commission"
+msgstr "VIES-Prüfung: USt-IdNr. der Partner bei der EU-Kommission prüfen"
+
+msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
+msgstr "Die USt-IdNr. der Partner (und Ihre eigene USt-IdNr.) werden beim Speichern der Auszahlungsdaten und danach alle 30 Tage an den VIES-Dienst der Europäischen Kommission (ec.europa.eu) übermittelt; die Abfragenummer wird als Nachweis für Gutschriften im Reverse-Charge-Verfahren aufbewahrt. Eine als ungültig gemeldete USt-IdNr. sperrt Auszahlungen im Reverse-Charge-Verfahren. Aus: Es wird nichts übermittelt und frühere Ergebnisse sperren keine Auszahlungen mehr."
+
+msgid "Max. orders per partner in 24 hours"
+msgstr "Max. Bestellungen pro Partner in 24 Stunden"
+
+msgid "More orders of one partner within 24 hours are flagged for review. 0 = rule off."
+msgstr "Mehr Bestellungen eines Partners innerhalb von 24 Stunden werden zur Prüfung markiert. 0 = Regel aus."
+
+msgid "Review orders above (net)"
+msgstr "Bestellungen prüfen ab (netto)"
+
+msgid "Orders above this net value are flagged for review. 0 = rule off."
+msgstr "Bestellungen über diesem Nettowert werden zur Prüfung markiert. 0 = Regel aus."
+
+msgid "Min. seconds between click and order"
+msgstr "Min. Sekunden zwischen Klick und Bestellung"
+
+msgid "Orders placed sooner after the partner link click are flagged for review. 0 = rule off."
+msgstr "Bestellungen, die schneller nach dem Klick auf den Partnerlink aufgegeben werden, werden zur Prüfung markiert. 0 = Regel aus."
+
+msgid "Max. refund rate of a partner in % (90 days, min. 5 orders)"
+msgstr "Max. Rückerstattungsquote eines Partners in % (90 Tage, mind. 5 Bestellungen)"
+
+msgid "Partners whose orders are refunded more often than this (90 days, at least 5 orders) get new commissions flagged for review. 0 = rule off."
+msgstr "Bei Partnern, deren Bestellungen öfter erstattet werden (90 Tage, mindestens 5 Bestellungen), werden neue Provisionen zur Prüfung markiert. 0 = Regel aus."
+
+msgid "Review orders with disposable or blocked e-mail domains"
+msgstr "Bestellungen mit Wegwerf- oder gesperrten E-Mail-Domains prüfen"
+
+msgid "Orders with throwaway e-mail addresses or a blocked domain are flagged for review."
+msgstr "Bestellungen mit Wegwerf-E-Mail-Adressen oder einer gesperrten Domain werden zur Prüfung markiert."
+
+msgid "Additional blocked domains"
+msgstr "Zusätzlich gesperrte Domains"
+
+msgid "One e-mail domain per line, in addition to the built-in list of throwaway domains."
+msgstr "Eine E-Mail-Domain je Zeile, zusätzlich zur eingebauten Liste von Wegwerf-Domains."
+
+msgid "Ask for the password again before payout files, marking payouts as paid, bank details and account links"
+msgstr "Passwort erneut abfragen vor Auszahlungsdateien, „Als bezahlt markieren“, Bankdaten und Kontoverknüpfungen"
+
+msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
+msgstr "Bankdaten freigeben, ein Partnerkonto verknüpfen oder trennen, Auszahlungsdaten ändern, SEPA-, Überweisungs- oder PayPal-Dateien herunterladen und Auszahlungen als bezahlt markieren erfordern eine Passwortbestätigung, die 15 Minuten in der Login-Sitzung gilt (mit dem Plugin Two-Factor auch dessen zweiten Faktor). WP-CLI und die REST-API sind nicht betroffen. Auch das Ausschalten erfordert eine Bestätigung."
+
+msgid "Monthly summary e-mail to the operator"
+msgstr "Monatliche Zusammenfassung per E-Mail an den Betreiber"
+
+msgid "On the first days of the month you get a summary of the previous month (clicks, sales, commissions, payouts)."
+msgstr "In den ersten Tagen des Monats bekommst du eine Zusammenfassung des Vormonats (Klicks, Verkäufe, Provisionen, Auszahlungen)."
+
+msgid "Monthly summary e-mail to active partners"
+msgstr "Monatliche Zusammenfassung per E-Mail an aktive Partner"
+
+msgid "Sent on the first days of the month for the previous month."
+msgstr "Wird in den ersten Tagen des Monats für den Vormonat versendet."
+
+msgid "Show notes about add-on features"
+msgstr "Hinweise auf Add-on-Funktionen anzeigen"
+
+msgid "Grey text lines at the end of a tab name features of Affiliate Captain Pro. They contain no form fields and change nothing; switch them off here."
+msgstr "Graue Textzeilen am Ende eines Reiters nennen Funktionen von Affiliate Captain Pro. Sie enthalten keine Eingabefelder und ändern nichts; hier kannst du sie ausschalten."
+
+msgid "Delete all data when the plugin is deleted"
+msgstr "Alle Daten löschen, wenn das Plugin gelöscht wird"
+
+msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
+msgstr "Provisions- und Auszahlungsdaten, Gutschriften und das Protokoll bleiben erhalten, solange eine Gutschrift in der Aufbewahrungsfrist liegt; alles andere wird gelöscht."
 
 msgid "Affiliate Captain needs a published registration page (Affiliate Captain → Settings): applicants confirm their e-mail address there."
 msgstr "Affiliate Captain braucht eine veröffentlichte Bewerbungsseite (Affiliate Captain → Einstellungen): Dort bestätigen Bewerber ihre E-Mail-Adresse."
