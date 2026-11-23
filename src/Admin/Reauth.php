@@ -55,7 +55,7 @@ final class Reauth {
 	const ATTEMPT_WINDOW = 900;
 
 	/** Actions (see action_key()) that need a confirmation by default. */
-	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive' );
+	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive', 'withholding_update' );
 
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
@@ -323,6 +323,7 @@ final class Reauth {
 			'user_unlink'         => __( 'Unlink the WordPress account of a partner', 'affiliate-captain' ),
 			'user_link_resend'    => __( 'Send the link to connect the account again', 'affiliate-captain' ),
 			'profile_update'      => __( 'Change the payout and tax details of a partner', 'affiliate-captain' ),
+			'withholding_update'  => __( 'Change the withholding of a partner', 'affiliate-captain' ),
 			'payout_bulk_sepa'    => __( 'Download SEPA XML', 'affiliate-captain' ),
 			'payout_bulk_csv'     => __( 'Download transfer list (CSV, any currency)', 'affiliate-captain' ),
 			'payout_bulk_paypal'  => __( 'Download PayPal payouts file (CSV)', 'affiliate-captain' ),

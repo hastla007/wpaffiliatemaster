@@ -405,7 +405,13 @@ final class EInvoice {
 				? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' )
 				: __( 'This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
 		}
-		$german = in_array( $country, array( 'DE', 'AT', 'CH' ), true );
+		// SET-AC-20: a withholding is no VAT and no allowance (an allowance, BG-20, needs a VAT
+		// category and lowers the taxable amount): the invoice total stays the full gross amount; the
+		// amount withheld (paid to the tax office on the partner's behalf) is shown as already
+		// settled (BT-113 paid amount), so the amount due (BT-115) equals the transfer, and as a note
+		// (BT-22) and in the payment terms (BT-20).
+		$withholding = $correct ? null : Withholding::of_payout( $p );
+		$german      = in_array( $country, array( 'DE', 'AT', 'CH' ), true );
 		if ( $storno ) {
 			/* translators: %s: original document number */
 			$title = sprintf( __( 'Cancellation of credit note %s', 'affiliate-captain' ), $p->number );
@@ -424,6 +430,7 @@ final class EInvoice {
 					$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'affiliate-captain' ) : '',
 					/* translators: %s: amount */
 					$untaxed ? sprintf( __( 'Repayments, write-offs and settled correction credit notes (%s) are no service and not subject to VAT; they are shown as the amount already settled, so the amount due equals the payout amount.', 'affiliate-captain' ), html_entity_decode( Money::format( $untaxed, (string) $p->currency ), ENT_QUOTES, 'UTF-8' ) ) : '',
+					$withholding ? Withholding::note( $withholding, (string) $p->currency ) . ' ' . __( 'It is shown as the amount already settled, so the amount due equals the payout amount.', 'affiliate-captain' ) : '',
 					self::copy_note(),
 				)
 			)
@@ -442,6 +449,14 @@ final class EInvoice {
 			$preceding = null;
 			$terms     = __( 'Paid by the issuer of this credit note (recipient of the service) by transfer with the payout; the partner does not have to pay anything.', 'affiliate-captain' );
 		}
+		if ( $withholding && ! $storno ) {
+			$terms .= ' ' . sprintf(
+				/* translators: 1: line label (percentage and basis), 2: amount */
+				__( '%1$s (%2$s) is deducted from the amount transferred.', 'affiliate-captain' ),
+				Withholding::label( $withholding, (string) $p->currency ),
+				html_entity_decode( Money::format( (int) $withholding['minor'], (string) $p->currency ), ENT_QUOTES, 'UTF-8' )
+			);
+		}
 		$end  = self::day( (string) $p->period_end );
 		$data = array(
 			'number'          => $storno ? (string) $p->storno_number : (string) $p->number,
@@ -456,7 +471,7 @@ final class EInvoice {
 			'lines'           => $lines,
 			'taxes'           => $taxes,
 			'exemptions'      => self::exemptions( $country ),
-			'prepaid'         => -$untaxed,
+			'prepaid'         => -$untaxed + ( $withholding ? (int) $withholding['minor'] : 0 ),
 			'payment'         => self::payment( $snap ),
 			'terms'           => $terms,
 			'preceding'       => $preceding,

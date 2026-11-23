@@ -925,6 +925,33 @@ final class PayoutService {
 					// (e.g. VAT corrections of earlier credit notes after a change of the tax status).
 					return 0;
 				}
+				// SET-AC-20: withholding per partner (0 = none: nothing changes). Frozen in the snapshot;
+				// the amount transferred is reduced by it, net and VAT of the document stay.
+				$withheld = 0;
+				if ( ! $settle ) {
+					$taxable = 0;
+					foreach ( $rows as $r ) {
+						if ( Corrections::KIND !== (string) $r->kind && Vat::NONE !== $treat[ (int) $r->id ]['mode'] ) {
+							$taxable += (int) $r->amount_minor;
+						}
+					}
+					$withholding = Withholding::compute(
+						(int) $affiliate_id,
+						array(
+							'currency'      => (string) $currency,
+							'period_end'    => (string) $period_end,
+							'net_minor'     => $total,
+							'taxable_minor' => $taxable,
+							'vat_minor'     => $vat_minor,
+							'gross_minor'   => $gross,
+							'vat_mode'      => (string) $vat['mode'],
+						)
+					);
+					if ( $withholding ) {
+						$snapshot['withholding'] = $withholding;
+						$withheld                = (int) $withholding['minor'];
+					}
+				}
 				// Logo and footer are frozen with the document (SET-AC-16).
 				$operator_snapshot = array_merge( self::operator_snapshot(), DocumentBrand::snapshot() );
 				if ( $settle ) {
@@ -944,7 +971,7 @@ final class PayoutService {
 						'vat_mode'         => $vat['mode'],
 						'vat_rate'         => (string) $vat['rate'],
 						'vat_minor'        => $vat_minor,
-						'amount_minor'     => $total + $vat_minor, // Amount paid out (gross).
+						'amount_minor'     => $total + $vat_minor - $withheld, // Amount paid out (gross less a withholding).
 						'status'           => 'pending',
 						'profile_snapshot' => wp_json_encode( $snapshot ),
 						'operator_snapshot' => wp_json_encode( $operator_snapshot ),
@@ -991,6 +1018,7 @@ final class PayoutService {
 						'amount' => $total,
 						'vat'    => $vat_minor,
 					) + ( $capped ? array( 'capped' => 1 ) : array() )
+					+ ( $withheld ? array( 'withholding' => $withheld ) : array() )
 				);
 				return $payout_id;
 			}

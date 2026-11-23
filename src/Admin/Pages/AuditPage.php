@@ -46,6 +46,7 @@ final class AuditPage {
 				'affiliate.updated'                 => __( 'Partner details changed', 'affiliate-captain' ),
 				'affiliate.status'                  => __( 'Status changed', 'affiliate-captain' ),
 				'affiliate.email_changed'           => __( 'E-mail address changed', 'affiliate-captain' ),
+				'affiliate.withholding'             => __( 'Withholding changed', 'affiliate-captain' ),
 				'affiliate.public_change_requested' => __( 'Change of public details requested', 'affiliate-captain' ),
 				'affiliate.public_change_approved'  => __( 'Change of public details approved', 'affiliate-captain' ),
 				'affiliate.public_change_rejected'  => __( 'Change of public details rejected', 'affiliate-captain' ),

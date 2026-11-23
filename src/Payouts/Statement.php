@@ -747,6 +747,12 @@ final class Statement {
 		if ( $kg_sum ) {
 			$totals[] = array( __( 'Correction credit notes settled (gross, VAT shown there)', 'affiliate-captain' ), $sign * $kg_sum, false, true );
 		}
+		// SET-AC-20: a withholding is a line of its own after the gross total (only when there is one).
+		$withholding = Withholding::of_payout( $p );
+		if ( $withholding ) {
+			$totals[] = array( __( 'Total credit note', 'affiliate-captain' ), $sign * ( (int) $p->amount_minor + (int) $withholding['minor'] ), false );
+			$totals[] = array( Withholding::label( $withholding, (string) $p->currency ), -$sign * (int) $withholding['minor'], false, true );
+		}
 		if ( $storno ) {
 			$total_label = __( 'Total cancelled', 'affiliate-captain' );
 		} elseif ( $correct ) {
@@ -790,6 +796,7 @@ final class Statement {
 					$correct ? __( 'This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred.', 'affiliate-captain' ) : '',
 					$settles ? __( 'Correction credit notes settled: the amounts are the gross differences of the correction credit notes named, whose VAT is shown there; no VAT is added on this document.', 'affiliate-captain' ) : '',
 					$self_note,
+					$withholding ? Withholding::note( $withholding, (string) $p->currency ) : '',
 					$storno ? __( 'This document cancels the credit note named above in full. The commissions remain available for a later payout.', 'affiliate-captain' ) : '',
 					$duplicate ? __( 'Duplicate: built again from the stored data because the original file was not available on this server.', 'affiliate-captain' ) : '',
 				)
@@ -883,6 +890,7 @@ final class Statement {
 		$settled  = array();
 		$untaxed  = array();
 		$not_paid = array();
+		$withheld = array();
 		if ( $rows ) {
 			$it    = Db::table( 'payout_items' );
 			$ct    = Db::table( 'commissions' );
@@ -899,7 +907,8 @@ final class Statement {
 			$kg   = isset( $settled[ (int) $p->id ] ) ? $settled[ (int) $p->id ] : 0;
 			$none = isset( $untaxed[ (int) $p->id ] ) ? $untaxed[ (int) $p->id ] : 0;
 			$net  = ( (int) $p->net_minor ? (int) $p->net_minor : (int) $p->amount_minor - (int) $p->vat_minor ) - $kg - $none;
-			$sum  = (int) $p->amount_minor - $kg - $none;
+			$held = Withholding::minor( $p ); // SET-AC-20: the gross of the document includes it.
+			$sum  = (int) $p->amount_minor + $held - $kg - $none;
 			// A cancellation only reduces the year when the credit note it cancels was issued: a
 			// credit note never written (its cancellation document failing for good, R13-N8)
 			// shows neither line instead of a lone minus.
@@ -907,11 +916,13 @@ final class Statement {
 			if ( $p->statement_file && $p->created_at >= $from && $p->created_at <= $to ) {
 				$line( (string) $p->number, $date( $p->created_at ), $net, (int) $p->vat_minor, $sum, $p->currency );
 				$not_paid[ $p->currency ] = ( isset( $not_paid[ $p->currency ] ) ? $not_paid[ $p->currency ] : 0 ) + $none;
+				$withheld[ $p->currency ] = ( isset( $withheld[ $p->currency ] ) ? $withheld[ $p->currency ] : 0 ) + $held;
 			}
 			if ( $issued && $p->storno_at && $p->storno_at >= $from && $p->storno_at <= $to && (string) $p->storno_number ) {
 				/* translators: %s: credit note number */
 				$line( (string) $p->storno_number . ' (' . sprintf( __( 'cancels %s', 'affiliate-captain' ), $p->number ) . ')', $date( $p->storno_at ), -$net, -(int) $p->vat_minor, -$sum, $p->currency );
 				$not_paid[ $p->currency ] = ( isset( $not_paid[ $p->currency ] ) ? $not_paid[ $p->currency ] : 0 ) - $none;
+				$withheld[ $p->currency ] = ( isset( $withheld[ $p->currency ] ) ? $withheld[ $p->currency ] : 0 ) - $held;
 			}
 		}
 		// Correction credit notes dated in the year: their difference changes the year's amounts.
@@ -942,6 +953,15 @@ final class Statement {
 			if ( $amount ) {
 				// Settled with the credit notes, not part of the totals (no service).
 				$pdf->text( 50, $y, __( 'Repayments and write-offs (not taxable)', 'affiliate-captain' ), 9 );
+				$pdf->text( 545, $y, Money::format( $amount, $cur ), 9, false, 'right' );
+				$y += 13;
+			}
+		}
+		foreach ( $withheld as $cur => $amount ) {
+			if ( $amount ) {
+				// SET-AC-20: included in the gross totals above, not transferred to the partner.
+				/* translators: %s: currency */
+				$pdf->text( 50, $y, sprintf( __( 'Withheld from the payouts (included in the total %s)', 'affiliate-captain' ), $cur ), 9 );
 				$pdf->text( 545, $y, Money::format( $amount, $cur ), 9, false, 'right' );
 				$y += 13;
 			}

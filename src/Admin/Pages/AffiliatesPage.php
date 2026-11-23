@@ -214,6 +214,7 @@ final class AffiliatesPage {
 			case 'bank_approve':
 			case 'bank_reject':
 			case 'profile_update':
+			case 'withholding_update':
 				self::handle_payout_data( $do, $id );
 				break;
 		}
@@ -506,6 +507,27 @@ final class AffiliatesPage {
 				}
 				Admin::back( __( 'Payout details saved.', 'affiliate-captain' ) );
 				break;
+
+			case 'withholding_update':
+				// SET-AC-20: changes the amount transferred and the documents of new payouts.
+				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+					Admin::back( __( 'You are not allowed to view tax and bank details.', 'affiliate-captain' ), 'error' );
+				}
+				$percent = (string) Admin::post( 'withholding_percent' );
+				$note    = (string) Admin::post( 'withholding_note' );
+				$result  = \WPAffiliateCaptain\Payouts\Withholding::save( $id, $percent, $note );
+				if ( is_wp_error( $result ) ) {
+					Admin::keep_form(
+						'withholding_' . $id,
+						array(
+							'withholding_percent' => sanitize_text_field( $percent ),
+							'withholding_note'    => sanitize_textarea_field( $note ),
+						)
+					);
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'Withholding saved. It applies to payouts created from now on.', 'affiliate-captain' ) );
+				break;
 		}
 	}
 
@@ -679,6 +701,11 @@ final class AffiliatesPage {
 		ob_start();
 		self::render_payout_box( $id );
 		$parts['payout'][] = ob_get_clean();
+		if ( current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+			ob_start();
+			self::render_withholding_box( $id );
+			$parts['payout'][] = ob_get_clean();
+		}
 		ob_start();
 		self::render_history_box( $id );
 		$parts['history'][] = ob_get_clean();
@@ -1125,6 +1152,35 @@ final class AffiliatesPage {
 		}
 		echo '</div></div>';
 
+	}
+
+	/**
+	 * Detail view: withholding of the partner (SET-AC-20, owner decision E8 (a)).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_withholding_box( $id ) {
+		$field = \WPAffiliateCaptain\Payouts\Withholding::field();
+		$value = \WPAffiliateCaptain\Payouts\Withholding::get( $id );
+		$kept  = Admin::kept_form( 'withholding_' . $id );
+		$pct   = isset( $kept['withholding_percent'] ) ? (string) $kept['withholding_percent'] : \WPAffiliateCaptain\Core\Locale::number( $value['percent'] );
+		$note  = isset( $kept['withholding_note'] ) ? (string) $kept['withholding_note'] : $value['note'];
+		$legal = ! empty( $field['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
+		$edit  = current_user_can( Capabilities::MANAGE_PAYOUTS );
+		echo '<div class="postbox wpac-withholding"><h2 class="hndle">' . esc_html__( 'Withholding', 'affiliate-captain' ) . '</h2><div class="inside">';
+		Admin::form_open( 'withholding_update' );
+		echo '<input type="hidden" name="id" value="' . (int) $id . '"><table class="form-table">';
+		echo '<tr><th><label for="wpac-withholding_percent">' . esc_html( (string) $field['label'] ) . '</label></th><td><input type="text" inputmode="decimal" id="wpac-withholding_percent" name="withholding_percent" value="' . esc_attr( $pct ) . '" class="small-text" dir="ltr" aria-describedby="wpac-desc-withholding"' . ( $edit ? '' : ' readonly' ) . '> %';
+		echo '<p class="description" id="wpac-desc-withholding">' . esc_html( (string) $field['help'] ) . $legal . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
+		echo '<tr><th><label for="wpac-withholding_note">' . esc_html__( 'Note on the documents', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-withholding_note" name="withholding_note" rows="3" class="large-text" maxlength="' . (int) \WPAffiliateCaptain\Payouts\Withholding::NOTE_MAX . '" aria-describedby="wpac-desc-withholding-note"' . ( $edit ? '' : ' readonly' ) . '>' . esc_textarea( $note ) . '</textarea>';
+		echo '<p class="description" id="wpac-desc-withholding-note">' . esc_html__( 'Required when a withholding is set, e.g. the legal basis and that the amount is paid to the tax office.', 'affiliate-captain' ) . '</p></td></tr>';
+		echo '</table>';
+		if ( $edit ) {
+			submit_button( __( 'Save withholding', 'affiliate-captain' ), 'secondary' );
+		} else {
+			echo '<p class="description">' . esc_html__( 'Only users who manage payouts can change payout details.', 'affiliate-captain' ) . '</p>';
+		}
+		echo '</form></div></div>';
 	}
 
 	/**

@@ -1590,6 +1590,7 @@ require __DIR__ . '/set-ac-fx.php'; // SET-AC-13 dunning stages and deadlines, S
 require __DIR__ . '/set-ac-sw.php'; // SET-AC-26/28: switches per feature, log level (before r8-render).
 require __DIR__ . '/set-ac-logo.php'; // SET-AC-16: logo and footer on credit notes, logo in HTML mails (before r8-render).
 require __DIR__ . '/set-ac-base.php'; // SET-AC-02: commission base net/gross, shipping and fees (before r8-render).
+require __DIR__ . '/set-ac-wht.php'; // SET-AC-20: withholding per partner (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1608,6 +1609,7 @@ require __DIR__ . '/su3-render.php'; // After the render files: review quality o
 require __DIR__ . '/set-ac1-render.php'; // After the render files: settings register and add-on rows (SET-AC-01/05).
 require __DIR__ . '/set-ac35.php'; // Uninstall standard: typed confirmation word, not exported (SET-AC-35).
 require __DIR__ . '/set-ac-fx-render.php'; // SET-AC-13 / SET-AC-29 on the settings page (after the render files: template stubs).
+require __DIR__ . '/set-ac-wht-render.php'; // After the render files: withholding box and payout receipt (SET-AC-20).
 require __DIR__ . '/set-ac-review.php'; // Findings of the settings review phase (SET-AC-P1 … P6).
 require __DIR__ . '/set-ac-rules-render.php'; // After the render files: rule form, list and preview (SET-AC-22).
 require __DIR__ . '/set-ac-sw-render.php'; // SET-AC-26/28 render: menu, settings page, partner area with features on/off.
