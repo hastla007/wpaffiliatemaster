@@ -806,6 +806,7 @@ final class RestApi {
 			'to'          => $to,
 			'currency'    => (string) Settings::get( 'currency' ),
 			'unconverted' => array_keys( Reports::$unconverted ),
+			'rates_date'  => \WPAffiliateCaptain\Core\Fx::rates() ? \WPAffiliateCaptain\Core\Fx::rates_date() : '', // Date of the reference rates (SET-AC-29).
 			'rows'        => $rows,
 		);
 		if ( null !== $program ) {

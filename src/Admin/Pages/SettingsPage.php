@@ -43,6 +43,11 @@ final class SettingsPage {
 			return;
 		}
 		$raw  = (array) Admin::post( 'wpac', array() );
+		if ( isset( $raw['fx_rows'] ) && is_array( $raw['fx_rows'] ) ) {
+			// Exchange rate table (SET-AC-29): stored as the same text as before.
+			list( $raw['exchange_rates'], $raw['min_payout_currency'] ) = \WPAffiliateCaptain\Core\Fx::rows_to_text( $raw['fx_rows'] );
+		}
+		unset( $raw['fx_rows'] );
 		$tabs = self::tab_keys();
 		$tab  = self::tab_alias( sanitize_key( Admin::post( 'tab' ) ) );
 		$tab  = isset( $tabs[ $tab ] ) ? $tab : 'program';
@@ -743,6 +748,65 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Exchange rates as a table (SET-AC-29): currency, rate, own minimum payout; rows can be added
+	 * and removed (with JavaScript; without it an empty row is always offered and a row is removed
+	 * by emptying it). Below the table the date of the rates, set automatically on a change.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function exchange_rate_table( array $s, $currency ) {
+		$rows   = \WPAffiliateCaptain\Core\Fx::text_to_rows( self::shown( 'exchange_rates', $s['exchange_rates'] ), self::shown( 'min_payout_currency', $s['min_payout_currency'] ) );
+		$rows[] = array(
+			'currency' => '',
+			'rate'     => '',
+			'min'      => '',
+		);
+		$rate_err = self::error_parts( 'exchange_rates', true );
+		$min_err  = self::error_parts( 'min_payout_currency' );
+		/* translators: %s: program currency */
+		$rate_head = sprintf( __( 'Rate (1 unit = x %s)', 'affiliate-captain' ), $currency );
+		$min_head  = SettingsSchema::label( 'min_payout_currency' );
+		echo '<tr><th scope="row" id="wpac-fx-label">' . esc_html( SettingsSchema::label( 'exchange_rates' ) ) . '</th><td>';
+		echo '<table class="widefat striped wpac-fx-table" aria-labelledby="wpac-fx-label"><thead><tr><th scope="col">' . esc_html__( 'Currency', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html( $rate_head ) . '</th><th scope="col">' . esc_html( $min_head ) . '</th><th scope="col"><span class="screen-reader-text">' . esc_html__( 'Remove', 'affiliate-captain' ) . '</span></th></tr></thead><tbody data-wpac-rows>';
+		foreach ( $rows as $n => $row ) {
+			self::exchange_rate_row( (string) $n, $row, $rate_err[0], $min_err[0] );
+		}
+		echo '</tbody></table>';
+		echo '<template data-wpac-row-template>';
+		self::exchange_rate_row( '__N__', array( 'currency' => '', 'rate' => '', 'min' => '' ), '', '' );
+		echo '</template>';
+		echo '<p><button type="button" class="button" data-wpac-row-add hidden>' . esc_html__( 'Add currency', 'affiliate-captain' ) . '</button></p>';
+		echo $rate_err[1] . $min_err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		/* translators: %s: program currency */
+		echo '<p class="description" id="wpac-desc-exchange_rates">' . esc_html( sprintf( __( '1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies. Remove a row by emptying it.', 'affiliate-captain' ), $currency ) ) . ' ' . esc_html( SettingsSchema::help( 'min_payout_currency' ) ) . '</p>';
+		echo '</td></tr>';
+		$date = \WPAffiliateCaptain\Core\Fx::rates_date();
+		$err  = self::error_parts( 'exchange_rates_date', true );
+		echo '<tr><th><label for="wpac-exchange_rates_date">' . esc_html( SettingsSchema::label( 'exchange_rates_date' ) ) . '</label></th><td><input type="text" readonly id="wpac-exchange_rates_date" name="wpac[exchange_rates_date]" value="' . esc_attr( $date ) . '" class="regular-text"' . $err[0] . '> ' . esc_html( '' !== $date ? \WPAffiliateCaptain\Core\Fx::date_text( $date ) : __( 'not known yet', 'affiliate-captain' ) ) . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		self::desc( SettingsSchema::help( 'exchange_rates_date' ), 'exchange_rates_date' );
+		echo '</td></tr>';
+	}
+
+	/**
+	 * One row of the exchange rate table.
+	 *
+	 * @param string $n        Row index (or the template placeholder).
+	 * @param array  $row      { currency, rate, min }.
+	 * @param string $rate_att Error attributes of the rates.
+	 * @param string $min_att  Error attributes of the minimums.
+	 */
+	private static function exchange_rate_row( $n, array $row, $rate_att, $min_att ) {
+		$name = 'wpac[fx_rows][' . $n . ']';
+		echo '<tr>';
+		echo '<td><input type="text" name="' . esc_attr( $name . '[currency]' ) . '" value="' . esc_attr( $row['currency'] ) . '" class="small-text code" maxlength="3" size="4" pattern="[A-Za-z]{3}" placeholder="USD" aria-label="' . esc_attr__( 'Currency', 'affiliate-captain' ) . '"></td>';
+		echo '<td><input type="text" name="' . esc_attr( $name . '[rate]' ) . '" value="' . esc_attr( $row['rate'] ) . '" class="regular-text code" inputmode="decimal" placeholder="0.92" aria-label="' . esc_attr__( 'Exchange rate', 'affiliate-captain' ) . '"' . $rate_att . '></td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		echo '<td><input type="text" name="' . esc_attr( $name . '[min]' ) . '" value="' . esc_attr( $row['min'] ) . '" class="small-text" inputmode="decimal" aria-label="' . esc_attr( SettingsSchema::label( 'min_payout_currency' ) ) . '"' . $min_att . '></td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		echo '<td><button type="button" class="button-link wpac-fx-remove" data-wpac-row-remove hidden>' . esc_html__( 'Remove', 'affiliate-captain' ) . '</button></td>';
+		echo '</tr>';
+	}
+
+	/**
 	 * Fields of the 'Commissions' tab.
 	 *
 	 * @param array  $s        Settings.
@@ -751,8 +815,7 @@ final class SettingsPage {
 	private static function render_commissions_tab( array $s, $currency ) {
 		self::section( __( 'Program currency', 'affiliate-captain' ), 'commissions' );
 		self::currency_field( $s );
-		$err = self::error_parts( 'exchange_rates', true );
-		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html( SettingsSchema::label( 'exchange_rates' ) ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05"' . $err[0] . '>' . esc_textarea( self::shown( 'exchange_rates', $s['exchange_rates'] ) ) . '</textarea>' . $err[1] . '<p class="description" id="wpac-desc-exchange_rates">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'affiliate-captain' ), $currency ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		self::exchange_rate_table( $s, $currency );
 		self::end();
 
 		self::section( __( 'Default commission', 'affiliate-captain' ), 'commissions' );
@@ -889,6 +952,12 @@ final class SettingsPage {
 		self::text( 'debtor_iban', null, $s );
 		self::text( 'debtor_bic', null, $s );
 		self::text( 'remittance_prefix', null, $s );
+		self::end();
+
+		self::section( __( 'Claiming back debts of ended partnerships', 'affiliate-captain' ), 'payouts' );
+		self::number( 'dunning_levels', null, $s );
+		self::number( 'dunning_days', null, $s );
+		self::number( 'dunning_final_days', null, $s );
 		self::end();
 	}
 
