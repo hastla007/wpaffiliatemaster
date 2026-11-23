@@ -547,7 +547,8 @@ final class Corrections {
 	 * @return array
 	 */
 	private static function operator_snapshot() {
-		$op             = PayoutService::operator_snapshot();
+		// Logo and footer are frozen with the document (SET-AC-16).
+		$op             = array_merge( PayoutService::operator_snapshot(), DocumentBrand::snapshot() );
 		$op['document'] = 'correction_note';
 		return $op;
 	}
@@ -606,7 +607,8 @@ final class Corrections {
 				'created' => strtotime( $c->created_at . ' UTC' ),
 			)
 		);
-		$y = 60;
+		// Logo and footer frozen with the document (SET-AC-16); without them the layout is unchanged.
+		$y = DocumentBrand::apply( $pdf, $op );
 		$pdf->text( 50, $y, $title, 15, true );
 		if ( $duplicate ) {
 			$pdf->text( 545, $y, __( 'DUPLICATE', 'affiliate-captain' ), 11, true, 'right' );
@@ -670,7 +672,7 @@ final class Corrections {
 		foreach ( $facts as $k => $v ) {
 			$pdf->text( 50, $y, $k . ':', 9, true );
 			foreach ( Pdf::wrap( (string) $v, 355, 9 ) as $line ) {
-				if ( $y > 780 ) {
+				if ( $y > $pdf->limit( 780 ) ) {
 					$pdf->add_page();
 					$y = 60;
 				}
@@ -692,6 +694,11 @@ final class Corrections {
 			array( __( 'Corrected', 'affiliate-captain' ), (int) $c->net_minor, (int) $c->vat_minor, $gross, false ),
 			array( __( 'Difference', 'affiliate-captain' ), (int) $c->net_minor - (int) $c->prev_net_minor, (int) $c->vat_minor - (int) $c->prev_vat_minor, $gross - $prev_gross, true ),
 		);
+		if ( $pdf->limit( 800 ) < 800 && $y + 16 * count( $rows ) + 24 > $pdf->limit( 800 ) ) {
+			// With a footer (SET-AC-16) the amounts never run into it.
+			$pdf->add_page();
+			$y = 60;
+		}
 		foreach ( $rows as $r ) {
 			if ( $r[4] ) {
 				$pdf->line( 50, $y - 9, 545, $y - 9 );
@@ -746,7 +753,7 @@ final class Corrections {
 			$lines = array_merge( $lines, Pdf::wrap( sprintf( __( 'Some characters cannot be shown in this document and were transliterated. Original spelling: %s', 'affiliate-captain' ), implode( ' | ', $orig ) ), 495, 8 ) );
 		}
 		foreach ( $lines as $line ) {
-			if ( $y > 800 ) {
+			if ( $y > $pdf->limit( 800 ) ) {
 				$pdf->add_page();
 				$y = 60;
 			}

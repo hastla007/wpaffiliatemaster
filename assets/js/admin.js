@@ -264,3 +264,43 @@ document.addEventListener( 'DOMContentLoaded', function () {
 		timer = window.setTimeout( update, 150 );
 	} );
 } );
+/* Image from the media library (SET-AC-16): data-wpac-media="input id" opens the library, data-wpac-media-clear empties the field. */
+document.addEventListener( 'click', function ( e ) {
+	var btn = e.target.closest ? e.target.closest( '[data-wpac-media], [data-wpac-media-clear]' ) : null;
+	if ( ! btn ) {
+		return;
+	}
+	var clear = btn.hasAttribute( 'data-wpac-media-clear' );
+	var input = document.getElementById( btn.getAttribute( clear ? 'data-wpac-media-clear' : 'data-wpac-media' ) );
+	if ( ! input ) {
+		return;
+	}
+	var preview = document.getElementById( input.id + '-preview' );
+	if ( clear ) {
+		e.preventDefault();
+		input.value = '0';
+		if ( preview ) {
+			preview.textContent = '';
+		}
+		return;
+	}
+	if ( ! window.wp || ! window.wp.media ) {
+		return; /* Without the media library the ID can be typed. */
+	}
+	e.preventDefault();
+	var frame = window.wp.media( { title: btn.getAttribute( 'data-wpac-media-title' ), library: { type: [ 'image/png', 'image/jpeg' ] }, multiple: false } );
+	frame.on( 'select', function () {
+		var a = frame.state().get( 'selection' ).first().toJSON();
+		input.value = a.id;
+		if ( preview ) {
+			preview.textContent = '';
+			var img = document.createElement( 'img' );
+			img.src = a.sizes && a.sizes.thumbnail ? a.sizes.thumbnail.url : a.url;
+			img.alt = '';
+			img.style.maxHeight = '60px';
+			img.style.verticalAlign = 'middle';
+			preview.appendChild( img );
+		}
+	} );
+	frame.open();
+} );

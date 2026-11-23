@@ -581,8 +581,74 @@ final class Settings {
 
 		self::sanitize_promotion_mail_fields( $in, $out, $errors, $old, $d );
 		self::sanitize_billing_fields( $in, $out, $errors, $old, $d );
+		self::sanitize_brand_fields( $in, $out, $errors, $old, $d );
 
 		return $out;
+	}
+
+	/**
+	 * Sanitize: logo and footer of documents, logo of HTML mails (SET-AC-16). An image is checked
+	 * when it is chosen (an unchanged choice is kept even if the file changed meanwhile: documents
+	 * only print a logo whose file still matches the frozen hash).
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_brand_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
+		$out['document_footer'] = '';
+		if ( isset( $in['document_footer'] ) ) {
+			$raw   = str_replace( array( "\r\n", "\r" ), "\n", (string) $in['document_footer'] );
+			$lines = array_filter( array_map( 'trim', explode( "\n", $raw ) ), 'strlen' );
+			$long  = array_filter(
+				$lines,
+				static function ( $line ) {
+					return ( function_exists( 'mb_strlen' ) ? mb_strlen( $line ) : strlen( $line ) ) > \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINE_CHARS;
+				}
+			);
+			if ( count( $lines ) > \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINES || $long ) {
+				/* translators: 1: number of lines, 2: number of characters */
+				$errors['document_footer'] = sprintf( __( 'Please enter at most %1$d lines of at most %2$d characters each.', 'affiliate-captain' ), \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINES, \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINE_CHARS );
+				$out['document_footer']    = (string) $old( 'document_footer' );
+			} else {
+				$out['document_footer'] = \WPAffiliateCaptain\Payouts\DocumentBrand::clean_footer( $raw );
+			}
+		}
+		foreach ( SettingsSchema::keys_of( 'image' ) as $key ) {
+			$out[ $key ] = $d[ $key ];
+			if ( ! isset( $in[ $key ] ) ) {
+				continue;
+			}
+			$raw = trim( (string) $in[ $key ] );
+			if ( '' === $raw || preg_match( '/^0+$/', $raw ) ) {
+				$out[ $key ] = 0;
+				continue;
+			}
+			if ( ! preg_match( '/^\d{1,10}$/', $raw ) ) {
+				$errors[ $key ] = __( 'Please choose an image from the media library.', 'affiliate-captain' );
+				$out[ $key ]    = (int) $old( $key );
+				continue;
+			}
+			$id = (int) $raw;
+			if ( $id === (int) $old( $key ) ) {
+				$out[ $key ] = $id;
+				continue;
+			}
+			if ( 'mail_logo_id' === $key ) {
+				$ok = \WPAffiliateCaptain\Payouts\DocumentBrand::check_mail_logo( $id, $error );
+			} else {
+				$max = isset( $in['document_logo_max_kb'] ) && ! isset( $errors['document_logo_max_kb'] ) ? (int) $out['document_logo_max_kb'] : (int) $old( 'document_logo_max_kb' );
+				$ok  = null !== \WPAffiliateCaptain\Payouts\DocumentBrand::load( $id, $max, $error );
+			}
+			if ( $ok ) {
+				$out[ $key ] = $id;
+			} else {
+				$errors[ $key ] = $error;
+				$out[ $key ]    = (int) $old( $key );
+			}
+		}
 	}
 
 	/**

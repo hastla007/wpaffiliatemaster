@@ -642,6 +642,7 @@ final class Notifications {
 			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;"><tr><td align="center" style="padding:24px 12px;">'
 			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:6px;"><tr>'
 			. '<td style="padding:24px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f2937;">' . "\n"
+			. \WPAffiliateCaptain\Payouts\DocumentBrand::mail_logo_html() // Logo of the e-mails (SET-AC-16; '' when none is set).
 			. $paras
 			. '</td></tr></table>'
 			. '<p style="margin:16px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;">' . $site . '</p>'

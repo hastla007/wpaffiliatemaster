@@ -499,7 +499,8 @@ final class Statement {
 				'created' => strtotime( ( $storno && $p->storno_at ? $p->storno_at : $p->created_at ) . ' UTC' ),
 			)
 		);
-		$y = 60;
+		// Logo and footer frozen with the document (SET-AC-16); without them the layout is unchanged.
+		$y = DocumentBrand::apply( $pdf, $op );
 		$pdf->text( 50, $y, $title, 15, true );
 		if ( $duplicate ) {
 			$pdf->text( 545, $y, __( 'DUPLICATE', 'affiliate-captain' ), 11, true, 'right' );
@@ -628,7 +629,7 @@ final class Statement {
 			$orig = null;
 			if ( $ref ) {
 				$y += 8;
-				if ( $y > 740 ) {
+				if ( $y > $pdf->limit( 740 ) ) {
 					$pdf->add_page();
 					$y = 60;
 				}
@@ -660,7 +661,7 @@ final class Statement {
 					array( 230, Pdf::wrap( $desc, 236, 9 ) ),
 				);
 				$height = max( count( $cells[0][1] ), count( $cells[1][1] ), count( $cells[2][1] ) );
-				if ( $y + 13 * ( $height - 1 ) > 760 ) {
+				if ( $y + 13 * ( $height - 1 ) > $pdf->limit( 760 ) ) {
 					$pdf->add_page();
 					$y = $head( $pdf, 60 );
 				}
@@ -754,6 +755,11 @@ final class Statement {
 			$total_label = __( 'Total payout', 'affiliate-captain' );
 		}
 		$totals[] = array( $total_label, $sign * (int) $p->amount_minor, true );
+		if ( $pdf->limit( 800 ) < 800 && $y + 15 * count( $totals ) + 12 > $pdf->limit( 800 ) ) {
+			// With a footer (SET-AC-16) the totals never run into it.
+			$pdf->add_page();
+			$y = 60;
+		}
 		foreach ( $totals as $t ) {
 			$amount = Money::format( $t[1], $p->currency );
 			$labels = array( $t[0] );
@@ -799,7 +805,7 @@ final class Statement {
 			$lines = array_merge( $lines, Pdf::wrap( sprintf( __( 'Some characters cannot be shown in this document and were transliterated. Original spelling: %s', 'affiliate-captain' ), implode( ' | ', $orig ) ), 495, 8 ) );
 		}
 		foreach ( $lines as $line ) {
-			if ( $y > 800 ) {
+			if ( $y > $pdf->limit( 800 ) ) {
 				$pdf->add_page();
 				$y = 60;
 			}
