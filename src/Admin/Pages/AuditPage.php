@@ -133,6 +133,7 @@ final class AuditPage {
 				'settings.exported'                 => __( 'Settings exported', 'affiliate-captain' ),
 				'settings.reset'                    => __( 'Settings reset to defaults', 'affiliate-captain' ),
 				'settings.cli'                      => __( 'Setting changed with WP-CLI', 'affiliate-captain' ),
+				'sequence.start_raised'             => __( 'Start number of a document number range raised', 'affiliate-captain' ),
 				'security.reauth_confirmed'         => __( 'Password confirmed for a money-relevant action', 'affiliate-captain' ),
 				'security.reauth_failed'            => __( 'Password confirmation failed', 'affiliate-captain' ),
 				'settings.maintenance'              => __( 'Maintenance mode switched', 'affiliate-captain' ),

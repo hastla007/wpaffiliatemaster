@@ -850,6 +850,15 @@ final class SettingsPage {
 		self::text( 'correction_prefix', null, $s );
 		self::end();
 
+		self::section( __( 'Document numbers', 'affiliate-captain' ), 'payouts' );
+		foreach ( \WPAffiliateCaptain\Core\Sequence::RANGES as $range ) {
+			// SET-AC-15: start number and digits per number range; the year and the restart per year stay fixed (E7).
+			/* translators: 1: help text of the field, 2: number the next document gets (e.g. GS-2026-000438) */
+			self::number( $range . '_start', null, $s, sprintf( __( '%1$s Next number: %2$s', 'affiliate-captain' ), SettingsSchema::help( $range . '_start' ), \WPAffiliateCaptain\Core\Sequence::preview( $range ) ) );
+			self::number( $range . '_digits', null, $s );
+		}
+		self::end();
+
 		self::section( __( 'Electronic invoice (EN 16931)', 'affiliate-captain' ), 'payouts' );
 		self::select(
 			'einvoice_mail',
