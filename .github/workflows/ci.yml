@@ -1,19 +1,23 @@
 name: CI
 
+# Push runs only for main and release tags; branches are tested through their pull request,
+# so a push to a PR branch starts one run, not two (push + pull_request). Releases are built
+# from the tag push (v*), unchanged.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-# One run per branch/PR: a newer push cancels the older run (never on main or tags, so a
-# release run is not cut off).
+# One run per PR (or per ref for main/tags): a newer push to a PR cancels its older run; runs on
+# main and tags are never cancelled, so a release run is not cut off.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref_type != 'tag' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
