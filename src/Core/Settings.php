@@ -581,6 +581,7 @@ final class Settings {
 
 		self::sanitize_promotion_mail_fields( $in, $out, $errors, $old, $d );
 		self::sanitize_billing_fields( $in, $out, $errors, $old, $d );
+		self::sanitize_consent_fields( $in, $out, $errors, $old );
 
 		return $out;
 	}
@@ -747,6 +748,9 @@ final class Settings {
 			}
 		}
 		$out['promotion_guidelines'] = isset( $in['promotion_guidelines'] ) ? wp_kses_post( (string) $in['promotion_guidelines'] ) : '';
+		foreach ( SettingsSchema::keys_of( 'i18n' ) as $i18n ) {
+			self::sanitize_i18n( $in, $out, $errors, $old, $i18n );
+		}
 
 		$out['terms_version'] = $d['terms_version'];
 		if ( isset( $in['terms_version'] ) ) {
@@ -792,6 +796,129 @@ final class Settings {
 				$out['monitor_token'] = self::monitor_token_hash( $token );
 			}
 		}
+	}
+
+	/** HTML allowed in the texts of the application checkboxes: links only. */
+	const CONSENT_HTML = array(
+		'a' => array(
+			'href'   => true,
+			'target' => true,
+			'rel'    => true,
+		),
+	);
+
+	/**
+	 * Sanitize: wording of the checkboxes of the application form (SET-AC-18).
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 */
+	private static function sanitize_consent_fields( array $in, array &$out, array &$errors, callable $old ) {
+		$out['consent_terms_label'] = '';
+		if ( isset( $in['consent_terms_label'] ) && '' !== trim( (string) $in['consent_terms_label'] ) ) {
+			$label = Db::cut( trim( sanitize_text_field( (string) $in['consent_terms_label'] ) ), 500 );
+			if ( false === strpos( $label, '{terms}' ) ) {
+				$errors['consent_terms_label'] = __( 'Please keep the placeholder {terms} for the link to the terms, or leave the field empty for the built-in text.', 'affiliate-captain' );
+				$out['consent_terms_label']    = (string) $old( 'consent_terms_label' );
+			} else {
+				$out['consent_terms_label'] = $label;
+			}
+		}
+		foreach ( array( 'consent_extra_1', 'consent_extra_2', 'consent_extra_3' ) as $key ) {
+			$text        = isset( $in[ $key ] ) ? trim( (string) preg_replace( '/\s+/', ' ', wp_kses( (string) $in[ $key ], self::CONSENT_HTML ) ) ) : '';
+			$out[ $key ] = Db::cut( $text, 1000 );
+		}
+	}
+
+	/**
+	 * Sanitize a per-language text (SET-AC-17): form input (locale => text) or the stored JSON
+	 * (import, WP-CLI). Only installed languages other than the site language; empty texts are
+	 * dropped (the text of the site language is used for them). Stored as JSON ('' = none).
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param string   $key    Setting key.
+	 */
+	private static function sanitize_i18n( array $in, array &$out, array &$errors, callable $old, $key ) {
+		$out[ $key ] = '';
+		if ( ! isset( $in[ $key ] ) ) {
+			return;
+		}
+		$raw = $in[ $key ];
+		if ( is_string( $raw ) ) {
+			$raw = '' === trim( $raw ) ? array() : json_decode( $raw, true );
+		}
+		if ( ! is_array( $raw ) ) {
+			$errors[ $key ] = __( 'Not understood: expected one text per language.', 'affiliate-captain' );
+			$out[ $key ]    = (string) $old( $key );
+			return;
+		}
+		$base      = (string) SettingsSchema::field( $key )['base'];
+		$installed = Locale::installed();
+		$site      = Locale::site();
+		$texts     = array();
+		$unknown   = array();
+		foreach ( $raw as $locale => $text ) {
+			$locale = (string) $locale;
+			$text   = is_scalar( $text ) ? trim( (string) $text ) : '';
+			if ( '' === $text || $locale === $site ) {
+				continue;
+			}
+			if ( ! isset( $installed[ $locale ] ) ) {
+				$unknown[] = $locale;
+				continue;
+			}
+			$texts[ $locale ] = 'promotion_guidelines' === $base ? wp_kses_post( $text ) : sanitize_text_field( $text );
+		}
+		if ( $unknown ) {
+			/* translators: %s: language codes */
+			$errors[ $key ] = sprintf( __( 'These languages are not installed on this site: %s.', 'affiliate-captain' ), implode( ', ', array_slice( array_map( 'sanitize_text_field', $unknown ), 0, 5 ) ) );
+			$out[ $key ]    = (string) $old( $key );
+			return;
+		}
+		ksort( $texts );
+		$out[ $key ] = $texts ? (string) wp_json_encode( $texts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) : '';
+	}
+
+	/**
+	 * Texts of a per-language setting (locale => text).
+	 *
+	 * @param string $key Setting key of type i18n (e.g. default_disclosure_i18n).
+	 * @return array
+	 */
+	public static function texts( $key ) {
+		$map = json_decode( (string) self::get( $key ), true );
+		return is_array( $map ) ? $map : array();
+	}
+
+	/**
+	 * A text setting in a language (SET-AC-17): the text stored for that language, otherwise the
+	 * text of the site language (default_disclosure, promotion_guidelines). The filter
+	 * wpac_localized_setting can change it.
+	 *
+	 * @param string      $key    Base key (default_disclosure or promotion_guidelines).
+	 * @param string|null $locale Locale (null = the language texts are written in right now).
+	 * @return string
+	 */
+	public static function localized( $key, $locale = null ) {
+		$locale = null === $locale ? Locale::current() : (string) $locale;
+		$value  = (string) self::get( $key );
+		$texts  = SettingsSchema::field( $key . '_i18n' ) ? self::texts( $key . '_i18n' ) : array();
+		if ( isset( $texts[ $locale ] ) && '' !== trim( (string) $texts[ $locale ] ) ) {
+			$value = (string) $texts[ $locale ];
+		}
+		/**
+		 * A text setting in a language (SET-AC-17).
+		 *
+		 * @param string $value  Text (of that language, else of the site language).
+		 * @param string $key    Setting key.
+		 * @param string $locale Locale.
+		 */
+		return function_exists( 'apply_filters' ) ? (string) apply_filters( 'wpac_localized_setting', $value, (string) $key, $locale ) : $value;
 	}
 
 	/**

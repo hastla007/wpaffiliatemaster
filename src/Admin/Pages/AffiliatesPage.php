@@ -141,6 +141,9 @@ final class AffiliatesPage {
 						Admin::back( $changed->get_error_message(), 'error' );
 					}
 				}
+				if ( null !== Admin::post( 'wpac_locale', null ) && ! \WPAffiliateCaptain\Core\Locale::set_partner( $id, sanitize_text_field( (string) Admin::post( 'wpac_locale' ) ) ) ) {
+					Admin::back( __( 'This language is not installed on this site. The other changes were saved.', 'affiliate-captain' ), 'error' );
+				}
 				Admin::back( __( 'Partner saved.', 'affiliate-captain' ) );
 				break;
 
@@ -855,6 +858,7 @@ final class AffiliatesPage {
 			)
 		);
 		echo '<p class="description">' . esc_html( \WPAffiliateCaptain\Promotion\Landing::url( $a ) ) . '</p></td></tr>';
+		self::row_locale( (int) $id );
 		echo '<tr><th><label for="wpac-landing_message">' . esc_html__( 'Welcome message on landing page', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-landing_message" name="landing_message" rows="3" class="large-text" maxlength="' . (int) AffiliateRepository::LANDING_MESSAGE_MAX . '">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'affiliate-captain' ) . '</p></td></tr>';
 		echo '</table>';
 		submit_button( __( 'Save', 'affiliate-captain' ), 'secondary' );
@@ -906,9 +910,15 @@ final class AffiliatesPage {
 			$results = array(
 				'accepted' => __( 'Accepted', 'affiliate-captain' ),
 				'declined' => __( 'Declined', 'affiliate-captain' ),
+				'consent'  => __( 'Consent given', 'affiliate-captain' ),
 			);
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Version', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Document hash', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Result', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $agreements as $ag ) {
+				if ( Agreements::CONSENT === (string) $ag->result ) {
+					// Consent of the application form: its wording instead of a version (SET-AC-18).
+					printf( '<tr><td>%s</td><td colspan="2">%s</td><td>%s</td></tr>', esc_html( Admin::date( $ag->created_at, true ) ), esc_html( Agreements::consent_text( (string) $ag->doc_hash ) ), esc_html( $results['consent'] ) );
+					continue;
+				}
 				printf( '<tr><td>%s</td><td>%s</td><td><code title="%s">%s…</code></td><td>%s</td></tr>', esc_html( Admin::date( $ag->created_at, true ) ), esc_html( $ag->version ), esc_attr( $ag->doc_hash ), esc_html( substr( $ag->doc_hash, 0, 12 ) ), esc_html( isset( $results[ $ag->result ] ) ? $results[ $ag->result ] : $ag->result ) );
 			}
 			echo '</tbody></table>';
@@ -1361,6 +1371,23 @@ final class AffiliatesPage {
 		echo '</nav><div class="wpac-tabs-content">';
 		echo implode( '', isset( $parts[ $tab ] ) ? $parts[ $tab ] : array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sections are escaped while rendering.
 		echo '</div>';
+	}
+
+	/**
+	 * Language of e-mails and credit notes of a partner (SET-AC-17).
+	 *
+	 * @param int $id Partner.
+	 */
+	private static function row_locale( $id ) {
+		$current = \WPAffiliateCaptain\Core\Locale::partner( $id );
+		$site    = \WPAffiliateCaptain\Core\Locale::site();
+		echo '<tr><th><label for="wpac-locale">' . esc_html__( 'Language of e-mails and credit notes', 'affiliate-captain' ) . '</label></th><td><select id="wpac-locale" name="wpac_locale" aria-describedby="wpac-locale-desc">';
+		foreach ( \WPAffiliateCaptain\Core\Locale::installed() as $locale => $name ) {
+			/* translators: %s: language name */
+			$label = $locale === $site ? sprintf( __( 'Site language: %s', 'affiliate-captain' ), $name ) : $name;
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $locale === $site ? '' : $locale ), selected( $locale === $site ? '' : $locale, $current, false ), esc_html( $label ) );
+		}
+		echo '</select><p class="description" id="wpac-locale-desc">' . esc_html__( 'Credit notes, cancellations and e-mails to this partner are written in this language. Site language: credit notes in the site language, e-mails in the language of the partner\'s user account. Applies to documents issued from now on.', 'affiliate-captain' ) . ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span></p></td></tr>';
 	}
 
 	/**

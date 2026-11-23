@@ -377,7 +377,7 @@ final class Corrections {
 					if ( 0 === $a['diff_net'] && 0 === $a['diff_vat'] ) {
 						throw new IntegrationException( 'same', esc_html__( 'The corrected net amount equals the current one: there is nothing to correct. If the credit note is correct, explain this to the partner instead.', 'affiliate-captain' ) );
 					}
-					$snapshot = self::operator_snapshot();
+					$snapshot = self::operator_snapshot( (int) $p->affiliate_id );
 					// What the document says about the rest of the credit note (only printed on
 					// corrections that store it: older documents are rebuilt byte for byte).
 					$snapshot['parts']   = (int) $a['parts'];
@@ -544,10 +544,11 @@ final class Corrections {
 	/**
 	 * Operator data as printed now, frozen with the correction.
 	 *
+	 * @param int $affiliate_id Partner (document language).
 	 * @return array
 	 */
-	private static function operator_snapshot() {
-		$op             = PayoutService::operator_snapshot();
+	private static function operator_snapshot( $affiliate_id = 0 ) {
+		$op             = PayoutService::operator_snapshot( (int) $affiliate_id );
 		$op['document'] = 'correction_note';
 		return $op;
 	}

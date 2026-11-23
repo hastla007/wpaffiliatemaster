@@ -22,6 +22,11 @@ final class Locale {
 	 * @return string
 	 */
 	public static function for_affiliate( $aff ) {
+		// The language chosen in the partner profile wins (SET-AC-17: e-mails and credit notes).
+		$chosen = $aff && ! empty( $aff->id ) ? self::partner( (int) $aff->id ) : '';
+		if ( '' !== $chosen ) {
+			return $chosen;
+		}
 		$user = $aff && ! empty( $aff->user_id ) && function_exists( 'get_userdata' ) ? get_userdata( (int) $aff->user_id ) : false;
 		// The language chosen in the linked account. An account without one follows the site
 		// language: get_user_locale() would return get_locale(), which WPML/Polylang set to the
@@ -53,6 +58,124 @@ final class Locale {
 			$locale = (string) get_locale();
 		}
 		return '' !== $locale ? $locale : 'en_US';
+	}
+
+	/** Option (not autoloaded): language chosen in the partner profile, partner ID => locale (SET-AC-17). */
+	const PARTNER_OPTION = 'wpac_partner_locales';
+
+	/**
+	 * Language chosen in a partner's profile for e-mails and credit notes ('' = not chosen: credit
+	 * notes in the site language, e-mails in the language of the linked account or the site).
+	 *
+	 * @param int $affiliate_id Partner.
+	 * @return string Locale or ''.
+	 */
+	public static function partner( $affiliate_id ) {
+		$map = function_exists( 'get_option' ) ? get_option( self::PARTNER_OPTION, array() ) : array();
+		$id  = (int) $affiliate_id;
+		return is_array( $map ) && $id > 0 && isset( $map[ $id ] ) && is_string( $map[ $id ] ) ? $map[ $id ] : '';
+	}
+
+	/**
+	 * Store the language of a partner ('' = site language). Only installed languages.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $locale       Locale or ''.
+	 * @return bool Whether the value is valid (and stored).
+	 */
+	public static function set_partner( $affiliate_id, $locale ) {
+		$id     = (int) $affiliate_id;
+		$locale = (string) $locale;
+		if ( $id <= 0 || ( '' !== $locale && ! isset( self::installed()[ $locale ] ) ) ) {
+			return false;
+		}
+		$map = get_option( self::PARTNER_OPTION, array() );
+		$map = is_array( $map ) ? $map : array();
+		$old = isset( $map[ $id ] ) ? (string) $map[ $id ] : '';
+		if ( $old === $locale ) {
+			return true;
+		}
+		// The site language is the default: not stored, so a later change of the site language applies.
+		if ( '' === $locale || $locale === self::site() ) {
+			unset( $map[ $id ] );
+		} else {
+			$map[ $id ] = $locale;
+		}
+		update_option( self::PARTNER_OPTION, $map, false );
+		Audit::log(
+			'affiliate.locale',
+			'affiliate',
+			$id,
+			array(
+				'from' => $old,
+				'to'   => isset( $map[ $id ] ) ? $map[ $id ] : '',
+			)
+		);
+		return true;
+	}
+
+	/**
+	 * Forget the language of a deleted or anonymised partner.
+	 *
+	 * @param int $affiliate_id Partner.
+	 */
+	public static function forget_partner( $affiliate_id ) {
+		$map = function_exists( 'get_option' ) ? get_option( self::PARTNER_OPTION, array() ) : array();
+		if ( is_array( $map ) && isset( $map[ (int) $affiliate_id ] ) ) {
+			unset( $map[ (int) $affiliate_id ] );
+			update_option( self::PARTNER_OPTION, $map, false );
+		}
+	}
+
+	/**
+	 * Installed languages that texts can be stored for: the site language, English and every
+	 * language with WordPress translations installed (get_available_languages()).
+	 *
+	 * @return array locale => name (site language first)
+	 */
+	public static function installed() {
+		$site    = self::site();
+		$locales = array( $site, 'en_US' );
+		if ( function_exists( 'get_available_languages' ) ) {
+			$locales = array_merge( $locales, (array) get_available_languages() );
+		}
+		$out = array();
+		foreach ( $locales as $locale ) {
+			$locale = (string) $locale;
+			if ( preg_match( '/^[a-z]{2,3}(_[A-Za-z0-9]{2,8})*$/', $locale ) && ! isset( $out[ $locale ] ) ) {
+				$out[ $locale ] = self::name( $locale );
+			}
+		}
+		/**
+		 * Languages offered for per-language texts and the partner language (SET-AC-17).
+		 *
+		 * @param array $out locale => name.
+		 */
+		$out = function_exists( 'apply_filters' ) ? (array) apply_filters( 'wpac_text_locales', $out ) : $out;
+		return array( $site => isset( $out[ $site ] ) ? $out[ $site ] : self::name( $site ) ) + $out;
+	}
+
+	/**
+	 * Display name of a locale (its own name, e.g. "Deutsch"; the code without intl).
+	 *
+	 * @param string $locale Locale.
+	 * @return string
+	 */
+	public static function name( $locale ) {
+		$name = class_exists( '\Locale' ) ? (string) \Locale::getDisplayName( (string) $locale, (string) $locale ) : '';
+		return '' !== $name && $name !== $locale ? $name . ' (' . $locale . ')' : (string) $locale;
+	}
+
+	/**
+	 * The language texts are written in right now (after a switch_to() the partner's language).
+	 *
+	 * @return string
+	 */
+	public static function current() {
+		if ( function_exists( 'determine_locale' ) ) {
+			return (string) determine_locale();
+		}
+		return function_exists( 'get_locale' ) ? (string) get_locale() : self::site();
 	}
 
 	/**

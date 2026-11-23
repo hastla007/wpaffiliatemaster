@@ -203,7 +203,7 @@ check(
 );
 update_post_meta( 9912, '_wp_attachment_image_alt', 'Segelkurs am See' );
 check( 'R12-N8 embed alt text: media alt text, else the site name (never the internal title)', array( 'Segelkurs am See', 'Test Shop' ), array( Portal::embed_alt( 9912 ), Portal::embed_alt( 9913 ) ) );
-check( 'R12-N6 new tabs announced', array( true, 2 ), array( false !== strpos( $r12c_portal, "esc_html__( '(opens in a new tab)', 'affiliate-captain' )" ), substr_count( $r12c_src( 'src/Affiliates/Registration.php' ), "esc_html__( '(opens in a new tab)', 'affiliate-captain' )" ) ) );
+check( 'R12-N6 new tabs announced (terms, privacy policy, imprint – SET-AC-18)', array( true, 3 ), array( false !== strpos( $r12c_portal, "esc_html__( '(opens in a new tab)', 'affiliate-captain' )" ), substr_count( $r12c_src( 'src/Affiliates/Registration.php' ), "esc_html__( '(opens in a new tab)', 'affiliate-captain' )" ) ) );
 check( 'R12-N8 English source "after you have approved it"', array( false, true ), array( false !== strpos( $r12c_src( 'src/Affiliates/Notifications.php' ), 'after you approved it' ), false !== strpos( $r12c_src( 'src/Affiliates/Notifications.php' ), 'after you have approved it' ) ) );
 
 /* R12-M26 / N7: registration errors per field, dead ends -------------------------------------- */

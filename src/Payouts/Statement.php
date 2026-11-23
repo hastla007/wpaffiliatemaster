@@ -403,24 +403,28 @@ final class Statement {
 	}
 
 	/**
-	 * Language of the documents: the site language. Languages the PDF fonts cannot show
-	 * (Cyrillic, Greek, Arabic, Asian scripts …) fall back to English (filter wpac_statement_locale).
+	 * Language of the documents: the language chosen in the partner profile, otherwise the site
+	 * language (SET-AC-17). Languages the PDF fonts cannot show (Cyrillic, Greek, Arabic, Asian
+	 * scripts …) fall back to English (filter wpac_statement_locale).
 	 *
-	 * @param string $locale Site language.
+	 * @param string $locale       Site language.
+	 * @param int    $affiliate_id Partner (0 = none: site language).
 	 * @return string
 	 */
-	public static function document_locale( $locale ) {
-		$locale    = '' !== (string) $locale ? (string) $locale : 'en_US';
+	public static function document_locale( $locale, $affiliate_id = 0 ) {
+		$chosen    = (int) $affiliate_id > 0 ? \WPAffiliateCaptain\Core\Locale::partner( (int) $affiliate_id ) : '';
+		$locale    = '' !== $chosen ? $chosen : ( '' !== (string) $locale ? (string) $locale : 'en_US' );
 		$lang      = strtolower( (string) strtok( $locale, '_' ) );
 		$non_latin = array( 'ru', 'uk', 'be', 'bg', 'mk', 'sr', 'el', 'ar', 'ary', 'he', 'fa', 'ur', 'zh', 'ja', 'ko', 'th', 'hi', 'bn', 'ka', 'hy', 'kk', 'ky', 'mn', 'ta', 'te', 'ml', 'kn', 'mr', 'gu', 'pa', 'ne', 'si', 'km', 'lo', 'my', 'am', 'ps', 'ug', 'tg', 'bo', 'dv', 'yi', 'tt', 'ckb', 'azb', 'haz', 'sah', 'os' );
 		$doc       = in_array( $lang, $non_latin, true ) ? 'en_US' : $locale;
 		/**
 		 * Language of credit notes and cancellations (frozen with each document).
 		 *
-		 * @param string $doc    Document language.
-		 * @param string $locale Site language.
+		 * @param string $doc          Document language.
+		 * @param string $locale       Language chosen for the partner, else the site language.
+		 * @param int    $affiliate_id Partner (0 = unknown; SET-AC-17).
 		 */
-		return (string) apply_filters( 'wpac_statement_locale', $doc, $locale );
+		return (string) apply_filters( 'wpac_statement_locale', $doc, $locale, (int) $affiliate_id );
 	}
 
 	/**
