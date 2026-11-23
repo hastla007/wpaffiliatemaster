@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 0.20.0
+Stable tag: 0.21.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,21 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.21.0 =
+Settings for selling in more countries; add-on contract 1.9.0 (backwards compatible); database schema 17:
+* New: commission base for WooCommerce orders – net (default) or gross (with a warning, marked "check legally"), optionally including shipping and fees as own positions; refunds use the same base, frozen per order. Existing orders and default settings calculate as before
+* New: commission rules with a maximum commission per order line, a minimum line amount and a validity period (from/until, site time zone); the rule preview takes a payment date and shows the cap. Database schema 17 (columns added online)
+* New: withholding per partner – a percentage with a mandatory note on the partner page; new payouts transfer the amount less the withholding, shown on the credit note, the cancellation, the e-invoice (as paid amount, valid EN 16931/XRechnung), the annual overview and the payout export. 0 % (default) changes nothing
+* New: logo (from the media library) and footer on credit notes, correction credit notes and cancellations, with a sample credit note as preview; both are frozen with every document, issued documents never change. Logo in HTML e-mails
+* New: document numbers – start number (can only be raised, never to or below the highest number issued this year; the raise is logged) and number of digits (4–10, default 6) per number range; year in the number and restart per year stay fixed; marked "check legally"
+* New: payout reminder (monthly or quarterly on a chosen day) – e-mails the open payable amounts per currency to the notification address; nothing is booked, payout runs stay manual; partners see the payout day (marked "check legally"). Maximum payout per partner and currency (0 = no limit); the oldest commissions are paid up to the limit, the rest stays payable
+* Removed: the former setting "payout period", which never had an effect; it is converted to "reminder off" on update and still accepted in imported settings files
+* New: number of dunning stages (1–5) and the payment deadlines of payment requests/reminders and of the final reminder are settings (defaults 3 / 14 / 7 days as before, marked "check legally")
+* New: exchange rates are entered as a table, with the date "rates as of" (set automatically, shown on the dashboard, with converted minimum payouts and in REST reports as rates_date) and an optional minimum payout per currency; stored format unchanged
+* New: features can be switched off one by one (Settings → Program → Features): creatives, partner landing pages, monthly tiers, QR codes, broadcast mail. The menu item and partner area tab disappear, data are kept; filter wpac_feature_enabled
+* New: technical log level in the settings (errors / notices / verbose); verbose switches back automatically after 7 days. WP_DEBUG and the filters wpac_log_level / wpac_log_debug win
+* Developers: filters wpac_withholding, wpac_feature_enabled, wpac_log_level; wpac_wc_base_cap receives the commission base as third parameter; $rule in wpac_commission_amount carries max_amount_minor, min_base_minor, valid_from, valid_until (the amount arrives capped); $item['sale_date']; register type image; snapshot keys logo/footer/withholding
 
 = 0.20.0 =
 Settings register and add-on rows; add-on contract 1.8.0 (backwards compatible); database schema 16 (unchanged):
@@ -372,6 +387,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.21.0 =
+Database schema 17 (rule columns, added online). New settings for commission base, withholding, logo on documents, document numbers, payout reminder and feature switches; defaults keep the current behaviour.
 
 = 0.20.0 =
 Settings register with help texts for every setting; optional notes about Pro add-on features (can be switched off). No database change; add-ons keep working.
