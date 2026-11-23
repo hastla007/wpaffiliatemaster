@@ -58,7 +58,7 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         if: env.HAS_SVN_SECRETS == 'true'
         with:
-          php-version: "8.3"
+          php-version: "8.5"
           extensions: sodium, dom, mbstring
           coverage: none
       # Only a tag whose CI succeeded (the tag push or the merge to main that created the release)

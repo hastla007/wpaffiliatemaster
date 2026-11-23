@@ -9,6 +9,7 @@ namespace WPAffiliateCaptain\Admin\Pages;
 
 use WPAffiliateCaptain\Admin\Admin;
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
+use WPAffiliateCaptain\Affiliates\Programs;
 use WPAffiliateCaptain\Core\Csv;
 use WPAffiliateCaptain\Core\Jobs;
 use WPAffiliateCaptain\Core\Money;
@@ -42,9 +43,10 @@ final class DashboardPage {
 		$to       = self::date_or( Admin::post( 'to' ), wp_date( 'Y-m-d' ) );
 		$view     = sanitize_key( Admin::post( 'view' ) );
 		$currency = (string) Settings::get( 'currency' );
+		$program  = self::program( sanitize_text_field( (string) Admin::post( 'program' ) ) );
 		$out      = array();
 		if ( in_array( $view, array( 'content', 'campaign' ), true ) ) {
-			foreach ( Reports::by_dimension( 'content' === $view ? 'content_id' : 'campaign', $from, $to ) as $r ) {
+			foreach ( Reports::by_dimension( 'content' === $view ? 'content_id' : 'campaign', $from, $to, $program ) as $r ) {
 				$line = array( $r['key'], $r['label'], $r['visits'], $r['partners'], $r['orders'], $r['conversion'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ) );
 				// Campaigns are per partner (same names of different partners are separate rows).
 				$out[] = 'campaign' === $view ? array_merge( array( $r['affiliate_id'], $r['partner'] ), $line ) : $line;
@@ -52,7 +54,7 @@ final class DashboardPage {
 			$head = array( 'content' === $view ? 'content_id' : 'campaign', 'label', 'visits', 'partners', 'orders', 'conversion_percent', 'net_revenue_' . $currency, 'commission_' . $currency );
 			Csv::download( "report-{$view}-{$from}-{$to}.csv", 'campaign' === $view ? array_merge( array( 'affiliate_id', 'partner' ), $head ) : $head, $out );
 		}
-		foreach ( Reports::partners( $from, $to ) as $r ) {
+		foreach ( Reports::partners( $from, $to, 0, $program ) as $r ) {
 			$out[] = array( $r['affiliate_id'], $r['name'], $r['visits'], $r['orders'], Money::to_decimal( $r['revenue'], $currency ), Money::to_decimal( $r['commission'], $currency ), Money::to_decimal( $r['corrections'], $currency ), Money::to_decimal( $r['bonus'], $currency ), Money::to_decimal( $r['writeoffs'], $currency ), $r['refund_rate'] );
 		}
 		Csv::download( "partner-report-{$from}-{$to}.csv", array( 'affiliate_id', 'partner', 'visits', 'orders', 'net_revenue_' . $currency, 'commission_' . $currency, 'corrections_' . $currency, 'bonus_' . $currency, 'writeoffs_' . $currency, 'refund_rate_percent' ), $out );
@@ -227,6 +229,22 @@ final class DashboardPage {
 	}
 
 	/**
+	 * Program chosen in the report selector (filter wpac_report_programs). The field value is
+	 * "p:" + program key ("p:" alone = default program); anything else means all programs.
+	 *
+	 * @param string $value Field value.
+	 * @return string|null Program key, null = all.
+	 */
+	private static function program( $value ) {
+		$value = (string) $value;
+		if ( 0 !== strpos( $value, 'p:' ) ) {
+			return null;
+		}
+		$key = (string) substr( $value, 2 );
+		return array_key_exists( $key, Programs::report_choices() ) ? $key : null;
+	}
+
+	/**
 	 * Render.
 	 */
 	public static function render() {
@@ -235,7 +253,9 @@ final class DashboardPage {
 		$from     = self::date_or( Admin::get( 'from' ), wp_date( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ) );
 		$to       = self::date_or( Admin::get( 'to' ), wp_date( 'Y-m-d' ) );
 		$counts   = AffiliateRepository::count_by_status();
-		$rows     = Reports::cached( 'partners', $from, $to ); // Same report for KPIs and table, cached until the data changes.
+		$programs = Programs::report_choices(); // Empty without an add-on: no selector.
+		$program  = $programs ? self::program( Admin::get( 'program' ) ) : null;
+		$rows     = Reports::cached( 'partners', $from, $to, $program ); // Same report for KPIs and table, cached until the data changes.
 		$view     = in_array( Admin::get( 'view' ), array( 'content', 'campaign' ), true ) ? Admin::get( 'view' ) : 'partners';
 		$failed   = Jobs::count( 'failed' ); // COUNT query: the list itself stops at 100.
 
@@ -283,12 +303,21 @@ final class DashboardPage {
 			/* translators: %s: currencies */
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Amounts in %s are not included in the money columns (no reference exchange rate in the settings).', 'affiliate-captain' ), implode( ', ', $unconverted ) ) ) . '</p></div>';
 		}
-		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><label>' . esc_html_x( 'From', 'date range start', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>' . esc_html_x( 'To', 'date range end', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> <button class="button">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form>';
+		$program_arg = null === $program ? array() : array( 'program' => 'p:' . $program );
+		echo '<form method="get" class="wpac-filters"><input type="hidden" name="page" value="wpac"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><label>' . esc_html_x( 'From', 'date range start', 'affiliate-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $from ) . '"></label> <label>' . esc_html_x( 'To', 'date range end', 'affiliate-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $to ) . '"></label> ';
+		if ( $programs ) {
+			echo '<label>' . esc_html__( 'Program', 'affiliate-captain' ) . ' <select name="program"><option value="">' . esc_html__( 'All programs', 'affiliate-captain' ) . '</option>';
+			foreach ( $programs as $key => $label ) {
+				echo '<option value="' . esc_attr( 'p:' . $key ) . '"' . selected( null !== $program && $program === (string) $key, true, false ) . '>' . esc_html( $label ) . '</option>';
+			}
+			echo '</select></label> ';
+		}
+		echo '<button class="button">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form>';
 
 		echo '<div class="wpac-kpis">';
 		foreach (
 			array(
-				__( 'Active partners', 'affiliate-captain' )  => number_format_i18n( $counts['active'] ),
+				__( 'Active partners', 'affiliate-captain' )  => number_format_i18n( null === $program ? $counts['active'] : AffiliateRepository::count_by_status( $program )['active'] ), // Selected program (wpac_report_programs).
 				__( 'Link visits', 'affiliate-captain' )      => number_format_i18n( $sum['visits'] ),
 				__( 'Attributed orders', 'affiliate-captain' ) => number_format_i18n( $sum['orders'] ),
 				__( 'Net revenue', 'affiliate-captain' )      => Money::format( $sum['revenue'], $currency ),
@@ -308,16 +337,34 @@ final class DashboardPage {
 		);
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Report views', 'affiliate-captain' ) . '">';
 		foreach ( $tabs as $k => $l ) {
-			echo '<a class="nav-tab ' . ( $k === $view ? 'nav-tab-active' : '' ) . '" href="' . esc_url( Admin::url( 'wpac', array( 'view' => $k, 'from' => $from, 'to' => $to ) ) ) . '"' . ( $k === $view ? ' aria-current="page"' : '' ) . '>' . esc_html( $l ) . '</a>';
+			echo '<a class="nav-tab ' . ( $k === $view ? 'nav-tab-active' : '' ) . '" href="' . esc_url( Admin::url( 'wpac', array( 'view' => $k, 'from' => $from, 'to' => $to ) + $program_arg ) ) . '"' . ( $k === $view ? ' aria-current="page"' : '' ) . '>' . esc_html( $l ) . '</a>';
 		}
 		echo '</nav><p>';
 		Admin::form_open( 'report_export', 'wpac-inline' );
-		echo '<input type="hidden" name="from" value="' . esc_attr( $from ) . '"><input type="hidden" name="to" value="' . esc_attr( $to ) . '"><input type="hidden" name="view" value="' . esc_attr( $view ) . '"><button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form></p>';
+		echo '<input type="hidden" name="from" value="' . esc_attr( $from ) . '"><input type="hidden" name="to" value="' . esc_attr( $to ) . '"><input type="hidden" name="view" value="' . esc_attr( $view ) . '">' . ( null === $program ? '' : '<input type="hidden" name="program" value="' . esc_attr( 'p:' . $program ) . '">' ) . '<button class="button">' . esc_html__( 'Export CSV', 'affiliate-captain' ) . '</button></form></p>';
 
 		if ( 'partners' !== $view ) {
-			$dim = Reports::cached( 'content' === $view ? 'content_id' : 'campaign', $from, $to );
+			$dim = Reports::cached( 'content' === $view ? 'content_id' : 'campaign', $from, $to, $program );
 			$per_partner = 'campaign' === $view; // Campaign names are chosen by each partner: one row per partner and campaign.
-			echo '<table class="widefat striped"><thead><tr>' . ( $per_partner ? '<th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th>' : '' ) . '<th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th>' . ( $per_partner ? '' : '<th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th>' ) . '<th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+			// AFF-SU-03 (since plugin 0.17.0, provisional): review quality per partner and campaign, only with a review plugin.
+			$rq_days = \WPAffiliateCaptain\Reports\ReviewQuality::days( Admin::get( 'review_days' ) );
+			$rq      = $per_partner && $dim && \WPAffiliateCaptain\Reports\ReviewQuality::available()
+				? \WPAffiliateCaptain\Reports\ReviewQuality::get(
+					array_map(
+						static function ( $r ) {
+							return array(
+								'affiliate_id' => $r['affiliate_id'],
+								'campaign'     => (string) $r['key'],
+							);
+						},
+						$dim
+					),
+					$rq_days
+				)
+				: array();
+			$rq_first = $rq ? reset( $rq ) : array();
+			$rq_on    = $rq_first && 'forbidden' !== $rq_first['status'];
+			echo '<table class="widefat striped"><thead><tr>' . ( $per_partner ? '<th>' . esc_html__( 'Partner', 'affiliate-captain' ) . '</th>' : '' ) . '<th>' . esc_html( 'content' === $view ? __( 'Content', 'affiliate-captain' ) : __( 'Campaign', 'affiliate-captain' ) ) . '</th><th>' . esc_html__( 'Visits', 'affiliate-captain' ) . '</th>' . ( $per_partner ? '' : '<th>' . esc_html__( 'Partners', 'affiliate-captain' ) . '</th>' ) . '<th>' . esc_html__( 'Orders', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Conversion', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Net revenue', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Commission', 'affiliate-captain' ) . '</th>' . ( $rq_on ? '<th>' . esc_html( sprintf( /* translators: %d: number of days */ __( 'Reviews (%d days)', 'affiliate-captain' ), $rq_days ) ) . '</th>' : '' ) . '</tr></thead><tbody>';
 			if ( ! $dim ) {
 				echo '<tr><td colspan="7">' . esc_html__( 'No activity in this period.', 'affiliate-captain' ) . '</td></tr>';
 			}
@@ -330,8 +377,13 @@ final class DashboardPage {
 				if ( 'content' === $view && (int) $r['key'] && get_edit_post_link( (int) $r['key'] ) ) {
 					$label = '<a href="' . esc_url( get_edit_post_link( (int) $r['key'] ) ) . '">' . $label . '</a> <small>(' . esc_html( get_post_type( (int) $r['key'] ) ) . ')</small>';
 				}
+				$review = '';
+				if ( $rq_on ) {
+					$rq_r   = $rq[ \WPAffiliateCaptain\Reports\ReviewQuality::key( $r['affiliate_id'], (string) $r['key'] ) ];
+					$review = '<td class="wpac-review-quality" title="' . esc_attr( \WPAffiliateCaptain\Reports\ReviewQuality::reason( $rq_r ) ) . '">' . esc_html( \WPAffiliateCaptain\Reports\ReviewQuality::short( $rq_r ) ) . '</td>';
+				}
 				printf(
-					'<tr>%s<td>%s</td><td>%s</td>%s<td>%s</td><td>%s %%</td><td>%s</td><td>%s</td></tr>',
+					'<tr>%s<td>%s</td><td>%s</td>%s<td>%s</td><td>%s %%</td><td>%s</td><td>%s</td>%s</tr>',
 					$first, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 					$label, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					esc_html( number_format_i18n( $r['visits'] ) ),
@@ -339,10 +391,16 @@ final class DashboardPage {
 					esc_html( number_format_i18n( $r['orders'] ) ),
 					esc_html( number_format_i18n( $r['conversion'], 1 ) ),
 					esc_html( Money::format( $r['revenue'], $currency ) ),
-					esc_html( Money::format( $r['commission'], $currency ) )
+					esc_html( Money::format( $r['commission'], $currency ) ),
+					$review // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 				);
 			}
 			echo '</tbody></table>';
+			if ( $rq_on ) {
+				$rq_min = \WPAffiliateCaptain\Reports\ReviewQuality::minimum();
+				/* translators: 1: number of days, 2: minimum number of reviews, 3: minimum number of orders */
+				echo '<p class="description">' . esc_html( sprintf( __( 'Reviews: average rating of the verified, published reviews of the last %1$d days from the review plugin, by the partner and campaign of the order; shown from %2$d reviews from %3$d different orders, otherwise "–". Read only and not stored; independent of the period above.', 'affiliate-captain' ), $rq_days, $rq_min['reviews'], $rq_min['orders'] ) ) . '</p>';
+			}
 			echo '<p class="description">' . esc_html__( 'Content = the post/page where the partner link landed. Orders are counted by the content/campaign of their attribution.', 'affiliate-captain' ) . ( $per_partner ? ' ' . esc_html__( 'Campaign names are set by each partner, so the campaigns of each partner are listed separately.', 'affiliate-captain' ) : '' ) . '</p></div>';
 			return;
 		}

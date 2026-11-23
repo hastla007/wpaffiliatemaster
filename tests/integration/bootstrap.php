@@ -19,7 +19,7 @@ define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'WPAC_VERSION', 'test' );
 define( 'WPAC_DB_VERSION', 16 );
-define( 'WPAC_CONTRACT_VERSION', '1.4.0' );
+define( 'WPAC_CONTRACT_VERSION', '1.6.0' );
 define( 'WPAC_FILE', dirname( __DIR__, 2 ) . '/affiliate-captain.php' );
 define( 'WPAC_DIR', dirname( __DIR__, 2 ) . '/' );
 define( 'WPAC_URL', 'http://example.test/wp-content/plugins/affiliate-captain/' );
@@ -31,6 +31,7 @@ class Test_WPDB {
 	public $last_error = '';
 	public $suppress   = false;
 	public function suppress_errors( $s = true ) { $old = $this->suppress; $this->suppress = (bool) $s; return $old; }
+	public function db_server_info() { return $this->db instanceof mysqli ? (string) $this->db->server_info : ''; }
 	/** @var mysqli */
 	public $db;
 	/** @var mysqli Same connection under the name of the real wpdb (Db::fatal_error() reads its errno). */
@@ -230,6 +231,7 @@ function do_action( $tag, ...$args ) {
 function remove_all_filters( $tag ) { unset( $GLOBALS['test_hooks'][ $tag ] ); }
 // has_action() for the portal tabs of add-ons; WP-Cron context for the installer.
 if ( ! function_exists( 'has_action' ) ) { function has_action( $tag, $cb = false ) { return ! empty( $GLOBALS['test_hooks'][ $tag ] ); } }
+if ( ! function_exists( 'has_filter' ) ) { function has_filter( $tag, $cb = false ) { return ! empty( $GLOBALS['test_hooks'][ $tag ] ); } } // Review quality (AFF-SU-03).
 if ( ! function_exists( 'wp_doing_cron' ) ) { function wp_doing_cron() { return ! empty( $GLOBALS['test_doing_cron'] ); } }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['test_options'] ) ? $GLOBALS['test_options'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { if ( ! empty( $GLOBALS['test_option_fail'][ $k ] ) ) { return false; } $GLOBALS['test_options'][ $k ] = $v; return true; } // test_option_fail: simulate a failed write.
@@ -237,7 +239,8 @@ function add_option( $k, $v, $x = '', $a = null ) {
 	// Like WordPress core: a cached read, then an UPSERT – NOT atomic (use Db::lock() for locks).
 	global $wpdb;
 	if ( array_key_exists( $k, $GLOBALS['test_options'] ) ) { return false; }
-	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)", $k, is_scalar( $v ) ? (string) $v : serialize( $v ) ) );
+	$wpac_v = is_scalar( $v ) ? (string) $v : serialize( $v );
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = %s", $k, $wpac_v, $wpac_v ) ); // No VALUES(): deprecated on MySQL 9.7.
 	$GLOBALS['test_options'][ $k ] = $v;
 	return true;
 }

@@ -9,6 +9,8 @@
 
 Ausgabe: `PRODUCT_ID=…` und `PARTNER_CODE=…` für `tests/e2e/run.js`.
 
+`e2e-data.php <wp-dir> <url>` (im Browser-Job nach `install-wp.sh`) legt die Daten für die Browser-Tests „Automatischer Partner-Gutschein“ und „Passwortbestätigung“ an: Partner mit verknüpftem 10-%-Gutschein, Kunden-Gutschein „nur einzeln verwendbar“, Seite mit dem klassischen Warenkorb und drei offene Auszahlungen. Ausgabe: `E2E_*`-Variablen.
+
 ```bash
 WPAC_DB_USER=root WPAC_DB_PASSWORD=root tests/ci/install-wp.sh /tmp/wp --siblings ..
 ```
@@ -22,12 +24,23 @@ cd /tmp/wp && php -S 127.0.0.1:8088 -t . /pfad/zu/affiliate-captain/tests/ci/rou
 `smoke.php` prüft eine laufende Testseite ohne Browser: Aktivierung/Schema/Cron, eine WooCommerce-Bestellung mit Partnercode und ihre Vollerstattung, Bewerbungs- und Partnerseite, öffentliche REST-Routen (und Ablehnung ohne Login), alle Admin-Seiten des Plugins per HTTP-Login sowie neue PHP-Fehler/-Warnungen des Plugins in `debug.log`.
 
 ```bash
-WP_VERSION=6.3 WC_VERSION=8.0.0 tests/ci/install-wp.sh /tmp/wp-min
+WP_VERSION=7.0 WC_VERSION=11.2.2 tests/ci/install-wp.sh /tmp/wp-min
 php tests/ci/smoke.php /tmp/wp-min http://127.0.0.1:8088
 ```
 
-Der CI-Job „Minimum versions“ führt das mit WordPress 6.3, WooCommerce 8.0.0 und PHP 7.4 aus (die im Plugin-Header erklärten Mindestversionen); der Browser-Job zusätzlich mit den neuesten Versionen.
+Der CI-Job „Minimum versions“ führt das mit WordPress 7.0, WooCommerce 11.2.2, PHP 8.5 und MariaDB 12.3 aus (die im Plugin-Header erklärten Mindestversionen); der Browser-Job zusätzlich mit den neuesten Versionen.
 
 ## Plugin Check
 
 Der CI-Job „Plugin Check“ installiert das gebaute ZIP und das offizielle Plugin `plugin-check` und wertet `wp plugin check affiliate-captain --format=json` mit `plugin-check.php` aus: Fehler (`ERROR`) brechen ab, außer sie stehen mit Begründung in `plugin-check-ignore.txt`; Warnungen werden nur gezählt.
+
+## E-Rechnung (KoSIT-Validator)
+
+Der CI-Job „E-invoice (KoSIT validator)“ erzeugt mit `tests/einvoice/generate.php` (Laufzeit und Datenbank der Integrationstests, die Datenbank wird geleert) Beispiel-XML aller Belegarten von `src/Payouts/EInvoice.php`: Gutschrift mit Regelsteuersatz (S), Reverse Charge (AE, auch Nicht-EU und ausländischer Kleinunternehmer), Kleinunternehmer (E), Privatperson (O), gemischte Steuergruppen, Korrekturgutschrift (384, Erhöhung und Minderung), Korrekturbeleg eines Laufs (384), Storno (381) sowie XRechnung-3.0-Beispiele (Telefon über den Filter `wpac_einvoice_data`, Leitweg-ID). `tests/einvoice/validate.sh` lädt den KoSIT-Validator (`itplr-kosit/validator`) und die XRechnung-Konfiguration (`itplr-kosit/validator-configuration-xrechnung`) in festen Versionen, prüft beide gegen die eingetragenen SHA-256-Prüfsummen und validiert alle Beispiele. Szenarien der Konfiguration: XRechnung-Beispiele „EN16931 XRechnung (CII)“ (CII-D16B-Schema, EN-16931-CII-Schematron, XRechnung-CII-Schematron), Beispiele mit EN-16931-Kernprofil „EN16931 (CII)“ (CII-D16B-Schema, EN-16931-CII-Schematron). `check-reports.php` bricht bei jedem Befund der Stufe `error`, bei abgelehnten Dokumenten und bei unerwartetem Szenario ab; Warnungen werden ausgegeben. Beispiele und Prüfberichte (XML/HTML) liegen als Artefakt `einvoice-kosit` bei.
+
+```bash
+WPAC_TEST_DB_HOST=127.0.0.1 WPAC_TEST_DB_NAME=wpac_test php tests/einvoice/generate.php /tmp/einvoice/samples
+tests/einvoice/validate.sh /tmp/einvoice/samples /tmp/einvoice/work
+```
+
+Neue Version: Version und Dateiname in `validate.sh` ändern, das Archiv einmal laden und seine `sha256sum` eintragen.

@@ -23,10 +23,10 @@ $wpdb->update( t( 'affiliates' ), array( 'user_id' => $g8r_uid ), array( 'id' =>
 AffiliateRepository::clear_cache( (int) $g8r_aff );
 $GLOBALS['test_users'][ $g8r_uid ] = (object) array( 'ID' => $g8r_uid, 'user_email' => 'g8-render@example.de', 'display_name' => 'G8', 'user_login' => 'g8-render', 'roles' => array( 'customer' ) );
 $GLOBALS['test_user']              = $g8r_uid;
-// 30 campaign/sub-ID combinations with 1 … 30 visits in the last days.
+// 30 campaign/sub-ID combinations with 3 … 32 visits in the last days.
 $g8r_values = array();
 for ( $i = 1; $i <= 30; $i++ ) {
-	for ( $n = 0; $n < $i; $n++ ) {
+	for ( $n = 0; $n < $i + 2; $n++ ) { // At least 3 visits per row: none is combined into "Other" (R15-P1).
 		$g8r_values[] = $wpdb->prepare( '(%d, %s, %s, %s)', $g8r_aff, 'g8camp', 'sub' . $i, Db::now( time() - 3600 - $n ) );
 	}
 }

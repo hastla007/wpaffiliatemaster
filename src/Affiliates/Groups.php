@@ -187,6 +187,18 @@ final class Groups {
 	public static function delete( $id ) {
 		global $wpdb;
 		$impact = self::delete_impact( (int) $id );
+		// Programs of the partners before (action wpac_affiliate_program_changed below; only looked
+		// up when somebody listens).
+		$before = array();
+		if ( ! function_exists( 'has_action' ) || false !== has_action( 'wpac_affiliate_program_changed' ) ) {
+			$at  = Db::table( 'affiliates' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$at} WHERE group_id = %d", (int) $id ) ) );
+			AffiliateRepository::find_many( $ids );
+			foreach ( $ids as $aff ) {
+				$before[ $aff ] = Programs::of_affiliate( $aff );
+			}
+		}
 		$wpdb->delete( Db::table( 'partner_groups' ), array( 'id' => (int) $id ) );
 		$wpdb->update( Db::table( 'affiliates' ), array( 'group_id' => 0 ), array( 'group_id' => (int) $id ) );
 		// Commission rules of the group would stay active without anybody they apply to (and
@@ -194,6 +206,10 @@ final class Groups {
 		$wpdb->update( Db::table( 'rules' ), array( 'active' => 0, 'updated_at' => Db::now() ), array( 'scope' => 'group', 'scope_id' => (int) $id ) );
 		AffiliateRepository::clear_cache();
 		Audit::log( 'group.deleted', 'group', (int) $id, $impact );
+		AffiliateRepository::find_many( array_keys( $before ) );
+		foreach ( $before as $aff => $from ) {
+			Programs::changed( $aff, $from, Programs::of_affiliate( $aff ) );
+		}
 		return $impact;
 	}
 

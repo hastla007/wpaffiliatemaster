@@ -71,7 +71,7 @@ final class PayoutRequests {
 	 */
 	public static function request_currency( $affiliate_id ) {
 		foreach ( self::available_all( (int) $affiliate_id ) as $currency => $amounts ) {
-			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $affiliate_id );
 			if ( null !== $min && $amounts['gross'] >= max( 1, (int) $min ) ) {
 				return (string) $currency;
 			}
@@ -132,7 +132,7 @@ final class PayoutRequests {
 		}
 		// Like the payout: the net balance (without VAT) must reach the minimum, in any currency.
 		if ( '' === self::request_currency( (int) $aff->id ) ) {
-			$min = (int) Settings::get( 'min_payout_minor' );
+			$min = max( 0, (int) Settings::for_affiliate( 'min_payout_minor', (int) $aff->id ) );
 			/* translators: %s: minimum */
 			return sprintf( __( 'Your approved balance is below the minimum payout of %s.', 'affiliate-captain' ), Money::format( $min, Settings::get( 'currency' ) ) );
 		}

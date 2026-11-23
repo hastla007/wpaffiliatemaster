@@ -1573,6 +1573,15 @@ require __DIR__ . '/r15-k3.php'; // K3 (R6-CC5): statement storage, local / S3 (
 require __DIR__ . '/r15-l1.php'; // Package L1 (R12-L4/L5: privacy text, sub-ID grouping; before r8-render).
 require __DIR__ . '/r15-l2.php'; // Package L2 (suite integration: dedup across sales sources, no buyer data for partners; before r8-render).
 require __DIR__ . '/r15-l3.php'; // Package L3 (0.15.0): domain actions after COMMIT, also in an outer transaction (before r8-render).
+require __DIR__ . '/r14-mp1.php'; // Feature mp1 (0.15.0, contract 1.5.0): several partner programs, variant A (before r8-render).
+require __DIR__ . '/r14-php1.php'; // PHP-1 / E10: database server minimum, Site Health warning (before r8-render).
+require __DIR__ . '/r14-c16.php'; // Agent c16 (0.16.0): no VALUES() in upserts (MySQL 9.7); remaining program-aware spots (before r8-render).
+require __DIR__ . '/r14-kosit.php'; // KoSIT: e-invoice validation in CI (before r8-render).
+require __DIR__ . '/r15-p.php'; // Round 15, fix agent p: privacy and performance (before r8-render).
+require __DIR__ . '/r15-s.php'; // Round 15, fix agent s: security and money R15-S1..S6 (before r8-render).
+require __DIR__ . '/su3.php'; // Agent su3: review quality from a review plugin, AFF-SU-03 (before r8-render).
+require __DIR__ . '/wf8.php'; // AFF-WF-08 (0.17.0): since table of all actions, parameters, after COMMIT (before r8-render).
+require __DIR__ . '/r17-snapshot.php'; // MariaDB 12.3 snapshot isolation (error 1020) in transactions (before r8-render).
 require __DIR__ . '/r16-fc.php'; // AFF-SU-01: Form Captain hand-over of partner applications (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
@@ -1586,6 +1595,9 @@ require __DIR__ . '/r14-g8-render.php'; // After the render files: paged campaig
 require __DIR__ . '/r14-f3-render.php'; // After the render files: password confirmation flows (feature f3).
 require __DIR__ . '/r14-f2-render.php'; // After the render files: code requests (feature f2, 0.15.0).
 require __DIR__ . '/r15-l2-render.php'; // After the render files: partner area of the L2 order (no buyer data).
+require __DIR__ . '/r14-c16-render.php'; // After the render files: dashboard KPI of the selected program (agent c16).
+require __DIR__ . '/r15-s-render.php'; // After the render files: confirmation of money-creating actions, rate limit, code_status (R15-S3/S4/S6).
+require __DIR__ . '/su3-render.php'; // After the render files: review quality on admin screens only, nothing in the partner area (AFF-SU-03).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

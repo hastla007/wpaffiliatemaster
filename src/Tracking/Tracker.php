@@ -326,7 +326,7 @@ final class Tracker {
 			$touch['visit_id'] = self::record_visit( $resolved, $touch, $extra );
 		}
 
-		self::store_touch( $touch, ! empty( $extra['cart'] ) );
+		self::store_touch( $touch, ! empty( $extra['cart'] ), (int) $resolved['affiliate_id'] );
 
 		/**
 		 * Fires after a referral link visit was captured.
@@ -537,12 +537,15 @@ final class Tracker {
 	 * first/last touch. A click alone never creates a shop session (no session row per click,
 	 * no cache bypass): without a cart the consented cookie carries the referral.
 	 *
-	 * @param array $touch Touch.
-	 * @param bool  $cart  A cart is being created right now (the shop session exists anyway).
+	 * The attribution model is the one of the earlier referral's program (it decides whether that
+	 * referral is kept), the cookie lifetime the one of the new partner's program (filter
+	 * wpac_setting; without a callback both are the program settings).
+	 *
+	 * @param array $touch        Touch.
+	 * @param bool  $cart         A cart is being created right now (the shop session exists anyway).
+	 * @param int   $affiliate_id Partner of the touch (0 = look it up from the code when needed).
 	 */
-	public static function store_touch( array $touch, $cart = false ) {
-		$first = 'first' === Settings::get( 'touch_model' );
-
+	public static function store_touch( array $touch, $cart = false, $affiliate_id = 0 ) {
 		if ( Settings::get( 'use_wc_session' ) && function_exists( 'WC' ) && WC()->session && ( $cart || WC()->session->has_session() ) ) {
 			$existing = WC()->session->get( self::SESSION_KEY );
 			// A session that older versions created only because of the consent stays bound to it:
@@ -552,19 +555,61 @@ final class Tracker {
 			}
 			// First touch keeps the earlier referral only while it is still valid (signature, window,
 			// code and partner active) – an invalid one is replaced.
-			if ( ! $first || ! self::touch_valid( $existing ) ) {
+			if ( 'first' !== self::touch_model( $existing ) || ! self::touch_valid( $existing ) ) {
 				WC()->session->set( self::SESSION_KEY, $touch );
 			}
 		}
 
 		if ( Consent::cookie_allowed() ) {
-			if ( ! $first || ! self::touch_valid( self::read_cookie() ) ) {
+			$cookie = self::read_cookie();
+			if ( 'first' !== self::touch_model( $cookie ) || ! self::touch_valid( $cookie ) ) {
 				self::write_cookie(
 					self::cookie_value( $touch ),
-					time() + DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) )
+					time() + DAY_IN_SECONDS * self::cookie_days( $touch, $affiliate_id )
 				);
 			}
 		}
+	}
+
+	/**
+	 * Partner of a stored touch, only looked up while a callback on wpac_setting may return values
+	 * per program (otherwise 0: the program settings apply anyway).
+	 *
+	 * @param mixed $touch        Touch.
+	 * @param int   $affiliate_id Known partner (0 = resolve the code).
+	 * @return int
+	 */
+	private static function touch_affiliate( $touch, $affiliate_id = 0 ) {
+		if ( (int) $affiliate_id > 0 ) {
+			return (int) $affiliate_id;
+		}
+		if ( ! is_array( $touch ) || empty( $touch['code'] ) || ( function_exists( 'has_filter' ) && false === has_filter( 'wpac_setting' ) ) ) {
+			return 0;
+		}
+		$resolved = wpac_resolve_partner_code( (string) $touch['code'], array( 'context' => 'touch' ) );
+		return is_array( $resolved ) && isset( $resolved['affiliate_id'] ) ? (int) $resolved['affiliate_id'] : 0;
+	}
+
+	/**
+	 * Attribution window (cookie lifetime) in days for a touch: the setting of its partner's program.
+	 *
+	 * @param mixed $touch        Touch.
+	 * @param int   $affiliate_id Known partner (0 = resolve the code when needed).
+	 * @return int At least 1.
+	 */
+	public static function cookie_days( $touch = null, $affiliate_id = 0 ) {
+		return max( 1, (int) Settings::for_affiliate( 'cookie_days', self::touch_affiliate( $touch, $affiliate_id ) ) );
+	}
+
+	/**
+	 * Attribution model (last|first) that applies to a stored touch: the setting of its partner's
+	 * program.
+	 *
+	 * @param mixed $touch Touch (null = none).
+	 * @return string
+	 */
+	private static function touch_model( $touch ) {
+		return (string) Settings::for_affiliate( 'touch_model', self::touch_affiliate( $touch ) );
 	}
 
 	/**
@@ -596,7 +641,7 @@ final class Tracker {
 			return false;
 		}
 		$ts = isset( $touch['ts'] ) ? (int) $touch['ts'] : 0;
-		if ( $ts && $ts < time() - DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) ) ) {
+		if ( $ts && $ts < time() - DAY_IN_SECONDS * self::cookie_days( $touch ) ) {
 			return false;
 		}
 		return (bool) wpac_resolve_partner_code( (string) $touch['code'], array( 'context' => 'touch' ) );
@@ -651,7 +696,8 @@ final class Tracker {
 				'ts'         => time(),
 				'sub_id'     => isset( $query[ self::sub_param() ] ) ? self::clean_sub( $query[ self::sub_param() ] ) : '',
 			),
-			true
+			true,
+			(int) $resolved['affiliate_id']
 		);
 	}
 
@@ -831,7 +877,7 @@ final class Tracker {
 			'method'     => 'cookie',
 		);
 		// Server-side attribution window (the cookie lifetime alone is client-controlled).
-		if ( $touch['ts'] && $touch['ts'] < time() - DAY_IN_SECONDS * max( 1, (int) Settings::get( 'cookie_days' ) ) ) {
+		if ( '' !== $touch['code'] && $touch['ts'] && $touch['ts'] < time() - DAY_IN_SECONDS * self::cookie_days( $touch ) ) {
 			return null;
 		}
 		return '' !== $touch['code'] ? $touch : null;
@@ -867,10 +913,14 @@ final class Tracker {
 		if ( $cookie && ! self::touch_valid( $cookie ) ) {
 			$cookie = null;
 		}
-		if ( $session && $cookie && 'first' === Settings::get( 'touch_model' ) ) {
-			// First touch: the older referral wins (a new shop session must not override it).
-			$s_ts = isset( $session['ts'] ) ? (int) $session['ts'] : 0;
-			return $cookie['ts'] && ( ! $s_ts || $cookie['ts'] < $s_ts ) ? $cookie : $session;
+		if ( $session && $cookie ) {
+			// First touch (model of the older referral's program): the older referral wins (a new
+			// shop session must not override it).
+			$s_ts  = isset( $session['ts'] ) ? (int) $session['ts'] : 0;
+			$older = $cookie['ts'] && ( ! $s_ts || $cookie['ts'] < $s_ts ) ? $cookie : $session;
+			if ( 'first' === self::touch_model( $older ) ) {
+				return $older;
+			}
 		}
 		return $session ? $session : $cookie;
 	}

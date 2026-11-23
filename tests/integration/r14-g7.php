@@ -89,7 +89,9 @@ $g7_visit( $g7_aff2, 'insta', 'story1', 4 );
 $g7_from = gmdate( 'Y-m-d', time() - 2 * DAY_IN_SECONDS );
 $g7_to   = gmdate( 'Y-m-d', time() + DAY_IN_SECONDS );
 list( $g7_s, $g7_e ) = Db::local_range( $g7_from, $g7_to );
-$g7_explain = $wpdb->get_row( $wpdb->prepare( "EXPLAIN SELECT campaign, sub_id, COUNT(*) n FROM {$g7_vt} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s GROUP BY campaign, sub_id", $g7_aff, $g7_s, $g7_e ), ARRAY_A );
+// MySQL 9.7 explains as TREE by default (explain_format); MariaDB has no such variable (PHP-1).
+$g7_explain_cmd = $wpdb->get_row( "SHOW VARIABLES LIKE 'explain_format'" ) ? 'EXPLAIN FORMAT=TRADITIONAL' : 'EXPLAIN';
+$g7_explain = $wpdb->get_row( $wpdb->prepare( "{$g7_explain_cmd} SELECT campaign, sub_id, COUNT(*) n FROM {$g7_vt} WHERE affiliate_id = %d AND created_at BETWEEN %s AND %s GROUP BY campaign, sub_id", $g7_aff, $g7_s, $g7_e ), ARRAY_A );
 check( 'R14-D1 EXPLAIN of the campaign statistics: index only (no row lookups by primary key)', array( 'affiliate_created', true ), array( (string) $g7_explain['key'], false !== stripos( (string) $g7_explain['Extra'], 'Using index' ) ) );
 
 /* R14-D1: statistics of the partner area cached per partner and period. ----------------------- */
@@ -131,9 +133,9 @@ unset( $g7_gen );
 $g7_rl = t( 'rate_limits' );
 q( "DELETE FROM {$g7_rl}" );
 for ( $i = 0; $i < 12; $i++ ) {
-	q( "INSERT INTO {$g7_rl} (rl_key, hits, expires_at) VALUES (UNHEX(MD5('g7-old-{$i}')), 1, " . ( time() - 100 ) . ')' );
+	q( "INSERT INTO {$g7_rl} (rl_key, hits, expires_at) VALUES (UNHEX('" . md5( "g7-old-{$i}" ) . "'), 1, " . ( time() - 100 ) . ')' ); // MySQL 9.7 has no MD5() (PHP-1).
 }
-q( "INSERT INTO {$g7_rl} (rl_key, hits, expires_at) VALUES (UNHEX(MD5('g7-live')), 1, " . ( time() + 600 ) . ')' );
+q( "INSERT INTO {$g7_rl} (rl_key, hits, expires_at) VALUES (UNHEX('" . md5( 'g7-live' ) . "'), 1, " . ( time() + 600 ) . ')' );
 add_filter( 'wpac_rate_limit_purge_batch', static function () { return 5; } );
 add_filter( 'wpac_rate_limit_purge_budget', static function () { return 0.000001; } );
 $GLOBALS['test_scheduled'] = array();

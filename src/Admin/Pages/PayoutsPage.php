@@ -651,16 +651,33 @@ final class PayoutsPage {
 	/**
 	 * Minimum payout in a currency as a run applies it (converted from the program currency).
 	 *
-	 * @param string $currency Currency.
+	 * With a partner: the value of the partner's program (filter wpac_setting). Without one: the
+	 * value of the settings, followed by the programs of the report selector (filter
+	 * wpac_report_programs) whose value differs, e.g. "€50.00 (Schools: €25.00)".
+	 *
+	 * @param string $currency     Currency.
+	 * @param int    $affiliate_id Partner (0 = general).
 	 * @return string
 	 */
-	public static function min_text( $currency ) {
-		$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency );
+	public static function min_text( $currency, $affiliate_id = 0 ) {
+		$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $affiliate_id );
 		if ( null === $min ) {
 			/* translators: %s: currency */
 			return sprintf( __( 'cannot be checked (no exchange rate for %s)', 'affiliate-captain' ), $currency );
 		}
-		return Money::format( (int) $min, $currency );
+		$text = Money::format( (int) $min, $currency );
+		if ( (int) $affiliate_id > 0 || ( function_exists( 'has_filter' ) && false === has_filter( 'wpac_setting' ) ) ) {
+			return $text;
+		}
+		$other = array();
+		foreach ( \WPAffiliateCaptain\Affiliates\Programs::report_choices() as $program => $label ) {
+			$value = \WPAffiliateCaptain\Core\Fx::min_payout_program( $currency, (string) $program );
+			if ( null !== $value && (int) $value !== (int) $min ) {
+				/* translators: 1: program name, 2: amount */
+				$other[] = sprintf( __( '%1$s: %2$s', 'affiliate-captain' ), $label, Money::format( (int) $value, $currency ) );
+			}
+		}
+		return $other ? $text . ' (' . implode( ', ', $other ) . ')' : $text;
 	}
 
 	/**

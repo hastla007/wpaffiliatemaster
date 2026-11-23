@@ -103,7 +103,15 @@ $GLOBALS['h3_network']['active_sitewide_plugins'] = array( $h3_legacy => 1700000
 $GLOBALS['h3_options'][1] = array( 'active_plugins' => array( 'other/other.php', $h3_self ), 'wpac_settings' => array( 'delete_on_uninstall' => 1 ) );
 $GLOBALS['h3_options'][2] = array( 'active_plugins' => array(), 'wpac_settings' => array( 'delete_on_uninstall' => 1 ) );
 
+$h3_min_php = preg_match( '/^ \* Requires PHP:\s*(\S+)/m', (string) file_get_contents( dirname( __DIR__, 2 ) . '/affiliate-captain.php' ), $h3_m ) ? $h3_m[1] : '0';
 require dirname( __DIR__, 2 ) . '/affiliate-captain.php';
+if ( version_compare( PHP_VERSION, $h3_min_php, '<' ) ) {
+	// PHP-1: below "Requires PHP" (e.g. a local run on an older PHP) the copy stops before the
+	// takeover: the old copy stays active, only the notice is registered, nothing boots.
+	h3( 'PHP-1 PHP below "Requires PHP": no takeover, notice only, no boot', array( array( $h3_legacy => 1700000000 ), true, false, false ), array( get_site_option( 'active_sitewide_plugins' ), isset( $GLOBALS['h3_hooks']['admin_notices'] ), isset( $GLOBALS['h3_hooks']['plugins_loaded'] ), isset( $GLOBALS['h3_hooks']['pre_uninstall_plugin'] ) ) );
+	echo "\n" . json_encode( $h3 ) . "\n";
+	exit( 0 );
+}
 
 $h3_label = 'preloaded' === $h3_mode ? 'old copy loaded first' : 'new copy loaded';
 h3( "R5-O55 multisite takeover ({$h3_label}): network activation moves to the new copy, not also per site", array( array( $h3_self => 1700000000 ), array( 'other/other.php' ) ), array( get_site_option( 'active_sitewide_plugins' ), $GLOBALS['h3_options'][1]['active_plugins'] ) );

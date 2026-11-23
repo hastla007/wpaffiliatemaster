@@ -39,6 +39,10 @@ final class Monitor {
 		if ( $warnings ) {
 			$out['engine'] = array( 'recommended', __( 'Some tables do not use InnoDB', 'affiliate-captain' ), implode( '; ', (array) $warnings ) );
 		}
+		$db_server = Requirements::database_check();
+		if ( $db_server ) {
+			$out['db_server'] = $db_server; // Decision E10: warn, never block.
+		}
 
 		$out['cron']   = self::cron_running()
 			? array( 'good', __( 'Scheduled tasks are running', 'affiliate-captain' ), '' )
@@ -125,6 +129,23 @@ final class Monitor {
 				/* translators: %s: error (no secrets) */
 				sprintf( __( 'Last error: %s. Credit notes are written again automatically with growing pauses; deletions after the retention period are repeated. Affiliate Captain → Integrations → System status → Test connection.', 'affiliate-captain' ), (string) $store_error['error'] ),
 			);
+		}
+		if ( is_multisite() ) {
+			// Kept credit notes of deleted sites whose deletion after the retention period failed (R15-P3).
+			$stuck = array();
+			foreach ( (array) get_site_option( Installer::RETAINED_SITES, array() ) as $blog_id => $entry ) {
+				if ( is_array( $entry ) && ! empty( $entry['failures'] ) ) {
+					$stuck[] = sprintf( '%d (%s)', (int) $blog_id, isset( $entry['last_error'] ) ? (string) $entry['last_error'] : '' );
+				}
+			}
+			if ( $stuck ) {
+				$out['retained_objects'] = array(
+					'critical',
+					__( 'Kept credit notes of deleted sites could not be deleted', 'affiliate-captain' ),
+					/* translators: %s: site IDs with the last error */
+					sprintf( __( 'The retention period of these deleted sites has ended, but their credit notes could not be deleted from the document storage: %s. The deletion is repeated daily; check the storage configuration (WPAC_S3_* constants or the filter wpac_statement_store).', 'affiliate-captain' ), implode( '; ', $stuck ) ),
+				);
+			}
 		}
 		$public = \WPAffiliateCaptain\Payouts\Statement::publicly_accessible();
 		if ( true === $public ) {

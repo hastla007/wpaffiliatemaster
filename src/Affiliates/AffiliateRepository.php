@@ -408,6 +408,11 @@ final class AffiliateRepository {
 		if ( ! $fields ) {
 			return true;
 		}
+		$before = null;
+		if ( isset( $fields['group_id'] ) ) {
+			$row    = self::find( $id );
+			$before = $row && (int) $row->group_id !== (int) $fields['group_id'] ? Programs::of_affiliate( (int) $id ) : null;
+		}
 		$fields['updated_at'] = Db::now();
 		$stored               = $wpdb->update( Db::table( 'affiliates' ), $fields, array( 'id' => (int) $id ) );
 		self::clear_cache( $id );
@@ -415,6 +420,9 @@ final class AffiliateRepository {
 			return new \WP_Error( 'wpac_affiliate_db', __( 'The partner data could not be saved. Please try again; the previous data are unchanged.', 'affiliate-captain' ) );
 		}
 		Audit::log( 'affiliate.updated', 'affiliate', (int) $id, array( 'fields' => array_keys( $fields ) ) );
+		if ( null !== $before ) {
+			Programs::changed( (int) $id, $before, Programs::of_affiliate( (int) $id ) ); // Action wpac_affiliate_program_changed.
+		}
 		return true;
 	}
 
@@ -1397,7 +1405,8 @@ final class AffiliateRepository {
 	/**
 	 * List affiliates.
 	 *
-	 * @param array $args status, group_id, referred_by (recruiting partner, 0 = none), search, limit, offset.
+	 * @param array $args status, group_id, group_ids (list: partners of these groups, empty = none),
+	 *                    referred_by (recruiting partner, 0 = none), search, limit, offset.
 	 * @return array [ rows, total ]
 	 */
 	public static function query( array $args = array() ) {
@@ -1412,6 +1421,16 @@ final class AffiliateRepository {
 		if ( isset( $args['group_id'] ) && '' !== (string) $args['group_id'] && (int) $args['group_id'] >= 0 ) {
 			$where   .= ' AND group_id = %d';
 			$params[] = (int) $args['group_id'];
+		}
+		if ( isset( $args['group_ids'] ) && is_array( $args['group_ids'] ) ) {
+			$groups = array_values( array_unique( array_map( 'intval', $args['group_ids'] ) ) );
+			if ( $groups ) {
+				$where .= ' AND group_id IN (' . implode( ',', array_fill( 0, count( $groups ), '%d' ) ) . ')';
+				$params = array_merge( $params, $groups );
+			} else {
+				$where   .= ' AND 1 = %d';
+				$params[] = 0;
+			}
 		}
 		if ( isset( $args['referred_by'] ) && '' !== (string) $args['referred_by'] && (int) $args['referred_by'] >= 0 ) {
 			$where   .= ' AND referred_by = %d';
@@ -1428,14 +1447,24 @@ final class AffiliateRepository {
 	/**
 	 * Count by status.
 	 *
+	 * @param string|null $program Only partners of this program (key, '' = default program;
+	 *                             filter wpac_program_groups); null = all partners.
 	 * @return array status => count
 	 */
-	public static function count_by_status() {
+	public static function count_by_status( $program = null ) {
 		global $wpdb;
-		$t   = Db::table( 'affiliates' );
-		$out = array_fill_keys( self::STATUSES, 0 );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ( $wpdb->get_results( "SELECT status, COUNT(*) c FROM {$t} GROUP BY status" ) as $r ) {
+		$t     = Db::table( 'affiliates' );
+		$out   = array_fill_keys( self::STATUSES, 0 );
+		$where = '';
+		if ( null !== $program ) {
+			$groups = Programs::groups_of( (string) $program );
+			if ( ! $groups ) {
+				return $out; // No group belongs to the program: no partner.
+			}
+			$where = ' WHERE group_id IN (' . implode( ',', array_map( 'intval', $groups ) ) . ')';
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where holds integers only.
+		foreach ( $wpdb->get_results( "SELECT status, COUNT(*) c FROM {$t}{$where} GROUP BY status" ) as $r ) {
 			$out[ $r->status ] = (int) $r->c;
 		}
 		return $out;

@@ -87,7 +87,7 @@ Nächste Schritte nach der Entscheidung für A/C:
 
 Stand 16.11.2026: Die gemeinsame Spezifikation für Form Captain, Review Captain und Workflow Captain liegt als Entwurf vor und ist noch nicht abgenommen (Repository `wp-workflowmaster`, `docs/SPEC-suite-events.md`). Entschieden ist (Inhaber, 16.11.2026; `TODO.md`, „Offene Entscheidungen“): Jeder Kern führt eine eigene versionierte Vertragskonstante (hier `WPAC_CONTRACT_VERSION`, `docs/CONTRACT.md`); der Transport sind die vorhandenen PHP-Hooks; ein Workflow bucht in der ersten Version keine Provision und löst keine Auszahlung aus. Eine eigene Schnittstelle für Workflow Captain ist nicht Teil von 0.15.0; ein Entwurf dafür wurde vor dem Release herausgenommen und kommt erst nach der Abnahme der Spezifikation zurück (`TODO.md`, Abschnitt „Entscheidung D13“, Aufgabe AFF-WF-08). Der Adapter für Workflow Captain liegt im Add-on. Auch für diese Anbindungen gilt: Der Kern prüft keine Rechte; ob eine Anbindung bezahlt ist, entscheidet das jeweilige Add-on. Eine produktübergreifende Automatisierung braucht Workflow Pro und die Pro-Lizenz des Produkt-Add-ons; geprüft wird das nur in den Add-ons.
 
-Die bestehenden Integrationsverträge für Verkauf, Attribution und Provision bleiben für WooCommerce, Pass Captain und Voucher Captain zuständig. Form Captain ersetzt den Affiliate-Bewerbungsablauf nicht; eine optionale Formularübergabe kann nur einen wartenden Antrag einreichen, während Prüfung und Freigabe in Affiliate Captain verbleiben. Review Captain erhält keinen Zugriff auf Provisionsdetails: die spätere Verbindung ist auf freigegebene, aggregierte Qualitätswerte begrenzt und darf keine Einladung oder Provision auslösen. Dafür sind neue, ausdrücklich vereinbarte Schnittstellen nötig; der bestehende Vertrag (1.4.0) stellt für Form Captain und Review Captain keine Funktionen bereit (Vorschläge dazu stehen in `docs/CONTRACT.md`).
+Die bestehenden Integrationsverträge für Verkauf, Attribution und Provision bleiben für WooCommerce, Pass Captain und Voucher Captain zuständig. Form Captain ersetzt den Affiliate-Bewerbungsablauf nicht; eine optionale Formularübergabe kann nur einen wartenden Antrag einreichen, während Prüfung und Freigabe in Affiliate Captain verbleiben. Review Captain erhält keinen Zugriff auf Provisionsdetails: die spätere Verbindung ist auf freigegebene, aggregierte Qualitätswerte begrenzt und darf keine Einladung oder Provision auslösen. Dafür sind neue, ausdrücklich vereinbarte Schnittstellen nötig; der bestehende Vertrag (1.5.0) stellt für Form Captain und Review Captain keine Funktionen bereit (Vorschläge dazu stehen in `docs/CONTRACT.md`).
 
 ## 7. Aufteilung der Funktionen: Kern und Add-on (entschieden 2026-11-15, Stand 16.11.2026)
 
@@ -121,9 +121,9 @@ Ebenfalls Kern und dauerhaft frei sind alle früher ausgelieferten Funktionen, d
 
 Einschränkung: PayPal Payouts ist bisher nur gegen einen nachgebauten Zahlungsdienst geprüft, nicht gegen die PayPal-Sandbox, und gilt deshalb als teilweise erledigt. Das Add-on ist noch nicht veröffentlicht (Version 0.1.0; Adresse und Signaturschlüssel des Lizenzservers fehlen dort).
 
-### 7.3 Für das Add-on geplant, noch nicht gebaut
+### 7.3 Weitere Add-on-Funktionen (Stand 16.11.2026 nachmittags)
 
-Die Schlüssel stehen im Katalog des Lizenzservers; in captain-pro gibt es dazu keinen Code. Reihenfolge und Umfang sind offen (`TODO.md`, Entscheidung E4); entschieden ist seit dem 16.11.2026 nur, dass „Mehrere Programme“ gebaut wird.
+Bestenliste, Stripe Connect, Shop-Guthaben und mehrstufige Provision sind in captain-pro gebaut, aber noch nicht in `main` (PR hastla007/captain-pro#7; 616 PHPUnit-Tests grün, nicht gegen echtes Stripe/WooCommerce geprüft). „Mehrere Programme“ ist entschieden (Variante A); die Erweiterungspunkte im Kern gibt es seit 0.16.0, im Add-on ist die Funktion noch nicht gebaut.
 
 | Funktion | Rechteschlüssel im Katalog | Grundlage im Kern | Anmerkung |
 |---|---|---|---|
@@ -131,6 +131,6 @@ Die Schlüssel stehen im Katalog des Lizenzservers; in captain-pro gibt es dazu 
 | Auszahlung über Stripe Connect | `affiliate.stripe_connect` | Auszahlungs-API des Vertrags (seit 1.3.0) | Weitere Auszahlungswege sind Add-on (siehe 3., Option A). |
 | Auszahlung als Shop-Guthaben | `affiliate.store_credit` | Auszahlungs-API des Vertrags (seit 1.3.0) | wie oben |
 | Sub-Affiliates / mehrstufige Provision | `affiliate.multi_tier` | `referred_by`, `wpac_affiliate_recruited`, `wpac_create_adjustment()` mit `parent_id` (seit 0.15.0) | Der Kern speichert nur den Werber; die Buchung weiterer Stufen ist Sache des Add-ons. |
-| Mehrere Programme | `affiliate.multiple_programs` | noch keine; im Vertrag gibt es dafür keinen Erweiterungspunkt. Partnergruppen mit eigenen Bedingungen und Regeln sind eine Vorstufe. | Bleibt als geplant im Katalog und wird gebaut (Entscheidung des Inhabers vom 16.11.2026). Was der Kern dafür braucht: `TODO.md`, Aufgabe MP-1. |
+| Mehrere Programme | `affiliate.multiple_programs` | Erweiterungspunkte im Kern seit Vertrag 1.5.0 (Variante A „Programm = Partnergruppe“: `wpac_setting` mit Programmkontext, `wpac_affiliate_program()`, Feld und Filter `program`, Programmberichte, `wpac_affiliate_program_changed`; `docs/CONTRACT.md`, Abschnitt „Partnerprogramme“). Das Add-on selbst ist noch nicht gebaut. | Bleibt als geplant im Katalog und wird gebaut (Entscheidung des Inhabers vom 16.11.2026). Was der Kern dafür braucht: `TODO.md`, Aufgabe MP-1. |
 
 `affiliate.priority_support` beschreibt eine Dienstleistung, keine Funktion; dafür gibt es im Add-on nichts zu sperren.

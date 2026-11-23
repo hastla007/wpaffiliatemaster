@@ -447,9 +447,10 @@ final class Privacy {
 	 */
 	public static function audit_export_fields() {
 		return array(
-			'affiliate.created'                   => array( 'status' ),
+			'affiliate.created'                   => array( 'status', 'referred_by' ),
 			'affiliate.updated'                   => array( 'fields' ),
 			'affiliate.status'                    => array( 'from', 'to', 'reason' ),
+			'affiliate.referred_by'               => array( 'from', 'to' ), // Partner IDs of the recruiter (R15-P5).
 			'affiliate.email_changed'             => array(),
 			'affiliate.public_change_requested'   => array(),
 			'affiliate.public_change_approved'    => array(),
@@ -615,8 +616,28 @@ final class Privacy {
 	 */
 	private static function export_base( $email, $user, $aff ) {
 		$items = array();
+		$links = \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( $user ? (int) $user->ID : 0, $email );
+		// Customers: orders on which the partner's coupon was applied automatically after the
+		// partner link (order meta _wpac_auto_coupon, R15-P6).
+		foreach ( self::customer_orders( $email, $user, $links ) as $order_id ) {
+			$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) $order_id ) : null;
+			$auto  = $order && method_exists( $order, 'get_meta' ) ? $order->get_meta( \WPAffiliateCaptain\Integrations\WooCommerce\AutoCoupon::META_ORDER ) : null;
+			if ( ! is_array( $auto ) || empty( $auto['coupon'] ) ) {
+				continue;
+			}
+			$items[] = array(
+				'group_id'    => 'wpac-customer-auto-coupon',
+				'group_label' => __( 'Partner coupon applied automatically', 'affiliate-captain' ),
+				'item_id'     => 'wpac-customer-auto-coupon-' . (int) $order_id,
+				'data'        => array(
+					array( 'name' => __( 'Order', 'affiliate-captain' ), 'value' => '#' . $order_id ),
+					array( 'name' => __( 'Coupon', 'affiliate-captain' ), 'value' => (string) $auto['coupon'] ),
+					array( 'name' => __( 'Partner ID', 'affiliate-captain' ), 'value' => (string) ( isset( $auto['affiliate_id'] ) ? (int) $auto['affiliate_id'] : 0 ) ),
+				),
+			);
+		}
 		// Customers: every stored lifetime link (keyed hash), also one still waiting for a review.
-		foreach ( \WPAffiliateCaptain\Tracking\CustomerLinks::for_customer( $user ? (int) $user->ID : 0, $email ) as $link ) {
+		foreach ( $links as $link ) {
 			$items[] = array(
 				'group_id'    => 'wpac-customer-link',
 				'group_label' => __( 'Partner referral (lifetime link)', 'affiliate-captain' ),
@@ -1050,9 +1071,10 @@ final class Privacy {
 		$removed = false;
 		$kept    = 0;
 		$unpaid  = 0;
-		// Referral snapshot, the partner code the customer typed in and a manual assignment by an
-		// admin (R13-N3): only read to attribute the order.
-		$keys = array( \WPAffiliateCaptain\Integrations\WooCommerce::META_TOUCH, \WPAffiliateCaptain\Integrations\WooCommerce::META_CODE, \WPAffiliateCaptain\Integrations\WooCommerce::META_MANUAL, \WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::META_MANUAL_OWN );
+		// Referral snapshot, the partner code the customer typed in, a manual assignment by an
+		// admin (R13-N3) and the note that the partner's coupon was applied automatically after
+		// the partner link (R15-P6): only read to attribute the order or shown with it.
+		$keys = array( \WPAffiliateCaptain\Integrations\WooCommerce::META_TOUCH, \WPAffiliateCaptain\Integrations\WooCommerce::META_CODE, \WPAffiliateCaptain\Integrations\WooCommerce::META_MANUAL, \WPAffiliateCaptain\Integrations\WooCommerce\OrderSync::META_MANUAL_OWN, \WPAffiliateCaptain\Integrations\WooCommerce\AutoCoupon::META_ORDER );
 		foreach ( $orders as $order_id ) {
 			$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) $order_id ) : null;
 			if ( ! $order || ! method_exists( $order, 'get_meta' ) ) {
@@ -1414,19 +1436,30 @@ final class Privacy {
 			// Other payment method on: the payment provider receives the payout (e.g. PayPal; outside the EU possible).
 			$providers = $de ? 'Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ' : __( 'payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), ', 'affiliate-captain' );
 		}
-		$map = array(
-			'{operator_name}'              => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
+		$storage = '';
+		if ( ! \WPAffiliateCaptain\Payouts\Statement::local_store() ) {
+			// R15-P4: credit note PDFs with an object storage provider (processor, possibly a third country).
+			$storage = $de ? 'Auftragsverarbeiter für die Ablage der Gutschrift-PDFs: Objektspeicher-Anbieter ([Anbieter, Standort, bei Drittland die Garantien nach Art. 44 ff. DSGVO – vom Betreiber zu ergänzen]), ' : __( 'processor storing the credit note PDFs: object storage provider ([provider, location, for a third country the safeguards under Art. 44 ff. GDPR – to be completed by the operator]), ', 'affiliate-captain' );
+		}
+		$cookie_range = self::program_cookie_days();
+		$map          = array(
+			'{operator_name}'             => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'{operator_address}'           => str_replace( array( "\r\n", "\n" ), ', ', (string) Settings::get( 'operator_address' ) ),
 			'{date}'                       => wp_date( 'Y-m-d' ),
 			'{visit_retention_days}'       => $days( 'visit_retention_days' ),
-			'{cookie_days}'                => $days( 'cookie_days' ),
+			'{cookie_days}'                => $cookie_range ? implode( '–', $cookie_range ) : $days( 'cookie_days' ), // Range per partner program (wpac_setting).
 			'{lifetime_days}'              => $lifetime,
 			'{retention_years}'            => Retention::years() > 0 ? (string) Retention::years() : '∞',
 			'{application_retention_days}' => $days( 'application_retention_days' ),
 			'{pending_application_days}'   => $days( 'pending_application_days' ),
 			'{audit_retention_days}'       => $days( 'audit_retention_days' ),
 			'{payment_providers}'          => $providers,
+			'{document_storage}'           => $storage,
 		);
+		// AFF-SU-03: the entry on the review quality only while a review plugin listens.
+		$text = \WPAffiliateCaptain\Reports\ReviewQuality::available()
+			? str_replace( array( "<!-- review-quality -->\n", "<!-- /review-quality -->\n" ), '', $text )
+			: (string) preg_replace( '/<!-- review-quality -->\n.*?<!-- \/review-quality -->\n/s', '', $text );
 		return strtr( $text, $map );
 	}
 
@@ -1441,6 +1474,46 @@ final class Privacy {
 	}
 
 	/**
+	 * Cookie lifetimes of the partner programs when an add-on changes them (filter wpac_setting,
+	 * contract 1.5.0): the default program, the program of every partner group and the programs of
+	 * the report selector (wpac_report_programs).
+	 *
+	 * @return int[]|null [ shortest, longest ] days, or null when every program uses the setting
+	 *                    (always without a wpac_setting callback).
+	 */
+	public static function program_cookie_days() {
+		if ( function_exists( 'has_filter' ) && false === has_filter( 'wpac_setting' ) ) {
+			return null;
+		}
+		$base     = (int) Settings::get( 'cookie_days' );
+		$programs = array( '' => 0 );
+		foreach ( (array) \WPAffiliateCaptain\Affiliates\Groups::all() as $group ) {
+			$programs[ \WPAffiliateCaptain\Affiliates\Programs::for_group( (int) $group->id ) ] = (int) $group->id;
+		}
+		foreach ( array_keys( \WPAffiliateCaptain\Affiliates\Programs::report_choices() ) as $key ) {
+			if ( ! isset( $programs[ (string) $key ] ) ) {
+				$programs[ (string) $key ] = preg_match( '/^group:([1-9]\d{0,9})$/', (string) $key, $m ) ? (int) $m[1] : 0;
+			}
+		}
+		$days = array();
+		foreach ( $programs as $program => $group_id ) {
+			$days[] = max( 1, (int) Settings::get(
+				'cookie_days',
+				array(
+					'program'  => (string) $program,
+					'group_id' => (int) $group_id,
+				)
+			) );
+		}
+		$days = array_unique( $days );
+		if ( array( $base ) === array_values( $days ) ) {
+			return null;
+		}
+		$days[] = $base;
+		return array( min( $days ), max( $days ) );
+	}
+
+	/**
 	 * Suggested privacy policy text.
 	 */
 	public static function policy_text() {
@@ -1451,12 +1524,18 @@ final class Privacy {
 		$p[] = __( 'When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details.', 'affiliate-captain' );
 		$mode = Settings::get( 'cookie_mode' );
 		$cookie_days = (int) Settings::get( 'cookie_days' );
+		// Several partner programs with own cookie lifetimes (add-on, wpac_setting): name the range.
+		$range = 'off' !== $mode ? self::program_cookie_days() : null;
 		if ( 'consent' === $mode ) {
 			/* translators: %d: days */
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it.', 'An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it.', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		} elseif ( 'always' === $mode ) {
 			/* translators: %d: days */
 			$p[] = sprintf( _n( 'An affiliate cookie (wpac_ref, %d day) is set when you follow a partner link, without asking for your consent.', 'An affiliate cookie (wpac_ref, %d days) is set when you follow a partner link, without asking for your consent.', $cookie_days, 'affiliate-captain' ), $cookie_days );
+		}
+		if ( $range ) {
+			/* translators: 1: shortest lifetime in days, 2: longest lifetime in days */
+			$p[] = sprintf( __( 'The lifetime of the affiliate cookie depends on the partner program of the partner whose link you followed: between %1$d and %2$d days.', 'affiliate-captain' ), $range[0], $range[1] );
 		}
 		$session = (bool) Settings::get( 'use_wc_session' );
 		if ( $session ) {
@@ -1481,7 +1560,12 @@ final class Privacy {
 					? __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is only sent as its host name and only with your marketing consent.', 'affiliate-captain' )
 					: __( 'Pages served from a cache report the partner code in the page address to our server with a small script (the same information the page request itself contains: partner code, campaign, page). The address of the previous website is not stored.', 'affiliate-captain' ) );
 		}
+		if ( 'off' !== $mode || $session ) {
+			// R15-P5: the referral of the visit also decides who recruited a new partner (referred_by).
+			$p[] = __( 'If you apply to become a partner yourself, the referral described above is also used to record which partner recruited you.', 'affiliate-captain' );
+		}
 		$p[] = __( 'For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted.', 'affiliate-captain' );
+		$p[] = __( 'If you applied through the link of another partner, we store which partner recruited you (partner ID) with your partner account, so that partner can be credited for the recruitment (contract with the partners, Art. 6(1)(b) GDPR). It is kept as long as your partner account and the related booking records.', 'affiliate-captain' );
 
 		// Storage periods.
 		$years    = Retention::years();
@@ -1492,8 +1576,11 @@ final class Privacy {
 		/* translators: %d: days */
 		$periods[] = $visits > 0 ? sprintf( _n( 'link visits (without IP address): %d day', 'link visits (without IP address): %d days', $visits, 'affiliate-captain' ), $visits ) : __( 'link visits (without IP address): until deleted manually', 'affiliate-captain' );
 		if ( Settings::get( 'cookie_mode' ) !== 'off' ) {
-			/* translators: %d: days */
-			$periods[] = sprintf( _n( 'affiliate cookie: %d day', 'affiliate cookie: %d days', $cookie_days, 'affiliate-captain' ), $cookie_days );
+			$periods[] = $range
+				/* translators: 1: shortest lifetime in days, 2: longest lifetime in days */
+				? sprintf( __( 'affiliate cookie: %1$d to %2$d days depending on the partner program', 'affiliate-captain' ), $range[0], $range[1] )
+				/* translators: %d: days */
+				: sprintf( _n( 'affiliate cookie: %d day', 'affiliate cookie: %d days', $cookie_days, 'affiliate-captain' ), $cookie_days );
 		}
 		if ( Settings::get( 'lifetime_enabled' ) ) {
 			$days      = (int) Settings::get( 'lifetime_days' );
@@ -1536,7 +1623,14 @@ final class Privacy {
 		$p[]     = __( 'Legal bases:', 'affiliate-captain' ) . ' ' . implode( '; ', $bases ) . '.';
 
 		// Recipients.
-		$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'affiliate-captain' );
+		if ( \WPAffiliateCaptain\Payouts\Statement::local_store() ) {
+			$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin.', 'affiliate-captain' );
+		} else {
+			// R15-P4: credit notes (name, address, VAT ID of the partner) are kept with an object
+			// storage provider (WPAC_S3_* constants or a custom store) – possibly in a third country.
+			$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR).', 'affiliate-captain' );
+			$p[] = __( 'Credit notes, cancellations and correction credit notes (with the partner\'s name, address and VAT ID) are stored with an object storage provider on our behalf (Art. 28 GDPR): [provider, location of the storage and, for a location outside the EU/EEA, the safeguards for the transfer (Art. 44 ff. GDPR) – to be completed by the shop operator].', 'affiliate-captain' );
+		}
 		if ( ProfileRepository::manual_enabled() ) {
 			$p[] = __( 'Partners who choose another payment method (e.g. PayPal or Wise) instead of a bank transfer: the amount, the payment reference and the payment details they entered (e.g. their PayPal address) go to that payment provider for the payout. The provider processes them under its own responsibility and may transfer them to third countries (e.g. the USA).', 'affiliate-captain' );
 		}

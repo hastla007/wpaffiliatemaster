@@ -254,6 +254,36 @@ final class Db {
 		$fn();
 	}
 
+	/** @var mixed Connection on which innodb_snapshot_isolation was already switched off. */
+	private static $isolation_dbh = null;
+
+	/**
+	 * MariaDB 11.6.2+ (and so the supported 12.3) has innodb_snapshot_isolation ON by default: a
+	 * locking read (SELECT … FOR UPDATE) of a row that changed after the transaction's snapshot
+	 * fails with error 1020 "Record has changed since last read" and the server rolls the whole
+	 * transaction back. The bookings read and then lock rows (the classic REPEATABLE READ
+	 * pattern MySQL uses), so the variable is switched off for the session once per connection.
+	 * MySQL does not know the variable; the error is suppressed. Error 1020 also counts as an
+	 * abort (FATAL_ERRNO) should the variable be on anyway.
+	 *
+	 * @return void
+	 */
+	private static function classic_isolation() {
+		global $wpdb;
+		$dbh = isset( $wpdb->dbh ) ? $wpdb->dbh : null;
+		if ( null !== $dbh && $dbh === self::$isolation_dbh ) {
+			return;
+		}
+		$info = (string) $wpdb->db_server_info(); // wpdb since WordPress 5.6; the test stand-in has it too.
+		if ( false !== stripos( $info, 'mariadb' ) ) {
+			$suppress = $wpdb->suppress_errors( true );
+			$wpdb->query( 'SET SESSION innodb_snapshot_isolation = OFF' );
+			$wpdb->suppress_errors( $suppress );
+			$wpdb->last_error = '';
+		}
+		self::$isolation_dbh = $dbh;
+	}
+
 	/** @var callable[] Callbacks waiting for the COMMIT of the running transaction. */
 	private static $after_commit = array();
 
@@ -285,6 +315,7 @@ final class Db {
 			add_filter( 'query', array( __CLASS__, 'guard_query' ), PHP_INT_MAX );
 			self::$guarded = true;
 		}
+		self::classic_isolation();
 		// A transaction that could not be started or committed must never look like success
 		// (ledger and payout data would be partly written or not at all).
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
@@ -382,7 +413,7 @@ final class Db {
 		if ( in_array( $errno, self::FATAL_ERRNO, true ) ) {
 			return '' !== $error ? $error : 'MySQL error ' . $errno;
 		}
-		if ( '' !== $error && preg_match( '/deadlock|lock wait timeout|gone away|lost connection|try restarting transaction/i', $error ) ) {
+		if ( '' !== $error && preg_match( '/deadlock|lock wait timeout|gone away|lost connection|try restarting transaction|record has changed since last read/i', $error ) ) {
 			return $error;
 		}
 		return '';
@@ -419,8 +450,8 @@ final class Db {
 		return new IntegrationException( 'db_deadlock', esc_html__( 'The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again.', 'affiliate-captain' ) );
 	}
 
-	/** MySQL error numbers that abort a transaction or a statement in it: lock wait timeout, deadlock, server gone away, lost connection, disconnected (MySQL 8). */
-	const FATAL_ERRNO = array( 1205, 1213, 2006, 2013, 4031 );
+	/** MySQL error numbers that abort a transaction or a statement in it: record changed since last read (MariaDB snapshot isolation), lock wait timeout, deadlock, server gone away, lost connection, disconnected (MySQL 8). */
+	const FATAL_ERRNO = array( 1020, 1205, 1213, 2006, 2013, 4031 );
 
 	/** @var string Error that aborted the running transaction ('' = none). */
 	private static $aborted = '';

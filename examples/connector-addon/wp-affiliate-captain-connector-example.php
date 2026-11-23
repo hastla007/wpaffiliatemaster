@@ -4,7 +4,7 @@
  * Description:       Starter adapter for reporting sales and refunds from a custom app.
  * Version:           0.1.0
  * Requires at least: 6.2
- * Requires PHP:      7.4
+ * Requires PHP:      8.5
  * License:           GPL-2.0-or-later
  *
  * Install alongside Affiliate Captain, then replace the example app hooks

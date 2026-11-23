@@ -4,13 +4,14 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.15.0** (Datenbankschema 16, Integrationsvertrag 1.4.0; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 10.11 und MySQL 8.4 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
+> Status: **0.17.0** (Datenbankschema 16, Integrationsvertrag 1.6.0; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 12.3 und MySQL 9.7 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
 
 ## Anforderungen
 
-- WordPress 6.3+ (Blöcke mit `apiVersion: 3`), PHP 7.4+ (mit `sodium`, `dom`; `zip` für den Programm-Export)
-- Optional: WooCommerce 8.0+ (HPOS und Classic-/Blocks-Checkout; Partnercode-Feld im Blocks-Checkout ab 8.9), geprüft bis 11.3
-- Die Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) prüft der CI-Job „Minimum versions“ (Aktivierung, Bestellung + Erstattung, REST, alle Admin-Seiten).
+- WordPress 7.0+ (Blöcke mit `apiVersion: 3`), PHP 8.5+ (mit `sodium`, `dom`; `zip` für den Programm-Export)
+- MySQL 9.7+ (LTS) oder MariaDB 12.3+ (LTS) mit InnoDB. Ein älterer Datenbankserver wird nicht blockiert; Website-Zustand zeigt dann eine Warnung (Mindestversionen in `WPAffiliateCaptain\Core\Requirements`, Filter `wpac_minimum_db_versions`)
+- Optional: WooCommerce 11.2.2+ (HPOS und Classic-/Blocks-Checkout), geprüft bis 11.3
+- Die Mindestversionen (WordPress 7.0, WooCommerce 11.2.2, PHP 8.5, MariaDB 12.3) prüft der CI-Job „Minimum versions“ (Aktivierung, Bestellung + Erstattung, REST, alle Admin-Seiten).
 
 Betreiber-Handbuch (englisch): [docs/HANDBOOK.md](docs/HANDBOOK.md). Import/Export: [docs/IMPORT-EXPORT.md](docs/IMPORT-EXPORT.md). Release und WordPress.org: [docs/RELEASE.md](docs/RELEASE.md); Free/Premium-Entscheidung: [docs/FREE-PREMIUM.md](docs/FREE-PREMIUM.md).
 
@@ -102,7 +103,7 @@ bin/build-zip.sh
 python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
 ```
 
-CI (GitHub Actions) prüft PHP 7.4–8.5 (Smoke-Test mit WordPress und WooCommerce auf 8.4), Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 6.3, WooCommerce 8.0, PHP 7.4) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
+CI (GitHub Actions) prüft PHP 8.5 (8.6 als experimentelle Zelle, die den Lauf nicht scheitern lässt), MySQL 9.7 und MariaDB 12.3 (Smoke-Test mit den aktuellen WordPress- und WooCommerce-Versionen auf 8.5), Unit- und Integrationstests (inkl. REST-`permission_callback`s), Coverage-Schwelle (`WPAC_COVERAGE_MIN`, Standard 70 %), QR-Dekodierung, Übersetzung, Browser-/Pluginverbund-/Smoke-Tests, Mindestversionen (WordPress 7.0, WooCommerce 11.2.2, PHP 8.5) und das offizielle Plugin Check auf dem gebauten ZIP (bekannte Fehlalarme mit Begründung in `tests/ci/plugin-check-ignore.txt`); ein Tag `v*` erzeugt ein GitHub-Release mit ZIP. Was ins ZIP und nach WordPress.org kommt, steuert `.distignore`; der SVN-Deploy ist ein manueller Workflow (`docs/RELEASE.md`).
 
 Optional (braucht `zbarimg` und Pillow): QR-Codes wirklich dekodieren:
 
@@ -120,13 +121,13 @@ Struktur: `src/Core` (inkl. `Paged` für Listenabfragen) (Lifecycle, Schema, Gel
 
 **Stand 16.11.2026: Die gemeinsame Spezifikation der Suite liegt als Entwurf vor und ist noch nicht abgenommen** (Repository `wp-workflowmaster`, `docs/SPEC-suite-events.md`). Entschieden ist (Inhaber, 16.11.2026; `TODO.md`, „Offene Entscheidungen“): Jeder Kern führt eine eigene versionierte Vertragskonstante (hier `WPAC_CONTRACT_VERSION`). Der Transport sind die vorhandenen fachlichen PHP-Actions derselben Installation; neu gebaut wird nur der Abnehmer in Workflow Captain, der seinen Umschlag selbst baut, speichert und wiederholt. Nutzdaten dürfen öffentliche Kennungen, die Benutzer-ID, den öffentlichen Partnercode und Geldbeträge enthalten, aber keine geheimen Codes und keine E-Mail-Adressen. Die Kerne behalten ihre eigenen Mails. Ein Workflow darf in der ersten Version keine Provision buchen und keine Auszahlung auslösen. Die Workflow-Arbeit folgt nach dem Verkaufsstart der drei Add-ons.
 
-Was dieser Kern heute anbietet, steht in [docs/CONTRACT.md](docs/CONTRACT.md): ein versionierter Hook-Vertrag (`WPAC_CONTRACT_VERSION`, aktuell 1.4.0, mit ausgeschriebener Versionsregel) samt der Liste aller Actions, Filter und Funktionen mit ihren Nutzdaten.
+Was dieser Kern heute anbietet, steht in [docs/CONTRACT.md](docs/CONTRACT.md): ein versionierter Hook-Vertrag (`WPAC_CONTRACT_VERSION`, aktuell 1.5.0, mit ausgeschriebener Versionsregel) samt der Liste aller Actions, Filter und Funktionen mit ihren Nutzdaten.
 
 Eine eigene Schnittstelle für Workflow Captain enthält 0.15.0 **nicht**. Ein Entwurf dafür (ein Umschlag, den der Kern baut, und eigene Lesefunktionen) entstand vor den Entscheidungen des Inhabers und wurde vor dem Release wieder herausgenommen. Ein Abnehmer nutzt die fachlichen Actions und die Lese-API des Vertrags; sein Adapter liegt im Add-on. Was wann zu tun ist, steht in `TODO.md` (Abschnitt „Entscheidung D13“, Aufgabe AFF-WF-08).
 
 Der Kern bleibt dabei vollständig frei: Er kennt weder Lizenz noch Tarif und bietet nur allgemeine Erweiterungspunkte an. Ob eine Anbindung bezahlt ist, entscheidet allein das jeweilige Add-on.
 
-Affiliate Captain bleibt System of Record für Partner, Attribution, Provisionsledger, Auszahlungen und Partnerstatus. Grundlage für Provisionen bleiben der Vertrag 1.x (`docs/CONTRACT.md`, aktuell 1.4.0) und die vorhandenen Verkaufsquellen: WooCommerce (eigener Adapter) und Pass Captain (meldet nur eigene, nicht über WooCommerce laufende Bestellungen). Voucher Captain meldet keine Verkäufe, sondern ordnet Gutschein-Kampagnen über `wpac_coupon_affiliate` einem Partner zu; gebucht wird über die WooCommerce-Bestellung. Neue Suite-Anbindungen müssen dieselbe Idempotenz (Quelle + Bestellung + Position) nutzen und dürfen keinen zweiten Verkauf für dieselbe Bestellung melden.
+Affiliate Captain bleibt System of Record für Partner, Attribution, Provisionsledger, Auszahlungen und Partnerstatus. Grundlage für Provisionen bleiben der Vertrag 1.x (`docs/CONTRACT.md`, aktuell 1.5.0) und die vorhandenen Verkaufsquellen: WooCommerce (eigener Adapter) und Pass Captain (meldet nur eigene, nicht über WooCommerce laufende Bestellungen). Voucher Captain meldet keine Verkäufe, sondern ordnet Gutschein-Kampagnen über `wpac_coupon_affiliate` einem Partner zu; gebucht wird über die WooCommerce-Bestellung. Neue Suite-Anbindungen müssen dieselbe Idempotenz (Quelle + Bestellung + Position) nutzen und dürfen keinen zweiten Verkauf für dieselbe Bestellung melden.
 
 Form Captain kann Partnerbewerbungen erfassen und an Affiliate Captain übergeben: optionaler Connector `affiliate_captain` mit der Formularaktion „Partnerbewerbung an Affiliate Captain“ (Entscheidung des Inhabers vom 16.11.2026, `TODO.md` AFF-SU-01; Einrichtung in [docs/FORM-CAPTAIN.md](docs/FORM-CAPTAIN.md)). Er ist in Form Captain zunächst deaktiviert (Opt-in) und nutzt den eigenen Bewerbungsablauf: Bestätigungsmail von Affiliate Captain, danach höchstens ein Partner im Status `pending`, auch bei automatischer Freigabe. Freigabe, Ablehnung, Code-Erzeugung und Provisionsregeln bleiben in Affiliate Captain. Eine bestehende Adresse bekommt keinen zweiten Partner. Löscht Form Captain die Einsendung oder wird die Einwilligung widerrufen, wird eine noch offene Bewerbung gelöscht bzw. anonymisiert. Der öffentliche Vertrag dieses Kerns hat weiter keine allgemeine Formular-zu-Partner-Anlage für fremde Formular-Plugins (AFF-SU-02).
 

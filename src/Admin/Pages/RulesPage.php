@@ -513,7 +513,7 @@ final class RulesPage {
 			RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id ),
 			(int) $aff->id,
 			(int) $aff->group_id,
-			RuleRepository::default_rate(),
+			RuleRepository::default_rate( (int) $aff->id ),
 			true,
 			RuleRepository::precedence()
 		);

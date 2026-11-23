@@ -22,6 +22,23 @@ defined( 'ABSPATH' ) || exit;
 
 final class Plugin {
 
+	/** Minimum WooCommerce version (MINVER-1, owner decision 17.11.2026). */
+	public const MIN_WC = '11.2.2';
+
+	/**
+	 * Admin notice: WooCommerce is older than MIN_WC and therefore not connected.
+	 *
+	 * @return void
+	 */
+	public static function old_woocommerce_notice() {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		/* translators: %s: minimum WooCommerce version */
+		echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'Affiliate Captain requires WooCommerce %s or newer. Orders of the shop are not tracked until WooCommerce is updated.', 'affiliate-captain' ), self::MIN_WC ) ) . '</p></div>';
+	}
+
+
 	/** @var bool */
 	private static $booted = false;
 
@@ -76,7 +93,12 @@ final class Plugin {
 		add_filter( 'debug_information', array( \WPAffiliateCaptain\Core\Monitor::class, 'debug_information' ) );
 
 		if ( class_exists( 'WooCommerce' ) ) {
-			WooCommerce::register_hooks();
+			if ( defined( 'WC_VERSION' ) && version_compare( (string) WC_VERSION, self::MIN_WC, '<' ) ) {
+				// MINVER-1: an older WooCommerce is not connected (no order tracking), the rest of the plugin runs.
+				add_action( 'admin_notices', array( __CLASS__, 'old_woocommerce_notice' ) );
+			} else {
+				WooCommerce::register_hooks();
+			}
 		}
 
 		if ( is_admin() ) {

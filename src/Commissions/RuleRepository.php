@@ -177,12 +177,21 @@ final class RuleRepository {
 	/**
 	 * Program default as calculator input.
 	 *
+	 * @param int $affiliate_id Partner the rate is for (0 = none; with a partner the values pass
+	 *                          the filter wpac_setting with the partner's program).
 	 * @return array
 	 */
-	public static function default_rate() {
+	public static function default_rate( $affiliate_id = 0 ) {
+		$type = Settings::for_affiliate( 'default_rate_type', (int) $affiliate_id );
+		$rate = Settings::for_affiliate( 'default_rate', (int) $affiliate_id );
+		if ( ! in_array( $type, array( 'percent', 'fixed' ), true ) || ! is_numeric( $rate ) || (float) $rate < 0 ) {
+			// A filter returned something the calculator cannot use: the stored program default.
+			$type = Settings::get( 'default_rate_type' );
+			$rate = Settings::get( 'default_rate' );
+		}
 		return array(
-			'rate_type' => Settings::get( 'default_rate_type' ),
-			'rate'      => (string) Settings::get( 'default_rate' ),
+			'rate_type' => $type,
+			'rate'      => (string) $rate,
 		);
 	}
 

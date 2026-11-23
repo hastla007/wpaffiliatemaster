@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.15.0\n"
+"Project-Id-Version: Affiliate Captain 0.17.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -319,6 +319,14 @@ msgid_plural "%d selected partners were skipped because they are not pending app
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of days
+#. translators: %d: days
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "This partner recruited %d partner."
 msgid_plural "This partner recruited %d partners."
@@ -519,6 +527,10 @@ msgid "Code created."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "This code cannot be changed here. A requested code is approved or rejected in the list of code requests."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Code updated."
 msgstr ""
 
@@ -632,7 +644,7 @@ msgstr ""
 msgid "Create partner"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Integrations/WooCommerce/CouponLink.php
+#: src/Admin/Pages/AffiliatesPage.php src/Integrations/WooCommerce/CouponLink.php src/Reports/ReviewQuality.php
 msgid "Partner not found."
 msgstr ""
 
@@ -658,6 +670,43 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Commissions of this partner"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Review quality"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Period:"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reviews"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Different orders"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Average rating"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "4–5 stars"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "1–2 stars"
+msgstr ""
+
+#. translators: 1: start date, 2: end date
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Reviews from %1$s to %2$s."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "From the review plugin: only verified, published reviews of orders attributed to this partner. Read only, not stored, never shown to the partner; it never changes commissions, rules or payouts."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php src/Admin/Tables/PayoutsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
@@ -878,7 +927,7 @@ msgstr ""
 msgid "Code"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Commissions/Ledger.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Coupon"
 msgstr ""
 
@@ -1276,6 +1325,11 @@ msgstr ""
 #. translators: 1: currency, 2: balance
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Account %1$s – balance %2$s"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Minimum payout for this partner (partner program): %s"
 msgstr ""
 
 #. translators: %s: amount
@@ -2533,6 +2587,14 @@ msgstr ""
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr ""
 
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SettingsPage.php
+msgid "Program"
+msgstr ""
+
+#: src/Admin/Pages/DashboardPage.php
+msgid "All programs"
+msgstr ""
+
 #: src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
 msgid "Apply"
 msgstr ""
@@ -2593,8 +2655,18 @@ msgstr ""
 msgid "Conversion"
 msgstr ""
 
+#. translators: %d: number of days
+#: src/Admin/Pages/DashboardPage.php
+msgid "Reviews (%d days)"
+msgstr ""
+
 #: src/Admin/Pages/DashboardPage.php
 msgid "No activity in this period."
+msgstr ""
+
+#. translators: 1: number of days, 2: minimum number of reviews, 3: minimum number of orders
+#: src/Admin/Pages/DashboardPage.php
+msgid "Reviews: average rating of the verified, published reviews of the last %1$d days from the review plugin, by the partner and campaign of the order; shown from %2$d reviews from %3$d different orders, otherwise \"–\". Read only and not stored; independent of the period above."
 msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
@@ -3803,6 +3875,11 @@ msgstr ""
 msgid "cannot be checked (no exchange rate for %s)"
 msgstr ""
 
+#. translators: 1: program name, 2: amount
+#: src/Admin/Pages/PayoutsPage.php
+msgid "%1$s: %2$s"
+msgstr ""
+
 #: src/Admin/Pages/PayoutsPage.php
 msgid "Search payouts"
 msgstr ""
@@ -4756,10 +4833,6 @@ msgid "%1$s (%2$s)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Program"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "E-mails & reports"
 msgstr ""
 
@@ -5239,6 +5312,34 @@ msgstr ""
 
 #: src/Admin/Reauth.php
 msgid "Switch off the password confirmation"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Book a manual commission or deduction"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Approve commissions"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Create payouts"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Create a payout from a payout request"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Write off a negative balance"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Book a repayment"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Change the e-mail address of a partner"
 msgstr ""
 
 #: src/Admin/Reauth.php
@@ -7082,6 +7183,15 @@ msgid "Last error: %s. Credit notes are written again automatically with growing
 msgstr ""
 
 #: src/Core/Monitor.php
+msgid "Kept credit notes of deleted sites could not be deleted"
+msgstr ""
+
+#. translators: %s: site IDs with the last error
+#: src/Core/Monitor.php
+msgid "The retention period of these deleted sites has ended, but their credit notes could not be deleted from the document storage: %s. The deletion is repeated daily; check the storage configuration (WPAC_S3_* constants or the filter wpac_statement_store)."
+msgstr ""
+
+#: src/Core/Monitor.php
 msgid "Credit notes are publicly reachable"
 msgstr ""
 
@@ -7158,7 +7268,7 @@ msgstr ""
 msgid "The partner program is working"
 msgstr ""
 
-#: src/Core/Monitor.php src/Tracking/Tracker.php
+#: src/Core/Monitor.php src/Portal/Portal.php src/Tracking/Tracker.php
 msgid "Partner program"
 msgstr ""
 
@@ -7255,8 +7365,17 @@ msgid "Unknown argument \"%s\"."
 msgstr ""
 
 #. translators: %s: argument name
-#: src/Core/PublicApi.php
+#: src/Core/PublicApi.php src/Rest/RestApi.php
 msgid "Invalid value for \"%s\"."
+msgstr ""
+
+#: src/Core/Requirements.php
+msgid "The database server is older than the supported minimum"
+msgstr ""
+
+#. translators: 1: minimum MySQL version, 2: minimum MariaDB version, 3: MySQL or MariaDB, 4: version of this server
+#: src/Core/Requirements.php
+msgid "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer; this site uses %3$s %4$s. The plugin keeps working and nothing is blocked, but older database servers are no longer tested. Ask your host for an update."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -7596,6 +7715,16 @@ msgstr ""
 msgid "Your partner discount (coupon %s) was applied automatically."
 msgstr ""
 
+#. translators: %s: coupon code already in the cart
+#: src/Integrations/WooCommerce/AutoCoupon.php
+msgid "Only one partner coupon can be used per order. Please remove the coupon %s first."
+msgstr ""
+
+#. translators: %s: coupon code
+#: src/Integrations/WooCommerce/AutoCoupon.php
+msgid "The partner discount applied automatically (coupon %s) was removed: only one partner coupon can be used per order."
+msgstr ""
+
 #. translators: %s: amount, e.g. 2,00 €
 #: src/Integrations/WooCommerce/AutoCoupon.php
 msgid "%s per product"
@@ -7628,6 +7757,21 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/CouponLink.php
 msgid "Orders using this coupon are attributed to the partner. The discount is still controlled by the coupon."
+msgstr ""
+
+#. translators: 1: partner code, 2: partner name or number
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Affiliate Captain: partner \"%2$s\" has requested the partner code %1$s, which equals this coupon code. The request can no longer be approved while this coupon exists."
+msgstr ""
+
+#. translators: 1: partner code, 2: partner name or number
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Affiliate Captain: this coupon code equals the generated partner code %1$s of partner \"%2$s\". Orders with this coupon are credited to that partner."
+msgstr ""
+
+#. translators: 1: partner code, 2: partner name or number
+#: src/Integrations/WooCommerce/CouponLink.php
+msgid "Affiliate Captain: this coupon code equals the partner code %1$s of partner \"%2$s\", but the coupon is not linked to the partner, so orders with it are not credited to them. Link the coupon to the partner (field \"Affiliate partner\") if it is meant for them, otherwise better choose another code: customers could mistake one for the other."
 msgstr ""
 
 #. translators: %s: error message
@@ -8936,6 +9080,11 @@ msgstr ""
 msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
 msgstr ""
 
+#. translators: %s: minimum WooCommerce version
+#: src/Plugin.php
+msgid "Affiliate Captain requires WooCommerce %s or newer. Orders of the shop are not tracked until WooCommerce is updated."
+msgstr ""
+
 #: src/Portal/Portal.php
 msgid "%d day after the click"
 msgid_plural "%d days after the click"
@@ -8962,10 +9111,10 @@ msgid_plural "%1$s more orders to %2$s."
 msgstr[0] ""
 msgstr[1] ""
 
-#. translators: %d: minimum number of sales per row
+#. translators: %1$d: minimum number of link visits and sales per row
 #: src/Portal/Portal.php
-msgid "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sale in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
-msgid_plural "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %d sales in the period are shown together as \"Other\". Rows with link visits only are shown on their own."
+msgid "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %1$d link visit or fewer than %1$d sale in the period are shown together as \"Other\"."
+msgid_plural "To protect the privacy of buyers, campaigns and sub-IDs with fewer than %1$d link visits or fewer than %1$d sales in the period are shown together as \"Other\"."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -9928,13 +10077,6 @@ msgstr[1] ""
 
 #. translators: %d: days
 #: src/Privacy/Privacy.php
-msgid "%d day"
-msgid_plural "%d days"
-msgstr[0] ""
-msgstr[1] ""
-
-#. translators: %d: days
-#: src/Privacy/Privacy.php
 msgid "An affiliate cookie (wpac_ref, %d day) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgid_plural "An affiliate cookie (wpac_ref, %d days) is only set if you consented to marketing cookies; withdrawing consent removes it."
 msgstr[0] ""
@@ -10052,6 +10194,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Partner account entries"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Partner coupon applied automatically"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10230,11 +10376,20 @@ msgid "payment provider of the other payment method chosen by the partner (e.g. 
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "processor storing the credit note PDFs: object storage provider ([provider, location, for a third country the safeguards under Art. 44 ff. GDPR – to be completed by the operator]), "
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Note for the shop operator: the affiliate cookie is set without consent (cookie mode \"Always, without consent\"). Storing and reading information on the visitor's device without consent is only allowed if it is strictly necessary for a service the visitor explicitly requested (§ 25(2) no. 2 TDDDG, Art. 5(3) ePrivacy Directive). Affiliate cookies are usually not considered strictly necessary, so in the EU they usually require consent. Have this assessed by your data protection advisor and complete the legal basis, or switch the affiliate cookie to \"Only with marketing consent\"."
 msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "When you visit our website through a partner link or enter a partner code, we store which partner referred you so we can pay the partner a commission. We do not store your IP address for this purpose. Partners do not receive your name or contact details."
+msgstr ""
+
+#. translators: 1: shortest lifetime in days, 2: longest lifetime in days
+#: src/Privacy/Privacy.php
+msgid "The lifetime of the affiliate cookie depends on the partner program of the partner whose link you followed: between %1$d and %2$d days."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10266,11 +10421,24 @@ msgid "Pages served from a cache report the partner code in the page address to 
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "If you apply to become a partner yourself, the referral described above is also used to record which partner recruited you."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "For partners we store application details, accepted terms (version, time and the accepted text), partner codes, commission records and payout details. Bank details are stored encrypted."
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "If you applied through the link of another partner, we store which partner recruited you (partner ID) with your partner account, so that partner can be credited for the recruitment (contract with the partners, Art. 6(1)(b) GDPR). It is kept as long as your partner account and the related booking records."
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "link visits (without IP address): until deleted manually"
+msgstr ""
+
+#. translators: 1: shortest lifetime in days, 2: longest lifetime in days
+#: src/Privacy/Privacy.php
+msgid "affiliate cookie: %1$d to %2$d days depending on the partner program"
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10335,6 +10503,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR). Data is not transferred to third countries by this plugin."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR)."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Credit notes, cancellations and correction credit notes (with the partner's name, address and VAT ID) are stored with an object storage provider on our behalf (Art. 28 GDPR): [provider, location of the storage and, for a location outside the EU/EEA, the safeguards for the transfer (Art. 44 ff. GDPR) – to be completed by the shop operator]."
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -10446,10 +10622,10 @@ msgstr ""
 msgid "Partner program %s"
 msgstr ""
 
-#. translators: %d: minimum number of sales per row
+#. translators: %d: minimum number of visits and sales per row
 #: src/Reports/Reports.php
-msgid "Other (campaigns and sub-IDs with fewer than %d sale)"
-msgid_plural "Other (campaigns and sub-IDs with fewer than %d sales)"
+msgid "Other (campaigns and sub-IDs with fewer than %d visit or sale)"
+msgid_plural "Other (campaigns and sub-IDs with fewer than %d visits or sales)"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -10464,6 +10640,28 @@ msgstr ""
 #. translators: 1: creative title, 2: version
 #: src/Reports/Reports.php
 msgid "Creative \"%1$s\" (v%2$d)"
+msgstr ""
+
+#. translators: 1: average rating, 2: number of reviews
+#: src/Reports/ReviewQuality.php
+msgid "%1$s / 5 (%2$s reviews)"
+msgstr ""
+
+#. translators: 1: minimum number of reviews, 2: minimum number of orders
+#: src/Reports/ReviewQuality.php
+msgid "Not enough reviews in this period (at least %1$d reviews from %2$d different orders). No figures are shown."
+msgstr ""
+
+#: src/Reports/ReviewQuality.php
+msgid "Processing of this partner is restricted (Art. 18 GDPR). No review figures are shown."
+msgstr ""
+
+#: src/Reports/ReviewQuality.php
+msgid "The review plugin returned no valid data."
+msgstr ""
+
+#: src/Reports/ReviewQuality.php
+msgid "No review figures available."
 msgstr ""
 
 #: src/Rest/RestApi.php
