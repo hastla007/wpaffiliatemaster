@@ -1231,6 +1231,15 @@ final class Portal {
 		}
 		$min = max( 0, (int) Settings::for_affiliate( 'min_payout_minor', (int) $aff->id ) );
 		$out[ __( 'Minimum payout amount', 'affiliate-captain' ) ] = $min > 0 ? Money::format( $min, (string) Settings::get( 'currency' ) ) : __( 'No minimum amount', 'affiliate-captain' );
+		$max = max( 0, (int) Settings::for_affiliate( 'max_payout_minor', (int) $aff->id ) );
+		if ( $max > 0 ) {
+			/* translators: %s: amount */
+			$out[ __( 'Maximum per payout', 'affiliate-captain' ) ] = sprintf( __( '%s – a higher balance is paid with the next payouts', 'affiliate-captain' ), Money::format( $max, (string) Settings::get( 'currency' ) ) );
+		}
+		$schedule = \WPAffiliateCaptain\Payouts\PayoutReminder::partner_text();
+		if ( '' !== $schedule ) {
+			$out[ __( 'Payout date', 'affiliate-captain' ) ] = $schedule;
+		}
 		return $out;
 	}
 
@@ -2011,7 +2020,7 @@ final class Portal {
 			/* translators: %s: amount(s) */
 			echo '<p>' . esc_html( sprintf( __( 'Available for payout: %s', 'affiliate-captain' ), $shown ? implode( ' · ', $shown ) : Money::format( 0, Settings::get( 'currency' ) ) ) ) . '</p>';
 			$req_cur   = PayoutRequests::request_currency( (int) $aff->id );
-			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['gross'] : 0;
+			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['payout_gross'] : 0; // Within the maximum payout (SET-AC-19).
 			if ( $open ) {
 				/* translators: %s: date */
 				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';

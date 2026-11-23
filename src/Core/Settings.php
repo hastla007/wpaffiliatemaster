@@ -50,6 +50,7 @@ final class Settings {
 	public static function all() {
 		if ( null === self::$cache ) {
 			$saved       = get_option( self::OPTION, array() );
+			$saved       = is_array( $saved ) ? self::migrate( $saved ) : $saved;
 			self::$cache = array_merge( self::defaults(), is_array( $saved ) ? $saved : array() );
 			// Monitoring tokens of older versions were stored in plain text: hash on first read.
 			// (wp_salt() is pluggable: not yet defined while plugins load – then on a later request.)
@@ -62,6 +63,53 @@ final class Settings {
 			}
 		}
 		return self::$cache;
+	}
+
+	/** Option: value of the former setting payout_period, kept when it was converted (SET-AC-19/31). */
+	const LEGACY_PAYOUT_PERIOD = 'wpac_legacy_payout_period';
+
+	/**
+	 * Convert stored settings of older versions (once, on the first read after an update).
+	 *
+	 * payout_period (monthly/quarterly/manual, default monthly) never had an effect: no code ever
+	 * read it, and since every save stored the default "monthly" a chosen value cannot be told
+	 * apart from the default. It becomes payout_reminder "off", so an update starts no new e-mails;
+	 * the former value is kept in its own option (shown as a hint next to the reminder setting).
+	 *
+	 * @param array $saved Stored settings.
+	 * @return array
+	 */
+	private static function migrate( array $saved ) {
+		if ( ! array_key_exists( 'payout_period', $saved ) ) {
+			return $saved;
+		}
+		$period = is_scalar( $saved['payout_period'] ) ? (string) $saved['payout_period'] : '';
+		unset( $saved['payout_period'] );
+		if ( ! isset( $saved['payout_reminder'] ) ) {
+			$saved['payout_reminder'] = 'off';
+		}
+		if ( in_array( $period, array( 'monthly', 'quarterly', 'manual' ), true ) && false === get_option( self::LEGACY_PAYOUT_PERIOD ) ) {
+			add_option( self::LEGACY_PAYOUT_PERIOD, $period, '', false );
+		}
+		update_option( self::OPTION, $saved, true );
+		return $saved;
+	}
+
+	/**
+	 * Map the former key payout_period of an imported file (SET-AC-31): it never had an effect, so
+	 * it means "no reminder" – unless the file names payout_reminder itself.
+	 *
+	 * @param array $settings Settings of the file (key => value).
+	 * @return array
+	 */
+	public static function map_legacy_import( array $settings ) {
+		if ( array_key_exists( 'payout_period', $settings ) ) {
+			if ( ! array_key_exists( 'payout_reminder', $settings ) ) {
+				$settings['payout_reminder'] = 'off';
+			}
+			unset( $settings['payout_period'] );
+		}
+		return $settings;
 	}
 
 	/** Prefix of a hashed monitoring token (older versions keyed it with the WordPress salt). */
@@ -523,7 +571,7 @@ final class Settings {
 			}
 			$converted = array();
 			$scaled    = array();
-			foreach ( array( 'min_payout_minor' => 'min_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $key => $field ) {
+			foreach ( array( 'min_payout_minor' => 'min_payout', 'max_payout_minor' => 'max_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $key => $field ) {
 				if ( isset( $in[ $field ] ) ) {
 					continue; // Entered together with the currency: parsed in the new currency.
 				}
@@ -712,6 +760,30 @@ final class Settings {
 			} else {
 				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
 			}
+		}
+
+		// Maximum payout (SET-AC-19): 0 = no limit; otherwise at least the minimum payout.
+		$out['max_payout_minor'] = isset( $out['max_payout_minor'] ) ? $out['max_payout_minor'] : $d['max_payout_minor'];
+		if ( isset( $in['max_payout'] ) ) {
+			$problem = '';
+			$max     = '' === trim( (string) $in['max_payout'] ) ? '0' : self::parse_amount( $in['max_payout'], $out['currency'], $problem );
+			if ( null === $max || (float) $max < 0 ) {
+				$errors['max_payout']    = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 1000 or 1000,00; 0 = no limit).', 'affiliate-captain' );
+				$out['max_payout_minor'] = (int) $old( 'max_payout_minor' );
+			} else {
+				$out['max_payout_minor'] = Money::to_minor( $max, $out['currency'] );
+			}
+		}
+		if ( $out['max_payout_minor'] > 0 && $out['max_payout_minor'] < $out['min_payout_minor'] && ! isset( $errors['max_payout'] ) ) {
+			// Nobody could ever be paid: never stored (the field keeps its value).
+			/* translators: %s: minimum payout */
+			$errors['max_payout']    = sprintf( __( 'The maximum payout must be at least the minimum payout (%s), or 0 for no limit.', 'affiliate-captain' ), Money::format( (int) $out['min_payout_minor'], $out['currency'] ) );
+			$out['max_payout_minor'] = (int) $old( 'max_payout_minor' );
+		}
+		if ( $out['max_payout_minor'] > 0 && $out['max_payout_minor'] < $out['min_payout_minor'] && ! isset( $errors['min_payout'] ) ) {
+			// The minimum was raised above the stored maximum: the minimum keeps its value too.
+			$errors['min_payout']    = __( 'The minimum payout cannot be higher than the maximum payout.', 'affiliate-captain' );
+			$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
 		}
 	}
 

@@ -1583,6 +1583,7 @@ require __DIR__ . '/su3.php'; // Agent su3: review quality from a review plugin,
 require __DIR__ . '/wf8.php'; // AFF-WF-08 (0.17.0): since table of all actions, parameters, after COMMIT (before r8-render).
 require __DIR__ . '/r17-snapshot.php'; // MariaDB 12.3 snapshot isolation (error 1020) in transactions (before r8-render).
 require __DIR__ . '/r16-fc.php'; // AFF-SU-01: Form Captain hand-over of partner applications (before r8-render).
+require __DIR__ . '/set-ac-pay.php'; // SET-AC-19/31: payout reminder, maximum payout, payout_period migration (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

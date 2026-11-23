@@ -55,6 +55,7 @@ final class SettingsPage {
 		if ( isset( $clean['currency'] ) && in_array( 'currency', $keys, true ) && (string) $clean['currency'] !== (string) Settings::get( 'currency' ) ) {
 			// A new program currency also converts the amounts of other tabs (R5-O2, R7-AD18).
 			$keys[]              = 'min_payout_minor';
+			$keys[]              = 'max_payout_minor';
 			$keys[]              = 'fraud_max_order_minor';
 			$notices['currency'] = ( isset( $notices['currency'] ) ? $notices['currency'] . ' ' : '' ) . self::currency_leftovers();
 		}
@@ -444,6 +445,7 @@ final class SettingsPage {
 		// Form fields that are entered as decimal amounts and stored in minor units.
 		$labels['fraud_max_order'] = $labels['fraud_max_order_minor'];
 		$labels['min_payout']      = $labels['min_payout_minor'];
+		$labels['max_payout']      = $labels['max_payout_minor'];
 		return $labels;
 	}
 
@@ -823,8 +825,11 @@ final class SettingsPage {
 		self::section( __( 'Payouts', 'affiliate-captain' ), 'payouts' );
 		$err = self::error_parts( 'min_payout', true );
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html( SettingsSchema::label( 'min_payout_minor' ) ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( self::shown( 'min_payout', Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description" id="wpac-desc-min_payout">' . esc_html( SettingsSchema::help( 'min_payout_minor' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
-		// No "payout period" setting: payout runs are started by you (Payouts → New payout run); a
-		// stored value of the former setting is kept but has no effect.
+		$err = self::error_parts( 'max_payout', true );
+		echo '<tr><th><label for="wpac-max_payout">' . esc_html( SettingsSchema::label( 'max_payout_minor' ) ) . '</label></th><td><input type="text" id="wpac-max_payout" name="wpac[max_payout]" value="' . esc_attr( self::shown( 'max_payout', Money::to_decimal( (int) $s['max_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description" id="wpac-desc-max_payout">' . esc_html( SettingsSchema::help( 'max_payout_minor' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		// Payout runs are started by you (Payouts → New payout run); the reminder only reminds (E5 a).
+		self::select( 'payout_reminder', null, $s, array( 'off' => __( 'Off', 'affiliate-captain' ), 'monthly' => __( 'Monthly', 'affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'affiliate-captain' ) ), self::reminder_help() );
+		self::number( 'payout_reminder_day', null, $s );
 		self::checkbox( 'payout_requests', null, $s );
 		self::checkbox( 'payout_method_manual', null, $s );
 		self::number( 'payout_request_note_days', null, $s );
@@ -876,6 +881,26 @@ final class SettingsPage {
 		self::text( 'debtor_bic', null, $s );
 		self::text( 'remittance_prefix', null, $s );
 		self::end();
+	}
+
+	/**
+	 * Help text of the payout reminder, with a note about the former setting "payout period" when
+	 * an update converted a value other than the default (it never had an effect).
+	 *
+	 * @return string
+	 */
+	private static function reminder_help() {
+		$help   = SettingsSchema::help( 'payout_reminder' );
+		$legacy = get_option( Settings::LEGACY_PAYOUT_PERIOD );
+		if ( 'off' === (string) Settings::get( 'payout_reminder' ) && in_array( $legacy, array( 'quarterly', 'manual' ), true ) ) {
+			$names = array(
+				'quarterly' => __( 'Quarterly', 'affiliate-captain' ),
+				'manual'    => __( 'Manual', 'affiliate-captain' ),
+			);
+			/* translators: %s: former value (Quarterly, Manual) */
+			$help .= ' ' . sprintf( __( 'Before version 0.21.0 a "payout period" of "%s" was stored; it never had an effect and was converted to "Off". Choose a reminder here if you want one.', 'affiliate-captain' ), $names[ $legacy ] );
+		}
+		return $help;
 	}
 
 	/**
