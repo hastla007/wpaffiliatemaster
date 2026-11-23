@@ -351,6 +351,10 @@ final class Settings {
 		if ( array_key_exists( 'log_level', $values ) ) {
 			Log::level_saved( (string) $values['log_level'], (string) self::get( 'log_level' ) ); // "Verbose" ends after 7 days (SET-AC-28).
 		}
+		if ( array_key_exists( 'feature_tiers', $values ) ) {
+			// Months during which monthly tiers were off are skipped later (SET-AC-26).
+			\WPAffiliateCaptain\Commissions\TierService::feature_saved( (int) $values['feature_tiers'], (int) ( null === self::get( 'feature_tiers' ) ? 1 : self::get( 'feature_tiers' ) ) );
+		}
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 		// A failed write leaves the cached (old) value in place, so reading back detects it.

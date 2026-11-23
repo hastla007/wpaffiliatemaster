@@ -401,10 +401,6 @@ final class Landing {
 		if ( empty( $vars[ self::QUERY_VAR ] ) ) {
 			return $vars;
 		}
-		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
-			// Landing pages switched off (SET-AC-26): the address is an ordinary page address (or a 404).
-			return array( 'pagename' => Settings::get( 'landing_prefix' ) . '/' . sanitize_title( (string) $vars[ self::QUERY_VAR ] ) );
-		}
 		$aff = self::affiliate_for_slug( (string) $vars[ self::QUERY_VAR ] );
 		if ( $aff && 'active' === $aff->status ) {
 			return $vars;
@@ -483,15 +479,15 @@ final class Landing {
 	 * visitor goes to the default landing page without a code (R14-T4): printed QR codes and old
 	 * posts do not end on a 404, and unknown slugs get the same answer as known ones (R14-S2).
 	 *
+	 * With landing pages switched off (SET-AC-26) an active partner's short link leads to the home
+	 * page with the code instead (same tracking as a partner link, no 404); everything else as above.
+	 *
 	 * @param string $slug   Slug.
 	 * @param array  $query  Query parameters of the request (unslashed).
 	 * @param bool   $is_404 Whether WordPress found nothing under the path.
 	 * @return string|null
 	 */
 	public static function redirect_url( $slug, array $query, $is_404 ) {
-		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
-			return null; // Landing pages switched off (SET-AC-26): no redirect.
-		}
 		$aff = self::affiliate_for_slug( $slug );
 		if ( ! $aff || 'active' !== $aff->status ) {
 			if ( ! $is_404 ) {
@@ -506,7 +502,27 @@ final class Landing {
 			// This address tried too many unknown codes/slugs: no code in the answer (R14-S2).
 			return self::default_url( $query );
 		}
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
+			return self::home_target_url( $aff, $query );
+		}
 		return self::target_url( $aff, $query );
+	}
+
+	/**
+	 * Target of an active partner's short link while landing pages are switched off: the home page
+	 * with the partner code and the campaign parameters of the link.
+	 *
+	 * @param object $aff   Affiliate.
+	 * @param array  $query Query parameters of the request (unslashed).
+	 * @return string
+	 */
+	public static function home_target_url( $aff, array $query ) {
+		$code = CodeRepository::main_code( (int) $aff->id );
+		$args = self::passthrough_args( $query );
+		if ( $code ) {
+			$args = array( (string) Settings::get( 'referral_param' ) => $code ) + $args;
+		}
+		return $args ? add_query_arg( $args, home_url( '/' ) ) : home_url( '/' );
 	}
 
 	/**

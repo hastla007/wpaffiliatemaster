@@ -65,11 +65,19 @@ $sw_aff  = AffiliateRepository::create( array( 'name' => 'SW Landing', 'email' =
 $sw_row  = AffiliateRepository::find( $sw_aff );
 $sw_slug = (string) $sw_row->slug;
 $sw_on   = Landing::redirect_url( $sw_slug, array(), false );
+$sw_code = (string) CodeRepository::main_code( $sw_aff );
+$sw_ref  = (string) Settings::get( 'referral_param' );
+$sw_paff = AffiliateRepository::create( array( 'name' => 'SW Landing Paused', 'email' => 'sw-landing-p@example.de', 'status' => 'active' ) );
+$sw_pslug = (string) AffiliateRepository::find( $sw_paff )->slug;
+q( 'UPDATE ' . t( 'affiliates' ) . " SET status = 'paused' WHERE id = " . (int) $sw_paff );
 $sw_set( array( 'feature_landing' => 0 ) );
-$sw_off      = Landing::redirect_url( $sw_slug, array(), true );
+$sw_off      = Landing::redirect_url( $sw_slug, array( 'utm_source' => 'flyer', 'foo' => 'x' ), true );
+$sw_off2     = Landing::redirect_url( $sw_slug, array(), false );
 $sw_fallback = Landing::fallback_to_page( array( Landing::QUERY_VAR => $sw_slug ) );
+$sw_paused   = array( Landing::redirect_url( $sw_pslug, array(), true ), Landing::redirect_url( $sw_pslug, array(), false ), Landing::redirect_url( 'sw-no-such-partner', array(), true ) );
 $sw_set( array( 'feature_landing' => 1 ) );
-check( 'SET-AC-26 landing off: short link no longer redirects (resolved as an ordinary page address), on again: redirects', array( true, null, array( 'pagename' => Settings::get( 'landing_prefix' ) . '/' . $sw_slug ), true ), array( is_string( $sw_on ) && '' !== $sw_on, $sw_off, $sw_fallback, is_string( Landing::redirect_url( $sw_slug, array(), false ) ) ) );
+check( 'SET-AC-26 landing off: an active partner\'s short link leads to the home page with the code and the campaign parameters (no 404), on again: landing page', array( add_query_arg( array( $sw_ref => $sw_code, 'utm_source' => 'flyer' ), home_url( '/' ) ), add_query_arg( array( $sw_ref => $sw_code ), home_url( '/' ) ), array( Landing::QUERY_VAR => $sw_slug ), true ), array( $sw_off, $sw_off2, $sw_fallback, is_string( Landing::redirect_url( $sw_slug, array(), false ) ) && Landing::redirect_url( $sw_slug, array(), false ) === Landing::target_url( $sw_row, array() ) ) );
+check( 'SET-AC-26 landing off: paused/unknown partners as with landing pages on (default landing page without code; a real page wins)', array( Landing::default_url(), null, Landing::default_url() ), $sw_paused );
 check( 'SET-AC-26 landing on: an active partner\'s short link is kept for the request', array( Landing::QUERY_VAR => $sw_slug ), Landing::fallback_to_page( array( Landing::QUERY_VAR => $sw_slug ) ) );
 
 /* Monthly tiers ------------------------------------------------------------------------------- */
@@ -93,6 +101,41 @@ $sw_bonus_row = (array) $wpdb->get_row( 'SELECT amount_minor, status FROM ' . t(
 TierService::recalculate_month( $sw_tm );
 check( 'SET-AC-26 tiers off: a booked bonus stays unchanged', array( $sw_bonus_row, 1 ), array( (array) $wpdb->get_row( 'SELECT amount_minor, status FROM ' . t( 'commissions' ) . " WHERE affiliate_id = {$sw_taff} AND kind = 'bonus'" ), $sw_bonus() ) );
 $sw_set( array( 'feature_tiers' => 1 ) );
+$sw_periods = TierService::off_periods();
+$sw_set( array( 'feature_tiers' => 1 ) );
+check( 'SET-AC-26 tiers: switching off/on is recorded as off-periods (saving "on" again adds nothing); the current month is skipped, older months not', array( 2, true, true, 2, true, false ), array( count( $sw_periods ), $sw_periods[0]['from'] > 0 && $sw_periods[0]['to'] >= $sw_periods[0]['from'], $sw_periods[1]['to'] > 0, count( TierService::off_periods() ), TierService::skipped( WPAffiliateCaptain\Core\Db::local_month( 0 ) ), TierService::skipped( $sw_tm ) ) );
+
+// Off from 15 March to 10 May 2024: March, April and May are skipped, February and June are booked.
+update_option( TierService::OFF_PERIODS, array( array( 'from' => strtotime( '2024-03-15 12:00:00 UTC' ), 'to' => strtotime( '2024-05-10 12:00:00 UTC' ) ) ), false );
+$sw_month_bonus = static function ( $m ) use ( $wpdb, $sw_taff ) {
+	return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . t( 'commissions' ) . " WHERE affiliate_id = {$sw_taff} AND kind = 'bonus' AND source_order_id = 'tier-{$m}'" );
+};
+$sw_sales = array();
+foreach ( array( '2024-02', '2024-03', '2024-04', '2024-05', '2024-06' ) as $sw_m ) {
+	$sw_s = sale( 'sw-tier-' . $sw_m, CodeRepository::main_code( $sw_taff ), array( 200000 ) );
+	q( 'UPDATE ' . t( 'commissions' ) . " SET created_at = '{$sw_m}-10 10:00:00' WHERE id = " . (int) $sw_s['commission_ids'][0] );
+	Ledger::transition( (int) $sw_s['commission_ids'][0], 'approved' );
+	$sw_sales[ $sw_m ] = (int) $sw_s['commission_ids'][0];
+}
+check( 'SET-AC-26 tiers: months touched by an off-period are skipped (from the month of switching off to the month of switching on)', array( false, true, true, true, false ), array_map( array( TierService::class, 'skipped' ), array( '2024-02', '2024-03', '2024-04', '2024-05', '2024-06' ) ) );
+add_filter( 'wpac_tier_month_skipped', static function () { return true; } );
+$sw_flt_close = TierService::close_month( '2024-02' );
+remove_all_filters( 'wpac_tier_month_skipped' );
+check( 'SET-AC-26 filter wpac_tier_month_skipped wins (no bonus for a skipped month)', array( 0, 0 ), array( $sw_flt_close, $sw_month_bonus( '2024-02' ) ) );
+// Only months up to June 2024 are due: hold period up to mid-July 2024.
+$sw_hold = (int) Settings::get( 'hold_days' );
+$sw_set( array( 'hold_days' => (int) floor( ( time() - strtotime( '2024-07-15 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) ) );
+Settings::set_state( 'tier_month_closed', '2024-01' );
+$sw_due = TierService::close_due_months();
+check( 'SET-AC-26 tiers on again: the daily run books February and June, skips March to May (no bonus) and moves on', array( true, 1, 0, 0, 0, 1, '2024-06', 0, 0 ), array( $sw_due, $sw_month_bonus( '2024-02' ), $sw_month_bonus( '2024-03' ), $sw_month_bonus( '2024-04' ), $sw_month_bonus( '2024-05' ), $sw_month_bonus( '2024-06' ), Settings::state( 'tier_month_closed' ), TierService::close_month( '2024-04' ), $sw_month_bonus( '2024-04' ) ) );
+// A refund in a skipped month books no correction; the recalculation of a skipped month does nothing.
+Ledger::transition( $sw_sales['2024-04'], 'rejected' );
+Ledger::transition( $sw_sales['2024-06'], 'rejected' );
+$sw_recalc = array( TierService::recalculate_month( '2024-04' ), $sw_month_bonus( '2024-04' ), TierService::recalculate_month( '2024-06' ) );
+check( 'SET-AC-26 tiers: no bonus correction for a skipped month (a booked month still gets its correction)', array( 0, 0, 1 ), $sw_recalc );
+$sw_set( array( 'hold_days' => $sw_hold ) );
+delete_option( TierService::OFF_PERIODS );
+
 TierService::deactivate( $sw_plan, 'test done' );
 if ( '' !== $sw_closed ) {
 	Settings::set_state( 'tier_month_closed', $sw_closed );

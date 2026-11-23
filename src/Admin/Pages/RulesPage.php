@@ -112,6 +112,9 @@ final class RulesPage {
 				if ( ! TierService::is_due( $month ) ) {
 					Admin::back( __( 'This month cannot be closed yet: it must have ended and its hold period must have passed.', 'affiliate-captain' ), 'error' );
 				}
+				if ( TierService::skipped( $month ) ) {
+					Admin::back( __( 'This month is skipped: monthly tiers were switched off during it, so no bonus is booked for it.', 'affiliate-captain' ), 'error' );
+				}
 				$n = TierService::close_month( $month );
 				/* translators: 1: count, 2: month */
 				Admin::back( sprintf( __( '%1$d monthly bonuses booked for %2$s.', 'affiliate-captain' ), $n, $month ) );
