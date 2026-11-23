@@ -106,7 +106,7 @@ $wpdb->query( 'UPDATE ' . t( 'payout_profiles' ) . " SET updated_at = '2020-01-0
 $r11_p6 = r11_payout( $r11_pp, 'r11-6' );
 PayoutService::cancel( $r11_p6, 'test' );
 check( 'R11 a cancelled payout cannot be claimed', 'wpac_payout_state', r11_code( wpac_claim_payout( $r11_p6, 'paypal' ) ) );
-check( 'R11 contract version is 1.6.0 (same major as the 1.3.0 payout API)', '1.6.0', wpac_contract_version() );
+check( 'R11 contract version is 1.7.0 (same major as the 1.3.0 payout API)', '1.7.0', wpac_contract_version() );
 
 // Cancelling a claimed payout in the admin: refused for 45 days (filter wpac_claim_cancel_after) (the provider may be paying it),
 // then only with the confirmation that the provider did not pay it.

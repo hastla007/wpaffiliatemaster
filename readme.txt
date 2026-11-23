@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 0.18.0
+Stable tag: 0.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.19.0 =
+Add-on contract 1.7.0 (backwards compatible); database schema 16 (unchanged):
+* Add-ons (contract 1.7.0): wpac_commission_approved, _rejected, _paid, _pending and _review pass the status before the change as a second parameter ($old), read under the row lock; callbacks with one parameter keep working. Workflow consumers no longer have to track the previous status themselves (suite specification 4.4, previous_status).
+* Workflow Captain: decided – the core keeps no workflow interface of its own (no envelope, no workflow read functions); consumers use the documented actions and the read API. The guard test against a workflow interface in the core stays active for good. The actions were checked against the event catalogue of the suite specification (21 actions).
+* Docs: order and refund references in the actions are strings of the source, not numbers (docs/CONTRACT.md).
 
 = 0.18.0 =
 Form Captain connector; add-on contract 1.6.0 and database schema 16 (both unchanged):
@@ -355,6 +361,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.19.0 =
+Add-on contract 1.7.0: commission status actions also pass the previous status. No database change; existing add-ons keep working.
 
 = 0.18.0 =
 New optional Form Captain connector for partner applications (always pending, double opt-in). No database change, no contract change.

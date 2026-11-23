@@ -1109,7 +1109,7 @@ final class PayoutService {
 		Db::after_commit(
 			static function () use ( $ids, $id ) {
 				foreach ( $ids as $cid ) {
-					do_action( 'wpac_commission_paid', $cid );
+					do_action( 'wpac_commission_paid', $cid, 'approved' ); // Only approved commissions are paid (Ledger::TRANSITIONS).
 				}
 				do_action( 'wpac_payout_paid', (int) $id );
 			}

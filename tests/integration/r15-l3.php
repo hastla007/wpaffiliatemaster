@@ -94,9 +94,11 @@ unset( $GLOBALS['test_hooks']['wpac_affiliate_attributed'][20] );
  * hook inside that transaction; now it waits for the COMMIT and is dropped on rollback.
  * ------------------------------------------------------------------------------------------- */
 $l3_reset();
+$l3_was = (string) Ledger::find( $l3_cid )->status;
 Ledger::transition( $l3_cid, 'approved' );
-check( 'L3 status change: wpac_commission_approved( id ) once, outside a transaction', array( array( array( $l3_cid ) ), true ), array( $l3_args( 'wpac_commission_approved' ), hook_fired_outside_tx( 'wpac_commission_approved' ) ) );
+check( 'L3 status change: wpac_commission_approved( id, old ) once, outside a transaction', array( array( array( $l3_cid, $l3_was ) ), true ), array( $l3_args( 'wpac_commission_approved' ), hook_fired_outside_tx( 'wpac_commission_approved' ) ) );
 $l3_c2 = (int) $l3_sale( $l3_a, 'l3-3', 20000 )['commission_ids'][0];
+$l3_was2 = (string) Ledger::find( $l3_c2 )->status;
 $l3_reset();
 $l3_mid = -1;
 Db::transaction(
@@ -105,7 +107,7 @@ Db::transaction(
 		$l3_mid = count( $l3_fired( 'wpac_commission_approved' ) );
 	}
 );
-check( 'L3 transition inside an outer transaction: wpac_commission_approved only after COMMIT', array( 0, true, array( array( $l3_c2 ) ) ), array( $l3_mid, hook_fired_outside_tx( 'wpac_commission_approved' ), $l3_args( 'wpac_commission_approved' ) ) );
+check( 'L3 transition inside an outer transaction: wpac_commission_approved only after COMMIT', array( 0, true, array( array( $l3_c2, $l3_was2 ) ) ), array( $l3_mid, hook_fired_outside_tx( 'wpac_commission_approved' ), $l3_args( 'wpac_commission_approved' ) ) );
 $l3_c3 = (int) $l3_sale( $l3_a, 'l3-4', 20000 )['commission_ids'][0];
 $l3_reset();
 $l3_before = $l3_count();

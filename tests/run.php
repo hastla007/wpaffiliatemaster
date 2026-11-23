@@ -362,18 +362,17 @@ foreach ( $wpac_guard_files as $wpac_f ) {
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
 
-// D13 (owner decision of 16 Nov 2026): the provisional workflow interface is not part of the free
-// core. It may only come back with the task AFF-WF-08 in TODO.md (after the shared suite
-// specification is accepted); until that task is ticked this scan fails when the action, the read
-// function, their classes or their document reappear in the shipped files. The domain actions
-// of docs/CONTRACT.md (wpac_commission_created etc.) are not affected.
-$d13_root     = dirname( __DIR__ );
-$d13_todo     = is_readable( $d13_root . '/TODO.md' ) ? (string) file_get_contents( $d13_root . '/TODO.md' ) : '';
-$d13_released = 1 === preg_match( '/^\s*- \[x\] \*\*AFF-WF-08\b/mu', $d13_todo );
+// D13 (owner decision of 16 Nov 2026) and AFF-WF-08 (closed 23 Nov 2026, AC-3): the core has no
+// workflow interface of its own – no envelope, no workflow read functions (suite spec R-4.4/R-4.5);
+// a consumer uses the domain actions of docs/CONTRACT.md and the read API. This scan stays active
+// for good and fails when the action, the read function, their classes or their document reappear
+// in the shipped files. The domain actions (wpac_commission_created etc.) are not affected.
+$d13_root = dirname( __DIR__ );
+$d13_todo = is_readable( $d13_root . '/TODO.md' ) ? (string) file_get_contents( $d13_root . '/TODO.md' ) : '';
 if ( '' !== $d13_todo ) {
-	check( 'D13 TODO.md lists the re-introduction of the workflow interface as task AFF-WF-08', 1, preg_match( '/^\s*- \[[ x]\] \*\*AFF-WF-08\b/mu', $d13_todo ) );
+	check( 'D13 TODO.md keeps task AFF-WF-08 (decision: no workflow interface in the core)', 1, preg_match( '/^\s*- \[[ x]\] \*\*AFF-WF-08\b/mu', $d13_todo ) );
 }
-if ( ! $d13_released ) {
+{
 	$d13_patterns = array(
 		'wpac_workflow_event'            => '/wpac_workflow_event/',
 		'wpac_workflow_read'             => '/wpac_workflow_read/',
@@ -394,7 +393,7 @@ if ( ! $d13_released ) {
 			$d13_hits[] = $d13_f . ': file exists';
 		}
 	}
-	check( 'D13 no workflow interface in the core before AFF-WF-08 is ticked (' . ( count( $wpac_guard_files ) + 3 ) . ' files)', array(), $d13_hits );
+	check( 'D13 no workflow interface in the core (permanent since AFF-WF-08) (' . ( count( $wpac_guard_files ) + 3 ) . ' files)', array(), $d13_hits );
 }
 
 // R6-CC3: behind a trusted proxy only X-Forwarded-For is read by default; CF-Connecting-IP and
