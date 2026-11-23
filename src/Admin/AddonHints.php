@@ -75,6 +75,7 @@ final class AddonHints {
 	 */
 	public static function rows( $tab ) {
 		$given  = (array) apply_filters( 'wpac_settings_rows', array(), $tab );
+		$tabs   = \WPAffiliateCaptain\Admin\Pages\SettingsPage::tab_keys();
 		$fields = array();
 		$notes  = array();
 		$ids    = array();
@@ -83,7 +84,14 @@ final class AddonHints {
 			if ( ! $row ) {
 				continue;
 			}
+			// A row on an unknown tab would hide a note and show up nowhere: it is ignored (contract 1.8.1).
+			if ( ! isset( $tabs[ $row['tab'] ] ) ) {
+				continue;
+			}
 			$ids[ $row['id'] ] = true; // Replaces a built-in note with this id (on any tab).
+			foreach ( $row['replaces'] as $replaced ) {
+				$ids[ $replaced ] = true; // …and the notes it names in "replaces" (contract 1.8.1).
+			}
 			if ( $row['tab'] !== $tab ) {
 				continue;
 			}
@@ -134,7 +142,8 @@ final class AddonHints {
 			'title'  => wp_strip_all_tags( (string) $row['title'] ),
 			'text'   => isset( $row['text'] ) ? wp_strip_all_tags( (string) $row['text'] ) : '',
 			'link'   => isset( $row['link'] ) ? esc_url_raw( (string) $row['link'] ) : '',
-			'render' => isset( $row['render'] ) && is_callable( $row['render'] ) ? $row['render'] : null,
+			'render'   => isset( $row['render'] ) && is_callable( $row['render'] ) ? $row['render'] : null,
+			'replaces' => isset( $row['replaces'] ) ? array_values( array_filter( array_map( 'sanitize_key', array_map( 'strval', (array) $row['replaces'] ) ) ) ) : array(),
 		);
 	}
 

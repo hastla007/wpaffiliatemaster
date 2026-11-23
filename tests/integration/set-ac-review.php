@@ -178,6 +178,16 @@ check( 'P2-06 a request from 61 days ago rejected today still shows its reason',
 // P1-08: the support report no longer lists the former setting payout_period.
 check( 'P1-08 support report without payout_period', false, false !== strpos( (string) file_get_contents( WPAC_DIR . 'src/Core/Monitor.php' ), "'payout_period'" ) );
 
+// Contract 1.8.1: "replaces" removes further built-in notes; rows on unknown tabs are ignored.
+$rv_url = static function () { return 'https://example.test/pro'; };
+add_filter( 'wpac_addon_hint_url', $rv_url );
+add_filter( 'wpac_settings_rows', static function ( $rows ) { $rows[] = array( 'id' => 'paypal_auto_limit', 'tab' => 'payouts', 'title' => 'PayPal limit', 'render' => static function () { echo '<input name="pro[x]">'; }, 'replaces' => array( 'payout_method_paypal' ) ); $rows[] = array( 'id' => 'webhooks', 'tab' => 'nowhere', 'title' => 'Lost' ); return $rows; } );
+$rv_pay_rows  = \WPAffiliateCaptain\Admin\AddonHints::rows( 'payouts' );
+$rv_data_rows = \WPAffiliateCaptain\Admin\AddonHints::rows( 'data' );
+check( '1.8.1 replaces removes the PayPal note; a row on an unknown tab is ignored and replaces nothing', array( array(), array( 'paypal_auto_limit' ), true ), array( array_values( array_filter( wp_list_pluck( $rv_pay_rows['notes'], 'id' ), static function ( $i ) { return 'payout_method_paypal' === $i; } ) ), wp_list_pluck( $rv_pay_rows['fields'], 'id' ), in_array( 'webhooks', wp_list_pluck( $rv_data_rows['notes'], 'id' ), true ) ) );
+$GLOBALS['test_hooks']['wpac_settings_rows'] = array();
+$GLOBALS['test_hooks']['wpac_addon_hint_url'] = array();
+
 update_option( 'wpac_settings', $rv_saved );
 Settings::flush_cache();
 SettingsSchema::flush();

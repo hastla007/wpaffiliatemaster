@@ -92,6 +92,20 @@ final class SettingsPage {
 		 * @param array  $old Core settings before saving.
 		 */
 		do_action( 'wpac_settings_saved', $tab, $new, $old );
+		/**
+		 * Field errors of add-on fields of this tab (since contract 1.8.1): add "form field name" =>
+		 * "message" for values the add-on did not save. They are shown like core errors, and the page
+		 * no longer says that everything was saved.
+		 *
+		 * @param array  $errors Errors so far (form field name => message).
+		 * @param string $tab    Tab key.
+		 */
+		$addon_errors = function_exists( 'apply_filters' ) ? (array) apply_filters( 'wpac_settings_errors', array(), $tab ) : array();
+		foreach ( $addon_errors as $field => $message ) {
+			if ( is_string( $field ) && '' !== $field && is_scalar( $message ) && ! isset( $errors[ $field ] ) ) {
+				$errors[ sanitize_key( $field ) ] = wp_strip_all_tags( (string) $message );
+			}
+		}
 		$labels = self::field_labels();
 		if ( $errors ) {
 			// Show the rejected input again, with the message next to the field.
