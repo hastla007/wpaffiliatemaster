@@ -1599,6 +1599,7 @@ require __DIR__ . '/r14-c16-render.php'; // After the render files: dashboard KP
 require __DIR__ . '/r15-s-render.php'; // After the render files: confirmation of money-creating actions, rate limit, code_status (R15-S3/S4/S6).
 require __DIR__ . '/su3-render.php'; // After the render files: review quality on admin screens only, nothing in the partner area (AFF-SU-03).
 require __DIR__ . '/set-ac1-render.php'; // After the render files: settings register and add-on rows (SET-AC-01/05).
+require __DIR__ . '/set-ac35.php'; // Uninstall standard: typed confirmation word, not exported (SET-AC-35).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

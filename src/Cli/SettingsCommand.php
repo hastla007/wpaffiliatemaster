@@ -80,6 +80,9 @@ final class SettingsCommand {
 	 * <value>
 	 * : New value.
 	 *
+	 * [--confirm=<word>]
+	 * : Only for switching on delete_on_uninstall: DELETE, LÖSCHEN or LOESCHEN.
+	 *
 	 * @param array $args  Positional.
 	 * @param array $assoc Options.
 	 */
@@ -91,7 +94,12 @@ final class SettingsCommand {
 		if ( ! empty( SettingsSchema::field( $key )['secret'] ) ) {
 			\WP_CLI::error( 'This value cannot be set here; use the settings page.' );
 		}
-		self::apply( SettingsTransfer::check( array( $key => (string) $args[1] ), Settings::all() ), 'settings.cli' );
+		$wanted = array( $key => (string) $args[1] );
+		if ( 'delete_on_uninstall' === $key ) {
+			// Switching on needs the typed word, as on the settings page: --confirm=LÖSCHEN.
+			$wanted['delete_on_uninstall_confirm'] = isset( $assoc['confirm'] ) ? (string) $assoc['confirm'] : '';
+		}
+		self::apply( SettingsTransfer::check( $wanted, Settings::all() ), 'settings.cli' );
 	}
 
 	/**
