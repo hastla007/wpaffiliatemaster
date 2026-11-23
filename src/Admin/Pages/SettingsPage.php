@@ -31,6 +31,16 @@ final class SettingsPage {
 			echo \WPAffiliateCaptain\Privacy\Privacy::ropa( $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
 			exit;
 		}
+		if ( 'document_sample' === $do ) {
+			// Sample credit note with the current logo and footer (SET-AC-16): nothing is stored.
+			$bytes = \WPAffiliateCaptain\Payouts\DocumentBrand::sample_pdf();
+			nocache_headers();
+			header( 'Content-Type: application/pdf' );
+			header( 'Content-Disposition: inline; filename="sample-credit-note.pdf"' );
+			header( 'Content-Length: ' . strlen( $bytes ) );
+			echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- PDF download.
+			exit;
+		}
 		if ( 'roles_save' === $do ) {
 			self::handle_roles();
 			return;
@@ -610,6 +620,12 @@ final class SettingsPage {
 		submit_button();
 		echo '</form>';
 		self::render_transfer();
+		if ( 'payouts' === self::$tab ) {
+			echo '<h2>' . esc_html__( 'Sample credit note', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Preview of logo and footer as saved (save first). The sample has no number and is not stored.', 'affiliate-captain' ) . '</p>';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" target="_blank">';
+			Admin::form_fields( 'document_sample' );
+			echo '<p><button class="button">' . esc_html__( 'Open sample credit note (PDF)', 'affiliate-captain' ) . '</button></p></form>';
+		}
 		if ( 'data' === self::$tab ) {
 			echo '<h2>' . esc_html__( 'Record of processing activities', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'affiliate-captain' ) . '</p>';
 			Admin::form_open( 'ropa_download' );
@@ -659,6 +675,7 @@ final class SettingsPage {
 		self::text( 'admin_email', null, $s );
 		self::text( 'mail_from_name', null, $s );
 		self::text( 'mail_from_email', null, $s );
+		self::image_field( 'mail_logo_id', $s );
 		self::end();
 
 		self::section( __( 'Notices to partners', 'affiliate-captain' ), 'emails' );
@@ -915,6 +932,16 @@ final class SettingsPage {
 		echo '<tr><th><label for="wpac-operator_address">' . esc_html( SettingsSchema::label( 'operator_address' ) ) . '</label></th><td><textarea id="wpac-operator_address" name="wpac[operator_address]" rows="3" class="regular-text">' . esc_textarea( (string) $s['operator_address'] ) . '</textarea><p class="description">' . esc_html( SettingsSchema::help( 'operator_address' ) ) . '</p></td></tr>';
 		self::text( 'operator_vat_id', null, $s );
 		self::text( 'operator_tax_number', null, $s );
+		self::end();
+
+		self::section( __( 'Logo & footer on credit notes', 'affiliate-captain' ), 'payouts' );
+		self::image_field( 'document_logo_id', $s );
+		self::number( 'document_logo_height', null, $s );
+		self::number( 'document_logo_max_kb', null, $s );
+		$err = self::error_parts( 'document_footer', true );
+		echo '<tr><th><label for="wpac-document_footer">' . esc_html( SettingsSchema::label( 'document_footer' ) ) . '</label></th><td><textarea id="wpac-document_footer" name="wpac[document_footer]" rows="4" class="large-text"' . $err[0] . '>' . esc_textarea( self::shown( 'document_footer', (string) $s['document_footer'] ) ) . '</textarea>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( SettingsSchema::help( 'document_footer' ), 'document_footer' );
+		echo '</td></tr>';
 		self::end();
 
 		self::section( __( 'Credit notes & VAT', 'affiliate-captain' ), 'payouts' );
@@ -1219,6 +1246,36 @@ final class SettingsPage {
 		}
 		echo '</select>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::desc( $desc, $key );
+		echo '</td></tr>';
+	}
+
+	/**
+	 * Image from the media library (SET-AC-16): the attachment ID, a preview and – with
+	 * JavaScript – buttons for the media library. Without JavaScript the ID can be typed.
+	 *
+	 * @param string $key Key.
+	 * @param array  $s   Settings.
+	 */
+	private static function image_field( $key, $s ) {
+		list( $label, $desc ) = self::texts( $key, null, '' );
+		$err     = self::error_parts( $key, true );
+		$id      = (int) $s[ $key ];
+		$preview = $id > 0 && function_exists( 'wp_get_attachment_image' ) ? wp_get_attachment_image( $id, 'thumbnail', false, array( 'style' => 'max-height:60px;width:auto;vertical-align:middle;' ) ) : '';
+		if ( function_exists( 'wp_enqueue_media' ) ) {
+			wp_enqueue_media();
+		}
+		printf(
+			'<tr><th><label for="wpac-%1$s">%2$s</label></th><td><span id="wpac-%1$s-preview" class="wpac-media-preview">%3$s</span> <input type="number" min="0" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%4$s" class="small-text"%5$s> <button type="button" class="button" data-wpac-media="wpac-%1$s" data-wpac-media-title="%2$s">%6$s</button> <button type="button" class="button-link" data-wpac-media-clear="wpac-%1$s">%7$s</button>%8$s',
+			esc_attr( $key ),
+			esc_html( $label ),
+			$preview, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() is escaped.
+			esc_attr( self::shown( $key, (string) $id ) ),
+			$err[0], // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+			esc_html__( 'Choose image', 'affiliate-captain' ),
+			esc_html__( 'Remove', 'affiliate-captain' ),
+			$err[1] // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		);
+		self::desc( '' !== $desc ? $desc . ' ' . __( 'The field holds the ID of the image in the media library (0 = none).', 'affiliate-captain' ) : '', $key );
 		echo '</td></tr>';
 	}
 

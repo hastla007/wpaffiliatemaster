@@ -792,6 +792,7 @@ final class Admin {
 			'mail_template_test'  => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'mail_layout_save'    => array( Pages\MailTemplatesPage::class, Capabilities::MANAGE_PROGRAM ),
 			'ropa_download'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			'document_sample'   => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			// Settings export, import and reset (SET-AC-08/09).
 			'settings_export'          => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_import_preview'  => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),

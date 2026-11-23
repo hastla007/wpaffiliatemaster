@@ -925,7 +925,8 @@ final class PayoutService {
 					// (e.g. VAT corrections of earlier credit notes after a change of the tax status).
 					return 0;
 				}
-				$operator_snapshot = self::operator_snapshot();
+				// Logo and footer are frozen with the document (SET-AC-16).
+				$operator_snapshot = array_merge( self::operator_snapshot(), DocumentBrand::snapshot() );
 				if ( $settle ) {
 					$operator_snapshot['document'] = 'correction';
 				}
