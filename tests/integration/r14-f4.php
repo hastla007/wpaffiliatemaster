@@ -140,7 +140,7 @@ $f4_col = $wpdb->get_row( "SELECT COLUMN_TYPE t, IS_NULLABLE n, COLUMN_DEFAULT d
 $f4_idx = (int) $wpdb->get_var( "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . t( 'affiliates' ) . "' AND INDEX_NAME = 'referred_by' AND COLUMN_NAME = 'referred_by'" );
 check(
 	'0.15.0 schema 16: affiliates.referred_by BIGINT UNSIGNED NOT NULL DEFAULT 0 with index, schema verified',
-	array( 16, 16, 16, true, 'NO', '0', 1, array() ),
+	array( 17, 17, 17, true, 'NO', '0', 1, array() ),
 	array( Installer::DB_VERSION, WPAC_DB_VERSION, Installer::db_version(), $f4_col ? 0 === strpos( strtolower( (string) $f4_col->t ), 'bigint' ) && false !== strpos( strtolower( (string) $f4_col->t ), 'unsigned' ) : null, $f4_col ? $f4_col->n : null, $f4_col ? trim( (string) $f4_col->d, "'" ) : null, $f4_idx, Installer::verify_schema() )
 );
 // Migration 15 → 16: dbDelta adds the column and the index to an existing table.
@@ -149,7 +149,7 @@ check( '0.15.0 verify_schema() reports the missing column', true, in_array( 'mis
 update_option( 'wpac_db_version', 15 );
 Installer::install_schema();
 $f4_idx = (int) $wpdb->get_var( "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . t( 'affiliates' ) . "' AND INDEX_NAME = 'referred_by'" );
-check( '0.15.0 migration 15 → 16 adds column and index (dbDelta) and raises the version', array( 16, 1, array() ), array( (int) get_option( 'wpac_db_version' ), $f4_idx, Installer::verify_schema() ) );
+check( '0.15.0 migration 15 → 17 adds column and index (dbDelta) and raises the version', array( 17, 1, array() ), array( (int) get_option( 'wpac_db_version' ), $f4_idx, Installer::verify_schema() ) );
 AffiliateRepository::clear_cache();
 
 $f4_recruited = array();

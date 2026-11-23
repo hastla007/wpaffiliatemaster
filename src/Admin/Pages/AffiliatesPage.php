@@ -214,6 +214,7 @@ final class AffiliatesPage {
 			case 'bank_approve':
 			case 'bank_reject':
 			case 'profile_update':
+			case 'withholding_update':
 				self::handle_payout_data( $do, $id );
 				break;
 		}
@@ -506,6 +507,27 @@ final class AffiliatesPage {
 				}
 				Admin::back( __( 'Payout details saved.', 'affiliate-captain' ) );
 				break;
+
+			case 'withholding_update':
+				// SET-AC-20: changes the amount transferred and the documents of new payouts.
+				if ( ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+					Admin::back( __( 'You are not allowed to view tax and bank details.', 'affiliate-captain' ), 'error' );
+				}
+				$percent = (string) Admin::post( 'withholding_percent' );
+				$note    = (string) Admin::post( 'withholding_note' );
+				$result  = \WPAffiliateCaptain\Payouts\Withholding::save( $id, $percent, $note );
+				if ( is_wp_error( $result ) ) {
+					Admin::keep_form(
+						'withholding_' . $id,
+						array(
+							'withholding_percent' => sanitize_text_field( $percent ),
+							'withholding_note'    => sanitize_textarea_field( $note ),
+						)
+					);
+					Admin::back( $result->get_error_message(), 'error' );
+				}
+				Admin::back( __( 'Withholding saved. It applies to payouts created from now on.', 'affiliate-captain' ) );
+				break;
 		}
 	}
 
@@ -679,6 +701,11 @@ final class AffiliatesPage {
 		ob_start();
 		self::render_payout_box( $id );
 		$parts['payout'][] = ob_get_clean();
+		if ( current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
+			ob_start();
+			self::render_withholding_box( $id );
+			$parts['payout'][] = ob_get_clean();
+		}
 		ob_start();
 		self::render_history_box( $id );
 		$parts['history'][] = ob_get_clean();
@@ -1128,6 +1155,35 @@ final class AffiliatesPage {
 	}
 
 	/**
+	 * Detail view: withholding of the partner (SET-AC-20, owner decision E8 (a)).
+	 *
+	 * @param int $id Affiliate ID.
+	 */
+	private static function render_withholding_box( $id ) {
+		$field = \WPAffiliateCaptain\Payouts\Withholding::field();
+		$value = \WPAffiliateCaptain\Payouts\Withholding::get( $id );
+		$kept  = Admin::kept_form( 'withholding_' . $id );
+		$pct   = isset( $kept['withholding_percent'] ) ? (string) $kept['withholding_percent'] : \WPAffiliateCaptain\Core\Locale::number( $value['percent'] );
+		$note  = isset( $kept['withholding_note'] ) ? (string) $kept['withholding_note'] : $value['note'];
+		$legal = ! empty( $field['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
+		$edit  = current_user_can( Capabilities::MANAGE_PAYOUTS );
+		echo '<div class="postbox wpac-withholding"><h2 class="hndle">' . esc_html__( 'Withholding', 'affiliate-captain' ) . '</h2><div class="inside">';
+		Admin::form_open( 'withholding_update' );
+		echo '<input type="hidden" name="id" value="' . (int) $id . '"><table class="form-table">';
+		echo '<tr><th><label for="wpac-withholding_percent">' . esc_html( (string) $field['label'] ) . '</label></th><td><input type="text" inputmode="decimal" id="wpac-withholding_percent" name="withholding_percent" value="' . esc_attr( $pct ) . '" class="small-text" dir="ltr" aria-describedby="wpac-desc-withholding"' . ( $edit ? '' : ' readonly' ) . '> %';
+		echo '<p class="description" id="wpac-desc-withholding">' . esc_html( (string) $field['help'] ) . $legal . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
+		echo '<tr><th><label for="wpac-withholding_note">' . esc_html__( 'Note on the documents', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-withholding_note" name="withholding_note" rows="3" class="large-text" maxlength="' . (int) \WPAffiliateCaptain\Payouts\Withholding::NOTE_MAX . '" aria-describedby="wpac-desc-withholding-note"' . ( $edit ? '' : ' readonly' ) . '>' . esc_textarea( $note ) . '</textarea>';
+		echo '<p class="description" id="wpac-desc-withholding-note">' . esc_html__( 'Required when a withholding is set, e.g. the legal basis and that the amount is paid to the tax office.', 'affiliate-captain' ) . '</p></td></tr>';
+		echo '</table>';
+		if ( $edit ) {
+			submit_button( __( 'Save withholding', 'affiliate-captain' ), 'secondary' );
+		} else {
+			echo '<p class="description">' . esc_html__( 'Only users who manage payouts can change payout details.', 'affiliate-captain' ) . '</p>';
+		}
+		echo '</form></div></div>';
+	}
+
+	/**
 	 * Detail view: audit history (20 newest entries).
 	 *
 	 * @param int $id Affiliate ID.
@@ -1185,6 +1241,9 @@ final class AffiliatesPage {
 	 * Broadcast mail to all active partners (or one group), sent in batches.
 	 */
 	private static function broadcast_box() {
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'broadcast' ) ) {
+			return; // Broadcast mail switched off (SET-AC-26).
+		}
 		$state = \WPAffiliateCaptain\Affiliates\Notifications::broadcast_state();
 		echo '<details class="wpac-broadcast"><summary>' . esc_html__( 'Write to all active partners', 'affiliate-captain' ) . '</summary>';
 		if ( $state ) {
@@ -1289,15 +1348,27 @@ final class AffiliatesPage {
 					// Ended partnership: nothing left to offset – claim it back.
 					$history = \WPAffiliateCaptain\Commissions\Dunning::history( $id, $cur );
 					echo '<h4>' . esc_html__( 'Claim back', 'affiliate-captain' ) . '</h4><ul>';
+					$dunning_due = '';
 					foreach ( $history as $h ) {
-						/* translators: 1: level, 2: date */
-						echo '<li>' . esc_html( sprintf( __( 'Level %1$d sent on %2$s', 'affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) ) ) . '</li>';
+						$dunning_due = \WPAffiliateCaptain\Commissions\Dunning::deadline_end( (array) $h );
+						echo '<li>' . esc_html(
+							'' !== $dunning_due
+								/* translators: 1: level, 2: date, 3: end of the payment deadline */
+								? sprintf( __( 'Level %1$d sent on %2$s, payment deadline until %3$s', 'affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ), Admin::date( $dunning_due ) )
+								/* translators: 1: level, 2: date */
+								: sprintf( __( 'Level %1$d sent on %2$s', 'affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) )
+						) . '</li>';
 					}
 					echo '</ul>';
+					$dunning_levels = \WPAffiliateCaptain\Commissions\Dunning::levels();
+					if ( '' !== $dunning_due && count( $history ) < $dunning_levels && $dunning_due > \WPAffiliateCaptain\Core\Db::now() ) {
+						/* translators: %s: end of the payment deadline */
+						echo '<p class="description wpac-dunning-wait">' . esc_html( sprintf( __( 'The payment deadline of the last stage runs until %s. Send the next stage only after it has passed.', 'affiliate-captain' ), Admin::date( $dunning_due ) ) ) . '</p>';
+					}
 					$dunning_blocked = \WPAffiliateCaptain\Commissions\Dunning::blocked_reason( $partner );
-					if ( '' !== $dunning_blocked && count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+					if ( '' !== $dunning_blocked && count( $history ) < $dunning_levels ) {
 						echo '<p class="description">' . esc_html( $dunning_blocked ) . '</p>';
-					} elseif ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+					} elseif ( count( $history ) < $dunning_levels ) {
 						Admin::form_open( 'dunning_send', 'wpac-inline' );
 						/* translators: 1: amount, 2: e-mail address */
 						$dunning_confirm = sprintf( __( 'Send a payment request for %1$s to %2$s now?', 'affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ), $partner->email );

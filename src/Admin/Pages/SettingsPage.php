@@ -31,6 +31,16 @@ final class SettingsPage {
 			echo \WPAffiliateCaptain\Privacy\Privacy::ropa( $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
 			exit;
 		}
+		if ( 'document_sample' === $do ) {
+			// Sample credit note with the current logo and footer (SET-AC-16): nothing is stored.
+			$bytes = \WPAffiliateCaptain\Payouts\DocumentBrand::sample_pdf();
+			nocache_headers();
+			header( 'Content-Type: application/pdf' );
+			header( 'Content-Disposition: inline; filename="sample-credit-note.pdf"' );
+			header( 'Content-Length: ' . strlen( $bytes ) );
+			echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- PDF download.
+			exit;
+		}
 		if ( 'roles_save' === $do ) {
 			self::handle_roles();
 			return;
@@ -43,6 +53,11 @@ final class SettingsPage {
 			return;
 		}
 		$raw  = (array) Admin::post( 'wpac', array() );
+		if ( isset( $raw['fx_rows'] ) && is_array( $raw['fx_rows'] ) ) {
+			// Exchange rate table (SET-AC-29): stored as the same text as before.
+			list( $raw['exchange_rates'], $raw['min_payout_currency'] ) = \WPAffiliateCaptain\Core\Fx::rows_to_text( $raw['fx_rows'] );
+		}
+		unset( $raw['fx_rows'] );
 		$tabs = self::tab_keys();
 		$tab  = self::tab_alias( sanitize_key( Admin::post( 'tab' ) ) );
 		$tab  = isset( $tabs[ $tab ] ) ? $tab : 'program';
@@ -55,6 +70,7 @@ final class SettingsPage {
 		if ( isset( $clean['currency'] ) && in_array( 'currency', $keys, true ) && (string) $clean['currency'] !== (string) Settings::get( 'currency' ) ) {
 			// A new program currency also converts the amounts of other tabs (R5-O2, R7-AD18).
 			$keys[]              = 'min_payout_minor';
+			$keys[]              = 'max_payout_minor';
 			$keys[]              = 'fraud_max_order_minor';
 			$notices['currency'] = ( isset( $notices['currency'] ) ? $notices['currency'] . ' ' : '' ) . self::currency_leftovers();
 		}
@@ -444,6 +460,7 @@ final class SettingsPage {
 		// Form fields that are entered as decimal amounts and stored in minor units.
 		$labels['fraud_max_order'] = $labels['fraud_max_order_minor'];
 		$labels['min_payout']      = $labels['min_payout_minor'];
+		$labels['max_payout']      = $labels['max_payout_minor'];
 		return $labels;
 	}
 
@@ -603,6 +620,12 @@ final class SettingsPage {
 		submit_button();
 		echo '</form>';
 		self::render_transfer();
+		if ( 'payouts' === self::$tab ) {
+			echo '<h2>' . esc_html__( 'Sample credit note', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Preview of logo and footer as saved (save first). The sample has no number and is not stored.', 'affiliate-captain' ) . '</p>';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" target="_blank">';
+			Admin::form_fields( 'document_sample' );
+			echo '<p><button class="button">' . esc_html__( 'Open sample credit note (PDF)', 'affiliate-captain' ) . '</button></p></form>';
+		}
 		if ( 'data' === self::$tab ) {
 			echo '<h2>' . esc_html__( 'Record of processing activities', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'affiliate-captain' ) . '</p>';
 			Admin::form_open( 'ropa_download' );
@@ -633,6 +656,13 @@ final class SettingsPage {
 		self::number( 'application_confirm_days', null, $s );
 		self::number( 'terms_reminder_days', null, $s );
 		self::end();
+
+		// SET-AC-26: switches per feature (off hides menu item and partner area part; data stay).
+		self::section( __( 'Features', 'affiliate-captain' ), 'program' );
+		foreach ( \WPAffiliateCaptain\Core\Features::SETTINGS as $key ) {
+			self::checkbox( $key, null, $s );
+		}
+		self::end();
 	}
 
 	/**
@@ -645,6 +675,7 @@ final class SettingsPage {
 		self::text( 'admin_email', null, $s );
 		self::text( 'mail_from_name', null, $s );
 		self::text( 'mail_from_email', null, $s );
+		self::image_field( 'mail_logo_id', $s );
 		self::end();
 
 		self::section( __( 'Notices to partners', 'affiliate-captain' ), 'emails' );
@@ -741,6 +772,65 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Exchange rates as a table (SET-AC-29): currency, rate, own minimum payout; rows can be added
+	 * and removed (with JavaScript; without it an empty row is always offered and a row is removed
+	 * by emptying it). Below the table the date of the rates, set automatically on a change.
+	 *
+	 * @param array  $s        Settings.
+	 * @param string $currency Program currency.
+	 */
+	private static function exchange_rate_table( array $s, $currency ) {
+		$rows   = \WPAffiliateCaptain\Core\Fx::text_to_rows( self::shown( 'exchange_rates', $s['exchange_rates'] ), self::shown( 'min_payout_currency', $s['min_payout_currency'] ) );
+		$rows[] = array(
+			'currency' => '',
+			'rate'     => '',
+			'min'      => '',
+		);
+		$rate_err = self::error_parts( 'exchange_rates', true );
+		$min_err  = self::error_parts( 'min_payout_currency' );
+		/* translators: %s: program currency */
+		$rate_head = sprintf( __( 'Rate (1 unit = x %s)', 'affiliate-captain' ), $currency );
+		$min_head  = SettingsSchema::label( 'min_payout_currency' );
+		echo '<tr><th scope="row" id="wpac-fx-label">' . esc_html( SettingsSchema::label( 'exchange_rates' ) ) . '</th><td>';
+		echo '<table class="widefat striped wpac-fx-table" aria-labelledby="wpac-fx-label"><thead><tr><th scope="col">' . esc_html__( 'Currency', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html( $rate_head ) . '</th><th scope="col">' . esc_html( $min_head ) . '</th><th scope="col"><span class="screen-reader-text">' . esc_html__( 'Remove', 'affiliate-captain' ) . '</span></th></tr></thead><tbody data-wpac-rows>';
+		foreach ( $rows as $n => $row ) {
+			self::exchange_rate_row( (string) $n, $row, $rate_err[0], $min_err[0] );
+		}
+		echo '</tbody></table>';
+		echo '<template data-wpac-row-template>';
+		self::exchange_rate_row( '__N__', array( 'currency' => '', 'rate' => '', 'min' => '' ), '', '' );
+		echo '</template>';
+		echo '<p><button type="button" class="button" data-wpac-row-add hidden>' . esc_html__( 'Add currency', 'affiliate-captain' ) . '</button></p>';
+		echo $rate_err[1] . $min_err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		/* translators: %s: program currency */
+		echo '<p class="description" id="wpac-desc-exchange_rates">' . esc_html( sprintf( __( '1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies. Remove a row by emptying it.', 'affiliate-captain' ), $currency ) ) . ' ' . esc_html( SettingsSchema::help( 'min_payout_currency' ) ) . '</p>';
+		echo '</td></tr>';
+		$date = \WPAffiliateCaptain\Core\Fx::rates_date();
+		$err  = self::error_parts( 'exchange_rates_date', true );
+		echo '<tr><th><label for="wpac-exchange_rates_date">' . esc_html( SettingsSchema::label( 'exchange_rates_date' ) ) . '</label></th><td><input type="text" readonly id="wpac-exchange_rates_date" name="wpac[exchange_rates_date]" value="' . esc_attr( $date ) . '" class="regular-text"' . $err[0] . '> ' . esc_html( '' !== $date ? \WPAffiliateCaptain\Core\Fx::date_text( $date ) : __( 'not known yet', 'affiliate-captain' ) ) . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		self::desc( SettingsSchema::help( 'exchange_rates_date' ), 'exchange_rates_date' );
+		echo '</td></tr>';
+	}
+
+	/**
+	 * One row of the exchange rate table.
+	 *
+	 * @param string $n        Row index (or the template placeholder).
+	 * @param array  $row      { currency, rate, min }.
+	 * @param string $rate_att Error attributes of the rates.
+	 * @param string $min_att  Error attributes of the minimums.
+	 */
+	private static function exchange_rate_row( $n, array $row, $rate_att, $min_att ) {
+		$name = 'wpac[fx_rows][' . $n . ']';
+		echo '<tr>';
+		echo '<td><input type="text" name="' . esc_attr( $name . '[currency]' ) . '" value="' . esc_attr( $row['currency'] ) . '" class="small-text code" maxlength="3" size="4" pattern="[A-Za-z]{3}" placeholder="USD" aria-label="' . esc_attr__( 'Currency', 'affiliate-captain' ) . '"></td>';
+		echo '<td><input type="text" name="' . esc_attr( $name . '[rate]' ) . '" value="' . esc_attr( $row['rate'] ) . '" class="regular-text code" inputmode="decimal" placeholder="0.92" aria-label="' . esc_attr__( 'Exchange rate', 'affiliate-captain' ) . '"' . $rate_att . '></td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		echo '<td><input type="text" name="' . esc_attr( $name . '[min]' ) . '" value="' . esc_attr( $row['min'] ) . '" class="small-text" inputmode="decimal" aria-label="' . esc_attr( SettingsSchema::label( 'min_payout_currency' ) ) . '"' . $min_att . '></td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		echo '<td><button type="button" class="button-link wpac-fx-remove" data-wpac-row-remove hidden>' . esc_html__( 'Remove', 'affiliate-captain' ) . '</button></td>';
+		echo '</tr>';
+	}
+
+	/**
 	 * Fields of the 'Commissions' tab.
 	 *
 	 * @param array  $s        Settings.
@@ -749,12 +839,11 @@ final class SettingsPage {
 	private static function render_commissions_tab( array $s, $currency ) {
 		self::section( __( 'Program currency', 'affiliate-captain' ), 'commissions' );
 		self::currency_field( $s );
-		$err = self::error_parts( 'exchange_rates', true );
-		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html( SettingsSchema::label( 'exchange_rates' ) ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05"' . $err[0] . '>' . esc_textarea( self::shown( 'exchange_rates', $s['exchange_rates'] ) ) . '</textarea>' . $err[1] . '<p class="description" id="wpac-desc-exchange_rates">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'affiliate-captain' ), $currency ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		self::exchange_rate_table( $s, $currency );
 		self::end();
 
 		self::section( __( 'Default commission', 'affiliate-captain' ), 'commissions' );
-		self::select( 'default_rate_type', null, $s, array( 'percent' => __( 'Percent of net', 'affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ) ) );
+		self::select( 'default_rate_type', null, $s, array( 'percent' => \WPAffiliateCaptain\Commissions\CommissionBasis::percent_label(), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ) ) );
 		$display = $s;
 		if ( 'fixed' === $s['default_rate_type'] ) {
 			$display['default_rate'] = Money::to_decimal( (int) $s['default_rate'], $currency );
@@ -769,6 +858,23 @@ final class SettingsPage {
 				'target' => __( 'Most specific product first: product > category > all, then partner > group > all partners; exclusions compete like other rules', 'affiliate-captain' ),
 			)
 		);
+		self::end();
+
+		self::section( __( 'Commission base', 'affiliate-captain' ), 'commissions' );
+		self::select(
+			'commission_basis',
+			null,
+			$s,
+			array(
+				'net'   => __( 'Net: after discounts, without VAT (default)', 'affiliate-captain' ),
+				'gross' => __( 'Gross: after discounts, including VAT', 'affiliate-captain' ),
+			)
+		);
+		if ( 'gross' === $s['commission_basis'] ) {
+			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html( self::gross_basis_warning() ) . '</p></div></td></tr>';
+		}
+		self::checkbox( 'commission_include_shipping', null, $s );
+		self::checkbox( 'commission_include_fees', null, $s );
 		self::end();
 
 		self::section( __( 'Lifetime commissions', 'affiliate-captain' ), 'commissions' );
@@ -798,6 +904,15 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Warning shown while the commission base is "gross" (SET-AC-02).
+	 *
+	 * @return string
+	 */
+	public static function gross_basis_warning() {
+		return __( 'Gross base: the commission is also calculated on the VAT the customer paid, which you pass on to the tax office. This is uncommon in the EU, where commissions are usually based on net amounts; it also changes the revenue partners see and the monthly revenue of tier bonuses. Agree it with your partners in the terms and check the tax treatment with your adviser.', 'affiliate-captain' );
+	}
+
+	/**
 	 * Fields of the 'Promotion' tab.
 	 *
 	 * @param array $s Settings.
@@ -823,8 +938,11 @@ final class SettingsPage {
 		self::section( __( 'Payouts', 'affiliate-captain' ), 'payouts' );
 		$err = self::error_parts( 'min_payout', true );
 		echo '<tr><th><label for="wpac-min_payout">' . esc_html( SettingsSchema::label( 'min_payout_minor' ) ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( self::shown( 'min_payout', Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description" id="wpac-desc-min_payout">' . esc_html( SettingsSchema::help( 'min_payout_minor' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
-		// No "payout period" setting: payout runs are started by you (Payouts → New payout run); a
-		// stored value of the former setting is kept but has no effect.
+		$err = self::error_parts( 'max_payout', true );
+		echo '<tr><th><label for="wpac-max_payout">' . esc_html( SettingsSchema::label( 'max_payout_minor' ) ) . '</label></th><td><input type="text" id="wpac-max_payout" name="wpac[max_payout]" value="' . esc_attr( self::shown( 'max_payout', Money::to_decimal( (int) $s['max_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description" id="wpac-desc-max_payout">' . esc_html( SettingsSchema::help( 'max_payout_minor' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		// Payout runs are started by you (Payouts → New payout run); the reminder only reminds (E5 a).
+		self::select( 'payout_reminder', null, $s, array( 'off' => __( 'Off', 'affiliate-captain' ), 'monthly' => __( 'Monthly', 'affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'affiliate-captain' ) ), self::reminder_help() );
+		self::number( 'payout_reminder_day', null, $s );
 		self::checkbox( 'payout_requests', null, $s );
 		self::checkbox( 'payout_method_manual', null, $s );
 		self::number( 'payout_request_note_days', null, $s );
@@ -842,12 +960,31 @@ final class SettingsPage {
 		self::text( 'operator_tax_number', null, $s );
 		self::end();
 
+		self::section( __( 'Logo & footer on credit notes', 'affiliate-captain' ), 'payouts' );
+		self::image_field( 'document_logo_id', $s );
+		self::number( 'document_logo_height', null, $s );
+		self::number( 'document_logo_max_kb', null, $s );
+		$err = self::error_parts( 'document_footer', true );
+		echo '<tr><th><label for="wpac-document_footer">' . esc_html( SettingsSchema::label( 'document_footer' ) ) . '</label></th><td><textarea id="wpac-document_footer" name="wpac[document_footer]" rows="4" class="large-text"' . $err[0] . '>' . esc_textarea( self::shown( 'document_footer', (string) $s['document_footer'] ) ) . '</textarea>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( SettingsSchema::help( 'document_footer' ), 'document_footer' );
+		echo '</td></tr>';
+		self::end();
+
 		self::section( __( 'Credit notes & VAT', 'affiliate-captain' ), 'payouts' );
 		self::checkbox( 'self_billing', null, $s );
 		self::text( 'vat_rate', null, $s );
 		self::text( 'credit_prefix', null, $s );
 		self::text( 'storno_prefix', null, $s );
 		self::text( 'correction_prefix', null, $s );
+		self::end();
+
+		self::section( __( 'Document numbers', 'affiliate-captain' ), 'payouts' );
+		foreach ( \WPAffiliateCaptain\Core\Sequence::RANGES as $range ) {
+			// SET-AC-15: start number and digits per number range; the year and the restart per year stay fixed (E7).
+			/* translators: 1: help text of the field, 2: number the next document gets (e.g. GS-2026-000438) */
+			self::number( $range . '_start', null, $s, sprintf( __( '%1$s Next number: %2$s', 'affiliate-captain' ), SettingsSchema::help( $range . '_start' ), \WPAffiliateCaptain\Core\Sequence::preview( $range ) ) );
+			self::number( $range . '_digits', null, $s );
+		}
 		self::end();
 
 		self::section( __( 'Electronic invoice (EN 16931)', 'affiliate-captain' ), 'payouts' );
@@ -876,6 +1013,32 @@ final class SettingsPage {
 		self::text( 'debtor_bic', null, $s );
 		self::text( 'remittance_prefix', null, $s );
 		self::end();
+
+		self::section( __( 'Claiming back debts of ended partnerships', 'affiliate-captain' ), 'payouts' );
+		self::number( 'dunning_levels', null, $s );
+		self::number( 'dunning_days', null, $s );
+		self::number( 'dunning_final_days', null, $s );
+		self::end();
+	}
+
+	/**
+	 * Help text of the payout reminder, with a note about the former setting "payout period" when
+	 * an update converted a value other than the default (it never had an effect).
+	 *
+	 * @return string
+	 */
+	private static function reminder_help() {
+		$help   = SettingsSchema::help( 'payout_reminder' );
+		$legacy = get_option( Settings::LEGACY_PAYOUT_PERIOD );
+		if ( 'off' === (string) Settings::get( 'payout_reminder' ) && in_array( $legacy, array( 'quarterly', 'manual' ), true ) ) {
+			$names = array(
+				'quarterly' => __( 'Quarterly', 'affiliate-captain' ),
+				'manual'    => __( 'Manual', 'affiliate-captain' ),
+			);
+			/* translators: %s: former value (Quarterly, Manual) */
+			$help .= ' ' . sprintf( __( 'Before version 0.21.0 a "payout period" of "%s" was stored; it never had an effect and was converted to "Off". Choose a reminder here if you want one.', 'affiliate-captain' ), $names[ $legacy ] );
+		}
+		return $help;
 	}
 
 	/**
@@ -897,6 +1060,7 @@ final class SettingsPage {
 		self::checkbox( 'maintenance_mode', null, $s );
 		self::number( 'privacy_requests_per_day', null, $s );
 		self::monitor_token( $s );
+		self::log_level( $s );
 		self::end();
 
 		self::section( __( 'Add-ons', 'affiliate-captain' ), 'data' );
@@ -1027,6 +1191,36 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Log level (SET-AC-28) with the end of "verbose" at the field.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function log_level( $s ) {
+		$desc  = SettingsSchema::help( 'log_level' );
+		$until = \WPAffiliateCaptain\Core\Log::verbose_until();
+		if ( 'verbose' === (string) $s['log_level'] ) {
+			$desc .= ' ' . ( $until > time()
+				/* translators: %s: date and time */
+				? sprintf( __( 'Verbose is on until %s, then the default applies again.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $until ) )
+				: __( 'The 7 days of verbose logging have ended: the default applies again.', 'affiliate-captain' ) );
+		}
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			$desc .= ' ' . __( 'WP_DEBUG is on: everything is written at the moment.', 'affiliate-captain' );
+		}
+		self::select(
+			'log_level',
+			null,
+			$s,
+			array(
+				'errors'  => __( 'Errors only', 'affiliate-captain' ),
+				'notices' => __( 'Errors and notices (default)', 'affiliate-captain' ),
+				'verbose' => __( 'Verbose (debug entries, ends after 7 days)', 'affiliate-captain' ),
+			),
+			$desc
+		);
+	}
+
+	/**
 	 * Confirmation field for "delete all data" (only needed while it is still off).
 	 *
 	 * @param array $s Settings.
@@ -1078,6 +1272,36 @@ final class SettingsPage {
 		}
 		echo '</select>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::desc( $desc, $key );
+		echo '</td></tr>';
+	}
+
+	/**
+	 * Image from the media library (SET-AC-16): the attachment ID, a preview and – with
+	 * JavaScript – buttons for the media library. Without JavaScript the ID can be typed.
+	 *
+	 * @param string $key Key.
+	 * @param array  $s   Settings.
+	 */
+	private static function image_field( $key, $s ) {
+		list( $label, $desc ) = self::texts( $key, null, '' );
+		$err     = self::error_parts( $key, true );
+		$id      = (int) $s[ $key ];
+		$preview = $id > 0 && function_exists( 'wp_get_attachment_image' ) ? wp_get_attachment_image( $id, 'thumbnail', false, array( 'style' => 'max-height:60px;width:auto;vertical-align:middle;' ) ) : '';
+		if ( function_exists( 'wp_enqueue_media' ) ) {
+			wp_enqueue_media();
+		}
+		printf(
+			'<tr><th><label for="wpac-%1$s">%2$s</label></th><td><span id="wpac-%1$s-preview" class="wpac-media-preview">%3$s</span> <input type="number" min="0" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%4$s" class="small-text"%5$s> <button type="button" class="button" data-wpac-media="wpac-%1$s" data-wpac-media-title="%2$s">%6$s</button> <button type="button" class="button-link" data-wpac-media-clear="wpac-%1$s">%7$s</button>%8$s',
+			esc_attr( $key ),
+			esc_html( $label ),
+			$preview, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() is escaped.
+			esc_attr( self::shown( $key, (string) $id ) ),
+			$err[0], // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+			esc_html__( 'Choose image', 'affiliate-captain' ),
+			esc_html__( 'Remove', 'affiliate-captain' ),
+			$err[1] // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		);
+		self::desc( '' !== $desc ? $desc . ' ' . __( 'The field holds the ID of the image in the media library (0 = none).', 'affiliate-captain' ) : '', $key );
 		echo '</td></tr>';
 	}
 

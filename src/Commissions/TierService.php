@@ -272,6 +272,82 @@ final class TierService {
 		return is_array( $c ) && isset( $c['kind'], $c['month'], $c['after'] ) && $kind === $c['kind'] && $month === $c['month'] ? (int) $c['after'] : 0;
 	}
 
+	/** Option: periods in which monthly tiers were switched off in the settings (SET-AC-26). */
+	const OFF_PERIODS = 'wpac_tier_off_periods';
+
+	/**
+	 * Called by Settings::update() before feature_tiers is stored: switching off starts an
+	 * off-period, switching on ends it. Months touched by an off-period get no bonus and no bonus
+	 * correction (see skipped()).
+	 *
+	 * @param int $new New value (1 = on).
+	 * @param int $old Stored value.
+	 */
+	public static function feature_saved( $new, $old ) {
+		$new = (int) (bool) $new;
+		if ( (int) (bool) $old === $new ) {
+			return;
+		}
+		$periods = self::off_periods();
+		$last    = count( $periods ) - 1;
+		if ( ! $new && ( $last < 0 || $periods[ $last ]['to'] ) ) {
+			$periods[] = array(
+				'from' => time(),
+				'to'   => 0,
+			);
+		} elseif ( $new && $last >= 0 && ! $periods[ $last ]['to'] ) {
+			$periods[ $last ]['to'] = time();
+		} else {
+			return;
+		}
+		update_option( self::OFF_PERIODS, $periods, false );
+	}
+
+	/**
+	 * Periods in which monthly tiers were switched off (Unix times; to = 0: still off).
+	 *
+	 * @return array<int,array{from:int,to:int}>
+	 */
+	public static function off_periods() {
+		$out = array();
+		foreach ( (array) get_option( self::OFF_PERIODS, array() ) as $p ) {
+			if ( is_array( $p ) && ! empty( $p['from'] ) ) {
+				$out[] = array(
+					'from' => (int) $p['from'],
+					'to'   => isset( $p['to'] ) ? (int) $p['to'] : 0,
+				);
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Whether a month is skipped: monthly tiers were switched off at some time during it (site's
+	 * local calendar month, from the month of switching off up to the month of switching on).
+	 * Such a month gets no bonus and no bonus correction; months closed before stay as they are.
+	 *
+	 * @param string $month YYYY-MM.
+	 * @return bool
+	 */
+	public static function skipped( $month ) {
+		$month = (string) $month;
+		$skip  = false;
+		foreach ( self::off_periods() as $p ) {
+			if ( $month >= Db::local_month( 0, $p['from'] ) && $month <= Db::local_month( 0, $p['to'] ? $p['to'] : null ) ) {
+				$skip = true;
+				break;
+			}
+		}
+		/**
+		 * Whether a bonus month is skipped because monthly tiers were switched off during it
+		 * (since plugin 0.21.0). The filter wins.
+		 *
+		 * @param bool   $skip  Decision from the stored off-periods (option wpac_tier_off_periods).
+		 * @param string $month YYYY-MM.
+		 */
+		return (bool) apply_filters( 'wpac_tier_month_skipped', $skip, $month );
+	}
+
 	/** Months whose recalculation did not fit into the last run's time budget. */
 	const RECALC_PENDING = 'wpac_tier_recalc_pending';
 
@@ -279,6 +355,9 @@ final class TierService {
 	 * Close all months that are due (cron).
 	 */
 	public static function close_due_months() {
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) ) {
+			return true; // Monthly tiers switched off (SET-AC-26): nothing is booked, months wait.
+		}
 		if ( ! self::all() ) {
 			return true;
 		}
@@ -287,10 +366,17 @@ final class TierService {
 		$month    = $last ? gmdate( 'Y-m', strtotime( $last . '-01 +1 month' ) ) : Db::local_month( -1 );
 		$budget   = self::budget();
 		$deadline = $budget > 0 ? microtime( true ) + $budget : 0.0;
-		for ( $guard = 0; $guard < 24; $guard++ ) {
+		// At most 24 booked months per run; skipped months (tiers off) are passed over quickly.
+		for ( $guard = 0, $total = 0; $guard < 24 && $total < 1200; $total++ ) {
 			if ( ! self::is_due( $month ) ) {
 				break;
 			}
+			if ( self::skipped( $month ) ) {
+				Settings::set_state( 'tier_month_closed', $month ); // Nothing booked for it (SET-AC-26).
+				$month = gmdate( 'Y-m', strtotime( $month . '-01 +1 month' ) );
+				continue;
+			}
+			++$guard;
 			self::close_month( $month, $deadline );
 			if ( self::$stopped ) {
 				return false; // Continues in the next run (CONTINUE_HOOK), the month is not closed yet.
@@ -314,8 +400,8 @@ final class TierService {
 	public static function close_month( $month, $deadline = 0.0 ) {
 		global $wpdb;
 		self::$stopped = false;
-		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
-			return 0;
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) || ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) || self::skipped( $month ) ) {
+			return 0; // Switched off, now or during the month (SET-AC-26): nothing is booked.
 		}
 		$first = Settings::state( 'tier_month_first' );
 		if ( '' === $first || $month < $first ) {
@@ -486,7 +572,7 @@ final class TierService {
 	public static function recalculate_closed_months( $budget = null ) {
 		$budget = null === $budget ? self::budget() : (float) $budget;
 		$last = Settings::state( 'tier_month_closed' );
-		if ( '' === $last || ! self::all() ) {
+		if ( '' === $last || ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) || ! self::all() ) {
 			return 0;
 		}
 		$months = array();
@@ -564,8 +650,8 @@ final class TierService {
 	 */
 	public static function recalculate_month( $month, $deadline = 0.0 ) {
 		self::$stopped = false;
-		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ) {
-			return 0;
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) || ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) || self::skipped( $month ) ) {
+			return 0; // Switched off, now or during the month (SET-AC-26): booked bonuses stay as they are.
 		}
 		global $wpdb;
 		$c        = Db::table( 'commissions' );

@@ -76,7 +76,8 @@ final class SettingsTransfer {
 		$current = Settings::all();
 		$wanted  = array();
 		$ignored = array();
-		foreach ( $data['settings'] as $key => $value ) {
+		// Files of older versions may carry the former key payout_period (SET-AC-31): mapped, not ignored.
+		foreach ( Settings::map_legacy_import( $data['settings'] ) as $key => $value ) {
 			$key = (string) $key;
 			// Private values (bank details, addresses) only from an export made with them (P4-02).
 			if ( isset( $core[ $key ] ) && ! empty( $core[ $key ]['private'] ) && empty( $data['private'] ) ) {
@@ -139,7 +140,7 @@ final class SettingsTransfer {
 		// A currency change converts the stored amounts like the settings page does, unless they
 		// are given together with the new currency (P1-04).
 		$fx_change = strtoupper( $currency ) !== strtoupper( (string) $current['currency'] );
-		foreach ( array( 'min_payout_minor' => 'min_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $minor_key => $field ) {
+		foreach ( array( 'min_payout_minor' => 'min_payout', 'max_payout_minor' => 'max_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $minor_key => $field ) {
 			if ( ! $fx_change || array_key_exists( $minor_key, $wanted ) ) {
 				$input[ $field ] = Money::to_decimal( (int) $input[ $minor_key ], $currency );
 			}
@@ -168,6 +169,7 @@ final class SettingsTransfer {
 		);
 		$field_of = array(
 			'min_payout'      => 'min_payout_minor',
+			'max_payout'      => 'max_payout_minor',
 			'fraud_max_order' => 'fraud_max_order_minor',
 		);
 		foreach ( $errors as $field => $message ) {
@@ -179,9 +181,12 @@ final class SettingsTransfer {
 		$keys = array_keys( $wanted );
 		if ( $fx_change && ! isset( $out['errors']['currency'] ) ) {
 			// Values derived from the currency change go along with it.
-			$keys = array_unique( array_merge( $keys, array( 'min_payout_minor', 'fraud_max_order_minor', 'exchange_rates', 'default_rate' ) ) );
+			$keys = array_unique( array_merge( $keys, array( 'min_payout_minor', 'max_payout_minor', 'fraud_max_order_minor', 'exchange_rates', 'min_payout_currency', 'default_rate' ) ) );
 		}
-		foreach ( $keys as $key ) {
+		if ( array_intersect( array( 'exchange_rates', 'currency' ), $keys ) ) {
+			$keys[] = 'exchange_rates_date'; // Follows the rates (SET-AC-29).
+		}
+		foreach ( array_unique( $keys ) as $key ) {
 			if ( isset( $out['errors'][ $key ] ) || ! array_key_exists( $key, $clean ) ) {
 				continue;
 			}

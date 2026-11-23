@@ -806,6 +806,7 @@ final class RestApi {
 			'to'          => $to,
 			'currency'    => (string) Settings::get( 'currency' ),
 			'unconverted' => array_keys( Reports::$unconverted ),
+			'rates_date'  => \WPAffiliateCaptain\Core\Fx::rates() ? \WPAffiliateCaptain\Core\Fx::rates_date() : '', // Date of the reference rates (SET-AC-29).
 			'rows'        => $rows,
 		);
 		if ( null !== $program ) {
@@ -834,7 +835,7 @@ final class RestApi {
 			'status'            => $aff->status,
 			'code'              => $code,
 			'link'              => $code ? add_query_arg( (string) Settings::get( 'referral_param' ), $code, home_url( '/' ) ) : '',
-			'landing_url'       => Landing::url( $aff ),
+			'landing_url'       => \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ? Landing::url( $aff ) : '', // '' while landing pages are switched off (SET-AC-26).
 			'currency'          => $currency,
 			'totals_minor'      => $sum,
 			'available_minor'   => PayoutRequests::available( (int) $aff->id ),

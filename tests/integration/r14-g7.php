@@ -70,7 +70,7 @@ $g7_columns = static function () use ( $wpdb, $g7_vt ) {
 	ksort( $cols );
 	return implode( ',', $cols );
 };
-check( 'R14-D1 schema 14: visits.affiliate_created covers campaign and sub-ID', array( 16, 'affiliate_id,created_at,campaign,sub_id' ), array( Installer::DB_VERSION, $g7_columns() ) );
+check( 'R14-D1 schema 14: visits.affiliate_created covers campaign and sub-ID', array( 17, 'affiliate_id,created_at,campaign,sub_id' ), array( Installer::DB_VERSION, $g7_columns() ) );
 q( "ALTER TABLE {$g7_vt} DROP KEY affiliate_created, ADD KEY affiliate_created (affiliate_id,created_at)" );
 Installer::verify_schema();
 $g7_warn = array_values( preg_grep( '/visits\.affiliate_created/', (array) get_option( 'wpac_schema_warnings' ) ) );

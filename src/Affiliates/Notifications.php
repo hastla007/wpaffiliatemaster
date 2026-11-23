@@ -97,6 +97,7 @@ final class Notifications {
 		add_action( 'wpac_storno_generated', array( __CLASS__, 'credit_note_cancelled' ), 10, 2 );
 		add_action( 'wpac_correction_generated', array( __CLASS__, 'credit_note_corrected' ), 10, 2 );
 		add_action( self::BROADCAST_HOOK, array( __CLASS__, 'broadcast_batch' ), 10, 0 );
+		add_action( 'wpac_hourly', array( __CLASS__, 'resume_broadcast' ), 10, 0 ); // After the feature was switched on again (SET-AC-26).
 	}
 
 	/**
@@ -642,6 +643,7 @@ final class Notifications {
 			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;"><tr><td align="center" style="padding:24px 12px;">'
 			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:6px;"><tr>'
 			. '<td style="padding:24px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f2937;">' . "\n"
+			. \WPAffiliateCaptain\Payouts\DocumentBrand::mail_logo_html() // Logo of the e-mails (SET-AC-16; '' when none is set).
 			. $paras
 			. '</td></tr></table>'
 			. '<p style="margin:16px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;">' . $site . '</p>'
@@ -691,6 +693,9 @@ final class Notifications {
 	 */
 	public static function start_broadcast( $subject, $message, $group_id = 0 ) {
 		global $wpdb;
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'broadcast' ) ) {
+			return new \WP_Error( 'wpac_feature_off', __( 'This feature is switched off in the settings.', 'affiliate-captain' ) );
+		}
 		$subject = trim( sanitize_text_field( (string) $subject ) );
 		$message = trim( (string) $message );
 		if ( '' === $subject || '' === $message ) {
@@ -738,6 +743,16 @@ final class Notifications {
 	}
 
 	/**
+	 * Hourly: continue a broadcast mail that was paused while the feature was switched off.
+	 */
+	public static function resume_broadcast() {
+		$state = get_option( self::BROADCAST_OPTION );
+		if ( is_array( $state ) && empty( $state['done'] ) && \WPAffiliateCaptain\Core\Features::enabled( 'broadcast' ) ) {
+			\WPAffiliateCaptain\Core\Scheduler::once( self::BROADCAST_HOOK, 0 ); // Never twice (Scheduler::once() checks).
+		}
+	}
+
+	/**
 	 * Send the next batch of the broadcast mail (cron), then schedule the next one.
 	 *
 	 * @param int $size Batch size.
@@ -747,6 +762,9 @@ final class Notifications {
 		$state = get_option( self::BROADCAST_OPTION );
 		if ( ! is_array( $state ) || ! empty( $state['done'] ) ) {
 			return;
+		}
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'broadcast' ) ) {
+			return; // Switched off: paused; resume_broadcast() continues once it is on again (SET-AC-26).
 		}
 		$a     = \WPAffiliateCaptain\Core\Db::table( 'affiliates' );
 		$group = (int) $state['group'] ? $wpdb->prepare( ' AND group_id = %d', (int) $state['group'] ) : '';

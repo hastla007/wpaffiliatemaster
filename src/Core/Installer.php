@@ -18,7 +18,7 @@ final class Installer {
 	 * main file left in the plugin folder (update copied over an older copy by FTP/rsync, see
 	 * Lifecycle::switch_main_file()) can never make the new code run with an older schema version.
 	 */
-	const DB_VERSION = 16;
+	const DB_VERSION = 17;
 
 	/**
 	 * Expected schema version: the class constant, or WPAC_DB_VERSION when the main file defines
@@ -843,6 +843,7 @@ final class Installer {
 			'visits'          => array( 'id', 'content_id', 'campaign', 'sub_id' ),
 			'visits_daily'    => array( 'id', 'affiliate_id', 'day', 'campaign', 'sub_id', 'visits' ),
 			'customer_links'  => array( 'id', 'customer_hash', 'pending' ),
+			'rules'           => array( 'id', 'max_amount_minor', 'min_base_minor', 'valid_from', 'valid_until' ),
 		);
 		// Existing tables of this plugin, compared without case: with lower_case_table_names=1
 		// (Windows, some macOS/managed MySQL) the server reports names in lower case.
@@ -1435,6 +1436,10 @@ final class Installer {
 			target_value varchar(190) NOT NULL DEFAULT '',
 			rate_type varchar(20) NOT NULL DEFAULT 'percent',
 			rate varchar(40) NOT NULL DEFAULT '0',
+			max_amount_minor bigint(20) NOT NULL DEFAULT 0,
+			min_base_minor bigint(20) NOT NULL DEFAULT 0,
+			valid_from date NULL,
+			valid_until date NULL,
 			priority int(11) NOT NULL DEFAULT 0,
 			active tinyint(1) NOT NULL DEFAULT 1,
 			note varchar(255) NOT NULL DEFAULT '',
@@ -1873,6 +1878,9 @@ final class Installer {
 	 */
 	private static function migrate_before( $previous ) {
 		global $wpdb;
+		if ( $previous > 0 && $previous < 17 ) {
+			self::migrate_v17_rule_columns();
+		}
 		if ( $previous > 0 && $previous < 10 ) {
 			// v10: rate-limit keys become BINARY(16) (half the size of the hex key). The counters only
 			// live for minutes: emptying the table first lets the column change without converting rows.
@@ -1974,6 +1982,46 @@ final class Installer {
 			}
 			// phpcs:enable
 		}
+	}
+
+	/**
+	 * v17 (SET-AC-22): cap per line, minimum base and validity dates of the commission rules. All
+	 * missing columns in ONE statement, online (ALGORITHM=INPLACE, LOCK=NONE: bookings keep reading
+	 * the rules); a server that cannot do that online gets the plain ALTER (the rules table is
+	 * small). Before dbDelta, so dbDelta finds the columns and does not add them one by one.
+	 */
+	private static function migrate_v17_rule_columns() {
+		global $wpdb;
+		$t = Db::table( 'rules' );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $t ) ) ) {
+			return; // dbDelta creates the table with the columns.
+		}
+		$columns = array(
+			'max_amount_minor' => 'bigint(20) NOT NULL DEFAULT 0 AFTER rate',
+			'min_base_minor'   => 'bigint(20) NOT NULL DEFAULT 0 AFTER max_amount_minor',
+			'valid_from'       => 'date NULL AFTER min_base_minor',
+			'valid_until'      => 'date NULL AFTER valid_from',
+		);
+		$parts = array();
+		foreach ( $columns as $col => $def ) {
+			if ( ! $wpdb->get_var( "SHOW COLUMNS FROM {$t} LIKE '{$col}'" ) ) {
+				$parts[] = "ADD COLUMN {$col} {$def}";
+			}
+		}
+		if ( ! $parts ) {
+			return;
+		}
+		$suppress = $wpdb->suppress_errors( true );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Own table and column definitions only.
+		$ok = false !== $wpdb->query( "ALTER TABLE {$t} " . implode( ', ', $parts ) . ', ALGORITHM=INPLACE, LOCK=NONE' );
+		$wpdb->suppress_errors( $suppress );
+		if ( ! $ok ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Own table and column definitions only.
+			$wpdb->query( "ALTER TABLE {$t} " . implode( ', ', $parts ) );
+		}
+		// phpcs:enable
+		self::keep_lock();
 	}
 
 	/**

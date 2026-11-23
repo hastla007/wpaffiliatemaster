@@ -50,6 +50,7 @@ final class Settings {
 	public static function all() {
 		if ( null === self::$cache ) {
 			$saved       = get_option( self::OPTION, array() );
+			$saved       = is_array( $saved ) ? self::migrate( $saved ) : $saved;
 			self::$cache = array_merge( self::defaults(), is_array( $saved ) ? $saved : array() );
 			// Monitoring tokens of older versions were stored in plain text: hash on first read.
 			// (wp_salt() is pluggable: not yet defined while plugins load – then on a later request.)
@@ -62,6 +63,53 @@ final class Settings {
 			}
 		}
 		return self::$cache;
+	}
+
+	/** Option: value of the former setting payout_period, kept when it was converted (SET-AC-19/31). */
+	const LEGACY_PAYOUT_PERIOD = 'wpac_legacy_payout_period';
+
+	/**
+	 * Convert stored settings of older versions (once, on the first read after an update).
+	 *
+	 * payout_period (monthly/quarterly/manual, default monthly) never had an effect: no code ever
+	 * read it, and since every save stored the default "monthly" a chosen value cannot be told
+	 * apart from the default. It becomes payout_reminder "off", so an update starts no new e-mails;
+	 * the former value is kept in its own option (shown as a hint next to the reminder setting).
+	 *
+	 * @param array $saved Stored settings.
+	 * @return array
+	 */
+	private static function migrate( array $saved ) {
+		if ( ! array_key_exists( 'payout_period', $saved ) ) {
+			return $saved;
+		}
+		$period = is_scalar( $saved['payout_period'] ) ? (string) $saved['payout_period'] : '';
+		unset( $saved['payout_period'] );
+		if ( ! isset( $saved['payout_reminder'] ) ) {
+			$saved['payout_reminder'] = 'off';
+		}
+		if ( in_array( $period, array( 'monthly', 'quarterly', 'manual' ), true ) && false === get_option( self::LEGACY_PAYOUT_PERIOD ) ) {
+			add_option( self::LEGACY_PAYOUT_PERIOD, $period, '', false );
+		}
+		update_option( self::OPTION, $saved, true );
+		return $saved;
+	}
+
+	/**
+	 * Map the former key payout_period of an imported file (SET-AC-31): it never had an effect, so
+	 * it means "no reminder" – unless the file names payout_reminder itself.
+	 *
+	 * @param array $settings Settings of the file (key => value).
+	 * @return array
+	 */
+	public static function map_legacy_import( array $settings ) {
+		if ( array_key_exists( 'payout_period', $settings ) ) {
+			if ( ! array_key_exists( 'payout_reminder', $settings ) ) {
+				$settings['payout_reminder'] = 'off';
+			}
+			unset( $settings['payout_period'] );
+		}
+		return $settings;
 	}
 
 	/** Prefix of a hashed monitoring token (older versions keyed it with the WordPress salt). */
@@ -280,6 +328,33 @@ final class Settings {
 			// The VAT of a credit note follows the rate valid at the time of the service: keep the old rate.
 			\WPAffiliateCaptain\Payouts\TaxHistory::record_rate( (string) self::get( 'vat_rate' ), (string) $values['vat_rate'] );
 		}
+		// SET-AC-15: a new start number moves the counter of the current year up (never down) before
+		// the setting is stored; if that fails, nothing is stored.
+		$raised = array();
+		foreach ( Sequence::RANGES as $range ) {
+			$k = $range . '_start';
+			if ( ! array_key_exists( $k, $values ) || (int) $values[ $k ] === (int) self::get( $k ) ) {
+				continue;
+			}
+			$year   = (int) wp_date( 'Y' );
+			$before = Sequence::raise( $range, $year, (int) $values[ $k ] );
+			if ( false === $before ) {
+				return false;
+			}
+			$raised[ $range ] = array(
+				'year'    => $year,
+				'highest' => $before,
+				'start'   => (int) $values[ $k ],
+				'skipped' => max( 0, (int) $values[ $k ] - 1 - $before ),
+			);
+		}
+		if ( array_key_exists( 'log_level', $values ) ) {
+			Log::level_saved( (string) $values['log_level'], (string) self::get( 'log_level' ) ); // "Verbose" ends after 7 days (SET-AC-28).
+		}
+		if ( array_key_exists( 'feature_tiers', $values ) ) {
+			// Months during which monthly tiers were off are skipped later (SET-AC-26).
+			\WPAffiliateCaptain\Commissions\TierService::feature_saved( (int) $values['feature_tiers'], (int) ( null === self::get( 'feature_tiers' ) ? 1 : self::get( 'feature_tiers' ) ) );
+		}
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 		// A failed write leaves the cached (old) value in place, so reading back detects it.
@@ -292,6 +367,10 @@ final class Settings {
 				Log::error( 'Settings could not be saved', array( 'key' => (string) $key ) );
 				return false;
 			}
+		}
+		foreach ( $raised as $range => $info ) {
+			// Documents the numbers skipped by a raised start number (explains the gap).
+			Audit::log( 'sequence.start_raised', 'sequence', 0, array_merge( array( 'range' => $range ), $info ) );
 		}
 		return true;
 	}
@@ -501,6 +580,7 @@ final class Settings {
 				$out['exchange_rates'] = implode( "\n", $lines );
 			}
 		}
+		$entered_rates = Fx::parse( $out['exchange_rates'] );
 
 		// A new program currency: amounts stored in minor units of the old currency are converted
 		// (with an exchange rate between the two currencies if one is known, otherwise the shown
@@ -523,7 +603,7 @@ final class Settings {
 			}
 			$converted = array();
 			$scaled    = array();
-			foreach ( array( 'min_payout_minor' => 'min_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $key => $field ) {
+			foreach ( array( 'min_payout_minor' => 'min_payout', 'max_payout_minor' => 'max_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $key => $field ) {
 				if ( isset( $in[ $field ] ) ) {
 					continue; // Entered together with the currency: parsed in the new currency.
 				}
@@ -540,6 +620,8 @@ final class Settings {
 				/* translators: 1: old currency, 2: new currency */
 				: sprintf( __( 'Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency.', 'affiliate-captain' ), $old_currency, $out['currency'] );
 		}
+
+		self::sanitize_fx_extras( $in, $out, $errors, $notices, $old, $entered_rates );
 
 		$out['default_rate'] = $d['default_rate'];
 		if ( isset( $in['default_rate'] ) ) {
@@ -581,8 +663,143 @@ final class Settings {
 
 		self::sanitize_promotion_mail_fields( $in, $out, $errors, $old, $d );
 		self::sanitize_billing_fields( $in, $out, $errors, $old, $d );
+		self::sanitize_brand_fields( $in, $out, $errors, $old, $d );
 
 		return $out;
+	}
+
+	/**
+	 * Sanitize: date of the exchange rates and the minimum payout per currency (SET-AC-29).
+	 *
+	 * The date is set to today when the rates were changed (a rebase after a currency change is no
+	 * new rate and keeps it). A date given together with changed rates (import, WP-CLI) is kept,
+	 * so an export brings its own date along; without rates there is no date.
+	 *
+	 * @param array    $in            Raw input.
+	 * @param array    $out           Sanitized settings so far (extended).
+	 * @param array    $errors        Rejected fields (extended).
+	 * @param array    $notices       Adjusted fields (extended).
+	 * @param callable $old           Stored value of a key.
+	 * @param array    $entered_rates Rates as entered (before a rebase).
+	 */
+	private static function sanitize_fx_extras( array $in, array &$out, array &$errors, array &$notices, callable $old, array $entered_rates ) {
+		$stored_date                = (string) $old( 'exchange_rates_date' );
+		$out['exchange_rates_date'] = $stored_date;
+		if ( isset( $in['exchange_rates'] ) ) {
+			$given = isset( $in['exchange_rates_date'] ) && is_scalar( $in['exchange_rates_date'] ) ? trim( (string) $in['exchange_rates_date'] ) : '';
+			$today = function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' );
+			$valid = (bool) preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $given, $m ) && checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) && $given <= $today;
+			if ( '' !== $given && ! $valid ) {
+				$errors['exchange_rates_date'] = __( 'Please enter the date of the exchange rates as YYYY-MM-DD (not in the future).', 'affiliate-captain' );
+			}
+			if ( ! Fx::parse( $out['exchange_rates'] ) ) {
+				$out['exchange_rates_date'] = '';
+			} elseif ( $entered_rates !== Fx::parse( (string) $old( 'exchange_rates' ) ) ) {
+				$out['exchange_rates_date'] = $valid && $given !== $stored_date ? $given : $today;
+			} elseif ( $valid ) {
+				$out['exchange_rates_date'] = $given;
+			}
+		}
+
+		$out['min_payout_currency'] = (string) $old( 'min_payout_currency' );
+		if ( ! isset( $in['min_payout_currency'] ) ) {
+			return;
+		}
+		$lines   = array();
+		$invalid = array();
+		$dropped = false;
+		foreach ( preg_split( '/[\r\n;]+/', (string) $in['min_payout_currency'] ) as $line ) {
+			if ( '' === trim( $line ) ) {
+				continue;
+			}
+			$problem = '';
+			$amount  = preg_match( '/^\s*([A-Za-z]{3})\s*[=:]\s*(\S.*?)\s*$/', $line, $m ) ? self::parse_amount( $m[2], strtoupper( $m[1] ), $problem ) : null;
+			if ( null === $amount || '-' === $amount[0] ) {
+				$invalid[] = trim( $line );
+				continue;
+			}
+			$cur = strtoupper( $m[1] );
+			if ( $cur === strtoupper( (string) $out['currency'] ) ) {
+				$dropped = true; // The program currency uses the minimum payout on the Payouts tab.
+				continue;
+			}
+			$lines[ $cur ] = $cur . '=' . Money::to_decimal( Money::to_minor( $amount, $cur ), $cur );
+		}
+		if ( $invalid ) {
+			/* translators: %s: lines */
+			$errors['min_payout_currency'] = sprintf( __( 'Minimum payout not understood: %s. Enter a three-letter currency code and an amount in that currency (e.g. 50 or 50,00), or leave the field empty.', 'affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
+			return;
+		}
+		$out['min_payout_currency'] = implode( "\n", $lines );
+		if ( $dropped ) {
+			/* translators: %s: currency code */
+			$notices['min_payout_currency'] = sprintf( __( 'The minimum payout in the program currency %s is set on the Payouts tab; the entry in the table was not saved.', 'affiliate-captain' ), $out['currency'] );
+		}
+	}
+
+	/**
+	 * Sanitize: logo and footer of documents, logo of HTML mails (SET-AC-16). An image is checked
+	 * when it is chosen (an unchanged choice is kept even if the file changed meanwhile: documents
+	 * only print a logo whose file still matches the frozen hash).
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 * @param array    $d      Defaults.
+	 */
+	private static function sanitize_brand_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
+		$out['document_footer'] = '';
+		if ( isset( $in['document_footer'] ) ) {
+			$raw   = str_replace( array( "\r\n", "\r" ), "\n", (string) $in['document_footer'] );
+			$lines = array_filter( array_map( 'trim', explode( "\n", $raw ) ), 'strlen' );
+			$long  = array_filter(
+				$lines,
+				static function ( $line ) {
+					return ( function_exists( 'mb_strlen' ) ? mb_strlen( $line ) : strlen( $line ) ) > \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINE_CHARS;
+				}
+			);
+			if ( count( $lines ) > \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINES || $long ) {
+				/* translators: 1: number of lines, 2: number of characters */
+				$errors['document_footer'] = sprintf( __( 'Please enter at most %1$d lines of at most %2$d characters each.', 'affiliate-captain' ), \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINES, \WPAffiliateCaptain\Payouts\DocumentBrand::FOOTER_LINE_CHARS );
+				$out['document_footer']    = (string) $old( 'document_footer' );
+			} else {
+				$out['document_footer'] = \WPAffiliateCaptain\Payouts\DocumentBrand::clean_footer( $raw );
+			}
+		}
+		foreach ( SettingsSchema::keys_of( 'image' ) as $key ) {
+			$out[ $key ] = $d[ $key ];
+			if ( ! isset( $in[ $key ] ) ) {
+				continue;
+			}
+			$raw = trim( (string) $in[ $key ] );
+			if ( '' === $raw || preg_match( '/^0+$/', $raw ) ) {
+				$out[ $key ] = 0;
+				continue;
+			}
+			if ( ! preg_match( '/^\d{1,10}$/', $raw ) ) {
+				$errors[ $key ] = __( 'Please choose an image from the media library.', 'affiliate-captain' );
+				$out[ $key ]    = (int) $old( $key );
+				continue;
+			}
+			$id = (int) $raw;
+			if ( $id === (int) $old( $key ) ) {
+				$out[ $key ] = $id;
+				continue;
+			}
+			if ( 'mail_logo_id' === $key ) {
+				$ok = \WPAffiliateCaptain\Payouts\DocumentBrand::check_mail_logo( $id, $error );
+			} else {
+				$max = isset( $in['document_logo_max_kb'] ) && ! isset( $errors['document_logo_max_kb'] ) ? (int) $out['document_logo_max_kb'] : (int) $old( 'document_logo_max_kb' );
+				$ok  = null !== \WPAffiliateCaptain\Payouts\DocumentBrand::load( $id, $max, $error );
+			}
+			if ( $ok ) {
+				$out[ $key ] = $id;
+			} else {
+				$errors[ $key ] = $error;
+				$out[ $key ]    = (int) $old( $key );
+			}
+		}
 	}
 
 	/**
@@ -712,6 +929,30 @@ final class Settings {
 			} else {
 				$out['min_payout_minor'] = Money::to_minor( $min, $out['currency'] );
 			}
+		}
+
+		// Maximum payout (SET-AC-19): 0 = no limit; otherwise at least the minimum payout.
+		$out['max_payout_minor'] = isset( $out['max_payout_minor'] ) ? $out['max_payout_minor'] : $d['max_payout_minor'];
+		if ( isset( $in['max_payout'] ) ) {
+			$problem = '';
+			$max     = '' === trim( (string) $in['max_payout'] ) ? '0' : self::parse_amount( $in['max_payout'], $out['currency'], $problem );
+			if ( null === $max || (float) $max < 0 ) {
+				$errors['max_payout']    = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 1000 or 1000,00; 0 = no limit).', 'affiliate-captain' );
+				$out['max_payout_minor'] = (int) $old( 'max_payout_minor' );
+			} else {
+				$out['max_payout_minor'] = Money::to_minor( $max, $out['currency'] );
+			}
+		}
+		if ( $out['max_payout_minor'] > 0 && $out['max_payout_minor'] < $out['min_payout_minor'] && ! isset( $errors['max_payout'] ) ) {
+			// Nobody could ever be paid: never stored (the field keeps its value).
+			/* translators: %s: minimum payout */
+			$errors['max_payout']    = sprintf( __( 'The maximum payout must be at least the minimum payout (%s), or 0 for no limit.', 'affiliate-captain' ), Money::format( (int) $out['min_payout_minor'], $out['currency'] ) );
+			$out['max_payout_minor'] = (int) $old( 'max_payout_minor' );
+		}
+		if ( $out['max_payout_minor'] > 0 && $out['max_payout_minor'] < $out['min_payout_minor'] && ! isset( $errors['min_payout'] ) ) {
+			// The minimum was raised above the stored maximum: the minimum keeps its value too.
+			$errors['min_payout']    = __( 'The minimum payout cannot be higher than the maximum payout.', 'affiliate-captain' );
+			$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
 		}
 	}
 
@@ -845,6 +1086,25 @@ final class Settings {
 			}
 			foreach ( $prefix_keys as $k ) {
 				$out[ $k ] = (string) $old( $k ); // Keep the stored prefixes.
+			}
+		}
+		// SET-AC-15: a changed start number must lie above the highest number issued this year
+		// (it can only be raised; issued numbers are never used twice). Unchanged: nothing to check.
+		foreach ( Sequence::RANGES as $range ) {
+			$k = $range . '_start';
+			if ( ! isset( $in[ $k ] ) || isset( $errors[ $k ] ) || (int) $out[ $k ] === (int) $old( $k ) ) {
+				continue;
+			}
+			$year    = (int) wp_date( 'Y' );
+			$highest = Sequence::current( $range, $year );
+			if ( (int) $out[ $k ] <= $highest ) {
+				$errors[ $k ] = sprintf(
+					/* translators: 1: highest number issued so far (e.g. GS-2026-000437), 2: smallest allowed start number */
+					__( 'The start number can only be raised: the numbers up to %1$s are already issued or skipped, so please enter at least %2$d.', 'affiliate-captain' ),
+					Sequence::format( (string) $old( $range . '_prefix' ), $year, $highest, (int) $old( $range . '_digits' ) ),
+					$highest + 1
+				);
+				$out[ $k ]    = (int) $old( $k );
 			}
 		}
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];

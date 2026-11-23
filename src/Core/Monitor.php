@@ -528,6 +528,7 @@ final class Monitor {
 				'self_billing'       => $yes( $s['self_billing'] ),
 				'vies_check'         => $yes( $s['vies_check'] ),
 				'payout_requests'    => $yes( $s['payout_requests'] ),
+				'payout_reminder'    => (string) $s['payout_reminder'],
 				'retention_years'    => (string) \WPAffiliateCaptain\Privacy\Retention::years() . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (hold)' : '' ),
 				'maintenance_mode'   => $yes( $s['maintenance_mode'] ),
 				'mail_from_set'      => $yes( '' !== (string) $s['mail_from_email'] ),

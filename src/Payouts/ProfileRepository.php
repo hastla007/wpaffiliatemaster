@@ -821,5 +821,6 @@ final class ProfileRepository {
 		// payout details no payout is possible any more, and correction credit notes use the
 		// payout's own items and snapshot, not the history (R13-N2): it goes with the profile.
 		TaxHistory::delete( (int) $affiliate_id );
+		Withholding::delete( (int) $affiliate_id ); // SET-AC-20: no payouts without payout details.
 	}
 }

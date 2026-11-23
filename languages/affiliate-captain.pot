@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.20.0\n"
+"Project-Id-Version: Affiliate Captain 0.21.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -324,6 +324,10 @@ msgstr ""
 msgid "Unknown action."
 msgstr ""
 
+#: src/Admin/Admin.php src/Affiliates/Notifications.php
+msgid "This feature is switched off in the settings."
+msgstr ""
+
 #. translators: %s: technical reason
 #: src/Admin/Admin.php
 msgid "A change could not be saved because of a database error and was not applied. Please check and try again. (%s)"
@@ -511,7 +515,7 @@ msgstr ""
 msgid "The oldest %1$d of %2$d requests are shown."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/PayoutsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/PayoutsTable.php src/Payouts/Corrections.php src/Payouts/DocumentBrand.php src/Payouts/Statement.php
 msgid "Partner"
 msgstr ""
 
@@ -670,6 +674,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Payout details saved."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Withholding saved. It applies to payouts created from now on."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Tables/AffiliatesTable.php
@@ -1271,6 +1279,26 @@ msgstr ""
 msgid "Check VAT ID with VIES now"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/SettingsPage.php
+msgid "Check legally"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Payouts/Withholding.php
+msgid "Withholding"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Note on the documents"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Required when a withholding is set, e.g. the legal basis and that the amount is paid to the tax office."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Save withholding"
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "History"
 msgstr ""
@@ -1418,9 +1446,19 @@ msgstr ""
 msgid "Claim back"
 msgstr ""
 
+#. translators: 1: level, 2: date, 3: end of the payment deadline
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Level %1$d sent on %2$s, payment deadline until %3$s"
+msgstr ""
+
 #. translators: 1: level, 2: date
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Level %1$d sent on %2$s"
+msgstr ""
+
+#. translators: %s: end of the payment deadline
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The payment deadline of the last stage runs until %s. Send the next stage only after it has passed."
 msgstr ""
 
 #. translators: 1: amount, 2: e-mail address
@@ -1502,6 +1540,10 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "E-mail address changed"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Withholding changed"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -1853,6 +1895,10 @@ msgid "Setting changed with WP-CLI"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Start number of a document number range raised"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Password confirmed for a money-relevant action"
 msgstr ""
 
@@ -1996,7 +2042,7 @@ msgstr ""
 msgid "Period end"
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/SettingsPage.php src/Privacy/Privacy.php
 msgid "Currency"
 msgstr ""
 
@@ -2656,6 +2702,11 @@ msgstr ""
 
 #: src/Admin/Pages/DashboardPage.php
 msgid "Review commissions"
+msgstr ""
+
+#. translators: %s: "Reference exchange rates as of <date>"
+#: src/Admin/Pages/DashboardPage.php
+msgid "Amounts in other currencies are converted into the program currency. %s."
 msgstr ""
 
 #. translators: %s: currencies
@@ -3948,7 +3999,27 @@ msgstr ""
 
 #. translators: %s: currency
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Maximum payout: cannot be checked (no exchange rate for %s)."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Maximum payout: %s per partner; the rest stays payable."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Admin/Pages/PayoutsPage.php
+msgid "(%s – maximum payout reached, the rest stays payable)"
+msgstr ""
+
+#. translators: %s: currency
+#: src/Admin/Pages/PayoutsPage.php
 msgid "cannot be checked (no exchange rate for %s)"
+msgstr ""
+
+#. translators: %s: "Reference exchange rates as of <date>"
+#: src/Admin/Pages/PayoutsPage.php
+msgid "(converted; %s)"
 msgstr ""
 
 #. translators: 1: program name, 2: amount
@@ -4043,7 +4114,7 @@ msgstr ""
 msgid "Part"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/DocumentBrand.php src/Payouts/Statement.php
 msgid "Net"
 msgstr ""
 
@@ -4134,7 +4205,7 @@ msgstr ""
 msgid "Commission statement"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/Statement.php
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Corrections.php src/Payouts/DocumentBrand.php src/Payouts/Statement.php
 msgid "Issued by"
 msgstr ""
 
@@ -4154,7 +4225,7 @@ msgstr ""
 msgid "Period until"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/DocumentBrand.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Description"
 msgstr ""
 
@@ -4166,6 +4237,10 @@ msgstr ""
 #. translators: %s: rate
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
 msgid "plus VAT %s %%"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "Total credit note"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
@@ -4226,6 +4301,10 @@ msgstr ""
 msgid "This month cannot be closed yet: it must have ended and its hold period must have passed."
 msgstr ""
 
+#: src/Admin/Pages/RulesPage.php
+msgid "This month is skipped: monthly tiers were switched off during it, so no bonus is booked for it."
+msgstr ""
+
 #. translators: 1: count, 2: month
 #: src/Admin/Pages/RulesPage.php
 msgid "%1$d monthly bonuses booked for %2$s."
@@ -4261,7 +4340,7 @@ msgstr ""
 
 #. translators: %s: default rate
 #: src/Admin/Pages/RulesPage.php
-msgid "Program default: %s. Basis is the net line amount after discount, excluding tax and shipping."
+msgid "Program default: %s."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4345,10 +4424,6 @@ msgid "Comma separated; SKUs support trailing * (e.g. GROUP-*)"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php src/Admin/Pages/SettingsPage.php
-msgid "Percent of net"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Admin/Pages/SettingsPage.php
 msgid "Fixed amount per unit"
 msgstr ""
 
@@ -4358,6 +4433,34 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "per unit"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Maximum commission per line"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Empty = no cap. Limits the commission of one order line (all units together) under this rule."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Minimum line amount"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Empty = always. The rule only applies to order lines with at least this commission basis; smaller lines fall to the next rule or the program default."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Valid"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "until"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Both days included, in the time zone of the website; empty = open. The payment date of the order counts. Outside this period the next rule or the program default applies."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4528,6 +4631,14 @@ msgid "Tag IDs"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "Gross amount"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Payment date"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "Calculate"
 msgstr ""
 
@@ -4548,6 +4659,21 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "program default"
+msgstr ""
+
+#. translators: 1: cap, 2: amount without the cap
+#: src/Admin/Pages/RulesPage.php
+msgid "Capped at %1$s per line (without the cap: %2$s)."
+msgstr ""
+
+#. translators: %s: cap
+#: src/Admin/Pages/RulesPage.php
+msgid "Cap of the rule: %s per line (not reached)."
+msgstr ""
+
+#. translators: %s: conditions of the rule
+#: src/Admin/Pages/RulesPage.php
+msgid "Conditions of the rule: %s."
 msgstr ""
 
 #. translators: %d: number of fields
@@ -4633,10 +4759,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "New"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Check legally"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4738,6 +4860,18 @@ msgstr ""
 msgid "Settings sections"
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php src/Payouts/DocumentBrand.php
+msgid "Sample credit note"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Preview of logo and footer as saved (save first). The sample has no number and is not stored."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Open sample credit note (PDF)"
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "Record of processing activities"
 msgstr ""
@@ -4764,6 +4898,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Are rejected"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Features"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4844,13 +4982,34 @@ msgstr ""
 msgid "Abuse protection"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php src/Core/SettingsSchema.php
-msgid "Program currency"
+#. translators: %s: program currency
+#: src/Admin/Pages/SettingsPage.php
+msgid "Rate (1 unit = x %s)"
 msgstr ""
 
-#. translators: %s: currency
 #: src/Admin/Pages/SettingsPage.php
-msgid "One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies."
+msgid "Remove"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Add currency"
+msgstr ""
+
+#. translators: %s: program currency
+#: src/Admin/Pages/SettingsPage.php
+msgid "1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies. Remove a row by emptying it."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "not known yet"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Exchange rate"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php src/Core/SettingsSchema.php
+msgid "Program currency"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4863,6 +5022,18 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Most specific product first: product > category > all, then partner > group > all partners; exclusions compete like other rules"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php src/Core/SettingsSchema.php src/Privacy/Privacy.php
+msgid "Commission base"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Net: after discounts, without VAT (default)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Gross: after discounts, including VAT"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4894,9 +5065,25 @@ msgstr ""
 msgid "Only by hand"
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php
+msgid "Gross base: the commission is also calculated on the VAT the customer paid, which you pass on to the tax office. This is uncommon in the EU, where commissions are usually based on net amounts; it also changes the revenue partners see and the monthly revenue of tier bonuses. Agree it with your partners in the terms and check the tax treatment with your adviser."
+msgstr ""
+
 #. translators: %s: example URL of a partner landing page
 #: src/Admin/Pages/SettingsPage.php
 msgid "Partner landing URLs look like %s"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Off"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Monthly"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Quarterly"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4904,7 +5091,20 @@ msgid "Your company details (for credit notes)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Logo & footer on credit notes"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Credit notes & VAT"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Document numbers"
+msgstr ""
+
+#. translators: 1: help text of the field, 2: number the next document gets (e.g. GS-2026-000438)
+#: src/Admin/Pages/SettingsPage.php
+msgid "%1$s Next number: %2$s"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4933,6 +5133,19 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "SEPA bank transfer"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Claiming back debts of ended partnerships"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Manual"
+msgstr ""
+
+#. translators: %s: former value (Quarterly, Manual)
+#: src/Admin/Pages/SettingsPage.php
+msgid "Before version 0.21.0 a \"payout period\" of \"%s\" was stored; it never had an effect and was converted to \"Off\". Choose a reminder here if you want one."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4968,12 +5181,45 @@ msgstr ""
 msgid "Only a hash of the token is stored; note it down before saving."
 msgstr ""
 
+#. translators: %s: date and time
+#: src/Admin/Pages/SettingsPage.php
+msgid "Verbose is on until %s, then the default applies again."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "The 7 days of verbose logging have ended: the default applies again."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "WP_DEBUG is on: everything is written at the moment."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Errors only"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Errors and notices (default)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Verbose (debug entries, ends after 7 days)"
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "Confirmation"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Choose image"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "The field holds the ID of the image in the media library (0 = none)."
 msgstr ""
 
 #. translators: %d: minutes
@@ -5050,6 +5296,10 @@ msgstr ""
 
 #: src/Admin/Reauth.php
 msgid "Change the payout and tax details of a partner"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Change the withholding of a partner"
 msgstr ""
 
 #: src/Admin/Reauth.php
@@ -6365,6 +6615,50 @@ msgstr ""
 msgid "Correction credit note"
 msgstr ""
 
+#: src/Commissions/CommissionBasis.php
+msgid "Percent of gross"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "Percent of net"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "including shipping and fees"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "including shipping, without fees"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "including fees, without shipping"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "Basis is the net line amount after discount, excluding tax and shipping."
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "Basis is the gross line amount after discount, including VAT"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "Basis is the net line amount after discount, excluding VAT"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "without shipping and fees"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "of the gross order value (incl. VAT)"
+msgstr ""
+
+#: src/Commissions/CommissionBasis.php
+msgid "of the net order value"
+msgstr ""
+
 #: src/Commissions/Dunning.php
 msgid "No payment request possible: the partner's data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin."
 msgstr ""
@@ -6597,6 +6891,47 @@ msgid "Please enter product IDs, category/tag IDs or SKUs/course codes."
 msgstr ""
 
 #: src/Commissions/RuleRepository.php
+msgid "Please enter a valid maximum commission per line (or leave it empty)."
+msgstr ""
+
+#: src/Commissions/RuleRepository.php
+msgid "Please enter a valid minimum amount (or leave it empty)."
+msgstr ""
+
+#: src/Commissions/RuleRepository.php
+msgid "Please enter the validity dates as YYYY-MM-DD (or leave them empty)."
+msgstr ""
+
+#: src/Commissions/RuleRepository.php
+msgid "The end of the validity cannot be before its start."
+msgstr ""
+
+#. translators: %s: amount
+#: src/Commissions/RuleRepository.php
+msgid "max. %s per line"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Commissions/RuleRepository.php
+msgid "from a line amount of %s"
+msgstr ""
+
+#. translators: 1: first day, 2: last day
+#: src/Commissions/RuleRepository.php
+msgid "valid %1$s – %2$s"
+msgstr ""
+
+#. translators: %s: first day
+#: src/Commissions/RuleRepository.php
+msgid "valid from %s"
+msgstr ""
+
+#. translators: %s: last day
+#: src/Commissions/RuleRepository.php
+msgid "valid until %s"
+msgstr ""
+
+#: src/Commissions/RuleRepository.php
 msgid "excluded"
 msgstr ""
 
@@ -6763,6 +7098,11 @@ msgstr ""
 
 #: src/Core/Db.php
 msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
+msgstr ""
+
+#. translators: %s: date
+#: src/Core/Fx.php
+msgid "Reference exchange rates as of %s"
 msgstr ""
 
 #: src/Core/Installer.php src/Privacy/Privacy.php
@@ -7244,6 +7584,29 @@ msgid "Not changed, because the default rate entered with it is not valid."
 msgstr ""
 
 #: src/Core/Settings.php
+msgid "Please enter the date of the exchange rates as YYYY-MM-DD (not in the future)."
+msgstr ""
+
+#. translators: %s: lines
+#: src/Core/Settings.php
+msgid "Minimum payout not understood: %s. Enter a three-letter currency code and an amount in that currency (e.g. 50 or 50,00), or leave the field empty."
+msgstr ""
+
+#. translators: %s: currency code
+#: src/Core/Settings.php
+msgid "The minimum payout in the program currency %s is set on the Payouts tab; the entry in the table was not saved."
+msgstr ""
+
+#. translators: 1: number of lines, 2: number of characters
+#: src/Core/Settings.php
+msgid "Please enter at most %1$d lines of at most %2$d characters each."
+msgstr ""
+
+#: src/Core/Settings.php src/Promotion/Creatives.php
+msgid "Please choose an image from the media library."
+msgstr ""
+
+#: src/Core/Settings.php
 msgid "Please choose your country from the list."
 msgstr ""
 
@@ -7269,6 +7632,19 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "Please enter an amount (e.g. 50 or 50,00; 0 = no minimum)."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please enter an amount (e.g. 1000 or 1000,00; 0 = no limit)."
+msgstr ""
+
+#. translators: %s: minimum payout
+#: src/Core/Settings.php
+msgid "The maximum payout must be at least the minimum payout (%s), or 0 for no limit."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "The minimum payout cannot be higher than the maximum payout."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -7301,6 +7677,11 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number."
+msgstr ""
+
+#. translators: 1: highest number issued so far (e.g. GS-2026-000437), 2: smallest allowed start number
+#: src/Core/Settings.php
+msgid "The start number can only be raised: the numbers up to %1$s are already issued or skipped, so please enter at least %2$d."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -7621,11 +8002,27 @@ msgid "One per line, e.g. USD=0.92: 1 unit of the currency = x program currency.
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "Exchange rates as of"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Set automatically when the exchange rates change; shown wherever converted amounts are shown. Rates are not fetched automatically – update them yourself."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Minimum payout per currency"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Optional, in the table of exchange rates: an own minimum payout for balances in that currency (amount in that currency). Empty = the minimum payout of the program, converted with the exchange rate."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Default commission type"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Commission for partners without a matching rule: a percentage of the net order value or a fixed amount per unit."
+msgid "Commission for partners without a matching rule: a percentage of the order value (net or gross, see Commission base) or a fixed amount per unit."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7701,6 +8098,26 @@ msgid "Which rule wins when several rules match a sale: partner rules first, or 
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "What percentage rates of WooCommerce orders are calculated on: net (line amounts after discounts without VAT, the default) or gross (including VAT). Applies to orders reported from now on; booked orders keep their base, and their refunds are deducted in the same base."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Include shipping costs in the commission base"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Shipping of a WooCommerce order becomes an own position of the sale (net or gross like the products). Only percentage rates apply to it (rules for all products, not product or category rules); refunded shipping is deducted."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Include fees in the commission base"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Positive fees of a WooCommerce order (e.g. a payment surcharge) become own positions of the sale; discounts booked as negative fees always lower the base. Only percentage rates apply to them; refunded fees are deducted."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Approve applications automatically"
 msgstr ""
 
@@ -7753,6 +8170,46 @@ msgid "Requests are checked like codes you create (characters, length, reserved 
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "Creatives (banners and texts for partners)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Off: the menu item Creatives and the partner area tab Creatives disappear. Creatives stay stored and are shown again when you switch this on."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partner landing pages (short links /partner/name/)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Off: short links of active partners lead to the home page with the partner code (tracked like a partner link), the short link disappears from the partner area and [wpac_partner_welcome] shows nothing. Partner links with the code keep working."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Monthly tiers (bonus steps)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Off: the tab Monthly tiers and the bonus details in the partner area disappear, and no monthly bonuses or bonus corrections are booked. Tier plans and booked bonuses stay. Months during which this was off are skipped for good (no bonus, no correction), also after you switch this on again."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "QR codes in the partner area"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Off: partners no longer see or download QR codes of their links. Printed QR codes keep working."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Broadcast mail to all partners"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Off: the box \"Write to all active partners\" and the partners' choice \"News and announcements\" disappear, and a running broadcast pauses until you switch this on again. Opt-outs stay stored."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Notification e-mail"
 msgstr ""
 
@@ -7774,6 +8231,14 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Logo in HTML e-mails"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "PNG or JPEG from the media library, shown at the top of e-mails with the simple HTML layout (at most 200 × 60 pixels). Mail programs load it from your website. Not part of the settings export (media IDs differ between sites)."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7806,6 +8271,14 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Secret for the health check of an external monitor (REST endpoint wpac/v1/health). Only a hash is stored."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Technical log"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "What the plugin writes to the technical log (WooCommerce → Status → Logs, otherwise the PHP error log): only errors, errors and notices (default), or verbose with debug entries for troubleshooting. Verbose switches back to the default automatically after 7 days. With WP_DEBUG everything is written; the filters wpac_log_level and wpac_log_debug win."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7889,14 +8362,6 @@ msgid "The retention period is suspended while a tax audit is running (§147 Abs
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Payout period (no effect)"
-msgstr ""
-
-#: src/Core/SettingsSchema.php
-msgid "Former setting without effect; kept only for stored settings."
-msgstr ""
-
-#: src/Core/SettingsSchema.php
 msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
 msgstr ""
 
@@ -7934,6 +8399,30 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Start of the remittance text on the partner's bank statement, followed by the payout number."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payment requests for debts of ended partnerships (number of stages)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Stage 1 is the payment request, the last stage the final reminder, stages in between are reminders (1 to 5). Afterwards the balance is written off or handed over for collection."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payment deadline in the payment request and reminders (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Named in the e-mail; send the next stage only after this deadline has passed (7 to 60 days)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payment deadline in the final reminder (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Named in the e-mail of the last stage (7 to 60 days). With only one stage the deadline of the payment request applies."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7985,6 +8474,38 @@ msgid "Your tax number; printed on credit notes when you have no VAT ID."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "Logo on credit notes"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "PNG or JPEG from the media library, printed at the top left of credit notes, correction credit notes and cancellations. The PDF uses the file on this server (nothing is downloaded). Documents already issued keep their look. Not part of the settings export (media IDs differ between sites)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Logo height on credit notes (mm)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Height of the printed logo; a very wide logo is made smaller so that it is at most 88 mm wide."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Largest logo file (KB)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Larger images are refused: every credit note contains the logo, so a large file makes every PDF large."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Footer on credit notes"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Plain text, up to 4 lines, printed small at the bottom of every page, e.g. bank details, commercial register and managing directors. Documents already issued keep their footer."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Prefix credit note numbers"
 msgstr ""
 
@@ -8006,6 +8527,38 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Start number credit notes"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "The next number of the current year continues at this number. It can only be raised, never to or below the highest number already issued this year; the numbers in between are skipped (the audit log records the change). Documents already issued keep their numbers. Each new year starts again at 1."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Digits credit note numbers"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Digits of the running number, 4 to 10 (6 = 000001). A higher number is written in full, never cut. Applies to new documents only."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Start number cancellations"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Digits cancellation numbers"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Start number correction credit notes"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Digits correction credit note numbers"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -8198,6 +8751,30 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "With the VIES check on, valid VAT IDs are checked again after this many days (at least 1)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payout reminder"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Sends the notification e-mail a reminder with the open payable amounts per currency on the day below (quarterly: in January, April, July and October). Nothing is booked; you still start the payout run yourself. Partners see \"Payout on day … of each month/quarter\" in the partner area – to them this reads like a promise, so pay on that day or check the wording legally."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Reminder on day of the month"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Day of the month for the payout reminder (1 to 28, so it exists in every month)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Maximum payout"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "A payout run or payout request never pays more than this per partner and currency (VAT included); the oldest commissions are paid first, the rest stays payable for the next payout. 0 = no limit."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -8548,6 +9125,16 @@ msgid "Affiliate Captain: the refund was deducted from the partner commission, b
 msgid_plural "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit notes %2$s. Please check whether the corrections already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
 msgstr[0] ""
 msgstr[1] ""
+
+#. translators: %s: name of the shipping method
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Shipping: %s"
+msgstr ""
+
+#. translators: %s: name of the fee
+#: src/Integrations/WooCommerce/OrderSync.php
+msgid "Fee: %s"
+msgstr ""
 
 #: src/Integrations/WooCommerce/OrderSync.php
 msgid "No partner link, partner code, coupon or lifetime customer."
@@ -8913,7 +9500,7 @@ msgstr ""
 msgid "Service"
 msgstr ""
 
-#: src/Payouts/Corrections.php src/Payouts/EInvoice.php src/Payouts/Statement.php
+#: src/Payouts/Corrections.php src/Payouts/DocumentBrand.php src/Payouts/EInvoice.php src/Payouts/Statement.php
 msgid "Referral of customers (affiliate commission)"
 msgstr ""
 
@@ -8996,6 +9583,55 @@ msgstr ""
 msgid "The stored statement failed the integrity check."
 msgstr ""
 
+#: src/Payouts/DocumentBrand.php
+msgid "This image was not found in the media library."
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "Please choose a PNG or JPEG image."
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "The image file is not on this server (documents only use local files, nothing is downloaded)."
+msgstr ""
+
+#. translators: 1: file size in KB, 2: allowed size in KB
+#: src/Payouts/DocumentBrand.php
+msgid "The image is %1$d KB; at most %2$d KB are allowed. Please use a smaller image."
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "Interlaced PNG images cannot be used. Please save the image without interlacing."
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "The image has too many pixels. Please use a smaller image (a logo needs a few hundred pixels)."
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "This image cannot be used on documents (supported: JPEG, and PNG with 8 bits per channel without interlacing)."
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "SAMPLE"
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "Sample partner"
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "Sample street 1"
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "Sample town"
+msgstr ""
+
+#: src/Payouts/DocumentBrand.php
+msgid "This is a preview of logo and footer. It is not a document and has no number."
+msgstr ""
+
 #. translators: 1: credit note number, 2: date
 #: src/Payouts/EInvoice.php src/Payouts/Statement.php
 msgid "Correction of credit note %1$s of %2$s"
@@ -9043,12 +9679,21 @@ msgstr ""
 msgid "Repayments, write-offs and settled correction credit notes (%s) are no service and not subject to VAT; they are shown as the amount already settled, so the amount due equals the payout amount."
 msgstr ""
 
+#: src/Payouts/EInvoice.php
+msgid "It is shown as the amount already settled, so the amount due equals the payout amount."
+msgstr ""
+
 #: src/Payouts/EInvoice.php src/Payouts/Statement.php
 msgid "Balance (settled, no transfer)"
 msgstr ""
 
 #: src/Payouts/EInvoice.php
 msgid "Paid by the issuer of this credit note (recipient of the service) by transfer with the payout; the partner does not have to pay anything."
+msgstr ""
+
+#. translators: 1: line label (percentage and basis), 2: amount
+#: src/Payouts/EInvoice.php
+msgid "%1$s (%2$s) is deducted from the amount transferred."
 msgstr ""
 
 #. translators: 1: document number, 2: net amount before, 3: corrected net amount
@@ -9125,6 +9770,65 @@ msgstr ""
 msgid "Hello,\n\nwe have reviewed your objection:\n\n%s"
 msgstr ""
 
+#. translators: 1: currency, 2: number of partners, 3: amount
+#: src/Payouts/PayoutReminder.php
+msgid "%1$s: %2$d partner can be paid now, %3$s in total (VAT included)."
+msgid_plural "%1$s: %2$d partners can be paid now, %3$s in total (VAT included)."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Payouts/PayoutReminder.php
+msgid "%d of them reaches the maximum payout; the rest stays payable."
+msgid_plural "%d of them reach the maximum payout; the rest stays payable."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Payouts/PayoutReminder.php
+msgid "%d partner is below the minimum (carried forward)."
+msgid_plural "%d partners are below the minimum (carried forward)."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of partners
+#: src/Payouts/PayoutReminder.php
+msgid "%d partner cannot be paid yet (see the reason in the payout preview)."
+msgid_plural "%d partners cannot be paid yet (see the reasons in the payout preview)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Payouts/PayoutReminder.php
+msgid "This is your quarterly payout reminder. Open payable amounts as of today:"
+msgstr ""
+
+#: src/Payouts/PayoutReminder.php
+msgid "This is your monthly payout reminder. Open payable amounts as of today:"
+msgstr ""
+
+#: src/Payouts/PayoutReminder.php
+msgid "Nothing was booked. Start the payout run yourself (preview first):"
+msgstr ""
+
+#: src/Payouts/PayoutReminder.php
+msgid "Change or switch off this reminder under Settings > Payouts & credit notes."
+msgstr ""
+
+#. translators: %s: site name
+#: src/Payouts/PayoutReminder.php
+msgid "[%s] Payout reminder: open payouts"
+msgstr ""
+
+#. translators: %d: day of the month
+#: src/Payouts/PayoutReminder.php
+msgid "Payout on day %d of each month"
+msgstr ""
+
+#. translators: %d: day of the month
+#: src/Payouts/PayoutReminder.php
+msgid "Payout on day %d of each quarter (January, April, July, October)"
+msgstr ""
+
 #: src/Payouts/PayoutRequests.php
 msgid "Payout requests are not enabled."
 msgstr ""
@@ -9155,6 +9859,10 @@ msgstr ""
 
 #: src/Payouts/PayoutRequests.php
 msgid "Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
+msgid "Your oldest open commission is larger than the maximum payout amount. Please contact us."
 msgstr ""
 
 #. translators: %s: minimum
@@ -9220,6 +9928,10 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Negative balance – carried forward"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "The oldest open commission is larger than the maximum payout – raise the maximum payout to pay it"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -9644,8 +10356,45 @@ msgstr ""
 msgid "Total %s"
 msgstr ""
 
+#. translators: %s: currency
+#: src/Payouts/Statement.php
+msgid "Withheld from the payouts (included in the total %s)"
+msgstr ""
+
 #: src/Payouts/Statement.php
 msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
+msgstr ""
+
+#: src/Payouts/Withholding.php
+msgid "Withholding (%)"
+msgstr ""
+
+#: src/Payouts/Withholding.php
+msgid "Share of the net commission withheld from each new payout of this partner, e.g. for a withholding tax you pay to the tax office on the partner's behalf. 0 = off. The note is required and printed on the credit note and the e-invoice. Ask your tax adviser whether and how the withholding must be shown."
+msgstr ""
+
+#. translators: %s: highest percentage
+#: src/Payouts/Withholding.php
+msgid "Please enter a withholding between 0 and %s %% (e.g. 15 or 12,5)."
+msgstr ""
+
+#: src/Payouts/Withholding.php
+msgid "Please enter the note for the withholding: it is printed on the credit note."
+msgstr ""
+
+#. translators: %d: number of characters
+#: src/Payouts/Withholding.php
+msgid "The note for the withholding may have at most %d characters."
+msgstr ""
+
+#. translators: 1: percentage, 2: basis amount
+#: src/Payouts/Withholding.php
+msgid "Withholding %1$s %% of %2$s"
+msgstr ""
+
+#. translators: 1: line label (percentage and basis), 2: amount
+#: src/Payouts/Withholding.php
+msgid "%1$s: %2$s was deducted from the payout amount. It is not VAT."
 msgstr ""
 
 #. translators: %s: minimum WooCommerce version
@@ -9924,10 +10673,6 @@ msgid "Only for selected products"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "of the net order value"
-msgstr ""
-
-#: src/Portal/Portal.php
 msgid "per product sold"
 msgstr ""
 
@@ -9962,6 +10707,19 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "No minimum amount"
+msgstr ""
+
+#. translators: %s: amount
+#: src/Portal/Portal.php
+msgid "Maximum per payout"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "%s – a higher balance is paid with the next payouts"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Payout date"
 msgstr ""
 
 #. translators: 1: link, 2: version, 3: date
@@ -10196,11 +10954,19 @@ msgid "Short link and QR code"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "Short link"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "The short link leads to our landing page and works exactly like your partner link – ideal for print, talks and social media profiles."
 msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your short link"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "QR code"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -10740,10 +11506,6 @@ msgid "Affiliate Captain partner data"
 msgstr ""
 
 #: src/Privacy/Privacy.php
-msgid "Commission base"
-msgstr ""
-
-#: src/Privacy/Privacy.php
 msgid "Held until"
 msgstr ""
 
@@ -11139,10 +11901,6 @@ msgstr ""
 
 #: src/Promotion/Creatives.php
 msgid "The target page must be on this website."
-msgstr ""
-
-#: src/Promotion/Creatives.php
-msgid "Please choose an image from the media library."
 msgstr ""
 
 #: src/Promotion/Creatives.php

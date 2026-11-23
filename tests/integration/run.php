@@ -1583,6 +1583,14 @@ require __DIR__ . '/su3.php'; // Agent su3: review quality from a review plugin,
 require __DIR__ . '/wf8.php'; // AFF-WF-08 (0.17.0): since table of all actions, parameters, after COMMIT (before r8-render).
 require __DIR__ . '/r17-snapshot.php'; // MariaDB 12.3 snapshot isolation (error 1020) in transactions (before r8-render).
 require __DIR__ . '/r16-fc.php'; // AFF-SU-01: Form Captain hand-over of partner applications (before r8-render).
+require __DIR__ . '/set-ac-seq.php'; // SET-AC-15: start number and digits per number range (before r8-render).
+require __DIR__ . '/set-ac-rules.php'; // SET-AC-22: rule cap, minimum base, validity (schema 17).
+require __DIR__ . '/set-ac-pay.php'; // SET-AC-19/31: payout reminder, maximum payout, payout_period migration (before r8-render).
+require __DIR__ . '/set-ac-fx.php'; // SET-AC-13 dunning stages and deadlines, SET-AC-29 exchange rate table (before r8-render).
+require __DIR__ . '/set-ac-sw.php'; // SET-AC-26/28: switches per feature, log level (before r8-render).
+require __DIR__ . '/set-ac-logo.php'; // SET-AC-16: logo and footer on credit notes, logo in HTML mails (before r8-render).
+require __DIR__ . '/set-ac-base.php'; // SET-AC-02: commission base net/gross, shipping and fees (before r8-render).
+require __DIR__ . '/set-ac-wht.php'; // SET-AC-20: withholding per partner (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1600,7 +1608,11 @@ require __DIR__ . '/r15-s-render.php'; // After the render files: confirmation o
 require __DIR__ . '/su3-render.php'; // After the render files: review quality on admin screens only, nothing in the partner area (AFF-SU-03).
 require __DIR__ . '/set-ac1-render.php'; // After the render files: settings register and add-on rows (SET-AC-01/05).
 require __DIR__ . '/set-ac35.php'; // Uninstall standard: typed confirmation word, not exported (SET-AC-35).
+require __DIR__ . '/set-ac-fx-render.php'; // SET-AC-13 / SET-AC-29 on the settings page (after the render files: template stubs).
+require __DIR__ . '/set-ac-wht-render.php'; // After the render files: withholding box and payout receipt (SET-AC-20).
 require __DIR__ . '/set-ac-review.php'; // Findings of the settings review phase (SET-AC-P1 … P6).
+require __DIR__ . '/set-ac-rules-render.php'; // After the render files: rule form, list and preview (SET-AC-22).
+require __DIR__ . '/set-ac-sw-render.php'; // SET-AC-26/28 render: menu, settings page, partner area with features on/off.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

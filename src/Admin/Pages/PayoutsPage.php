@@ -200,14 +200,20 @@ final class PayoutsPage {
 			case 'payout_export':
 				// Streamed in ID batches: all payouts, never cut off and never all in memory.
 				$tax = current_user_can( Capabilities::VIEW_TAX_DATA );
-				$out = ( static function () use ( $tax ) {
+				// SET-AC-20: the amount withheld as a last column, once any payout has a withholding.
+				$wh  = \WPAffiliateCaptain\Payouts\Withholding::used();
+				$out = ( static function () use ( $tax, $wh ) {
 					foreach ( \WPAffiliateCaptain\Core\Paged::each( array( PayoutService::class, 'query' ) ) as $p ) {
 						$aff  = AffiliateRepository::find( (int) $p->affiliate_id );
 						$snap = $tax ? json_decode( (string) $p->profile_snapshot, true ) : null;
-						yield array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, $tax && isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', $tax && isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
+						$row  = array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, $tax && isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', $tax && isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
+						if ( $wh ) {
+							$row[] = Money::to_decimal( \WPAffiliateCaptain\Payouts\Withholding::minor( $p ), $p->currency );
+						}
+						yield $row;
 					}
 				} )();
-				Csv::stream( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $out );
+				Csv::stream( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array_merge( array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $wh ? array( 'withholding' ) : array() ), $out );
 				break;
 		}
 	}
@@ -585,7 +591,7 @@ final class PayoutsPage {
 		echo '<label>' . esc_html__( 'Currency', 'affiliate-captain' ) . ' <input type="text" name="currency" value="' . esc_attr( $currency ) . '" size="4" maxlength="3"></label> ';
 		echo '<button class="button" name="preview" value="1">' . esc_html__( 'Preview', 'affiliate-captain' ) . '</button></form>';
 		/* translators: %s: amount */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Includes approved commissions and corrections up to the period end. Minimum payout: %s. Negative balances and amounts below the minimum are carried forward.', 'affiliate-captain' ), self::min_text( $currency ) ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Includes approved commissions and corrections up to the period end. Minimum payout: %s. Negative balances and amounts below the minimum are carried forward.', 'affiliate-captain' ), self::min_text( $currency ) ) . self::max_text( $currency ) ) . '</p>';
 
 		if ( Admin::get( 'preview' ) ) {
 			$preview  = PayoutService::preview( $end, $currency );
@@ -601,7 +607,7 @@ final class PayoutsPage {
 					esc_html( $row['affiliate'] ? $row['affiliate']->name : '?' ),
 					(int) $row['count'],
 					esc_html( Money::format( $row['total_minor'], $currency ) ),
-					$row['eligible'] ? '<strong>' . esc_html__( 'Will be paid', 'affiliate-captain' ) . '</strong>' : esc_html( $row['reason'] ) . self::fix_link( $row ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fix_link() escapes.
+					$row['eligible'] ? '<strong>' . esc_html__( 'Will be paid', 'affiliate-captain' ) . '</strong>' . self::capped_note( $row, $currency ) : esc_html( $row['reason'] ) . self::fix_link( $row ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fix_link() and capped_note() escape.
 				);
 			}
 			echo '</tbody></table>';
@@ -649,7 +655,42 @@ final class PayoutsPage {
 	}
 
 	/**
-	 * Minimum payout in a currency as a run applies it (converted from the program currency).
+	 * Sentence about the maximum payout in a currency ('' without a limit; SET-AC-19).
+	 *
+	 * @param string $currency Currency.
+	 * @return string
+	 */
+	private static function max_text( $currency ) {
+		$max = \WPAffiliateCaptain\Core\Fx::max_payout( $currency );
+		if ( 0 === $max ) {
+			return '';
+		}
+		if ( null === $max ) {
+			/* translators: %s: currency */
+			return ' ' . sprintf( __( 'Maximum payout: cannot be checked (no exchange rate for %s).', 'affiliate-captain' ), $currency );
+		}
+		/* translators: %s: amount */
+		return ' ' . sprintf( __( 'Maximum payout: %s per partner; the rest stays payable.', 'affiliate-captain' ), Money::format( (int) $max, $currency ) );
+	}
+
+	/**
+	 * Note of a preview row whose payout the maximum payout limits (SET-AC-19).
+	 *
+	 * @param array  $row      Preview row.
+	 * @param string $currency Currency.
+	 * @return string HTML.
+	 */
+	private static function capped_note( array $row, $currency ) {
+		if ( empty( $row['capped'] ) ) {
+			return '';
+		}
+		/* translators: %s: amount */
+		return ' ' . esc_html( sprintf( __( '(%s – maximum payout reached, the rest stays payable)', 'affiliate-captain' ), Money::format( (int) $row['pay_minor'], $currency ) ) );
+	}
+
+	/**
+	 * Minimum payout in a currency as a run applies it (own minimum of the currency, else converted
+	 * from the program currency – then with the date of the rates).
 	 *
 	 * With a partner: the value of the partner's program (filter wpac_setting). Without one: the
 	 * value of the settings, followed by the programs of the report selector (filter
@@ -660,12 +701,18 @@ final class PayoutsPage {
 	 * @return string
 	 */
 	public static function min_text( $currency, $affiliate_id = 0 ) {
-		$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $affiliate_id );
+		$info = \WPAffiliateCaptain\Core\Fx::min_payout_info( $currency, (int) $affiliate_id > 0 ? array( 'affiliate_id' => (int) $affiliate_id ) : array() );
+		$min  = $info['minor'];
 		if ( null === $min ) {
 			/* translators: %s: currency */
 			return sprintf( __( 'cannot be checked (no exchange rate for %s)', 'affiliate-captain' ), $currency );
 		}
 		$text = Money::format( (int) $min, $currency );
+		$note = \WPAffiliateCaptain\Core\Fx::rates_note();
+		if ( 'converted' === $info['source'] && '' !== $note ) {
+			/* translators: %s: "Reference exchange rates as of <date>" */
+			$text .= ' ' . sprintf( __( '(converted; %s)', 'affiliate-captain' ), $note );
+		}
 		if ( (int) $affiliate_id > 0 || ( function_exists( 'has_filter' ) && false === has_filter( 'wpac_setting' ) ) ) {
 			return $text;
 		}
@@ -1053,6 +1100,12 @@ final class PayoutsPage {
 		echo '<tr><th colspan="3">' . esc_html__( 'Net amount', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( $net, $p->currency ) ) . '</th></tr>';
 		/* translators: %s: VAT rate */
 		echo '<tr><th colspan="3">' . esc_html( (int) $p->vat_minor ? sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $p->vat_rate ) ) : __( 'VAT', 'affiliate-captain' ) ) . '</th><th>' . esc_html( Money::format( (int) $p->vat_minor, $p->currency ) ) . '</th></tr>';
+		$withholding = \WPAffiliateCaptain\Payouts\Withholding::of_payout( $p );
+		if ( $withholding ) {
+			// SET-AC-20: as on the credit note.
+			echo '<tr><th colspan="3">' . esc_html__( 'Total credit note', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( (int) $p->amount_minor + (int) $withholding['minor'], $p->currency ) ) . '</th></tr>';
+			echo '<tr><th colspan="3">' . esc_html( \WPAffiliateCaptain\Payouts\Withholding::label( $withholding, (string) $p->currency ) ) . ( '' !== $withholding['note'] ? '<br><span class="description">' . esc_html( $withholding['note'] ) . '</span>' : '' ) . '</th><th>' . esc_html( Money::format( -(int) $withholding['minor'], $p->currency ) ) . '</th></tr>';
+		}
 		echo '<tr><th colspan="3">' . esc_html__( 'Total payout', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ) . '</th></tr>';
 		echo '</tfoot></table>';
 		if ( $p->vat_mode ) {

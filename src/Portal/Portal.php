@@ -17,6 +17,7 @@ use WPAffiliateCaptain\Codes\CodeRepository;
 use WPAffiliateCaptain\Codes\CodeRequests;
 use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\Features;
 use WPAffiliateCaptain\Core\Iban;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
@@ -257,6 +258,9 @@ final class Portal {
 	 */
 	public static function save_mail_preferences( $affiliate_id, array $keep ) {
 		foreach ( \WPAffiliateCaptain\Affiliates\Notifications::OPTOUT_TYPES as $type ) {
+			if ( 'broadcast' === $type && ! Features::enabled( 'broadcast' ) ) {
+				continue; // Not offered while the broadcast mail is switched off: the stored choice stays (SET-AC-26).
+			}
 			$out = ! in_array( $type, $keep, true );
 			if ( $out !== \WPAffiliateCaptain\Affiliates\Notifications::opted_out( (int) $affiliate_id, $type ) ) {
 				\WPAffiliateCaptain\Affiliates\Notifications::set_opt_out( (int) $affiliate_id, $type, $out );
@@ -782,6 +786,9 @@ final class Portal {
 				$tabs[ $key ] = (string) $label;
 			}
 		}
+		if ( ! Features::enabled( 'creatives' ) ) {
+			unset( $tabs['promotion'] ); // Creatives switched off (SET-AC-26).
+		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$tab = isset( $_GET['wpac_tab'] ) ? sanitize_key( wp_unslash( $_GET['wpac_tab'] ) ) : key( $tabs );
 		$tab = isset( $tabs[ $tab ] ) ? $tab : key( $tabs );
@@ -1181,8 +1188,12 @@ final class Portal {
 		$base    = \WPAffiliateCaptain\Commissions\RuleRepository::default_rate( (int) $aff->id );
 		$best    = null;
 		$special = 0;
+		$today   = \WPAffiliateCaptain\Commissions\Calculator::local_date();
 		foreach ( \WPAffiliateCaptain\Commissions\RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id ) as $r ) {
-			if ( 'all' !== $r['target'] ) {
+			if ( ! \WPAffiliateCaptain\Commissions\Calculator::valid_on( $r, $today ) ) {
+				continue; // Expired or not yet valid (SET-AC-22).
+			}
+			if ( 'all' !== $r['target'] || ! empty( $r['min_base_minor'] ) ) {
 				++$special;
 				continue;
 			}
@@ -1195,7 +1206,7 @@ final class Portal {
 			$base = $best[1];
 		}
 		$out = array(
-			__( 'Your commission', 'affiliate-captain' ) => 'exclude' === $base['rate_type'] ? __( 'Only for selected products', 'affiliate-captain' ) : \WPAffiliateCaptain\Commissions\RuleRepository::format_rate( $base['rate_type'], $base['rate'] ) . ( 'percent' === $base['rate_type'] ? ' ' . __( 'of the net order value', 'affiliate-captain' ) : ' ' . __( 'per product sold', 'affiliate-captain' ) ),
+			__( 'Your commission', 'affiliate-captain' ) => 'exclude' === $base['rate_type'] ? __( 'Only for selected products', 'affiliate-captain' ) : \WPAffiliateCaptain\Commissions\RuleRepository::format_rate( $base['rate_type'], $base['rate'] ) . ( 'percent' === $base['rate_type'] ? ' ' . \WPAffiliateCaptain\Commissions\CommissionBasis::portal_suffix() : ' ' . __( 'per product sold', 'affiliate-captain' ) ),
 		);
 		if ( $special ) {
 			$out[ __( 'Special rates', 'affiliate-captain' ) ] = __( 'Some products or categories have their own rate; each commission in the list shows the rate used.', 'affiliate-captain' );
@@ -1221,7 +1232,7 @@ final class Portal {
 		if ( '' !== $program ) {
 			$out[ __( 'Partner program', 'affiliate-captain' ) ] = $program;
 		}
-		$plan = \WPAffiliateCaptain\Commissions\TierService::plan_for( $aff );
+		$plan = Features::enabled( 'tiers' ) ? \WPAffiliateCaptain\Commissions\TierService::plan_for( $aff ) : null;
 		if ( $plan ) {
 			// In the partner's words, not the admin input format (R14-U4).
 			$steps = \WPAffiliateCaptain\Commissions\TierService::partner_text( $plan, (string) Settings::get( 'currency' ) );
@@ -1231,6 +1242,15 @@ final class Portal {
 		}
 		$min = max( 0, (int) Settings::for_affiliate( 'min_payout_minor', (int) $aff->id ) );
 		$out[ __( 'Minimum payout amount', 'affiliate-captain' ) ] = $min > 0 ? Money::format( $min, (string) Settings::get( 'currency' ) ) : __( 'No minimum amount', 'affiliate-captain' );
+		$max = max( 0, (int) Settings::for_affiliate( 'max_payout_minor', (int) $aff->id ) );
+		if ( $max > 0 ) {
+			/* translators: %s: amount */
+			$out[ __( 'Maximum per payout', 'affiliate-captain' ) ] = sprintf( __( '%s – a higher balance is paid with the next payouts', 'affiliate-captain' ), Money::format( $max, (string) Settings::get( 'currency' ) ) );
+		}
+		$schedule = \WPAffiliateCaptain\Payouts\PayoutReminder::partner_text();
+		if ( '' !== $schedule ) {
+			$out[ __( 'Payout date', 'affiliate-captain' ) ] = $schedule;
+		}
 		return $out;
 	}
 
@@ -1286,7 +1306,7 @@ final class Portal {
 			array( '' !== $code, __( 'Partner code received', 'affiliate-captain' ), 'links' ),
 			array( ! $terms['page_id'] || Agreements::has_current( (int) $aff->id ), __( 'Current terms accepted', 'affiliate-captain' ), 'overview' ),
 			array( ProfileRepository::is_complete( $profile ), __( 'Payout details completed', 'affiliate-captain' ), 'profile' ),
-			array( Tracker::has_visits( (int) $aff->id ), __( 'First visitor via your link', 'affiliate-captain' ), 'promotion' ),
+			array( Tracker::has_visits( (int) $aff->id ), __( 'First visitor via your link', 'affiliate-captain' ), Features::enabled( 'creatives' ) ? 'promotion' : 'links' ),
 			array( $summary['sales'] > 0 || array_filter( self::sum_statuses( $totals, array( 'pending', 'review', 'approved', 'paid' ) ) ), __( 'First sale', 'affiliate-captain' ), 'links' ),
 		);
 		echo '<section class="wpac-hero" aria-labelledby="wpac-hero-title"><h3 id="wpac-hero-title">' . esc_html__( 'Share your partner link', 'affiliate-captain' ) . '</h3>';
@@ -1344,7 +1364,7 @@ final class Portal {
 	 * @return string
 	 */
 	public static function tier_progress( $aff ) {
-		if ( 'active' !== $aff->status ) {
+		if ( 'active' !== $aff->status || ! Features::enabled( 'tiers' ) ) {
 			return '';
 		}
 		$plan = \WPAffiliateCaptain\Commissions\TierService::plan_for( $aff );
@@ -1588,6 +1608,9 @@ final class Portal {
 	 * @param string $name File name part.
 	 */
 	private static function qr_block( $url, $name ) {
+		if ( ! Features::enabled( 'qr' ) ) {
+			return; // QR codes switched off (SET-AC-26).
+		}
 		try {
 			$svg = Qr::svg( $url, 6, 4, __( 'QR code of your partner link', 'affiliate-captain' ) );
 			echo '<div class="wpac-qr">' . $svg . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated SVG, label escaped inside.
@@ -1632,12 +1655,17 @@ final class Portal {
 			echo '<span class="wpac-muted">' . esc_html__( 'Customers can enter it at checkout – it works without cookies.', 'affiliate-captain' ) . '</span></p>';
 
 			// The short landing URL and its QR code: same effect as the partner link, easier to type and print.
-			$landing = Landing::url( $aff );
-			echo '<h3>' . esc_html__( 'Short link and QR code', 'affiliate-captain' ) . '</h3>';
-			echo '<p class="wpac-muted">' . esc_html__( 'The short link leads to our landing page and works exactly like your partner link – ideal for print, talks and social media profiles.', 'affiliate-captain' ) . '</p>';
-			echo self::copy_field( $landing, __( 'Your short link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			echo self::link_snippet( $landing, __( 'Your short link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			self::qr_block( $landing, (string) $aff->slug );
+			if ( Features::enabled( 'landing' ) ) {
+				$landing = Landing::url( $aff );
+				echo '<h3>' . ( Features::enabled( 'qr' ) ? esc_html__( 'Short link and QR code', 'affiliate-captain' ) : esc_html__( 'Short link', 'affiliate-captain' ) ) . '</h3>';
+				echo '<p class="wpac-muted">' . esc_html__( 'The short link leads to our landing page and works exactly like your partner link – ideal for print, talks and social media profiles.', 'affiliate-captain' ) . '</p>';
+				echo self::copy_field( $landing, __( 'Your short link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				echo self::link_snippet( $landing, __( 'Your short link', 'affiliate-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				self::qr_block( $landing, (string) $aff->slug );
+			} elseif ( Features::enabled( 'qr' ) ) {
+				echo '<h3>' . esc_html__( 'QR code', 'affiliate-captain' ) . '</h3>';
+				self::qr_block( $link, (string) $aff->slug );
+			}
 
 			// phpcs:disable WordPress.Security.NonceVerification.Recommended
 			$raw      = isset( $_GET['target'] ) ? sanitize_text_field( wp_unslash( $_GET['target'] ) ) : '';
@@ -1829,8 +1857,10 @@ final class Portal {
 			echo '<p>' . esc_html__( 'No active partner code yet.', 'affiliate-captain' ) . '</p>';
 			return;
 		}
-		/* translators: %s: link to the tab */
-		echo '<p class="wpac-muted">' . sprintf( esc_html__( 'Your short link and QR code are in the tab %s.', 'affiliate-captain' ), '<a href="' . esc_url( self::tab_url( 'links' ) ) . '">' . esc_html__( 'Links & codes', 'affiliate-captain' ) . '</a>' ) . '</p>';
+		if ( Features::enabled( 'landing' ) || Features::enabled( 'qr' ) ) {
+			/* translators: %s: link to the tab */
+			echo '<p class="wpac-muted">' . sprintf( esc_html__( 'Your short link and QR code are in the tab %s.', 'affiliate-captain' ), '<a href="' . esc_url( self::tab_url( 'links' ) ) . '">' . esc_html__( 'Links & codes', 'affiliate-captain' ) . '</a>' ) . '</p>';
+		}
 
 		$guidelines = (string) Settings::get( 'promotion_guidelines' );
 		if ( '' !== trim( $guidelines ) ) {
@@ -2011,7 +2041,7 @@ final class Portal {
 			/* translators: %s: amount(s) */
 			echo '<p>' . esc_html( sprintf( __( 'Available for payout: %s', 'affiliate-captain' ), $shown ? implode( ' · ', $shown ) : Money::format( 0, Settings::get( 'currency' ) ) ) ) . '</p>';
 			$req_cur   = PayoutRequests::request_currency( (int) $aff->id );
-			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['gross'] : 0;
+			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['payout_gross'] : 0; // Within the maximum payout (SET-AC-19).
 			if ( $open ) {
 				/* translators: %s: date */
 				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
@@ -2339,6 +2369,9 @@ final class Portal {
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="notifications"><fieldset><legend class="wpac-sr">' . esc_html__( 'E-mail notifications', 'affiliate-captain' ) . '</legend>';
 		foreach ( \WPAffiliateCaptain\Affiliates\Notifications::optout_labels() as $type => $label ) {
+			if ( 'broadcast' === $type && ! Features::enabled( 'broadcast' ) ) {
+				continue; // SET-AC-26.
+			}
 			echo '<p class="wpac-check"><label><input type="checkbox" name="wpac_mail[]" value="' . esc_attr( $type ) . '"' . checked( ! \WPAffiliateCaptain\Affiliates\Notifications::opted_out( (int) $aff->id, $type ), true, false ) . '> ' . esc_html( $label ) . '</label></p>';
 		}
 		echo '</fieldset><p class="wpac-muted">' . esc_html__( 'Mails about payouts, credit notes, your account and changed terms are always sent.', 'affiliate-captain' ) . '</p><p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'affiliate-captain' ) . '</button></p></form>';

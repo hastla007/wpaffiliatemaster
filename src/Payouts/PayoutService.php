@@ -117,13 +117,95 @@ final class PayoutService {
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from}", $params ) );
 		// Same VAT treatment as the credit note: tax data and rate at the time of each service,
 		// corrections as on the original credit note, repayments and write-offs without VAT.
-		list( $net, $vat_minor, $gross ) = self::row_totals( (int) $affiliate_id, $rows );
+		$treat                           = self::treatments( (int) $affiliate_id, $rows );
+		list( $net, $vat_minor, $gross ) = Vat::totals( $rows, $treat );
 		return array(
-			'net'   => (int) $net,
-			'vat'   => (int) $vat_minor,
-			'gross' => (int) $gross,
-			'count' => count( $rows ),
+			'net'          => (int) $net,
+			'vat'          => (int) $vat_minor,
+			'gross'        => (int) $gross,
+			'count'        => count( $rows ),
+			// What one payout pays now: the gross amount, or less under the maximum payout (SET-AC-19).
+			'payout_gross' => self::capped_gross( (int) $affiliate_id, strtoupper( (string) $currency ), $rows, $treat, (int) $gross ),
 		);
+	}
+
+	/**
+	 * Gross amount one payout pays of these rows under the maximum payout of the partner (the
+	 * full gross amount without a limit; 0 when no row fits or the limit cannot be converted).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param array  $rows         Payable rows.
+	 * @param array  $treat        item_treatments() of the rows.
+	 * @param int    $gross        Gross amount of all rows.
+	 * @return int
+	 */
+	private static function capped_gross( $affiliate_id, $currency, array $rows, array $treat, $gross ) {
+		$max = \WPAffiliateCaptain\Core\Fx::max_payout( $currency, (int) $affiliate_id );
+		if ( null === $max ) {
+			return 0;
+		}
+		if ( 0 === $max || $gross <= $max ) {
+			return (int) $gross;
+		}
+		list( $take ) = self::cap_rows( $rows, $treat, $max );
+		return (int) Vat::totals( $take, $treat )[2];
+	}
+
+	/**
+	 * Rows one payout pays under a maximum payout (SET-AC-19): negative rows (corrections,
+	 * repayments) always, then the positive rows from the oldest on as long as the gross amount
+	 * (VAT included, computed per rate as on the credit note) stays within the maximum. The first
+	 * row that does not fit ends the selection, so commissions are paid in order; the rest stays
+	 * payable for the next payout.
+	 *
+	 * @param array $rows  Rows (id, amount_minor, created_at).
+	 * @param array $treat item_treatments() of the rows.
+	 * @param int   $max   Maximum gross amount (0 = no limit).
+	 * @return array [ rows, capped (bool) ]
+	 */
+	public static function cap_rows( array $rows, array $treat, $max ) {
+		$max = (int) $max;
+		if ( $max <= 0 || Vat::totals( $rows, $treat )[2] <= $max ) {
+			return array( $rows, false );
+		}
+		$take     = array();
+		$positive = array();
+		foreach ( $rows as $r ) {
+			if ( (int) $r->amount_minor <= 0 ) {
+				$take[] = $r;
+			} else {
+				$positive[] = $r;
+			}
+		}
+		usort(
+			$positive,
+			static function ( $a, $b ) {
+				$by_date = strcmp( (string) ( isset( $a->created_at ) ? $a->created_at : '' ), (string) ( isset( $b->created_at ) ? $b->created_at : '' ) );
+				return 0 !== $by_date ? $by_date : (int) $a->id - (int) $b->id;
+			}
+		);
+		// Net sums per VAT rate, updated row by row (the VAT is computed per rate, not per line).
+		$groups = array();
+		foreach ( $take as $r ) {
+			$key            = Vat::rate_key( isset( $treat[ (int) $r->id ] ) ? (string) $treat[ (int) $r->id ]['rate'] : '0' );
+			$groups[ $key ] = ( isset( $groups[ $key ] ) ? $groups[ $key ] : 0 ) + (int) $r->amount_minor;
+		}
+		foreach ( $positive as $r ) {
+			$key            = Vat::rate_key( isset( $treat[ (int) $r->id ] ) ? (string) $treat[ (int) $r->id ]['rate'] : '0' );
+			$try            = $groups;
+			$try[ $key ]    = ( isset( $try[ $key ] ) ? $try[ $key ] : 0 ) + (int) $r->amount_minor;
+			$gross          = 0;
+			foreach ( $try as $rate => $net ) {
+				$gross += $net + Vat::amount( $net, (string) $rate );
+			}
+			if ( $gross > $max ) {
+				break;
+			}
+			$groups = $try;
+			$take[] = $r;
+		}
+		return array( $take, true );
 	}
 
 	/**
@@ -147,16 +229,19 @@ final class PayoutService {
 		foreach ( $rows as $r ) {
 			$aff    = AffiliateRepository::find( (int) $r->affiliate_id );
 			$min    = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $r->affiliate_id ); // Per program (wpac_setting).
+			$max    = \WPAffiliateCaptain\Core\Fx::max_payout( $currency, (int) $r->affiliate_id );
 			$total  = (int) $r->total;
 			$reason = '';
 			$code   = '';
+			$pay    = 0;
+			$gross  = 0;
 			if ( ! $aff ) {
 				$reason = __( 'Affiliate not found', 'affiliate-captain' );
 				$code   = 'not_found';
 			} elseif ( $operator ) {
 				$reason = $operator;
 				$code   = 'operator';
-			} elseif ( null === $min ) {
+			} elseif ( null === $min || null === $max ) {
 				/* translators: %s: currency */
 				$reason = sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'affiliate-captain' ), $currency );
 				$code   = 'no_rate';
@@ -166,13 +251,17 @@ final class PayoutService {
 			} else {
 				// The minimum and the sign apply to the amount paid out: VAT included (and VAT
 				// corrections of earlier credit notes).
-				$gross = self::payable_gross( (int) $r->affiliate_id, $currency, self::cutoff( $period_end ) );
+				list( $gross, $pay ) = self::payable_gross_capped( (int) $r->affiliate_id, $currency, self::cutoff( $period_end ) );
 				if ( $gross <= 0 ) {
 					$reason = __( 'Balance including VAT corrections is not positive – carried forward', 'affiliate-captain' );
 					$code   = 'negative';
 				} elseif ( $gross < $min ) {
 					$reason = __( 'Below minimum – carried forward', 'affiliate-captain' );
 					$code   = 'below_minimum';
+				} elseif ( $pay <= 0 || $pay < $min ) {
+					// The oldest commission alone is larger than the maximum payout (SET-AC-19).
+					$reason = self::above_maximum_text();
+					$code   = 'above_maximum';
 				} else {
 					$reason = self::blocked_reason( (int) $r->affiliate_id, ProfileRepository::get( (int) $r->affiliate_id ), $code );
 				}
@@ -184,9 +273,21 @@ final class PayoutService {
 				'eligible'    => '' === $reason,
 				'reason'      => $reason,
 				'code'        => $code,
+				// Gross amount the payout pays and whether the maximum payout holds back the rest (SET-AC-19).
+				'pay_minor'   => (int) $pay,
+				'capped'      => $pay > 0 && $pay < $gross,
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Reason when no payable commission fits the maximum payout (SET-AC-19).
+	 *
+	 * @return string
+	 */
+	public static function above_maximum_text() {
+		return __( 'The oldest open commission is larger than the maximum payout – raise the maximum payout to pay it', 'affiliate-captain' );
 	}
 
 	/**
@@ -302,10 +403,25 @@ final class PayoutService {
 		if ( ! $rows ) {
 			return array( 0, 0, 0 );
 		}
+		return Vat::totals( $rows, self::treatments( (int) $affiliate_id, $rows ) );
+	}
+
+	/**
+	 * VAT treatment of a partner's bookings as on a credit note (item_treatments() with the
+	 * partner's current tax data and the data valid at the time of each service).
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param array $rows         Rows.
+	 * @return array commission ID => [ mode, rate, ref ]
+	 */
+	private static function treatments( $affiliate_id, array $rows ) {
+		if ( ! $rows ) {
+			return array();
+		}
 		$snapshot = ProfileRepository::snapshot( ProfileRepository::get( (int) $affiliate_id ) );
 		$resolver = self::treatment_resolver( (int) $affiliate_id, $snapshot );
 		$current  = $resolver( (object) array( 'created_at' => Db::now() ) );
-		return Vat::totals( $rows, self::item_treatments( $rows, $current, $resolver ) );
+		return self::item_treatments( $rows, $current, $resolver );
 	}
 
 	/**
@@ -369,6 +485,24 @@ final class PayoutService {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from}", $params ) );
 		$sum  = self::row_totals( (int) $affiliate_id, (array) $rows );
 		return (int) $sum[2];
+	}
+
+	/**
+	 * Gross amount of what a run would pay a partner, without and with the maximum payout.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param string $end          Period end (Y-m-d H:i:s).
+	 * @return array [ gross of all payable rows, gross one payout pays ]
+	 */
+	private static function payable_gross_capped( $affiliate_id, $currency, $end ) {
+		global $wpdb;
+		list( $from, $params ) = self::payable_sql( $currency, $end, (int) $affiliate_id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$rows  = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from}", $params ) );
+		$treat = self::treatments( (int) $affiliate_id, $rows );
+		$gross = (int) Vat::totals( $rows, $treat )[2];
+		return array( $gross, self::capped_gross( (int) $affiliate_id, (string) $currency, $rows, $treat, $gross ) );
 	}
 
 	/**
@@ -765,6 +899,22 @@ final class PayoutService {
 				// Corrections of commissions settled in an earlier credit note keep that credit note's
 				// VAT treatment (§17 UStG) and refer to it; repayments and write-offs are not taxable.
 				$treat = self::item_treatments( $rows, $vat, $resolver );
+				$capped = false;
+				if ( ! $settle ) {
+					// Maximum payout (SET-AC-19): the oldest commissions up to the limit, the rest stays payable.
+					$max = \WPAffiliateCaptain\Core\Fx::max_payout( $currency, (int) $affiliate_id );
+					if ( null === $max ) {
+						return 0;
+					}
+					list( $rows, $capped ) = self::cap_rows( $rows, $treat, $max );
+					$total                 = 0;
+					foreach ( $rows as $r ) {
+						$total += (int) $r->amount_minor;
+					}
+					if ( ! $rows || $total <= 0 ) {
+						return 0;
+					}
+				}
 				$vat_minor = 0;
 				foreach ( self::vat_groups( $rows, $treat ) as $group ) {
 					$vat_minor += Vat::amount( $group['net'], $group['rate'] );
@@ -775,7 +925,35 @@ final class PayoutService {
 					// (e.g. VAT corrections of earlier credit notes after a change of the tax status).
 					return 0;
 				}
-				$operator_snapshot = self::operator_snapshot();
+				// SET-AC-20: withholding per partner (0 = none: nothing changes). Frozen in the snapshot;
+				// the amount transferred is reduced by it, net and VAT of the document stay.
+				$withheld = 0;
+				if ( ! $settle ) {
+					$taxable = 0;
+					foreach ( $rows as $r ) {
+						if ( Corrections::KIND !== (string) $r->kind && Vat::NONE !== $treat[ (int) $r->id ]['mode'] ) {
+							$taxable += (int) $r->amount_minor;
+						}
+					}
+					$withholding = Withholding::compute(
+						(int) $affiliate_id,
+						array(
+							'currency'      => (string) $currency,
+							'period_end'    => (string) $period_end,
+							'net_minor'     => $total,
+							'taxable_minor' => $taxable,
+							'vat_minor'     => $vat_minor,
+							'gross_minor'   => $gross,
+							'vat_mode'      => (string) $vat['mode'],
+						)
+					);
+					if ( $withholding ) {
+						$snapshot['withholding'] = $withholding;
+						$withheld                = (int) $withholding['minor'];
+					}
+				}
+				// Logo and footer are frozen with the document (SET-AC-16).
+				$operator_snapshot = array_merge( self::operator_snapshot(), DocumentBrand::snapshot() );
 				if ( $settle ) {
 					$operator_snapshot['document'] = 'correction';
 				}
@@ -793,7 +971,7 @@ final class PayoutService {
 						'vat_mode'         => $vat['mode'],
 						'vat_rate'         => (string) $vat['rate'],
 						'vat_minor'        => $vat_minor,
-						'amount_minor'     => $total + $vat_minor, // Amount paid out (gross).
+						'amount_minor'     => $total + $vat_minor - $withheld, // Amount paid out (gross less a withholding).
 						'status'           => 'pending',
 						'profile_snapshot' => wp_json_encode( $snapshot ),
 						'operator_snapshot' => wp_json_encode( $operator_snapshot ),
@@ -839,7 +1017,8 @@ final class PayoutService {
 						'number' => $number,
 						'amount' => $total,
 						'vat'    => $vat_minor,
-					)
+					) + ( $capped ? array( 'capped' => 1 ) : array() )
+					+ ( $withheld ? array( 'withholding' => $withheld ) : array() )
 				);
 				return $payout_id;
 			}

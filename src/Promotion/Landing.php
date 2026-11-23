@@ -479,6 +479,9 @@ final class Landing {
 	 * visitor goes to the default landing page without a code (R14-T4): printed QR codes and old
 	 * posts do not end on a 404, and unknown slugs get the same answer as known ones (R14-S2).
 	 *
+	 * With landing pages switched off (SET-AC-26) an active partner's short link leads to the home
+	 * page with the code instead (same tracking as a partner link, no 404); everything else as above.
+	 *
 	 * @param string $slug   Slug.
 	 * @param array  $query  Query parameters of the request (unslashed).
 	 * @param bool   $is_404 Whether WordPress found nothing under the path.
@@ -499,7 +502,27 @@ final class Landing {
 			// This address tried too many unknown codes/slugs: no code in the answer (R14-S2).
 			return self::default_url( $query );
 		}
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
+			return self::home_target_url( $aff, $query );
+		}
 		return self::target_url( $aff, $query );
+	}
+
+	/**
+	 * Target of an active partner's short link while landing pages are switched off: the home page
+	 * with the partner code and the campaign parameters of the link.
+	 *
+	 * @param object $aff   Affiliate.
+	 * @param array  $query Query parameters of the request (unslashed).
+	 * @return string
+	 */
+	public static function home_target_url( $aff, array $query ) {
+		$code = CodeRepository::main_code( (int) $aff->id );
+		$args = self::passthrough_args( $query );
+		if ( $code ) {
+			$args = array( (string) Settings::get( 'referral_param' ) => $code ) + $args;
+		}
+		return $args ? add_query_arg( $args, home_url( '/' ) ) : home_url( '/' );
 	}
 
 	/**
@@ -612,6 +635,9 @@ final class Landing {
 	 * @return string
 	 */
 	public static function welcome( $atts = array() ) {
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
+			return ''; // Landing pages switched off (SET-AC-26).
+		}
 		$atts  = shortcode_atts(
 			array(
 				/* translators: %s: partner name */

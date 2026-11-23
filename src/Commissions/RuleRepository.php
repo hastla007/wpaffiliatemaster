@@ -87,8 +87,9 @@ final class RuleRepository {
 	}
 
 	/**
-	 * Sanitize raw rule input. Fixed rates are entered as decimal amounts and
-	 * stored as minor units of the program currency.
+	 * Sanitize raw rule input. Fixed rates, the cap per line (max_amount) and the minimum base
+	 * (min_base) are entered as decimal amounts and stored as minor units of the program
+	 * currency; valid_from/valid_until as YYYY-MM-DD (site time zone, inclusive; empty = open).
 	 *
 	 * @param array $in Input.
 	 * @return array|\WP_Error
@@ -116,16 +117,55 @@ final class RuleRepository {
 		if ( 'all' !== $target && '' === $value ) {
 			return new \WP_Error( 'wpac_target', __( 'Please enter product IDs, category/tag IDs or SKUs/course codes.', 'affiliate-captain' ) );
 		}
+		// SET-AC-22: cap per line and minimum base (decimal amounts in the program currency,
+		// empty = none), validity in calendar days of the site's time zone (empty = open).
+		$amounts = array();
+		foreach ( array( 'max_amount' => 'max_amount_minor', 'min_base' => 'min_base_minor' ) as $field => $column ) {
+			$raw = isset( $in[ $field ] ) ? trim( (string) $in[ $field ] ) : '';
+			if ( '' === $raw ) {
+				$amounts[ $column ] = 0;
+				continue;
+			}
+			$dec = Money::normalize_decimal( $raw );
+			if ( null === $dec || (float) $dec < 0 ) {
+				return new \WP_Error( 'wpac_rule_' . $field, 'max_amount' === $field ? __( 'Please enter a valid maximum commission per line (or leave it empty).', 'affiliate-captain' ) : __( 'Please enter a valid minimum amount (or leave it empty).', 'affiliate-captain' ) );
+			}
+			$amounts[ $column ] = Money::to_minor( $dec, Settings::get( 'currency' ) );
+		}
+		if ( 'exclude' === $rate_type ) {
+			$amounts['max_amount_minor'] = 0; // Nothing to cap.
+		}
+		$days = array();
+		foreach ( array( 'valid_from', 'valid_until' ) as $field ) {
+			$raw = isset( $in[ $field ] ) ? trim( (string) $in[ $field ] ) : '';
+			if ( '' === $raw ) {
+				$days[ $field ] = null;
+				continue;
+			}
+			$day = Calculator::day( $raw );
+			$dt  = '' !== $day ? \DateTimeImmutable::createFromFormat( '!Y-m-d', $day ) : false;
+			if ( ! $dt || $dt->format( 'Y-m-d' ) !== $day ) {
+				return new \WP_Error( 'wpac_rule_' . $field, __( 'Please enter the validity dates as YYYY-MM-DD (or leave them empty).', 'affiliate-captain' ) );
+			}
+			$days[ $field ] = $day;
+		}
+		if ( null !== $days['valid_from'] && null !== $days['valid_until'] && $days['valid_until'] < $days['valid_from'] ) {
+			return new \WP_Error( 'wpac_rule_valid_until', __( 'The end of the validity cannot be before its start.', 'affiliate-captain' ) );
+		}
 		return array(
-			'scope'        => $scope,
-			'scope_id'     => $scope_id,
-			'target'       => $target,
-			'target_value' => $value,
-			'rate_type'    => $rate_type,
-			'rate'         => $rate,
-			'priority'     => isset( $in['priority'] ) ? (int) $in['priority'] : 0,
-			'active'       => empty( $in['active'] ) ? 0 : 1,
-			'note'         => sanitize_text_field( isset( $in['note'] ) ? (string) $in['note'] : '' ),
+			'scope'            => $scope,
+			'scope_id'         => $scope_id,
+			'target'           => $target,
+			'target_value'     => $value,
+			'rate_type'        => $rate_type,
+			'rate'             => $rate,
+			'max_amount_minor' => $amounts['max_amount_minor'],
+			'min_base_minor'   => $amounts['min_base_minor'],
+			'valid_from'       => $days['valid_from'],
+			'valid_until'      => $days['valid_until'],
+			'priority'         => isset( $in['priority'] ) ? (int) $in['priority'] : 0,
+			'active'           => empty( $in['active'] ) ? 0 : 1,
+			'note'             => sanitize_text_field( isset( $in['note'] ) ? (string) $in['note'] : '' ),
 		);
 	}
 
@@ -193,6 +233,45 @@ final class RuleRepository {
 			'rate_type' => $type,
 			'rate'      => (string) $rate,
 		);
+	}
+
+	/**
+	 * Human readable conditions of a rule (cap, minimum base, validity); '' without any.
+	 *
+	 * @param object|array $rule     Rule.
+	 * @param string       $currency Currency.
+	 * @return string
+	 */
+	public static function format_conditions( $rule, $currency = '' ) {
+		$rule     = (array) $rule;
+		$currency = $currency ? $currency : (string) Settings::get( 'currency' );
+		$out      = array();
+		if ( ! empty( $rule['max_amount_minor'] ) ) {
+			/* translators: %s: amount */
+			$out[] = sprintf( __( 'max. %s per line', 'affiliate-captain' ), Money::format( (int) $rule['max_amount_minor'], $currency ) );
+		}
+		if ( ! empty( $rule['min_base_minor'] ) ) {
+			/* translators: %s: amount */
+			$out[] = sprintf( __( 'from a line amount of %s', 'affiliate-captain' ), Money::format( (int) $rule['min_base_minor'], $currency ) );
+		}
+		$from  = Calculator::day( isset( $rule['valid_from'] ) ? $rule['valid_from'] : '' );
+		$until = Calculator::day( isset( $rule['valid_until'] ) ? $rule['valid_until'] : '' );
+		$fmt   = static function ( $day ) {
+			// A calendar day, not a point in time: formatted as is (no time zone shift).
+			$text = function_exists( 'wp_date' ) ? wp_date( (string) get_option( 'date_format', 'Y-m-d' ), (int) strtotime( $day . ' 12:00:00 UTC' ), new \DateTimeZone( 'UTC' ) ) : false;
+			return $text ? $text : $day;
+		};
+		if ( '' !== $from && '' !== $until ) {
+			/* translators: 1: first day, 2: last day */
+			$out[] = sprintf( __( 'valid %1$s – %2$s', 'affiliate-captain' ), $fmt( $from ), $fmt( $until ) );
+		} elseif ( '' !== $from ) {
+			/* translators: %s: first day */
+			$out[] = sprintf( __( 'valid from %s', 'affiliate-captain' ), $fmt( $from ) );
+		} elseif ( '' !== $until ) {
+			/* translators: %s: last day */
+			$out[] = sprintf( __( 'valid until %s', 'affiliate-captain' ), $fmt( $until ) );
+		}
+		return implode( ', ', $out );
 	}
 
 	/**
