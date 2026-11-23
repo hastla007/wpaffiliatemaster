@@ -55,7 +55,7 @@ final class Reauth {
 	const ATTEMPT_WINDOW = 900;
 
 	/** Actions (see action_key()) that need a confirmation by default. */
-	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change' );
+	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money' );
 
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
@@ -101,6 +101,15 @@ final class Reauth {
 			$aff   = '' !== $email ? \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( absint( Admin::post( 'id', 0 ) ) ) : null;
 			if ( $aff && strtolower( $email ) !== strtolower( (string) $aff->email ) ) {
 				return 'affiliate_email_change';
+			}
+		}
+		if ( 'settings_export' === $do && ! empty( Admin::post( 'with_private' ) ) ) {
+			return 'settings_export_private'; // Bank details and addresses leave the site (SET-AC-08).
+		}
+		if ( 'settings_reset_apply' === $do ) {
+			$pending = get_transient( 'wpac_settings_pending_' . get_current_user_id() );
+			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', '' ), true ) ) {
+				return 'settings_reset_money'; // Money tabs (SET-AC-09).
 			}
 		}
 		if ( 'settings_save' === $do && (int) Settings::get( 'reauth_required' ) && 'security' === Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) ) ) {
@@ -303,6 +312,9 @@ final class Reauth {
 			'payout_request_process' => __( 'Create a payout from a payout request', 'affiliate-captain' ),
 			'balance_writeoff'    => __( 'Write off a negative balance', 'affiliate-captain' ),
 			'repayment'           => __( 'Book a repayment', 'affiliate-captain' ),
+			'settings_import_apply'   => __( 'Import settings', 'affiliate-captain' ),
+			'settings_export_private' => __( 'Export settings with bank details and addresses', 'affiliate-captain' ),
+			'settings_reset_money'    => __( 'Reset commission or payout settings', 'affiliate-captain' ),
 			'affiliate_email_change' => __( 'Change the e-mail address of a partner', 'affiliate-captain' ),
 		);
 		return isset( $labels[ $key ] ) ? $labels[ $key ] : (string) $key;

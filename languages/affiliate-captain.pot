@@ -1837,6 +1837,22 @@ msgid "Settings changed"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Settings imported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Settings exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Settings reset to defaults"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Setting changed with WP-CLI"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Password confirmed for a money-relevant action"
 msgstr ""
 
@@ -2655,7 +2671,7 @@ msgstr ""
 msgid "All programs"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php
 msgid "Apply"
 msgstr ""
 
@@ -4541,6 +4557,13 @@ msgid_plural "%d fields were not saved because their values are not valid – th
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of changed settings
+#: src/Admin/Pages/SettingsPage.php
+msgid "%d setting changed."
+msgid_plural "%d settings changed."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "The settings could not be saved (database error). Nothing was changed; please try again."
 msgstr ""
@@ -4551,6 +4574,86 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Settings saved."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Discarded. Nothing was changed."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Please choose a settings export (JSON, at most 1 MB)."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Nothing to apply (the preview expired). Please start again."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Import: please check"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reset: please check"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Setting"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Now"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "New"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Nothing would change."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Ignored (unknown or not importable):"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Discard"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Export, import and reset"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Export the settings as a JSON file to copy them to another shop or keep a backup. The monitoring token is never exported; bank details, addresses, e-mail addresses and tax numbers only when you tick the box. An import first shows what would change."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Include bank details, addresses, e-mail addresses and tax numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Export settings (JSON)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Settings file"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Check import"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reset"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reset this tab to the defaults …"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "You see the changes first. The program currency, document number prefixes, bank details and addresses are kept."
 msgstr ""
 
 #. translators: 1: number of rules, 2: number of tier plans
@@ -4936,6 +5039,18 @@ msgstr ""
 
 #: src/Admin/Reauth.php
 msgid "Book a repayment"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Import settings"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Export settings with bank details and addresses"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Reset commission or payout settings"
 msgstr ""
 
 #: src/Admin/Reauth.php
@@ -8018,6 +8133,14 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "This is not a settings export of Affiliate Captain."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "The file comes from a newer version of Affiliate Captain. Update the plugin first."
 msgstr ""
 
 #: src/Integrations/FormCaptain/Connector.php

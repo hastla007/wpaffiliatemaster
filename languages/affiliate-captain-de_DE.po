@@ -340,6 +340,15 @@ msgstr "Negativen Saldo abschreiben"
 msgid "Book a repayment"
 msgstr "Rückzahlung buchen"
 
+msgid "Import settings"
+msgstr "Einstellungen importieren"
+
+msgid "Export settings with bank details and addresses"
+msgstr "Einstellungen mit Bankdaten und Anschriften exportieren"
+
+msgid "Reset commission or payout settings"
+msgstr "Provisions- oder Auszahlungseinstellungen zurücksetzen"
+
 msgid "Change the e-mail address of a partner"
 msgstr "E-Mail-Adresse eines Partners ändern"
 
@@ -1445,6 +1454,18 @@ msgstr "Datenbank-Update hängt"
 
 msgid "Settings changed"
 msgstr "Einstellungen geändert"
+
+msgid "Settings imported"
+msgstr "Einstellungen importiert"
+
+msgid "Settings exported"
+msgstr "Einstellungen exportiert"
+
+msgid "Settings reset to defaults"
+msgstr "Einstellungen auf Standard zurückgesetzt"
+
+msgid "Setting changed with WP-CLI"
+msgstr "Einstellung mit WP-CLI geändert"
 
 msgid "Password confirmed for a money-relevant action"
 msgstr "Passwort für eine geldrelevante Aktion bestätigt"
@@ -3417,6 +3438,11 @@ msgid_plural "%d fields were not saved because their values are not valid – th
 msgstr[0] "%d Feld wurde nicht gespeichert, weil sein Wert ungültig ist – es behält seinen bisherigen Wert. Alle anderen Änderungen wurden gespeichert."
 msgstr[1] "%d Felder wurden nicht gespeichert, weil ihre Werte ungültig sind – sie behalten ihre bisherigen Werte. Alle anderen Änderungen wurden gespeichert."
 
+msgid "%d setting changed."
+msgid_plural "%d settings changed."
+msgstr[0] "%d Einstellung geändert."
+msgstr[1] "%d Einstellungen geändert."
+
 msgid "The settings could not be saved (database error). Nothing was changed; please try again."
 msgstr "Die Einstellungen konnten nicht gespeichert werden (Datenbankfehler). Es wurde nichts geändert; bitte versuchen Sie es erneut."
 
@@ -3425,6 +3451,66 @@ msgstr "Einstellungen mit einer Anpassung gespeichert:"
 
 msgid "Settings saved."
 msgstr "Einstellungen gespeichert."
+
+msgid "Discarded. Nothing was changed."
+msgstr "Verworfen. Es wurde nichts geändert."
+
+msgid "Please choose a settings export (JSON, at most 1 MB)."
+msgstr "Bitte wähle einen Einstellungs-Export (JSON, höchstens 1 MB)."
+
+msgid "Nothing to apply (the preview expired). Please start again."
+msgstr "Nichts zu übernehmen (die Vorschau ist abgelaufen). Bitte beginne erneut."
+
+msgid "Import: please check"
+msgstr "Import: bitte prüfen"
+
+msgid "Reset: please check"
+msgstr "Zurücksetzen: bitte prüfen"
+
+msgid "Setting"
+msgstr "Einstellung"
+
+msgid "Now"
+msgstr "Jetzt"
+
+msgid "New"
+msgstr "Neu"
+
+msgid "Nothing would change."
+msgstr "Es würde sich nichts ändern."
+
+msgid "Ignored (unknown or not importable):"
+msgstr "Übergangen (unbekannt oder nicht importierbar):"
+
+msgid "Discard"
+msgstr "Verwerfen"
+
+msgid "Export, import and reset"
+msgstr "Export, Import und Zurücksetzen"
+
+msgid "Export the settings as a JSON file to copy them to another shop or keep a backup. The monitoring token is never exported; bank details, addresses, e-mail addresses and tax numbers only when you tick the box. An import first shows what would change."
+msgstr "Exportiere die Einstellungen als JSON-Datei, um sie in einen anderen Shop zu übernehmen oder als Sicherung aufzubewahren. Das Monitoring-Token wird nie exportiert; Bankdaten, Anschriften, E-Mail-Adressen und Steuernummern nur mit Häkchen. Ein Import zeigt zuerst, was sich ändern würde."
+
+msgid "Include bank details, addresses, e-mail addresses and tax numbers"
+msgstr "Bankdaten, Anschriften, E-Mail-Adressen und Steuernummern einschließen"
+
+msgid "Export settings (JSON)"
+msgstr "Einstellungen exportieren (JSON)"
+
+msgid "Settings file"
+msgstr "Einstellungsdatei"
+
+msgid "Check import"
+msgstr "Import prüfen"
+
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+msgid "Reset this tab to the defaults …"
+msgstr "Diesen Reiter auf Standard zurücksetzen …"
+
+msgid "You see the changes first. The program currency, document number prefixes, bank details and addresses are kept."
+msgstr "Du siehst die Änderungen zuerst. Programmwährung, Präfixe der Belegnummern, Bankdaten und Anschriften bleiben erhalten."
 
 msgid "Not converted: %1$d active fixed-amount rules and %2$d bonus tier plans with revenue thresholds – please adjust them under Rules & groups."
 msgstr "Nicht umgerechnet: %1$d aktive Regeln mit festem Betrag und %2$d Stufenpläne mit Umsatzschwellen – bitte unter Regeln & Gruppen anpassen."
@@ -5814,6 +5900,12 @@ msgstr "Alle Daten löschen, wenn das Plugin gelöscht wird"
 
 msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
 msgstr "Provisions- und Auszahlungsdaten, Gutschriften und das Protokoll bleiben erhalten, solange eine Gutschrift in der Aufbewahrungsfrist liegt; alles andere wird gelöscht."
+
+msgid "This is not a settings export of Affiliate Captain."
+msgstr "Das ist kein Einstellungs-Export von Affiliate Captain."
+
+msgid "The file comes from a newer version of Affiliate Captain. Update the plugin first."
+msgstr "Die Datei stammt aus einer neueren Version von Affiliate Captain. Aktualisiere zuerst das Plugin."
 
 msgid "Affiliate Captain needs a published registration page (Affiliate Captain → Settings): applicants confirm their e-mail address there."
 msgstr "Affiliate Captain braucht eine veröffentlichte Bewerbungsseite (Affiliate Captain → Einstellungen): Dort bestätigen Bewerber ihre E-Mail-Adresse."

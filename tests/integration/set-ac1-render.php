@@ -163,6 +163,49 @@ Settings::update( array( 'approval_mode' => 'auto' ) );
 WPAffiliateCaptain\Commissions\Ledger::approve_due();
 check( 'SET-AC-23 manual mode: a due commission stays pending; auto mode: it is approved', array( true, 'pending', 'approved' ), array( $set_cid > 0, $set_manual, (string) WPAffiliateCaptain\Commissions\Ledger::find( $set_cid )->status ) );
 
+// SET-AC-08/09/10: export, import (with preview) and reset share one logic (SettingsTransfer).
+use WPAffiliateCaptain\Core\SettingsTransfer;
+Settings::update( array( 'hold_days' => 21, 'debtor_iban' => 'DE89370400440532013000', 'cookie_days' => 60 ) );
+$set_ex  = SettingsTransfer::export();
+$set_exp = SettingsTransfer::export( true );
+check(
+	'SET-AC-08 export: format 1, plugin version, no secret token, private values only on request',
+	array( 1, WPAC_VERSION, false, false, true, 21 ),
+	array( $set_ex['format'], $set_ex['plugin'], array_key_exists( 'monitor_token', $set_ex['settings'] ), array_key_exists( 'debtor_iban', $set_ex['settings'] ), array_key_exists( 'debtor_iban', $set_exp['settings'] ), $set_ex['settings']['hold_days'] )
+);
+Settings::update( array( 'hold_days' => 30, 'cookie_days' => 30 ) );
+$set_pv = SettingsTransfer::preview( $set_ex );
+check( 'SET-AC-08 import preview: old → new for the changed keys, nothing stored yet', array( array( 'cookie_days' => array( 30, 60 ), 'hold_days' => array( 30, 21 ) ), 30 ), array( array_intersect_key( $set_pv['changes'], array( 'hold_days' => 1, 'cookie_days' => 1 ) ), (int) Settings::get( 'hold_days' ) ) );
+SettingsTransfer::apply( $set_pv, 'settings.imported' );
+check( 'SET-AC-08 export → import gives the same values', array( 21, 60 ), array( (int) Settings::get( 'hold_days' ), (int) Settings::get( 'cookie_days' ) ) );
+$set_bad = SettingsTransfer::preview( array( 'format' => 1, 'settings' => array( 'hold_days' => 'viele', 'cookie_mode' => 'sometimes', 'unknown_key' => 1, 'monitor_token' => 'x' ) ) );
+check( 'SET-AC-08 invalid values are reported and change nothing; unknown and secret keys are ignored', array( true, false, false, array( 'monitor_token', 'unknown_key' ) ), array( isset( $set_bad['errors']['hold_days'] ), isset( $set_bad['values']['hold_days'] ), isset( $set_bad['values']['cookie_mode'] ) && 'sometimes' === $set_bad['values']['cookie_mode'], array_values( array_intersect( array( 'monitor_token', 'unknown_key' ), $set_bad['ignored'] ) ) ) );
+check( 'SET-AC-08 not an export / newer format: error, nothing changed', array( 'wpac_import_format', 'wpac_import_format' ), array( SettingsTransfer::preview( array( 'foo' => 1 ) )->get_error_code(), SettingsTransfer::preview( array( 'format' => 99, 'settings' => array() ) )->get_error_code() ) );
+$set_rk = SettingsTransfer::reset_keys( 'payouts' );
+check( 'SET-AC-09 reset of a tab never touches currency, number prefixes, private or secret values', array( false, false, false, true ), array( in_array( 'credit_prefix', $set_rk, true ), in_array( 'debtor_iban', $set_rk, true ), in_array( 'currency', SettingsTransfer::reset_keys(), true ), in_array( 'vat_rate', $set_rk, true ) ) );
+$set_rp = SettingsTransfer::reset_preview( SettingsTransfer::reset_keys( 'commissions' ) );
+SettingsTransfer::apply( $set_rp, 'settings.reset' );
+check( 'SET-AC-09 reset of the commissions tab: hold period back to 30, cookie lifetime (other tab) unchanged', array( 30, 60 ), array( (int) Settings::get( 'hold_days' ), (int) Settings::get( 'cookie_days' ) ) );
+Settings::update( array( 'cookie_days' => 30, 'debtor_iban' => '' ) );
+
+// SET-AC-08/09 on the page: export/import on "Data & maintenance", reset with preview on every tab.
+$_GET  = array( 'page' => 'wpac-settings', 'tab' => 'data' );
+$set_t = r_render( array( SettingsPage::class, 'render' ) );
+$_GET  = array( 'page' => 'wpac-settings', 'tab' => 'tracking' );
+$set_u = r_render( array( SettingsPage::class, 'render' ) );
+set_transient( 'wpac_settings_pending_' . get_current_user_id(), array( 'kind' => 'reset', 'tab' => 'tracking', 'check' => SettingsTransfer::reset_preview( array( 'cookie_days' ) ) + array( 'ignored' => array() ) ), 3600 );
+Settings::update( array( 'cookie_days' => 45 ) );
+set_transient( 'wpac_settings_pending_' . get_current_user_id(), array( 'kind' => 'reset', 'tab' => 'tracking', 'check' => SettingsTransfer::reset_preview( array( 'cookie_days' ) ) + array( 'ignored' => array() ) ), 3600 );
+$_GET  = array( 'page' => 'wpac-settings', 'tab' => 'data' );
+$set_v = r_render( array( SettingsPage::class, 'render' ) );
+delete_transient( 'wpac_settings_pending_' . get_current_user_id() );
+Settings::update( array( 'cookie_days' => 30 ) );
+check(
+	'SET-AC-08/09 page: export and import forms on Data & maintenance, reset button on other tabs, pending reset shown as now → new with Apply',
+	array( true, true, true, false, true, true, true, array(), '' ),
+	array( false !== strpos( $set_t[0], 'value="settings_export"' ), false !== strpos( $set_t[0], 'name="settings_file"' ), false !== strpos( $set_u[0], 'value="settings_reset_preview"' ), false !== strpos( $set_u[0], 'value="settings_export"' ), false !== strpos( $set_v[0], 'id="wpac-settings-pending"' ), false !== strpos( $set_v[0], '<td>45</td><td>30</td>' ), false !== strpos( $set_v[0], 'value="settings_reset_apply"' ), array_merge( $set_t[1], $set_u[1], $set_v[1] ), $set_t[2] . $set_u[2] . $set_v[2] )
+);
+
 $_GET = $set_get;
 if ( null !== $set_caps ) {
 	$GLOBALS['test_caps'] = $set_caps;

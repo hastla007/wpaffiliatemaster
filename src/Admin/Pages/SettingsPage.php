@@ -31,6 +31,10 @@ final class SettingsPage {
 			echo \WPAffiliateCaptain\Privacy\Privacy::ropa( $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
 			exit;
 		}
+		if ( in_array( $do, array( 'settings_export', 'settings_import_preview', 'settings_import_apply', 'settings_reset_preview', 'settings_reset_apply', 'settings_pending_discard' ), true ) ) {
+			self::handle_transfer( $do );
+			return;
+		}
 		if ( 'settings_save' !== $do ) {
 			return;
 		}
@@ -121,6 +125,126 @@ final class SettingsPage {
 			Admin::back( __( 'Settings saved with an adjustment:', 'affiliate-captain' ), 'warning', $url, $lines );
 		}
 		Admin::back( __( 'Settings saved.', 'affiliate-captain' ), 'success', $url );
+	}
+
+	/**
+	 * Key of the pending import or reset of the current user (checked values, shown before applying).
+	 *
+	 * @return string
+	 */
+	private static function pending_key() {
+		return 'wpac_settings_pending_' . get_current_user_id();
+	}
+
+	/**
+	 * Export, import and reset (SET-AC-08/09): download; check and keep for confirmation; apply.
+	 *
+	 * @param string $do Action.
+	 */
+	private static function handle_transfer( $do ) {
+		$url = Admin::url( 'wpac-settings', array( 'tab' => 'data' ) );
+		if ( 'settings_export' === $do ) {
+			$with_private = ! empty( Admin::post( 'with_private' ) );
+			Audit::log( 'settings.exported', 'settings', 0, array( 'private' => $with_private ) );
+			nocache_headers();
+			header( 'Content-Type: application/json; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="affiliate-captain-settings-' . gmdate( 'Y-m-d' ) . '.json"' );
+			echo wp_json_encode( \WPAffiliateCaptain\Core\SettingsTransfer::export( $with_private ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON download.
+			exit;
+		}
+		if ( 'settings_pending_discard' === $do ) {
+			delete_transient( self::pending_key() );
+			Admin::back( __( 'Discarded. Nothing was changed.', 'affiliate-captain' ), 'success', $url );
+		}
+		if ( 'settings_import_preview' === $do ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Admin::dispatch().
+			$file = isset( $_FILES['settings_file']['tmp_name'], $_FILES['settings_file']['size'] ) ? $_FILES['settings_file'] : null;
+			if ( ! $file || ! is_uploaded_file( (string) $file['tmp_name'] ) || (int) $file['size'] > 1048576 ) {
+				Admin::back( __( 'Please choose a settings export (JSON, at most 1 MB).', 'affiliate-captain' ), 'error', $url );
+			}
+			$preview = \WPAffiliateCaptain\Core\SettingsTransfer::preview( json_decode( (string) file_get_contents( (string) $file['tmp_name'] ), true ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- uploaded file.
+			if ( is_wp_error( $preview ) ) {
+				Admin::back( $preview->get_error_message(), 'error', $url );
+			}
+			set_transient( self::pending_key(), array( 'kind' => 'import', 'tab' => '', 'check' => $preview ), HOUR_IN_SECONDS );
+			wp_safe_redirect( $url . '#wpac-settings-pending' );
+			exit;
+		}
+		if ( 'settings_reset_preview' === $do ) {
+			$tabs = self::tab_keys();
+			$tab  = sanitize_key( (string) Admin::post( 'reset_tab' ) );
+			$tab  = isset( $tabs[ $tab ] ) ? $tab : '';
+			$keys = \WPAffiliateCaptain\Core\SettingsTransfer::reset_keys( $tab );
+			set_transient( self::pending_key(), array( 'kind' => 'reset', 'tab' => $tab, 'check' => \WPAffiliateCaptain\Core\SettingsTransfer::reset_preview( $keys ) ), HOUR_IN_SECONDS );
+			wp_safe_redirect( $url . '#wpac-settings-pending' );
+			exit;
+		}
+		// settings_import_apply / settings_reset_apply: apply what was shown.
+		$pending = get_transient( self::pending_key() );
+		$kind    = 'settings_import_apply' === $do ? 'import' : 'reset';
+		if ( ! is_array( $pending ) || $kind !== $pending['kind'] ) {
+			Admin::back( __( 'Nothing to apply (the preview expired). Please start again.', 'affiliate-captain' ), 'error', $url );
+		}
+		delete_transient( self::pending_key() );
+		$check = (array) $pending['check'];
+		if ( ! empty( $check['errors'] ) && 'import' === $kind ) {
+			// Only the valid values are applied; the rejected ones keep their current value.
+			$check['errors'] = array();
+		}
+		$ok = \WPAffiliateCaptain\Core\SettingsTransfer::apply( $check, 'import' === $kind ? 'settings.imported' : 'settings.reset', array( 'tab' => (string) $pending['tab'] ) );
+		if ( ! $ok ) {
+			Admin::back( __( 'The settings could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ), 'error', $url );
+		}
+		/* translators: %d: number of changed settings */
+		Admin::back( sprintf( _n( '%d setting changed.', '%d settings changed.', count( (array) $check['values'] ), 'affiliate-captain' ), count( (array) $check['values'] ) ), 'success', $url );
+	}
+
+	/**
+	 * Export, import and reset on the "Data & maintenance" tab; reset button on every tab.
+	 */
+	private static function render_transfer() {
+		$labels = self::setting_labels();
+		if ( 'data' === self::$tab ) {
+			$pending = get_transient( self::pending_key() );
+			if ( is_array( $pending ) && isset( $pending['check']['changes'] ) ) {
+				echo '<div id="wpac-settings-pending" class="notice notice-info inline"><h2>' . esc_html( 'import' === $pending['kind'] ? __( 'Import: please check', 'affiliate-captain' ) : __( 'Reset: please check', 'affiliate-captain' ) ) . '</h2>';
+				if ( $pending['check']['changes'] ) {
+					echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+					foreach ( $pending['check']['changes'] as $key => $pair ) {
+						$f = SettingsSchema::field( $key );
+						$p = ! empty( $f['private'] );
+						echo '<tr><td>' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . '</td><td>' . esc_html( $p ? '•••' : (string) $pair[0] ) . '</td><td>' . esc_html( $p ? '•••' : (string) $pair[1] ) . '</td></tr>';
+					}
+					echo '</tbody></table>';
+				} else {
+					echo '<p>' . esc_html__( 'Nothing would change.', 'affiliate-captain' ) . '</p>';
+				}
+				foreach ( (array) $pending['check']['errors'] as $key => $message ) {
+					echo '<p class="wpac-field-error">' . esc_html( ( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . ': ' . $message ) . '</p>';
+				}
+				if ( ! empty( $pending['check']['ignored'] ) ) {
+					echo '<p class="description">' . esc_html( __( 'Ignored (unknown or not importable):', 'affiliate-captain' ) . ' ' . implode( ', ', array_map( 'strval', (array) $pending['check']['ignored'] ) ) ) . '</p>';
+				}
+				echo '<p>';
+				if ( $pending['check']['changes'] ) {
+					Admin::form_open( 'import' === $pending['kind'] ? 'settings_import_apply' : 'settings_reset_apply', 'wpac-inline-form' );
+					echo '<button class="button button-primary">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form> ';
+				}
+				Admin::form_open( 'settings_pending_discard', 'wpac-inline-form' );
+				echo '<button class="button">' . esc_html__( 'Discard', 'affiliate-captain' ) . '</button></form></p></div>';
+			}
+			echo '<h2>' . esc_html__( 'Export, import and reset', 'affiliate-captain' ) . '</h2>';
+			echo '<p>' . esc_html__( 'Export the settings as a JSON file to copy them to another shop or keep a backup. The monitoring token is never exported; bank details, addresses, e-mail addresses and tax numbers only when you tick the box. An import first shows what would change.', 'affiliate-captain' ) . '</p>';
+			Admin::form_open( 'settings_export' );
+			echo '<p><label><input type="checkbox" name="with_private" value="1"> ' . esc_html__( 'Include bank details, addresses, e-mail addresses and tax numbers', 'affiliate-captain' ) . '</label> <button class="button">' . esc_html__( 'Export settings (JSON)', 'affiliate-captain' ) . '</button></p></form>';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" enctype="multipart/form-data">';
+			Admin::form_fields( 'settings_import_preview' );
+			echo '<p><label for="wpac-settings-file">' . esc_html__( 'Settings file', 'affiliate-captain' ) . '</label> <input type="file" id="wpac-settings-file" name="settings_file" accept=".json,application/json"> <button class="button">' . esc_html__( 'Check import', 'affiliate-captain' ) . '</button></p></form>';
+		}
+		// Reset of the shown tab (preview first). Currency, number prefixes and private values stay.
+		echo '<h2>' . esc_html__( 'Reset', 'affiliate-captain' ) . '</h2>';
+		Admin::form_open( 'settings_reset_preview' );
+		echo '<input type="hidden" name="reset_tab" value="' . esc_attr( self::$tab ) . '"><p><button class="button">' . esc_html__( 'Reset this tab to the defaults …', 'affiliate-captain' ) . '</button> <span class="description">' . esc_html__( 'You see the changes first. The program currency, document number prefixes, bank details and addresses are kept.', 'affiliate-captain' ) . '</span></p></form>';
 	}
 
 	/**
@@ -355,6 +479,7 @@ final class SettingsPage {
 
 		submit_button();
 		echo '</form>';
+		self::render_transfer();
 		if ( 'data' === self::$tab ) {
 			echo '<h2>' . esc_html__( 'Record of processing activities', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Template for your record of processing activities (Art. 30 GDPR), filled with your current settings.', 'affiliate-captain' ) . '</p>';
 			Admin::form_open( 'ropa_download' );
