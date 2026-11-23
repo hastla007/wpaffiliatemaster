@@ -242,6 +242,9 @@ msgstr "Sie dürfen diese Aktion nicht ausführen."
 msgid "Unknown action."
 msgstr "Unbekannte Aktion."
 
+msgid "This feature is switched off in the settings."
+msgstr "Diese Funktion ist in den Einstellungen ausgeschaltet."
+
 msgid "A change could not be saved because of a database error and was not applied. Please check and try again. (%s)"
 msgstr "Eine Änderung konnte wegen eines Datenbankfehlers nicht gespeichert werden und wurde nicht übernommen. Bitte prüfen Sie es und versuchen Sie es erneut. (%s)"
 
@@ -306,6 +309,9 @@ msgstr "Link zur Kontoverknüpfung erneut senden"
 
 msgid "Change the payout and tax details of a partner"
 msgstr "Auszahlungs- und Steuerdaten eines Partners ändern"
+
+msgid "Change the withholding of a partner"
+msgstr "Steuerabzug eines Partners ändern"
 
 msgid "Download SEPA XML"
 msgstr "SEPA-XML herunterladen"
@@ -606,6 +612,9 @@ msgstr "Sie dürfen Steuer- und Bankdaten nicht einsehen."
 
 msgid "Payout details saved."
 msgstr "Auszahlungsdaten gespeichert."
+
+msgid "Withholding saved. It applies to payouts created from now on."
+msgstr "Steuerabzug gespeichert. Er gilt für Auszahlungen, die ab jetzt erstellt werden."
 
 msgid "Add partner"
 msgstr "Partner hinzufügen"
@@ -1045,6 +1054,21 @@ msgstr "Bankdaten freigeben"
 msgid "Check VAT ID with VIES now"
 msgstr "USt-IdNr. jetzt über VIES prüfen"
 
+msgid "Check legally"
+msgstr "Rechtlich prüfen"
+
+msgid "Withholding"
+msgstr "Steuerabzug"
+
+msgid "Note on the documents"
+msgstr "Hinweis auf den Belegen"
+
+msgid "Required when a withholding is set, e.g. the legal basis and that the amount is paid to the tax office."
+msgstr "Pflicht, sobald ein Steuerabzug eingetragen ist, z. B. die Rechtsgrundlage und dass der Betrag an das Finanzamt abgeführt wird."
+
+msgid "Save withholding"
+msgstr "Steuerabzug speichern"
+
 msgid "History"
 msgstr "Verlauf"
 
@@ -1150,8 +1174,14 @@ msgstr "Sonst wird das negative Guthaben mit den nächsten Provisionen verrechne
 msgid "Claim back"
 msgstr "Zurückfordern"
 
+msgid "Level %1$d sent on %2$s, payment deadline until %3$s"
+msgstr "Stufe %1$d gesendet am %2$s, Zahlungsfrist bis %3$s"
+
 msgid "Level %1$d sent on %2$s"
 msgstr "Stufe %1$d gesendet am %2$s"
+
+msgid "The payment deadline of the last stage runs until %s. Send the next stage only after it has passed."
+msgstr "Die Zahlungsfrist der letzten Stufe läuft bis %s. Senden Sie die nächste Stufe erst danach."
 
 msgid "Send a payment request for %1$s to %2$s now?"
 msgstr "Jetzt eine Zahlungsaufforderung über %1$s an %2$s senden?"
@@ -1211,6 +1241,9 @@ msgstr "Status geändert"
 
 msgid "E-mail address changed"
 msgstr "E-Mail-Adresse geändert"
+
+msgid "Withholding changed"
+msgstr "Steuerabzug geändert"
 
 msgid "Change of public details requested"
 msgstr "Änderung der öffentlichen Angaben beantragt"
@@ -1472,6 +1505,9 @@ msgstr "Einstellungen auf Standard zurückgesetzt"
 
 msgid "Setting changed with WP-CLI"
 msgstr "Einstellung mit WP-CLI geändert"
+
+msgid "Start number of a document number range raised"
+msgstr "Startnummer eines Belegnummernkreises erhöht"
 
 msgid "Password confirmed for a money-relevant action"
 msgstr "Passwort für eine geldrelevante Aktion bestätigt"
@@ -2071,6 +2107,9 @@ msgstr "Legt „Partner werden“, „Partnerbereich“ und eine Landingpage mit
 
 msgid "Review commissions"
 msgstr "Provisionen prüfen"
+
+msgid "Amounts in other currencies are converted into the program currency. %s."
+msgstr "Beträge in anderen Währungen sind in die Programmwährung umgerechnet. %s."
 
 msgid "Amounts in %s are not included in the money columns (no reference exchange rate in the settings)."
 msgstr "Beträge in %s sind in den Geldspalten nicht enthalten (kein Referenzkurs in den Einstellungen)."
@@ -3000,8 +3039,20 @@ msgstr "Grund für den Partner"
 msgid "Reject this payout request? The partner is notified with the reason."
 msgstr "Diesen Auszahlungsantrag ablehnen? Der Partner wird mit dem Grund benachrichtigt."
 
+msgid "Maximum payout: cannot be checked (no exchange rate for %s)."
+msgstr "Höchstauszahlung: kann nicht geprüft werden (kein Wechselkurs für %s)."
+
+msgid "Maximum payout: %s per partner; the rest stays payable."
+msgstr "Höchstauszahlung: %s je Partner; der Rest bleibt auszahlbar."
+
+msgid "(%s – maximum payout reached, the rest stays payable)"
+msgstr "(%s – Höchstauszahlung erreicht, der Rest bleibt auszahlbar)"
+
 msgid "cannot be checked (no exchange rate for %s)"
 msgstr "kann nicht geprüft werden (kein Wechselkurs für %s)"
+
+msgid "(converted; %s)"
+msgstr "(umgerechnet; %s)"
 
 msgid "%1$s: %2$s"
 msgstr "%1$s: %2$s"
@@ -3159,6 +3210,9 @@ msgstr "Nettobetrag"
 msgid "plus VAT %s %%"
 msgstr "zzgl. USt %s %%"
 
+msgid "Total credit note"
+msgstr "Gesamtbetrag der Gutschrift"
+
 msgid "Total payout"
 msgstr "Auszahlungsbetrag"
 
@@ -3226,8 +3280,8 @@ msgstr "Partnergruppen"
 msgid "Sections"
 msgstr "Bereiche"
 
-msgid "Program default: %s. Basis is the net line amount after discount, excluding tax and shipping."
-msgstr "Programmstandard: %s. Basis ist der Netto-Positionsbetrag nach Rabatt, ohne Steuer und Versand."
+msgid "Program default: %s."
+msgstr "Programmstandard: %s."
 
 msgid "Resolution: an exclusion always wins; otherwise the most specific rule applies (partner > group > global, product/SKU > category > all, then priority)."
 msgstr "Auflösung: Ein Ausschluss gewinnt immer; sonst gilt die spezifischste Regel (Partner > Gruppe > global, Produkt/SKU > Kategorie > alle, dann Priorität)."
@@ -3289,9 +3343,6 @@ msgstr "IDs oder SKUs"
 msgid "Comma separated; SKUs support trailing * (e.g. GROUP-*)"
 msgstr "Kommagetrennt; SKUs unterstützen ein * am Ende (z. B. GRUPPE-*)"
 
-msgid "Percent of net"
-msgstr "Prozent vom Netto"
-
 msgid "Fixed amount per unit"
 msgstr "Festbetrag pro Stück"
 
@@ -3300,6 +3351,27 @@ msgstr "Ausschließen (keine Provision)"
 
 msgid "per unit"
 msgstr "pro Stück"
+
+msgid "Maximum commission per line"
+msgstr "Höchstprovision je Position"
+
+msgid "Empty = no cap. Limits the commission of one order line (all units together) under this rule."
+msgstr "Leer = kein Deckel. Begrenzt die Provision einer Bestellposition (alle Stück zusammen) nach dieser Regel."
+
+msgid "Minimum line amount"
+msgstr "Mindestbetrag der Position"
+
+msgid "Empty = always. The rule only applies to order lines with at least this commission basis; smaller lines fall to the next rule or the program default."
+msgstr "Leer = immer. Die Regel gilt nur für Bestellpositionen mit mindestens dieser Provisionsbasis; kleinere Positionen fallen an die nächste Regel oder den Standardsatz des Programms."
+
+msgid "Valid"
+msgstr "Gültig"
+
+msgid "until"
+msgstr "bis"
+
+msgid "Both days included, in the time zone of the website; empty = open. The payment date of the order counts. Outside this period the next rule or the program default applies."
+msgstr "Beide Tage einschließlich, in der Zeitzone der Website; leer = offen. Es zählt das Zahlungsdatum der Bestellung. Außerhalb dieses Zeitraums gilt die nächste Regel oder der Standardsatz des Programms."
 
 msgid "Reason for change"
 msgstr "Grund der Änderung"
@@ -3424,6 +3496,12 @@ msgstr "Produkt-ID"
 msgid "Tag IDs"
 msgstr "Tag-IDs"
 
+msgid "Gross amount"
+msgstr "Bruttobetrag"
+
+msgid "Payment date"
+msgstr "Zahlungsdatum"
+
 msgid "Calculate"
 msgstr "Berechnen"
 
@@ -3438,6 +3516,15 @@ msgstr "Regel #%d"
 
 msgid "program default"
 msgstr "Programmstandard"
+
+msgid "Capped at %1$s per line (without the cap: %2$s)."
+msgstr "Gedeckelt auf %1$s je Position (ohne Deckel: %2$s)."
+
+msgid "Cap of the rule: %s per line (not reached)."
+msgstr "Deckel der Regel: %s je Position (nicht erreicht)."
+
+msgid "Conditions of the rule: %s."
+msgstr "Bedingungen der Regel: %s."
 
 msgid "%d field was not saved because its value is not valid – it keeps its previous value. All other changes were saved."
 msgid_plural "%d fields were not saved because their values are not valid – they keep their previous values. All other changes were saved."
@@ -3501,9 +3588,6 @@ msgstr "Jetzt"
 
 msgid "New"
 msgstr "Neu"
-
-msgid "Check legally"
-msgstr "Rechtlich prüfen"
 
 msgid "Nothing would change."
 msgstr "Es würde sich nichts ändern."
@@ -3577,6 +3661,15 @@ msgstr "Einstellungen Affiliate Captain"
 msgid "Settings sections"
 msgstr "Einstellungsbereiche"
 
+msgid "Sample credit note"
+msgstr "Muster-Gutschrift"
+
+msgid "Preview of logo and footer as saved (save first). The sample has no number and is not stored."
+msgstr "Vorschau von Logo und Fußzeile, wie sie gespeichert sind (vorher speichern). Das Muster hat keine Nummer und wird nicht gespeichert."
+
+msgid "Open sample credit note (PDF)"
+msgstr "Muster-Gutschrift öffnen (PDF)"
+
 msgid "Record of processing activities"
 msgstr "Verzeichnis von Verarbeitungstätigkeiten"
 
@@ -3597,6 +3690,9 @@ msgstr "Bleiben auszahlbar"
 
 msgid "Are rejected"
 msgstr "Werden abgelehnt"
+
+msgid "Features"
+msgstr "Funktionen"
 
 msgid "Addresses"
 msgstr "Adressen"
@@ -3655,11 +3751,26 @@ msgstr "Bestellungen in anderen Währungen werden nach Umrechnung mit den Refere
 msgid "Abuse protection"
 msgstr "Missbrauchsschutz"
 
+msgid "Rate (1 unit = x %s)"
+msgstr "Kurs (1 Einheit = x %s)"
+
+msgid "Remove"
+msgstr "Entfernen"
+
+msgid "Add currency"
+msgstr "Währung hinzufügen"
+
+msgid "1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies. Remove a row by emptying it."
+msgstr "1 Einheit der Währung = x %s. Provisionen und Auszahlungen werden nie umgerechnet; die Kurse dienen nur Berichten und der Mindestauszahlung anderer Währungen. Eine Zeile entfernen Sie, indem Sie sie leeren."
+
+msgid "not known yet"
+msgstr "noch nicht bekannt"
+
+msgid "Exchange rate"
+msgstr "Wechselkurs"
+
 msgid "Program currency"
 msgstr "Programmwährung"
-
-msgid "One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies."
-msgstr "Einer pro Zeile: 1 Einheit der Währung = x %s. Provisionen und Auszahlungen werden nie umgerechnet; die Kurse dienen nur Berichten und dem Mindestbetrag in anderen Währungen."
 
 msgid "Default commission"
 msgstr "Standardprovision"
@@ -3669,6 +3780,15 @@ msgstr "Partnerregeln zuerst: Partner > Gruppe > alle Partner, dann Produkt > Ka
 
 msgid "Most specific product first: product > category > all, then partner > group > all partners; exclusions compete like other rules"
 msgstr "Genauestes Produkt zuerst: Produkt > Kategorie > alle, dann Partner > Gruppe > alle Partner; Ausschlüsse konkurrieren wie andere Regeln"
+
+msgid "Commission base"
+msgstr "Provisionsbasis"
+
+msgid "Net: after discounts, without VAT (default)"
+msgstr "Netto: nach Rabatt, ohne Umsatzsteuer (Standard)"
+
+msgid "Gross: after discounts, including VAT"
+msgstr "Brutto: nach Rabatt, mit Umsatzsteuer"
 
 msgid "Lifetime commissions"
 msgstr "Lifetime-Provisionen"
@@ -3691,14 +3811,35 @@ msgstr "Automatisch nach der Wartefrist"
 msgid "Only by hand"
 msgstr "Nur von Hand"
 
+msgid "Gross base: the commission is also calculated on the VAT the customer paid, which you pass on to the tax office. This is uncommon in the EU, where commissions are usually based on net amounts; it also changes the revenue partners see and the monthly revenue of tier bonuses. Agree it with your partners in the terms and check the tax treatment with your adviser."
+msgstr "Brutto-Basis: Die Provision wird auch auf die Umsatzsteuer berechnet, die der Kunde gezahlt hat und die Sie an das Finanzamt abführen. Das ist in der EU unüblich, dort richten sich Provisionen meist nach Nettobeträgen; außerdem ändert es den Umsatz, den Partner sehen, und den Monatsumsatz der Stufenboni. Vereinbaren Sie es mit Ihren Partnern in den Bedingungen und lassen Sie die steuerliche Behandlung von Ihrer Beratung prüfen."
+
 msgid "Partner landing URLs look like %s"
 msgstr "Partner-Landing-URLs sehen so aus: %s"
+
+msgid "Off"
+msgstr "Aus"
+
+msgid "Monthly"
+msgstr "Monatlich"
+
+msgid "Quarterly"
+msgstr "Quartalsweise"
 
 msgid "Your company details (for credit notes)"
 msgstr "Ihre Firmendaten (für Gutschriften)"
 
+msgid "Logo & footer on credit notes"
+msgstr "Logo & Fußzeile auf Gutschriften"
+
 msgid "Credit notes & VAT"
 msgstr "Gutschriften & Umsatzsteuer"
+
+msgid "Document numbers"
+msgstr "Belegnummern"
+
+msgid "%1$s Next number: %2$s"
+msgstr "%1$s Nächste Nummer: %2$s"
 
 msgid "Electronic invoice (EN 16931)"
 msgstr "Elektronische Rechnung (EN 16931)"
@@ -3720,6 +3861,15 @@ msgstr "Prüfung der USt-IdNr. (VIES)"
 
 msgid "SEPA bank transfer"
 msgstr "SEPA-Überweisung"
+
+msgid "Claiming back debts of ended partnerships"
+msgstr "Rückforderung bei beendeten Partnerschaften"
+
+msgid "Manual"
+msgstr "Manuell"
+
+msgid "Before version 0.21.0 a \"payout period\" of \"%s\" was stored; it never had an effect and was converted to \"Off\". Choose a reminder here if you want one."
+msgstr "Vor Version 0.21.0 war ein „Auszahlungsrhythmus“ „%s“ gespeichert; er hatte nie eine Wirkung und wurde in „Aus“ umgewandelt. Wählen Sie hier eine Erinnerung, wenn Sie eine möchten."
 
 msgid "Retention periods"
 msgstr "Aufbewahrungsfristen"
@@ -3745,11 +3895,35 @@ msgstr "Mindestens 20 Buchstaben/Ziffern. Ein externes Monitoring (z. B. ein Upt
 msgid "Only a hash of the token is stored; note it down before saving."
 msgstr "Es wird nur ein Hash des Tokens gespeichert; notieren Sie es vor dem Speichern."
 
+msgid "Verbose is on until %s, then the default applies again."
+msgstr "„Ausführlich“ ist bis %s an, danach gilt wieder der Standard."
+
+msgid "The 7 days of verbose logging have ended: the default applies again."
+msgstr "Die 7 Tage ausführliches Protokoll sind vorbei: Es gilt wieder der Standard."
+
+msgid "WP_DEBUG is on: everything is written at the moment."
+msgstr "WP_DEBUG ist an: Zurzeit wird alles geschrieben."
+
+msgid "Errors only"
+msgstr "Nur Fehler"
+
+msgid "Errors and notices (default)"
+msgstr "Fehler und Hinweise (Standard)"
+
+msgid "Verbose (debug entries, ends after 7 days)"
+msgstr "Ausführlich (Debug-Einträge, endet nach 7 Tagen)"
+
 msgid "Confirmation"
 msgstr "Bestätigung"
 
 msgid "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word."
 msgstr "Nur zum Einschalten: tippen Sie LÖSCHEN (oder DELETE). Ausschalten und das Speichern anderer Felder brauchen kein Wort."
+
+msgid "Choose image"
+msgstr "Bild auswählen"
+
+msgid "The field holds the ID of the image in the media library (0 = none)."
+msgstr "Das Feld enthält die ID des Bildes in der Mediathek (0 = keins)."
 
 msgid "Website / channel"
 msgstr "Website / Kanal"
@@ -4614,6 +4788,39 @@ msgstr "Eröffnungssaldo"
 msgid "Correction credit note"
 msgstr "Korrekturgutschrift"
 
+msgid "Percent of gross"
+msgstr "Prozent vom Brutto"
+
+msgid "Percent of net"
+msgstr "Prozent vom Netto"
+
+msgid "including shipping and fees"
+msgstr "mit Versand und Gebühren"
+
+msgid "including shipping, without fees"
+msgstr "mit Versand, ohne Gebühren"
+
+msgid "including fees, without shipping"
+msgstr "mit Gebühren, ohne Versand"
+
+msgid "Basis is the net line amount after discount, excluding tax and shipping."
+msgstr "Basis ist der Netto-Positionsbetrag nach Rabatt, ohne Steuer und Versand."
+
+msgid "Basis is the gross line amount after discount, including VAT"
+msgstr "Basis ist der Brutto-Positionsbetrag nach Rabatt, mit Umsatzsteuer"
+
+msgid "Basis is the net line amount after discount, excluding VAT"
+msgstr "Basis ist der Netto-Positionsbetrag nach Rabatt, ohne Umsatzsteuer"
+
+msgid "without shipping and fees"
+msgstr "ohne Versand und Gebühren"
+
+msgid "of the gross order value (incl. VAT)"
+msgstr "vom Brutto-Bestellwert (mit USt.)"
+
+msgid "of the net order value"
+msgstr "vom Netto-Bestellwert"
+
 msgid "No payment request possible: the partner's data was erased or its processing is restricted (GDPR). Write the balance off or claim it back outside the plugin."
 msgstr "Keine Zahlungsaufforderung möglich: Die Daten des Partners wurden gelöscht oder ihre Verarbeitung ist eingeschränkt (DSGVO). Buchen Sie den Saldo aus oder fordern Sie ihn außerhalb des Plugins zurück."
 
@@ -4782,6 +4989,33 @@ msgstr "Bitte wählen Sie einen Partner oder eine Gruppe für diese Regel."
 msgid "Please enter product IDs, category/tag IDs or SKUs/course codes."
 msgstr "Bitte geben Sie Produkt-IDs, Kategorie-/Tag-IDs oder SKUs/Kurscodes ein."
 
+msgid "Please enter a valid maximum commission per line (or leave it empty)."
+msgstr "Bitte geben Sie eine gültige Höchstprovision je Position ein (oder lassen Sie das Feld leer)."
+
+msgid "Please enter a valid minimum amount (or leave it empty)."
+msgstr "Bitte geben Sie einen gültigen Mindestbetrag ein (oder lassen Sie das Feld leer)."
+
+msgid "Please enter the validity dates as YYYY-MM-DD (or leave them empty)."
+msgstr "Bitte geben Sie die Gültigkeit als JJJJ-MM-TT ein (oder lassen Sie die Felder leer)."
+
+msgid "The end of the validity cannot be before its start."
+msgstr "Das Ende der Gültigkeit kann nicht vor ihrem Beginn liegen."
+
+msgid "max. %s per line"
+msgstr "max. %s je Position"
+
+msgid "from a line amount of %s"
+msgstr "ab einem Positionsbetrag von %s"
+
+msgid "valid %1$s – %2$s"
+msgstr "gültig %1$s – %2$s"
+
+msgid "valid from %s"
+msgstr "gültig ab %s"
+
+msgid "valid until %s"
+msgstr "gültig bis %s"
+
 msgid "excluded"
 msgstr "ausgeschlossen"
 
@@ -4897,6 +5131,9 @@ msgstr "Steuer- und Bankdaten sehen"
 
 msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
 msgstr "Die Datenbank hat die Buchung abgebrochen (Deadlock, Zeitüberschreitung beim Warten auf eine Sperre oder Verbindungsabbruch). Es wurde nichts gespeichert; bitte versuchen Sie es erneut."
+
+msgid "Reference exchange rates as of %s"
+msgstr "Referenzkurse vom %s"
 
 msgid "Deleted partner"
 msgstr "Gelöschter Partner"
@@ -5234,6 +5471,21 @@ msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein (z. B. 10 oder 
 msgid "Not changed, because the default rate entered with it is not valid."
 msgstr "Nicht geändert, da der zusammen eingegebene Standardsatz ungültig ist."
 
+msgid "Please enter the date of the exchange rates as YYYY-MM-DD (not in the future)."
+msgstr "Bitte geben Sie das Datum der Wechselkurse als JJJJ-MM-TT ein (nicht in der Zukunft)."
+
+msgid "Minimum payout not understood: %s. Enter a three-letter currency code and an amount in that currency (e.g. 50 or 50,00), or leave the field empty."
+msgstr "Mindestauszahlung nicht verstanden: %s. Geben Sie einen dreistelligen Währungscode und einen Betrag in dieser Währung ein (z. B. 50 oder 50,00) oder lassen Sie das Feld leer."
+
+msgid "The minimum payout in the program currency %s is set on the Payouts tab; the entry in the table was not saved."
+msgstr "Die Mindestauszahlung in der Programmwährung %s wird im Reiter Auszahlungen eingestellt; der Eintrag in der Tabelle wurde nicht gespeichert."
+
+msgid "Please enter at most %1$d lines of at most %2$d characters each."
+msgstr "Bitte geben Sie höchstens %1$d Zeilen mit je höchstens %2$d Zeichen ein."
+
+msgid "Please choose an image from the media library."
+msgstr "Bitte wählen Sie ein Bild aus der Mediathek."
+
 msgid "Please choose your country from the list."
 msgstr "Bitte wählen Sie Ihr Land aus der Liste."
 
@@ -5251,6 +5503,15 @@ msgstr "Bitte geben Sie einen Betrag ein (z. B. %1$s oder %2$s; 0 = Regel aus)."
 
 msgid "Please enter an amount (e.g. 50 or 50,00; 0 = no minimum)."
 msgstr "Bitte geben Sie einen Betrag ein (z. B. 50 oder 50,00; 0 = kein Mindestbetrag)."
+
+msgid "Please enter an amount (e.g. 1000 or 1000,00; 0 = no limit)."
+msgstr "Bitte geben Sie einen Betrag ein (z. B. 1000 oder 1000,00; 0 = keine Grenze)."
+
+msgid "The maximum payout must be at least the minimum payout (%s), or 0 for no limit."
+msgstr "Die Höchstauszahlung muss mindestens so hoch wie die Mindestauszahlung (%s) sein, oder 0 für keine Grenze."
+
+msgid "The minimum payout cannot be higher than the maximum payout."
+msgstr "Die Mindestauszahlung kann nicht höher als die Höchstauszahlung sein."
 
 msgid "Please enter a path (letters, digits and \"-\")."
 msgstr "Bitte geben Sie einen Pfad ein (Buchstaben, Ziffern und „-“)."
@@ -5275,6 +5536,9 @@ msgstr "Bitte geben Sie 1 bis 8 Buchstaben oder Ziffern ein (z. B. GS)."
 
 msgid "The prefixes of credit notes, cancellations and correction credit notes must be different from each other – otherwise two documents get the same number."
 msgstr "Die Präfixe für Gutschriften, Stornobelege und Korrekturgutschriften müssen sich voneinander unterscheiden – sonst erhalten zwei Belege dieselbe Nummer."
+
+msgid "The start number can only be raised: the numbers up to %1$s are already issued or skipped, so please enter at least %2$d."
+msgstr "Die Startnummer kann nur erhöht werden: Die Nummern bis %1$s sind schon vergeben oder übersprungen, geben Sie also mindestens %2$d ein."
 
 msgid "This BIC is not valid (8 or 11 characters, e.g. COBADEFFXXX). Leave the field empty if you do not know it."
 msgstr "Diese BIC ist ungültig (8 oder 11 Zeichen, z. B. COBADEFFXXX). Lassen Sie das Feld leer, wenn Sie sie nicht kennen."
@@ -5513,11 +5777,23 @@ msgstr "Referenz-Wechselkurse"
 msgid "One per line, e.g. USD=0.92: 1 unit of the currency = x program currency. Only used for reports and minimum payouts of other currencies; commissions are never converted."
 msgstr "Einer je Zeile, z. B. USD=0.92: 1 Einheit der Währung = x Programmwährung. Nur für Berichte und Mindestauszahlungen anderer Währungen; Provisionen werden nie umgerechnet."
 
+msgid "Exchange rates as of"
+msgstr "Wechselkurse Stand vom"
+
+msgid "Set automatically when the exchange rates change; shown wherever converted amounts are shown. Rates are not fetched automatically – update them yourself."
+msgstr "Wird beim Ändern der Wechselkurse automatisch gesetzt und überall angezeigt, wo umgerechnete Beträge stehen. Kurse werden nicht automatisch abgerufen – pflegen Sie sie selbst."
+
+msgid "Minimum payout per currency"
+msgstr "Mindestauszahlung je Währung"
+
+msgid "Optional, in the table of exchange rates: an own minimum payout for balances in that currency (amount in that currency). Empty = the minimum payout of the program, converted with the exchange rate."
+msgstr "Optional, in der Tabelle der Wechselkurse: eine eigene Mindestauszahlung für Guthaben in dieser Währung (Betrag in dieser Währung). Leer = die Mindestauszahlung des Programms, mit dem Wechselkurs umgerechnet."
+
 msgid "Default commission type"
 msgstr "Standard-Provisionsart"
 
-msgid "Commission for partners without a matching rule: a percentage of the net order value or a fixed amount per unit."
-msgstr "Provision für Partner ohne passende Regel: Prozent vom Netto-Bestellwert oder fester Betrag je Stück."
+msgid "Commission for partners without a matching rule: a percentage of the order value (net or gross, see Commission base) or a fixed amount per unit."
+msgstr "Provision für Partner ohne passende Regel: Prozent vom Bestellwert (netto oder brutto, siehe Provisionsbasis) oder fester Betrag je Stück."
 
 msgid "Default rate"
 msgstr "Standardsatz"
@@ -5573,6 +5849,21 @@ msgstr "Regelvorrang"
 msgid "Which rule wins when several rules match a sale: partner rules first, or the most specific product first."
 msgstr "Welche Regel gewinnt, wenn mehrere auf einen Verkauf passen: zuerst Partnerregeln oder zuerst das genaueste Produkt."
 
+msgid "What percentage rates of WooCommerce orders are calculated on: net (line amounts after discounts without VAT, the default) or gross (including VAT). Applies to orders reported from now on; booked orders keep their base, and their refunds are deducted in the same base."
+msgstr "Worauf Prozentsätze bei WooCommerce-Bestellungen berechnet werden: netto (Positionsbeträge nach Rabatt ohne Umsatzsteuer, Standard) oder brutto (mit Umsatzsteuer). Gilt für Bestellungen, die ab jetzt gemeldet werden; gebuchte Bestellungen behalten ihre Basis, und ihre Erstattungen werden in derselben Basis abgezogen."
+
+msgid "Include shipping costs in the commission base"
+msgstr "Versandkosten in die Provisionsbasis einbeziehen"
+
+msgid "Shipping of a WooCommerce order becomes an own position of the sale (net or gross like the products). Only percentage rates apply to it (rules for all products, not product or category rules); refunded shipping is deducted."
+msgstr "Der Versand einer WooCommerce-Bestellung wird eine eigene Position des Verkaufs (netto oder brutto wie die Produkte). Es gelten nur Prozentsätze (Regeln für alle Produkte, keine Produkt- oder Kategorieregeln); erstatteter Versand wird abgezogen."
+
+msgid "Include fees in the commission base"
+msgstr "Gebühren in die Provisionsbasis einbeziehen"
+
+msgid "Positive fees of a WooCommerce order (e.g. a payment surcharge) become own positions of the sale; discounts booked as negative fees always lower the base. Only percentage rates apply to them; refunded fees are deducted."
+msgstr "Positive Gebühren einer WooCommerce-Bestellung (z. B. ein Zahlungsaufschlag) werden eigene Positionen des Verkaufs; als negative Gebühr gebuchte Rabatte senken die Basis immer. Es gelten nur Prozentsätze; erstattete Gebühren werden abgezogen."
+
 msgid "Approve applications automatically"
 msgstr "Bewerbungen automatisch freigeben"
 
@@ -5612,6 +5903,36 @@ msgstr "Partner können im Partnerbereich einen eigenen Partnercode beantragen (
 msgid "Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page."
 msgstr "Anträge werden wie von Ihnen angelegte Codes geprüft (Zeichen, Länge, reservierte Wörter, nicht schon als Code, Gutschein oder Partneradresse vergeben) und funktionieren erst, nachdem Sie sie auf der Seite „Partner“ freigegeben haben."
 
+msgid "Creatives (banners and texts for partners)"
+msgstr "Werbemittel (Banner und Texte für Partner)"
+
+msgid "Off: the menu item Creatives and the partner area tab Creatives disappear. Creatives stay stored and are shown again when you switch this on."
+msgstr "Aus: Der Menüpunkt Werbemittel und der Reiter Werbemittel im Partnerbereich verschwinden. Die Werbemittel bleiben gespeichert und erscheinen wieder, wenn Sie dies einschalten."
+
+msgid "Partner landing pages (short links /partner/name/)"
+msgstr "Partner-Landingpages (Kurzlinks /partner/name/)"
+
+msgid "Off: short links of partners no longer redirect (the address is treated like any other address of the site), the short link disappears from the partner area and [wpac_partner_welcome] shows nothing. Partner links with the code keep working."
+msgstr "Aus: Kurzlinks der Partner leiten nicht mehr weiter (die Adresse wird wie jede andere Adresse der Website behandelt), der Kurzlink verschwindet aus dem Partnerbereich und [wpac_partner_welcome] zeigt nichts an. Partnerlinks mit dem Code funktionieren weiter."
+
+msgid "Monthly tiers (bonus steps)"
+msgstr "Monatsstufen (Bonusstufen)"
+
+msgid "Off: the tab Monthly tiers and the bonus details in the partner area disappear, and no monthly bonuses or bonus corrections are booked. Tier plans and booked bonuses stay; months not yet closed are closed when you switch this on again."
+msgstr "Aus: Der Reiter Monatsstufen und die Bonusangaben im Partnerbereich verschwinden, und es werden keine Monatsboni und keine Bonuskorrekturen gebucht. Stufenpläne und gebuchte Boni bleiben; noch nicht abgeschlossene Monate werden abgeschlossen, wenn Sie dies wieder einschalten."
+
+msgid "QR codes in the partner area"
+msgstr "QR-Codes im Partnerbereich"
+
+msgid "Off: partners no longer see or download QR codes of their links. Printed QR codes keep working."
+msgstr "Aus: Partner sehen keine QR-Codes ihrer Links mehr und können keine herunterladen. Gedruckte QR-Codes funktionieren weiter."
+
+msgid "Broadcast mail to all partners"
+msgstr "Rundmail an alle Partner"
+
+msgid "Off: the box \"Write to all active partners\" and the partners' choice \"News and announcements\" disappear, and a running broadcast pauses until you switch this on again. Opt-outs stay stored."
+msgstr "Aus: Der Kasten „An alle aktiven Partner schreiben“ und die Auswahl „Neuigkeiten und Ankündigungen“ der Partner verschwinden, und eine laufende Rundmail pausiert, bis Sie dies wieder einschalten. Abmeldungen bleiben gespeichert."
+
 msgid "Notification e-mail"
 msgstr "Benachrichtigungs-E-Mail"
 
@@ -5629,6 +5950,12 @@ msgstr "Absenderadresse"
 
 msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
 msgstr "Leer: Standard von WordPress. Verwenden Sie eine Adresse Ihrer eigenen Domain, sonst landen E-Mails eventuell im Spam. Antworten von Partnern gehen immer an die Benachrichtigungs-E-Mail (Reply-To)."
+
+msgid "Logo in HTML e-mails"
+msgstr "Logo in HTML-E-Mails"
+
+msgid "PNG or JPEG from the media library, shown at the top of e-mails with the simple HTML layout (at most 200 × 60 pixels). Mail programs load it from your website. Not part of the settings export (media IDs differ between sites)."
+msgstr "PNG oder JPEG aus der Mediathek, oben in E-Mails mit dem einfachen HTML-Layout angezeigt (höchstens 200 × 60 Pixel). Mailprogramme laden es von Ihrer Website. Nicht Teil des Einstellungsexports (Mediathek-IDs sind auf jeder Website andere)."
 
 msgid "E-mail to the partner when a payout was paid"
 msgstr "E-Mail an den Partner, wenn eine Auszahlung bezahlt wurde"
@@ -5653,6 +5980,12 @@ msgstr "Für Migrationen oder den Buchhaltungsabschluss: Verkäufe werden weiter
 
 msgid "Secret for the health check of an external monitor (REST endpoint wpac/v1/health). Only a hash is stored."
 msgstr "Geheimnis für die Zustandsprüfung durch einen externen Monitor (REST-Endpunkt wpac/v1/health). Gespeichert wird nur ein Hash."
+
+msgid "Technical log"
+msgstr "Technisches Protokoll"
+
+msgid "What the plugin writes to the technical log (WooCommerce → Status → Logs, otherwise the PHP error log): only errors, errors and notices (default), or verbose with debug entries for troubleshooting. Verbose switches back to the default automatically after 7 days. With WP_DEBUG everything is written; the filters wpac_log_level and wpac_log_debug win."
+msgstr "Was das Plugin ins technische Protokoll schreibt (WooCommerce → Status → Protokolle, sonst das PHP-Fehlerprotokoll): nur Fehler, Fehler und Hinweise (Standard) oder ausführlich mit Debug-Einträgen zur Fehlersuche. „Ausführlich“ springt nach 7 Tagen von selbst auf den Standard zurück. Mit WP_DEBUG wird alles geschrieben; die Filter wpac_log_level und wpac_log_debug gewinnen."
 
 msgid "Landing page path"
 msgstr "URL-Pfad der Landingpages"
@@ -5714,12 +6047,6 @@ msgstr "Steuerprüfung oder Aufbewahrungssperre: keine Belege löschen"
 msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
 msgstr "Während einer Außenprüfung ist die Aufbewahrungsfrist gehemmt (§147 Abs. 3 AO)."
 
-msgid "Payout period (no effect)"
-msgstr "Auszahlungsrhythmus (ohne Wirkung)"
-
-msgid "Former setting without effect; kept only for stored settings."
-msgstr "Frühere Einstellung ohne Wirkung; nur für gespeicherte Einstellungen erhalten."
-
 msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
 msgstr "Partner dürfen eine andere Auszahlungsart wählen (z. B. PayPal, Wise), manuelle Zahlung"
 
@@ -5749,6 +6076,24 @@ msgstr "Präfix Verwendungszweck"
 
 msgid "Start of the remittance text on the partner's bank statement, followed by the payout number."
 msgstr "Anfang des Verwendungszwecks auf dem Kontoauszug des Partners, gefolgt von der Auszahlungsnummer."
+
+msgid "Payment requests for debts of ended partnerships (number of stages)"
+msgstr "Zahlungsaufforderungen bei Schulden beendeter Partnerschaften (Anzahl der Stufen)"
+
+msgid "Stage 1 is the payment request, the last stage the final reminder, stages in between are reminders (1 to 5). Afterwards the balance is written off or handed over for collection."
+msgstr "Stufe 1 ist die Zahlungsaufforderung, die letzte Stufe die letzte Mahnung, Stufen dazwischen sind Erinnerungen (1 bis 5). Danach wird der Saldo ausgebucht oder zum Inkasso gegeben."
+
+msgid "Payment deadline in the payment request and reminders (days)"
+msgstr "Zahlungsfrist in der Zahlungsaufforderung und den Erinnerungen (Tage)"
+
+msgid "Named in the e-mail; send the next stage only after this deadline has passed (7 to 60 days)."
+msgstr "Wird in der E-Mail genannt; senden Sie die nächste Stufe erst nach Ablauf dieser Frist (7 bis 60 Tage)."
+
+msgid "Payment deadline in the final reminder (days)"
+msgstr "Zahlungsfrist in der letzten Mahnung (Tage)"
+
+msgid "Named in the e-mail of the last stage (7 to 60 days). With only one stage the deadline of the payment request applies."
+msgstr "Wird in der E-Mail der letzten Stufe genannt (7 bis 60 Tage). Bei nur einer Stufe gilt die Frist der Zahlungsaufforderung."
 
 msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
 msgstr "Abrechnungen als Gutschrift ausstellen (§ 14 Abs. 2 UStG)"
@@ -5786,6 +6131,30 @@ msgstr "Ihre Steuernummer (falls keine USt-IdNr.)"
 msgid "Your tax number; printed on credit notes when you have no VAT ID."
 msgstr "Ihre Steuernummer; steht auf Gutschriften, wenn Sie keine USt-IdNr. haben."
 
+msgid "Logo on credit notes"
+msgstr "Logo auf Gutschriften"
+
+msgid "PNG or JPEG from the media library, printed at the top left of credit notes, correction credit notes and cancellations. The PDF uses the file on this server (nothing is downloaded). Documents already issued keep their look. Not part of the settings export (media IDs differ between sites)."
+msgstr "PNG oder JPEG aus der Mediathek, oben links auf Gutschriften, Korrekturgutschriften und Stornobelegen gedruckt. Das PDF nutzt die Datei auf diesem Server (es wird nichts heruntergeladen). Bereits ausgestellte Belege behalten ihr Aussehen. Nicht Teil des Einstellungsexports (Mediathek-IDs sind auf jeder Website andere)."
+
+msgid "Logo height on credit notes (mm)"
+msgstr "Logohöhe auf Gutschriften (mm)"
+
+msgid "Height of the printed logo; a very wide logo is made smaller so that it is at most 88 mm wide."
+msgstr "Höhe des gedruckten Logos; ein sehr breites Logo wird verkleinert, damit es höchstens 88 mm breit ist."
+
+msgid "Largest logo file (KB)"
+msgstr "Größte Logodatei (KB)"
+
+msgid "Larger images are refused: every credit note contains the logo, so a large file makes every PDF large."
+msgstr "Größere Bilder werden abgelehnt: Jede Gutschrift enthält das Logo, eine große Datei macht also jedes PDF groß."
+
+msgid "Footer on credit notes"
+msgstr "Fußzeile auf Gutschriften"
+
+msgid "Plain text, up to 4 lines, printed small at the bottom of every page, e.g. bank details, commercial register and managing directors. Documents already issued keep their footer."
+msgstr "Reiner Text, bis zu 4 Zeilen, klein unten auf jeder Seite gedruckt, z. B. Bankverbindung, Handelsregister und Geschäftsführung. Bereits ausgestellte Belege behalten ihre Fußzeile."
+
 msgid "Prefix credit note numbers"
 msgstr "Präfix Gutschriftnummern"
 
@@ -5803,6 +6172,30 @@ msgstr "Präfix Korrekturgutschriftnummern"
 
 msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
 msgstr "Korrekturgutschriften zu bezahlten Auszahlungen, z. B. KG-2026-000001."
+
+msgid "Start number credit notes"
+msgstr "Startnummer Gutschriften"
+
+msgid "The next number of the current year continues at this number. It can only be raised, never to or below the highest number already issued this year; the numbers in between are skipped (the audit log records the change). Documents already issued keep their numbers. Each new year starts again at 1."
+msgstr "Die nächste Nummer des laufenden Jahres geht bei dieser Nummer weiter. Sie können sie nur erhöhen, nie auf oder unter die höchste in diesem Jahr schon vergebene Nummer; die Nummern dazwischen werden übersprungen (das Protokoll hält die Änderung fest). Bereits erstellte Belege behalten ihre Nummern. Jedes neue Jahr beginnt wieder bei 1."
+
+msgid "Digits credit note numbers"
+msgstr "Stellen der Gutschriftnummern"
+
+msgid "Digits of the running number, 4 to 10 (6 = 000001). A higher number is written in full, never cut. Applies to new documents only."
+msgstr "Stellen der laufenden Nummer, 4 bis 10 (6 = 000001). Eine größere Nummer wird vollständig geschrieben, nie abgeschnitten. Gilt nur für neue Belege."
+
+msgid "Start number cancellations"
+msgstr "Startnummer Stornobelege"
+
+msgid "Digits cancellation numbers"
+msgstr "Stellen der Stornonummern"
+
+msgid "Start number correction credit notes"
+msgstr "Startnummer Korrekturgutschriften"
+
+msgid "Digits correction credit note numbers"
+msgstr "Stellen der Korrekturgutschriftnummern"
 
 msgid "Send e-invoice (XML) with the credit note e-mail"
 msgstr "E-Rechnung (XML) mit der Gutschrift-E-Mail senden"
@@ -5947,6 +6340,24 @@ msgstr "USt-IdNr. erneut prüfen nach (Tagen)"
 
 msgid "With the VIES check on, valid VAT IDs are checked again after this many days (at least 1)."
 msgstr "Bei eingeschalteter VIES-Prüfung werden gültige USt-IdNr. nach so vielen Tagen erneut geprüft (mindestens 1)."
+
+msgid "Payout reminder"
+msgstr "Auszahlungserinnerung"
+
+msgid "Sends the notification e-mail a reminder with the open payable amounts per currency on the day below (quarterly: in January, April, July and October). Nothing is booked; you still start the payout run yourself. Partners see \"Payout on day … of each month/quarter\" in the partner area – to them this reads like a promise, so pay on that day or check the wording legally."
+msgstr "Schickt an die Benachrichtigungs-E-Mail am unten gewählten Tag eine Erinnerung mit den offenen auszahlbaren Beträgen je Währung (vierteljährlich: im Januar, April, Juli und Oktober). Es wird nichts gebucht; den Auszahlungslauf starten Sie weiterhin selbst. Partner sehen im Partnerbereich „Auszahlung jeweils zum … des Monats/Quartals“ – für sie klingt das wie eine Zusage; zahlen Sie an diesem Tag aus oder lassen Sie den Wortlaut rechtlich prüfen."
+
+msgid "Reminder on day of the month"
+msgstr "Erinnerung am Tag des Monats"
+
+msgid "Day of the month for the payout reminder (1 to 28, so it exists in every month)."
+msgstr "Tag im Monat für die Auszahlungserinnerung (1 bis 28, damit es ihn in jedem Monat gibt)."
+
+msgid "Maximum payout"
+msgstr "Höchstauszahlung"
+
+msgid "A payout run or payout request never pays more than this per partner and currency (VAT included); the oldest commissions are paid first, the rest stays payable for the next payout. 0 = no limit."
+msgstr "Ein Auszahlungslauf oder eine Auszahlungsanfrage zahlt je Partner und Währung nie mehr als diesen Betrag (inkl. USt.); die ältesten Provisionen werden zuerst ausgezahlt, der Rest bleibt für die nächste Auszahlung auszahlbar. 0 = keine Grenze."
 
 msgid "Show notes about add-on features"
 msgstr "Hinweise auf Add-on-Funktionen anzeigen"
@@ -6189,6 +6600,12 @@ msgid "Affiliate Captain: the refund was deducted from the partner commission, b
 msgid_plural "Affiliate Captain: the refund was deducted from the partner commission, but credit note %1$s already has correction credit notes %2$s. Please check whether the corrections already covered this order (Affiliate Captain → Payouts); otherwise the partner is charged twice."
 msgstr[0] "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrekturgutschrift %2$s. Bitte prüfen Sie, ob die Korrektur diese Bestellung schon berücksichtigt hat (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
 msgstr[1] "Affiliate Captain: Die Erstattung wurde von der Partnerprovision abgezogen, aber zur Gutschrift %1$s gibt es bereits die Korrekturgutschriften %2$s. Bitte prüfen Sie, ob die Korrekturen diese Bestellung schon berücksichtigt haben (Affiliate Captain → Auszahlungen); sonst wird dem Partner doppelt abgezogen."
+
+msgid "Shipping: %s"
+msgstr "Versand: %s"
+
+msgid "Fee: %s"
+msgstr "Gebühr: %s"
 
 msgid "No partner link, partner code, coupon or lifetime customer."
 msgstr "Kein Partnerlink, Partnercode, Gutschein oder Lifetime-Kunde."
@@ -6499,6 +6916,42 @@ msgstr "Der Beleg ist nicht (mehr) verfügbar."
 msgid "The stored statement failed the integrity check."
 msgstr "Der gespeicherte Beleg hat die Integritätsprüfung nicht bestanden."
 
+msgid "This image was not found in the media library."
+msgstr "Dieses Bild wurde in der Mediathek nicht gefunden."
+
+msgid "Please choose a PNG or JPEG image."
+msgstr "Bitte wählen Sie ein PNG- oder JPEG-Bild."
+
+msgid "The image file is not on this server (documents only use local files, nothing is downloaded)."
+msgstr "Die Bilddatei liegt nicht auf diesem Server (Belege nutzen nur lokale Dateien, es wird nichts heruntergeladen)."
+
+msgid "The image is %1$d KB; at most %2$d KB are allowed. Please use a smaller image."
+msgstr "Das Bild hat %1$d KB; erlaubt sind höchstens %2$d KB. Bitte verwenden Sie ein kleineres Bild."
+
+msgid "Interlaced PNG images cannot be used. Please save the image without interlacing."
+msgstr "PNG-Bilder mit Interlacing können nicht verwendet werden. Bitte speichern Sie das Bild ohne Interlacing."
+
+msgid "The image has too many pixels. Please use a smaller image (a logo needs a few hundred pixels)."
+msgstr "Das Bild hat zu viele Pixel. Bitte verwenden Sie ein kleineres Bild (ein Logo braucht einige hundert Pixel)."
+
+msgid "This image cannot be used on documents (supported: JPEG, and PNG with 8 bits per channel without interlacing)."
+msgstr "Dieses Bild kann auf Belegen nicht verwendet werden (unterstützt: JPEG sowie PNG mit 8 Bit je Kanal ohne Interlacing)."
+
+msgid "SAMPLE"
+msgstr "MUSTER"
+
+msgid "Sample partner"
+msgstr "Musterpartner"
+
+msgid "Sample street 1"
+msgstr "Musterstraße 1"
+
+msgid "Sample town"
+msgstr "Musterstadt"
+
+msgid "This is a preview of logo and footer. It is not a document and has no number."
+msgstr "Dies ist eine Vorschau von Logo und Fußzeile. Sie ist kein Beleg und hat keine Nummer."
+
 msgid "Correction of credit note %1$s of %2$s"
 msgstr "Korrektur zur Gutschrift %1$s vom %2$s"
 
@@ -6532,11 +6985,17 @@ msgstr "Dieses Dokument storniert die oben genannte Gutschrift vollständig. Die
 msgid "Repayments, write-offs and settled correction credit notes (%s) are no service and not subject to VAT; they are shown as the amount already settled, so the amount due equals the payout amount."
 msgstr "Rückzahlungen, Abschreibungen und verrechnete Korrekturgutschriften (%s) sind keine Leistung und nicht umsatzsteuerbar; sie sind als bereits verrechneter Betrag ausgewiesen, sodass der Zahlbetrag dem Auszahlungsbetrag entspricht."
 
+msgid "It is shown as the amount already settled, so the amount due equals the payout amount."
+msgstr "Er ist als bereits gezahlter Betrag ausgewiesen, sodass der fällige Betrag dem Auszahlungsbetrag entspricht."
+
 msgid "Balance (settled, no transfer)"
 msgstr "Saldo (ausgeglichen, keine Überweisung)"
 
 msgid "Paid by the issuer of this credit note (recipient of the service) by transfer with the payout; the partner does not have to pay anything."
 msgstr "Zahlung durch den Aussteller dieser Gutschrift (Leistungsempfänger) per Überweisung mit der Auszahlung; der Partner muss nichts zahlen."
+
+msgid "%1$s (%2$s) is deducted from the amount transferred."
+msgstr "%1$s (%2$s) wird vom überwiesenen Betrag abgezogen."
 
 msgid "Net amount before (%1$s): %2$s; corrected net amount: %3$s"
 msgstr "Nettobetrag bisher (%1$s): %2$s; berichtigter Nettobetrag: %3$s"
@@ -6589,6 +7048,47 @@ msgstr "Ihr Widerspruch gegen Gutschrift %s"
 msgid "Hello,\n\nwe have reviewed your objection:\n\n%s"
 msgstr "Hallo,\n\nwir haben Ihren Widerspruch geprüft:\n\n%s"
 
+msgid "%1$s: %2$d partner can be paid now, %3$s in total (VAT included)."
+msgid_plural "%1$s: %2$d partners can be paid now, %3$s in total (VAT included)."
+msgstr[0] "%1$s: %2$d Partner kann jetzt ausgezahlt werden, insgesamt %3$s (inkl. USt.)."
+msgstr[1] "%1$s: %2$d Partner können jetzt ausgezahlt werden, insgesamt %3$s (inkl. USt.)."
+
+msgid "%d of them reaches the maximum payout; the rest stays payable."
+msgid_plural "%d of them reach the maximum payout; the rest stays payable."
+msgstr[0] "%d davon erreicht die Höchstauszahlung; der Rest bleibt auszahlbar."
+msgstr[1] "%d davon erreichen die Höchstauszahlung; der Rest bleibt auszahlbar."
+
+msgid "%d partner is below the minimum (carried forward)."
+msgid_plural "%d partners are below the minimum (carried forward)."
+msgstr[0] "%d Partner liegt unter der Mindestauszahlung (wird vorgetragen)."
+msgstr[1] "%d Partner liegen unter der Mindestauszahlung (werden vorgetragen)."
+
+msgid "%d partner cannot be paid yet (see the reason in the payout preview)."
+msgid_plural "%d partners cannot be paid yet (see the reasons in the payout preview)."
+msgstr[0] "%d Partner kann noch nicht ausgezahlt werden (Grund in der Vorschau des Auszahlungslaufs)."
+msgstr[1] "%d Partner können noch nicht ausgezahlt werden (Gründe in der Vorschau des Auszahlungslaufs)."
+
+msgid "This is your quarterly payout reminder. Open payable amounts as of today:"
+msgstr "Das ist Ihre vierteljährliche Auszahlungserinnerung. Offene auszahlbare Beträge mit Stand heute:"
+
+msgid "This is your monthly payout reminder. Open payable amounts as of today:"
+msgstr "Das ist Ihre monatliche Auszahlungserinnerung. Offene auszahlbare Beträge mit Stand heute:"
+
+msgid "Nothing was booked. Start the payout run yourself (preview first):"
+msgstr "Es wurde nichts gebucht. Starten Sie den Auszahlungslauf selbst (zuerst die Vorschau):"
+
+msgid "Change or switch off this reminder under Settings > Payouts & credit notes."
+msgstr "Ändern oder abschalten können Sie diese Erinnerung unter Einstellungen > Auszahlungen & Gutschriften."
+
+msgid "[%s] Payout reminder: open payouts"
+msgstr "[%s] Auszahlungserinnerung: offene Auszahlungen"
+
+msgid "Payout on day %d of each month"
+msgstr "Auszahlung jeweils zum %d. des Monats"
+
+msgid "Payout on day %d of each quarter (January, April, July, October)"
+msgstr "Auszahlung jeweils zum %d. des ersten Quartalsmonats (Januar, April, Juli, Oktober)"
+
 msgid "Payout requests are not enabled."
 msgstr "Auszahlungsanträge sind nicht aktiviert."
 
@@ -6612,6 +7112,9 @@ msgstr "Ihre USt-IdNr. konnte in der EU-Datenbank VIES nicht bestätigt werden. 
 
 msgid "Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe."
 msgstr "Auszahlungen sind derzeit aus organisatorischen Gründen auf unserer Seite nicht möglich. Wir arbeiten daran – Ihr Guthaben bleibt erhalten."
+
+msgid "Your oldest open commission is larger than the maximum payout amount. Please contact us."
+msgstr "Ihre älteste offene Provision ist höher als der Höchstbetrag je Auszahlung. Bitte wenden Sie sich an uns."
 
 msgid "Your approved balance is below the minimum payout of %s."
 msgstr "Ihr freigegebenes Guthaben liegt unter der Mindestauszahlung von %s."
@@ -6657,6 +7160,9 @@ msgstr "Bitte wählen Sie ein gültiges Periodenende."
 
 msgid "Negative balance – carried forward"
 msgstr "Negativer Saldo – vorgetragen"
+
+msgid "The oldest open commission is larger than the maximum payout – raise the maximum payout to pay it"
+msgstr "Die älteste offene Provision ist höher als die Höchstauszahlung – erhöhen Sie die Höchstauszahlung, um sie auszuzahlen"
 
 msgid "Maintenance mode is on (Settings → Data & maintenance)"
 msgstr "Wartungsmodus ist aktiv (Einstellungen → Daten & Wartung)"
@@ -6955,8 +7461,32 @@ msgstr "Keine Gutschriften in diesem Jahr."
 msgid "Total %s"
 msgstr "Summe %s"
 
+msgid "Withheld from the payouts (included in the total %s)"
+msgstr "Von den Auszahlungen einbehalten (in der Summe %s enthalten)"
+
 msgid "This overview summarises your credit notes and cancellations of the year. It is not a tax document itself; the credit notes are. Please keep them for your records."
 msgstr "Diese Übersicht fasst Ihre Gutschriften und Stornos des Jahres zusammen. Sie ist selbst kein Steuerbeleg; das sind die Gutschriften. Bitte bewahren Sie diese auf."
+
+msgid "Withholding (%)"
+msgstr "Steuerabzug (%)"
+
+msgid "Share of the net commission withheld from each new payout of this partner, e.g. for a withholding tax you pay to the tax office on the partner's behalf. 0 = off. The note is required and printed on the credit note and the e-invoice. Ask your tax adviser whether and how the withholding must be shown."
+msgstr "Anteil der Nettoprovision, der von jeder neuen Auszahlung dieses Partners einbehalten wird, z. B. für eine Quellensteuer, die Sie für den Partner an das Finanzamt abführen. 0 = aus. Der Hinweis ist Pflicht und steht auf der Gutschrift und in der E-Rechnung. Klären Sie mit Ihrer Steuerberatung, ob und wie der Abzug auszuweisen ist."
+
+msgid "Please enter a withholding between 0 and %s %% (e.g. 15 or 12,5)."
+msgstr "Bitte geben Sie einen Steuerabzug zwischen 0 und %s %% ein (z. B. 15 oder 12,5)."
+
+msgid "Please enter the note for the withholding: it is printed on the credit note."
+msgstr "Bitte geben Sie den Hinweis zum Steuerabzug ein: Er wird auf die Gutschrift gedruckt."
+
+msgid "The note for the withholding may have at most %d characters."
+msgstr "Der Hinweis zum Steuerabzug darf höchstens %d Zeichen haben."
+
+msgid "Withholding %1$s %% of %2$s"
+msgstr "Steuerabzug %1$s %% von %2$s"
+
+msgid "%1$s: %2$s was deducted from the payout amount. It is not VAT."
+msgstr "%1$s: %2$s wurden vom Auszahlungsbetrag abgezogen. Dies ist keine Umsatzsteuer."
 
 msgid "%d day after the click"
 msgid_plural "%d days after the click"
@@ -7159,9 +7689,6 @@ msgstr "Ihre Provision"
 msgid "Only for selected products"
 msgstr "Nur für ausgewählte Produkte"
 
-msgid "of the net order value"
-msgstr "vom Netto-Bestellwert"
-
 msgid "per product sold"
 msgstr "pro verkauftem Produkt"
 
@@ -7188,6 +7715,15 @@ msgstr "Mindestauszahlung"
 
 msgid "No minimum amount"
 msgstr "Kein Mindestbetrag"
+
+msgid "Maximum per payout"
+msgstr "Höchstbetrag je Auszahlung"
+
+msgid "%s – a higher balance is paid with the next payouts"
+msgstr "%s – ein höheres Guthaben wird mit den nächsten Auszahlungen ausgezahlt"
+
+msgid "Payout date"
+msgstr "Auszahlungstermin"
 
 msgid "%1$s – accepted version %2$s on %3$s."
 msgstr "%1$s – akzeptierte Version %2$s am %3$s."
@@ -7357,11 +7893,17 @@ msgstr "Kunden können ihn an der Kasse eingeben – das funktioniert ohne Cooki
 msgid "Short link and QR code"
 msgstr "Kurzlink und QR-Code"
 
+msgid "Short link"
+msgstr "Kurzlink"
+
 msgid "The short link leads to our landing page and works exactly like your partner link – ideal for print, talks and social media profiles."
 msgstr "Der Kurzlink führt zu unserer Landingpage und funktioniert genau wie Ihr Partnerlink – ideal für Druck, Vorträge und Social-Media-Profile."
 
 msgid "Your short link"
 msgstr "Ihr Kurzlink"
+
+msgid "QR code"
+msgstr "QR-Code"
 
 msgid "Link generator"
 msgstr "Link-Generator"
@@ -7743,9 +8285,6 @@ msgstr[1] "Änderungsprotokoll übriger Einstellungen und Partnerdaten: %d Tage"
 msgid "Affiliate Captain partner data"
 msgstr "Affiliate-Captain-Partnerdaten"
 
-msgid "Commission base"
-msgstr "Provisionsbasis"
-
 msgid "Held until"
 msgstr "Gesperrt bis"
 
@@ -8039,9 +8578,6 @@ msgstr "Bitte geben Sie einen Titel ein."
 
 msgid "The target page must be on this website."
 msgstr "Die Zielseite muss auf dieser Website liegen."
-
-msgid "Please choose an image from the media library."
-msgstr "Bitte wählen Sie ein Bild aus der Mediathek."
 
 msgid "Please enter the text."
 msgstr "Bitte geben Sie den Text ein."
