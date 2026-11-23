@@ -257,6 +257,11 @@ final class ProgramExport {
 			// Other payment method (PayPal …): method and decrypted payment details, else they would be lost.
 			$row['payout_method']   = ProfileRepository::method( $profile );
 			$row['payment_details'] = null !== $details ? $details : '';
+			// Bank transfer outside SEPA (since plugin 0.21.0): the decrypted account in its own columns.
+			$bank = ProfileRepository::bank_details( $profile );
+			foreach ( ProfileRepository::BANK_FIELDS as $f ) {
+				$row[ $f ] = null !== $bank ? $bank[ $f ] : '';
+			}
 		}
 		return $row;
 	}
@@ -336,7 +341,7 @@ final class ProgramExport {
 		$lines[] = 'Columns are the database columns of the plugin; see docs/IMPORT-EXPORT.md.';
 		$lines[] = '';
 		$lines[] = $include_tax_data
-			? 'CONTAINS TAX AND BANK DATA (payout_details.csv with decrypted IBANs or – column payout_method "manual" – the decrypted payment details of another payment method such as PayPal; tax snapshots in payouts.csv and payout_corrections.csv). Store and transfer it encrypted, delete it when no longer needed.'
+			? 'CONTAINS TAX AND BANK DATA (payout_details.csv with decrypted IBANs or – column payout_method "manual" – the decrypted payment details of another payment method such as PayPal, or – "bank" – the decrypted account outside SEPA; tax snapshots in payouts.csv and payout_corrections.csv). Store and transfer it encrypted, delete it when no longer needed.'
 			: 'Tax and bank data are not included (payout details, IBANs, payment details, the tax snapshots and the VAT treatment (vat_mode) of payouts and correction credit notes; statement_file/storno_file and file in payout_corrections.csv only say "yes" instead of the stored file names).';
 		$lines[] = 'The export contains personal data of partners: handle it according to your privacy policy.';
 		return implode( "\n", $lines ) . "\n";

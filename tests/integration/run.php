@@ -1583,6 +1583,7 @@ require __DIR__ . '/su3.php'; // Agent su3: review quality from a review plugin,
 require __DIR__ . '/wf8.php'; // AFF-WF-08 (0.17.0): since table of all actions, parameters, after COMMIT (before r8-render).
 require __DIR__ . '/r17-snapshot.php'; // MariaDB 12.3 snapshot isolation (error 1020) in transactions (before r8-render).
 require __DIR__ . '/r16-fc.php'; // AFF-SU-01: Form Captain hand-over of partner applications (before r8-render).
+require __DIR__ . '/set-ac-acct.php'; // SET-AC-30: payout methods outside SEPA (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1601,6 +1602,7 @@ require __DIR__ . '/su3-render.php'; // After the render files: review quality o
 require __DIR__ . '/set-ac1-render.php'; // After the render files: settings register and add-on rows (SET-AC-01/05).
 require __DIR__ . '/set-ac35.php'; // Uninstall standard: typed confirmation word, not exported (SET-AC-35).
 require __DIR__ . '/set-ac-review.php'; // Findings of the settings review phase (SET-AC-P1 … P6).
+require __DIR__ . '/set-ac-acct-render.php'; // After the render files: SET-AC-30 payout form in the partner area.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

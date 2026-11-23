@@ -666,8 +666,9 @@ final class EInvoice {
 	 */
 	private static function payment( array $snap ) {
 		$manual = isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'];
+		$bank   = isset( $snap['payout_method'] ) && ProfileRepository::METHOD_BANK === $snap['payout_method'];
 		$iban   = isset( $snap['iban'] ) ? strtoupper( preg_replace( '/\s+/', '', (string) $snap['iban'] ) ) : '';
-		if ( ! $manual && '' !== $iban ) {
+		if ( ! $manual && ! $bank && '' !== $iban ) {
 			return array(
 				'code'   => '58',
 				'info'   => __( 'SEPA credit transfer', 'affiliate-captain' ),
@@ -678,6 +679,9 @@ final class EInvoice {
 		}
 		if ( $manual ) {
 			$info = __( 'Other payment method as agreed with the partner', 'affiliate-captain' );
+		} elseif ( $bank ) {
+			/* translators: %s: masked account, e.g. US •••• 6789 */
+			$info = sprintf( __( 'Bank transfer to the partner\'s account %s', 'affiliate-captain' ), ! empty( $snap['account_masked'] ) ? (string) $snap['account_masked'] : '—' );
 		} else {
 			/* translators: %s: masked IBAN */
 			$info = sprintf( __( 'SEPA credit transfer to the partner\'s account %s', 'affiliate-captain' ), ! empty( $snap['iban_masked'] ) ? (string) $snap['iban_masked'] : '—' );

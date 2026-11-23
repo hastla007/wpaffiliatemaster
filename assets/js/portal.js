@@ -81,20 +81,31 @@
 		if ( ! s ) {
 			return;
 		}
-		var manual = 'manual' === s.value;
-		Array.prototype.forEach.call( document.querySelectorAll( '.wpac-method-sepa' ), function ( el ) { el.hidden = manual; } );
-		Array.prototype.forEach.call( document.querySelectorAll( '.wpac-method-manual' ), function ( el ) { el.hidden = ! manual; } );
+		var method = s.value;
+		var manual = 'manual' === method;
+		// A section belongs to every method named in its classes (wpac-method-sepa wpac-method-bank …).
+		Array.prototype.forEach.call( document.querySelectorAll( '.wpac-method-sepa, .wpac-method-bank, .wpac-method-manual' ), function ( el ) {
+			el.hidden = ! el.classList.contains( 'wpac-method-' + method );
+		} );
 		var holder = document.getElementById( 'wpac_account_holder' );
 		if ( holder ) {
 			holder.required = ! manual;
 		}
 		var iban = document.getElementById( 'wpac_iban' );
 		if ( iban ) {
-			iban.required = ! manual && '1' === s.getAttribute( 'data-wpac-iban-required' );
+			iban.required = 'sepa' === method && '1' === s.getAttribute( 'data-wpac-iban-required' );
 		}
 		var details = document.getElementById( 'wpac_payment_details' );
 		if ( details ) {
 			details.required = manual && '1' === s.getAttribute( 'data-wpac-details-required' );
+		}
+		var account = document.getElementById( 'wpac_account_number' );
+		if ( account ) {
+			account.required = 'bank' === method && '1' === s.getAttribute( 'data-wpac-account-required' );
+		}
+		var country = document.getElementById( 'wpac_bank_country' );
+		if ( country ) {
+			country.required = 'bank' === method;
 		}
 	}
 	document.addEventListener( 'change', function ( e ) {

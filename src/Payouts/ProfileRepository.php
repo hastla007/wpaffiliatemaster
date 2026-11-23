@@ -1,7 +1,8 @@
 <?php
 /**
  * Payout profiles: tax status, address, VAT ID and encrypted bank details (IBAN for SEPA
- * transfers, or free-text payment details for other methods that are paid manually).
+ * transfers, account number and bank code for bank transfers outside SEPA, or free-text payment
+ * details for other methods that are paid manually).
  * Reading full details requires the wpac_view_tax_data capability.
  *
  * @package WPAffiliateCaptain
@@ -40,6 +41,15 @@ final class ProfileRepository {
 	/** Prefix of the encrypted payment details of the manual method (distinguishes them from an IBAN). */
 	const MANUAL_PREFIX = 'manual:';
 
+	/** Payout by bank transfer outside SEPA (account number, bank code, bank country; SET-AC-30, since plugin 0.21.0). */
+	const METHOD_BANK = 'bank';
+
+	/** Prefix of the encrypted account details of the non-SEPA bank transfer (JSON follows). */
+	const BANK_PREFIX = 'bank:';
+
+	/** Fields of the non-SEPA account (stored encrypted together; holder and BIC/SWIFT in their columns). */
+	const BANK_FIELDS = array( 'account_number', 'bank_code', 'bank_name', 'bank_country' );
+
 	/**
 	 * Payout method labels.
 	 *
@@ -48,6 +58,7 @@ final class ProfileRepository {
 	public static function method_labels() {
 		return array(
 			self::METHOD_SEPA   => __( 'Bank transfer (SEPA, IBAN)', 'affiliate-captain' ),
+			self::METHOD_BANK   => __( 'Bank transfer (non-SEPA: account number and bank code)', 'affiliate-captain' ),
 			self::METHOD_MANUAL => __( 'Other payment method (e.g. PayPal), paid manually', 'affiliate-captain' ),
 		);
 	}
@@ -58,23 +69,58 @@ final class ProfileRepository {
 	 * @return bool
 	 */
 	public static function manual_enabled() {
-		$on = \WPAffiliateCaptain\Core\Settings::get( 'payout_method_manual' );
-		return null === $on || (bool) $on;
+		return self::method_enabled( self::METHOD_MANUAL );
 	}
 
 	/**
-	 * Methods a partner can choose: all, or only SEPA when the other method is switched off
-	 * (a partner who already uses it keeps it until changing).
+	 * Whether partners may newly choose a payout method: settings payout_method_sepa (default on),
+	 * payout_method_bank (default off) and payout_method_manual (default on).
+	 *
+	 * @param string $method sepa|bank|manual.
+	 * @return bool
+	 */
+	public static function method_enabled( $method ) {
+		$keys = array(
+			self::METHOD_SEPA   => array( 'payout_method_sepa', true ),
+			self::METHOD_BANK   => array( 'payout_method_bank', false ),
+			self::METHOD_MANUAL => array( 'payout_method_manual', true ),
+		);
+		if ( ! isset( $keys[ $method ] ) ) {
+			return false;
+		}
+		$on = \WPAffiliateCaptain\Core\Settings::get( $keys[ $method ][0] );
+		return null === $on ? $keys[ $method ][1] : (bool) $on;
+	}
+
+	/**
+	 * Methods a partner can choose: the switched-on ones plus the method the partner already uses
+	 * (kept until changing). With every method switched off, SEPA stays (never an empty choice).
 	 *
 	 * @param object|null $profile Profile.
 	 * @return array
 	 */
 	public static function method_options( $profile ) {
-		$labels = self::method_labels();
-		if ( ! self::manual_enabled() && self::METHOD_MANUAL !== self::method( $profile ) ) {
-			unset( $labels[ self::METHOD_MANUAL ] );
+		$current = self::current_method( $profile );
+		$labels  = array();
+		foreach ( self::method_labels() as $key => $label ) {
+			if ( $key === $current || self::method_enabled( $key ) ) {
+				$labels[ $key ] = $label;
+			}
+		}
+		if ( ! $labels ) {
+			$labels[ self::METHOD_SEPA ] = self::method_labels()[ self::METHOD_SEPA ];
 		}
 		return $labels;
+	}
+
+	/**
+	 * Method of the stored payout destination, or '' when no details are stored yet.
+	 *
+	 * @param object|null $profile Profile.
+	 * @return string
+	 */
+	private static function current_method( $profile ) {
+		return $profile && '' !== (string) $profile->iban_encrypted ? self::method( $profile ) : '';
 	}
 
 	/**
@@ -97,6 +143,14 @@ final class ProfileRepository {
 		if ( self::METHOD_MANUAL === $method ) {
 			$details = trim( Db::cut( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 500 ) );
 			return '' !== $details && self::payment_details( $profile ) !== $details;
+		}
+		if ( self::METHOD_BANK === $method ) {
+			// Account number, bank code, bank name or country: all decide where the money goes.
+			$bank = self::bank_input( $profile, $in );
+			if ( is_wp_error( $bank ) ) {
+				return true; // Refused by save() anyway; never let it pass without the password.
+			}
+			return null !== $bank && self::bank_details( $profile ) !== $bank;
 		}
 		$iban = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
 		return '' !== $iban && self::iban( $profile ) !== $iban;
@@ -145,7 +199,7 @@ final class ProfileRepository {
 	 */
 	public static function form_keep( array $in ) {
 		$details = trim( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' );
-		unset( $in['iban'], $in['payment_details'] );
+		unset( $in['iban'], $in['payment_details'], $in['account_number'] ); // Account number: like the IBAN, never kept.
 		$kept = array_map( 'sanitize_textarea_field', $in );
 		if ( '' !== $details ) {
 			$kept['payment_details_encrypted'] = Crypto::encrypt( $details );
@@ -184,22 +238,271 @@ final class ProfileRepository {
 			'legal_name'     => __( 'Name / company', 'affiliate-captain' ),
 			'account_holder' => __( 'Account holder', 'affiliate-captain' ),
 			'vat_id'         => __( 'VAT ID', 'affiliate-captain' ),
+			'bank_name'      => __( 'Bank name', 'affiliate-captain' ),
 		);
 		return isset( $labels[ $field ] ) ? $labels[ $field ] : $field;
 	}
 
 	/**
 	 * Payout method of a profile. The manual method stores its encrypted payment details in the
-	 * same column as the IBAN, without IBAN country/last digits (an IBAN always has both).
+	 * same column as the IBAN, without IBAN country/last digits (an IBAN always has both). The
+	 * non-SEPA bank transfer stores its encrypted account (JSON) there too, without IBAN country
+	 * but with the last four characters of the account number (no schema change; SET-AC-30).
 	 *
 	 * @param object|null $profile Profile.
-	 * @return string sepa|manual
+	 * @return string sepa|bank|manual
 	 */
 	public static function method( $profile ) {
 		if ( $profile && '' !== (string) $profile->iban_encrypted && '' === (string) $profile->iban_country ) {
-			return self::METHOD_MANUAL;
+			return '' !== (string) $profile->iban_last4 ? self::METHOD_BANK : self::METHOD_MANUAL;
 		}
 		return self::METHOD_SEPA;
+	}
+
+	/**
+	 * Decrypted account of the non-SEPA bank transfer (null for other methods or when not
+	 * decryptable): account_number, bank_code, bank_name, bank_country.
+	 *
+	 * @param object|null $profile Profile.
+	 * @return array|null
+	 */
+	public static function bank_details( $profile ) {
+		if ( self::METHOD_BANK !== self::method( $profile ) ) {
+			return null;
+		}
+		$plain = Crypto::decrypt( (string) $profile->iban_encrypted );
+		if ( null === $plain || 0 !== strpos( $plain, self::BANK_PREFIX ) ) {
+			return null;
+		}
+		$data = json_decode( (string) substr( $plain, strlen( self::BANK_PREFIX ) ), true );
+		if ( ! is_array( $data ) ) {
+			return null;
+		}
+		$out = array();
+		foreach ( self::BANK_FIELDS as $f ) {
+			$out[ $f ] = isset( $data[ $f ] ) ? (string) $data[ $f ] : '';
+		}
+		return $out;
+	}
+
+	/**
+	 * Masked non-SEPA account for display, e.g. "US •••• 6789".
+	 *
+	 * @param string $last4   Last four characters of the account number.
+	 * @param string $country Bank country.
+	 * @return string
+	 */
+	public static function bank_mask( $last4, $country = '' ) {
+		return '' === (string) $last4 ? '' : trim( $country . ' •••• ' . $last4 );
+	}
+
+	/**
+	 * Label of the bank code in a country (routing number, sort code, BSB, IFSC …).
+	 *
+	 * @param string $country Bank country.
+	 * @return string
+	 */
+	public static function bank_code_label( $country ) {
+		switch ( strtoupper( (string) $country ) ) {
+			case 'US':
+				return __( 'Routing number (ABA)', 'affiliate-captain' );
+			case 'GB':
+				return __( 'Sort code', 'affiliate-captain' );
+			case 'CA':
+				return __( 'Institution and transit number', 'affiliate-captain' );
+			case 'AU':
+				return __( 'BSB number', 'affiliate-captain' );
+			case 'IN':
+				return __( 'IFSC', 'affiliate-captain' );
+		}
+		return __( 'Bank code', 'affiliate-captain' );
+	}
+
+	/**
+	 * Format rules of non-SEPA accounts per bank country: deliberately lenient (they catch typos,
+	 * not every bank's own scheme). Keys: account (min, max digits), code (min, max digits, or
+	 * "ifsc"; null = no bank code needed), code_required, aba (checksum of US routing numbers).
+	 * Countries without a rule: account number 4–34 letters or digits, bank code optional.
+	 *
+	 * @return array
+	 */
+	public static function bank_rules() {
+		$rules = array(
+			'US' => array(
+				'account'       => array( 4, 17 ),
+				'code'          => array( 9, 9 ),
+				'code_required' => true,
+				'aba'           => true,
+			),
+			'GB' => array(
+				'account'       => array( 6, 10 ),
+				'code'          => array( 6, 6 ),
+				'code_required' => true,
+			),
+			'CA' => array(
+				'account'       => array( 5, 12 ),
+				'code'          => array( 8, 9 ),
+				'code_required' => true,
+			),
+			'AU' => array(
+				'account'       => array( 5, 10 ),
+				'code'          => array( 6, 6 ),
+				'code_required' => true,
+			),
+			'NZ' => array(
+				'account'       => array( 15, 16 ),
+				'code'          => null,
+				'code_required' => false,
+			),
+			'IN' => array(
+				'account'       => array( 9, 18 ),
+				'code'          => 'ifsc',
+				'code_required' => true,
+			),
+		);
+		/**
+		 * Format rules of bank accounts outside SEPA per bank country (ISO code => rule, see
+		 * ProfileRepository::bank_rules()). Add or relax countries here.
+		 *
+		 * @since plugin 0.21.0
+		 * @param array $rules Rules.
+		 */
+		$filtered = apply_filters( 'wpac_bank_account_rules', $rules );
+		return is_array( $filtered ) ? $filtered : $rules;
+	}
+
+	/**
+	 * Account number or bank code without spaces, dashes, dots and slashes, upper case.
+	 *
+	 * @param string $value Value.
+	 * @return string
+	 */
+	private static function bank_clean( $value ) {
+		return strtoupper( (string) preg_replace( '/[\s\-.\/]+/u', '', (string) $value ) );
+	}
+
+	/**
+	 * Non-SEPA account from form input (account_number, bank_code, bank_name, bank_country),
+	 * normalized and checked. An empty account number keeps the stored one (like the IBAN); bank
+	 * code, name and country are taken as entered. Without any of these fields the stored account
+	 * stays (null when there is none).
+	 *
+	 * @param object|null $existing Stored profile.
+	 * @param array       $in       Input as passed to save().
+	 * @return array|null|\WP_Error
+	 */
+	public static function bank_input( $existing, array $in ) {
+		$stored = self::bank_details( $existing );
+		$raw    = array();
+		foreach ( self::BANK_FIELDS as $f ) {
+			$raw[ $f ] = isset( $in[ $f ] ) ? trim( (string) $in[ $f ] ) : '';
+		}
+		if ( '' === implode( '', $raw ) ) {
+			return $stored;
+		}
+		$bank    = array(
+			'account_number' => '' !== $raw['account_number'] ? self::bank_clean( $raw['account_number'] ) : ( $stored ? $stored['account_number'] : '' ),
+			'bank_code'      => self::bank_clean( $raw['bank_code'] ),
+			'bank_name'      => sanitize_text_field( $raw['bank_name'] ),
+			'bank_country'   => strtoupper( substr( (string) preg_replace( '/[^A-Za-z]/', '', $raw['bank_country'] ), 0, 2 ) ),
+		);
+		$problem = self::bank_problem( $bank );
+		return null === $problem ? $bank : $problem;
+	}
+
+	/**
+	 * First problem of a non-SEPA account, or null.
+	 *
+	 * @param array $bank Normalized account (bank_input()).
+	 * @return \WP_Error|null
+	 */
+	public static function bank_problem( array $bank ) {
+		$country = (string) $bank['bank_country'];
+		if ( ! preg_match( '/^[A-Z]{2}$/', $country ) ) {
+			return new \WP_Error( 'wpac_bank_country', __( 'Please choose the country of the bank.', 'affiliate-captain' ) );
+		}
+		if ( '' === $bank['account_number'] ) {
+			return new \WP_Error( 'wpac_account_number', __( 'Please enter the account number for payouts by bank transfer.', 'affiliate-captain' ) );
+		}
+		if ( self::length( $bank['bank_name'] ) > 100 ) {
+			return new \WP_Error(
+				'wpac_too_long_bank_name',
+				/* translators: 1: field, 2: number of characters */
+				sprintf( __( '%1$s is too long (at most %2$d characters).', 'affiliate-captain' ), self::field_label( 'bank_name' ), 100 )
+			);
+		}
+		$rules = self::bank_rules();
+		$rule  = isset( $rules[ $country ] ) && is_array( $rules[ $country ] ) ? $rules[ $country ] : null;
+		$label = self::bank_code_label( $country );
+		if ( $rule && isset( $rule['account'] ) && is_array( $rule['account'] ) ) {
+			list( $min, $max ) = array_map( 'intval', $rule['account'] );
+			if ( ! preg_match( '/^\d{' . $min . ',' . $max . '}$/', $bank['account_number'] ) ) {
+				return new \WP_Error(
+					'wpac_account_number',
+					$min === $max
+						/* translators: 1: country code, 2: number of digits */
+						? sprintf( __( 'The account number does not look right for a bank in %1$s: it has %2$d digits.', 'affiliate-captain' ), $country, $min )
+						/* translators: 1: country code, 2: minimum, 3: maximum number of digits */
+						: sprintf( __( 'The account number does not look right for a bank in %1$s: it has %2$d to %3$d digits.', 'affiliate-captain' ), $country, $min, $max )
+				);
+			}
+		} elseif ( ! preg_match( '/^[A-Z0-9]{4,34}$/', $bank['account_number'] ) ) {
+			return new \WP_Error( 'wpac_account_number', __( 'The account number does not look right: it has 4 to 34 letters or digits.', 'affiliate-captain' ) );
+		}
+		$code = (string) $bank['bank_code'];
+		if ( '' === $code ) {
+			if ( $rule && ! empty( $rule['code_required'] ) ) {
+				/* translators: %s: name of the bank code in the country, e.g. Sort code */
+				return new \WP_Error( 'wpac_bank_code', sprintf( __( 'Please enter the bank code of the account (%s).', 'affiliate-captain' ), $label ) );
+			}
+			return null;
+		}
+		$spec = $rule && array_key_exists( 'code', $rule ) ? $rule['code'] : false;
+		if ( 'ifsc' === $spec ) {
+			$ok   = (bool) preg_match( '/^[A-Z]{4}0[A-Z0-9]{6}$/', $code );
+			$hint = __( '4 letters, a zero and 6 letters or digits', 'affiliate-captain' );
+		} elseif ( is_array( $spec ) ) {
+			list( $min, $max ) = array_map( 'intval', $spec );
+			$ok                = (bool) preg_match( '/^\d{' . $min . ',' . $max . '}$/', $code ) && ( empty( $rule['aba'] ) || self::aba_ok( $code ) );
+			/* translators: 1: minimum, 2: maximum number of digits */
+			$hint = $min === $max ? sprintf( _n( '%d digit', '%d digits', $min, 'affiliate-captain' ), $min ) : sprintf( __( '%1$d to %2$d digits', 'affiliate-captain' ), $min, $max );
+		} else {
+			$ok   = (bool) preg_match( '/^[A-Z0-9]{1,20}$/', $code );
+			$hint = __( 'up to 20 letters or digits', 'affiliate-captain' );
+		}
+		if ( ! $ok ) {
+			/* translators: 1: name of the bank code in the country, e.g. Sort code, 2: expected format, e.g. 6 digits */
+			return new \WP_Error( 'wpac_bank_code', sprintf( __( 'The bank code (%1$s) does not look right: expected %2$s. Please check it.', 'affiliate-captain' ), $label, $hint ) );
+		}
+		return null;
+	}
+
+	/**
+	 * Checksum of a US routing number (ABA: 3-7-1 weights, sum divisible by 10).
+	 *
+	 * @param string $code Nine digits.
+	 * @return bool
+	 */
+	private static function aba_ok( $code ) {
+		if ( ! preg_match( '/^\d{9}$/', (string) $code ) ) {
+			return false;
+		}
+		$w   = array( 3, 7, 1, 3, 7, 1, 3, 7, 1 );
+		$sum = 0;
+		for ( $i = 0; $i < 9; $i++ ) {
+			$sum += (int) $code[ $i ] * $w[ $i ];
+		}
+		return 0 === $sum % 10;
+	}
+
+	/**
+	 * Whether a BIC/SWIFT code has a valid format (8 or 11 characters).
+	 *
+	 * @param string $bic Upper-case BIC.
+	 * @return bool
+	 */
+	public static function bic_ok( $bic ) {
+		return (bool) preg_match( '/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/', (string) $bic );
 	}
 
 	/**
@@ -239,7 +542,7 @@ final class ProfileRepository {
 	 * @return string|null
 	 */
 	public static function iban( $profile ) {
-		if ( ! $profile || self::METHOD_MANUAL === self::method( $profile ) ) {
+		if ( ! $profile || self::METHOD_SEPA !== self::method( $profile ) ) {
 			return null;
 		}
 		return Crypto::decrypt( (string) $profile->iban_encrypted );
@@ -368,11 +671,46 @@ final class ProfileRepository {
 		$method      = isset( $in['payout_method'] ) && isset( $methods[ $in['payout_method'] ] ) ? (string) $in['payout_method'] : self::method( $existing );
 		$old_method  = self::method( $existing );
 		$details_new = false;
+		$bank_new    = false;
 		$iban        = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
+		$current     = self::current_method( $existing );
 		if ( self::METHOD_MANUAL === $method && self::METHOD_MANUAL !== $old_method && ! self::manual_enabled() ) {
 			return new \WP_Error( 'wpac_method_disabled', __( 'Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer.', 'affiliate-captain' ) );
 		}
-		if ( self::METHOD_MANUAL === $method ) {
+		// A switched-off method can only be kept, not newly chosen (SET-AC-30). SEPA counts as chosen
+		// only with an IBAN: saving the tax data alone stays possible.
+		if ( $method !== $current && ! self::method_enabled( $method ) && ( self::METHOD_SEPA !== $method || '' !== $iban ) ) {
+			return new \WP_Error(
+				'wpac_method_off',
+				self::METHOD_SEPA === $method
+					? __( 'Payouts by SEPA transfer are not offered. Please choose another payout method.', 'affiliate-captain' )
+					: __( 'Payouts by bank transfer outside SEPA are not offered. Please choose another payout method.', 'affiliate-captain' )
+			);
+		}
+		if ( self::METHOD_BANK === $method ) {
+			// Bank transfer outside SEPA: account number, bank code, bank name and bank country are
+			// stored encrypted like the IBAN (one JSON value); holder and BIC/SWIFT in their columns.
+			$iban = '';
+			$bank = self::bank_input( $existing, $in );
+			if ( is_wp_error( $bank ) ) {
+				return $bank;
+			}
+			if ( 'partner' === $context && '' === $data['account_holder'] ) {
+				return new \WP_Error( 'wpac_account_holder', __( 'Please enter the account holder for payouts by bank transfer.', 'affiliate-captain' ) );
+			}
+			if ( null === $bank ) {
+				return new \WP_Error( 'wpac_account_number', __( 'Please enter the account number for payouts by bank transfer.', 'affiliate-captain' ) );
+			}
+			if ( '' !== $data['bic'] && ! self::bic_ok( $data['bic'] ) ) {
+				return new \WP_Error( 'wpac_bic', __( 'The BIC/SWIFT code is not valid (8 or 11 letters and digits).', 'affiliate-captain' ) );
+			}
+			if ( self::bank_details( $existing ) !== $bank ) {
+				$bank_new               = true;
+				$data['iban_encrypted'] = Crypto::encrypt( self::BANK_PREFIX . wp_json_encode( $bank ) );
+				$data['iban_country']   = '';
+				$data['iban_last4']     = substr( $bank['account_number'], -4 );
+			}
+		} elseif ( self::METHOD_MANUAL === $method ) {
 			// Free-text payment details (e.g. "PayPal: name@example.com"), stored encrypted like the IBAN.
 			$details = trim( Db::cut( sanitize_textarea_field( isset( $in['payment_details'] ) ? (string) $in['payment_details'] : '' ), 500 ) );
 			$iban    = '';
@@ -393,7 +731,7 @@ final class ProfileRepository {
 			if ( 'partner' === $context && '' === $data['account_holder'] ) {
 				return new \WP_Error( 'wpac_account_holder', __( 'Please enter the account holder for payouts by bank transfer.', 'affiliate-captain' ) );
 			}
-			if ( '' === $iban && ( self::METHOD_MANUAL === $old_method || ( 'partner' === $context && ( ! $existing || '' === (string) $existing->iban_encrypted ) ) ) ) {
+			if ( '' === $iban && ( self::METHOD_SEPA !== $old_method || ( 'partner' === $context && ( ! $existing || '' === (string) $existing->iban_encrypted ) ) ) ) {
 				return new \WP_Error( 'wpac_iban_required', __( 'Please enter your IBAN for payouts by bank transfer.', 'affiliate-captain' ) );
 			}
 			if ( '' !== $iban ) {
@@ -488,14 +826,14 @@ final class ProfileRepository {
 		if ( '' !== $data['vat_id'] && ( ! $existing || (string) $existing->vat_id !== $data['vat_id'] ) ) {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
 		}
-		if ( ! $held && ( '' !== $iban || self::METHOD_MANUAL === $method ) ) {
+		if ( ! $held && ( '' !== $iban || self::METHOD_SEPA !== $method ) ) {
 			self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : array() );
 		}
 		if ( $pending && '' !== $tax_new['vat_id'] ) {
 			Vies::schedule( (int) $affiliate_id ); // Checks the requested VAT ID: the result helps the admin decide.
 		}
 		$had_details = $existing && '' !== (string) $existing->iban_encrypted;
-		$changed     = ! $held && $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $method !== $old_method );
+		$changed     = ! $held && $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $bank_new || $method !== $old_method );
 		if ( $held ) {
 			Audit::log( 'payout_profile.bank_change_requested', 'affiliate', (int) $affiliate_id, array( 'payout_method' => $method ) );
 			self::notify_bank_change_held( (int) $affiliate_id );
@@ -513,6 +851,7 @@ final class ProfileRepository {
 				'payout_method'   => $method,
 				'iban_changed'    => ! $held && '' !== $iban,
 				'details_changed' => ! $held && $details_new,
+				'account_changed' => ! $held && $bank_new,
 				'bank_held'       => $held,
 			)
 		);
@@ -545,6 +884,10 @@ final class ProfileRepository {
 	 */
 	public static function pending_bank_label( array $pending ) {
 		$profile = (object) $pending['data'];
+		if ( self::METHOD_BANK === self::method( $profile ) ) {
+			$bank = self::bank_details( $profile );
+			return self::bank_mask( (string) $profile->iban_last4, $bank ? $bank['bank_country'] : '' );
+		}
 		if ( self::METHOD_MANUAL === self::method( $profile ) ) {
 			$details = self::payment_details( $profile );
 			return null === $details ? '—' : self::mask_details( $details );
@@ -800,10 +1143,29 @@ final class ProfileRepository {
 			'vat_id'         => $profile->vat_id,
 			'tax_number'     => isset( $profile->tax_number ) ? $profile->tax_number : '',
 			'account_holder' => $profile->account_holder,
-			'iban_masked'    => self::METHOD_MANUAL === self::method( $profile ) ? '' : Iban::mask( $profile->iban_last4, $profile->iban_country ),
+			'iban_masked'    => self::METHOD_SEPA === self::method( $profile ) ? Iban::mask( $profile->iban_last4, $profile->iban_country ) : '',
 			'bic'            => $profile->bic,
 			// Never the payment details themselves (they stay encrypted in the profile).
 			'payout_method'  => self::method( $profile ),
+		) + self::bank_snapshot( $profile );
+	}
+
+	/**
+	 * Snapshot part of a non-SEPA account (masked account, bank country and name; never the full
+	 * account number or bank code), empty for other methods.
+	 *
+	 * @param object $profile Profile.
+	 * @return array
+	 */
+	private static function bank_snapshot( $profile ) {
+		if ( self::METHOD_BANK !== self::method( $profile ) ) {
+			return array();
+		}
+		$bank = self::bank_details( $profile );
+		return array(
+			'account_masked' => self::bank_mask( (string) $profile->iban_last4, $bank ? $bank['bank_country'] : '' ),
+			'bank_country'   => $bank ? $bank['bank_country'] : '',
+			'bank_name'      => $bank ? $bank['bank_name'] : '',
 		);
 	}
 

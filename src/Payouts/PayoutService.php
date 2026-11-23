@@ -1289,14 +1289,16 @@ final class PayoutService {
 	}
 
 	/**
-	 * Payout method recorded with a payout (snapshot): manual (PayPal etc.) or sepa.
+	 * Payout method recorded with a payout (snapshot): manual (PayPal etc.), bank (bank transfer
+	 * outside SEPA, since plugin 0.21.0) or sepa.
 	 *
 	 * @param object $p Payout.
 	 * @return string
 	 */
 	public static function snapshot_method( $p ) {
 		$snap = json_decode( (string) ( isset( $p->profile_snapshot ) ? $p->profile_snapshot : '' ), true );
-		return is_array( $snap ) && isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? ProfileRepository::METHOD_MANUAL : ProfileRepository::METHOD_SEPA;
+		$m    = is_array( $snap ) && isset( $snap['payout_method'] ) ? (string) $snap['payout_method'] : '';
+		return in_array( $m, array( ProfileRepository::METHOD_MANUAL, ProfileRepository::METHOD_BANK ), true ) ? $m : ProfileRepository::METHOD_SEPA;
 	}
 
 	/**
@@ -1452,14 +1454,23 @@ final class PayoutService {
 								throw new IntegrationException( 'details', esc_html( sprintf( __( 'Payment details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
 							}
 							$holder = '' !== trim( (string) $profile->account_holder ) ? (string) $profile->account_holder : (string) $profile->legal_name;
-							$rows[] = array( $p->number, $holder, '', '', Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_MANUAL, str_replace( array( "\r\n", "\r", "\n" ), ' / ', $details ) );
+							$rows[] = array( $p->number, $holder, '', '', Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_MANUAL, str_replace( array( "\r\n", "\r", "\n" ), ' / ', $details ), '', '', '', '' );
+						} elseif ( ProfileRepository::METHOD_BANK === ProfileRepository::method( $profile ) ) {
+							// Bank transfer outside SEPA (SET-AC-30): account number, bank code, bank name and
+							// country in their own columns, BIC/SWIFT in the BIC column; paid manually.
+							$bank = ProfileRepository::bank_details( $profile );
+							if ( null === $bank || '' === $bank['account_number'] ) {
+								/* translators: %s: payout number */
+								throw new IntegrationException( 'iban', esc_html( sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
+							}
+							$rows[] = array( $p->number, (string) $profile->account_holder, '', (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_BANK, '', $bank['account_number'], $bank['bank_code'], $bank['bank_name'], $bank['bank_country'] );
 						} else {
 							$iban = ProfileRepository::iban( $profile );
 							if ( ! $iban ) {
 								/* translators: %s: payout number */
 								throw new IntegrationException( 'iban', esc_html( sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
 							}
-							$rows[] = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_SEPA, '' );
+							$rows[] = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_SEPA, '', '', '', '', '' );
 						}
 						$used[ (int) $p->id ] = $p->status;
 					}
@@ -1545,8 +1556,9 @@ final class PayoutService {
 							throw new IntegrationException( 'reexport', esc_html( sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$profile = ProfileRepository::get( (int) $p->affiliate_id );
-						if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
-							// Paid by another method (transfer list, then "mark as paid"): never in the SEPA file.
+						if ( ProfileRepository::METHOD_SEPA !== ProfileRepository::method( $profile ) ) {
+							// Paid by another method or by a bank transfer outside SEPA (transfer list, then
+							// "mark as paid"): never in the SEPA file.
 							++$manual;
 							continue;
 						}
@@ -1576,7 +1588,7 @@ final class PayoutService {
 						throw new IntegrationException(
 							'empty',
 							$manual
-								? esc_html__( 'The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.', 'affiliate-captain' )
+								? esc_html__( 'The selected payouts use another payment method (e.g. PayPal or a bank transfer outside SEPA) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.', 'affiliate-captain' )
 								: esc_html__( 'No exportable payouts selected.', 'affiliate-captain' )
 						);
 					}
@@ -1721,7 +1733,7 @@ final class PayoutService {
 	 * as long as there are any). An unknown status or method gives an empty list, as documented
 	 * in contract 1.3.0 (no WP_Error: callers expect an array).
 	 *
-	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual), affiliate_id, after_id, limit (1–200, default 50).
+	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual|bank), affiliate_id, after_id, limit (1–200, default 50).
 	 * @return array[] Payouts as contract_view(), oldest first.
 	 */
 	public static function contract_list( array $args = array() ) {
@@ -1743,14 +1755,18 @@ final class PayoutService {
 		}
 		$method = isset( $args['method'] ) ? sanitize_key( (string) $args['method'] ) : '';
 		if ( '' !== $method ) {
-			if ( ! in_array( $method, array( ProfileRepository::METHOD_SEPA, ProfileRepository::METHOD_MANUAL ), true ) ) {
+			if ( ! in_array( $method, array( ProfileRepository::METHOD_SEPA, ProfileRepository::METHOD_MANUAL, ProfileRepository::METHOD_BANK ), true ) ) {
 				return array();
 			}
 			// Pre-filter on the snapshot (JSON written by wp_json_encode()); snapshot_method()
 			// below stays the rule, so a row the pattern lets through by mistake is dropped.
-			$pattern  = '%' . $wpdb->esc_like( '"payout_method":"' . ProfileRepository::METHOD_MANUAL . '"' ) . '%';
-			$where[]  = ProfileRepository::METHOD_MANUAL === $method ? 'profile_snapshot LIKE %s' : '( profile_snapshot IS NULL OR profile_snapshot NOT LIKE %s )';
-			$params[] = $pattern;
+			if ( ProfileRepository::METHOD_SEPA === $method ) {
+				$where[] = '( profile_snapshot IS NULL OR ( profile_snapshot NOT LIKE %s AND profile_snapshot NOT LIKE %s ) )';
+				array_push( $params, '%' . $wpdb->esc_like( '"payout_method":"' . ProfileRepository::METHOD_MANUAL . '"' ) . '%', '%' . $wpdb->esc_like( '"payout_method":"' . ProfileRepository::METHOD_BANK . '"' ) . '%' );
+			} else {
+				$where[]  = 'profile_snapshot LIKE %s';
+				$params[] = '%' . $wpdb->esc_like( '"payout_method":"' . $method . '"' ) . '%';
+			}
 		}
 		$limit = isset( $args['limit'] ) ? max( 1, min( 200, (int) $args['limit'] ) ) : 50;
 		$after = isset( $args['after_id'] ) ? max( 0, (int) $args['after_id'] ) : 0;

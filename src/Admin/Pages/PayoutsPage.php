@@ -393,6 +393,11 @@ final class PayoutsPage {
 			__( 'Reference', 'affiliate-captain' ),
 			__( 'Payout method', 'affiliate-captain' ),
 			__( 'Payment details', 'affiliate-captain' ),
+			// Bank transfer outside SEPA (since plugin 0.21.0); the BIC column holds the BIC/SWIFT code.
+			__( 'Account number', 'affiliate-captain' ),
+			__( 'Bank code / sort code / routing number', 'affiliate-captain' ),
+			__( 'Bank name', 'affiliate-captain' ),
+			__( 'Bank country', 'affiliate-captain' ),
 		);
 	}
 
@@ -407,6 +412,7 @@ final class PayoutsPage {
 		$methods = ProfileRepository::method_labels();
 		$short   = array(
 			ProfileRepository::METHOD_SEPA   => __( 'Bank transfer', 'affiliate-captain' ),
+			ProfileRepository::METHOD_BANK   => __( 'Bank transfer (non-SEPA)', 'affiliate-captain' ),
 			ProfileRepository::METHOD_MANUAL => __( 'Other payment method', 'affiliate-captain' ),
 		);
 		foreach ( $rows as $i => $row ) {
@@ -1033,6 +1039,8 @@ final class PayoutsPage {
 		}
 		if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ) {
 			echo esc_html__( 'Payment method', 'affiliate-captain' ) . ': ' . esc_html__( 'Other payment method (paid manually)', 'affiliate-captain' ) . '</p></div></div>';
+		} elseif ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_BANK === $snap['payout_method'] ) {
+			echo esc_html__( 'Bank account (non-SEPA)', 'affiliate-captain' ) . ': ' . esc_html( ! empty( $snap['account_masked'] ) ? $snap['account_masked'] : '—' ) . '</p></div></div>';
 		} else {
 			echo esc_html__( 'Bank account', 'affiliate-captain' ) . ': ' . esc_html( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) . '</p></div></div>';
 		}
