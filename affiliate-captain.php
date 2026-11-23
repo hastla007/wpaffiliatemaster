@@ -3,7 +3,7 @@
  * Plugin Name:       Affiliate Captain
  * Plugin URI:        https://github.com/hastla007/wpaffiliatemaster
  * Description:       Your own partner program in WordPress: affiliate applications, partner codes and referral links, attribution, commission ledger with refund corrections, payouts with SEPA export and an affiliate portal.
- * Version:           0.20.1
+ * Version:           0.20.0
  * Requires at least: 7.0
  * Requires PHP:      8.5
  * Author:            Affiliate Captain
@@ -57,7 +57,7 @@ if ( defined( 'WPAC_VERSION' ) ) {
 	return;
 }
 
-define( 'WPAC_VERSION', '0.20.1' );
+define( 'WPAC_VERSION', '0.20.0' );
 define( 'WPAC_DB_VERSION', 16 );
 /** Version of the public integration contract (hooks + payload schema). */
 define( 'WPAC_CONTRACT_VERSION', '1.8.0' );
