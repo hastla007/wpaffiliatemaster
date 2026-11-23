@@ -87,7 +87,7 @@ Set both **before** the first partner enters bank details and the first credit n
 | Fraud & abuse | fraud rules, rate limit, trusted proxies (Cloudflare/reverse proxy IP ranges) |
 | Commissions | program currency (changing it converts the minimum payout, review limit and a fixed default rate – with an exchange rate between the two currencies if one is entered; fixed rules and bonus tiers must be adjusted by hand), exchange rates for reports, default rate, rule precedence, lifetime commissions, subscription renewals, hold period |
 | Promotion | landing page path, disclosure note, visible disclosure label in the banner embed code, promotion guidelines |
-| Payouts & credit notes | minimum payout, payout requests, other payment method (on/off); your country, address, VAT ID/tax number; self-billing, VAT rate, number prefixes; VIES check; company bank account for SEPA |
+| Payouts & credit notes | minimum payout, payout requests, other payment method (on/off); your country, address, VAT ID/tax number; self-billing, VAT rate, number prefixes, start numbers and digits of the document numbers; VIES check; company bank account for SEPA |
 | Data & maintenance | all retention periods (visits, rejected applications, audit log, statements, legal hold), maintenance mode, monitoring token, data deletion on uninstall, record of processing activities |
 
 **Server cron.** Commissions are released, retries run and old data is deleted by scheduled tasks (hourly and daily). On sites with few visits or with `DISABLE_WP_CRON`, set up a system cron:
@@ -298,6 +298,13 @@ With **self-billing** (Settings → Payouts & credit notes, on by default) the p
 | private person | no VAT |
 
 Commission rates are net amounts. Legal references on the documents follow your country (German, Austrian or Swiss law for DE, AT, CH; the EU VAT Directive for other countries, whose credit notes are titled "Credit note (self-billing)"). For reverse charge your own VAT ID is required. Outside DACH or if self-billing is not agreed, switch self-billing off – the plugin then creates payout statements and partners send you invoices. The treatment can be adjusted with the filter `wpac_vat_treatment`.
+
+**Document numbers (start number and digits).** Credit notes (`GS`), cancellations (`ST`) and correction credit notes (`KG`) each have their own number range: `Prefix-Year-000001`, gapless and unique per year. Under Settings → Payouts & credit notes → *Document numbers* you can set per range (from plugin 0.21.0):
+
+- **Start number** – the next document of the current year gets this number (e.g. after moving from another system that already issued `GS-2026-000437`: enter 438). It can only be raised: a value at or below the highest number already issued this year is refused with a message naming that number. Raising skips the numbers in between; the audit log records each raise (`sequence.start_raised` with range, year, highest number before, start and the count of skipped numbers) as the explanation of the gap. The field shows the next number. Each new year starts again at 1 – the start number only moves the counter of the year in which you save it.
+- **Digits** – 4 to 10 (default 6 = `000001`). A number with more digits than set is written in full, never cut. Applies to new documents only; best changed at the turn of the year so a year's numbers look alike.
+
+Documents already issued never change their number. The counter row stays locked while a document is stored, and a raise of the start number waits for it (and vice versa), so even at the same moment no number is used twice. The year in the number and the restart per year are fixed until a legal review (marked "Check legally" at the fields); the start numbers and digits are not reset with "Reset tab", and an import or `wp wpac setting set` goes through the same check.
 
 **VAT by the time of the service.** The VAT treatment of each commission follows the tax data and the VAT rate valid when the commission was earned (for corrections: of the original commission), not the day of the payout. Every change of a partner's tax status, country or VAT ID and every change of the VAT rate keeps the previous values with the time until which they applied. A credit note can therefore show lines with different treatments (e.g. December as small business without VAT, January with 19 %); each treatment gets its own note. Corrections of earlier credit notes keep the treatment of the original credit note.
 

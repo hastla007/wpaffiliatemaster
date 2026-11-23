@@ -280,6 +280,26 @@ final class Settings {
 			// The VAT of a credit note follows the rate valid at the time of the service: keep the old rate.
 			\WPAffiliateCaptain\Payouts\TaxHistory::record_rate( (string) self::get( 'vat_rate' ), (string) $values['vat_rate'] );
 		}
+		// SET-AC-15: a new start number moves the counter of the current year up (never down) before
+		// the setting is stored; if that fails, nothing is stored.
+		$raised = array();
+		foreach ( Sequence::RANGES as $range ) {
+			$k = $range . '_start';
+			if ( ! array_key_exists( $k, $values ) || (int) $values[ $k ] === (int) self::get( $k ) ) {
+				continue;
+			}
+			$year   = (int) wp_date( 'Y' );
+			$before = Sequence::raise( $range, $year, (int) $values[ $k ] );
+			if ( false === $before ) {
+				return false;
+			}
+			$raised[ $range ] = array(
+				'year'    => $year,
+				'highest' => $before,
+				'start'   => (int) $values[ $k ],
+				'skipped' => max( 0, (int) $values[ $k ] - 1 - $before ),
+			);
+		}
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 		// A failed write leaves the cached (old) value in place, so reading back detects it.
@@ -292,6 +312,10 @@ final class Settings {
 				Log::error( 'Settings could not be saved', array( 'key' => (string) $key ) );
 				return false;
 			}
+		}
+		foreach ( $raised as $range => $info ) {
+			// Documents the numbers skipped by a raised start number (explains the gap).
+			Audit::log( 'sequence.start_raised', 'sequence', 0, array_merge( array( 'range' => $range ), $info ) );
 		}
 		return true;
 	}
@@ -845,6 +869,25 @@ final class Settings {
 			}
 			foreach ( $prefix_keys as $k ) {
 				$out[ $k ] = (string) $old( $k ); // Keep the stored prefixes.
+			}
+		}
+		// SET-AC-15: a changed start number must lie above the highest number issued this year
+		// (it can only be raised; issued numbers are never used twice). Unchanged: nothing to check.
+		foreach ( Sequence::RANGES as $range ) {
+			$k = $range . '_start';
+			if ( ! isset( $in[ $k ] ) || isset( $errors[ $k ] ) || (int) $out[ $k ] === (int) $old( $k ) ) {
+				continue;
+			}
+			$year    = (int) wp_date( 'Y' );
+			$highest = Sequence::current( $range, $year );
+			if ( (int) $out[ $k ] <= $highest ) {
+				$errors[ $k ] = sprintf(
+					/* translators: 1: highest number issued so far (e.g. GS-2026-000437), 2: smallest allowed start number */
+					__( 'The start number can only be raised: the numbers up to %1$s are already issued or skipped, so please enter at least %2$d.', 'affiliate-captain' ),
+					Sequence::format( (string) $old( $range . '_prefix' ), $year, $highest, (int) $old( $range . '_digits' ) ),
+					$highest + 1
+				);
+				$out[ $k ]    = (int) $old( $k );
 			}
 		}
 		$out['remittance_prefix'] = isset( $in['remittance_prefix'] ) ? sanitize_text_field( (string) $in['remittance_prefix'] ) : $d['remittance_prefix'];
