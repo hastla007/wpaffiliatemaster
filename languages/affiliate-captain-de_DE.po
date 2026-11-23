@@ -3256,6 +3256,9 @@ msgstr "Stufenplan deaktiviert."
 msgid "This month cannot be closed yet: it must have ended and its hold period must have passed."
 msgstr "Dieser Monat kann noch nicht abgeschlossen werden: Er muss vorbei und seine Haltefrist abgelaufen sein."
 
+msgid "This month is skipped: monthly tiers were switched off during it, so no bonus is booked for it."
+msgstr "Dieser Monat wird übersprungen: Die Monatsstufen waren in diesem Monat ausgeschaltet, daher wird für ihn kein Bonus gebucht."
+
 msgid "%1$d monthly bonuses booked for %2$s."
 msgstr "%1$d Monatsboni für %2$s gebucht."
 
@@ -5912,14 +5915,14 @@ msgstr "Aus: Der Menüpunkt Werbemittel und der Reiter Werbemittel im Partnerber
 msgid "Partner landing pages (short links /partner/name/)"
 msgstr "Partner-Landingpages (Kurzlinks /partner/name/)"
 
-msgid "Off: short links of partners no longer redirect (the address is treated like any other address of the site), the short link disappears from the partner area and [wpac_partner_welcome] shows nothing. Partner links with the code keep working."
-msgstr "Aus: Kurzlinks der Partner leiten nicht mehr weiter (die Adresse wird wie jede andere Adresse der Website behandelt), der Kurzlink verschwindet aus dem Partnerbereich und [wpac_partner_welcome] zeigt nichts an. Partnerlinks mit dem Code funktionieren weiter."
+msgid "Off: short links of active partners lead to the home page with the partner code (tracked like a partner link), the short link disappears from the partner area and [wpac_partner_welcome] shows nothing. Partner links with the code keep working."
+msgstr "Aus: Kurzlinks aktiver Partner führen mit dem Partnercode auf die Startseite (Zuordnung wie bei einem Partnerlink), der Kurzlink verschwindet aus dem Partnerbereich und [wpac_partner_welcome] zeigt nichts an. Partnerlinks mit dem Code funktionieren weiter."
 
 msgid "Monthly tiers (bonus steps)"
 msgstr "Monatsstufen (Bonusstufen)"
 
-msgid "Off: the tab Monthly tiers and the bonus details in the partner area disappear, and no monthly bonuses or bonus corrections are booked. Tier plans and booked bonuses stay; months not yet closed are closed when you switch this on again."
-msgstr "Aus: Der Reiter Monatsstufen und die Bonusangaben im Partnerbereich verschwinden, und es werden keine Monatsboni und keine Bonuskorrekturen gebucht. Stufenpläne und gebuchte Boni bleiben; noch nicht abgeschlossene Monate werden abgeschlossen, wenn du dies wieder einschaltest."
+msgid "Off: the tab Monthly tiers and the bonus details in the partner area disappear, and no monthly bonuses or bonus corrections are booked. Tier plans and booked bonuses stay. Months during which this was off are skipped for good (no bonus, no correction), also after you switch this on again."
+msgstr "Aus: Der Reiter Monatsstufen und die Bonusangaben im Partnerbereich verschwinden, und es werden keine Monatsboni und keine Bonuskorrekturen gebucht. Stufenpläne und gebuchte Boni bleiben. Monate, in denen dies aus war, werden endgültig übersprungen (kein Bonus, keine Korrektur), auch nachdem du dies wieder einschaltest."
 
 msgid "QR codes in the partner area"
 msgstr "QR-Codes im Partnerbereich"

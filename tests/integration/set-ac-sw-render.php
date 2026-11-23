@@ -73,6 +73,7 @@ $swr_r2 = r_render( array( RulesPage::class, 'render' ) );
 $_GET   = array( 'page' => 'wpac-rules', 'tab' => 'tiers' );
 $swr_r3 = r_render( array( RulesPage::class, 'render' ) );
 $swr_set( array( 'feature_tiers' => 1 ) );
+delete_option( WPAffiliateCaptain\Commissions\TierService::OFF_PERIODS );
 check( 'SET-AC-26 tiers: tab Monthly tiers only while on (a direct link shows the rules)', array( true, false, false, array(), '' ), array( false !== strpos( $swr_r1[0], 'Monthly tiers' ), false !== strpos( $swr_r2[0], 'Monthly tiers' ), false !== strpos( $swr_r3[0], 'Add tier plan' ), $swr_r3[1], $swr_r3[2] ) );
 
 $_GET   = array( 'page' => 'wpac-affiliates' );

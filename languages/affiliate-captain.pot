@@ -4301,6 +4301,10 @@ msgstr ""
 msgid "This month cannot be closed yet: it must have ended and its hold period must have passed."
 msgstr ""
 
+#: src/Admin/Pages/RulesPage.php
+msgid "This month is skipped: monthly tiers were switched off during it, so no bonus is booked for it."
+msgstr ""
+
 #. translators: 1: count, 2: month
 #: src/Admin/Pages/RulesPage.php
 msgid "%1$d monthly bonuses booked for %2$s."
@@ -8178,7 +8182,7 @@ msgid "Partner landing pages (short links /partner/name/)"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Off: short links of partners no longer redirect (the address is treated like any other address of the site), the short link disappears from the partner area and [wpac_partner_welcome] shows nothing. Partner links with the code keep working."
+msgid "Off: short links of active partners lead to the home page with the partner code (tracked like a partner link), the short link disappears from the partner area and [wpac_partner_welcome] shows nothing. Partner links with the code keep working."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -8186,7 +8190,7 @@ msgid "Monthly tiers (bonus steps)"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Off: the tab Monthly tiers and the bonus details in the partner area disappear, and no monthly bonuses or bonus corrections are booked. Tier plans and booked bonuses stay; months not yet closed are closed when you switch this on again."
+msgid "Off: the tab Monthly tiers and the bonus details in the partner area disappear, and no monthly bonuses or bonus corrections are booked. Tier plans and booked bonuses stay. Months during which this was off are skipped for good (no bonus, no correction), also after you switch this on again."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
