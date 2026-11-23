@@ -3131,7 +3131,6 @@
  "Refund rate: minimum number of orders": "Erstattungsquote: Mindestzahl an Bestellungen",
  "The refund rule only applies to partners with at least this many orders in the period (at least 1).": "Die Erstattungsregel gilt nur für Partner mit mindestens so vielen Bestellungen im Zeitraum (mindestens 1).",
  "Privacy requests per partner and day": "Datenschutzanfragen je Partner und Tag",
- "Limit for requests from the partner area (data access, erasure, objection) per partner and day (at least 1).": "Grenze für Anfragen aus dem Partnerbereich (Auskunft, Löschung, Widerspruch) je Partner und Tag (mindestens 1).",
  "Remind partners of new terms at most every (days)": "An neue Bedingungen höchstens erinnern alle (Tage)",
  "Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day).": "Mindestabstand zwischen zwei Erinnerungsmails zu neuen Programmbedingungen an denselben Partner (mindestens 1 Tag).",
  "Payouts claimed by a payment add-on can be cancelled after (days)": "Von einem Zahlungs-Add-on übernommene Auszahlungen sind stornierbar nach (Tagen)",
@@ -3210,5 +3209,6 @@
  "after our review (at the earliest %s)": "nach unserer Prüfung (frühestens %s)",
  "applications whose e-mail address was not confirmed: %s": "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: %s",
  "Check legally": "Rechtlich prüfen",
- "Change bank details, notification address or protection settings": "Bankdaten, Benachrichtigungsadresse oder Schutzeinstellungen ändern"
+ "Change bank details, notification address or protection settings": "Bankdaten, Benachrichtigungsadresse oder Schutzeinstellungen ändern",
+ "Limit for requests from the partner area per partner and day (at least 1): privacy requests (access, erasure, restriction, objection) and, counted separately, objections to a credit note. A request that could not be sent does not count.": "Grenze für Anfragen aus dem Partnerbereich je Partner und Tag (mindestens 1): Datenschutzanfragen (Auskunft, Löschung, Einschränkung, Widerspruch) und, getrennt gezählt, Widersprüche gegen eine Gutschrift. Eine Anfrage, die nicht gesendet werden konnte, zählt nicht."
 }

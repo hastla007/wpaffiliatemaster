@@ -243,6 +243,7 @@ final class Settings {
 	/**
 	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
 	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
+	 * @deprecated 0.20.0 Read the limits from SettingsSchema::int_max() (the register); kept for add-ons, a test keeps both equal.
 	 */
 	const INT_MAX = array(
 		'audit_retention_days'       => 36500,

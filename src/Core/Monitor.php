@@ -527,7 +527,6 @@ final class Monitor {
 				'auto_approve'       => $yes( $s['auto_approve'] ),
 				'self_billing'       => $yes( $s['self_billing'] ),
 				'vies_check'         => $yes( $s['vies_check'] ),
-				'payout_period'      => (string) $s['payout_period'],
 				'payout_requests'    => $yes( $s['payout_requests'] ),
 				'retention_years'    => (string) \WPAffiliateCaptain\Privacy\Retention::years() . ( \WPAffiliateCaptain\Privacy\Retention::on_hold() ? ' (hold)' : '' ),
 				'maintenance_mode'   => $yes( $s['maintenance_mode'] ),

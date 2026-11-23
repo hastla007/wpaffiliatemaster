@@ -159,6 +159,25 @@ $rv_k3 = \WPAffiliateCaptain\Admin\Reauth::action_key( 'settings_save' );
 $_POST = $rv_post;
 check( 'P4-01 sensitive change → settings_sensitive (required); unchanged IBAN in another spelling → settings_save', array( 'settings_sensitive', 'settings_save', 'settings_sensitive', true ), array( $rv_k1, $rv_k2, $rv_k3, \WPAffiliateCaptain\Admin\Reauth::required( 'settings_sensitive' ) ) );
 
+// P4-03: the role table never grants a permission the user does not hold.
+$rv_caps = $GLOBALS['test_caps'] ?? null;
+$GLOBALS['test_caps'] = array( 'promote_users', 'wpac_manage_program', 'wpac_manage_affiliates' );
+$rv_rr = \WPAffiliateCaptain\Admin\Pages\SettingsPage::role_request( array( 'editor' => array( 'wpac_manage_affiliates' => '1', 'wpac_manage_payouts' => '1' ) ) );
+if ( null === $rv_caps ) {
+	unset( $GLOBALS['test_caps'] );
+} else {
+	$GLOBALS['test_caps'] = $rv_caps;
+}
+check( 'P4-03 role table: own permission may be granted, a missing one (payouts) not', array( true, false ), array( ! empty( $rv_rr['editor']['wpac_manage_affiliates'] ), isset( $rv_rr['editor']['wpac_manage_payouts'] ) ) );
+
+// P2-06: the rejection note counts from the rejection, not from the request.
+global $wpdb;
+$wpdb->insert( \WPAffiliateCaptain\Core\Db::table( 'payout_requests' ), array( 'affiliate_id' => $rv_aff, 'currency' => 'EUR', 'amount_minor' => 1000, 'status' => 'rejected', 'note' => 'Zu früh', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 61 * DAY_IN_SECONDS ), 'processed_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$rv_lr = \WPAffiliateCaptain\Payouts\PayoutRequests::last_rejected( $rv_aff );
+check( 'P2-06 a request from 61 days ago rejected today still shows its reason', 'Zu früh', $rv_lr ? (string) $rv_lr->note : '' );
+// P1-08: the support report no longer lists the former setting payout_period.
+check( 'P1-08 support report without payout_period', false, false !== strpos( (string) file_get_contents( WPAC_DIR . 'src/Core/Monitor.php' ), "'payout_period'" ) );
+
 update_option( 'wpac_settings', $rv_saved );
 Settings::flush_cache();
 SettingsSchema::flush();

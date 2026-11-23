@@ -204,6 +204,35 @@ final class SettingsPage {
 	}
 
 	/**
+	 * The permission changes a user may make from the posted role table (P4-03): only roles the user
+	 * may edit, the own roles only with manage_options, and no permission the user does not hold.
+	 *
+	 * @param array $posted role => cap => "1".
+	 * @return array role => cap => bool
+	 */
+	public static function role_request( array $posted ) {
+		$wanted = array();
+		// Only roles the user may edit, never the own roles without manage_options, and no permission
+		// the user does not hold (P4-03: no self-promotion through this table).
+		$editable = function_exists( 'get_editable_roles' ) ? array_keys( (array) get_editable_roles() ) : array();
+		$me       = wp_get_current_user();
+		$own      = isset( $me->roles ) ? (array) $me->roles : array();
+		foreach ( \WPAffiliateCaptain\Core\Capabilities::role_matrix() as $role => $row ) {
+			if ( ( $editable && ! in_array( $role, $editable, true ) ) || ( in_array( $role, $own, true ) && ! current_user_can( 'manage_options' ) ) ) {
+				continue;
+			}
+			foreach ( \WPAffiliateCaptain\Core\Capabilities::all() as $cap ) {
+				$grant = ! empty( $posted[ $role ][ $cap ] );
+				if ( $grant && ! current_user_can( $cap ) ) {
+					continue;
+				}
+				$wanted[ $role ][ $cap ] = $grant;
+			}
+		}
+		return $wanted;
+	}
+
+	/**
 	 * Save the role table (SET-AC-21). Needs the WordPress right to change user roles as well.
 	 */
 	private static function handle_roles() {
@@ -211,13 +240,7 @@ final class SettingsPage {
 		if ( ! current_user_can( 'promote_users' ) ) {
 			Admin::back( __( 'Only users who may change user roles can change these permissions.', 'affiliate-captain' ), 'error', $url );
 		}
-		$posted = (array) Admin::post( 'wpac_roles', array() );
-		$wanted = array();
-		foreach ( \WPAffiliateCaptain\Core\Capabilities::role_matrix() as $role => $row ) {
-			foreach ( \WPAffiliateCaptain\Core\Capabilities::all() as $cap ) {
-				$wanted[ $role ][ $cap ] = ! empty( $posted[ $role ][ $cap ] );
-			}
-		}
+		$wanted  = self::role_request( (array) Admin::post( 'wpac_roles', array() ) );
 		$changes = \WPAffiliateCaptain\Core\Capabilities::set_role_caps( $wanted );
 		if ( $changes ) {
 			Audit::log(
@@ -983,7 +1006,7 @@ final class SettingsPage {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		// The checkbox is named by its full label (screen readers announce what is switched on).
 		$described = '' !== trim( (string) $desc ) ? ' aria-describedby="wpac-desc-' . esc_attr( $key ) . '"' : '';
-		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $described ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $described is escaped.
+		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) === $label ? '' : self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $described ); // P5-06: the row title only when it is shorter than the label. // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $described is escaped.
 		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}

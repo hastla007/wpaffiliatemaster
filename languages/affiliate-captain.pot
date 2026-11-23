@@ -8165,7 +8165,7 @@ msgid "Privacy requests per partner and day"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Limit for requests from the partner area (data access, erasure, objection) per partner and day (at least 1)."
+msgid "Limit for requests from the partner area per partner and day (at least 1): privacy requests (access, erasure, restriction, objection) and, counted separately, objections to a credit note. A request that could not be sent does not count."
 msgstr ""
 
 #: src/Core/SettingsSchema.php

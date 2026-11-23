@@ -276,7 +276,9 @@ final class PayoutRequests {
 		$t = Db::table( 'payout_requests' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$r = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE affiliate_id = %d ORDER BY id DESC LIMIT 1", $affiliate_id ) );
-		return $r && 'rejected' === $r->status && '' !== (string) $r->note && strtotime( $r->created_at . ' UTC' ) > time() - (int) \WPAffiliateCaptain\Core\Settings::get( 'payout_request_note_days' ) * DAY_IN_SECONDS ? $r : null;
+		// The period starts with the rejection, not with the request (P2-06).
+		$at = $r && ! empty( $r->processed_at ) && '0000-00-00 00:00:00' !== (string) $r->processed_at ? (string) $r->processed_at : ( $r ? (string) $r->created_at : '' );
+		return $r && 'rejected' === $r->status && '' !== (string) $r->note && strtotime( $at . ' UTC' ) > time() - (int) \WPAffiliateCaptain\Core\Settings::get( 'payout_request_note_days' ) * DAY_IN_SECONDS ? $r : null;
 	}
 
 	/**

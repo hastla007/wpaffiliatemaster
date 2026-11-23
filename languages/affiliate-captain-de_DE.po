@@ -5921,8 +5921,8 @@ msgstr "Die Erstattungsregel gilt nur für Partner mit mindestens so vielen Best
 msgid "Privacy requests per partner and day"
 msgstr "Datenschutzanfragen je Partner und Tag"
 
-msgid "Limit for requests from the partner area (data access, erasure, objection) per partner and day (at least 1)."
-msgstr "Grenze für Anfragen aus dem Partnerbereich (Auskunft, Löschung, Widerspruch) je Partner und Tag (mindestens 1)."
+msgid "Limit for requests from the partner area per partner and day (at least 1): privacy requests (access, erasure, restriction, objection) and, counted separately, objections to a credit note. A request that could not be sent does not count."
+msgstr "Grenze für Anfragen aus dem Partnerbereich je Partner und Tag (mindestens 1): Datenschutzanfragen (Auskunft, Löschung, Einschränkung, Widerspruch) und, getrennt gezählt, Widersprüche gegen eine Gutschrift. Eine Anfrage, die nicht gesendet werden konnte, zählt nicht."
 
 msgid "Remind partners of new terms at most every (days)"
 msgstr "An neue Bedingungen höchstens erinnern alle (Tage)"
