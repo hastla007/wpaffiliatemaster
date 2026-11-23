@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- Two-plugin test Affiliate Captain + Form Captain (see README.md in this folder). -->
+<phpunit bootstrap="bootstrap.php" colors="true" convertDeprecationsToExceptions="true" beStrictAboutOutputDuringTests="false">
+	<php>
+		<env name="WP_TESTS_DB_NAME" value="wpac_fc_tests" force="false"/>
+	</php>
+	<testsuites>
+		<testsuite name="form-captain">
+			<directory suffix="Test.php">.</directory>
+		</testsuite>
+	</testsuites>
+</phpunit>

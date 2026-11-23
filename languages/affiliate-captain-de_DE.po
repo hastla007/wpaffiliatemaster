@@ -5551,6 +5551,36 @@ msgstr "Australien"
 msgid "New Zealand"
 msgstr "Neuseeland"
 
+msgid "Affiliate Captain needs a published registration page (Affiliate Captain → Settings): applicants confirm their e-mail address there."
+msgstr "Affiliate Captain braucht eine veröffentlichte Bewerbungsseite (Affiliate Captain → Einstellungen): Dort bestätigen Bewerber ihre E-Mail-Adresse."
+
+msgid "Applications are created in Affiliate Captain with status \"pending\" after the applicant confirmed the e-mail address. Approval stays in Affiliate Captain."
+msgstr "Bewerbungen werden in Affiliate Captain mit dem Status „Ausstehend“ angelegt, nachdem die Bewerberin oder der Bewerber die E-Mail-Adresse bestätigt hat. Die Freigabe bleibt in Affiliate Captain."
+
+msgid "Partner application to Affiliate Captain"
+msgstr "Partnerbewerbung an Affiliate Captain"
+
+msgid "Partner group (ID, 0 = none). Public groups: %s"
+msgstr "Partnergruppe (ID, 0 = keine). Öffentliche Gruppen: %s"
+
+msgid "none"
+msgstr "keine"
+
+msgid "Version of the partner program terms shown in the form (current version in Affiliate Captain: %s)"
+msgstr "Version der im Formular gezeigten Teilnahmebedingungen (aktuelle Version in Affiliate Captain: %s)"
+
+msgid "Name or company"
+msgstr "Name oder Firma"
+
+msgid "Message"
+msgstr "Nachricht"
+
+msgid "Consent to the partner program terms"
+msgstr "Zustimmung zu den Teilnahmebedingungen"
+
+msgid "Referring partner code"
+msgstr "Partnercode des Werbers"
+
 msgid "Your partner discount (coupon %s) was applied automatically."
 msgstr "Ihr Partnerrabatt (Gutschein %s) wurde automatisch eingelöst."
 

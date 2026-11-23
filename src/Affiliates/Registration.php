@@ -364,7 +364,8 @@ final class Registration {
 	 * @return string HTML.
 	 */
 	private static function success_notice() {
-		$msg = Settings::get( 'auto_approve' )
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- wpac_review (Form Captain hand-over): message only.
+		$msg = Settings::get( 'auto_approve' ) && empty( $_GET['wpac_review'] )
 			? __( 'Thank you! Your partner account is active. Check your e-mail for login details.', 'affiliate-captain' )
 			: __( 'Thank you for your application! We will review it and get back to you by e-mail.', 'affiliate-captain' );
 		return '<div class="wpac-notice wpac-notice--success" role="status">' . esc_html( $msg ) . '</div>';
@@ -490,7 +491,9 @@ final class Registration {
 	 * @return int|\WP_Error
 	 */
 	private static function finalize( array $data ) {
-		$terms  = isset( $data['terms'] ) ? $data['terms'] : null;
+		$terms = isset( $data['terms'] ) ? $data['terms'] : null;
+		// Hand-overs from Form Captain (AFF-SU-01) always wait for a decision, also with auto_approve.
+		$status = Settings::get( 'auto_approve' ) && empty( $data['pending_only'] ) ? 'active' : 'pending';
 		$result = AffiliateRepository::create(
 			array(
 				'user_id'          => (int) $data['user_id'],
@@ -501,7 +504,7 @@ final class Registration {
 				'application_note' => $data['application_note'],
 				'application_data' => $data['application_data'],
 				'group_id'         => (int) $data['group_id'],
-				'status'           => Settings::get( 'auto_approve' ) ? 'active' : 'pending',
+				'status'           => $status,
 				// Checked again: the recruiter may have been paused since the application.
 				'referred_by'      => ! empty( $data['referred_by'] ) && self::recruiter_valid( (int) $data['referred_by'], (string) $data['email'], (int) $data['user_id'] ) ? (int) $data['referred_by'] : 0,
 			)
@@ -512,7 +515,10 @@ final class Registration {
 		if ( $terms ) {
 			Agreements::record( $result, 'accepted', $terms );
 		}
-		if ( ! Settings::get( 'auto_approve' ) ) {
+		if ( ! empty( $data['handover'] ) ) {
+			\WPAffiliateCaptain\Integrations\FormCaptain\Handover::confirmed( (string) $data['handover'], (int) $result );
+		}
+		if ( 'pending' === $status ) {
 			Notifications::application_received( $result );
 		} else {
 			// Approved right away: the partner gets the welcome mail with the portal link.

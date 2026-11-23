@@ -87,6 +87,7 @@ final class Plugin {
 		\WPAffiliateCaptain\Payouts\PayoutService::register_hooks(); // Credit notes of payout runs (job queue).
 		\WPAffiliateCaptain\Payouts\StatementSweep::register_hooks(); // Retention deletion on every app server (R6-CC5).
 		Privacy::register_hooks();
+		\WPAffiliateCaptain\Integrations\FormCaptain\FormCaptain::register_hooks(); // Optional Form Captain connector (AFF-SU-01).
 		\WPAffiliateCaptain\Cli\Command::register();
 		add_filter( 'site_status_tests', array( \WPAffiliateCaptain\Core\Monitor::class, 'site_status_tests' ) );
 		add_filter( 'debug_information', array( \WPAffiliateCaptain\Core\Monitor::class, 'debug_information' ) );

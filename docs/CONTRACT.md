@@ -534,6 +534,8 @@ Ein Formular-Builder brächte zusätzlich: weitere Feldtypen (Auswahl, Radio, Da
 
 **Empfehlung:** keine Form-Captain-Anbindung für die Partnerbewerbung, solange keine dieser Zusatzfunktionen konkret gebraucht wird. Eine zweite Registrierung würde Double-Opt-in, Bedingungsnachweis, Gruppenprüfung und Datenschutzpflichten doppeln und Bewerbungsdaten parallel speichern. Fehlen nur einzelne Feldtypen (Auswahl, Datum), ist ihre Ergänzung in `Groups::parse_fields()` kleiner als eine Anbindung. Erst bei Bedarf an Datei-Uploads, bedingter Logik oder CRM-Weitergabe die Schnittstelle unten umsetzen.
 
+**Entscheidung des Inhabers (16.11.2026): Die Anbindung wird gebaut** (`TODO.md`, AFF-SU-01; Form Captain P8-07). Sie liegt als optionaler Connector `affiliate_captain` in diesem Plugin (`src/Integrations/FormCaptain/`) und nutzt den eingebauten Ablauf: eigenes Double-Opt-in, Partner nur im Status `pending`, keine zweite Registrierung, keine zweite Kopie der Bewerbung. Am Vertrag dieses Kerns ändert sie nichts. Einrichtung, Zuordnung, Ergebnisse, Löschung und Tests: [`FORM-CAPTAIN.md`](FORM-CAPTAIN.md). Der Vorschlag unten (allgemeine Übergabe für fremde Formular-Plugins, AFF-SU-02) ist davon unabhängig und weiter nicht gebaut.
+
 ### Vorschlag (nicht implementiert): Formularübergabe
 
 Noch nicht Teil des Vertrags; die Inhaberin bzw. der Inhaber entscheidet.
