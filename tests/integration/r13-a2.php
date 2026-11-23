@@ -110,7 +110,7 @@ $b2_iid = (int) $b2_inc['commission_ids'][0];
 $GLOBALS['test_fired'] = array();
 $b2_r   = $b2_refund( 'b2-k4a', 'b2-k4a-r', 100000 );
 $b2_rej = array_values( array_filter( $GLOBALS['test_fired'], static function ( $f ) { return 'wpac_commission_rejected' === $f[0]; } ) );
-check( 'R13-K4 / contract 1.7.0: the rejected increase is reported with its previous status', array( array( $b2_iid, 'pending' ) ), array_map( static function ( $f ) { return $f[1]; }, $b2_rej ) );
+check( 'R13-K4 / contract 1.7.0: the rejected increase is reported with its previous status', array( array( $b2_iid, 'pending' ) ), array_map( static function ( $f ) { return array_slice( $f[1], 0, 2 ); }, $b2_rej ) );
 check( 'R13-K4 refund of 1,000 € on a line raised to 2,000 €: the open increase is rejected, paid money stays', array( array(), 'rejected', 10000, 0 ), array( $b2_r['adjustment_ids'], Ledger::find( $b2_iid )->status, $b2_sum( 'b2-k4a' ), Balance::get( $b2_i, 'EUR' ) - $b2_bal ) );
 check( 'R13-K4 the same refund reported again changes nothing', array( array(), 10000 ), array( $b2_refund( 'b2-k4a', 'b2-k4a-r', 100000 )['adjustment_ids'], $b2_sum( 'b2-k4a' ) ) );
 // (b) qa r2: refund of the whole raised line → only what was paid is reversed.
@@ -119,7 +119,7 @@ $b2_iid = (int) $b2_inc['commission_ids'][0];
 $GLOBALS['test_fired'] = array();
 $b2_r   = $b2_refund( 'b2-k4b', 'b2-k4b-r', 200000 );
 $b2_rej = array_values( array_filter( $GLOBALS['test_fired'], static function ( $f ) { return 'wpac_commission_rejected' === $f[0]; } ) );
-check( 'R13-K4 / contract 1.7.0: whole raised line refunded, the increase is reported as rejected from pending', array( array( $b2_iid, 'pending' ) ), array_map( static function ( $f ) { return $f[1]; }, $b2_rej ) );
+check( 'R13-K4 / contract 1.7.0: whole raised line refunded, the increase is reported as rejected from pending', array( array( $b2_iid, 'pending' ) ), array_map( static function ( $f ) { return array_slice( $f[1], 0, 2 ); }, $b2_rej ) );
 $b2_adj = $b2_r['adjustment_ids'] ? Ledger::find( (int) $b2_r['adjustment_ids'][0] ) : null;
 check( 'R13-K4 refund of the whole raised line: −100 € approved (never more than paid), increase rejected', array( -10000, 'approved', 'rejected', -10000 ), array( $b2_adj ? (int) $b2_adj->amount_minor : 0, $b2_adj ? $b2_adj->status : '', Ledger::find( $b2_iid )->status, Balance::get( $b2_i, 'EUR' ) - $b2_bal ) );
 Ledger::transition( $b2_iid, 'rejected', 'x' );

@@ -282,8 +282,11 @@ $wf8_args = static function ( $tag ) {
 };
 $wf8_rec = $wf8_args( 'wpac_affiliate_recruited' );
 $wf8_ap  = $wf8_args( 'wpac_code_request_approved' );
-$wf8_rv  = $wf8_args( 'wpac_commission_review' );
-$wf8_pe  = $wf8_args( 'wpac_commission_pending' );
+$wf8_two = static function ( $calls ) {
+	return array_map( static function ( $c ) { return array_slice( $c, 0, 2 ); }, $calls );
+};
+$wf8_rv  = $wf8_two( $wf8_args( 'wpac_commission_review' ) );
+$wf8_pe  = $wf8_two( $wf8_args( 'wpac_commission_pending' ) );
 check(
 	'WF8 P-4 argument order: recruited( partner, recruiter ), code_request_approved( partner, code, row, main ), review( id, old ), pending( id, old )',
 	array( array( $wf8_r, $wf8_a ), array( $wf8_b, 'wf8wunsch', (int) $wf8_q1 ), array( array( $wf8_c2, 'rejected' ) ), array( array( $wf8_c2, 'review' ) ) ),
@@ -294,7 +297,7 @@ check(
 $wf8_first_of = static function ( $calls, $id ) {
 	foreach ( $calls as $c ) {
 		if ( (int) $c[0] === (int) $id ) {
-			return $c;
+			return array_slice( $c, 0, 2 );
 		}
 	}
 	return array();
@@ -304,6 +307,23 @@ check(
 	array( array( $wf8_c1, $wf8_was[0] ), array( $wf8_c2, $wf8_was[1] ), array( $wf8_c1, 'approved' ) ),
 	array( $wf8_first_of( $wf8_args( 'wpac_commission_approved' ), $wf8_c1 ), $wf8_first_of( $wf8_args( 'wpac_commission_rejected' ), $wf8_c2 ), $wf8_first_of( $wf8_args( 'wpac_commission_paid' ), $wf8_c1 ) )
 );
+// AC-5 (spec R-7.9a, contract 1.10.0): the third parameter is the ID of the history entry
+// this very transition wrote (commission_events), unique per call – two transitions of the same
+// commission in the same second stay apart.
+$wf8_ev_bad = array();
+$wf8_ev_ids = array();
+foreach ( array( 'approved', 'rejected', 'paid', 'pending', 'review' ) as $wf8_st ) {
+	foreach ( $wf8_args( 'wpac_commission_' . $wf8_st ) as $wf8_c ) {
+		$wf8_row = isset( $wf8_c[2] ) && $wf8_c[2] > 0 ? $wpdb->get_row( $wpdb->prepare( 'SELECT commission_id, from_status, to_status FROM ' . t( 'commission_events' ) . ' WHERE id = %d', (int) $wf8_c[2] ) ) : null;
+		if ( ! $wf8_row || (int) $wf8_row->commission_id !== (int) $wf8_c[0] || $wf8_row->to_status !== $wf8_st || $wf8_row->from_status !== $wf8_c[1] ) {
+			$wf8_bad_id   = isset( $wf8_c[2] ) ? $wf8_c[2] : '-';
+			$wf8_ev_bad[] = $wf8_st . ' #' . $wf8_c[0] . ' -> ' . $wf8_bad_id;
+		}
+		$wf8_ev_ids[] = isset( $wf8_c[2] ) ? (int) $wf8_c[2] : 0;
+	}
+}
+check( 'WF8 AC-5 every status action names the history entry of exactly this transition (commission, from, to)', array(), $wf8_ev_bad );
+check( 'WF8 AC-5 the history entry IDs of the status actions are unique', count( $wf8_ev_ids ), count( array_unique( $wf8_ev_ids ) ) );
 
 /* ---------------------------------------------------------------------------------------------
  * P-5: after a rollback none of the actions after the COMMIT fires.
