@@ -80,7 +80,7 @@ $g8_keys = static function () use ( $wpdb, $g8_dt ) {
 $g8_k = $g8_keys();
 check(
 	'R14-D9 schema 15: visits_daily with unique (affiliate_id, day, campaign, sub_id) and a day index; listed in Db::TABLES',
-	array( 16, 16, true, array( 1 => 'affiliate_id', 2 => 'day', 3 => 'campaign', 4 => 'sub_id', 'unique' => true ), array( 1 => 'day', 'unique' => false ), 'date' ),
+	array( 17, 17, true, array( 1 => 'affiliate_id', 2 => 'day', 3 => 'campaign', 4 => 'sub_id', 'unique' => true ), array( 1 => 'day', 'unique' => false ), 'date' ),
 	array( Installer::DB_VERSION, WPAC_DB_VERSION, in_array( 'visits_daily', Db::TABLES, true ), isset( $g8_k['affiliate_day'] ) ? $g8_k['affiliate_day'] : null, isset( $g8_k['day'] ) ? $g8_k['day'] : null, strtolower( (string) $wpdb->get_var( "SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$g8_dt}' AND COLUMN_NAME = 'day'" ) ) )
 );
 q( "DROP TABLE {$g8_dt}" );
