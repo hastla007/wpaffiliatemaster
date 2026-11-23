@@ -150,7 +150,7 @@ check(
 );
 check( 'SET-AC-04 a other countries keep the former minimum (AT 7, CH 10, others 10) without a setting', array( 7, 10, 10, 10 ), array( Retention::minimum_years( 'AT', 0 ), Retention::minimum_years( 'CH', 0 ), Retention::minimum_years( 'FR', 0 ), Retention::minimum_years( 'US', 0 ) ) );
 
-// SET-AC-04 b: two amount fields, empty = no check; installations before 0.21.0 keep the § 19 check (DE, EUR).
+// SET-AC-04 b: two amount fields, empty = no check; installations up to and including 0.21.0 keep the § 19 check (DE, EUR).
 $cp_limits = null;
 add_filter( 'wpac_small_business_limits', static function ( $limits ) use ( &$cp_limits ) { $cp_limits = $limits; return $limits; }, 10, 1 );
 $cp_set( array( 'small_business_limit_previous' => '30000', 'small_business_limit_current' => '' ) );

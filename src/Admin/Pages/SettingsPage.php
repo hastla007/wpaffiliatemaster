@@ -71,6 +71,9 @@ final class SettingsPage {
 		$notices = array();
 		$clean   = Settings::sanitize( $raw, $errors, $notices );
 		$keys    = $tabs[ $tab ];
+		if ( in_array( 'payout_method_sepa', $keys, true ) ) {
+			Settings::keep_one_payout_method( $clean, $errors ); // Unchecked boxes are absent from POST.
+		}
 		if ( isset( $clean['currency'] ) && in_array( 'currency', $keys, true ) && (string) $clean['currency'] !== (string) Settings::get( 'currency' ) ) {
 			// A new program currency also converts the amounts of other tabs (R5-O2, R7-AD18).
 			$keys[]              = 'min_payout_minor';
@@ -1049,6 +1052,8 @@ final class SettingsPage {
 		self::select( 'payout_reminder', null, $s, array( 'off' => __( 'Off', 'affiliate-captain' ), 'monthly' => __( 'Monthly', 'affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'affiliate-captain' ) ), self::reminder_help() );
 		self::number( 'payout_reminder_day', null, $s );
 		self::checkbox( 'payout_requests', null, $s );
+		self::checkbox( 'payout_method_sepa', null, $s );
+		self::checkbox( 'payout_method_bank', null, $s );
 		self::checkbox( 'payout_method_manual', null, $s );
 		self::number( 'payout_request_note_days', null, $s );
 		self::number( 'claim_cancel_days', null, $s );

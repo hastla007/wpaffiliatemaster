@@ -601,6 +601,8 @@ final class Statement {
 		}
 		if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ) {
 			$facts[ __( 'Payment method', 'affiliate-captain' ) ] = __( 'Other payment method as agreed with the partner', 'affiliate-captain' );
+		} elseif ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_BANK === $snap['payout_method'] ) {
+			$facts[ __( 'Bank account (non-SEPA)', 'affiliate-captain' ) ] = ! empty( $snap['account_masked'] ) ? $snap['account_masked'] : '—';
 		} else {
 			$facts[ __( 'Bank account', 'affiliate-captain' ) ] = ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—';
 		}

@@ -157,6 +157,10 @@ final class PayoutsTable extends \WP_List_Table {
 				return '<strong>' . esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ) . '</strong>';
 			case 'bank':
 				$snap = json_decode( (string) $p->profile_snapshot, true );
+				if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_BANK === $snap['payout_method'] ) {
+					/* translators: %s: masked account, e.g. US •••• 6789 */
+					return esc_html( sprintf( __( 'Non-SEPA: %s', 'affiliate-captain' ), ! empty( $snap['account_masked'] ) ? $snap['account_masked'] : '—' ) );
+				}
 				return esc_html( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? __( 'Other payment method (paid manually)', 'affiliate-captain' ) : ( isset( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—' ) );
 			case 'status':
 				return Admin::badge( $p->status, isset( $this->labels[ $p->status ] ) ? $this->labels[ $p->status ] : $p->status ) . ( $p->sepa_batch ? '<br><small>' . esc_html( $p->sepa_batch ) . '</small>' : '' );

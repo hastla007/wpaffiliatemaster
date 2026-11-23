@@ -780,7 +780,21 @@ final class Privacy {
 					'value' => ProfileRepository::mask_details( $details ),
 				);
 			}
-			if ( ( null !== $iban && '' !== $iban ) || null !== $details ) {
+			// Bank transfer outside SEPA (SET-AC-30): the account number masked like the IBAN; bank
+			// code, name and country name the bank, not the account (masked account, bank name and
+			// country come with the snapshot above).
+			$bank = ProfileRepository::bank_details( $profile );
+			if ( null !== $bank ) {
+				$data[] = array(
+					'name'  => __( 'Account number', 'affiliate-captain' ),
+					'value' => ProfileRepository::bank_mask( (string) $profile->iban_last4 ),
+				);
+				$data[] = array(
+					'name'  => ProfileRepository::bank_code_label( $bank['bank_country'] ),
+					'value' => $bank['bank_code'],
+				);
+			}
+			if ( ( null !== $iban && '' !== $iban ) || null !== $details || null !== $bank ) {
 				$data[] = array(
 					'name'  => __( 'Note', 'affiliate-captain' ),
 					'value' => __( 'Bank and payment details are stored encrypted and are masked in this file, which is not encrypted. You can check and change them in the partner area (payout details); on request the operator tells you the complete details stored.', 'affiliate-captain' ),
@@ -1452,6 +1466,10 @@ final class Privacy {
 			// Other payment method on: the payment provider receives the payout (e.g. PayPal; outside the EU possible).
 			$providers = $de ? 'Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), ' : __( 'payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), ', 'affiliate-captain' );
 		}
+		if ( ProfileRepository::method_enabled( ProfileRepository::METHOD_BANK ) ) {
+			// Bank transfer outside SEPA: correspondent banks and the partner's bank, possibly in a third country.
+			$providers .= $de ? 'Korrespondenzbanken und Bank des Partners bei Überweisungen außerhalb des SEPA-Raums (ggf. Drittland), ' : __( 'correspondent banks and the partner\'s bank for transfers outside the SEPA area (possibly a third country), ', 'affiliate-captain' );
+		}
 		$storage = '';
 		if ( ! \WPAffiliateCaptain\Payouts\Statement::local_store() ) {
 			// R15-P4: credit note PDFs with an object storage provider (processor, possibly a third country).
@@ -1647,6 +1665,9 @@ final class Privacy {
 			// storage provider (WPAC_S3_* constants or a custom store) – possibly in a third country.
 			$p[] = __( 'Recipients: partners see their own orders only without customer names or contact details; payout details go to our bank for the transfer and, as part of our bookkeeping, to our tax advisor and the tax authorities; our hosting provider processes the data on our behalf (Art. 28 GDPR).', 'affiliate-captain' );
 			$p[] = __( 'Credit notes, cancellations and correction credit notes (with the partner\'s name, address and VAT ID) are stored with an object storage provider on our behalf (Art. 28 GDPR): [provider, location of the storage and, for a location outside the EU/EEA, the safeguards for the transfer (Art. 44 ff. GDPR) – to be completed by the shop operator].', 'affiliate-captain' );
+		}
+		if ( ProfileRepository::method_enabled( ProfileRepository::METHOD_BANK ) ) {
+			$p[] = __( 'Partners with a bank account outside the SEPA area: the account holder, account number, bank code, bank name and country, BIC/SWIFT, the amount and the payment reference go to our bank and, for the international transfer, to correspondent banks and the partner\'s bank, which may be located in third countries (Art. 49(1)(b) GDPR: necessary for the performance of the contract with the partner).', 'affiliate-captain' );
 		}
 		if ( ProfileRepository::manual_enabled() ) {
 			$p[] = __( 'Partners who choose another payment method (e.g. PayPal or Wise) instead of a bank transfer: the amount, the payment reference and the payment details they entered (e.g. their PayPal address) go to that payment provider for the payout. The provider processes them under its own responsibility and may transfer them to third countries (e.g. the USA).', 'affiliate-captain' );

@@ -456,6 +456,20 @@ final class Settings {
 	}
 
 	/**
+	 * At least one payout method stays on (SET-AC-30): with all three switched off, SEPA stays on
+	 * and the field reports it.
+	 *
+	 * @param array $out    Sanitized settings (changed in place).
+	 * @param array $errors Field errors (changed in place).
+	 */
+	public static function keep_one_payout_method( array &$out, array &$errors ) {
+		if ( empty( $out['payout_method_sepa'] ) && empty( $out['payout_method_bank'] ) && empty( $out['payout_method_manual'] ) ) {
+			$out['payout_method_sepa']    = 1;
+			$errors['payout_method_sepa'] = __( 'At least one payout method must stay on; SEPA bank transfer was kept on.', 'affiliate-captain' );
+		}
+	}
+
+	/**
 	 * Sanitize and validate raw input from the settings form.
 	 *
 	 * Invalid input is never replaced silently: the field keeps its stored value and an error
@@ -514,6 +528,11 @@ final class Settings {
 
 		foreach ( SettingsSchema::keys_of( 'bool' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
+		}
+		// At least one payout method stays on (SET-AC-30); checked here when all three switches are
+		// given (import, WP-CLI), by the settings page for its payouts tab.
+		if ( array_key_exists( 'payout_method_sepa', $in ) && array_key_exists( 'payout_method_bank', $in ) && array_key_exists( 'payout_method_manual', $in ) ) {
+			self::keep_one_payout_method( $out, $errors );
 		}
 		// Switching on "delete all data" needs the typed word (suite standard; switching off does not).
 		if ( 1 === $out['delete_on_uninstall'] && ! (int) $old( 'delete_on_uninstall' ) && ! self::uninstall_word_ok( isset( $in['delete_on_uninstall_confirm'] ) ? $in['delete_on_uninstall_confirm'] : '' ) ) {
