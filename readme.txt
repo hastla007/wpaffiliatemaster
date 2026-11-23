@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 0.17.0
+Stable tag: 0.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,12 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.18.0 =
+Form Captain connector; add-on contract 1.6.0 and database schema 16 (both unchanged):
+* New: Form Captain connector (action "Affiliate Captain: partner application") – a Form Captain form can hand over a partner application. It runs through the plugin's own application flow with double opt-in and confirmation mail; the partner is created only when the link is confirmed and always as "pending", even with "Approve automatically" – never an approval, code, coupon or commission. Idempotent per site, form and entry; a known e-mail answers "already exists" without details; plugin rate limits plus 30 hand-overs per form and hour. Starts as "detected"; the operator activates it. Requires Form Captain contract 1.x.
+* New: deleting the Form Captain entry or withdrawing consent deletes an unconfirmed application and anonymises a partner that is still pending; approved, rejected or terminated partners stay and get an audit note.
+* Docs: docs/FORM-CAPTAIN.md (setup, field mapping, data protection).
 
 = 0.17.0 =
 Review quality and suite readiness; add-on contract 1.6.0, database schema 16 (unchanged):
@@ -349,6 +355,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.18.0 =
+New optional Form Captain connector for partner applications (always pending, double opt-in). No database change, no contract change.
 
 = 0.17.0 =
 Requires WordPress 7.0+ and WooCommerce 11.2.2+. New read-only review quality for admins (needs a review plugin) and documentation of all add-on actions. No database change.
