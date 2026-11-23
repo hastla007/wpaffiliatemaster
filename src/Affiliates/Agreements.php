@@ -342,7 +342,7 @@ final class Agreements {
 				continue;
 			}
 			if ( self::send_reminder( $id ) ) {
-				set_transient( 'wpac_terms_reminded_' . $id, 1, 7 * DAY_IN_SECONDS );
+				set_transient( 'wpac_terms_reminded_' . $id, 1, max( 1, (int) \WPAffiliateCaptain\Core\Settings::get( 'terms_reminder_days' ) ) * DAY_IN_SECONDS );
 				++$state['sent'];
 			}
 		}

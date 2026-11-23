@@ -312,6 +312,6 @@ check(
 	array( true, true, true, true, true, true ),
 	array( false !== strpos( $m4_ci, 'pre=(--prerelease)' ), false !== strpos( $m4_ci, "tr -d '\\r' < readme.txt | awk" ), false !== strpos( $m4_ci, 'from: [previous, v0.10.0]' ), false !== strpos( $r13e_src( 'tests/ci/switch-plugin.php' ), "getenv( 'WPAC_EXPECT_TAKEOVER' )" ), false !== strpos( $m4_dep, 'select(.event == "push" and (.headBranch == $ENV.TAG or .headBranch == "main"))' ), false !== strpos( $m4_dep, '.isDraft or .isPrerelease' ) )
 );
-check( 'R13-N11 settings text says "anonymised" like the handbook', array( true, false ), array( false !== strpos( $r13e_src( 'src/Admin/Pages/SettingsPage.php' ), 'never approved or rejected are anonymised after this period' ), false !== strpos( $r13e_src( 'src/Admin/Pages/SettingsPage.php' ), 'never approved or rejected are deleted after this period' ) ) );
+check( 'R13-N11 settings text says "anonymised" like the handbook', array( true, false ), array( false !== strpos( $r13e_src( 'src/Core/SettingsSchema.php' ), 'never approved or rejected are anonymised after this period' ), false !== strpos( $r13e_src( 'src/Core/SettingsSchema.php' ) . $r13e_src( 'src/Admin/Pages/SettingsPage.php' ), 'never approved or rejected are deleted after this period' ) ) );
 $n12_un = $r13e_src( 'uninstall.php' );
 check( 'R13-N12 uninstall removes the new options', array( true, true, true ), array( false !== strpos( $n12_un, "'wpac_reports_gen'" ), false !== strpos( $n12_un, "'wpac_tplscan_gen'" ), false !== strpos( $n12_un, "'wpac_attr_purge_cursor'" ) ) );

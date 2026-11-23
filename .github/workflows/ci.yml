@@ -1,19 +1,23 @@
 name: CI
 
+# Push runs only for main and release tags; branches are tested through their pull request,
+# so a push to a PR branch starts one run, not two (push + pull_request). Releases are built
+# from the tag push (v*), unchanged.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-# One run per branch/PR: a newer push cancels the older run (never on main or tags, so a
-# release run is not cut off).
+# One run per PR (or per ref for main/tags): a newer push to a PR cancels its older run; runs on
+# main and tags are never cancelled, so a release run is not cut off.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref_type != 'tag' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -249,12 +253,14 @@ jobs:
           persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y zbar-tools && pip install pillow
       - run: python3 tests/qr_decode_check.py
-      - name: German translation complete and up to date
+      - name: German translations (de_DE "du", de_DE_formal "Sie") complete and up to date
         run: |
-          missing=$(python3 bin/i18n.py missing de_DE)
-          if [ -n "$missing" ]; then echo "Untranslated strings:"; echo "$missing"; exit 1; fi
-          python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
-          git diff --exit-code -- languages/*.po languages/*.pot || (echo "Run: python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE" && exit 1)
+          for loc in de_DE de_DE_formal; do
+            missing=$(python3 bin/i18n.py missing "$loc")
+            if [ -n "$missing" ]; then echo "Untranslated strings ($loc):"; echo "$missing"; exit 1; fi
+          done
+          python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE && python3 bin/i18n.py build de_DE_formal
+          git diff --exit-code -- languages/*.po languages/*.pot || (echo "Run: python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE && python3 bin/i18n.py build de_DE_formal" && exit 1)
 
   e2e:
     name: Browser tests (WordPress + WooCommerce, object cache ${{ matrix.cache }})

@@ -1592,7 +1592,8 @@ final class Privacy {
 		$undecided = (int) Settings::get( 'pending_application_days' );
 		/* translators: %d: days */
 		$periods[] = $undecided > 0 ? sprintf( _n( 'partner applications that were never decided: %d day', 'partner applications that were never decided: %d days', $undecided, 'affiliate-captain' ), $undecided ) : __( 'partner applications that were never decided: until deleted manually', 'affiliate-captain' );
-		$periods[] = __( 'applications whose e-mail address was not confirmed: 2 days', 'affiliate-captain' );
+		/* translators: %s: validity of the confirmation link (e.g. "2 days") */
+		$periods[] = sprintf( __( 'applications whose e-mail address was not confirmed: %s', 'affiliate-captain' ), \WPAffiliateCaptain\Affiliates\Registration::confirm_ttl_text() );
 		if ( $years > 0 ) {
 			/* translators: %d: years */
 			$periods[] = sprintf( _n( 'attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)', 'attribution of an order to a partner (order number, campaign, sub ID): %d years after the end of the calendar year of the last booking of the order; afterwards the commission records of the order keep only partner, amounts and dates (order number pseudonymised, product and booking texts deleted)', $years, 'affiliate-captain' ), $years );

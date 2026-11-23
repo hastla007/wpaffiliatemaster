@@ -362,18 +362,17 @@ foreach ( $wpac_guard_files as $wpac_f ) {
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
 
-// D13 (owner decision of 16 Nov 2026): the provisional workflow interface is not part of the free
-// core. It may only come back with the task AFF-WF-08 in TODO.md (after the shared suite
-// specification is accepted); until that task is ticked this scan fails when the action, the read
-// function, their classes or their document reappear in the shipped files. The domain actions
-// of docs/CONTRACT.md (wpac_commission_created etc.) are not affected.
-$d13_root     = dirname( __DIR__ );
-$d13_todo     = is_readable( $d13_root . '/TODO.md' ) ? (string) file_get_contents( $d13_root . '/TODO.md' ) : '';
-$d13_released = 1 === preg_match( '/^\s*- \[x\] \*\*AFF-WF-08\b/mu', $d13_todo );
+// D13 (owner decision of 16 Nov 2026) and AFF-WF-08 (closed 23 Nov 2026, AC-3): the core has no
+// workflow interface of its own – no envelope, no workflow read functions (suite spec R-4.4/R-4.5);
+// a consumer uses the domain actions of docs/CONTRACT.md and the read API. This scan stays active
+// for good and fails when the action, the read function, their classes or their document reappear
+// in the shipped files. The domain actions (wpac_commission_created etc.) are not affected.
+$d13_root = dirname( __DIR__ );
+$d13_todo = is_readable( $d13_root . '/TODO.md' ) ? (string) file_get_contents( $d13_root . '/TODO.md' ) : '';
 if ( '' !== $d13_todo ) {
-	check( 'D13 TODO.md lists the re-introduction of the workflow interface as task AFF-WF-08', 1, preg_match( '/^\s*- \[[ x]\] \*\*AFF-WF-08\b/mu', $d13_todo ) );
+	check( 'D13 TODO.md keeps task AFF-WF-08 (decision: no workflow interface in the core)', 1, preg_match( '/^\s*- \[[ x]\] \*\*AFF-WF-08\b/mu', $d13_todo ) );
 }
-if ( ! $d13_released ) {
+{
 	$d13_patterns = array(
 		'wpac_workflow_event'            => '/wpac_workflow_event/',
 		'wpac_workflow_read'             => '/wpac_workflow_read/',
@@ -394,7 +393,7 @@ if ( ! $d13_released ) {
 			$d13_hits[] = $d13_f . ': file exists';
 		}
 	}
-	check( 'D13 no workflow interface in the core before AFF-WF-08 is ticked (' . ( count( $wpac_guard_files ) + 3 ) . ' files)', array(), $d13_hits );
+	check( 'D13 no workflow interface in the core (permanent since AFF-WF-08) (' . ( count( $wpac_guard_files ) + 3 ) . ' files)', array(), $d13_hits );
 }
 
 // R6-CC3: behind a trusted proxy only X-Forwarded-For is read by default; CF-Connecting-IP and
@@ -768,6 +767,24 @@ foreach ( $c16_files as $c16_f ) {
 check( 'C16 no VALUES(col) in ON DUPLICATE KEY UPDATE (MySQL 9.7 deprecation; scanned clauses > 4)', array( array(), true ), array( $c16_bad, $c16_seen > 4 ) );
 // The scan itself finds the old form (guards against a pattern that never matches).
 check( 'C16 scan detects the old form', 1, preg_match_all( '/ON\s+DUPLICATE\s+KEY\s+UPDATE([^;"\']*)/i', "x ON DUPLICATE KEY UPDATE visits = visits + VALUES(visits)'", $c16_t ) && preg_match( '/\bVALUES\s*\(/i', $c16_t[1][0] ) ? 1 : 0 );
+
+// P5-01 / SET-AC-07: de_DE says "du" everywhere, de_DE_formal says "Sie" everywhere (decision S4).
+// Capitalised Sie/Ihr in the middle of a sentence is the formal address; at a sentence start it can
+// be "they/their" and is allowed. Quoted example words („Sie“, „du“) are allowed.
+$p501_lang = dirname( __DIR__ ) . '/languages/';
+$p501_bad  = array( 'de_DE' => array(), 'de_DE_formal' => array() );
+foreach ( array( 'de_DE', 'de_DE_formal' ) as $p501_loc ) {
+	foreach ( (array) json_decode( (string) file_get_contents( $p501_lang . $p501_loc . '.json' ), true ) as $p501_k => $p501_v ) {
+		foreach ( (array) $p501_v as $p501_s ) {
+			$p501_s = (string) preg_replace( '/„[^“]*“/u', '', (string) $p501_s );
+			$p501_re = 'de_DE' === $p501_loc ? '/(?<![.!?:]\s)(?<!^)(?<!\n)\b(Sie|Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\b/u' : '/\b(du|dich|dir|dein|deine|deinen|deinem|deiner|deines)\b/u';
+			if ( preg_match( $p501_re, $p501_s ) ) {
+				$p501_bad[ $p501_loc ][] = $p501_k;
+			}
+		}
+	}
+}
+check( 'P5-01 de_DE informal ("du"), de_DE_formal formal ("Sie"), same keys', array( array(), array(), true ), array( $p501_bad['de_DE'], $p501_bad['de_DE_formal'], array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE.json' ), true ) ) === array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE_formal.json' ), true ) ) ) );
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

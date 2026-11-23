@@ -79,7 +79,7 @@ foreach ( Notifications::template_defs() as $g5_key => $g5_def ) {
 	}
 }
 check( 'R14-P1 every template has a default text with only offered (and described) placeholders', array(), $g5_bad );
-check( 'R14-P1 mails with text chosen by strangers offer no free-text placeholder', array( array( 'site', 'link' ), array( 'site', 'portal_url' ) ), array( Notifications::template_defs()['confirm_application']['vars'], Notifications::template_defs()['already_registered']['vars'] ) );
+check( 'R14-P1 mails with text chosen by strangers offer no free-text placeholder', array( array( 'site', 'link', 'valid' ), array( 'site', 'portal_url' ) ), array( Notifications::template_defs()['confirm_application']['vars'], Notifications::template_defs()['already_registered']['vars'] ) );
 
 // Defaults = the previous texts (the msgids stay, translations keep working).
 $g5_aff = AffiliateRepository::create( array( 'name' => 'Gerda Fünf', 'email' => 'gerda5@example.de', 'status' => 'pending' ) );

@@ -35,8 +35,8 @@ final class CodeRequests {
 	/** Option prefix (+ partner ID, not autoloaded): decided requests of a partner. */
 	const HISTORY_PREFIX = 'wpac_code_requests_';
 
-	/** Entries kept in the history per partner. */
-	const HISTORY_MAX = 20;
+	/** Entries kept in the history per partner: at least the highest allowed monthly limit, so the limit counts them all (P2-05). */
+	const HISTORY_MAX = 100;
 
 	/**
 	 * Whether partners can request codes (setting, default on).
@@ -61,7 +61,7 @@ final class CodeRequests {
 		 * @param int $limit        Requests (default 3).
 		 * @param int $affiliate_id Partner.
 		 */
-		return max( 1, (int) apply_filters( 'wpac_code_requests_per_month', 3, (int) $affiliate_id ) );
+		return max( 1, (int) apply_filters( 'wpac_code_requests_per_month', (int) \WPAffiliateCaptain\Core\Settings::get( 'code_requests_per_month' ), (int) $affiliate_id ) );
 	}
 
 	/**
@@ -76,7 +76,7 @@ final class CodeRequests {
 		 * @since 0.15.0
 		 * @param int $length Characters (default 20).
 		 */
-		return min( 64, max( 3, (int) apply_filters( 'wpac_code_request_max_length', 20 ) ) );
+		return min( 64, max( 3, (int) apply_filters( 'wpac_code_request_max_length', (int) \WPAffiliateCaptain\Core\Settings::get( 'code_request_max_length' ) ) ) );
 	}
 
 	/**

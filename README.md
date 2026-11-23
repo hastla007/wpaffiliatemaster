@@ -4,7 +4,7 @@ Eigenständiges WordPress-Plugin für ein eigenes Partnerprogramm: Partnergewinn
 
 Läuft ohne WooCommerce, Voucher Captain oder Pass Captain. Integrationen sprechen ausschließlich über einen versionierten öffentlichen Vertrag (Hooks/Funktionen) – nie über Tabellen anderer Plugins. Siehe [docs/CONTRACT.md](docs/CONTRACT.md).
 
-> Status: **0.17.0** (Datenbankschema 16, Integrationsvertrag 1.6.0; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 12.3 und MySQL 9.7 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
+> Status: **0.20.0** (Datenbankschema 16, Integrationsvertrag 1.8.1; 0.10.0 live auf WordPress 7.1.4 und WooCommerce 11.3.0 geprüft). Ledger und Auszahlungen sind per Integrationstests gegen MariaDB 12.3 und MySQL 9.7 geprüft; Unit-, Integrations-, Browser-, Pluginverbund-, Multisite-, Upgrade- und Übersetzungsprüfungen sowie PHPCS, PHPStan und composer audit laufen in CI. Rechts-, Steuer- und Datenschutzfragen (Cookie-Consent, Belegpflichten, Umsatzsteuer) sind weiterhin fachlich zu prüfen.
 
 ## Anforderungen
 
@@ -123,7 +123,7 @@ Struktur: `src/Core` (inkl. `Paged` für Listenabfragen) (Lifecycle, Schema, Gel
 
 Was dieser Kern heute anbietet, steht in [docs/CONTRACT.md](docs/CONTRACT.md): ein versionierter Hook-Vertrag (`WPAC_CONTRACT_VERSION`, aktuell 1.5.0, mit ausgeschriebener Versionsregel) samt der Liste aller Actions, Filter und Funktionen mit ihren Nutzdaten.
 
-Eine eigene Schnittstelle für Workflow Captain enthält 0.15.0 **nicht**. Ein Entwurf dafür (ein Umschlag, den der Kern baut, und eigene Lesefunktionen) entstand vor den Entscheidungen des Inhabers und wurde vor dem Release wieder herausgenommen. Ein Abnehmer nutzt die fachlichen Actions und die Lese-API des Vertrags; sein Adapter liegt im Add-on. Was wann zu tun ist, steht in `TODO.md` (Abschnitt „Entscheidung D13“, Aufgabe AFF-WF-08).
+Eine eigene Schnittstelle für Workflow Captain enthält 0.15.0 **nicht**. Ein Entwurf dafür (ein Umschlag, den der Kern baut, und eigene Lesefunktionen) entstand vor den Entscheidungen des Inhabers und wurde vor dem Release wieder herausgenommen. Ein Abnehmer nutzt die fachlichen Actions und die Lese-API des Vertrags; sein Adapter liegt im Add-on. **Stand 0.19.0 (23.11.2026):** Entschieden und abgeschlossen (AFF-WF-07/08): Der Kern bekommt auch künftig keine eigene Workflow-Schnittstelle; seit Vertrag 1.7.0 melden die Statusactions der Provisionen zusätzlich den vorigen Status. Details in `docs/CONTRACT.md` (Abschnitt „Workflow Captain“) und `TODO.md` (AFF-WF-07 bis AFF-WF-09).
 
 Der Kern bleibt dabei vollständig frei: Er kennt weder Lizenz noch Tarif und bietet nur allgemeine Erweiterungspunkte an. Ob eine Anbindung bezahlt ist, entscheidet allein das jeweilige Add-on.
 

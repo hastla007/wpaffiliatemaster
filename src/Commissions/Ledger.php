@@ -878,23 +878,24 @@ final class Ledger {
 		$t   = Db::table( 'commissions' );
 		$ids = array();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$open = (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE parent_id = %d AND kind = 'increase' AND status IN ('pending','review') AND payout_id = 0 FOR UPDATE", (int) $id ) );
+		$open = (array) $wpdb->get_results( $wpdb->prepare( "SELECT id, status FROM {$t} WHERE parent_id = %d AND kind = 'increase' AND status IN ('pending','review') AND payout_id = 0 FOR UPDATE", (int) $id ) );
 		Db::check( 'Locking the open increases of commission ' . (int) $id ); // R13-K1.
-		foreach ( $open as $inc_id ) {
-			if ( self::transition( (int) $inc_id, 'rejected', Db::cut( $reason, 191 ), 0, 0, null, false ) ) {
-				$ids[] = (int) $inc_id;
+		foreach ( $open as $inc ) {
+			// The row is locked, so the status read above is the status before the transition.
+			if ( self::transition( (int) $inc->id, 'rejected', Db::cut( $reason, 191 ), 0, 0, (string) $inc->status, false ) ) {
+				$ids[ (int) $inc->id ] = (string) $inc->status;
 			}
 		}
 		if ( $ids ) {
 			Db::after_commit(
 				static function () use ( $ids ) {
-					foreach ( $ids as $inc_id ) {
-						do_action( 'wpac_commission_rejected', $inc_id );
+					foreach ( $ids as $inc_id => $old ) {
+						do_action( 'wpac_commission_rejected', (int) $inc_id, $old );
 					}
 				}
 			);
 		}
-		return $ids;
+		return array_keys( $ids );
 	}
 
 	/**
@@ -952,9 +953,10 @@ final class Ledger {
 				}
 				$cut = (int) $inc->amount_minor;
 				$id  = (int) $inc->id;
+				$old = (string) $inc->status;
 				Db::after_commit(
-					static function () use ( $id ) {
-						do_action( 'wpac_commission_rejected', $id );
+					static function () use ( $id, $old ) {
+						do_action( 'wpac_commission_rejected', $id, $old );
 					}
 				);
 			} else {
@@ -1467,7 +1469,8 @@ final class Ledger {
 		$given    = 0;
 		$skipped  = 0;
 		$already  = 0;
-		$rejected = array();
+		$rejected      = array();
+		$rejected_from = array();
 		foreach ( $rows as $row ) {
 			$rkey = self::key( 'reinstate:' . (int) $row->id );
 			if ( 'rejected' === $row->status || self::find_by_key( $rkey ) ) {
@@ -1485,6 +1488,7 @@ final class Ledger {
 					$given                     -= (int) $row->amount_minor;
 					$result['commission_ids'][] = (int) $row->id;
 					$rejected[]                 = (int) $row->id;
+					$rejected_from[ (int) $row->id ] = (string) $row->status;
 				} else {
 					++$already;
 				}
@@ -1581,7 +1585,11 @@ final class Ledger {
 					'deleted'   => true,
 				);
 				Db::after_commit(
-					static function () use ( $refund, $rejected ) {
+					static function () use ( $refund, $rejected, $rejected_from ) {
+						// Status change of each refund row, as everywhere else (contract 1.7.0; P2-01).
+						foreach ( $rejected_from as $rid => $old ) {
+							do_action( 'wpac_commission_rejected', (int) $rid, $old );
+						}
 						do_action( 'wpac_commission_adjusted', $refund, $rejected ); // Report cache, review count.
 					}
 				);
@@ -1635,6 +1643,9 @@ final class Ledger {
 	 */
 	public static function approve_due() {
 		global $wpdb;
+		if ( 'manual' === Settings::get( 'approval_mode' ) ) {
+			return 0; // SET-AC-23: only approved by hand (commissions page, single or bulk).
+		}
 		$t     = Db::table( 'commissions' );
 		$count = 0;
 		// Time budget per run: the rest follows in the next (hourly) run, so one
@@ -2140,8 +2151,9 @@ final class Ledger {
 		$args = array_merge( $args, array_values( $from ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$sql = "UPDATE {$t} SET status = %s, updated_at = %s WHERE id = %d{$extra} AND status IN ({$in})";
-		$ok  = Db::transaction(
-			static function () use ( $wpdb, $t, $sql, $args, $id, $to, $c, $reason, $actor, $from ) {
+		$from_status = '';
+		$ok          = Db::transaction(
+			static function () use ( $wpdb, $t, $sql, $args, $id, $to, $c, $reason, $actor, $from, &$from_status ) {
 				// Lock the row and read the status it really has now: the balance
 				// booking depends on it (e.g. approved -> rejected reverses the balance),
 				// and the row may have changed since the read outside the transaction.
@@ -2171,9 +2183,10 @@ final class Ledger {
 		if ( $fire_hooks ) {
 			// transition() may run inside an outer transaction (it nests): the hook waits for the
 			// COMMIT of that one and is dropped on its rollback (AFF-WF-02).
+			// Second parameter (contract 1.7.0): the status before this transition, read under the row lock.
 			Db::after_commit(
-				static function () use ( $to, $id ) {
-					do_action( 'wpac_commission_' . $to, (int) $id );
+				static function () use ( $to, $id, $from_status ) {
+					do_action( 'wpac_commission_' . $to, (int) $id, (string) $from_status );
 				}
 			);
 		}

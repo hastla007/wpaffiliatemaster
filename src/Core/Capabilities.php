@@ -88,6 +88,87 @@ final class Capabilities {
 	}
 
 	/**
+	 * Roles and which of the plugin's capabilities each has (SET-AC-21). Administrators are not
+	 * listed: they always keep every capability.
+	 *
+	 * @return array role => [ name, caps => [ cap => bool ] ]
+	 */
+	public static function role_matrix() {
+		$out = array();
+		if ( ! function_exists( 'wp_roles' ) ) {
+			return $out;
+		}
+		foreach ( wp_roles()->roles as $role => $data ) {
+			if ( 'administrator' === $role ) {
+				continue;
+			}
+			$caps = array();
+			foreach ( self::all() as $cap ) {
+				$caps[ $cap ] = ! empty( $data['capabilities'][ $cap ] );
+			}
+			$out[ $role ] = array(
+				'name' => function_exists( 'translate_user_role' ) ? translate_user_role( (string) $data['name'] ) : (string) $data['name'],
+				'caps' => $caps,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Give or take the plugin's capabilities per role (SET-AC-21). Administrators always keep all
+	 * of them, so nobody can lock the site out of the plugin.
+	 *
+	 * @param array $wanted role => [ cap => bool ] (roles and caps not given are left unchanged).
+	 * @return array Changes: list of [ role, cap, granted ].
+	 */
+	public static function set_role_caps( array $wanted ) {
+		$changes = array();
+		$matrix  = self::role_matrix();
+		foreach ( $wanted as $role => $caps ) {
+			$role = (string) $role;
+			if ( 'administrator' === $role || ! isset( $matrix[ $role ] ) || ! is_array( $caps ) ) {
+				continue;
+			}
+			$obj = wp_roles()->get_role( $role );
+			if ( ! $obj ) {
+				continue;
+			}
+			foreach ( self::all() as $cap ) {
+				if ( ! array_key_exists( $cap, $caps ) ) {
+					continue;
+				}
+				$grant = (bool) $caps[ $cap ];
+				if ( $grant === $matrix[ $role ]['caps'][ $cap ] ) {
+					continue;
+				}
+				if ( $grant ) {
+					$obj->add_cap( $cap );
+				} else {
+					$obj->remove_cap( $cap );
+				}
+				$changes[] = array( $role, $cap, $grant );
+			}
+		}
+		return $changes;
+	}
+
+	/**
+	 * Label of a capability for the role table.
+	 *
+	 * @param string $cap Capability.
+	 * @return string
+	 */
+	public static function label( $cap ) {
+		$labels = array(
+			self::MANAGE_PROGRAM    => __( 'Program and settings', 'affiliate-captain' ),
+			self::MANAGE_AFFILIATES => __( 'Partners, codes and commissions', 'affiliate-captain' ),
+			self::MANAGE_PAYOUTS    => __( 'Payouts and credit notes', 'affiliate-captain' ),
+			self::VIEW_TAX_DATA     => __( 'See tax and bank details', 'affiliate-captain' ),
+		);
+		return isset( $labels[ $cap ] ) ? $labels[ $cap ] : $cap;
+	}
+
+	/**
 	 * Capability of the payouts page: whoever manages payouts, or – read only – whoever may see
 	 * tax data (list, credit notes, cancellations; no runs, exports or changes).
 	 *

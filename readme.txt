@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 0.17.0
+Stable tag: 0.20.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,29 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.20.0 =
+Settings register and add-on rows; add-on contract 1.8.0 (backwards compatible); database schema 16 (unchanged):
+* New: all settings come from one register (key, type, default, tab, limits, label, help text, legal/secret marks). Defaults, tabs and labels are unchanged; every setting now has a help text on the settings page.
+* New: the audit log shows old and new value of every changed setting (bank details, token, addresses and e-mail addresses redacted).
+* New: former fixed business rules are settings now, with the same defaults: waiting period for new bank details, code requests per 30 days and code length, password confirmation time, privacy requests per day, confirmation link of applications, reminder interval for new terms, cancellation delay of claimed payouts, display of rejected payout requests, VIES re-check, refund-rate period and minimum orders. Existing filters still win.
+* New: setting "Release of commissions" – automatically after the hold period (as before) or only by hand.
+* New: export and import of the settings (JSON, with a preview of every change; bank details only on request and after a password confirmation), reset of a settings tab to the defaults with a preview, and WP-CLI commands "wp wpac setting list|get|set|reset|export|import".
+* New: permissions per user role (program, partners, payouts, tax data) under Data & maintenance; administrators always keep all.
+* New: grey notes at the end of a settings tab name features of the Affiliate Captain Pro add-on (text only – no fields, nothing locked); switch them off under Data & maintenance.
+* Add-ons (contract 1.8.0): filters wpac_settings_schema, wpac_settings_rows, wpac_show_addon_hints, wpac_addon_hint_url and the action wpac_settings_saved – add-on fields on the settings tabs, replacing a note with the real field.
+
+= 0.19.0 =
+Add-on contract 1.7.0 (backwards compatible); database schema 16 (unchanged):
+* Add-ons (contract 1.7.0): wpac_commission_approved, _rejected, _paid, _pending and _review pass the status before the change as a second parameter ($old), read under the row lock; callbacks with one parameter keep working. Workflow consumers no longer have to track the previous status themselves (suite specification 4.4, previous_status).
+* Workflow Captain: decided – the core keeps no workflow interface of its own (no envelope, no workflow read functions); consumers use the documented actions and the read API. The guard test against a workflow interface in the core stays active for good. The actions were checked against the event catalogue of the suite specification (21 actions).
+* Docs: order and refund references in the actions are strings of the source, not numbers (docs/CONTRACT.md).
+
+= 0.18.0 =
+Form Captain connector; add-on contract 1.6.0 and database schema 16 (both unchanged):
+* New: Form Captain connector (action "Affiliate Captain: partner application") – a Form Captain form can hand over a partner application. It runs through the plugin's own application flow with double opt-in and confirmation mail; the partner is created only when the link is confirmed and always as "pending", even with "Approve automatically" – never an approval, code, coupon or commission. Idempotent per site, form and entry; a known e-mail answers "already exists" without details; plugin rate limits plus 30 hand-overs per form and hour. Starts as "detected"; the operator activates it. Requires Form Captain contract 1.x.
+* New: deleting the Form Captain entry or withdrawing consent deletes an unconfirmed application and anonymises a partner that is still pending; approved, rejected or terminated partners stay and get an audit note.
+* Docs: docs/FORM-CAPTAIN.md (setup, field mapping, data protection).
 
 = 0.17.0 =
 Review quality and suite readiness; add-on contract 1.6.0, database schema 16 (unchanged):
@@ -349,6 +372,15 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.20.0 =
+Settings register with help texts for every setting; optional notes about Pro add-on features (can be switched off). No database change; add-ons keep working.
+
+= 0.19.0 =
+Add-on contract 1.7.0: commission status actions also pass the previous status. No database change; existing add-ons keep working.
+
+= 0.18.0 =
+New optional Form Captain connector for partner applications (always pending, double opt-in). No database change, no contract change.
 
 = 0.17.0 =
 Requires WordPress 7.0+ and WooCommerce 11.2.2+. New read-only review quality for admins (needs a review plugin) and documentation of all add-on actions. No database change.

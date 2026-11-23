@@ -38,101 +38,8 @@ final class Settings {
 	 * @return array
 	 */
 	public static function defaults() {
-		return array(
-			// Tracking & attribution.
-			'referral_param'          => 'partner',
-			'touch_model'             => 'last',     // last|first.
-			'cookie_mode'             => 'consent',  // off|consent|always.
-			'cookie_days'             => 30,
-			'use_wc_session'          => 1,
-			'checkout_field'          => 1,
-			'renewal_commission'      => 1,
-			'js_tracking'             => 0,
-			'cookie_domain'           => '',         // '' = WordPress COOKIE_DOMAIN (current host).
-			'visit_log_percent'       => 100,        // Share of link visits written to the visit log (0 = off).
-			'coupon_priority'         => 1,
-			'self_referral'           => 'block',    // block|review.
-			'rate_limit_per_minute'   => 30,
-			'trusted_proxies'         => '',
-			'visit_retention_days'    => 90,
-			'audit_retention_days'    => 1095,
-			'application_retention_days' => 180,
-			'pending_application_days' => 365,     // Undecided applications are deleted after this (0 = never).
-			// Commissions.
-			'currency'                => 'EUR',
-			'exchange_rates'          => '',
-			'default_rate_type'       => 'percent',  // percent|fixed.
-			'default_rate'            => '10',
-			'hold_days'               => 30,
-			'lifetime_enabled'        => 0,
-			'lifetime_days'           => 365,
-			'lifetime_rate'           => '',
-			'hold_start'              => 'paid',     // paid|completed (WooCommerce: hold period starts when the order is completed).
-			'renewal_limit_months'    => 0,          // Renewals earn commission for this many months after the first order (0 = no limit).
-			'rule_precedence'         => 'scope',    // scope|target, see Calculator.
-			// Program.
-			'auto_approve'            => 0,
-			'terms_page_id'           => 0,
-			'terms_version'           => '1.0',
-			'portal_page_id'          => 0,
-			'registration_page_id'    => 0,
-			'terminated_open'         => 'pay',      // pay|reject.
-			'code_requests'           => 1,          // Partners can request an own code in the partner area (since 0.15.0).
-			'admin_email'             => '',
-			// E-mails: sender ('' = WordPress default) and optional partner notices.
-			'mail_from_name'          => '',
-			'mail_from_email'         => '',
-			'notify_payout_paid'      => 1,
-			'notify_commissions'      => 0,
-			'notify_admin_review'     => 0,          // Hourly digest to the operator about commissions needing review (R5-W58).
-			'maintenance_mode'        => 0,
-			'monitor_token'           => '',
-			// Promotion.
-			'landing_prefix'          => 'partner',
-			'landing_page_id'         => 0,
-			// Translated once translations can load (before "init" WordPress warns about early loading).
-			'default_disclosure'      => function_exists( 'did_action' ) && did_action( 'init' ) ? __( 'Advertisement', 'affiliate-captain' ) : 'Advertisement',
-			'promotion_guidelines'    => '',
-			'embed_disclosure_label'  => 1,          // Visible disclosure label above the banner embed code (R14-L3).
-			'auto_apply_coupon'       => 0,          // Apply the partner's linked WooCommerce coupon after a partner link (0.15.0).
-			// Payouts.
-			'min_payout_minor'        => 5000,
-			'payout_requests'         => 0,
-			'statement_retention_years' => 10,
-			'retention_hold'          => 0,
-			'payout_period'           => 'monthly', // Unused (no effect, no longer offered in the settings); kept for stored settings.
-			'payout_method_manual'    => 1,         // Partners may choose "other payment method" (PayPal etc., paid manually).
-			'debtor_name'             => '',
-			'debtor_iban'             => '',
-			'debtor_bic'              => '',
-			'remittance_prefix'       => 'Provision',
-			// Credit notes (self-billing).
-			'self_billing'            => 1,
-			'vat_rate'                => '19',
-			'operator_country'        => 'DE',
-			'operator_address'        => '',
-			'operator_vat_id'         => '',
-			'operator_tax_number'     => '',
-			'credit_prefix'           => 'GS',
-			'storno_prefix'           => 'ST',
-			'correction_prefix'       => 'KG', // Correction credit notes of paid payouts.
-			'einvoice_mail'           => 'auto', // E-invoice (EN 16931 XML) with the credit note mail: auto|on|off (R14-L1).
-			'einvoice_buyer_reference' => '',    // Buyer reference (e.g. Leitweg-ID) on e-invoices; '' = document number.
-			'vies_check'              => 0, // Check partner VAT IDs with the EU Commission's VIES service (external request).
-			// Fraud rules (0 = off).
-			'fraud_max_orders_day'    => 0,
-			'fraud_max_order_minor'   => 0,
-			'fraud_min_click_seconds' => 0,
-			'fraud_max_refund_rate'   => 0,
-			'fraud_check_domains'     => 1,
-			'fraud_blocked_domains'   => '',
-			'reauth_required'         => 1, // Password confirmation before money-relevant admin actions (R14-P2).
-			// Reporting.
-			'report_admin'            => 1,
-			'report_partners'         => 0,
-			// Housekeeping.
-			'delete_on_uninstall'     => 0,
-		);
+		// One source for keys and defaults: the register (SET-AC-01).
+		return SettingsSchema::defaults();
 	}
 
 	/**
@@ -336,6 +243,7 @@ final class Settings {
 	/**
 	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
 	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
+	 * @deprecated 0.20.0 Read the limits from SettingsSchema::int_max() (the register); kept for add-ons, a test keeps both equal.
 	 */
 	const INT_MAX = array(
 		'audit_retention_days'       => 36500,
@@ -437,6 +345,19 @@ final class Settings {
 	}
 
 	/**
+	 * Whether a typed confirmation word allows switching on "delete all data on uninstall":
+	 * LÖSCHEN, LOESCHEN or DELETE, in any letter case.
+	 *
+	 * @param mixed $word Typed word.
+	 * @return bool
+	 */
+	public static function uninstall_word_ok( $word ) {
+		$word = trim( (string) $word );
+		$word = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $word, 'UTF-8' ) : strtoupper( $word );
+		return in_array( $word, array( 'LÖSCHEN', 'LOESCHEN', 'DELETE' ), true );
+	}
+
+	/**
 	 * Sanitize and validate raw input from the settings form.
 	 *
 	 * Invalid input is never replaced silently: the field keeps its stored value and an error
@@ -476,14 +397,11 @@ final class Settings {
 			}
 		}
 
-		$out['touch_model']       = self::choice( $in, 'touch_model', array( 'last', 'first' ), $d );
-		$out['cookie_mode']       = self::choice( $in, 'cookie_mode', array( 'off', 'consent', 'always' ), $d );
-		$out['self_referral']     = self::choice( $in, 'self_referral', array( 'block', 'review' ), $d );
-		$out['default_rate_type'] = self::choice( $in, 'default_rate_type', array( 'percent', 'fixed' ), $d );
-		$out['terminated_open']   = self::choice( $in, 'terminated_open', array( 'pay', 'reject' ), $d );
-		$out['payout_period']     = self::choice( $in, 'payout_period', array( 'monthly', 'quarterly', 'manual' ), $d );
-		$out['hold_start']        = self::choice( $in, 'hold_start', array( 'paid', 'completed' ), $d );
-		$out['rule_precedence']   = self::choice( $in, 'rule_precedence', array( 'scope', 'target' ), $d );
+		foreach ( SettingsSchema::keys_of( 'choice' ) as $choice ) {
+			if ( 'einvoice_mail' !== $choice ) { // E-invoice: checked with the billing fields below.
+				$out[ $choice ] = self::choice( $in, $choice, SettingsSchema::field( $choice )['options'], $d, $errors, $old );
+			}
+		}
 
 		$out['lifetime_rate'] = '';
 		if ( isset( $in['lifetime_rate'] ) && '' !== trim( (string) $in['lifetime_rate'] ) ) {
@@ -496,18 +414,34 @@ final class Settings {
 			}
 		}
 
-		foreach ( array( 'use_wc_session', 'checkout_field', 'coupon_priority', 'auto_approve', 'delete_on_uninstall', 'lifetime_enabled', 'payout_requests', 'report_admin', 'report_partners', 'fraud_check_domains', 'self_billing', 'retention_hold', 'renewal_commission', 'js_tracking', 'maintenance_mode', 'vies_check', 'notify_payout_paid', 'notify_commissions', 'notify_admin_review', 'payout_method_manual', 'embed_disclosure_label', 'auto_apply_coupon', 'reauth_required', 'code_requests' ) as $flag ) {
+		foreach ( SettingsSchema::keys_of( 'bool' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
+		// Switching on "delete all data" needs the typed word (suite standard; switching off does not).
+		if ( 1 === $out['delete_on_uninstall'] && ! (int) $old( 'delete_on_uninstall' ) && ! self::uninstall_word_ok( isset( $in['delete_on_uninstall_confirm'] ) ? $in['delete_on_uninstall_confirm'] : '' ) ) {
+			$out['delete_on_uninstall']    = 0;
+			$errors['delete_on_uninstall'] = __( 'To switch this on, type DELETE (or LÖSCHEN) into the confirmation field.', 'affiliate-captain' );
+		}
 
-		foreach ( array( 'audit_retention_days', 'application_retention_days', 'pending_application_days', 'fraud_max_orders_day', 'fraud_min_click_seconds', 'fraud_max_refund_rate', 'statement_retention_years', 'lifetime_days', 'cookie_days', 'rate_limit_per_minute', 'visit_retention_days', 'hold_days', 'renewal_limit_months', 'terms_page_id', 'portal_page_id', 'registration_page_id' ) as $int ) {
+		$int_max = SettingsSchema::int_max();
+		$int_min = SettingsSchema::int_min();
+		foreach ( SettingsSchema::keys_of( array( 'int', 'page' ) ) as $int ) {
+			if ( 'landing_page_id' === $int ) {
+				continue; // Checked below (must be a published page).
+			}
 			if ( ! isset( $in[ $int ] ) ) {
 				$out[ $int ] = $d[ $int ];
 				continue;
 			}
 			$raw = trim( (string) $in[ $int ] );
-			$max = isset( self::INT_MAX[ $int ] ) ? self::INT_MAX[ $int ] : 2147483647;
-			if ( '' === $raw ) {
+			$max = isset( $int_max[ $int ] ) ? $int_max[ $int ] : 2147483647;
+			$min = isset( $int_min[ $int ] ) ? $int_min[ $int ] : 0;
+			if ( $min > 0 && ( '' === $raw || ( preg_match( '/^\d+$/', $raw ) && (int) $raw < $min ) ) ) {
+				// A lower limit is never applied silently (P1-07).
+				/* translators: 1: smallest allowed number, 2: largest allowed number */
+				$errors[ $int ] = sprintf( __( 'Please enter a whole number between %1$d and %2$d.', 'affiliate-captain' ), $min, $max );
+				$out[ $int ]    = (int) $old( $int );
+			} elseif ( '' === $raw ) {
 				$out[ $int ] = 0;
 			} elseif ( preg_match( '/^\d+$/', $raw ) && ( strlen( ltrim( $raw, '0' ) ) < 11 && (int) $raw <= $max ) ) {
 				$out[ $int ] = (int) $raw;
@@ -884,7 +818,7 @@ final class Settings {
 		$out['operator_address']    = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
 		$out['operator_vat_id']     = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
 		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
-		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', array( 'auto', 'on', 'off' ), $d );
+		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', SettingsSchema::field( 'einvoice_mail' )['options'], $d, $errors, $old );
 		$out['einvoice_buyer_reference'] = isset( $in['einvoice_buyer_reference'] ) ? substr( trim( sanitize_text_field( (string) $in['einvoice_buyer_reference'] ) ), 0, 100 ) : '';
 		foreach ( array( 'credit_prefix', 'storno_prefix', 'correction_prefix' ) as $k ) {
 			$out[ $k ] = $d[ $k ];
@@ -1193,8 +1127,20 @@ final class Settings {
 	 * @param array  $d       Defaults.
 	 * @return string
 	 */
-	private static function choice( array $in, $key, array $allowed, array $d ) {
-		return ( isset( $in[ $key ] ) && in_array( $in[ $key ], $allowed, true ) ) ? $in[ $key ] : $d[ $key ];
+	private static function choice( array $in, $key, array $allowed, array $d, &$errors = null, $old = null ) {
+		if ( ! isset( $in[ $key ] ) ) {
+			return $d[ $key ];
+		}
+		if ( in_array( $in[ $key ], $allowed, true ) ) {
+			return $in[ $key ];
+		}
+		// A sent but unknown value is never replaced silently (P1-03): the stored value stays.
+		if ( is_array( $errors ) ) {
+			/* translators: %s: allowed values */
+			$errors[ $key ] = sprintf( __( 'Not a valid choice. Allowed: %s', 'affiliate-captain' ), implode( ', ', $allowed ) );
+		}
+		$keep = is_callable( $old ) ? $old( $key ) : $d[ $key ];
+		return in_array( $keep, $allowed, true ) ? $keep : $d[ $key ];
 	}
 
 	/**
