@@ -216,6 +216,14 @@ $us = $partner( 'small-business-us', array( 'tax_status' => 'small_business', 't
 $earn( $us, 'o-15', 20000 );
 $write( '15-credit-note-foreign-small-business-AE', EInvoice::payout_xml( $payout( $us ) ) );
 
+/* 16. Withholding per partner (SET-AC-20): 15 % of the net withheld, shown as paid amount
+ * (BT-113) with a note; no allowance, no VAT line. */
+$wh = $partner( 'withholding', array( 'tax_status' => 'business', 'vat_id' => 'DE822222222' ) );
+WPAffiliateCaptain\Payouts\Withholding::save( $wh, '15', 'Quellensteuer nach § 50a EStG, an das Finanzamt abgeführt.' );
+$earn( $wh, 'o-16', 100000 );
+$p_wh = $payout( $wh );
+$write( '16-credit-note-withholding-S', EInvoice::payout_xml( $p_wh ) );
+
 /* 9. XRechnung 3.0: seller phone from an add-on (filter wpac_einvoice_data), Leitweg-ID. */
 add_filter(
 	'wpac_einvoice_data',
@@ -229,6 +237,7 @@ Settings::flush_cache();
 $write( '09-xrechnung-credit-note-standard-S', EInvoice::payout_xml( PayoutService::find( (int) $p_std->id ) ) );
 $write( '10-xrechnung-correction-credit-note-384', $kg ? EInvoice::correction_xml( $kg ) : null );
 $write( '11-xrechnung-cancellation-381', EInvoice::payout_xml( $p_st, true ) );
+$write( '17-xrechnung-credit-note-withholding-S', EInvoice::payout_xml( PayoutService::find( (int) $p_wh->id ) ) );
 $sb2 = $partner( 'small-business-xr', array( 'tax_status' => 'small_business', 'tax_number' => '12/345/67891' ) );
 $earn( $sb2, 'o-12', 40000 );
 $write( '12-xrechnung-credit-note-small-business-E', EInvoice::payout_xml( $payout( $sb2 ) ) );

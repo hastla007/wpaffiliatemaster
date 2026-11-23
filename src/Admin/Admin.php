@@ -750,6 +750,7 @@ final class Admin {
 			'code_export'       => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'code_request'      => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES ), // Approve/reject a partner's code request (since 0.15.0).
 			'profile_update'    => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Changing bank details redirects payouts.
+			'withholding_update' => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ), // Withholding per partner reduces the amount transferred (SET-AC-20).
 			'balance_writeoff'  => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'dunning_send'      => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),
 			'repayment'         => array( AffiliatesPage::class, Capabilities::MANAGE_PAYOUTS ),

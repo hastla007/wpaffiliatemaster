@@ -200,14 +200,20 @@ final class PayoutsPage {
 			case 'payout_export':
 				// Streamed in ID batches: all payouts, never cut off and never all in memory.
 				$tax = current_user_can( Capabilities::VIEW_TAX_DATA );
-				$out = ( static function () use ( $tax ) {
+				// SET-AC-20: the amount withheld as a last column, once any payout has a withholding.
+				$wh  = \WPAffiliateCaptain\Payouts\Withholding::used();
+				$out = ( static function () use ( $tax, $wh ) {
 					foreach ( \WPAffiliateCaptain\Core\Paged::each( array( PayoutService::class, 'query' ) ) as $p ) {
 						$aff  = AffiliateRepository::find( (int) $p->affiliate_id );
 						$snap = $tax ? json_decode( (string) $p->profile_snapshot, true ) : null;
-						yield array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, $tax && isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', $tax && isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
+						$row  = array( $p->number, $p->affiliate_id, $aff ? $aff->name : '', $p->period_end, $p->currency, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->status, $tax && isset( $snap['tax_status'] ) ? $snap['tax_status'] : '', $tax && isset( $snap['vat_id'] ) ? $snap['vat_id'] : '', $p->created_at, $p->paid_at );
+						if ( $wh ) {
+							$row[] = Money::to_decimal( \WPAffiliateCaptain\Payouts\Withholding::minor( $p ), $p->currency );
+						}
+						yield $row;
 					}
 				} )();
-				Csv::stream( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $out );
+				Csv::stream( 'payouts-' . gmdate( 'Y-m-d' ) . '.csv', array_merge( array( 'number', 'affiliate_id', 'affiliate', 'period_end', 'currency', 'amount', 'status', 'tax_status', 'vat_id', 'created_at_utc', 'paid_at_utc' ), $wh ? array( 'withholding' ) : array() ), $out );
 				break;
 		}
 	}
@@ -1053,6 +1059,12 @@ final class PayoutsPage {
 		echo '<tr><th colspan="3">' . esc_html__( 'Net amount', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( $net, $p->currency ) ) . '</th></tr>';
 		/* translators: %s: VAT rate */
 		echo '<tr><th colspan="3">' . esc_html( (int) $p->vat_minor ? sprintf( __( 'plus VAT %s %%', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Locale::number( $p->vat_rate ) ) : __( 'VAT', 'affiliate-captain' ) ) . '</th><th>' . esc_html( Money::format( (int) $p->vat_minor, $p->currency ) ) . '</th></tr>';
+		$withholding = \WPAffiliateCaptain\Payouts\Withholding::of_payout( $p );
+		if ( $withholding ) {
+			// SET-AC-20: as on the credit note.
+			echo '<tr><th colspan="3">' . esc_html__( 'Total credit note', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( (int) $p->amount_minor + (int) $withholding['minor'], $p->currency ) ) . '</th></tr>';
+			echo '<tr><th colspan="3">' . esc_html( \WPAffiliateCaptain\Payouts\Withholding::label( $withholding, (string) $p->currency ) ) . ( '' !== $withholding['note'] ? '<br><span class="description">' . esc_html( $withholding['note'] ) . '</span>' : '' ) . '</th><th>' . esc_html( Money::format( -(int) $withholding['minor'], $p->currency ) ) . '</th></tr>';
+		}
 		echo '<tr><th colspan="3">' . esc_html__( 'Total payout', 'affiliate-captain' ) . '</th><th>' . esc_html( Money::format( (int) $p->amount_minor, $p->currency ) ) . '</th></tr>';
 		echo '</tfoot></table>';
 		if ( $p->vat_mode ) {
