@@ -344,6 +344,19 @@ final class Settings {
 	}
 
 	/**
+	 * Whether a typed confirmation word allows switching on "delete all data on uninstall":
+	 * LÖSCHEN, LOESCHEN or DELETE, in any letter case.
+	 *
+	 * @param mixed $word Typed word.
+	 * @return bool
+	 */
+	public static function uninstall_word_ok( $word ) {
+		$word = trim( (string) $word );
+		$word = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $word, 'UTF-8' ) : strtoupper( $word );
+		return in_array( $word, array( 'LÖSCHEN', 'LOESCHEN', 'DELETE' ), true );
+	}
+
+	/**
 	 * Sanitize and validate raw input from the settings form.
 	 *
 	 * Invalid input is never replaced silently: the field keeps its stored value and an error
@@ -402,6 +415,11 @@ final class Settings {
 
 		foreach ( SettingsSchema::keys_of( 'bool' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
+		}
+		// Switching on "delete all data" needs the typed word (suite standard; switching off does not).
+		if ( 1 === $out['delete_on_uninstall'] && ! (int) $old( 'delete_on_uninstall' ) && ! self::uninstall_word_ok( isset( $in['delete_on_uninstall_confirm'] ) ? $in['delete_on_uninstall_confirm'] : '' ) ) {
+			$out['delete_on_uninstall']    = 0;
+			$errors['delete_on_uninstall'] = __( 'To switch this on, type DELETE (or LÖSCHEN) into the confirmation field.', 'affiliate-captain' );
 		}
 
 		$int_max = SettingsSchema::int_max();

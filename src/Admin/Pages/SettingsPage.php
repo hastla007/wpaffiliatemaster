@@ -847,6 +847,7 @@ final class SettingsPage {
 
 		self::section( __( 'Uninstall', 'affiliate-captain' ), 'data' );
 		self::checkbox( 'delete_on_uninstall', null, $s );
+		self::uninstall_confirm( $s );
 		self::end();
 	}
 
@@ -958,6 +959,26 @@ final class SettingsPage {
 		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1" %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ) );
 		self::desc( $desc );
 		echo '</td></tr>';
+	}
+
+	/**
+	 * Confirmation field for "delete all data" (only needed while it is still off).
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function uninstall_confirm( $s ) {
+		if ( ! empty( $s['delete_on_uninstall'] ) ) {
+			return;
+		}
+		$error = isset( self::$kept['errors']['delete_on_uninstall'] ) ? (string) self::$kept['errors']['delete_on_uninstall'] : '';
+		printf(
+			'<tr><th><label for="wpac-delete_on_uninstall_confirm">%1$s</label></th><td><input type="text" id="wpac-delete_on_uninstall_confirm" name="wpac[delete_on_uninstall_confirm]" value="" class="regular-text" autocomplete="off" aria-describedby="%2$swpac-delete_on_uninstall_confirm-desc"%3$s>%4$s<p class="description" id="wpac-delete_on_uninstall_confirm-desc">%5$s</p></td></tr>',
+			esc_html__( 'Confirmation', 'affiliate-captain' ),
+			'' !== $error ? 'wpac-err-delete_on_uninstall ' : '',
+			'' !== $error ? ' aria-invalid="true"' : '',
+			'' !== $error ? '<p class="wpac-field-error" id="wpac-err-delete_on_uninstall" role="alert">' . esc_html( $error ) . '</p>' : '', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped here.
+			esc_html__( 'Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word.', 'affiliate-captain' )
+		);
 	}
 
 	/**

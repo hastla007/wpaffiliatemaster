@@ -35,7 +35,7 @@ final class SettingsTransfer {
 		$all  = Settings::all();
 		$data = array();
 		foreach ( SettingsSchema::core() as $key => $f ) {
-			if ( ! empty( $f['secret'] ) || ! empty( $f['hidden'] ) || ( ! empty( $f['private'] ) && ! $with_private ) ) {
+			if ( ! empty( $f['secret'] ) || ! empty( $f['hidden'] ) || ! empty( $f['local'] ) || ( ! empty( $f['private'] ) && ! $with_private ) ) {
 				continue;
 			}
 			$data[ $key ] = array_key_exists( $key, $all ) ? $all[ $key ] : $f['default'];
@@ -78,7 +78,7 @@ final class SettingsTransfer {
 		$ignored = array();
 		foreach ( $data['settings'] as $key => $value ) {
 			$key = (string) $key;
-			if ( ! isset( $core[ $key ] ) || ! empty( $core[ $key ]['secret'] ) || ! empty( $core[ $key ]['hidden'] ) || ! ( is_scalar( $value ) || null === $value ) ) {
+			if ( ! isset( $core[ $key ] ) || ! empty( $core[ $key ]['secret'] ) || ! empty( $core[ $key ]['hidden'] ) || ! empty( $core[ $key ]['local'] ) || ! ( is_scalar( $value ) || null === $value ) ) {
 				$ignored[] = $key;
 				continue;
 			}

@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 0.20.0
+Stable tag: 0.20.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,11 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.20.1 =
+Uninstall follows the common standard of the Captain plugins; add-on contract 1.8.0 and database schema 16 (both unchanged):
+* Changed: "Delete all data when the plugin is deleted" stays off by default; switching it on now needs the typed word DELETE (or LÖSCHEN/LOESCHEN, any letter case), checked on the server. Switching off and saving other fields need no word. WP-CLI: `wp wpac setting set delete_on_uninstall 1 --confirm=DELETE`.
+* Changed: the help text names what is deleted and what stays for the retention period; the setting is no longer part of the settings export and is ignored by the import.
 
 = 0.20.0 =
 Settings register and add-on rows; add-on contract 1.8.0 (backwards compatible); database schema 16 (unchanged):
@@ -372,6 +377,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.20.1 =
+Switching on "delete all data on uninstall" now needs the typed word DELETE. Stored settings are unchanged.
 
 = 0.20.0 =
 Settings register with help texts for every setting; optional notes about Pro add-on features (can be switched off). No database change; add-ons keep working.

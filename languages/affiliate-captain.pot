@@ -4964,6 +4964,14 @@ msgstr ""
 msgid "Only a hash of the token is stored; note it down before saving."
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php
+msgid "Confirmation"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word."
+msgstr ""
+
 #. translators: %d: minutes
 #: src/Admin/Reauth.php
 msgid "This action changes where money goes or exports bank details. For your protection, please enter your password again. Afterwards such actions work without asking again for %d minute in this login session."
@@ -7160,6 +7168,10 @@ msgstr ""
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5), or leave the field empty."
 msgstr ""
 
+#: src/Core/Settings.php
+msgid "To switch this on, type DELETE (or LÖSCHEN) into the confirmation field."
+msgstr ""
+
 #. translators: %d: largest allowed number
 #: src/Core/Settings.php
 msgid "Please enter a whole number between 0 and %d."
@@ -8179,7 +8191,7 @@ msgid "Delete all data when the plugin is deleted"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
+msgid "Off by default: deleting the plugin keeps all data. When switched on (type DELETE to confirm), deleting the plugin removes partners, links and codes, visits, commissions, payouts, applications, settings and the pages it created. Booking records, credit notes and the audit log stay as long as a credit note is within the retention period. On a multisite network this applies to this site only. Scheduled tasks are always removed. Not part of the settings export."
 msgstr ""
 
 #: src/Core/SettingsTransfer.php

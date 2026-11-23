@@ -681,7 +681,6 @@
  "Comma separated; SKUs support trailing * (e.g. GROUP-*)": "Kommagetrennt; SKUs unterstützen ein * am Ende (z. B. GRUPPE-*)",
  "Commission": "Provision",
  "Commission and payout records are retained for bookkeeping obligations.": "Provisions- und Auszahlungsdaten werden aufgrund von Aufbewahrungspflichten aufbewahrt.",
- "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted.": "Provisions- und Auszahlungsdaten, Gutschriften und das Protokoll bleiben erhalten, solange eine Gutschrift in der Aufbewahrungsfrist liegt; alles andere wird gelöscht.",
  "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO) and deleted after the configured retention period.": "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden aufgrund gesetzlicher Aufbewahrungspflichten (z. B. § 147 AO) aufbewahrt und nach Ablauf der eingestellten Frist gelöscht.",
  "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted and they are deleted after the retention period.": "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden wegen gesetzlicher Aufbewahrungspflichten (z. B. §147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt und sie werden nach Ablauf der Frist gelöscht.",
  "Commission and payout records, credit notes and the partner data they contain (name, address, VAT ID) are retained for statutory bookkeeping obligations (e.g. §147 AO); their processing is restricted. They are not deleted automatically while the retention period is set to \"keep forever\" or a tax audit / legal hold is active.": "Provisions- und Auszahlungsdaten, Gutschriften und die darin enthaltenen Partnerdaten (Name, Anschrift, USt-IdNr.) werden aufgrund gesetzlicher Aufbewahrungspflichten (z. B. § 147 AO) aufbewahrt; ihre Verarbeitung ist eingeschränkt. Sie werden nicht automatisch gelöscht, solange die Aufbewahrungsfrist auf „unbegrenzt“ steht oder eine Betriebsprüfung bzw. Sperre aktiv ist.",
@@ -894,7 +893,7 @@
  "Defaults to the site admin e-mail.": "Standard ist die Admin-E-Mail der Website.",
  "Define WPAC_ENCRYPTION_KEY in wp-config.php first.": "Definieren Sie zuerst WPAC_ENCRYPTION_KEY in der wp-config.php.",
  "Delete": "Löschen",
- "Delete all data when the plugin is deleted": "Alle Daten löschen, wenn das Plugin gelöscht wird",
+ "Delete all data when the plugin is deleted": "Beim Löschen des Plugins alle Daten entfernen",
  "Delete group": "Gruppe löschen",
  "Delete links made with the earlier key and confirm": "Mit dem früheren Schlüssel erstellte Verknüpfungen löschen und bestätigen",
  "Delete this group?": "Diese Gruppe löschen?",
@@ -3193,5 +3192,9 @@
  "Program and settings": "Programm und Einstellungen",
  "Partners, codes and commissions": "Partner, Codes und Provisionen",
  "Payouts and credit notes": "Auszahlungen und Gutschriften",
- "See tax and bank details": "Steuer- und Bankdaten sehen"
+ "See tax and bank details": "Steuer- und Bankdaten sehen",
+ "Off by default: deleting the plugin keeps all data. When switched on (type DELETE to confirm), deleting the plugin removes partners, links and codes, visits, commissions, payouts, applications, settings and the pages it created. Booking records, credit notes and the audit log stay as long as a credit note is within the retention period. On a multisite network this applies to this site only. Scheduled tasks are always removed. Not part of the settings export.": "Standardmäßig aus: Beim Löschen des Plugins bleiben alle Daten erhalten. Ist es eingeschaltet (zur Bestätigung LÖSCHEN eintippen), entfernt das Löschen des Plugins Partner, Links und Codes, Besuche, Provisionen, Auszahlungen, Bewerbungen, Einstellungen und die vom Plugin angelegten Seiten. Buchungsdaten, Gutschriften und das Protokoll bleiben, solange eine Gutschrift in der Aufbewahrungsfrist liegt. In einem Multisite-Netzwerk gilt das nur für diese Website. Geplante Aufgaben werden immer entfernt. Wird nicht mit den Einstellungen exportiert.",
+ "To switch this on, type DELETE (or LÖSCHEN) into the confirmation field.": "Zum Einschalten tippe LÖSCHEN (oder DELETE) in das Bestätigungsfeld.",
+ "Confirmation": "Bestätigung",
+ "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word.": "Nur zum Einschalten: tippe LÖSCHEN (oder DELETE). Ausschalten und das Speichern anderer Felder brauchen kein Wort."
 }
