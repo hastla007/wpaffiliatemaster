@@ -3,7 +3,7 @@
 Stand: 16.11.2026, Branch `claude/sharp-mendel-xiiwf3` (enthält `main`), Plugin 0.15.0, Datenbankschema 16, Integrationsvertrag 1.4.0.  
 Die Datei sammelt alle Prüfrunden seit dem 12.11.2026 in zeitlicher Reihenfolge; die jüngste Runde („Review vom 16.11.2026“) steht am Ende. Bis 0.10.0 hieß das Plugin „WP Affiliate Captain“; ältere Einträge nennen deshalb noch diesen Namen.
 
-**Übersicht (gezählte Haken, Stand 23.11.2026, Plugin 0.20.0):** 654 erledigt, 36 offen. Davon 26 aus „Einstellungen für den Verkauf“ (SET-AC, Analyse vom 23.11.2026; 3 davon liegen in captain-pro/wp-license, mehrere warten auf Entscheidungen E1–E9 der Inhaberin oder auf Rechtsprüfung) und 10 ältere: 1 braucht die abgenommene gemeinsame Suite-Spezifikation (AFF-SU-02), 1 die Datenschutzberatung (AFF-WF-09), 3 eine fachliche Bewertung (R12-L1 bis R12-L3; E7), 3 Arbeit in captain-pro (B5, B10, B11), 1 eine Entscheidung des Inhabers (A9 mit E5), 1 einen Live-Test des Inhabers (PHP-2). `php tests/run.php` prüft, dass die beiden Zahlen stimmen. Nachzählen: `grep -c '^\s*- \[x\]' TODO.md` und `grep -c '^\s*- \[ \]' TODO.md`.
+**Übersicht (gezählte Haken, Stand 23.11.2026, Plugin 0.20.0):** 654 erledigt, 42 offen. Davon 6 Prüfaufgaben (SET-AC-P1 bis -P6), 26 aus „Einstellungen für den Verkauf“ (SET-AC, Analyse vom 23.11.2026; 3 davon liegen in captain-pro/wp-license, mehrere warten auf Entscheidungen E1–E9 der Inhaberin oder auf Rechtsprüfung) und 10 ältere: 1 braucht die abgenommene gemeinsame Suite-Spezifikation (AFF-SU-02), 1 die Datenschutzberatung (AFF-WF-09), 3 eine fachliche Bewertung (R12-L1 bis R12-L3; E7), 3 Arbeit in captain-pro (B5, B10, B11), 1 eine Entscheidung des Inhabers (A9 mit E5), 1 einen Live-Test des Inhabers (PHP-2). `php tests/run.php` prüft, dass die beiden Zahlen stimmen. Nachzählen: `grep -c '^\s*- \[x\]' TODO.md` und `grep -c '^\s*- \[ \]' TODO.md`.
 
 ## Offene Entscheidungen
 
@@ -1199,6 +1199,15 @@ Auftrag der Inhaberin (23.11.2026, über die Lizenz-Sitzung, mir direkt bestäti
 - [ ] **SET-AC-33 [OPTIMIERUNG] Add-on: Regeln als Einstellungen.** Webhook-Wiederholungen (`captain-pro:addons/affiliate-captain-pro/src/Webhooks/Dispatcher.php:70`), Sperre nach 10 Fehlschlägen (`EndpointStore.php:45`), Protokolldauer 180 Tage (`Webhooks/Log.php:29`) einstellbar; Add-on-Einstellungen in Export/Import (SET-AC-08) und WP-CLI aufnehmen. Anderes Repository. **Liegt bei der Lizenz-Sitzung (captain-pro/wp-license), nicht in diesem Repository.**
 - [ ] **SET-AC-34 [OPTIMIERUNG] Neue Rechteschlüssel anlegen.** `affiliate.automation`, `affiliate.fraud_rules` und Entscheidung zu `affiliate.accounting_export` zuerst in `captain-pro:docs/ENTITLEMENT-KEYS.md` und im Katalog des Lizenzservers eintragen, bevor Hinweis-Zeilen dafür erscheinen. **Wartet auf Inhaber / Braucht:** Entscheidung E6; andere Repositories (captain-pro, wp-license). **Liegt bei der Lizenz-Sitzung (captain-pro/wp-license), nicht in diesem Repository.**
 
+### Entscheidungen der Inhaberin vom 23.11.2026 (über die Lizenz-Sitzung, suiteweit verbindlich)
+
+- **S4** de_DE = „du“, de_DE_formal = „Sie“, keine Mischung in einer Datei (betrifft SET-AC-07).
+- **S5** Alle vorgeschlagenen Rechteschlüssel werden als „geplant“ vorgemerkt (captain-pro/Lizenzserver); gebaut und verkauft erst nach Einzelfreigabe; Hinweiszeilen im Kern erst, wenn die Funktion verkauft wird (löst E6 auf; SET-AC-05a, SET-AC-34).
+- **S6** Logo und Absender auf Belegen und E-Mails sind im Kern frei; Pro (White Label) bleibt Gestaltung von Portal und Vorlagen (löst E3 auf; SET-AC-16 umsetzbar).
+- **S8** Länderprofile zum Start: DE, AT, CH (Rechts-/Steuerprüfung je Land vor Verkaufsstart) + EU + OTHER mit neutralen Werten, sichtbar „nicht geprüft“; immer Vorschlag mit Vorher/Nachher (löst E1 auf; SET-AC-03 umsetzbar, Werte bleiben „ungeprüft“).
+- **S9** Aufbewahrung bei neuen Installationen: technische Vorgabe bleibt; das Länderprofil schlägt Fristen vor, der Website-Zustand mahnt, solange keine Frist gesetzt ist; bestehende Installationen unverändert.
+- **S10** „Daten bei Deinstallation behalten/löschen“, Vorgabe behalten – im Kern bereits so (`delete_on_uninstall` = 0).
+
 ### Entscheidungen der Inhaberin (aus der Analyse, gesammelt über die Lizenz-Sitzung) – wartet auf Inhaber
 
 | Nr. | Frage | Möglichkeiten | Empfehlung |
@@ -1212,3 +1221,14 @@ Auftrag der Inhaberin (23.11.2026, über die Lizenz-Sitzung, mir direkt bestäti
 | E7 | Belegnummern frei gestaltbar? | (a) nur Startnummer und Stellenzahl; (b) zusätzlich Jahr/Neustart abschaltbar; (c) unverändert | **(a) jetzt, (b) nach Rechtsprüfung** – Startnummer wird beim Umstieg dringend gebraucht. |
 | E8 | Steuerabzug (Quellensteuer) | (a) einfacher Prozent-Abzug je Partner; (b) Regeln je Land; (c) nicht im Kern, nur Filter | **(a)** – deckt die meisten Fälle, bleibt verständlich. |
 | E9 | Buchhaltungs-Export und Multisite-Vorgaben | Export: Pro-Schlüssel `affiliate.accounting_export` bestätigen oder streichen (offen als E5 in `captain-pro:TODO.md`); Multisite: bauen oder nicht | Export **bestätigen** (häufige Nachfrage im deutschsprachigen Raum); Multisite-Vorgaben **später**. |
+
+## Prüfphase Einstellungen und neue Funktionen (Auftrag der Inhaberin vom 23.11.2026)
+
+Sechs unabhängige Prüfer (je ein eigener Agent), nach jedem größeren Baustein (Register, Länderprofile, Geschäftsregeln, Pro-Hinweis) und einmal am Ende über alles – ausdrücklich auch über die neuen Funktionen von 0.15.0 bis 0.17.0. Geprüft wird am laufenden Plugin, nicht nur am Text. Jeder Befund wird eine eigene `- [ ]`-Aufgabe mit Schweregrad, Fundstelle und Nachstellung und wird mit Test repariert. Eine Prüfaufgabe ist erledigt, wenn ihre Befunde behoben oder begründet als „wartet auf Inhaber“ bzw. „Rechtsprüfung“ gekennzeichnet sind und die CI grün ist. Volltext: captain-pro `docs/settings/README.md`, Abschnitt „Prüfphase“.
+
+- [ ] **SET-AC-P1 Einstellungen und Daten.** Jede Einstellung: Vorgabe, Prüfung, Speichern, Wirkung im Code (keine toten Werte wie `payout_period`), Filter gewinnt, Migration bestehender Installationen ohne Verhaltensänderung, Export/Import-Rundlauf, Zurücksetzen, WP-CLI, Änderungsprotokoll, Multisite.
+- [ ] **SET-AC-P2 Abläufe von Anfang bis Ende.** Hauptabläufe mit geänderten Einstellungen (Grenzwerte, 0, leer, Maximum, widersprüchliche Kombinationen), klassische und Block-Kasse, HPOS, Zeitzonen und Fristen über Mitternacht/Jahreswechsel, Wiederholungen und Doppelklicks, Rückwärtskompatibilität.
+- [ ] **SET-AC-P3 Länder, Steuer und Recht.** Länderprofile DE, AT, CH, EU, OTHER (Vorschau, nichts still überschrieben), Währung, Zahlen-/Datumsformat, Steuerfälle (Gutschrift, Reverse Charge, Kleinunternehmer, Quellensteuer), Pflichttexte, Einwilligungen, Fristen; kennzeichnet, was rechtlich geprüft werden muss, legt nichts Rechtliches fest.
+- [ ] **SET-AC-P4 Sicherheit und Datenschutz.** Rechte und Nonces jeder Einstellungs- und Importaktion, Geheimnisse (nie im Export, nie im Protokoll), Ein-/Ausgaben, Aufbewahrung, Löschung und Auskunft mit den neuen Fristen, IP-Behandlung, Protokolle, Deinstallation.
+- [ ] **SET-AC-P5 Bedienung, Sprache und Barrierefreiheit.** Hilfetext und Fehlermeldung an jedem Feld, Tastatur und Screenreader, verständliche Sprache, de_DE „du“ und de_DE_formal „Sie“ vollständig, Hinweiszeilen unaufdringlich und ausblendbar, mobile Ansicht.
+- [ ] **SET-AC-P6 Free/Pro-Grenze, Verträge und Betrieb.** Kein Lizenzcode und keine Rechteschlüssel im Kern (Wächtertest), Hinweiszeile ohne Funktionscode, Add-on ersetzt die Zeile, Verhalten ohne Add-on / mit Add-on ohne Lizenz / mit Lizenz, Vertragsversion und Hook-Dokumentation, Leistung (Abfragen, Autoload-Optionen), Mindestplattform und CI-Matrix, Aktualisierung von der Vorversion.

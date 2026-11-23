@@ -161,9 +161,9 @@ final class SettingsPage {
 			Admin::back( __( 'Discarded. Nothing was changed.', 'affiliate-captain' ), 'success', $url );
 		}
 		if ( 'settings_import_preview' === $do ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Admin::dispatch().
-			$file = isset( $_FILES['settings_file']['tmp_name'], $_FILES['settings_file']['size'] ) ? $_FILES['settings_file'] : null;
-			if ( ! $file || ! is_uploaded_file( (string) $file['tmp_name'] ) || (int) $file['size'] > 1048576 ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in Admin::dispatch(); tmp path and size only.
+			$file = isset( $_FILES['settings_file']['tmp_name'], $_FILES['settings_file']['size'] ) ? array( 'tmp_name' => (string) $_FILES['settings_file']['tmp_name'], 'size' => absint( $_FILES['settings_file']['size'] ) ) : null;
+			if ( ! $file || ! is_uploaded_file( $file['tmp_name'] ) || $file['size'] > 1048576 ) {
 				Admin::back( __( 'Please choose a settings export (JSON, at most 1 MB).', 'affiliate-captain' ), 'error', $url );
 			}
 			$preview = \WPAffiliateCaptain\Core\SettingsTransfer::preview( json_decode( (string) file_get_contents( (string) $file['tmp_name'] ), true ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- uploaded file.
