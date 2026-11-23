@@ -389,6 +389,8 @@ Alle Einstellungen des Kerns stehen in einem Register (`WPAffiliateCaptain\Core\
 | `wpac_show_addon_hints` ( `$show` ) | Filter | Eingebaute Hinweiszeilen zeigen (Standard: Einstellung `addon_hints`, an). Der Filter gewinnt. |
 | `wpac_addon_hint_url` ( `$url` ) | Filter | Adresse für „Mehr erfahren“ in den Hinweiszeilen (Standard leer = kein Verweis). |
 
+Neue Filter (Plugin 0.20.0) für Geschäftsregeln, die jetzt Einstellungen sind (der Filter gewinnt gegen die Einstellung): `wpac_access_change_days` ( `$days` ) – Wartezeit neuer Bankdaten nach einer Kontoänderung; `wpac_disposable_domains` ( `$domains` ) – eingebaute Liste der Wegwerf-Domains. Die vorhandenen Filter `wpac_code_requests_per_month`, `wpac_code_request_max_length`, `wpac_reauth_ttl` und `wpac_claim_cancel_after` bekommen jetzt den Wert der Einstellung als Vorgabe.
+
 Eingebaute Hinweiszeilen (Kennungen): `payout_method_paypal` (Auszahlungen), `portal_design` (Werbung), `mail_design` (E-Mails), `webhooks` und `extended_api` (Daten & Wartung). Eine Hinweiszeile enthält kein Formularfeld und keinen gespeicherten Wert; der Kern prüft nie, ob ein Add-on freigeschaltet ist (Entscheidung S1, `docs/FREE-PREMIUM.md`, Abschnitt 0).
 
 ### Bezug einer manuellen Buchung (seit Plugin 0.15.0)

@@ -259,11 +259,12 @@ final class Vies {
 			return 0;
 		}
 		$checked = (int) strtotime( $r['checked_at'] . ' UTC' );
+		$days = max( 1, (int) \WPAffiliateCaptain\Core\Settings::get( 'vies_recheck_days' ) );
 		if ( 'unavailable' !== $r['status'] ) {
-			return $checked + 30 * DAY_IN_SECONDS;
+			return $checked + $days * DAY_IN_SECONDS;
 		}
 		$tries = max( 1, isset( $r['tries'] ) ? (int) $r['tries'] : 1 );
-		return $checked + min( 30, 2 ** min( $tries - 1, 5 ) ) * DAY_IN_SECONDS;
+		return $checked + min( $days, 2 ** min( $tries - 1, 5 ) ) * DAY_IN_SECONDS;
 	}
 
 	/**

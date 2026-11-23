@@ -7401,7 +7401,7 @@ msgid "Keep undecided applications (days, 0 = forever)"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
+msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted when their confirmation link expires (setting on the Program tab)."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7817,7 +7817,7 @@ msgid "VIES check: verify partner VAT IDs with the EU Commission"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
+msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again after the period set below; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7845,11 +7845,11 @@ msgid "Orders placed sooner after the partner link click are flagged for review.
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Max. refund rate of a partner in % (90 days, min. 5 orders)"
+msgid "Max. refund rate of a partner in %"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Partners whose orders are refunded more often than this (90 days, at least 5 orders) get new commissions flagged for review. 0 = rule off."
+msgid "Partners whose orders are refunded more often than this (period and minimum number of orders below) get new commissions flagged for review. 0 = rule off."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7873,7 +7873,7 @@ msgid "Ask for the password again before payout files, marking payouts as paid, 
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
+msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that stays valid in the login session for the time set below (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -7890,6 +7890,102 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Sent on the first days of the month for the previous month."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Code requests per partner in 30 days"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "How many own codes a partner can request within 30 days (at least 1). Filter wpac_code_requests_per_month wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Maximum length of a requested code"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Characters, 3 to 64. Filter wpac_code_request_max_length wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Confirmation link of an application valid for (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "An application whose e-mail address is not confirmed within this time is deleted (at least 1 day). Also for applications handed over by Form Captain."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "New bank details wait for approval after an account change (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "After a partner's e-mail address or linked user changed, new payout details from the partner area wait this many days for approval by someone with the payout permission. 0 = no waiting. Filter wpac_access_change_days wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Password confirmation valid for (minutes)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "How long a password confirmation before money-relevant actions stays valid in the login session. 0 = ask every time. Filter wpac_reauth_ttl wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Refund rate: period (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Period over which the refund rate of a partner is calculated (at least 1 day)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Refund rate: minimum number of orders"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "The refund rule only applies to partners with at least this many orders in the period (at least 1)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Privacy requests per partner and day"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Limit for requests from the partner area (data access, erasure, objection) per partner and day (at least 1)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Remind partners of new terms at most every (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payouts claimed by a payment add-on can be cancelled after (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payment providers can settle late; cancelling earlier could pay commissions twice (at least 1 day). Filter wpac_claim_cancel_after wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Show the reason of a rejected payout request for (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "How long partners see your reason for rejecting their payout request in the partner area."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Check VAT IDs again after (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "With the VIES check on, valid VAT IDs are checked again after this many days (at least 1)."
 msgstr ""
 
 #: src/Core/SettingsSchema.php

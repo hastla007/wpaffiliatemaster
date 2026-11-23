@@ -1637,7 +1637,7 @@ final class PayoutService {
 		 *
 		 * @param int $seconds Default 45 days.
 		 */
-		return max( DAY_IN_SECONDS, (int) apply_filters( 'wpac_claim_cancel_after', self::CLAIM_CANCEL_AFTER ) );
+		return max( DAY_IN_SECONDS, (int) apply_filters( 'wpac_claim_cancel_after', max( 1, (int) Settings::get( 'claim_cancel_days' ) ) * DAY_IN_SECONDS ) );
 	}
 
 	/**

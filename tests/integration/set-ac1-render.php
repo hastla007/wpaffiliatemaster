@@ -23,7 +23,8 @@ SettingsSchema::flush();
 // Defaults of 0.19.0 (before the register): unchanged, plus the new key addon_hints.
 $set_before = array( 'referral_param' => 'partner', 'touch_model' => 'last', 'cookie_mode' => 'consent', 'cookie_days' => 30, 'use_wc_session' => 1, 'checkout_field' => 1, 'renewal_commission' => 1, 'js_tracking' => 0, 'cookie_domain' => '', 'visit_log_percent' => 100, 'coupon_priority' => 1, 'self_referral' => 'block', 'rate_limit_per_minute' => 30, 'trusted_proxies' => '', 'visit_retention_days' => 90, 'audit_retention_days' => 1095, 'application_retention_days' => 180, 'pending_application_days' => 365, 'currency' => 'EUR', 'exchange_rates' => '', 'default_rate_type' => 'percent', 'default_rate' => '10', 'hold_days' => 30, 'lifetime_enabled' => 0, 'lifetime_days' => 365, 'lifetime_rate' => '', 'hold_start' => 'paid', 'renewal_limit_months' => 0, 'rule_precedence' => 'scope', 'auto_approve' => 0, 'terms_page_id' => 0, 'terms_version' => '1.0', 'portal_page_id' => 0, 'registration_page_id' => 0, 'terminated_open' => 'pay', 'code_requests' => 1, 'admin_email' => '', 'mail_from_name' => '', 'mail_from_email' => '', 'notify_payout_paid' => 1, 'notify_commissions' => 0, 'notify_admin_review' => 0, 'maintenance_mode' => 0, 'monitor_token' => '', 'landing_prefix' => 'partner', 'landing_page_id' => 0, 'default_disclosure' => 'Advertisement', 'promotion_guidelines' => '', 'embed_disclosure_label' => 1, 'auto_apply_coupon' => 0, 'min_payout_minor' => 5000, 'payout_requests' => 0, 'statement_retention_years' => 10, 'retention_hold' => 0, 'payout_period' => 'monthly', 'payout_method_manual' => 1, 'debtor_name' => '', 'debtor_iban' => '', 'debtor_bic' => '', 'remittance_prefix' => 'Provision', 'self_billing' => 1, 'vat_rate' => '19', 'operator_country' => 'DE', 'operator_address' => '', 'operator_vat_id' => '', 'operator_tax_number' => '', 'credit_prefix' => 'GS', 'storno_prefix' => 'ST', 'correction_prefix' => 'KG', 'einvoice_mail' => 'auto', 'einvoice_buyer_reference' => '', 'vies_check' => 0, 'fraud_max_orders_day' => 0, 'fraud_max_order_minor' => 0, 'fraud_min_click_seconds' => 0, 'fraud_max_refund_rate' => 0, 'fraud_check_domains' => 1, 'fraud_blocked_domains' => '', 'reauth_required' => 1, 'report_admin' => 1, 'report_partners' => 0, 'delete_on_uninstall' => 0 );
 $set_now    = SettingsSchema::defaults();
-check( 'SET-AC-01 defaults: the 82 keys of 0.19.0 keep their order and values; new: addon_hints = 1', array( $set_before, 1 ), array( array_diff_key( $set_now, array( 'addon_hints' => 1 ) ), $set_now['addon_hints'] ) );
+$set_new_keys = array( 'addon_hints' => 1, 'code_requests_per_month' => 3, 'code_request_max_length' => 20, 'application_confirm_days' => 2, 'bank_change_wait_days' => 30, 'reauth_minutes' => 15, 'fraud_refund_window_days' => 90, 'fraud_refund_min_orders' => 5, 'privacy_requests_per_day' => 5, 'terms_reminder_days' => 7, 'claim_cancel_days' => 45, 'payout_request_note_days' => 60, 'vies_recheck_days' => 30 );
+check( 'SET-AC-01 defaults: the 82 keys of 0.19.0 keep their order and values; new keys default to the former fixed values (S2)', array( $set_before, $set_new_keys ), array( array_diff_key( $set_now, $set_new_keys ), array_merge( $set_new_keys, array_intersect_key( $set_now, $set_new_keys ) ) ) );
 check( 'SET-AC-01 Settings::defaults() is the register', SettingsSchema::defaults(), Settings::defaults() );
 
 // Every key: label and help text; every key on exactly one tab (hidden keys on none).
@@ -126,6 +127,28 @@ check(
 );
 $set_text = \WPAffiliateCaptain\Admin\Pages\AuditPage::details_text( wp_json_encode( array( 'changed' => array( 'hold_days' ), 'values' => array( 'hold_days' => $set_av['hold_days'] ) ) ) );
 check( 'SET-AC-11 audit log shows "Hold period …: 30 → 14" (field label, not the key)', true, false !== strpos( $set_text, SettingsSchema::label( 'hold_days' ) . ': 30 → 14' ) );
+
+// SET-AC-12/13/14 (S2): business rules are settings; the old filters still win.
+$set_rules = array( WPAffiliateCaptain\Codes\CodeRequests::per_month( 1 ), WPAffiliateCaptain\Codes\CodeRequests::max_length(), WPAffiliateCaptain\Admin\Reauth::ttl(), WPAffiliateCaptain\Affiliates\AffiliateRepository::access_change_days(), WPAffiliateCaptain\Affiliates\Registration::confirm_ttl(), WPAffiliateCaptain\Payouts\PayoutService::claim_cancel_after() );
+Settings::update( array( 'code_requests_per_month' => 1, 'code_request_max_length' => 12, 'reauth_minutes' => 5, 'bank_change_wait_days' => 10, 'application_confirm_days' => 3, 'claim_cancel_days' => 60 ) );
+$set_rules2 = array( WPAffiliateCaptain\Codes\CodeRequests::per_month( 1 ), WPAffiliateCaptain\Codes\CodeRequests::max_length(), WPAffiliateCaptain\Admin\Reauth::ttl(), WPAffiliateCaptain\Affiliates\AffiliateRepository::access_change_days(), WPAffiliateCaptain\Affiliates\Registration::confirm_ttl(), WPAffiliateCaptain\Payouts\PayoutService::claim_cancel_after() );
+$set_f = static function () { return 7; };
+add_filter( 'wpac_code_requests_per_month', $set_f );
+add_filter( 'wpac_access_change_days', $set_f );
+$set_rules3 = array( WPAffiliateCaptain\Codes\CodeRequests::per_month( 1 ), WPAffiliateCaptain\Affiliates\AffiliateRepository::access_change_days() );
+remove_filter( 'wpac_code_requests_per_month', $set_f );
+remove_filter( 'wpac_access_change_days', $set_f );
+Settings::update( array_intersect_key( SettingsSchema::defaults(), array_flip( array( 'code_requests_per_month', 'code_request_max_length', 'reauth_minutes', 'bank_change_wait_days', 'application_confirm_days', 'claim_cancel_days' ) ) ) );
+check(
+	'SET-AC-12/13 defaults = former fixed values; the settings change them; the old filters still win',
+	array( array( 3, 20, 15 * MINUTE_IN_SECONDS, 30, 2 * DAY_IN_SECONDS, 45 * DAY_IN_SECONDS ), array( 1, 12, 5 * MINUTE_IN_SECONDS, 10, 3 * DAY_IN_SECONDS, 60 * DAY_IN_SECONDS ), array( 7, 7 ) ),
+	array( $set_rules, $set_rules2, $set_rules3 )
+);
+$set_dom = static function ( $d ) { $d[] = 'wegwerf.example'; return $d; };
+add_filter( 'wpac_disposable_domains', $set_dom );
+$set_blocked = WPAffiliateCaptain\Tracking\FraudCheck::domain_blocked( 'x@wegwerf.example' );
+remove_filter( 'wpac_disposable_domains', $set_dom );
+check( 'SET-AC-14 filter wpac_disposable_domains extends the built-in list', array( true, false ), array( $set_blocked, WPAffiliateCaptain\Tracking\FraudCheck::domain_blocked( 'x@wegwerf.example' ) ) );
 
 $_GET = $set_get;
 if ( null !== $set_caps ) {

@@ -164,7 +164,7 @@ final class Handover {
 			'pending_only'     => true, // Registration::finalize(): never "active", whatever auto_approve says.
 			'handover'         => $ref,
 		);
-		if ( ! Pending::set( 'app_' . $hash, $app, self::CONFIRM_TTL ) ) {
+		if ( ! Pending::set( 'app_' . $hash, $app, \WPAffiliateCaptain\Affiliates\Registration::confirm_ttl() ) ) {
 			return self::result( 'retry', 'storage_failed', 'The application could not be stored.' );
 		}
 		if ( ! self::save( $ref, 'confirm_sent', $form_id, $entry_id, $group_id, $hash ) ) {

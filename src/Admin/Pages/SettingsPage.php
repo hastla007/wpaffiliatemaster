@@ -380,6 +380,10 @@ final class SettingsPage {
 		self::checkbox( 'auto_approve', null, $s );
 		self::select( 'terminated_open', null, $s, array( 'pay' => __( 'Remain payable', 'affiliate-captain' ), 'reject' => __( 'Are rejected', 'affiliate-captain' ) ) );
 		self::checkbox( 'code_requests', null, $s );
+		self::number( 'code_requests_per_month', null, $s );
+		self::number( 'code_request_max_length', null, $s );
+		self::number( 'application_confirm_days', null, $s );
+		self::number( 'terms_reminder_days', null, $s );
 		self::end();
 	}
 
@@ -472,6 +476,8 @@ final class SettingsPage {
 		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html( SettingsSchema::label( 'fraud_max_order_minor' ) ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( self::shown( 'fraud_max_order', Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description">' . esc_html__( 'Orders in other currencies are compared after conversion with the reference exchange rates; without a rate for a currency this rule cannot check them (a warning is logged).', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::number( 'fraud_min_click_seconds', null, $s );
 		self::number( 'fraud_max_refund_rate', null, $s );
+		self::number( 'fraud_refund_window_days', null, $s );
+		self::number( 'fraud_refund_min_orders', null, $s );
 		self::checkbox( 'fraud_check_domains', null, $s );
 		echo '<tr><th><label for="wpac-fraud_blocked_domains">' . esc_html( SettingsSchema::label( 'fraud_blocked_domains' ) ) . '</label></th><td><textarea id="wpac-fraud_blocked_domains" name="wpac[fraud_blocked_domains]" rows="3" class="regular-text code">' . esc_textarea( (string) $s['fraud_blocked_domains'] ) . '</textarea><p class="description">' . esc_html( SettingsSchema::help( 'fraud_blocked_domains' ) ) . '</p></td></tr>';
 		self::end();
@@ -481,6 +487,8 @@ final class SettingsPage {
 		$err = self::error_parts( 'trusted_proxies' );
 		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html( SettingsSchema::label( 'trusted_proxies' ) ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html( SettingsSchema::help( 'trusted_proxies' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
 		self::checkbox( 'reauth_required', null, $s );
+		self::number( 'reauth_minutes', null, $s );
+		self::number( 'bank_change_wait_days', null, $s );
 		self::end();
 	}
 
@@ -570,6 +578,8 @@ final class SettingsPage {
 		// stored value of the former setting is kept but has no effect.
 		self::checkbox( 'payout_requests', null, $s );
 		self::checkbox( 'payout_method_manual', null, $s );
+		self::number( 'payout_request_note_days', null, $s );
+		self::number( 'claim_cancel_days', null, $s );
 		self::end();
 
 		self::section( __( 'Your company details (for credit notes)', 'affiliate-captain' ), 'payouts' );
@@ -608,6 +618,7 @@ final class SettingsPage {
 
 		self::section( __( 'VAT ID check (VIES)', 'affiliate-captain' ), 'payouts' );
 		self::checkbox( 'vies_check', null, $s );
+		self::number( 'vies_recheck_days', null, $s );
 		self::end();
 
 		self::section( __( 'SEPA bank transfer', 'affiliate-captain' ), 'payouts' );
@@ -635,6 +646,7 @@ final class SettingsPage {
 
 		self::section( __( 'Maintenance & monitoring', 'affiliate-captain' ), 'data' );
 		self::checkbox( 'maintenance_mode', null, $s );
+		self::number( 'privacy_requests_per_day', null, $s );
 		self::monitor_token( $s );
 		self::end();
 

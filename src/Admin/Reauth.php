@@ -145,7 +145,7 @@ final class Reauth {
 		 * @param int $ttl     Default 900 (15 minutes).
 		 * @param int $user_id User.
 		 */
-		return max( 0, (int) apply_filters( 'wpac_reauth_ttl', 15 * MINUTE_IN_SECONDS, get_current_user_id() ) );
+		return max( 0, (int) apply_filters( 'wpac_reauth_ttl', (int) \WPAffiliateCaptain\Core\Settings::get( 'reauth_minutes' ) * MINUTE_IN_SECONDS, get_current_user_id() ) );
 	}
 
 	/**
