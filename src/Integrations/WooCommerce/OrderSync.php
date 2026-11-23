@@ -9,6 +9,7 @@ namespace WPAffiliateCaptain\Integrations\WooCommerce;
 
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Codes\CodeRepository;
+use WPAffiliateCaptain\Commissions\CommissionBasis;
 use WPAffiliateCaptain\Commissions\Ledger;
 use WPAffiliateCaptain\Core\Audit;
 use WPAffiliateCaptain\Core\Capabilities;
@@ -54,6 +55,32 @@ final class OrderSync {
 			}
 		}
 		foreach ( $base['lines'] as $item_id => $line ) {
+			$net = max( 0, $line['net'] - ( isset( $refunded[ (string) $item_id ] ) ? $refunded[ (string) $item_id ] : 0 ) );
+			if ( 'product' !== $line['kind'] ) {
+				// Shipping or fee as an own position (settings commission_include_shipping/_fees):
+				// no product, so product rules do not match and fixed rates give nothing.
+				$name = method_exists( $line['item'], 'get_name' ) ? (string) $line['item']->get_name() : '';
+				/* translators: %s: name of the shipping method */
+				$label = __( 'Shipping: %s', 'affiliate-captain' );
+				if ( 'fee' === $line['kind'] ) {
+					/* translators: %s: name of the fee */
+					$label = __( 'Fee: %s', 'affiliate-captain' );
+				}
+				$items[] = array(
+					'item_id'               => (string) $item_id,
+					'product_id'            => 0,
+					'parent_id'             => 0,
+					'sku'                   => '',
+					'category_ids'          => array(),
+					'category_ancestor_ids' => array(),
+					'tag_ids'               => array(),
+					'name'                  => sprintf( $label, $name ),
+					'quantity'              => 1,
+					'net_minor'             => $net,
+					'meta'                  => array( CommissionBasis::POSITION => $line['kind'] ),
+				);
+				continue;
+			}
 			/** @var \WC_Order_Item_Product $item */
 			$item       = $line['item'];
 			$product    = $item->get_product();
@@ -72,9 +99,10 @@ final class OrderSync {
 				'tag_ids'               => array_map( 'intval', $tag_ids ),
 				'name'                  => $item->get_name(),
 				'quantity'              => (int) $item->get_quantity(),
-				// Line total = net after discounts, excluding tax and shipping (bundle/composite parts
-				// included, capped to the net product total of the order), minus earlier refunds.
-				'net_minor'             => max( 0, $line['net'] - ( isset( $refunded[ (string) $item_id ] ) ? $refunded[ (string) $item_id ] : 0 ) ),
+				// Line total after discounts in the commission base of the order (default: net,
+				// excluding tax and shipping; SET-AC-02), bundle/composite parts included, capped to
+				// what the customer paid for the lines (base_lines()), minus earlier refunds.
+				'net_minor'             => $net,
 			);
 		}
 
@@ -143,75 +171,175 @@ final class OrderSync {
 	}
 
 	/**
+	 * Commission base of an order (SET-AC-02): frozen with its first sale report; orders booked
+	 * before the setting existed keep the former base (net, no shipping, no fees); otherwise the
+	 * settings.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return array{basis:string,shipping:bool,fees:bool}
+	 */
+	public static function basis( $order ) {
+		$frozen = CommissionBasis::decode( $order->get_meta( CommissionBasis::META ) );
+		if ( $frozen ) {
+			return $frozen;
+		}
+		if ( Ledger::attribution_for( WooCommerce::SOURCE, (string) $order->get_id() ) ) {
+			return CommissionBasis::legacy();
+		}
+		return CommissionBasis::current();
+	}
+
+	/**
+	 * Freeze the commission base of an order (before its sale is reported) or release it again
+	 * (the sale was not attributed: a later manual assignment uses the settings of that time).
+	 *
+	 * @param \WC_Order $order  Order.
+	 * @param bool      $freeze Freeze (true) or release (false).
+	 */
+	private static function freeze_basis( $order, $freeze = true ) {
+		if ( $freeze ) {
+			if ( ! CommissionBasis::decode( $order->get_meta( CommissionBasis::META ) ) ) {
+				$order->update_meta_data( CommissionBasis::META, CommissionBasis::encode( self::basis( $order ) ) );
+				$order->save_meta_data();
+			}
+			return;
+		}
+		if ( '' !== (string) $order->get_meta( CommissionBasis::META ) ) {
+			if ( is_callable( array( $order, 'delete_meta_data' ) ) ) {
+				$order->delete_meta_data( CommissionBasis::META );
+			} else {
+				$order->update_meta_data( CommissionBasis::META, '' );
+			}
+			$order->save_meta_data();
+		}
+	}
+
+	/**
+	 * Total and tax of an order item in minor units (0 for items without them).
+	 *
+	 * @param object $item     Order item.
+	 * @param string $currency Currency.
+	 * @return int[] [ total, tax ]
+	 */
+	private static function item_total( $item, $currency ) {
+		$total = method_exists( $item, 'get_total' ) ? Money::to_minor( (string) $item->get_total(), $currency ) : 0;
+		$tax   = method_exists( $item, 'get_total_tax' ) ? Money::to_minor( (string) $item->get_total_tax(), $currency ) : 0;
+		return array( $total, $tax );
+	}
+
+	/**
 	 * Commission-relevant lines of an order.
 	 *
 	 * - Parts of a bundle or composite product (Product Bundles, Composite Products) are merged
 	 *   into their parent line: the rules of the bundle apply, a fixed rate counts per bundle.
 	 * - Gift card products are left out (the redeemed card is paid with real money later).
-	 * - The line totals are capped to the net product total the customer really paid (order total
-	 *   minus tax, shipping, positive fees and gift cards): discounts booked as negative fees and
-	 *   gift cards redeemed as payment lower the commission base.
+	 * - With the settings "include shipping" / "include fees" (SET-AC-02) shipping lines and
+	 *   positive fee lines are own positions (kind shipping/fee).
+	 * - Base of a line (key base): its total after discounts, with gross base plus its tax.
+	 * - The line bases are capped to the total the customer really paid for them (order total
+	 *   minus tax with net base, minus shipping and positive fees unless included, minus gift
+	 *   cards): discounts booked as negative fees and gift cards redeemed as payment lower the
+	 *   commission base.
 	 *
-	 * @param \WC_Order $order Order.
-	 * @return array { lines: item_id => [ item, raw, tax, net ], parent: child item_id => line item_id }
+	 * @param \WC_Order  $order Order.
+	 * @param array|null $basis Commission base (null = basis() of the order).
+	 * @return array { lines: item_id => [ item, kind, raw, tax, base, net ], parent: child item_id => line item_id, basis }
 	 */
-	public static function base_lines( $order ) {
+	public static function base_lines( $order, $basis = null ) {
+		$basis    = is_array( $basis ) ? $basis : self::basis( $order );
+		$gross    = 'gross' === $basis['basis'];
 		$currency = $order->get_currency();
 		$all      = $order->get_items( 'line_item' );
 		$parent   = self::bundle_parents( $order, $all );
 		$lines    = array();
 		$excluded = 0;
 		foreach ( $all as $item_id => $item ) {
-			$total = Money::to_minor( (string) $item->get_total(), $currency );
-			$tax   = Money::to_minor( (string) $item->get_total_tax(), $currency );
+			list( $total, $tax ) = self::item_total( $item, $currency );
 			if ( isset( $parent[ $item_id ] ) ) {
 				continue; // Added to its parent below.
 			}
 			if ( self::is_gift_card( $item ) ) {
-				$excluded += $total;
+				$excluded += $total + ( $gross ? $tax : 0 );
 				continue;
 			}
 			$lines[ $item_id ] = array(
 				'item' => $item,
+				'kind' => 'product',
 				'raw'  => $total,
 				'tax'  => $tax,
-				'net'  => $total,
 			);
 		}
 		foreach ( $parent as $child_id => $line_id ) {
+			list( $total, $tax ) = self::item_total( $all[ $child_id ], $currency );
 			if ( isset( $lines[ $line_id ] ) ) {
-				$lines[ $line_id ]['raw'] += Money::to_minor( (string) $all[ $child_id ]->get_total(), $currency );
-				$lines[ $line_id ]['tax'] += Money::to_minor( (string) $all[ $child_id ]->get_total_tax(), $currency );
-				$lines[ $line_id ]['net']  = $lines[ $line_id ]['raw'];
+				$lines[ $line_id ]['raw'] += $total;
+				$lines[ $line_id ]['tax'] += $tax;
 			} else {
-				$excluded += Money::to_minor( (string) $all[ $child_id ]->get_total(), $currency ); // Part of an excluded gift card.
+				$excluded += $total + ( $gross ? $tax : 0 ); // Part of an excluded gift card.
+			}
+		}
+		$shipping = Money::to_minor( (string) $order->get_shipping_total(), $currency );
+		if ( $gross && ! $basis['shipping'] && is_callable( array( $order, 'get_shipping_tax' ) ) ) {
+			$shipping += Money::to_minor( (string) $order->get_shipping_tax(), $currency );
+		}
+		if ( $basis['shipping'] ) {
+			$shipping = 0;
+			foreach ( $order->get_items( 'shipping' ) as $item_id => $item ) {
+				list( $total, $tax ) = self::item_total( $item, $currency );
+				if ( $total > 0 && ! isset( $lines[ $item_id ] ) ) {
+					$lines[ $item_id ] = array(
+						'item' => $item,
+						'kind' => 'shipping',
+						'raw'  => $total,
+						'tax'  => $tax,
+					);
+				}
+			}
+		}
+		$fees = 0;
+		foreach ( $order->get_items( 'fee' ) as $item_id => $fee ) {
+			list( $total, $tax ) = self::item_total( $fee, $currency );
+			if ( $total <= 0 ) {
+				continue; // Negative fees (discounts) lower the cap below.
+			}
+			if ( $basis['fees'] && ! isset( $lines[ $item_id ] ) ) {
+				$lines[ $item_id ] = array(
+					'item' => $fee,
+					'kind' => 'fee',
+					'raw'  => $total,
+					'tax'  => $tax,
+				);
+			} else {
+				$fees += $total + ( $gross ? max( 0, $tax ) : 0 );
 			}
 		}
 		$sum = 0;
-		foreach ( $lines as $line ) {
-			$sum += max( 0, $line['raw'] );
+		foreach ( $lines as $id => $line ) {
+			$lines[ $id ]['base'] = $line['raw'] + ( $gross ? $line['tax'] : 0 );
+			$lines[ $id ]['net']  = $lines[ $id ]['base'];
+			$sum                 += max( 0, $lines[ $id ]['base'] );
 		}
-		$fees = 0;
-		foreach ( $order->get_items( 'fee' ) as $fee ) {
-			$fees += max( 0, Money::to_minor( (string) $fee->get_total(), $currency ) );
-		}
-		$cap = Money::to_minor( (string) $order->get_total(), $currency ) - Money::to_minor( (string) $order->get_total_tax(), $currency ) - Money::to_minor( (string) $order->get_shipping_total(), $currency ) - $fees - $excluded;
+		$cap = Money::to_minor( (string) $order->get_total(), $currency ) - ( $gross ? 0 : Money::to_minor( (string) $order->get_total_tax(), $currency ) ) - $shipping - $fees - $excluded;
 		/**
-		 * Net product total the commission base of a WooCommerce order is capped to (minor units).
+		 * Total the commission base of a WooCommerce order is capped to (minor units). Default:
+		 * order total minus tax, shipping, positive fees and gift cards; with the commission base
+		 * settings (SET-AC-02) tax, shipping and fees stay in when they are part of the base.
 		 *
 		 * @param int       $cap   Cap.
 		 * @param \WC_Order $order Order.
+		 * @param array     $basis Commission base of the order (basis, shipping, fees; SET-AC-02, plugin 0.21.0).
 		 */
-		$cap = (int) apply_filters( 'wpac_wc_base_cap', $cap, $order );
+		$cap = (int) apply_filters( 'wpac_wc_base_cap', $cap, $order, $basis );
 		// Rounding of the totals may differ by a cent per line; only a real gap scales the lines.
 		if ( $sum > 0 && $cap + count( $lines ) < $sum ) {
 			foreach ( $lines as $id => $line ) {
-				$lines[ $id ]['net'] = Money::prorate( max( 0, $line['raw'] ), max( 0, $cap ), $sum );
+				$lines[ $id ]['net'] = Money::prorate( max( 0, $line['base'] ), max( 0, $cap ), $sum );
 			}
 		}
 		return array(
 			'lines'  => $lines,
 			'parent' => $parent,
+			'basis'  => $basis,
 		);
 	}
 
@@ -464,6 +592,9 @@ final class OrderSync {
 			self::mark_unresolved( $order, 'renewals_off' );
 			return;
 		}
+		// The commission base of the order stays the one of its first report (SET-AC-02): later
+		// refunds and item changes are deducted in the same base.
+		self::freeze_basis( $order );
 		// Renewals: partner of the subscription's first order (see payload()).
 		$payload = self::payload( $order );
 		/**
@@ -483,10 +614,14 @@ final class OrderSync {
 		);
 
 		if ( is_wp_error( $result ) ) {
+			if ( 'wpac_queued' !== $result->get_error_code() ) {
+				self::freeze_basis( $order, false );
+			}
 			self::report_error( $order, $result, 'sale' );
 			return;
 		}
 		if ( is_array( $result ) && 'unattributed' === $result['status'] ) {
+			self::freeze_basis( $order, false );
 			$reason = (string) $result['reason'];
 			if ( self::is_renewal( $order ) && ! self::manual_affiliate( $order ) && empty( $payload['affiliate_id'] ) ) {
 				$reason = 'renewal_no_partner';
@@ -744,13 +879,18 @@ final class OrderSync {
 	}
 
 	/**
-	 * Commission-relevant lines of a WooCommerce refund: [ item_id, net_minor ].
+	 * Commission-relevant lines of a WooCommerce refund: [ item_id, net_minor ], in the
+	 * commission base of the order (base_lines(), SET-AC-02: net or gross, with or without
+	 * shipping and fee positions) – the same base as the booked sale.
 	 *
-	 * - Refund lines with an amount: position-exact (parts of a bundle count for the bundle).
-	 * - Only shipping/fee/tax lines with an amount: nothing (the net product base is unchanged).
+	 * - Refund lines with an amount: position-exact (parts of a bundle count for the bundle;
+	 *   shipping and fee lines only when they are positions of the base).
+	 * - Only shipping/fee/tax lines with an amount that are no positions: nothing (the base is
+	 *   unchanged).
 	 * - Otherwise (amount-only refund, or lines with 0 total, e.g. only a restock quantity
-	 *   with a manually typed amount): the amount without its tax share, pro rata over the net
-	 *   line totals (not over the gross order total with shipping, fees and gift cards).
+	 *   with a manually typed amount): the amount, with net base without its tax share, pro rata
+	 *   over the line bases (not over the gross order total with shipping, fees and gift cards
+	 *   that are not part of the base).
 	 * Amounts are scaled like the commission base of the line (base_lines()).
 	 *
 	 * @param \WC_Order        $order  Order.
@@ -761,25 +901,40 @@ final class OrderSync {
 		$currency = $order->get_currency();
 		$base     = self::base_lines( $order );
 		$lines    = $base['lines'];
-		$sums     = array();
+		$gross    = 'gross' === $base['basis']['basis'];
+		$extra    = $base['basis']['shipping'] || $base['basis']['fees'];
+		// Refund items that can be positions: product lines, with shipping/fees included also those.
+		$candidates = array();
 		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
-			$original = (int) $refund_item->get_meta( '_refunded_item_id' );
-			$original = isset( $base['parent'][ $original ] ) ? (int) $base['parent'][ $original ] : $original;
-			$net      = abs( Money::to_minor( (string) $refund_item->get_total(), $currency ) );
-			if ( ! $original || $net <= 0 || ! isset( $lines[ $original ] ) ) {
-				continue; // No commission line (e.g. a gift card).
-			}
-			$line = $lines[ $original ];
-			if ( $line['raw'] > 0 && $line['net'] !== $line['raw'] ) {
-				$net = Money::prorate( $net, $line['net'], $line['raw'] );
-			}
-			$sums[ $original ] = ( isset( $sums[ $original ] ) ? $sums[ $original ] : 0 ) + $net;
+			$candidates[] = array( $refund_item, true );
 		}
+		if ( $extra ) {
+			foreach ( $refund->get_items( array( 'shipping', 'fee' ) ) as $refund_item ) {
+				$original = (int) $refund_item->get_meta( '_refunded_item_id' );
+				if ( $original && isset( $lines[ $original ] ) && 'product' !== $lines[ $original ]['kind'] ) {
+					$candidates[] = array( $refund_item, false );
+				}
+			}
+		}
+		$sums      = array();
 		$has_lines = false;
-		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
+		foreach ( $candidates as $candidate ) {
+			list( $refund_item, $product ) = $candidate;
 			if ( 0 !== self::item_amount( $refund_item, $currency ) ) {
 				$has_lines = true;
 			}
+			$original = (int) $refund_item->get_meta( '_refunded_item_id' );
+			$original = $product && isset( $base['parent'][ $original ] ) ? (int) $base['parent'][ $original ] : $original;
+			list( $total, $tax ) = self::item_total( $refund_item, $currency );
+			$net                 = abs( $total ) + ( $gross ? abs( $tax ) : 0 );
+			if ( ! $original || abs( $total ) <= 0 || ! isset( $lines[ $original ] ) || ( $product && 'product' !== $lines[ $original ]['kind'] ) ) {
+				continue; // No commission line (e.g. a gift card).
+			}
+			$line = $lines[ $original ];
+			if ( $line['base'] > 0 && $line['net'] !== $line['base'] ) {
+				$net = Money::prorate( $net, $line['net'], $line['base'] );
+			}
+			$sums[ $original ] = ( isset( $sums[ $original ] ) ? $sums[ $original ] : 0 ) + $net;
 		}
 		$items = array();
 		foreach ( $sums as $item_id => $net ) {
@@ -795,25 +950,25 @@ final class OrderSync {
 		}
 		foreach ( $refund->get_items( array( 'shipping', 'fee', 'tax' ) ) as $other ) {
 			if ( 0 !== self::item_amount( $other, $currency ) ) {
-				return array(); // Only shipping/fee/tax refunded.
+				return array(); // Only shipping/fee/tax refunded (not part of the base).
 			}
 		}
 		$refunded = abs( Money::to_minor( (string) $refund->get_amount(), $currency ) );
-		$raw      = 0;
-		$gross    = 0;
+		$sum      = 0;
+		$paid     = 0;
 		foreach ( $lines as $line ) {
-			$raw   += max( 0, $line['raw'] );
-			$gross += max( 0, $line['raw'] + $line['tax'] );
+			$sum  += max( 0, $line['base'] );
+			$paid += max( 0, $line['raw'] + $line['tax'] );
 		}
-		if ( $raw <= 0 || $refunded <= 0 || $gross <= 0 ) {
+		if ( $sum <= 0 || $refunded <= 0 || $paid <= 0 ) {
 			return array();
 		}
-		// Refunded amounts include tax: the net share of the product lines, at most all of it.
-		$net_refund = min( $raw, Money::prorate( $refunded, $raw, $gross ) );
+		// Refunded amounts include tax: with net base the net share of the lines; at most all of it.
+		$base_refund = min( $sum, Money::prorate( $refunded, $sum, $paid ) );
 		foreach ( $lines as $item_id => $line ) {
 			$items[] = array(
 				'item_id'   => (string) $item_id,
-				'net_minor' => Money::prorate( max( 0, $line['net'] ), $net_refund, $raw ),
+				'net_minor' => Money::prorate( max( 0, $line['net'] ), $base_refund, $sum ),
 			);
 		}
 		return $items;

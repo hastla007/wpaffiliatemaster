@@ -11,6 +11,7 @@ use WPAffiliateCaptain\Admin\Admin;
 use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Affiliates\Groups;
 use WPAffiliateCaptain\Commissions\Calculator;
+use WPAffiliateCaptain\Commissions\CommissionBasis;
 use WPAffiliateCaptain\Commissions\RuleRepository;
 use WPAffiliateCaptain\Commissions\Tiers;
 use WPAffiliateCaptain\Commissions\TierService;
@@ -208,7 +209,7 @@ final class RulesPage {
 	 */
 	private static function render_rules( array $groups, array $aff_names, $currency, $edit ) {
 		/* translators: %s: default rate */
-		echo '<p>' . esc_html( sprintf( __( 'Program default: %s. Basis is the net line amount after discount, excluding tax and shipping.', 'affiliate-captain' ), RuleRepository::format_rate( Settings::get( 'default_rate_type' ), Settings::get( 'default_rate' ), $currency ) ) ) . ' ';
+		echo '<p>' . esc_html( sprintf( __( 'Program default: %s.', 'affiliate-captain' ), RuleRepository::format_rate( Settings::get( 'default_rate_type' ), Settings::get( 'default_rate' ), $currency ) ) . ' ' . CommissionBasis::description() ) . ' ';
 		echo esc_html__( 'Resolution: an exclusion always wins; otherwise the most specific rule applies (partner > group > global, product/SKU > category > all, then priority).', 'affiliate-captain' ) . '</p>';
 
 		$scope_label = static function ( $r ) use ( $groups, $aff_names ) {
@@ -291,7 +292,7 @@ final class RulesPage {
 		echo $pickers; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped in target_pickers().
 		echo ' <span data-wpac-depends="target=' . ( '' !== $pickers ? 'tag|sku' : 'product|category|tag|sku' ) . '"><input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'IDs or SKUs', 'affiliate-captain' ) . '" aria-describedby="wpac-target-hint"><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'affiliate-captain' ) . '</span></span></td></tr>';
 		echo '<tr><th><label for="wpac-rule-type">' . esc_html__( 'Commission', 'affiliate-captain' ) . '</label></th><td><select name="rate_type" id="wpac-rule-type">';
-		foreach ( array( 'percent' => __( 'Percent of net', 'affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ), 'exclude' => __( 'Exclude (no commission)', 'affiliate-captain' ) ) as $k => $l ) {
+		foreach ( array( 'percent' => CommissionBasis::percent_label(), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ), 'exclude' => __( 'Exclude (no commission)', 'affiliate-captain' ) ) as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'rate_type', 'percent' ), $k, false ), esc_html( $l ) );
 		}
 		echo '</select> <span data-wpac-depends="rate_type=percent|fixed"><input type="text" name="rate" value="' . esc_attr( $rate_display ) . '" size="8" aria-label="' . esc_attr__( 'Rate', 'affiliate-captain' ) . '"> <span data-wpac-depends="rate_type=percent">%</span><span data-wpac-depends="rate_type=fixed">' . esc_html( $currency . ' ' . __( 'per unit', 'affiliate-captain' ) ) . '</span></span></td></tr>';
@@ -469,8 +470,10 @@ final class RulesPage {
 		echo '<input type="text" name="p_sku" aria-label="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_sku' ) ) . '" size="10"> ';
 		echo '<input type="text" name="p_cats" aria-label="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8"> ';
 		echo '<input type="text" name="p_tags" aria-label="' . esc_attr__( 'Tag IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Tag IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_tags' ) ) . '" size="8"> ';
-		echo '<input type="text" name="p_net" aria-label="' . esc_attr__( 'Net amount', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Net amount', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_net' ) ? Admin::get( 'p_net' ) : '100' ) . '" size="7"> ';
+		$amount_label = 'gross' === CommissionBasis::current()['basis'] ? __( 'Gross amount', 'affiliate-captain' ) : __( 'Net amount', 'affiliate-captain' );
+		echo '<input type="text" name="p_net" aria-label="' . esc_attr( $amount_label ) . '" placeholder="' . esc_attr( $amount_label ) . '" value="' . esc_attr( Admin::get( 'p_net' ) ? Admin::get( 'p_net' ) : '100' ) . '" size="7"> ';
 		echo '<button class="button">' . esc_html__( 'Calculate', 'affiliate-captain' ) . '</button></form>';
+		echo '<p class="description wpac-commission-basis">' . esc_html( CommissionBasis::description() ) . '</p>';
 
 		if ( ! Admin::get( 'preview' ) ) {
 			return;

@@ -1195,7 +1195,7 @@ final class Portal {
 			$base = $best[1];
 		}
 		$out = array(
-			__( 'Your commission', 'affiliate-captain' ) => 'exclude' === $base['rate_type'] ? __( 'Only for selected products', 'affiliate-captain' ) : \WPAffiliateCaptain\Commissions\RuleRepository::format_rate( $base['rate_type'], $base['rate'] ) . ( 'percent' === $base['rate_type'] ? ' ' . __( 'of the net order value', 'affiliate-captain' ) : ' ' . __( 'per product sold', 'affiliate-captain' ) ),
+			__( 'Your commission', 'affiliate-captain' ) => 'exclude' === $base['rate_type'] ? __( 'Only for selected products', 'affiliate-captain' ) : \WPAffiliateCaptain\Commissions\RuleRepository::format_rate( $base['rate_type'], $base['rate'] ) . ( 'percent' === $base['rate_type'] ? ' ' . \WPAffiliateCaptain\Commissions\CommissionBasis::portal_suffix() : ' ' . __( 'per product sold', 'affiliate-captain' ) ),
 		);
 		if ( $special ) {
 			$out[ __( 'Special rates', 'affiliate-captain' ) ] = __( 'Some products or categories have their own rate; each commission in the list shows the rate used.', 'affiliate-captain' );
