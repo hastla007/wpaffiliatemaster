@@ -140,14 +140,14 @@ function wpac_uninstall_site() {
 	$wpac_options = array_merge( $wpac_options, array( 'wpac_vdaily_upto', 'wpac_vdaily_cursor', 'wpac_vdaily_tz', 'wpac_vdaily_done', 'wpac_vdaily_lock' ) );
 	// Keyed by partner ID: after a new installation partner 1 must not inherit a fraud flag
 	// (shared IBAN) or a mail opt-out of a former partner 1 (R12-M17).
-	$wpac_options = array_merge( $wpac_options, array( 'wpac_shared_iban', 'wpac_mail_optout' ) );
+	$wpac_options = array_merge( $wpac_options, array( 'wpac_shared_iban', 'wpac_mail_optout', 'wpac_partner_locales' ) );
 	// Report cache generation, template scan generation, cursor of the attribution clean-up (R13-N12).
 	$wpac_options = array_merge( $wpac_options, array( 'wpac_reports_gen', 'wpac_tplscan_gen', 'wpac_attr_purge_cursor' ) );
 	if ( ! $wpac_keep ) {
 		// The restriction list belongs to the kept booking records; without them it is not needed.
 		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_tier_deferred', 'wpac_tier_off_periods', 'wpac_vat_rate_history', 'wpac_monitor_key', 'wpac_mail_templates' ) );
 		// Stored terms texts belong to the acceptance records (agreements), which are dropped now.
-		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_terms\\_text\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_terms\\_text\\_%' OR option_name LIKE 'wpac\\_consent\\_text\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		// Main code chosen by the admin and the history of code requests (30-day limit, Art. 15
 		// information) belong to the partners and their codes: with "keep" they stay with the kept
 		// partner records, so a new installation does not silently switch the partners' main code

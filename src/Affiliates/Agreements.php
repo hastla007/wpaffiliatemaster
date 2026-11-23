@@ -165,6 +165,81 @@ final class Agreements {
 		return $id;
 	}
 
+	/** Result of a record that is a consent of the application form, not a terms acceptance (SET-AC-18). */
+	const CONSENT = 'consent';
+
+	/** Prefix of the option that keeps the wording of a consent once per hash. */
+	const CONSENT_TEXT_PREFIX = 'wpac_consent_text_';
+
+	/**
+	 * Record the consents of an application (SET-AC-18): like the terms, each with its wording
+	 * (kept once per hash) and the time of the tick. Stored in the agreements table with the
+	 * result "consent" and the box key as version ("consent:extra_1", "consent:age", …).
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param array $consents     List of { key, text, accepted_at }.
+	 * @return int Number of records.
+	 */
+	public static function record_consents( $affiliate_id, array $consents ) {
+		global $wpdb;
+		$n = 0;
+		foreach ( $consents as $c ) {
+			if ( ! is_array( $c ) || empty( $c['key'] ) || ! isset( $c['text'] ) ) {
+				continue;
+			}
+			$key  = sanitize_key( (string) $c['key'] );
+			$text = (string) $c['text'];
+			$hash = hash( 'sha256', $key . "\n" . $text );
+			$at   = ! empty( $c['accepted_at'] ) && preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $c['accepted_at'] ) ? (string) $c['accepted_at'] : Db::now();
+			if ( false === get_option( self::CONSENT_TEXT_PREFIX . $hash ) ) {
+				add_option(
+					self::CONSENT_TEXT_PREFIX . $hash,
+					array(
+						'key'       => $key,
+						'text'      => $text,
+						'stored_at' => Db::now(),
+					),
+					'',
+					false
+				);
+			}
+			$wpdb->insert(
+				Db::table( 'agreements' ),
+				array(
+					'affiliate_id' => (int) $affiliate_id,
+					'version'      => Db::cut( 'consent:' . $key, 40 ),
+					'doc_hash'     => $hash,
+					'result'       => self::CONSENT,
+					'user_id'      => get_current_user_id(),
+					'created_at'   => $at,
+				)
+			);
+			Audit::log(
+				'agreement.consent',
+				'affiliate',
+				(int) $affiliate_id,
+				array(
+					'key'         => $key,
+					'hash'        => $hash,
+					'accepted_at' => $at,
+				)
+			);
+			++$n;
+		}
+		return $n;
+	}
+
+	/**
+	 * Wording of a stored consent ('' if unknown).
+	 *
+	 * @param string $hash Hash of the consent record.
+	 * @return string
+	 */
+	public static function consent_text( $hash ) {
+		$stored = get_option( self::CONSENT_TEXT_PREFIX . sanitize_key( (string) $hash ) );
+		return is_array( $stored ) && isset( $stored['text'] ) ? (string) $stored['text'] : '';
+	}
+
 	/**
 	 * Latest accepted agreement of an affiliate.
 	 *

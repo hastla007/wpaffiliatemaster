@@ -663,6 +663,15 @@ final class SettingsPage {
 			self::checkbox( $key, null, $s );
 		}
 		self::end();
+
+		self::section( __( 'Application form', 'affiliate-captain' ), 'program' );
+		self::text( 'consent_terms_label', null, $s );
+		self::text( 'consent_extra_1', null, $s );
+		self::text( 'consent_extra_2', null, $s );
+		self::text( 'consent_extra_3', null, $s );
+		self::page_select( 'imprint_page_id', null, $s );
+		self::number( 'min_partner_age', null, $s );
+		self::end();
 	}
 
 	/**
@@ -922,9 +931,11 @@ final class SettingsPage {
 		self::text( 'landing_prefix', null, $s, sprintf( /* translators: %s: example URL of a partner landing page */ __( 'Partner landing URLs look like %s', 'affiliate-captain' ), home_url( '/' . $s['landing_prefix'] . '/partner-slug/' ) ) );
 		self::page_select( 'landing_page_id', null, $s );
 		self::text( 'default_disclosure', null, $s );
+		self::i18n( 'default_disclosure_i18n', $s, false );
 		self::checkbox( 'embed_disclosure_label', null, $s );
 		self::checkbox( 'auto_apply_coupon', null, $s );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html( SettingsSchema::label( 'promotion_guidelines' ) ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html( SettingsSchema::help( 'promotion_guidelines' ) ) . '</p></td></tr>';
+		self::i18n( 'promotion_guidelines_i18n', $s, true );
 		self::end();
 	}
 
@@ -1252,6 +1263,42 @@ final class SettingsPage {
 		}
 		$words = preg_split( '/\s+/', $label );
 		return count( $words ) > 6 ? implode( ' ', array_slice( $words, 0, 6 ) ) . ' …' : $label;
+	}
+
+	/**
+	 * Texts per installed language (SET-AC-17): one field per language other than the site language.
+	 *
+	 * @param string $key       Setting key of type i18n.
+	 * @param array  $s         Settings.
+	 * @param bool   $multiline Text area instead of a text field.
+	 */
+	private static function i18n( $key, $s, $multiline ) {
+		list( $label, $desc ) = self::texts( $key, null, '' );
+		$texts                = json_decode( (string) $s[ $key ], true );
+		$texts                = is_array( $texts ) ? $texts : array();
+		$langs                = \WPAffiliateCaptain\Core\Locale::installed();
+		unset( $langs[ \WPAffiliateCaptain\Core\Locale::site() ] );
+		$err = self::error_parts( $key, true );
+		echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>';
+		if ( ! $langs ) {
+			self::desc( __( 'Only the site language is installed. Install further languages under Settings → General to store texts for them.', 'affiliate-captain' ), $key );
+			echo '</td></tr>';
+			return;
+		}
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html( $label ) . '</legend>';
+		foreach ( $langs as $locale => $name ) {
+			$id    = 'wpac-' . $key . '-' . $locale;
+			$value = isset( $texts[ $locale ] ) ? (string) $texts[ $locale ] : '';
+			echo '<p><label for="' . esc_attr( $id ) . '">' . esc_html( $name ) . '</label><br>';
+			if ( $multiline ) {
+				echo '<textarea id="' . esc_attr( $id ) . '" name="wpac[' . esc_attr( $key ) . '][' . esc_attr( $locale ) . ']" rows="4" class="large-text"' . $err[0] . '>' . esc_textarea( $value ) . '</textarea></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+			} else {
+				echo '<input type="text" id="' . esc_attr( $id ) . '" name="wpac[' . esc_attr( $key ) . '][' . esc_attr( $locale ) . ']" value="' . esc_attr( $value ) . '" class="regular-text"' . $err[0] . '></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+			}
+		}
+		echo '</fieldset>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc, $key );
+		echo '</td></tr>';
 	}
 
 	/**

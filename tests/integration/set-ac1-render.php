@@ -25,6 +25,7 @@ $set_before = array( 'referral_param' => 'partner', 'touch_model' => 'last', 'co
 $set_now    = SettingsSchema::defaults();
 $set_new_keys = array( 'addon_hints' => 1, 'approval_mode' => 'auto', 'code_requests_per_month' => 3, 'code_request_max_length' => 20, 'application_confirm_days' => 2, 'bank_change_wait_days' => 30, 'reauth_minutes' => 15, 'fraud_refund_window_days' => 90, 'fraud_refund_min_orders' => 5, 'privacy_requests_per_day' => 5, 'terms_reminder_days' => 7, 'claim_cancel_days' => 45, 'payout_request_note_days' => 60, 'vies_recheck_days' => 30, 'commission_basis' => 'net', 'commission_include_shipping' => 0, 'commission_include_fees' => 0, 'feature_creatives' => 1, 'feature_landing' => 1, 'feature_tiers' => 1, 'feature_qr' => 1, 'feature_broadcast' => 1, 'log_level' => 'notices', 'exchange_rates_date' => '', 'min_payout_currency' => '', 'dunning_levels' => 3, 'dunning_days' => 14, 'dunning_final_days' => 7, 'payout_reminder' => 'off', 'payout_reminder_day' => 1, 'max_payout_minor' => 0, 'credit_start' => 1, 'credit_digits' => 6, 'storno_start' => 1, 'storno_digits' => 6, 'correction_start' => 1, 'correction_digits' => 6 );
 $set_new_keys += array( 'mail_logo_id' => 0, 'document_logo_id' => 0, 'document_logo_height' => 15, 'document_logo_max_kb' => 500, 'document_footer' => '' ); // SET-AC-16: logo and footer (new, empty = documents and mails unchanged).
+$set_new_keys += array( 'default_disclosure_i18n' => '', 'promotion_guidelines_i18n' => '', 'consent_terms_label' => '', 'consent_extra_1' => '', 'consent_extra_2' => '', 'consent_extra_3' => '', 'imprint_page_id' => 0, 'min_partner_age' => 0 ); // SET-AC-17/18 (0.21.0).
 check( 'SET-AC-01 defaults: the 82 keys of 0.19.0 keep their order and values; new keys default to the former fixed values (S2)', array( $set_before, $set_new_keys ), array( array_diff_key( $set_now, $set_new_keys ), array_merge( $set_new_keys, array_intersect_key( $set_now, $set_new_keys ) ) ) );
 check( 'SET-AC-01 Settings::defaults() is the register', SettingsSchema::defaults(), Settings::defaults() );
 
@@ -57,7 +58,8 @@ foreach ( SettingsPage::tab_keys() as $set_tab => $set_keys ) {
 	$set_r = r_render( array( SettingsPage::class, 'render' ) );
 	foreach ( $set_keys as $set_k ) {
 		$set_name = array( 'fraud_max_order_minor' => 'fraud_max_order', 'min_payout_minor' => 'min_payout', 'max_payout_minor' => 'max_payout', 'exchange_rates' => 'fx_rows][0][rate', 'min_payout_currency' => 'fx_rows][0][min' )[ $set_k ] ?? $set_k; // Exchange rate table: SET-AC-29.
-		if ( false === strpos( $set_r[0], 'name="wpac[' . $set_name . ']"' ) || false === strpos( $set_r[0], esc_html( SettingsSchema::label( $set_k ) ) ) ) {
+		// Per-language texts (SET-AC-17) post one field per language: wpac[key][locale].
+		if ( ( false === strpos( $set_r[0], 'name="wpac[' . $set_name . ']"' ) && false === strpos( $set_r[0], 'name="wpac[' . $set_name . '][' ) ) || false === strpos( $set_r[0], esc_html( SettingsSchema::label( $set_k ) ) ) ) {
 			$set_not_shown[] = $set_tab . ':' . $set_k;
 		}
 	}

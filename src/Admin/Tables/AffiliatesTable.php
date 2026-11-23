@@ -196,7 +196,7 @@ final class AffiliatesTable extends \WP_List_Table {
 		foreach ( (array) $wpdb->get_col( "SELECT affiliate_id FROM {$prof} WHERE iban_encrypted IS NOT NULL AND iban_encrypted <> '' AND affiliate_id IN ({$in})" ) as $id ) {
 			$out[ (int) $id ]['payout'] = true;
 		}
-		$latest = (array) $wpdb->get_results( "SELECT g.affiliate_id, g.version, g.doc_hash FROM {$agr} g JOIN (SELECT affiliate_id, MAX(id) AS id FROM {$agr} WHERE affiliate_id IN ({$in}) GROUP BY affiliate_id) m ON m.id = g.id WHERE g.result = 'accepted'" );
+		$latest = (array) $wpdb->get_results( "SELECT g.affiliate_id, g.version, g.doc_hash FROM {$agr} g JOIN (SELECT affiliate_id, MAX(id) AS id FROM {$agr} WHERE affiliate_id IN ({$in}) AND result <> 'consent' GROUP BY affiliate_id) m ON m.id = g.id WHERE g.result = 'accepted'" );
 		// phpcs:enable
 		$affs  = AffiliateRepository::find_many( $ids );
 		$terms = array();

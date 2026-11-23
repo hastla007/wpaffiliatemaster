@@ -451,12 +451,14 @@ final class PayoutService {
 	 * Operator details as printed on the credit note, frozen with each payout
 	 * (a later cancellation shows the data of the original document).
 	 *
+	 * @param int $affiliate_id Partner of the document (its language, SET-AC-17; 0 = site language).
 	 * @return array
 	 */
-	public static function operator_snapshot() {
+	public static function operator_snapshot( $affiliate_id = 0 ) {
 		$name = (string) Settings::get( 'debtor_name' );
-		// Language and date format of the document are frozen too: a credit note is always
-		// written in the site language, whoever triggers it (and can be built again identically).
+		// Language and date format of the document are frozen too: a credit note is written in the
+		// partner's document language (default: site language), whoever triggers it (and can be
+		// built again identically).
 		$locale = \WPAffiliateCaptain\Core\Locale::site();
 		return array(
 			'name'       => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
@@ -465,7 +467,7 @@ final class PayoutService {
 			'vat_id'     => (string) Settings::get( 'operator_vat_id' ),
 			'tax_number' => (string) Settings::get( 'operator_tax_number' ),
 			'self_billing' => (bool) Settings::get( 'self_billing' ),
-			'locale'       => Statement::document_locale( $locale ),
+			'locale'       => Statement::document_locale( $locale, (int) $affiliate_id ),
 			'date_format'  => (string) get_option( 'date_format' ),
 		);
 	}
@@ -953,7 +955,7 @@ final class PayoutService {
 					}
 				}
 				// Logo and footer are frozen with the document (SET-AC-16).
-				$operator_snapshot = array_merge( self::operator_snapshot(), DocumentBrand::snapshot() );
+				$operator_snapshot = array_merge( self::operator_snapshot( (int) $affiliate_id ), DocumentBrand::snapshot() );
 				if ( $settle ) {
 					$operator_snapshot['document'] = 'correction';
 				}

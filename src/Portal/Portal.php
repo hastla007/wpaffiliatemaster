@@ -1631,7 +1631,7 @@ final class Portal {
 		$param = (string) Settings::get( 'referral_param' );
 
 		// R14-L3: labelling duty for links, codes, short links and QR codes (§ 5a (4) UWG, § 6 DDG).
-		$label = (string) Settings::get( 'default_disclosure' );
+		$label = Settings::localized( 'default_disclosure' ); // In the language of the page (SET-AC-17).
 		/* translators: %s: disclosure note, e.g. "Advertisement" */
 		echo '<div class="wpac-disclosure" role="note"><p><strong>' . esc_html( sprintf( __( 'Label every post with your link, code, short link or QR code as advertising – e.g. with "%s" at the beginning, visible without clicking.', 'affiliate-captain' ), $label ) ) . '</strong></p><ul>';
 		foreach ( array(
@@ -1862,7 +1862,7 @@ final class Portal {
 			echo '<p class="wpac-muted">' . sprintf( esc_html__( 'Your short link and QR code are in the tab %s.', 'affiliate-captain' ), '<a href="' . esc_url( self::tab_url( 'links' ) ) . '">' . esc_html__( 'Links & codes', 'affiliate-captain' ) . '</a>' ) . '</p>';
 		}
 
-		$guidelines = (string) Settings::get( 'promotion_guidelines' );
+		$guidelines = Settings::localized( 'promotion_guidelines' );
 		if ( '' !== trim( $guidelines ) ) {
 			echo '<h3>' . esc_html__( 'Promotion guidelines', 'affiliate-captain' ) . '</h3><div class="wpac-guidelines">' . wp_kses_post( wpautop( $guidelines ) ) . '</div>';
 		}

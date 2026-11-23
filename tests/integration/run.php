@@ -1591,6 +1591,7 @@ require __DIR__ . '/set-ac-sw.php'; // SET-AC-26/28: switches per feature, log l
 require __DIR__ . '/set-ac-logo.php'; // SET-AC-16: logo and footer on credit notes, logo in HTML mails (before r8-render).
 require __DIR__ . '/set-ac-base.php'; // SET-AC-02: commission base net/gross, shipping and fees (before r8-render).
 require __DIR__ . '/set-ac-wht.php'; // SET-AC-20: withholding per partner (before r8-render).
+require __DIR__ . '/set-ac-txt.php'; // SET-AC-17/18: texts per language, document language per partner, application consents (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

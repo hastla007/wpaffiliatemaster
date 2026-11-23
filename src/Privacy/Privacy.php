@@ -700,6 +700,20 @@ final class Privacy {
 			);
 		}
 		foreach ( Agreements::for_affiliate( $id ) as $a ) {
+			if ( Agreements::CONSENT === (string) $a->result ) {
+				// Consents of the application form with their wording and time (SET-AC-18).
+				$items[] = array(
+					'group_id'    => 'wpac-consents',
+					'group_label' => __( 'Consents in the application', 'affiliate-captain' ),
+					'item_id'     => 'wpac-consent-' . $a->id,
+					'data'        => array(
+						array( 'name' => __( 'Text', 'affiliate-captain' ), 'value' => Agreements::consent_text( (string) $a->doc_hash ) ),
+						array( 'name' => __( 'Checkbox', 'affiliate-captain' ), 'value' => substr( (string) $a->version, strlen( 'consent:' ) ) ),
+						array( 'name' => __( 'Date', 'affiliate-captain' ), 'value' => $a->created_at ),
+					),
+				);
+				continue;
+			}
 			$items[] = array(
 				'group_id'    => 'wpac-agreements',
 				'group_label' => __( 'Terms acceptance', 'affiliate-captain' ),
@@ -941,6 +955,8 @@ final class Privacy {
 			}
 		}
 		$extra[] = array( 'name' => __( 'Unsubscribed from these e-mails', 'affiliate-captain' ), 'value' => $optouts ? implode( ', ', $optouts ) : '—' );
+		$locale  = \WPAffiliateCaptain\Core\Locale::partner( $id );
+		$extra[] = array( 'name' => __( 'Language of e-mails and credit notes', 'affiliate-captain' ), 'value' => '' !== $locale ? $locale : __( 'Site language', 'affiliate-captain' ) );
 		$restriction = Restriction::get( $id );
 		if ( $restriction ) {
 			$extra[] = array( 'name' => __( 'Processing restricted since', 'affiliate-captain' ), 'value' => (string) $restriction['since'] );
@@ -1871,6 +1887,7 @@ final class Privacy {
 		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'wpac_dunning_' . $id . '_' ) . '%' ) ) as $option ) {
 			delete_option( (string) $option );
 		}
+		\WPAffiliateCaptain\Core\Locale::forget_partner( $id );
 		$optout = get_option( \WPAffiliateCaptain\Affiliates\Notifications::OPTOUT_OPTION, array() );
 		if ( is_array( $optout ) && isset( $optout[ $id ] ) ) {
 			unset( $optout[ $id ] );

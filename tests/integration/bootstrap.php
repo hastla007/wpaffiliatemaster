@@ -278,6 +278,7 @@ function admin_url( $p = '' ) { return 'http://example.test/wp-admin/' . $p; }
 function get_bloginfo( $s ) { return 'Test Shop'; }
 function wp_specialchars_decode( $t, $q = 0 ) { return $t; }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
+if ( ! function_exists( 'wp_kses' ) ) { function wp_kses( $s, $allowed ) { return strip_tags( (string) $s, $allowed ? '<' . implode( '><', array_keys( (array) $allowed ) ) . '>' : '' ); } } // Tags only, attributes kept (SET-AC-18 tests).
 if ( ! function_exists( 'wp_date' ) ) { function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : $ts ); } }
 function mysql2date( $f, $d ) { return gmdate( 'd.m.Y', strtotime( $d ) ); }
 function get_date_from_gmt( $d, $f = 'Y-m-d H:i:s' ) { return 'Y' === $f ? substr( (string) $d, 0, 4 ) : $d; }
