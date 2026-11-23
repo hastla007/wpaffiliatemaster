@@ -86,8 +86,9 @@ final class EInvoice {
 
 	/**
 	 * Whether the XML goes with the partner mail (setting einvoice_mail: on, off or auto = for
-	 * partners whose credit note shows German VAT, i.e. domestic VAT-registered businesses of a
-	 * German operator – those who need an e-invoice from 2027/2028).
+	 * partners whose credit note shows domestic VAT, when the operator's country profile expects
+	 * e-invoices – by default Germany, where domestic VAT-registered businesses need them from
+	 * 2027/2028).
 	 *
 	 * @param string $mode    VAT treatment of the document.
 	 * @param array  $op      Operator snapshot.
@@ -99,7 +100,9 @@ final class EInvoice {
 			return 'on' === $setting;
 		}
 		$country = strtoupper( isset( $op['country'] ) && '' !== (string) $op['country'] ? (string) $op['country'] : 'DE' );
-		return 'DE' === $country && Vat::STANDARD === (string) $mode;
+		// "Automatic" (SET-AC-04 e): credit notes with domestic VAT, where the country profile of the
+		// operator expects e-invoices (DE; other countries through wpac_country_profiles).
+		return Vat::STANDARD === (string) $mode && \WPAffiliateCaptain\Core\CountryProfiles::einvoice_auto( $country );
 	}
 
 	/**
@@ -401,9 +404,7 @@ final class EInvoice {
 
 		$self_note = '';
 		if ( ! $storno ) {
-			$self_note = 'DE' === $country
-				? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' )
-				: __( 'This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
+			$self_note = Statement::self_billing_note( $country, $op );
 		}
 		$german = in_array( $country, array( 'DE', 'AT', 'CH' ), true );
 		if ( $storno ) {
@@ -416,7 +417,7 @@ final class EInvoice {
 		}
 		$notes = array_merge(
 			array( $title ),
-			Statement::vat_notes( (string) $p->vat_mode, $modes, $country ),
+			Statement::vat_notes( (string) $p->vat_mode, $modes, $country, $op ),
 			array_filter(
 				array(
 					$correct ? __( 'This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred.', 'affiliate-captain' ) : '',
@@ -455,7 +456,7 @@ final class EInvoice {
 			'period'          => array( '' !== $first && ( '' === $end || $first <= $end ) ? $first : '', $end ),
 			'lines'           => $lines,
 			'taxes'           => $taxes,
-			'exemptions'      => self::exemptions( $country ),
+			'exemptions'      => self::exemptions( $country, $op ),
 			'prepaid'         => -$untaxed,
 			'payment'         => self::payment( $snap ),
 			'terms'           => $terms,
@@ -501,7 +502,7 @@ final class EInvoice {
 			/* translators: 1: credit note number, 2: VAT treatment or rate */
 			$notes[] = sprintf( __( 'This correction concerns only the part of credit note %1$s with %2$s; the other parts of the credit note are unchanged.', 'affiliate-captain' ), $orig_no, Corrections::part_label( array( 'mode' => (string) $c->vat_mode, 'rate' => (string) $c->vat_rate ) ) );
 		}
-		$notes[] = Statement::vat_note( (string) $c->vat_mode, $country );
+		$notes[] = Statement::vat_note( (string) $c->vat_mode, $country, $op );
 		$notes[] = 'DE' === $country
 			? __( 'This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note.', 'affiliate-captain' )
 			: __( 'This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document.', 'affiliate-captain' );
@@ -531,7 +532,7 @@ final class EInvoice {
 			),
 			// The VAT difference as on the PDF (VAT of the corrected net minus the VAT before).
 			'taxes'           => array( $category[0] . '|' . $category[1] => (int) $c->vat_minor - (int) $c->prev_vat_minor ),
-			'exemptions'      => self::exemptions( $country ),
+			'exemptions'      => self::exemptions( $country, $op ),
 			'prepaid'         => 0,
 			'payment'         => self::payment( $snap ),
 			'terms'           => $settle,
@@ -646,13 +647,15 @@ final class EInvoice {
 	 * Exemption reasons (BT-120/BT-121) per VAT category, as the notes of the PDF.
 	 *
 	 * @param string $country Operator country.
+	 * @param array  $op      Operator snapshot (own notes frozen with the document win).
 	 * @return array category => [ text, code ]
 	 */
-	private static function exemptions( $country ) {
+	private static function exemptions( $country, array $op = array() ) {
+		$own_small = '' !== Statement::own_note( $op, Vat::SMALL_BUSINESS );
 		return array(
-			'AE' => array( Statement::vat_note( Vat::REVERSE_CHARGE, $country ), 'VATEX-EU-AE' ),
-			'E'  => array( 'DE' === $country ? self::SMALL_BUSINESS_DE : Statement::vat_note( Vat::SMALL_BUSINESS, $country ), '' ),
-			'O'  => array( Statement::vat_note( Vat::PRIVATE_PERSON, $country ), 'VATEX-EU-O' ),
+			'AE' => array( Statement::vat_note( Vat::REVERSE_CHARGE, $country, $op ), 'VATEX-EU-AE' ),
+			'E'  => array( 'DE' === $country && ! $own_small ? self::SMALL_BUSINESS_DE : Statement::vat_note( Vat::SMALL_BUSINESS, $country, $op ), '' ),
+			'O'  => array( Statement::vat_note( Vat::PRIVATE_PERSON, $country, $op ), 'VATEX-EU-O' ),
 		);
 	}
 

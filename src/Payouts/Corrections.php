@@ -547,7 +547,7 @@ final class Corrections {
 	 * @return array
 	 */
 	private static function operator_snapshot() {
-		$op             = PayoutService::operator_snapshot();
+		$op             = PayoutService::operator_snapshot( true );
 		$op['document'] = 'correction_note';
 		return $op;
 	}
@@ -732,7 +732,7 @@ final class Corrections {
 			array(
 				$settle,
 				implode( "\n", $scope ),
-				Statement::vat_note( (string) $c->vat_mode, $country ),
+				Statement::vat_note( (string) $c->vat_mode, $country, $op ),
 				$self ? ( 'DE' === $country
 					? __( 'This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note.', 'affiliate-captain' )
 					: __( 'This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document.', 'affiliate-captain' ) ) : '',

@@ -335,14 +335,16 @@ final class PayoutService {
 	 * Operator details as printed on the credit note, frozen with each payout
 	 * (a later cancellation shows the data of the original document).
 	 *
+	 * @param bool $issue For a document being issued now: also freeze the own document notes
+	 *                    (SET-AC-04 c). Not for the fallback of old documents without a snapshot.
 	 * @return array
 	 */
-	public static function operator_snapshot() {
+	public static function operator_snapshot( $issue = false ) {
 		$name = (string) Settings::get( 'debtor_name' );
 		// Language and date format of the document are frozen too: a credit note is always
 		// written in the site language, whoever triggers it (and can be built again identically).
 		$locale = \WPAffiliateCaptain\Core\Locale::site();
-		return array(
+		$op     = array(
 			'name'       => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'address'    => (string) Settings::get( 'operator_address' ),
 			'country'    => strtoupper( (string) Settings::get( 'operator_country' ) ),
@@ -352,6 +354,23 @@ final class PayoutService {
 			'locale'       => Statement::document_locale( $locale ),
 			'date_format'  => (string) get_option( 'date_format' ),
 		);
+		if ( $issue ) {
+			// Own document notes (SET-AC-04 c) are frozen with the document when it is issued; empty
+			// settings keep the built-in text, and documents issued before keep theirs.
+			$notes = array_filter(
+				array(
+					'self_billing'      => trim( (string) Settings::get( 'note_self_billing' ) ),
+					Vat::REVERSE_CHARGE => trim( (string) Settings::get( 'note_reverse_charge' ) ),
+					Vat::SMALL_BUSINESS => trim( (string) Settings::get( 'note_small_business' ) ),
+					Vat::PRIVATE_PERSON => trim( (string) Settings::get( 'note_private_person' ) ),
+				),
+				'strlen'
+			);
+			if ( $notes ) {
+				$op['notes'] = $notes;
+			}
+		}
+		return $op;
 	}
 
 	/**
@@ -377,7 +396,7 @@ final class PayoutService {
 	 *
 	 * @param int         $affiliate_id Partner.
 	 * @param array|null  $profile      Payout profile (loaded when null).
-	 * @param string|null $code         Out: reason code (maintenance|terminated|tax_pending|profile|terms_page|terms|operator_vat_id|vies, '' = none).
+	 * @param string|null $code         Out: reason code (maintenance|terminated|tax_pending|profile|terms_page|terms|vat_rate|operator_vat_id|vies, '' = none).
 	 * @return string
 	 */
 	public static function blocked_reason( $affiliate_id, $profile = null, &$code = null ) {
@@ -425,6 +444,11 @@ final class PayoutService {
 			return __( 'Has not accepted the partner terms yet (needed for credit notes) – the partner is asked to accept them on the next login to the partner area', 'affiliate-captain' );
 		}
 		$vat = Vat::treatment( isset( $profile->tax_status ) ? (string) $profile->tax_status : '', isset( $profile->country ) ? (string) $profile->country : '', (string) Settings::get( 'operator_country' ), (string) Settings::get( 'vat_rate' ) );
+		if ( Vat::STANDARD === $vat['mode'] && '' === trim( (string) Settings::get( 'vat_rate' ) ) ) {
+			// No VAT rate set yet (new installation outside Germany, neutral country profile; P3-03).
+			$code = 'vat_rate';
+			return __( 'No VAT rate is set (Settings → Payouts & credit notes, or apply a country profile)', 'affiliate-captain' );
+		}
 		if ( Vat::REVERSE_CHARGE === $vat['mode'] && '' === trim( (string) Settings::get( 'operator_vat_id' ) ) ) {
 			// Reverse-charge documents must show the VAT ID of the recipient (the operator).
 			$code = 'operator_vat_id';
@@ -775,7 +799,7 @@ final class PayoutService {
 					// (e.g. VAT corrections of earlier credit notes after a change of the tax status).
 					return 0;
 				}
-				$operator_snapshot = self::operator_snapshot();
+				$operator_snapshot = self::operator_snapshot( true );
 				if ( $settle ) {
 					$operator_snapshot['document'] = 'correction';
 				}
@@ -921,8 +945,9 @@ final class PayoutService {
 
 	/**
 	 * Partners with the tax status "small business" whose credit notes exceed the limits of the
-	 * small business scheme (default §19 UStG: 25,000 € in the previous year or 100,000 € in the
-	 * current year; filter wpac_small_business_limits). Only an indication: the limit counts all
+	 * small business scheme (settings small_business_limit_previous / _current in the program
+	 * currency, empty = no check, SET-AC-04 b; before 0.21.0 fixed §19 UStG: 25,000 € in the
+	 * previous year or 100,000 € in the current year; filter wpac_small_business_limits wins). Only an indication: the limit counts all
 	 * turnover of the partner, not only ours – but if our credit notes alone exceed it, the
 	 * partner is very likely liable for VAT.
 	 *
@@ -938,7 +963,16 @@ final class PayoutService {
 		 * @param array  $limits   Currency => [ previous, current ].
 		 * @param string $operator Operator country.
 		 */
-		$limits = (array) apply_filters( 'wpac_small_business_limits', 'DE' === strtoupper( (string) Settings::get( 'operator_country' ) ) ? array( 'EUR' => array( 2500000, 10000000 ) ) : array(), strtoupper( (string) Settings::get( 'operator_country' ) ) );
+		$prev     = trim( (string) Settings::get( 'small_business_limit_previous' ) );
+		$cur      = trim( (string) Settings::get( 'small_business_limit_current' ) );
+		$currency = strtoupper( (string) Settings::get( 'currency' ) );
+		$default  = '' === $prev && '' === $cur ? array() : array(
+			$currency => array(
+				'' === $prev ? PHP_INT_MAX : Money::to_minor( $prev, $currency ),
+				'' === $cur ? PHP_INT_MAX : Money::to_minor( $cur, $currency ),
+			),
+		);
+		$limits = (array) apply_filters( 'wpac_small_business_limits', $default, strtoupper( (string) Settings::get( 'operator_country' ) ) );
 		if ( ! $limits ) {
 			return array();
 		}

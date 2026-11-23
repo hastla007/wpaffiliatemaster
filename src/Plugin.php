@@ -90,6 +90,7 @@ final class Plugin {
 		\WPAffiliateCaptain\Integrations\FormCaptain\FormCaptain::register_hooks(); // Optional Form Captain connector (AFF-SU-01).
 		\WPAffiliateCaptain\Cli\Command::register();
 		add_filter( 'site_status_tests', array( \WPAffiliateCaptain\Core\Monitor::class, 'site_status_tests' ) );
+		add_filter( 'site_status_tests', array( \WPAffiliateCaptain\Core\CountryProfiles::class, 'site_status_tests' ) ); // S9: retention minimum not set.
 		add_filter( 'debug_information', array( \WPAffiliateCaptain\Core\Monitor::class, 'debug_information' ) );
 
 		if ( class_exists( 'WooCommerce' ) ) {

@@ -389,6 +389,7 @@ final class Admin {
 				return array( self::url( 'wpac-settings', array( 'tab' => 'data' ) ), __( 'Switch off maintenance mode', 'affiliate-captain' ) );
 			case 'operator':
 			case 'operator_vat_id':
+			case 'vat_rate':
 				return array( self::url( 'wpac-settings', array( 'tab' => 'payouts' ) ), __( 'Complete your details in the payout settings', 'affiliate-captain' ) );
 			case 'terms_page':
 				return array( self::url( 'wpac-settings', array( 'tab' => 'program' ) ), __( 'Choose the terms page', 'affiliate-captain' ) );
@@ -794,6 +795,9 @@ final class Admin {
 			'settings_reset_preview'   => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_reset_apply'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_pending_discard' => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			// Country profiles (SET-AC-03): preview, then apply what was shown.
+			'settings_profile_preview' => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			'settings_profile_apply'   => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'roles_save'               => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),

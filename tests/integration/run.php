@@ -75,6 +75,9 @@ update_option(
 	array_merge(
 		Settings::defaults(),
 		array(
+			// German shop as before 0.21.0: § 19 UStG limits (SET-AC-04 b, settings since then).
+			'small_business_limit_previous' => '25000',
+			'small_business_limit_current'  => '100000',
 			'debtor_name' => 'Segelschule Test GmbH',
 			'debtor_iban' => 'DE89370400440532013000',
 			'operator_address' => "Hafenstraße 1\n24937 Flensburg",
@@ -1583,6 +1586,7 @@ require __DIR__ . '/su3.php'; // Agent su3: review quality from a review plugin,
 require __DIR__ . '/wf8.php'; // AFF-WF-08 (0.17.0): since table of all actions, parameters, after COMMIT (before r8-render).
 require __DIR__ . '/r17-snapshot.php'; // MariaDB 12.3 snapshot isolation (error 1020) in transactions (before r8-render).
 require __DIR__ . '/r16-fc.php'; // AFF-SU-01: Form Captain hand-over of partner applications (before r8-render).
+require __DIR__ . '/set-ac-cp.php'; // Country profiles and taxes per country as settings (SET-AC-03/04).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
