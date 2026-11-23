@@ -305,6 +305,7 @@ final class Cron {
 			'monthly_mail'          => array( array( '\WPAffiliateCaptain\Reports\MonthlyMail', 'send_due' ), true ),
 			'vies'                  => array( array( '\WPAffiliateCaptain\Payouts\Vies', 'recheck_stale' ), true ), // Only schedules background checks.
 			'balances'              => array( array( '\WPAffiliateCaptain\Commissions\Balance', 'scheduled_check' ), true ),
+			'payout_reminder'       => array( array( '\WPAffiliateCaptain\Payouts\PayoutReminder', 'send_due' ), true ), // Only a mail, never a booking (SET-AC-19).
 			'alert'                 => array( array( Monitor::class, 'daily_alert' ), false ),
 		);
 	}

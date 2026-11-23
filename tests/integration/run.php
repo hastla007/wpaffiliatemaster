@@ -1585,6 +1585,7 @@ require __DIR__ . '/r17-snapshot.php'; // MariaDB 12.3 snapshot isolation (error
 require __DIR__ . '/r16-fc.php'; // AFF-SU-01: Form Captain hand-over of partner applications (before r8-render).
 require __DIR__ . '/set-ac-seq.php'; // SET-AC-15: start number and digits per number range (before r8-render).
 require __DIR__ . '/set-ac-rules.php'; // SET-AC-22: rule cap, minimum base, validity (schema 17).
+require __DIR__ . '/set-ac-pay.php'; // SET-AC-19/31: payout reminder, maximum payout, payout_period migration (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

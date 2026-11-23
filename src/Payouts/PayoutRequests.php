@@ -27,7 +27,7 @@ final class PayoutRequests {
 	 */
 	public static function available( $affiliate_id, $currency = '' ) {
 		$currency = '' !== (string) $currency ? (string) $currency : (string) Settings::get( 'currency' );
-		return (int) PayoutService::payable( (int) $affiliate_id, $currency )['gross'];
+		return (int) PayoutService::payable( (int) $affiliate_id, $currency )['payout_gross']; // Within the maximum payout (SET-AC-19).
 	}
 
 	/**
@@ -72,7 +72,7 @@ final class PayoutRequests {
 	public static function request_currency( $affiliate_id ) {
 		foreach ( self::available_all( (int) $affiliate_id ) as $currency => $amounts ) {
 			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $affiliate_id );
-			if ( null !== $min && $amounts['gross'] >= max( 1, (int) $min ) ) {
+			if ( null !== $min && $amounts['payout_gross'] >= max( 1, (int) $min ) ) {
 				return (string) $currency;
 			}
 		}
@@ -132,6 +132,13 @@ final class PayoutRequests {
 		}
 		// Like the payout: the net balance (without VAT) must reach the minimum, in any currency.
 		if ( '' === self::request_currency( (int) $aff->id ) ) {
+			foreach ( self::available_all( (int) $aff->id ) as $currency => $amounts ) {
+				$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $aff->id );
+				if ( null !== $min && $amounts['gross'] >= max( 1, (int) $min ) ) {
+					// Enough balance, but its oldest commission alone exceeds the maximum payout (SET-AC-19).
+					return __( 'Your oldest open commission is larger than the maximum payout amount. Please contact us.', 'affiliate-captain' );
+				}
+			}
 			$min = max( 0, (int) Settings::for_affiliate( 'min_payout_minor', (int) $aff->id ) );
 			/* translators: %s: minimum */
 			return sprintf( __( 'Your approved balance is below the minimum payout of %s.', 'affiliate-captain' ), Money::format( $min, Settings::get( 'currency' ) ) );

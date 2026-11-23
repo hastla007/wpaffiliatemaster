@@ -172,6 +172,24 @@ final class Fx {
 	}
 
 	/**
+	 * Maximum payout of a partner in a currency (SET-AC-19): 0 = no limit, null = no rate to
+	 * convert the limit (then nothing can be checked, like the minimum). Per program through the
+	 * filter wpac_setting (key max_payout_minor).
+	 *
+	 * @param string $currency     Currency.
+	 * @param int    $affiliate_id Partner (0 = general).
+	 * @return int|null
+	 */
+	public static function max_payout( $currency, $affiliate_id = 0 ) {
+		$max = max( 0, (int) Settings::for_affiliate( 'max_payout_minor', (int) $affiliate_id ) );
+		if ( 0 === $max ) {
+			return 0;
+		}
+		$converted = self::from_program( $max, $currency, (string) Settings::get( 'currency' ), self::rates() );
+		return null === $converted ? null : max( 1, (int) $converted ); // A tiny limit never turns into "no limit".
+	}
+
+	/**
 	 * Minimum payout of a partner program in a currency (filter wpac_setting with the program as
 	 * context, no partner; null = no rate).
 	 *

@@ -484,6 +484,8 @@ final class Admin {
 				return __( 'Balance including VAT corrections is not positive – carried forward', 'affiliate-captain' );
 			case 'below_minimum':
 				return __( 'Below minimum – carried forward', 'affiliate-captain' );
+			case 'above_maximum':
+				return \WPAffiliateCaptain\Payouts\PayoutService::above_maximum_text();
 			case 'no_rate':
 				/* translators: %s: currency */
 				return sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'affiliate-captain' ), $currency );

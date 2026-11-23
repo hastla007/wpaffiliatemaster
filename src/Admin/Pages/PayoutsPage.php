@@ -585,7 +585,7 @@ final class PayoutsPage {
 		echo '<label>' . esc_html__( 'Currency', 'affiliate-captain' ) . ' <input type="text" name="currency" value="' . esc_attr( $currency ) . '" size="4" maxlength="3"></label> ';
 		echo '<button class="button" name="preview" value="1">' . esc_html__( 'Preview', 'affiliate-captain' ) . '</button></form>';
 		/* translators: %s: amount */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Includes approved commissions and corrections up to the period end. Minimum payout: %s. Negative balances and amounts below the minimum are carried forward.', 'affiliate-captain' ), self::min_text( $currency ) ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Includes approved commissions and corrections up to the period end. Minimum payout: %s. Negative balances and amounts below the minimum are carried forward.', 'affiliate-captain' ), self::min_text( $currency ) ) . self::max_text( $currency ) ) . '</p>';
 
 		if ( Admin::get( 'preview' ) ) {
 			$preview  = PayoutService::preview( $end, $currency );
@@ -601,7 +601,7 @@ final class PayoutsPage {
 					esc_html( $row['affiliate'] ? $row['affiliate']->name : '?' ),
 					(int) $row['count'],
 					esc_html( Money::format( $row['total_minor'], $currency ) ),
-					$row['eligible'] ? '<strong>' . esc_html__( 'Will be paid', 'affiliate-captain' ) . '</strong>' : esc_html( $row['reason'] ) . self::fix_link( $row ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fix_link() escapes.
+					$row['eligible'] ? '<strong>' . esc_html__( 'Will be paid', 'affiliate-captain' ) . '</strong>' . self::capped_note( $row, $currency ) : esc_html( $row['reason'] ) . self::fix_link( $row ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fix_link() and capped_note() escape.
 				);
 			}
 			echo '</tbody></table>';
@@ -646,6 +646,40 @@ final class PayoutsPage {
 			}
 			echo '</tbody></table>';
 		}
+	}
+
+	/**
+	 * Sentence about the maximum payout in a currency ('' without a limit; SET-AC-19).
+	 *
+	 * @param string $currency Currency.
+	 * @return string
+	 */
+	private static function max_text( $currency ) {
+		$max = \WPAffiliateCaptain\Core\Fx::max_payout( $currency );
+		if ( 0 === $max ) {
+			return '';
+		}
+		if ( null === $max ) {
+			/* translators: %s: currency */
+			return ' ' . sprintf( __( 'Maximum payout: cannot be checked (no exchange rate for %s).', 'affiliate-captain' ), $currency );
+		}
+		/* translators: %s: amount */
+		return ' ' . sprintf( __( 'Maximum payout: %s per partner; the rest stays payable.', 'affiliate-captain' ), Money::format( (int) $max, $currency ) );
+	}
+
+	/**
+	 * Note of a preview row whose payout the maximum payout limits (SET-AC-19).
+	 *
+	 * @param array  $row      Preview row.
+	 * @param string $currency Currency.
+	 * @return string HTML.
+	 */
+	private static function capped_note( array $row, $currency ) {
+		if ( empty( $row['capped'] ) ) {
+			return '';
+		}
+		/* translators: %s: amount */
+		return ' ' . esc_html( sprintf( __( '(%s – maximum payout reached, the rest stays payable)', 'affiliate-captain' ), Money::format( (int) $row['pay_minor'], $currency ) ) );
 	}
 
 	/**
