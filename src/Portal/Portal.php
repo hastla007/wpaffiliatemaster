@@ -1210,6 +1210,7 @@ final class Portal {
 			/* translators: %d: days */
 			$out[ __( 'Hold period', 'affiliate-captain' ) ] = $hold > 0 ? sprintf( _n( '%d day (returns and cancellations), then we review and approve the commission', '%d days (returns and cancellations), then we review and approve the commission', $hold, 'affiliate-captain' ), $hold ) : __( 'None – we review and approve each commission', 'affiliate-captain' );
 		} else {
+			/* translators: %d: days */
 			$out[ __( 'Hold period', 'affiliate-captain' ) ] = $hold > 0 ? sprintf( _n( '%d day (returns and cancellations), then the commission is approved', '%d days (returns and cancellations), then the commission is approved', $hold, 'affiliate-captain' ), $hold ) : __( 'None – commissions are approved right away', 'affiliate-captain' );
 		}
 		$group = (int) $aff->group_id ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) : null;

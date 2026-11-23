@@ -1019,8 +1019,9 @@ final class SettingsPage {
 	private static function checkbox( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		// The checkbox is named by its full label (screen readers announce what is switched on).
+		// P5-06: the row title only when it is shorter than the label.
 		$described = '' !== trim( (string) $desc ) ? ' aria-describedby="wpac-desc-' . esc_attr( $key ) . '"' : '';
-		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) === $label ? '' : self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $described ); // P5-06: the row title only when it is shorter than the label. // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $described is escaped.
+		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) === $label ? '' : self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $described ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $described is built from esc_attr() above.
 		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
