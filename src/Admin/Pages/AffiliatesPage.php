@@ -141,6 +141,9 @@ final class AffiliatesPage {
 						Admin::back( $changed->get_error_message(), 'error' );
 					}
 				}
+				if ( null !== Admin::post( 'wpac_locale', null ) && ! \WPAffiliateCaptain\Core\Locale::set_partner( $id, sanitize_text_field( (string) Admin::post( 'wpac_locale' ) ) ) ) {
+					Admin::back( __( 'This language is not installed on this site. The other changes were saved.', 'affiliate-captain' ), 'error' );
+				}
 				Admin::back( __( 'Partner saved.', 'affiliate-captain' ) );
 				break;
 
@@ -496,7 +499,7 @@ final class AffiliatesPage {
 					Admin::back( __( 'You are not allowed to view tax and bank details.', 'affiliate-captain' ), 'error' );
 				}
 				$in = array();
-				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details' ) as $f ) {
+				foreach ( array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details', 'account_number', 'bank_code', 'bank_name', 'bank_country' ) as $f ) {
 					$in[ $f ] = (string) Admin::post( $f );
 				}
 				$result = ProfileRepository::save( $id, $in );
@@ -882,6 +885,7 @@ final class AffiliatesPage {
 			)
 		);
 		echo '<p class="description">' . esc_html( \WPAffiliateCaptain\Promotion\Landing::url( $a ) ) . '</p></td></tr>';
+		self::row_locale( (int) $id );
 		echo '<tr><th><label for="wpac-landing_message">' . esc_html__( 'Welcome message on landing page', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-landing_message" name="landing_message" rows="3" class="large-text" maxlength="' . (int) AffiliateRepository::LANDING_MESSAGE_MAX . '">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'affiliate-captain' ) . '</p></td></tr>';
 		echo '</table>';
 		submit_button( __( 'Save', 'affiliate-captain' ), 'secondary' );
@@ -933,9 +937,15 @@ final class AffiliatesPage {
 			$results = array(
 				'accepted' => __( 'Accepted', 'affiliate-captain' ),
 				'declined' => __( 'Declined', 'affiliate-captain' ),
+				'consent'  => __( 'Consent given', 'affiliate-captain' ),
 			);
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Version', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Document hash', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Result', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $agreements as $ag ) {
+				if ( Agreements::CONSENT === (string) $ag->result ) {
+					// Consent of the application form: its wording instead of a version (SET-AC-18).
+					printf( '<tr><td>%s</td><td colspan="2">%s</td><td>%s</td></tr>', esc_html( Admin::date( $ag->created_at, true ) ), esc_html( Agreements::consent_text( (string) $ag->doc_hash ) ), esc_html( $results['consent'] ) );
+					continue;
+				}
 				printf( '<tr><td>%s</td><td>%s</td><td><code title="%s">%s…</code></td><td>%s</td></tr>', esc_html( Admin::date( $ag->created_at, true ) ), esc_html( $ag->version ), esc_attr( $ag->doc_hash ), esc_html( substr( $ag->doc_hash, 0, 12 ) ), esc_html( isset( $results[ $ag->result ] ) ? $results[ $ag->result ] : $ag->result ) );
 			}
 			echo '</tbody></table>';
@@ -1094,15 +1104,40 @@ final class AffiliatesPage {
 			$method  = isset( $kept['payout_method'] ) && isset( $methods[ $kept['payout_method'] ] ) ? (string) $kept['payout_method'] : ProfileRepository::method( $p );
 			$typed   = ProfileRepository::form_details( $kept );
 			echo '<tr><th><label for="wpac-payout-method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . '</label></th><td><select name="payout_method" id="wpac-payout-method">';
-			foreach ( ProfileRepository::method_labels() as $k => $l ) {
+			// Switched-off methods only while the partner uses them (SET-AC-30).
+			$options = ProfileRepository::method_options( $p );
+			foreach ( $options as $k => $l ) {
 				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $method, $k, false ), esc_html( $l ) );
 			}
 			echo '</select><p class="description">' . esc_html__( 'Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.', 'affiliate-captain' ) . '</p></td></tr>';
 			// Fields of the chosen method only (admin.js; all visible without JavaScript) – R5-O48.
-			self::row_input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), '', 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '"' );
+			$bank_dep = 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '|' . ProfileRepository::METHOD_BANK . '"';
+			self::row_input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), '', $bank_dep );
 			$masked = $p && ProfileRepository::METHOD_SEPA === ProfileRepository::method( $p ) ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
 			self::row_input( 'iban', __( 'IBAN', 'affiliate-captain' ), '', 'autocomplete="off" dir="ltr" placeholder="' . esc_attr( $masked ? $masked . ' – ' . __( 'leave empty to keep', 'affiliate-captain' ) : '' ) . '"', 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '"' );
-			self::row_input( 'bic', __( 'BIC', 'affiliate-captain' ), $v( 'bic' ), 'dir="ltr"', 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '"' );
+			if ( isset( $options[ ProfileRepository::METHOD_BANK ] ) ) {
+				// Bank transfer outside SEPA: the stored account number only masked (like the IBAN).
+				$bank   = ProfileRepository::bank_details( $p );
+				$bv     = static function ( $key ) use ( $bank, $kept ) {
+					return isset( $kept[ $key ] ) ? (string) $kept[ $key ] : ( $bank ? (string) $bank[ $key ] : '' );
+				};
+				$b_dep  = 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_BANK . '"';
+				$b_mask = $bank ? ProfileRepository::bank_mask( (string) $p->iban_last4, $bank['bank_country'] ) : '';
+				$b_cty  = $bv( 'bank_country' );
+				$ctys   = \WPAffiliateCaptain\Core\Settings::countries();
+				if ( '' !== $b_cty && ! isset( $ctys[ $b_cty ] ) ) {
+					$ctys[ $b_cty ] = $b_cty;
+				}
+				echo '<tr ' . $b_dep . '><th><label for="wpac-bank_country">' . esc_html__( 'Country of the bank', 'affiliate-captain' ) . '</label></th><td><select name="bank_country" id="wpac-bank_country"><option value="">—</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string.
+				foreach ( $ctys as $code => $name ) {
+					printf( '<option value="%s" %s>%s</option>', esc_attr( $code ), selected( $b_cty, $code, false ), esc_html( $name ) );
+				}
+				echo '</select></td></tr>';
+				self::row_input( 'account_number', __( 'Account number', 'affiliate-captain' ), '', 'autocomplete="off" dir="ltr" placeholder="' . esc_attr( $b_mask ? $b_mask . ' – ' . __( 'leave empty to keep', 'affiliate-captain' ) : '' ) . '"', $b_dep );
+				self::row_input( 'bank_code', __( 'Bank code / sort code / routing number', 'affiliate-captain' ), $bv( 'bank_code' ), 'autocomplete="off" dir="ltr"', $b_dep );
+				self::row_input( 'bank_name', __( 'Bank name', 'affiliate-captain' ), $bv( 'bank_name' ), 'maxlength="100"', $b_dep );
+			}
+			self::row_input( 'bic', isset( $options[ ProfileRepository::METHOD_BANK ] ) ? __( 'BIC / SWIFT', 'affiliate-captain' ) : __( 'BIC', 'affiliate-captain' ), $v( 'bic' ), 'dir="ltr"', $bank_dep );
 			$details = ProfileRepository::payment_details( $p );
 			echo '<tr data-wpac-depends="payout_method=' . esc_attr( ProfileRepository::METHOD_MANUAL ) . '"><th><label for="wpac-payment-details">' . esc_html__( 'Payment details (other method)', 'affiliate-captain' ) . '</label></th><td><textarea name="payment_details" id="wpac-payment-details" rows="3" class="regular-text" autocomplete="off" placeholder="' . esc_attr( null !== $details ? __( 'Stored – leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '">' . esc_textarea( $typed ) . '</textarea>';
 			if ( null !== $details ) {
@@ -1432,6 +1467,23 @@ final class AffiliatesPage {
 		echo '</nav><div class="wpac-tabs-content">';
 		echo implode( '', isset( $parts[ $tab ] ) ? $parts[ $tab ] : array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sections are escaped while rendering.
 		echo '</div>';
+	}
+
+	/**
+	 * Language of e-mails and credit notes of a partner (SET-AC-17).
+	 *
+	 * @param int $id Partner.
+	 */
+	private static function row_locale( $id ) {
+		$current = \WPAffiliateCaptain\Core\Locale::partner( $id );
+		$site    = \WPAffiliateCaptain\Core\Locale::site();
+		echo '<tr><th><label for="wpac-locale">' . esc_html__( 'Language of e-mails and credit notes', 'affiliate-captain' ) . '</label></th><td><select id="wpac-locale" name="wpac_locale" aria-describedby="wpac-locale-desc">';
+		foreach ( \WPAffiliateCaptain\Core\Locale::installed() as $locale => $name ) {
+			/* translators: %s: language name */
+			$label = $locale === $site ? sprintf( __( 'Site language: %s', 'affiliate-captain' ), $name ) : $name;
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $locale === $site ? '' : $locale ), selected( $locale === $site ? '' : $locale, $current, false ), esc_html( $label ) );
+		}
+		echo '</select><p class="description" id="wpac-locale-desc">' . esc_html__( 'Credit notes, cancellations and e-mails to this partner are written in this language. Site language: credit notes in the site language, e-mails in the language of the partner\'s user account. Applies to documents issued from now on.', 'affiliate-captain' ) . ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span></p></td></tr>';
 	}
 
 	/**

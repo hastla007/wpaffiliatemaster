@@ -36,6 +36,9 @@ final class Portal {
 
 	const SHORTCODE = 'wpac_affiliate_portal';
 
+	/** Profile errors whose message names the expected format: shown as the message (SET-AC-30). */
+	const DETAIL_MESSAGES = array( 'wpac_account_number', 'wpac_bank_code' );
+
 	/** Privacy requests or objections per partner and day (each kind). */
 	const REQUESTS_PER_DAY = 5;
 
@@ -518,7 +521,7 @@ final class Portal {
 		}
 
 		if ( 'profile' === $action ) {
-			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details' );
+			$fields = array( 'tax_status', 'legal_name', 'address', 'country', 'vat_id', 'tax_number', 'account_holder', 'iban', 'bic', 'payout_method', 'payment_details', 'account_number', 'bank_code', 'bank_name', 'bank_country' );
 			$in     = array();
 			foreach ( $fields as $f ) {
 				$in[ $f ] = isset( $_POST[ 'wpac_' . $f ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'wpac_' . $f ] ) ) : '';
@@ -537,6 +540,10 @@ final class Portal {
 			$msg = is_wp_error( $result ) ? $result->get_error_code() : ( ProfileRepository::pending_bank_change( (int) $aff->id ) ? 'bank_pending' : ( \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id ) ? 'tax_pending' : 'saved' ) );
 			if ( is_wp_error( $result ) ) {
 				self::keep_profile_form( $in, $msg );
+				if ( in_array( $msg, self::DETAIL_MESSAGES, true ) ) {
+					// The check names the expected format (e.g. "6 digits" for a sort code).
+					set_transient( 'wpac_portal_error_' . get_current_user_id(), $result->get_error_message(), 5 * MINUTE_IN_SECONDS );
+				}
 			}
 			wp_safe_redirect( add_query_arg( 'wpac_msg', $msg, $redirect ) );
 			exit;
@@ -633,7 +640,7 @@ final class Portal {
 	 */
 	private static function keep_profile_form( array $in, $msg ) {
 		// Keep what the partner typed (never the IBAN or payment details) and mark the field with the error.
-		unset( $in['iban'], $in['payment_details'] );
+		unset( $in['iban'], $in['payment_details'], $in['account_number'] );
 		$fields = array(
 			'wpac_iban'            => 'iban',
 			'wpac_iban_required'   => 'iban',
@@ -647,6 +654,12 @@ final class Portal {
 			'wpac_too_long_account_holder' => 'account_holder',
 			'wpac_too_long_vat_id'         => 'vat_id',
 			'wpac_method_disabled'         => 'iban',
+			'wpac_method_off'              => 'payout_method',
+			'wpac_account_number'          => 'account_number',
+			'wpac_bank_code'               => 'bank_code',
+			'wpac_bank_country'            => 'bank_country',
+			'wpac_bic'                     => 'bic',
+			'wpac_too_long_bank_name'      => 'bank_name',
 		);
 		set_transient(
 			'wpac_profile_form_' . get_current_user_id(),
@@ -1006,6 +1019,12 @@ final class Portal {
 			'wpac_too_long_account_holder' => array( 'error', __( 'The account holder is too long (at most 190 characters). Nothing was changed.', 'affiliate-captain' ) ),
 			'wpac_too_long_vat_id'         => array( 'error', __( 'The VAT ID is too long (at most 40 characters). Nothing was changed.', 'affiliate-captain' ) ),
 			'wpac_method_disabled'         => array( 'error', __( 'Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer.', 'affiliate-captain' ) ),
+			'wpac_method_off'              => array( 'error', __( 'This payout method is not offered. Please choose another payout method.', 'affiliate-captain' ) ),
+			'wpac_account_number'          => array( 'error', __( 'Please check the account number.', 'affiliate-captain' ) ),
+			'wpac_bank_code'               => array( 'error', __( 'Please check the bank code.', 'affiliate-captain' ) ),
+			'wpac_bank_country'            => array( 'error', __( 'Please choose the country of the bank.', 'affiliate-captain' ) ),
+			'wpac_bic'                     => array( 'error', __( 'The BIC/SWIFT code is not valid (8 or 11 letters and digits).', 'affiliate-captain' ) ),
+			'wpac_too_long_bank_name'      => array( 'error', __( 'The bank name is too long (at most 100 characters). Nothing was changed.', 'affiliate-captain' ) ),
 			'wpac_profile_db'              => array( 'error', __( 'Your payout details could not be saved. Please try again; your previous details are unchanged.', 'affiliate-captain' ) ),
 			'wpac_email'         => array( 'error', __( 'Please enter a valid e-mail address.', 'affiliate-captain' ) ),
 			'wpac_email_taken'   => array( 'error', __( 'This e-mail address is already used by another partner account.', 'affiliate-captain' ) ),
@@ -1040,6 +1059,12 @@ final class Portal {
 				$detail = self::flash( 'wpac_portal_error_' . get_current_user_id() );
 				if ( $detail ) {
 					$text .= ' ' . $detail;
+				}
+			} elseif ( in_array( $key, self::DETAIL_MESSAGES, true ) ) {
+				// Bank details outside SEPA: the exact reason replaces the short text.
+				$detail = self::flash( 'wpac_portal_error_' . get_current_user_id() );
+				if ( $detail ) {
+					$text = $detail;
 				}
 			}
 			// A live region present at page load is not announced: portal.js moves the focus to the
@@ -1631,7 +1656,7 @@ final class Portal {
 		$param = (string) Settings::get( 'referral_param' );
 
 		// R14-L3: labelling duty for links, codes, short links and QR codes (§ 5a (4) UWG, § 6 DDG).
-		$label = (string) Settings::get( 'default_disclosure' );
+		$label = Settings::localized( 'default_disclosure' ); // In the language of the page (SET-AC-17).
 		/* translators: %s: disclosure note, e.g. "Advertisement" */
 		echo '<div class="wpac-disclosure" role="note"><p><strong>' . esc_html( sprintf( __( 'Label every post with your link, code, short link or QR code as advertising – e.g. with "%s" at the beginning, visible without clicking.', 'affiliate-captain' ), $label ) ) . '</strong></p><ul>';
 		foreach ( array(
@@ -1862,7 +1887,7 @@ final class Portal {
 			echo '<p class="wpac-muted">' . sprintf( esc_html__( 'Your short link and QR code are in the tab %s.', 'affiliate-captain' ), '<a href="' . esc_url( self::tab_url( 'links' ) ) . '">' . esc_html__( 'Links & codes', 'affiliate-captain' ) . '</a>' ) . '</p>';
 		}
 
-		$guidelines = (string) Settings::get( 'promotion_guidelines' );
+		$guidelines = Settings::localized( 'promotion_guidelines' );
 		if ( '' !== trim( $guidelines ) ) {
 			echo '<h3>' . esc_html__( 'Promotion guidelines', 'affiliate-captain' ) . '</h3><div class="wpac-guidelines">' . wp_kses_post( wpautop( $guidelines ) ) . '</div>';
 		}
@@ -2273,7 +2298,7 @@ final class Portal {
 		// Switching the fields is in assets/js/portal.js (data-wpac-iban-required: an IBAN is needed
 		// unless one is stored).
 		$masked = $p && ProfileRepository::METHOD_SEPA === $stored_method ? Iban::mask( $p->iban_last4, $p->iban_country ) : '';
-		echo '<p><label for="wpac_payout_method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . ' *</label><select id="wpac_payout_method" name="wpac_payout_method" data-wpac-iban-required="' . ( $masked ? '0' : '1' ) . '" data-wpac-details-required="' . ( ProfileRepository::METHOD_MANUAL === $stored_method ? '0' : '1' ) . '">';
+		echo '<p><label for="wpac_payout_method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . ' *</label><select id="wpac_payout_method" name="wpac_payout_method" data-wpac-iban-required="' . ( $masked ? '0' : '1' ) . '" data-wpac-details-required="' . ( ProfileRepository::METHOD_MANUAL === $stored_method ? '0' : '1' ) . '" data-wpac-account-required="' . ( ProfileRepository::METHOD_BANK === $stored_method ? '0' : '1' ) . '">';
 		foreach ( ProfileRepository::method_options( $p ) as $key => $label ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $method, $key, false ), esc_html( $label ) );
 		}
@@ -2282,11 +2307,21 @@ final class Portal {
 		// hides the one of the other method and marks its fields as required. Without JavaScript no
 		// field carries "required" (the browser would block saving the other method, R13-M5): the
 		// asterisk names the fields the method needs, ProfileRepository::save() checks them.
-		echo '<div class="wpac-method-sepa">';
+		$options = ProfileRepository::method_options( $p );
+		echo '<div class="wpac-method-sepa wpac-method-bank">';
 		self::input( 'account_holder', __( 'Account holder', 'affiliate-captain' ) . ' *', $v( 'account_holder' ), false, 'autocomplete="name"' );
-		/* translators: %s: masked IBAN, e.g. DE** **** 1234 */
-		self::input( 'iban', $masked ? sprintf( __( 'IBAN (stored: %s)', 'affiliate-captain' ), $masked ) : __( 'IBAN', 'affiliate-captain' ) . ' *', '', false, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
-		self::input( 'bic', __( 'BIC (optional)', 'affiliate-captain' ), $v( 'bic' ) );
+		echo '</div>';
+		if ( isset( $options[ ProfileRepository::METHOD_SEPA ] ) ) {
+			echo '<div class="wpac-method-sepa">';
+			/* translators: %s: masked IBAN, e.g. DE** **** 1234 */
+			self::input( 'iban', $masked ? sprintf( __( 'IBAN (stored: %s)', 'affiliate-captain' ), $masked ) : __( 'IBAN', 'affiliate-captain' ) . ' *', '', false, 'autocomplete="off" placeholder="' . esc_attr( $masked ? __( 'Leave empty to keep', 'affiliate-captain' ) : 'DE00 0000 0000 0000 0000 00' ) . '"' );
+			echo '</div>';
+		}
+		if ( isset( $options[ ProfileRepository::METHOD_BANK ] ) ) {
+			self::bank_fields( $p, $kept );
+		}
+		echo '<div class="wpac-method-sepa wpac-method-bank">';
+		self::input( 'bic', isset( $options[ ProfileRepository::METHOD_BANK ] ) ? __( 'BIC / SWIFT (optional)', 'affiliate-captain' ) : __( 'BIC (optional)', 'affiliate-captain' ), $v( 'bic' ) );
 		echo '</div>';
 		$has_details = ProfileRepository::METHOD_MANUAL === $stored_method;
 		// The partner sees what is stored (masked like the IBAN), not only "stored".
@@ -2303,6 +2338,41 @@ final class Portal {
 		}
 		echo '<p class="wpac-muted">' . esc_html__( 'Your bank and payment details are stored encrypted and are only used for commission payouts.', 'affiliate-captain' ) . '</p>';
 		echo '<p><button type="submit" class="wpac-button">' . esc_html__( 'Save', 'affiliate-captain' ) . '</button></p></form>';
+	}
+
+	/**
+	 * Fields of the bank transfer outside SEPA (SET-AC-30): account number (stored one masked, never
+	 * shown again), bank code, bank name and bank country (stored or typed values).
+	 *
+	 * @param object|null $p    Stored profile.
+	 * @param mixed       $kept Kept form after a rejected save.
+	 */
+	private static function bank_fields( $p, $kept ) {
+		$stored = ProfileRepository::bank_details( $p );
+		$bv     = static function ( $key ) use ( $stored, $kept ) {
+			if ( is_array( $kept ) && isset( $kept['values'][ $key ] ) ) {
+				return (string) $kept['values'][ $key ];
+			}
+			return $stored ? (string) $stored[ $key ] : '';
+		};
+		$masked = $stored ? ProfileRepository::bank_mask( (string) $p->iban_last4, $stored['bank_country'] ) : '';
+		echo '<div class="wpac-method-bank">';
+		$country = $bv( 'bank_country' );
+		echo '<p><label for="wpac_bank_country">' . esc_html__( 'Country of the bank', 'affiliate-captain' ) . ' *</label><select id="wpac_bank_country" name="wpac_bank_country"' . ( 'bank_country' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '><option value="">—</option>';
+		$countries = \WPAffiliateCaptain\Core\Settings::countries();
+		if ( '' !== $country && ! isset( $countries[ $country ] ) ) {
+			$countries[ $country ] = $country;
+		}
+		foreach ( $countries as $code => $name ) {
+			printf( '<option value="%s" %s>%s</option>', esc_attr( $code ), selected( $country, $code, false ), esc_html( $name ) );
+		}
+		echo '</select></p>';
+		/* translators: %s: masked account number, e.g. US •••• 6789 */
+		self::input( 'account_number', $masked ? sprintf( __( 'Account number (stored: %s)', 'affiliate-captain' ), $masked ) : __( 'Account number', 'affiliate-captain' ) . ' *', '', false, 'autocomplete="off" dir="ltr"' . ( $masked ? ' placeholder="' . esc_attr__( 'Leave empty to keep', 'affiliate-captain' ) . '"' : '' ) );
+		self::input( 'bank_code', __( 'Bank code / sort code / routing number', 'affiliate-captain' ), $bv( 'bank_code' ), false, 'autocomplete="off" dir="ltr"' );
+		echo '<p class="wpac-muted">' . esc_html__( 'For example the routing number (USA, 9 digits), sort code (UK, 6 digits), institution and transit number (Canada), BSB (Australia) or IFSC (India). Leave empty if your bank has none.', 'affiliate-captain' ) . '</p>';
+		self::input( 'bank_name', __( 'Bank name', 'affiliate-captain' ), $bv( 'bank_name' ), false, 'maxlength="100"' );
+		echo '</div>';
 	}
 
 	/**

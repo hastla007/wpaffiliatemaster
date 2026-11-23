@@ -9,6 +9,7 @@ namespace WPAffiliateCaptain\Affiliates;
 
 use WPAffiliateCaptain\Core\Capabilities;
 use WPAffiliateCaptain\Core\Db;
+use WPAffiliateCaptain\Core\Locale;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Tracking\RateLimiter;
 
@@ -186,10 +187,18 @@ final class Registration {
 		if ( $terms['page_id'] && empty( $_POST['wpac_terms'] ) ) {
 			$invalid['wpac_terms'] = __( 'Please accept the partner program terms.', 'affiliate-captain' );
 		}
+		// Additional required checkboxes and the age confirmation (SET-AC-18).
+		$ticked = array();
+		foreach ( array_keys( self::consent_boxes() ) as $box ) {
+			$ticked[ $box ] = ! empty( $_POST[ 'wpac_consent_' . $box ] );
+		}
+		list( $consent_invalid, $consents ) = self::consents( $ticked, $terms );
+		$invalid                           += $consent_invalid;
 		if ( $invalid ) {
 			self::$invalid = $invalid;
 			// The first invalid field in the order of the form gets the focus.
-			$order       = array_merge( array( 'wpac_name', 'wpac_email' ), array_keys( array_diff_key( $invalid, array_flip( array( 'wpac_name', 'wpac_email', 'wpac_terms' ) ) ) ), array( 'wpac_terms' ) );
+			$boxes       = array_keys( $consent_invalid );
+			$order       = array_merge( array( 'wpac_name', 'wpac_email' ), array_keys( array_diff_key( $invalid, array_flip( array_merge( array( 'wpac_name', 'wpac_email', 'wpac_terms' ), $boxes ) ) ) ), array( 'wpac_terms' ), $boxes );
 			self::$field = (string) current( array_intersect( $order, array_keys( $invalid ) ) );
 			$code        = array( 'wpac_terms' ) === array_keys( $invalid ) ? 'terms' : ( isset( $invalid['wpac_email'] ) ? 'invalid' : 'required' );
 			self::back( $redirect, $code );
@@ -215,6 +224,7 @@ final class Registration {
 			'group_id'         => $group_id,
 			'referred_by'      => self::recruiter( $email, $user && $user->exists() ? (int) $user->ID : 0 ),
 			'terms'            => $terms['page_id'] ? $terms + array( 'accepted_at' => Db::now() ) : null, // Version + hash accepted now.
+			'consents'         => $consents, // Wording and time of each ticked box (SET-AC-18).
 			'redirect'         => $redirect,
 		);
 
@@ -535,6 +545,9 @@ final class Registration {
 		}
 		if ( $terms ) {
 			Agreements::record( $result, 'accepted', $terms );
+		}
+		if ( ! empty( $data['consents'] ) && is_array( $data['consents'] ) ) {
+			Agreements::record_consents( $result, $data['consents'] );
 		}
 		if ( ! empty( $data['handover'] ) ) {
 			\WPAffiliateCaptain\Integrations\FormCaptain\Handover::confirmed( (string) $data['handover'], (int) $result );
@@ -1080,18 +1093,21 @@ final class Registration {
 			<p class="wpac-check">
 				<label>
 					<input type="checkbox" id="wpac_terms<?php echo esc_attr( $sfx ); ?>" name="wpac_terms" value="1" required<?php echo self::attrs( $form, 'wpac_terms', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-					<?php
-					printf(
-						/* translators: 1: link to terms, 2: version */
-						esc_html__( 'I accept the %1$s (version %2$s).', 'affiliate-captain' ),
-						'<a href="' . esc_url( $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'partner program terms', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-						esc_html( $terms['version'] )
-					);
-					?>
+					<?php echo self::terms_label( $terms ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 				</label>
 				<?php echo self::field_error( $form, 'wpac_terms' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
 			</p>
 			<?php endif; ?>
+			<?php foreach ( self::consent_boxes() as $wpac_box => $wpac_box_label ) : ?>
+				<?php $wpac_box_name = 'wpac_consent_' . $wpac_box; ?>
+			<p class="wpac-check">
+				<label>
+					<input type="checkbox" id="<?php echo esc_attr( $wpac_box_name . $sfx ); ?>" name="<?php echo esc_attr( $wpac_box_name ); ?>" value="1" required <?php checked( '1', $kept( $wpac_box_name ) ); ?><?php echo self::attrs( $form, $wpac_box_name, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+					<?php echo $wpac_box_label; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in consent_boxes(). ?> *
+				</label>
+				<?php echo self::field_error( $form, $wpac_box_name ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?>
+			</p>
+			<?php endforeach; ?>
 			<p class="wpac-muted wpac-privacy-note">
 				<?php
 				// Information at collection (Art. 13 GDPR): purpose, legal basis, storage, link to the policy.
@@ -1100,6 +1116,10 @@ final class Registration {
 				if ( $wpac_privacy ) {
 					echo ' <a href="' . esc_url( $wpac_privacy ) . '" target="_blank" rel="noopener">' . esc_html__( 'Privacy policy', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
 				}
+				$wpac_imprint = (int) Settings::get( 'imprint_page_id' ) && Locale::published( (int) Settings::get( 'imprint_page_id' ) ) ? Locale::page_url( (int) Settings::get( 'imprint_page_id' ) ) : '';
+				if ( '' !== $wpac_imprint ) {
+					echo ' · <a href="' . esc_url( $wpac_imprint ) . '" target="_blank" rel="noopener">' . esc_html__( 'Imprint', 'affiliate-captain' ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
+				}
 				?>
 			</p>
 			<p><button type="submit" class="wpac-button"><?php esc_html_e( 'Apply now', 'affiliate-captain' ); ?></button></p>
@@ -1107,6 +1127,103 @@ final class Registration {
 		<?php
 		self::$suffix = '';
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Checkboxes of the application form besides the terms (SET-AC-18): the additional required
+	 * boxes with their own text and, with a minimum age, the age confirmation.
+	 *
+	 * @return array key (extra_1 … extra_3, age) => label HTML (escaped; links allowed)
+	 */
+	public static function consent_boxes() {
+		$out = array();
+		foreach ( array( 1, 2, 3 ) as $n ) {
+			$text = trim( (string) Settings::get( 'consent_extra_' . $n ) );
+			if ( '' !== $text ) {
+				$out[ 'extra_' . $n ] = wp_kses( $text, Settings::CONSENT_HTML );
+			}
+		}
+		$age = (int) Settings::get( 'min_partner_age' );
+		if ( $age > 0 ) {
+			/* translators: %d: minimum age in years */
+			$out['age'] = esc_html( sprintf( _n( 'I confirm that I am at least %d year old.', 'I confirm that I am at least %d years old.', $age, 'affiliate-captain' ), $age ) );
+		}
+		return $out;
+	}
+
+	/**
+	 * Label of the terms checkbox: the wording of the setting consent_terms_label ({terms} = link,
+	 * {version} = version), else the built-in text (SET-AC-18).
+	 *
+	 * @param array $terms Terms (url, version).
+	 * @param bool  $plain Plain text for the stored proof ("partner program terms (URL)").
+	 * @return string HTML (escaped) or plain text.
+	 */
+	public static function terms_label( array $terms, $plain = false ) {
+		$label = trim( (string) Settings::get( 'consent_terms_label' ) );
+		if ( '' === $label || false === strpos( $label, '{terms}' ) ) {
+			/* translators: 1: link to terms, 2: version */
+			$label = sprintf( __( 'I accept the %1$s (version %2$s).', 'affiliate-captain' ), '{terms}', '{version}' );
+		}
+		$name = __( 'partner program terms', 'affiliate-captain' );
+		if ( $plain ) {
+			return strtr( $label, array( '{terms}' => $name . ( ! empty( $terms['url'] ) ? ' (' . $terms['url'] . ')' : '' ), '{version}' => (string) $terms['version'] ) );
+		}
+		$link = '<a href="' . esc_url( (string) $terms['url'] ) . '" target="_blank" rel="noopener">' . esc_html( $name ) . '<span class="wpac-sr"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
+		return strtr( esc_html( $label ), array( '{terms}' => $link, '{version}' => esc_html( (string) $terms['version'] ) ) );
+	}
+
+	/**
+	 * Plain text of a checkbox label as stored for the proof: links become "text (address)".
+	 *
+	 * @param string $html Label HTML.
+	 * @return string
+	 */
+	public static function consent_text( $html ) {
+		$text = (string) preg_replace_callback(
+			'/<a\s[^>]*href=(["\'])(.*?)\1[^>]*>(.*?)<\/a>/is',
+			static function ( $m ) {
+				return $m[3] . ' (' . html_entity_decode( $m[2], ENT_QUOTES, 'UTF-8' ) . ')';
+			},
+			(string) $html
+		);
+		return trim( html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES, 'UTF-8' ) );
+	}
+
+	/**
+	 * Check the ticked checkboxes of an application and build the consents to store (SET-AC-18):
+	 * every shown box is required; each consent keeps its wording and the time of the tick.
+	 *
+	 * @param array $ticked key of consent_boxes() => whether it was ticked.
+	 * @param array $terms  Terms shown (page_id, url, version).
+	 * @return array [ invalid: form field => message, consents: list of { key, text, accepted_at } ]
+	 */
+	public static function consents( array $ticked, array $terms ) {
+		$invalid  = array();
+		$consents = array();
+		$now      = Db::now();
+		if ( ! empty( $terms['page_id'] ) ) {
+			// The wording of the terms box is evidence too (it can be changed in the settings).
+			$consents[] = array(
+				'key'         => 'terms',
+				'text'        => self::terms_label( $terms, true ),
+				'accepted_at' => $now,
+			);
+		}
+		foreach ( self::consent_boxes() as $key => $label ) {
+			$text = self::consent_text( $label );
+			if ( empty( $ticked[ $key ] ) ) {
+				/* translators: %s: text of the checkbox (shortened) */
+				$invalid[ 'wpac_consent_' . $key ] = sprintf( __( 'Please confirm: %s', 'affiliate-captain' ), function_exists( 'wp_trim_words' ) ? wp_trim_words( $text, 12 ) : $text );
+				continue;
+			}
+			$consents[] = array(
+				'key'         => $key,
+				'text'        => $text,
+				'accepted_at' => $now,
+			);
+		}
+		return array( $invalid, $consents );
 	}
 
 	/**

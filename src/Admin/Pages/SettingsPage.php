@@ -45,6 +45,10 @@ final class SettingsPage {
 			self::handle_roles();
 			return;
 		}
+		if ( in_array( $do, array( 'settings_profile_preview', 'settings_profile_apply' ), true ) ) {
+			self::handle_profile( $do );
+			return;
+		}
 		if ( in_array( $do, array( 'settings_export', 'settings_import_preview', 'settings_import_apply', 'settings_reset_preview', 'settings_reset_apply', 'settings_pending_discard' ), true ) ) {
 			self::handle_transfer( $do );
 			return;
@@ -67,6 +71,9 @@ final class SettingsPage {
 		$notices = array();
 		$clean   = Settings::sanitize( $raw, $errors, $notices );
 		$keys    = $tabs[ $tab ];
+		if ( in_array( 'payout_method_sepa', $keys, true ) ) {
+			Settings::keep_one_payout_method( $clean, $errors ); // Unchecked boxes are absent from POST.
+		}
 		if ( isset( $clean['currency'] ) && in_array( 'currency', $keys, true ) && (string) $clean['currency'] !== (string) Settings::get( 'currency' ) ) {
 			// A new program currency also converts the amounts of other tabs (R5-O2, R7-AD18).
 			$keys[]              = 'min_payout_minor';
@@ -187,8 +194,9 @@ final class SettingsPage {
 			exit;
 		}
 		if ( 'settings_pending_discard' === $do ) {
+			$pending = get_transient( self::pending_key() );
 			delete_transient( self::pending_key() );
-			Admin::back( __( 'Discarded. Nothing was changed.', 'affiliate-captain' ), 'success', $url );
+			Admin::back( __( 'Discarded. Nothing was changed.', 'affiliate-captain' ), 'success', is_array( $pending ) && 'profile' === $pending['kind'] ? Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) ) : $url );
 		}
 		if ( 'settings_import_preview' === $do ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in Admin::dispatch(); tmp path and size only.
@@ -231,6 +239,120 @@ final class SettingsPage {
 		}
 		/* translators: %d: number of changed settings */
 		Admin::back( sprintf( _n( '%d setting changed.', '%d settings changed.', count( (array) $check['values'] ), 'affiliate-captain' ), count( (array) $check['values'] ) ), 'success', $url );
+	}
+
+	/**
+	 * Country profile (SET-AC-03): show the changes first (old → new), then apply what was shown.
+	 *
+	 * @param string $do settings_profile_preview or settings_profile_apply.
+	 */
+	private static function handle_profile( $do ) {
+		$url = Admin::url( 'wpac-settings', array( 'tab' => 'payouts' ) );
+		if ( 'settings_profile_preview' === $do ) {
+			$code    = \WPAffiliateCaptain\Core\CountryProfiles::clean( Admin::post( 'profile' ) );
+			$preview = \WPAffiliateCaptain\Core\CountryProfiles::preview( $code );
+			if ( is_wp_error( $preview ) ) {
+				Admin::back( $preview->get_error_message(), 'error', $url );
+			}
+			set_transient(
+				self::pending_key(),
+				array(
+					'kind'    => 'profile',
+					'tab'     => 'payouts',
+					'profile' => $code,
+					'check'   => $preview,
+				),
+				HOUR_IN_SECONDS
+			);
+			wp_safe_redirect( $url . '#wpac-settings-pending' );
+			exit;
+		}
+		$pending = get_transient( self::pending_key() );
+		if ( ! is_array( $pending ) || 'profile' !== $pending['kind'] || empty( $pending['profile'] ) ) {
+			Admin::back( __( 'Nothing to apply (the preview expired). Please start again.', 'affiliate-captain' ), 'error', $url );
+		}
+		delete_transient( self::pending_key() );
+		$check           = (array) $pending['check'];
+		$check['errors'] = array(); // Only the valid values are applied; the rejected ones keep their value.
+		if ( ! \WPAffiliateCaptain\Core\CountryProfiles::apply( (string) $pending['profile'], $check, 'admin' ) ) {
+			Admin::back( __( 'The settings could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ), 'error', $url );
+		}
+		$count = count( (array) $check['values'] );
+		/* translators: 1: profile name, 2: number of changed settings */
+		Admin::back( sprintf( _n( 'Country profile %1$s applied: %2$d setting changed. Everything can still be changed below.', 'Country profile %1$s applied: %2$d settings changed. Everything can still be changed below.', $count, 'affiliate-captain' ), \WPAffiliateCaptain\Core\CountryProfiles::name( (string) $pending['profile'] ), $count ), 'success', $url );
+	}
+
+	/**
+	 * Country profile box on the "Payouts & credit notes" tab (SET-AC-03, S8): the proposal from the
+	 * shop country, the choice of a profile and the pending changes (old → new) before applying.
+	 */
+	private static function render_profiles() {
+		$profiles = \WPAffiliateCaptain\Core\CountryProfiles::all();
+		if ( ! $profiles ) {
+			return;
+		}
+		$applied  = \WPAffiliateCaptain\Core\CountryProfiles::applied();
+		$proposed = \WPAffiliateCaptain\Core\CountryProfiles::proposed();
+		$pending  = get_transient( self::pending_key() );
+		echo '<h2>' . esc_html__( 'Country profile', 'affiliate-captain' ) . '</h2>';
+		if ( is_array( $pending ) && 'profile' === $pending['kind'] && isset( $pending['check']['changes'] ) ) {
+			/* translators: %s: profile name */
+			self::pending_box( $pending, sprintf( __( 'Country profile %s: please check', 'affiliate-captain' ), \WPAffiliateCaptain\Core\CountryProfiles::name( (string) $pending['profile'] ) ), 'settings_profile_apply' );
+		}
+		if ( $applied ) {
+			/* translators: 1: profile name, 2: date */
+			echo '<p>' . esc_html( sprintf( __( 'Applied last: %1$s on %2$s.', 'affiliate-captain' ), \WPAffiliateCaptain\Core\CountryProfiles::name( (string) $applied['code'] ), mysql2date( get_option( 'date_format' ), get_date_from_gmt( (string) $applied['at'] ) ) ) ) . '</p>';
+		} elseif ( '' !== $proposed ) {
+			/* translators: %s: profile name */
+			echo '<div class="notice notice-info inline"><p>' . esc_html( sprintf( __( 'Proposal for your shop country: %s. Show the changes to see what it would set – nothing is changed before you confirm.', 'affiliate-captain' ), \WPAffiliateCaptain\Core\CountryProfiles::name( $proposed ) ) ) . '</p></div>';
+		}
+		echo '<p>' . esc_html__( 'A profile proposes VAT rate, currency, your country, retention periods, cookie and hold periods, e-invoice mail, credit notes, number prefixes, disclosure note, small business limits and document notes. You see every change before it is applied; afterwards everything can be changed as usual. The values are not legally or tax reviewed – check them with your adviser.', 'affiliate-captain' ) . '</p>';
+		Admin::form_open( 'settings_profile_preview' );
+		echo '<p><label for="wpac-profile">' . esc_html__( 'Profile', 'affiliate-captain' ) . '</label> <select id="wpac-profile" name="profile">';
+		$current = $applied ? (string) $applied['code'] : $proposed;
+		foreach ( array_keys( $profiles ) as $code ) {
+			printf( '<option value="%s" %s>%s</option>', esc_attr( $code ), selected( $current, $code, false ), esc_html( \WPAffiliateCaptain\Core\CountryProfiles::name( $code ) ) );
+		}
+		echo '</select> <button class="button">' . esc_html__( 'Show changes …', 'affiliate-captain' ) . '</button></p></form>';
+	}
+
+	/**
+	 * A pending import, reset or profile: table old → new with legal marks, errors, Apply and Discard.
+	 *
+	 * @param array  $pending Pending entry (kind, check).
+	 * @param string $title   Heading.
+	 * @param string $apply   Admin action of the Apply button.
+	 */
+	private static function pending_box( array $pending, $title, $apply ) {
+		$labels = self::setting_labels();
+		echo '<div id="wpac-settings-pending" class="notice notice-info inline"><h2>' . esc_html( $title ) . '</h2>';
+		if ( $pending['check']['changes'] ) {
+			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $pending['check']['changes'] as $key => $pair ) {
+				$f = SettingsSchema::field( $key );
+				$p = ! empty( $f['private'] );
+				// The new value is shown in full, so nobody confirms bank details or addresses blindly (P4-02).
+				$now   = $p ? self::partly_masked( (string) $pair[0] ) : (string) $pair[0];
+				$legal = ! empty( $f['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
+				echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( (string) $pair[1] ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
+			}
+			echo '</tbody></table>';
+		} else {
+			echo '<p>' . esc_html__( 'Nothing would change.', 'affiliate-captain' ) . '</p>';
+		}
+		foreach ( (array) $pending['check']['errors'] as $key => $message ) {
+			echo '<p class="wpac-field-error">' . esc_html( ( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . ': ' . $message ) . '</p>';
+		}
+		if ( ! empty( $pending['check']['ignored'] ) ) {
+			echo '<p class="description">' . esc_html( __( 'Ignored (unknown or not importable):', 'affiliate-captain' ) . ' ' . implode( ', ', array_map( 'strval', (array) $pending['check']['ignored'] ) ) ) . '</p>';
+		}
+		echo '<p>';
+		if ( $pending['check']['changes'] ) {
+			Admin::form_open( $apply, 'wpac-inline-form' );
+			echo '<button class="button button-primary">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form> ';
+		}
+		Admin::form_open( 'settings_pending_discard', 'wpac-inline-form' );
+		echo '<button class="button">' . esc_html__( 'Discard', 'affiliate-captain' ) . '</button></form></p></div>';
 	}
 
 	/**
@@ -333,38 +455,10 @@ final class SettingsPage {
 	 * Export, import and reset on the "Data & maintenance" tab; reset button on every tab.
 	 */
 	private static function render_transfer() {
-		$labels = self::setting_labels();
 		if ( 'data' === self::$tab ) {
 			$pending = get_transient( self::pending_key() );
-			if ( is_array( $pending ) && isset( $pending['check']['changes'] ) ) {
-				echo '<div id="wpac-settings-pending" class="notice notice-info inline"><h2>' . esc_html( 'import' === $pending['kind'] ? __( 'Import: please check', 'affiliate-captain' ) : __( 'Reset: please check', 'affiliate-captain' ) ) . '</h2>';
-				if ( $pending['check']['changes'] ) {
-					echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
-					foreach ( $pending['check']['changes'] as $key => $pair ) {
-						$f = SettingsSchema::field( $key );
-						$p = ! empty( $f['private'] );
-						// The new value is shown in full, so nobody confirms bank details or addresses blindly (P4-02).
-						$now   = $p ? self::partly_masked( (string) $pair[0] ) : (string) $pair[0];
-						$legal = ! empty( $f['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
-						echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( (string) $pair[1] ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
-					}
-					echo '</tbody></table>';
-				} else {
-					echo '<p>' . esc_html__( 'Nothing would change.', 'affiliate-captain' ) . '</p>';
-				}
-				foreach ( (array) $pending['check']['errors'] as $key => $message ) {
-					echo '<p class="wpac-field-error">' . esc_html( ( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . ': ' . $message ) . '</p>';
-				}
-				if ( ! empty( $pending['check']['ignored'] ) ) {
-					echo '<p class="description">' . esc_html( __( 'Ignored (unknown or not importable):', 'affiliate-captain' ) . ' ' . implode( ', ', array_map( 'strval', (array) $pending['check']['ignored'] ) ) ) . '</p>';
-				}
-				echo '<p>';
-				if ( $pending['check']['changes'] ) {
-					Admin::form_open( 'import' === $pending['kind'] ? 'settings_import_apply' : 'settings_reset_apply', 'wpac-inline-form' );
-					echo '<button class="button button-primary">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form> ';
-				}
-				Admin::form_open( 'settings_pending_discard', 'wpac-inline-form' );
-				echo '<button class="button">' . esc_html__( 'Discard', 'affiliate-captain' ) . '</button></form></p></div>';
+			if ( is_array( $pending ) && isset( $pending['check']['changes'] ) && 'profile' !== $pending['kind'] ) {
+				self::pending_box( $pending, 'import' === $pending['kind'] ? __( 'Import: please check', 'affiliate-captain' ) : __( 'Reset: please check', 'affiliate-captain' ), 'import' === $pending['kind'] ? 'settings_import_apply' : 'settings_reset_apply' );
 			}
 			echo '<h2>' . esc_html__( 'Export, import and reset', 'affiliate-captain' ) . '</h2>';
 			echo '<p>' . esc_html__( 'Export the settings as a JSON file to copy them to another shop or keep a backup. The monitoring token is never exported; bank details, addresses, e-mail addresses and tax numbers only when you tick the box. An import first shows what would change.', 'affiliate-captain' ) . '</p>';
@@ -604,6 +698,9 @@ final class SettingsPage {
 			printf( '<a class="nav-tab %s" href="%s"%s>%s</a>', $key === self::$tab ? 'nav-tab-active' : '', esc_url( Admin::url( 'wpac-settings', array( 'tab' => $key ) ) ), $key === self::$tab ? ' aria-current="page"' : '', esc_html( $label ) );
 		}
 		echo '</nav>';
+		if ( 'payouts' === self::$tab ) {
+			self::render_profiles(); // Own forms: before the settings form (forms cannot be nested).
+		}
 		Admin::form_open( 'settings_save', 'wpac-tabs-content' );
 		echo '<input type="hidden" name="tab" value="' . esc_attr( self::$tab ) . '">';
 
@@ -662,6 +759,15 @@ final class SettingsPage {
 		foreach ( \WPAffiliateCaptain\Core\Features::SETTINGS as $key ) {
 			self::checkbox( $key, null, $s );
 		}
+		self::end();
+
+		self::section( __( 'Application form', 'affiliate-captain' ), 'program' );
+		self::text( 'consent_terms_label', null, $s );
+		self::text( 'consent_extra_1', null, $s );
+		self::text( 'consent_extra_2', null, $s );
+		self::text( 'consent_extra_3', null, $s );
+		self::page_select( 'imprint_page_id', null, $s );
+		self::number( 'min_partner_age', null, $s );
 		self::end();
 	}
 
@@ -922,9 +1028,11 @@ final class SettingsPage {
 		self::text( 'landing_prefix', null, $s, sprintf( /* translators: %s: example URL of a partner landing page */ __( 'Partner landing URLs look like %s', 'affiliate-captain' ), home_url( '/' . $s['landing_prefix'] . '/partner-slug/' ) ) );
 		self::page_select( 'landing_page_id', null, $s );
 		self::text( 'default_disclosure', null, $s );
+		self::i18n( 'default_disclosure_i18n', $s, false );
 		self::checkbox( 'embed_disclosure_label', null, $s );
 		self::checkbox( 'auto_apply_coupon', null, $s );
 		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html( SettingsSchema::label( 'promotion_guidelines' ) ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html( SettingsSchema::help( 'promotion_guidelines' ) ) . '</p></td></tr>';
+		self::i18n( 'promotion_guidelines_i18n', $s, true );
 		self::end();
 	}
 
@@ -944,6 +1052,8 @@ final class SettingsPage {
 		self::select( 'payout_reminder', null, $s, array( 'off' => __( 'Off', 'affiliate-captain' ), 'monthly' => __( 'Monthly', 'affiliate-captain' ), 'quarterly' => __( 'Quarterly', 'affiliate-captain' ) ), self::reminder_help() );
 		self::number( 'payout_reminder_day', null, $s );
 		self::checkbox( 'payout_requests', null, $s );
+		self::checkbox( 'payout_method_sepa', null, $s );
+		self::checkbox( 'payout_method_bank', null, $s );
 		self::checkbox( 'payout_method_manual', null, $s );
 		self::number( 'payout_request_note_days', null, $s );
 		self::number( 'claim_cancel_days', null, $s );
@@ -976,6 +1086,18 @@ final class SettingsPage {
 		self::text( 'credit_prefix', null, $s );
 		self::text( 'storno_prefix', null, $s );
 		self::text( 'correction_prefix', null, $s );
+		/* translators: %s: currency code */
+		$in_currency = sprintf( __( 'Currency: %s.', 'affiliate-captain' ), $currency );
+		self::text( 'small_business_limit_previous', null, $s, SettingsSchema::help( 'small_business_limit_previous' ) . ' ' . $in_currency );
+		self::text( 'small_business_limit_current', null, $s, SettingsSchema::help( 'small_business_limit_current' ) . ' ' . $in_currency );
+		self::end();
+
+		self::section( __( 'Notes on credit notes', 'affiliate-captain' ), 'payouts' );
+		$country = strtoupper( (string) $s['operator_country'] );
+		self::note( 'note_self_billing', $s, \WPAffiliateCaptain\Payouts\Statement::self_billing_note( $country ) );
+		self::note( 'note_reverse_charge', $s, \WPAffiliateCaptain\Payouts\Statement::vat_note( \WPAffiliateCaptain\Payouts\Vat::REVERSE_CHARGE, $country ) );
+		self::note( 'note_small_business', $s, \WPAffiliateCaptain\Payouts\Statement::vat_note( \WPAffiliateCaptain\Payouts\Vat::SMALL_BUSINESS, $country ) );
+		self::note( 'note_private_person', $s, \WPAffiliateCaptain\Payouts\Statement::vat_note( \WPAffiliateCaptain\Payouts\Vat::PRIVATE_PERSON, $country ) );
 		self::end();
 
 		self::section( __( 'Document numbers', 'affiliate-captain' ), 'payouts' );
@@ -993,7 +1115,7 @@ final class SettingsPage {
 			null,
 			$s,
 			array(
-				'auto' => __( 'Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)', 'affiliate-captain' ),
+				'auto' => __( 'Automatic: for credit notes with domestic VAT, where the country profile of your country expects e-invoices (Germany)', 'affiliate-captain' ),
 				'on'   => __( 'Always', 'affiliate-captain' ),
 				'off'  => __( 'Never (download only)', 'affiliate-captain' ),
 			),
@@ -1053,6 +1175,7 @@ final class SettingsPage {
 		self::number( 'pending_application_days', null, $s );
 		self::number( 'audit_retention_days', null, $s );
 		self::number( 'statement_retention_years', null, $s );
+		self::number( 'statement_retention_minimum', null, $s );
 		self::checkbox( 'retention_hold', null, $s );
 		self::end();
 
@@ -1156,6 +1279,21 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Document note (SET-AC-04 c): empty = the built-in text, shown as placeholder.
+	 *
+	 * @param string $key      Key.
+	 * @param array  $s        Settings.
+	 * @param string $built_in Built-in text for the operator country.
+	 */
+	private static function note( $key, $s, $built_in ) {
+		list( $label, $desc ) = self::texts( $key, null, '' );
+		$err = self::error_parts( $key, true );
+		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><textarea id="wpac-%1$s" name="wpac[%1$s]" rows="3" class="large-text" placeholder="%3$s"%4$s>%5$s</textarea>%6$s', esc_attr( $key ), esc_html( $label ), esc_attr( $built_in ), $err[0], esc_textarea( self::shown( $key, $s[ $key ] ) ), $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc, $key );
+		echo '</td></tr>';
+	}
+
+	/**
 	 * Number field.
 	 *
 	 * @param string $key   Key.
@@ -1252,6 +1390,42 @@ final class SettingsPage {
 		}
 		$words = preg_split( '/\s+/', $label );
 		return count( $words ) > 6 ? implode( ' ', array_slice( $words, 0, 6 ) ) . ' …' : $label;
+	}
+
+	/**
+	 * Texts per installed language (SET-AC-17): one field per language other than the site language.
+	 *
+	 * @param string $key       Setting key of type i18n.
+	 * @param array  $s         Settings.
+	 * @param bool   $multiline Text area instead of a text field.
+	 */
+	private static function i18n( $key, $s, $multiline ) {
+		list( $label, $desc ) = self::texts( $key, null, '' );
+		$texts                = json_decode( (string) $s[ $key ], true );
+		$texts                = is_array( $texts ) ? $texts : array();
+		$langs                = \WPAffiliateCaptain\Core\Locale::installed();
+		unset( $langs[ \WPAffiliateCaptain\Core\Locale::site() ] );
+		$err = self::error_parts( $key, true );
+		echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>';
+		if ( ! $langs ) {
+			self::desc( __( 'Only the site language is installed. Install further languages under Settings → General to store texts for them.', 'affiliate-captain' ), $key );
+			echo '</td></tr>';
+			return;
+		}
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html( $label ) . '</legend>';
+		foreach ( $langs as $locale => $name ) {
+			$id    = 'wpac-' . $key . '-' . $locale;
+			$value = isset( $texts[ $locale ] ) ? (string) $texts[ $locale ] : '';
+			echo '<p><label for="' . esc_attr( $id ) . '">' . esc_html( $name ) . '</label><br>';
+			if ( $multiline ) {
+				echo '<textarea id="' . esc_attr( $id ) . '" name="wpac[' . esc_attr( $key ) . '][' . esc_attr( $locale ) . ']" rows="4" class="large-text"' . $err[0] . '>' . esc_textarea( $value ) . '</textarea></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+			} else {
+				echo '<input type="text" id="' . esc_attr( $id ) . '" name="wpac[' . esc_attr( $key ) . '][' . esc_attr( $locale ) . ']" value="' . esc_attr( $value ) . '" class="regular-text"' . $err[0] . '></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+			}
+		}
+		echo '</fieldset>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc, $key );
+		echo '</td></tr>';
 	}
 
 	/**

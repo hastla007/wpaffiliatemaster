@@ -36,7 +36,9 @@ final class Notifications {
 
 	/**
 	 * Option (not autoloaded): e-mail templates edited in the admin and the layout,
-	 * array( 'layout' => 'text'|'html', 'templates' => array( key => array( subject, body, updated ) ) ).
+	 * array( 'layout' => 'text'|'html', 'templates' => array( key => array( subject, body, updated ) ),
+	 * 'i18n' => array( locale => array( key => array( subject, body, updated ) ) ) ). "templates" holds
+	 * the texts of the site language, "i18n" those of other languages (SET-AC-17).
 	 */
 	const TEMPLATES_OPTION = 'wpac_mail_templates';
 
@@ -407,7 +409,7 @@ final class Notifications {
 	/**
 	 * Stored template settings (layout and the templates changed in the admin).
 	 *
-	 * @return array layout, templates
+	 * @return array layout, templates, i18n
 	 */
 	public static function template_settings() {
 		$opt = get_option( self::TEMPLATES_OPTION, array() );
@@ -415,7 +417,40 @@ final class Notifications {
 		return array(
 			'layout'    => isset( $opt['layout'] ) && 'html' === $opt['layout'] ? 'html' : 'text',
 			'templates' => isset( $opt['templates'] ) && is_array( $opt['templates'] ) ? $opt['templates'] : array(),
+			'i18n'      => isset( $opt['i18n'] ) && is_array( $opt['i18n'] ) ? $opt['i18n'] : array(),
 		);
+	}
+
+	/**
+	 * Language key of a stored template: '' for the site language, else the locale.
+	 *
+	 * @param string $locale Locale ('' = site language).
+	 * @return string
+	 */
+	private static function template_lang( $locale ) {
+		$locale = (string) $locale;
+		return '' === $locale || Locale::site() === $locale ? '' : $locale;
+	}
+
+	/**
+	 * Template stored for exactly one language (no fallback; null = none stored).
+	 *
+	 * @param string $key    Template key.
+	 * @param string $locale Locale ('' = site language).
+	 * @return array|null array( subject, body )
+	 */
+	public static function stored_template( $key, $locale = '' ) {
+		$s    = self::template_settings();
+		$lang = self::template_lang( $locale );
+		$list = '' === $lang ? $s['templates'] : ( isset( $s['i18n'][ $lang ] ) && is_array( $s['i18n'][ $lang ] ) ? $s['i18n'][ $lang ] : array() );
+		if ( empty( $list[ $key ] ) || ! is_array( $list[ $key ] ) ) {
+			return null;
+		}
+		$t = $list[ $key ];
+		if ( ! isset( $t['subject'], $t['body'] ) || '' === trim( (string) $t['subject'] ) || '' === trim( (string) $t['body'] ) ) {
+			return null;
+		}
+		return array( (string) $t['subject'], (string) $t['body'] );
 	}
 
 	/**
@@ -452,31 +487,28 @@ final class Notifications {
 	}
 
 	/**
-	 * Template changed in the admin (null = the built-in text is used).
+	 * Template changed in the admin (null = the built-in text is used): the text stored for the
+	 * language, otherwise the one of the site language (SET-AC-17).
 	 *
-	 * @param string $key Template key.
+	 * @param string      $key    Template key.
+	 * @param string|null $locale Locale (null = the language the mail is written in right now).
 	 * @return array|null array( subject, body )
 	 */
-	public static function custom_template( $key ) {
-		$s = self::template_settings();
-		if ( empty( $s['templates'][ $key ] ) || ! is_array( $s['templates'][ $key ] ) ) {
-			return null;
-		}
-		$t = $s['templates'][ $key ];
-		if ( ! isset( $t['subject'], $t['body'] ) || '' === trim( (string) $t['subject'] ) || '' === trim( (string) $t['body'] ) ) {
-			return null;
-		}
-		return array( (string) $t['subject'], (string) $t['body'] );
+	public static function custom_template( $key, $locale = null ) {
+		$lang = self::template_lang( null === $locale ? Locale::current() : $locale );
+		$own  = '' !== $lang ? self::stored_template( $key, $lang ) : null;
+		return $own ? $own : self::stored_template( $key, '' );
 	}
 
 	/**
 	 * Template in effect: the one changed in the admin, otherwise the built-in text.
 	 *
-	 * @param string $key Template key.
+	 * @param string      $key    Template key.
+	 * @param string|null $locale Locale (null = the language the mail is written in right now).
 	 * @return array array( subject, body )
 	 */
-	public static function template( $key ) {
-		$custom = self::custom_template( $key );
+	public static function template( $key, $locale = null ) {
+		$custom = self::custom_template( $key, $locale );
 		if ( $custom ) {
 			return $custom;
 		}
@@ -491,12 +523,17 @@ final class Notifications {
 	 * @param string $key     Template key.
 	 * @param string $subject Subject.
 	 * @param string $body    Body (plain text with placeholders).
+	 * @param string $locale  Language of the text ('' = site language; others are kept separately, SET-AC-17).
 	 * @return true|\WP_Error
 	 */
-	public static function save_template( $key, $subject, $body ) {
+	public static function save_template( $key, $subject, $body, $locale = '' ) {
 		$defs = self::template_defs();
 		if ( ! isset( $defs[ $key ] ) ) {
 			return new \WP_Error( 'wpac_template_unknown', __( 'Unknown e-mail template.', 'affiliate-captain' ) );
+		}
+		$lang = self::template_lang( $locale );
+		if ( '' !== $lang && ! isset( Locale::installed()[ $lang ] ) ) {
+			return new \WP_Error( 'wpac_template_locale', __( 'This language is not installed on this site.', 'affiliate-captain' ) );
 		}
 		$subject = trim( (string) preg_replace( '/\s+/', ' ', sanitize_text_field( (string) $subject ) ) );
 		$body    = trim( str_replace( array( "\r\n", "\r" ), "\n", sanitize_textarea_field( (string) $body ) ) );
@@ -505,7 +542,26 @@ final class Notifications {
 		}
 		$subject = \WPAffiliateCaptain\Core\Db::cut( $subject, self::TEMPLATE_SUBJECT_MAX );
 		$body    = \WPAffiliateCaptain\Core\Db::cut( $body, self::TEMPLATE_BODY_MAX );
-		$s       = self::template_settings();
+		$s = self::template_settings();
+		if ( '' !== $lang ) {
+			// Another language: always kept as written (it replaces the text of the site language for partners of that language).
+			$s['i18n'][ $lang ][ $key ] = array(
+				'subject' => $subject,
+				'body'    => $body,
+				'updated' => time(),
+			);
+			self::save_template_settings( $s );
+			Audit::log(
+				'mail.template_saved',
+				'settings',
+				0,
+				array(
+					'template' => $key,
+					'locale'   => $lang,
+				)
+			);
+			return true;
+		}
 		$default = self::default_template( $key );
 		if ( $default && $subject === trim( $default[0] ) && $body === trim( str_replace( array( "\r\n", "\r" ), "\n", $default[1] ) ) ) {
 			unset( $s['templates'][ $key ] );
@@ -522,12 +578,33 @@ final class Notifications {
 	}
 
 	/**
-	 * Back to the built-in text of a template.
+	 * Back to the built-in text of a template (for another language: back to the text of the site language).
 	 *
-	 * @param string $key Template key.
+	 * @param string $key    Template key.
+	 * @param string $locale Language ('' = site language).
 	 */
-	public static function reset_template( $key ) {
-		$s = self::template_settings();
+	public static function reset_template( $key, $locale = '' ) {
+		$s    = self::template_settings();
+		$lang = self::template_lang( $locale );
+		if ( '' !== $lang ) {
+			if ( isset( $s['i18n'][ $lang ][ $key ] ) ) {
+				unset( $s['i18n'][ $lang ][ $key ] );
+				if ( ! $s['i18n'][ $lang ] ) {
+					unset( $s['i18n'][ $lang ] );
+				}
+				self::save_template_settings( $s );
+				Audit::log(
+					'mail.template_reset',
+					'settings',
+					0,
+					array(
+						'template' => (string) $key,
+						'locale'   => $lang,
+					)
+				);
+			}
+			return;
+		}
 		if ( isset( $s['templates'][ $key ] ) ) {
 			unset( $s['templates'][ $key ] );
 			self::save_template_settings( $s );
@@ -595,11 +672,12 @@ final class Notifications {
 	/**
 	 * Send the template in effect with example values to an address (admin "Send test e-mail").
 	 *
-	 * @param string $key   Template key.
-	 * @param string $email Recipient (the current admin).
+	 * @param string $key    Template key.
+	 * @param string $email  Recipient (the current admin).
+	 * @param string $locale Language of the template to test ('' = the current language).
 	 * @return bool|\WP_Error
 	 */
-	public static function send_test( $key, $email ) {
+	public static function send_test( $key, $email, $locale = '' ) {
 		$defs = self::template_defs();
 		if ( ! isset( $defs[ $key ] ) ) {
 			return new \WP_Error( 'wpac_template_unknown', __( 'Unknown e-mail template.', 'affiliate-captain' ) );
@@ -607,12 +685,18 @@ final class Notifications {
 		if ( ! is_email( $email ) ) {
 			return new \WP_Error( 'wpac_template_email', __( 'Your user account has no valid e-mail address.', 'affiliate-captain' ) );
 		}
-		list( $subject, $body ) = self::render_template( $key, self::sample_vars( $key ) );
+		$switched = '' !== (string) $locale ? Locale::switch_to( (string) $locale ) : false;
+		try {
+			list( $subject, $body ) = self::render_template( $key, self::sample_vars( $key ) );
+			/* translators: %s: subject */
+			$subject = sprintf( __( '[Test] %s', 'affiliate-captain' ), $subject );
+		} finally {
+			Locale::restore( $switched );
+		}
 		return self::send(
 			$defs[ $key ]['type'],
 			$email,
-			/* translators: %s: subject */
-			sprintf( __( '[Test] %s', 'affiliate-captain' ), $subject ),
+			$subject,
 			$body,
 			array(
 				'admin'    => true,

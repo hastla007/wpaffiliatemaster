@@ -377,7 +377,7 @@ final class Corrections {
 					if ( 0 === $a['diff_net'] && 0 === $a['diff_vat'] ) {
 						throw new IntegrationException( 'same', esc_html__( 'The corrected net amount equals the current one: there is nothing to correct. If the credit note is correct, explain this to the partner instead.', 'affiliate-captain' ) );
 					}
-					$snapshot = self::operator_snapshot();
+					$snapshot = self::operator_snapshot( (int) $p->affiliate_id );
 					// What the document says about the rest of the credit note (only printed on
 					// corrections that store it: older documents are rebuilt byte for byte).
 					$snapshot['parts']   = (int) $a['parts'];
@@ -544,11 +544,12 @@ final class Corrections {
 	/**
 	 * Operator data as printed now, frozen with the correction.
 	 *
+	 * @param int $affiliate_id Partner (document language).
 	 * @return array
 	 */
-	private static function operator_snapshot() {
-		// Logo and footer are frozen with the document (SET-AC-16).
-		$op             = array_merge( PayoutService::operator_snapshot(), DocumentBrand::snapshot() );
+	private static function operator_snapshot( $affiliate_id = 0 ) {
+		// Logo and footer are frozen with the document (SET-AC-16); own document notes too (SET-AC-04 c).
+		$op             = array_merge( PayoutService::operator_snapshot( (int) $affiliate_id, true ), DocumentBrand::snapshot() );
 		$op['document'] = 'correction_note';
 		return $op;
 	}
@@ -739,7 +740,7 @@ final class Corrections {
 			array(
 				$settle,
 				implode( "\n", $scope ),
-				Statement::vat_note( (string) $c->vat_mode, $country ),
+				Statement::vat_note( (string) $c->vat_mode, $country, $op ),
 				$self ? ( 'DE' === $country
 					? __( 'This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note.', 'affiliate-captain' )
 					: __( 'This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document.', 'affiliate-captain' ) ) : '',

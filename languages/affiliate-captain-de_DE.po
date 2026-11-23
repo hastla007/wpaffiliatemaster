@@ -361,6 +361,9 @@ msgstr "Bankdaten, Benachrichtigungsadresse oder Schutzeinstellungen ändern"
 msgid "Change the permissions of user roles"
 msgstr "Rechte von Benutzerrollen ändern"
 
+msgid "Apply a country profile (VAT, retention, credit notes)"
+msgstr "Länderprofil anwenden (Umsatzsteuer, Aufbewahrung, Gutschriften)"
+
 msgid "Change the e-mail address of a partner"
 msgstr "E-Mail-Adresse eines Partners ändern"
 
@@ -453,6 +456,9 @@ msgstr "Der werbende Partner existiert nicht."
 
 msgid "Nothing was saved."
 msgstr "Es wurde nichts gespeichert."
+
+msgid "This language is not installed on this site. The other changes were saved."
+msgstr "Diese Sprache ist auf dieser Website nicht installiert. Die übrigen Änderungen wurden gespeichert."
 
 msgid "Partner saved."
 msgstr "Partner gespeichert."
@@ -829,6 +835,9 @@ msgstr "Akzeptiert"
 msgid "Declined"
 msgstr "Abgelehnt"
 
+msgid "Consent given"
+msgstr "Zustimmung erteilt"
+
 msgid "Date"
 msgstr "Datum"
 
@@ -1011,6 +1020,21 @@ msgstr "IBAN"
 
 msgid "leave empty to keep"
 msgstr "leer lassen, um beizubehalten"
+
+msgid "Country of the bank"
+msgstr "Land der Bank"
+
+msgid "Account number"
+msgstr "Kontonummer"
+
+msgid "Bank code / sort code / routing number"
+msgstr "Bankleitzahl / Sort Code / Routing Number"
+
+msgid "Bank name"
+msgstr "Name der Bank"
+
+msgid "BIC / SWIFT"
+msgstr "BIC / SWIFT"
 
 msgid "BIC"
 msgstr "BIC"
@@ -1221,6 +1245,15 @@ msgstr "Kontoauszug"
 
 msgid "Partner sections"
 msgstr "Partnerbereiche"
+
+msgid "Language of e-mails and credit notes"
+msgstr "Sprache von E-Mails und Gutschriften"
+
+msgid "Site language: %s"
+msgstr "Website-Sprache: %s"
+
+msgid "Credit notes, cancellations and e-mails to this partner are written in this language. Site language: credit notes in the site language, e-mails in the language of the partner's user account. Applies to documents issued from now on."
+msgstr "Gutschriften, Stornos und E-Mails an diesen Partner werden in dieser Sprache geschrieben. Website-Sprache: Gutschriften in der Website-Sprache, E-Mails in der Sprache des Benutzerkontos des Partners. Gilt für Belege, die ab jetzt erstellt werden."
 
 msgid "Partner group"
 msgstr "Partnergruppe"
@@ -1508,6 +1541,9 @@ msgstr "Einstellung mit WP-CLI geändert"
 
 msgid "Start number of a document number range raised"
 msgstr "Startnummer eines Belegnummernkreises erhöht"
+
+msgid "Country profile applied"
+msgstr "Länderprofil angewendet"
 
 msgid "Password confirmed for a money-relevant action"
 msgstr "Passwort für eine geldrelevante Aktion bestätigt"
@@ -2723,6 +2759,9 @@ msgstr "Unbekannte E-Mail-Vorlage."
 msgid "Template saved."
 msgstr "Vorlage gespeichert."
 
+msgid "The text of the site language is used again for this language."
+msgstr "Für diese Sprache wird wieder der Text der Website-Sprache verwendet."
+
 msgid "The built-in text is used again."
 msgstr "Es wird wieder der mitgelieferte Text verwendet."
 
@@ -2734,6 +2773,9 @@ msgstr "Die Test-E-Mail konnte nicht gesendet werden. Bitte prüfe das Mail-Prot
 
 msgid "Adjust the e-mails your partners receive, e.g. to address them informally. Placeholders in curly brackets are replaced with the values of the partner. Templates you have not changed follow the language of the partner; changed templates are sent as you wrote them."
 msgstr "Passe die E-Mails an deine Partner an, zum Beispiel für eine Ansprache mit „Sie“. Platzhalter in geschweiften Klammern werden durch die Werte des Partners ersetzt. Nicht geänderte Vorlagen folgen der Sprache des Partners; geänderte Vorlagen werden so versendet, wie du sie geschrieben hast."
+
+msgid "With several installed languages you can store a text per language: partners get the text of their language (partner profile, otherwise their user account), otherwise the text of the site language."
+msgstr "Mit mehreren installierten Sprachen kannst du je Sprache einen Text speichern: Partner erhalten den Text ihrer Sprache (Partnerprofil, sonst ihr Benutzerkonto), sonst den Text der Website-Sprache."
 
 msgid "Layout"
 msgstr "Layout"
@@ -2764,6 +2806,18 @@ msgstr "Entwickler können jede E-Mail weiterhin mit dem Filter wpac_mail änder
 
 msgid "All e-mail templates"
 msgstr "Alle E-Mail-Vorlagen"
+
+msgid "Language of the template"
+msgstr "Sprache der Vorlage"
+
+msgid "Language:"
+msgstr "Sprache:"
+
+msgid "A text is stored for this language."
+msgstr "Für diese Sprache ist ein Text gespeichert."
+
+msgid "No text is stored for this language: partners of this language get the text of the site language (a changed one) or the built-in text in their language."
+msgstr "Für diese Sprache ist kein Text gespeichert: Partner dieser Sprache erhalten den (geänderten) Text der Website-Sprache oder den eingebauten Text in ihrer Sprache."
 
 msgid "This template was changed."
 msgstr "Diese Vorlage wurde geändert."
@@ -2940,8 +2994,14 @@ msgstr "Die SEPA-Datei enthält Bankdaten. Dafür benötigst du die Berechtigung
 msgid "Payment details"
 msgstr "Zahlungsangaben"
 
+msgid "Bank country"
+msgstr "Land der Bank"
+
 msgid "Bank transfer"
 msgstr "Überweisung"
+
+msgid "Bank transfer (non-SEPA)"
+msgstr "Überweisung (außerhalb SEPA)"
 
 msgid "Other payment method"
 msgstr "Andere Auszahlungsart"
@@ -3194,6 +3254,9 @@ msgstr "Zahlungsart"
 
 msgid "Other payment method (paid manually)"
 msgstr "Andere Auszahlungsart (manuelle Zahlung)"
+
+msgid "Bank account (non-SEPA)"
+msgstr "Bankkonto (außerhalb SEPA)"
 
 msgid "Bank account"
 msgstr "Bankkonto"
@@ -3539,6 +3602,11 @@ msgid_plural "%d settings changed."
 msgstr[0] "%d Einstellung geändert."
 msgstr[1] "%d Einstellungen geändert."
 
+msgid "Country profile %1$s applied: %2$d setting changed. Everything can still be changed below."
+msgid_plural "Country profile %1$s applied: %2$d settings changed. Everything can still be changed below."
+msgstr[0] "Länderprofil %1$s angewendet: %2$d Einstellung geändert. Alles bleibt unten änderbar."
+msgstr[1] "Länderprofil %1$s angewendet: %2$d Einstellungen geändert. Alles bleibt unten änderbar."
+
 msgid "%d permission changed."
 msgid_plural "%d permissions changed."
 msgstr[0] "%d Recht geändert."
@@ -3562,6 +3630,42 @@ msgstr "Bitte wähle einen Einstellungs-Export (JSON, höchstens 1 MB)."
 msgid "Nothing to apply (the preview expired). Please start again."
 msgstr "Nichts zu übernehmen (die Vorschau ist abgelaufen). Bitte beginne erneut."
 
+msgid "Country profile"
+msgstr "Länderprofil"
+
+msgid "Country profile %s: please check"
+msgstr "Länderprofil %s: bitte prüfen"
+
+msgid "Applied last: %1$s on %2$s."
+msgstr "Zuletzt angewendet: %1$s am %2$s."
+
+msgid "Proposal for your shop country: %s. Show the changes to see what it would set – nothing is changed before you confirm."
+msgstr "Vorschlag für dein Shop-Land: %s. Lass dir die Änderungen anzeigen, um zu sehen, was es setzen würde – vor deiner Bestätigung wird nichts geändert."
+
+msgid "A profile proposes VAT rate, currency, your country, retention periods, cookie and hold periods, e-invoice mail, credit notes, number prefixes, disclosure note, small business limits and document notes. You see every change before it is applied; afterwards everything can be changed as usual. The values are not legally or tax reviewed – check them with your adviser."
+msgstr "Ein Profil schlägt Steuersatz, Währung, dein Land, Aufbewahrungsfristen, Cookie- und Wartezeit, E-Rechnungs-Versand, Gutschriften, Nummernpräfixe, Werbekennzeichnung, Kleinunternehmergrenzen und Belegtexte vor. Du siehst jede Änderung, bevor sie angewendet wird; danach bleibt alles wie gewohnt änderbar. Die Werte sind rechtlich und steuerlich ungeprüft – prüfe sie mit deiner Beratung."
+
+msgid "Show changes …"
+msgstr "Änderungen anzeigen …"
+
+msgid "Setting"
+msgstr "Einstellung"
+
+msgid "Now"
+msgstr "Jetzt"
+
+msgid "New"
+msgstr "Neu"
+
+msgid "Nothing would change."
+msgstr "Es würde sich nichts ändern."
+
+msgid "Ignored (unknown or not importable):"
+msgstr "Übergangen (unbekannt oder nicht importierbar):"
+
+msgid "Discard"
+msgstr "Verwerfen"
+
 msgid "Only users who may change user roles can change these permissions."
 msgstr "Nur wer Benutzerrollen ändern darf, kann diese Rechte ändern."
 
@@ -3582,24 +3686,6 @@ msgstr "Import: bitte prüfen"
 
 msgid "Reset: please check"
 msgstr "Zurücksetzen: bitte prüfen"
-
-msgid "Setting"
-msgstr "Einstellung"
-
-msgid "Now"
-msgstr "Jetzt"
-
-msgid "New"
-msgstr "Neu"
-
-msgid "Nothing would change."
-msgstr "Es würde sich nichts ändern."
-
-msgid "Ignored (unknown or not importable):"
-msgstr "Übergangen (unbekannt oder nicht importierbar):"
-
-msgid "Discard"
-msgstr "Verwerfen"
 
 msgid "Export, import and reset"
 msgstr "Export, Import und Zurücksetzen"
@@ -3696,6 +3782,9 @@ msgstr "Werden abgelehnt"
 
 msgid "Features"
 msgstr "Funktionen"
+
+msgid "Application form"
+msgstr "Bewerbungsformular"
 
 msgid "Addresses"
 msgstr "Adressen"
@@ -3838,6 +3927,12 @@ msgstr "Logo & Fußzeile auf Gutschriften"
 msgid "Credit notes & VAT"
 msgstr "Gutschriften & Umsatzsteuer"
 
+msgid "Currency: %s."
+msgstr "Währung: %s."
+
+msgid "Notes on credit notes"
+msgstr "Hinweise auf Gutschriften"
+
 msgid "Document numbers"
 msgstr "Belegnummern"
 
@@ -3847,8 +3942,8 @@ msgstr "%1$s Nächste Nummer: %2$s"
 msgid "Electronic invoice (EN 16931)"
 msgstr "Elektronische Rechnung (EN 16931)"
 
-msgid "Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)"
-msgstr "Automatisch: für Partner mit deutscher Umsatzsteuer auf der Gutschrift (inländische regelbesteuerte Unternehmen)"
+msgid "Automatic: for credit notes with domestic VAT, where the country profile of your country expects e-invoices (Germany)"
+msgstr "Automatisch: für Gutschriften mit inländischer Umsatzsteuer, wenn das Länderprofil deines Landes E-Rechnungen vorsieht (Deutschland)"
 
 msgid "Always"
 msgstr "Immer"
@@ -3921,6 +4016,9 @@ msgstr "Bestätigung"
 
 msgid "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word."
 msgstr "Nur zum Einschalten: tippe LÖSCHEN (oder DELETE). Ausschalten und das Speichern anderer Felder brauchen kein Wort."
+
+msgid "Only the site language is installed. Install further languages under Settings → General to store texts for them."
+msgstr "Nur die Website-Sprache ist installiert. Installiere weitere Sprachen unter Einstellungen → Allgemein, um Texte für sie zu speichern."
 
 msgid "Choose image"
 msgstr "Bild auswählen"
@@ -4023,6 +4121,9 @@ msgstr "Alle auswählen"
 
 msgid "Bank details"
 msgstr "Bankverbindung"
+
+msgid "Non-SEPA: %s"
+msgstr "Außerhalb SEPA: %s"
 
 msgid "Application pending"
 msgstr "Bewerbung offen"
@@ -4435,6 +4536,9 @@ msgstr "Dein Partnerkonto wurde reaktiviert. Deine Links und Codes funktionieren
 msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
 msgstr "Hallo %1$s,\n\n%2$s\n\n%3$s"
 
+msgid "This language is not installed on this site."
+msgstr "Diese Sprache ist auf dieser Website nicht installiert."
+
 msgid "Please enter a subject and a text."
 msgstr "Bitte gib einen Betreff und einen Text ein."
 
@@ -4552,6 +4656,11 @@ msgstr "Noch kein Passwort? Hier festlegen: %s"
 msgid "On your first visit, please read and accept the partner program terms – we need them to pay out your commissions."
 msgstr "Bitte lies und akzeptiere bei deinem ersten Besuch die Partnerbedingungen – wir benötigen sie, um deine Provisionen auszuzahlen."
 
+msgid "I confirm that I am at least %d year old."
+msgid_plural "I confirm that I am at least %d years old."
+msgstr[0] "Ich bestätige, dass ich mindestens %d Jahr alt bin."
+msgstr[1] "Ich bestätige, dass ich mindestens %d Jahre alt bin."
+
 msgid "Please enter your name or company."
 msgstr "Bitte gib deinen Namen oder deine Firma ein."
 
@@ -4639,20 +4748,26 @@ msgstr "Kanal (z. B. Instagram, YouTube, Newsletter, Schule)"
 msgid "How do you want to promote us?"
 msgstr "Wie möchtest du uns bewerben?"
 
-msgid "I accept the %1$s (version %2$s)."
-msgstr "Ich akzeptiere die %1$s (Version %2$s)."
-
-msgid "partner program terms"
-msgstr "Partnerbedingungen"
-
 msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
 msgstr "Wir verwenden deine Angaben, um deine Bewerbung zu prüfen und nach einer Freigabe das Partnerprogramm mit dir durchzuführen (Vertrag, Art. 6 Abs. 1 lit. b DSGVO). Abgelehnte Bewerbungen werden nach der in unserer Datenschutzerklärung genannten Frist gelöscht."
 
 msgid "Privacy policy"
 msgstr "Datenschutzerklärung"
 
+msgid "Imprint"
+msgstr "Impressum"
+
 msgid "Apply now"
 msgstr "Jetzt bewerben"
+
+msgid "I accept the %1$s (version %2$s)."
+msgstr "Ich akzeptiere die %1$s (Version %2$s)."
+
+msgid "partner program terms"
+msgstr "Partnerbedingungen"
+
+msgid "Please confirm: %s"
+msgstr "Bitte bestätige: %s"
 
 msgid "Go to partner area"
 msgstr "Zum Partnerbereich"
@@ -5132,6 +5247,63 @@ msgstr "Auszahlungen und Gutschriften"
 msgid "See tax and bank details"
 msgstr "Steuer- und Bankdaten sehen"
 
+msgid "This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung aus. Der Partner kann ihr widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
+
+msgid "No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service."
+msgstr "Auf diesem Beleg wird keine Umsatzsteuer berechnet; eine für die Leistung geschuldete Umsatzsteuer schuldet der Leistungsempfänger."
+
+msgid "No VAT is shown because the partner is not registered for VAT."
+msgstr "Es wird keine Umsatzsteuer ausgewiesen, da der Partner nicht umsatzsteuerlich registriert ist."
+
+msgid "Germany"
+msgstr "Deutschland"
+
+msgid "Advertisement"
+msgstr "Werbung"
+
+msgid "Austria"
+msgstr "Österreich"
+
+msgid "Paid advertisement"
+msgstr "Entgeltliche Einschaltung"
+
+msgid "Switzerland"
+msgstr "Schweiz"
+
+msgid "EU (general)"
+msgstr "EU (allgemein)"
+
+msgid "Outside the EU"
+msgstr "Außerhalb der EU"
+
+msgid "not legally or tax reviewed"
+msgstr "rechtlich und steuerlich ungeprüft"
+
+msgid "Unknown country profile."
+msgstr "Unbekanntes Länderprofil."
+
+msgid "Retention of credit notes (Affiliate Captain)"
+msgstr "Aufbewahrung der Gutschriften (Affiliate Captain)"
+
+msgid "A retention period for credit notes is set"
+msgstr "Eine Aufbewahrungsfrist für Gutschriften ist gesetzt"
+
+msgid "No retention period for credit notes is set yet"
+msgstr "Es ist noch keine Aufbewahrungsfrist für Gutschriften gesetzt"
+
+msgid "Partner program"
+msgstr "Partnerprogramm"
+
+msgid "Credit notes are kept for at least %d years."
+msgstr "Gutschriften werden mindestens %d Jahre aufbewahrt."
+
+msgid "Until you set the legal minimum retention of credit notes, the built-in value of %1$d years for your country (%2$s) applies; it is not legally reviewed. Apply a country profile (Settings → Payouts & credit notes) or enter the minimum on the \"Data & maintenance\" tab, after checking it with your adviser."
+msgstr "Bis du die gesetzliche Mindest-Aufbewahrung der Gutschriften setzt, gilt der eingebaute Wert von %1$d Jahren für dein Land (%2$s); er ist rechtlich ungeprüft. Wende ein Länderprofil an (Einstellungen → Auszahlungen & Gutschriften) oder trage die Mindestfrist im Reiter „Daten & Wartung“ ein, nachdem du sie mit deiner Beratung geprüft hast."
+
+msgid "Open the settings"
+msgstr "Einstellungen öffnen"
+
 msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
 msgstr "Die Datenbank hat die Buchung abgebrochen (Deadlock, Zeitüberschreitung beim Warten auf eine Sperre oder Verbindungsabbruch). Es wurde nichts gespeichert; bitte versuche es erneut."
 
@@ -5336,9 +5508,6 @@ msgstr "Das Partnerprogramm braucht Aufmerksamkeit"
 msgid "The partner program is working"
 msgstr "Das Partnerprogramm funktioniert"
 
-msgid "Partner program"
-msgstr "Partnerprogramm"
-
 msgid "Schema, scheduled tasks, retry queue, account balances and credit notes are fine."
 msgstr "Schema, geplante Aufgaben, Wiederholungswarteschlange, Kontostände und Gutschriften sind in Ordnung."
 
@@ -5420,6 +5589,9 @@ msgstr "Der Datenbankserver ist älter als die unterstützte Mindestversion"
 msgid "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer; this site uses %3$s %4$s. The plugin keeps working and nothing is blocked, but older database servers are no longer tested. Ask your host for an update."
 msgstr "Affiliate Captain unterstützt MySQL %1$s oder neuer und MariaDB %2$s oder neuer; diese Website nutzt %3$s %4$s. Das Plugin arbeitet weiter und nichts wird blockiert, ältere Datenbankserver werden aber nicht mehr getestet. Bitte deinen Hoster um ein Update."
 
+msgid "At least one payout method must stay on; SEPA bank transfer was kept on."
+msgstr "Mindestens eine Auszahlungsart muss eingeschaltet bleiben; die SEPA-Überweisung bleibt deshalb an."
+
 msgid "Please enter a parameter name."
 msgstr "Bitte gib einen Parameternamen ein."
 
@@ -5492,6 +5664,9 @@ msgstr "Bitte wähle ein Bild aus der Mediathek."
 msgid "Please choose your country from the list."
 msgstr "Bitte wähle dein Land aus der Liste."
 
+msgid "Saved, but please check: %1$d years is less than the %2$d years known for your country. Only use a shorter minimum when your adviser confirmed it."
+msgstr "Gespeichert, aber bitte prüfen: %1$d Jahre sind weniger als die für dein Land bekannten %2$d Jahre. Nutze eine kürzere Mindestfrist nur, wenn deine Beratung sie bestätigt hat."
+
 msgid "Raised to the legal minimum of %d years for your country."
 msgstr "Auf die gesetzliche Mindestfrist von %d Jahren für dein Land angehoben."
 
@@ -5531,6 +5706,15 @@ msgstr "Bitte gib eine gültige E-Mail-Adresse ein oder lass das Feld leer."
 msgid "The token needs 20 to 64 letters and digits (no spaces or special characters). The previous token stays valid."
 msgstr "Das Token braucht 20 bis 64 Buchstaben und Ziffern (keine Leer- oder Sonderzeichen). Das bisherige Token bleibt gültig."
 
+msgid "Please keep the placeholder {terms} for the link to the terms, or leave the field empty for the built-in text."
+msgstr "Bitte behalte den Platzhalter {terms} für den Link zu den Bedingungen bei oder lass das Feld für den eingebauten Text leer."
+
+msgid "Not understood: expected one text per language."
+msgstr "Nicht verstanden: erwartet wird ein Text je Sprache."
+
+msgid "These languages are not installed on this site: %s."
+msgstr "Diese Sprachen sind auf dieser Website nicht installiert: %s."
+
 msgid "Please enter a percentage between 0 and 99 (e.g. 19 or 7,7)."
 msgstr "Bitte gib einen Prozentsatz zwischen 0 und 99 ein (z. B. 19 oder 7,7)."
 
@@ -5552,8 +5736,8 @@ msgstr "Diese IBAN ist ungültig (Prüfziffer). Die bisherige IBAN wird weiter v
 msgid "This IBAN is not valid (check digits)."
 msgstr "Diese IBAN ist ungültig (Prüfziffer)."
 
-msgid "Austria"
-msgstr "Österreich"
+msgid "Please enter an amount (e.g. 25000) or leave the field empty (no check)."
+msgstr "Bitte gib einen Betrag ein (z. B. 25000) oder lass das Feld leer (keine Prüfung)."
 
 msgid "Belgium"
 msgstr "Belgien"
@@ -5581,9 +5765,6 @@ msgstr "Finnland"
 
 msgid "France"
 msgstr "Frankreich"
-
-msgid "Germany"
-msgstr "Deutschland"
 
 msgid "Greece"
 msgstr "Griechenland"
@@ -5633,9 +5814,6 @@ msgstr "Spanien"
 msgid "Sweden"
 msgstr "Schweden"
 
-msgid "Switzerland"
-msgstr "Schweiz"
-
 msgid "Liechtenstein"
 msgstr "Liechtenstein"
 
@@ -5659,9 +5837,6 @@ msgstr "Australien"
 
 msgid "New Zealand"
 msgstr "Neuseeland"
-
-msgid "Advertisement"
-msgstr "Werbung"
 
 msgid "Not a valid choice. Allowed: %s"
 msgstr "Keine gültige Auswahl. Erlaubt: %s"
@@ -6014,6 +6189,18 @@ msgstr "Werberichtlinien für Partner"
 msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
 msgstr "Erlaubte Aussagen, Kennzeichnungspflicht, verbotene Kanäle, Meldeweg bei Problemen. Wird im Partnerbereich angezeigt."
 
+msgid "Disclosure note in other languages"
+msgstr "Kennzeichnungshinweis in weiteren Sprachen"
+
+msgid "Per installed language; empty: the note above (site language) is used. Partners see the note in their language."
+msgstr "Je installierter Sprache; leer: Der Hinweis oben (Website-Sprache) wird verwendet. Partner sehen den Hinweis in ihrer Sprache."
+
+msgid "Promotion guidelines in other languages"
+msgstr "Werberichtlinien in weiteren Sprachen"
+
+msgid "Per installed language; empty: the guidelines above (site language) are used."
+msgstr "Je installierter Sprache; leer: Die Richtlinien oben (Website-Sprache) werden verwendet."
+
 msgid "Show the disclosure note visibly above the banner embed code"
 msgstr "Kennzeichnungshinweis sichtbar über dem Banner-Einbettungscode anzeigen"
 
@@ -6044,11 +6231,29 @@ msgstr "Belege aufbewahren (Jahre, 0 = unbegrenzt)"
 msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
 msgstr "Mindestens die gesetzliche Frist deines Landes (Deutschland 8, Österreich 7, Schweiz 10 Jahre; sonst 10). Gerechnet ab Ende des Kalenderjahres (Stornos ab ihrem eigenen Datum). Danach werden das PDF und die gespeicherten Partnerdaten gelöscht; die Beträge bleiben."
 
+msgid "Legal minimum retention of statements (years, 0 = value of your country)"
+msgstr "Gesetzliche Mindest-Aufbewahrung der Belege (Jahre, 0 = Wert deines Landes)"
+
+msgid "Statements are never deleted earlier. 0: the value of the country profile of your country applies (Germany 8, Austria 7, Switzerland 10 years, otherwise 10; not legally reviewed). A smaller value than that is saved with a warning. Filter wpac_retention_minimum_years wins."
+msgstr "Früher werden Belege nie gelöscht. 0: Es gilt der Wert aus dem Länderprofil deines Landes (Deutschland 8, Österreich 7, Schweiz 10 Jahre, sonst 10; rechtlich ungeprüft). Ein kleinerer Wert wird mit einer Warnung gespeichert. Der Filter wpac_retention_minimum_years hat Vorrang."
+
 msgid "Tax audit or legal hold: do not delete any statements"
 msgstr "Steuerprüfung oder Aufbewahrungssperre: keine Belege löschen"
 
 msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
 msgstr "Während einer Außenprüfung ist die Aufbewahrungsfrist gehemmt (§147 Abs. 3 AO)."
+
+msgid "Partners may choose SEPA bank transfer (IBAN)"
+msgstr "Partner können die SEPA-Überweisung (IBAN) wählen"
+
+msgid "The SEPA payment file (XML) contains only payouts of partners with an IBAN. Off (e.g. a program without partners in the SEPA area): new partners cannot enter an IBAN; partners who already have one keep it until they change it. At least one payout method stays on."
+msgstr "Die SEPA-Zahlungsdatei (XML) enthält nur Auszahlungen an Partner mit IBAN. Aus (z. B. ein Programm ohne Partner im SEPA-Raum): Neue Partner können keine IBAN eingeben; Partner, die schon eine haben, behalten sie, bis sie wechseln. Mindestens eine Auszahlungsart bleibt eingeschaltet."
+
+msgid "Partners may choose bank transfer outside SEPA (account number and bank code)"
+msgstr "Partner können eine Überweisung außerhalb von SEPA wählen (Kontonummer und Bankleitzahl)"
+
+msgid "For accounts without IBAN, e.g. in the USA, the United Kingdom, Canada or Australia: account holder, account number, bank code (routing number, sort code, BSB …), bank name, bank country and optional BIC/SWIFT, stored encrypted like the IBAN. These payouts are not part of the SEPA file: pay them with the transfer list (CSV) and then mark them as paid. Your bank and possibly correspondent banks abroad receive the partner's data (privacy policy)."
+msgstr "Für Konten ohne IBAN, z. B. in den USA, im Vereinigten Königreich, in Kanada oder Australien: Kontoinhaber, Kontonummer, Bankleitzahl (Routing Number, Sort Code, BSB …), Name und Land der Bank sowie optional BIC/SWIFT, verschlüsselt gespeichert wie die IBAN. Diese Auszahlungen sind nicht in der SEPA-Datei: Zahle sie mit der Überweisungsliste (CSV) aus und markiere sie danach als bezahlt. Deine Bank und ggf. Korrespondenzbanken im Ausland erhalten die Daten des Partners (Datenschutzerklärung)."
 
 msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
 msgstr "Partner dürfen eine andere Auszahlungsart wählen (z. B. PayPal, Wise), manuelle Zahlung"
@@ -6200,6 +6405,42 @@ msgstr "Startnummer Korrekturgutschriften"
 msgid "Digits correction credit note numbers"
 msgstr "Stellen der Korrekturgutschriftnummern"
 
+msgid "Small business limit: previous year"
+msgstr "Kleinunternehmergrenze: Vorjahr"
+
+msgid "Amount in the program currency. Small business partners whose credit notes alone exceeded it in the previous year are listed under Payouts. Empty = no check. Filter wpac_small_business_limits wins."
+msgstr "Betrag in der Programmwährung. Kleinunternehmer-Partner, deren Gutschriften allein ihn im Vorjahr überschritten haben, werden unter Auszahlungen aufgeführt. Leer = keine Prüfung. Der Filter wpac_small_business_limits hat Vorrang."
+
+msgid "Small business limit: current year"
+msgstr "Kleinunternehmergrenze: laufendes Jahr"
+
+msgid "Amount in the program currency for the current year. Empty = no check."
+msgstr "Betrag in der Programmwährung für das laufende Jahr. Leer = keine Prüfung."
+
+msgid "Note on credit notes (self-billing)"
+msgstr "Hinweis Gutschrift"
+
+msgid "Printed on credit notes and in the e-invoice. Empty: the built-in text for your country (shown in the field). A text is frozen with each document when it is issued; documents already issued keep their text."
+msgstr "Steht auf Gutschriften und in der E-Rechnung. Leer: der eingebaute Text für dein Land (im Feld angezeigt). Ein Text wird mit jedem Beleg bei der Ausstellung eingefroren; bereits ausgestellte Belege behalten ihren Text."
+
+msgid "Note for reverse charge"
+msgstr "Hinweis Umkehr der Steuerschuld"
+
+msgid "For foreign business partners (the recipient owes the VAT). Empty: the built-in text for your country. Frozen with each document."
+msgstr "Für ausländische Unternehmer-Partner (der Leistungsempfänger schuldet die Steuer). Leer: der eingebaute Text für dein Land. Wird mit jedem Beleg eingefroren."
+
+msgid "Note for small businesses"
+msgstr "Hinweis Kleinunternehmer"
+
+msgid "For partners under the small business scheme (no VAT). Empty: the built-in text for your country. Frozen with each document."
+msgstr "Für Partner mit Kleinunternehmerregelung (keine Umsatzsteuer). Leer: der eingebaute Text für dein Land. Wird mit jedem Beleg eingefroren."
+
+msgid "Note for private individuals"
+msgstr "Hinweis Privatperson"
+
+msgid "For partners who are not entrepreneurs (no VAT). Empty: the built-in text. Frozen with each document."
+msgstr "Für Partner, die keine Unternehmer sind (keine Umsatzsteuer). Leer: der eingebaute Text. Wird mit jedem Beleg eingefroren."
+
 msgid "Send e-invoice (XML) with the credit note e-mail"
 msgstr "E-Rechnung (XML) mit der Gutschrift-E-Mail senden"
 
@@ -6325,6 +6566,39 @@ msgstr "An neue Bedingungen höchstens erinnern alle (Tage)"
 
 msgid "Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day)."
 msgstr "Mindestabstand zwischen zwei Erinnerungsmails zu neuen Programmbedingungen an denselben Partner (mindestens 1 Tag)."
+
+msgid "Text of the terms checkbox"
+msgstr "Text des Kästchens für die Bedingungen"
+
+msgid "Wording of the checkbox for the partner program terms on the application form. {terms} becomes the link to the terms page (required), {version} the terms version. Empty: \"I accept the {terms} (version {version}).\" The text shown is stored with each application."
+msgstr "Wortlaut des Kästchens für die Partnerprogramm-Bedingungen im Bewerbungsformular. {terms} wird zum Link auf die Bedingungsseite (Pflicht), {version} zur Version der Bedingungen. Leer: „Ich akzeptiere die {terms} (Version {version}).“ Der angezeigte Text wird mit jeder Bewerbung gespeichert."
+
+msgid "Additional required checkbox 1"
+msgstr "Zusätzliches Pflicht-Kästchen 1"
+
+msgid "Own text of a checkbox applicants must tick, e.g. for promotion guidelines or self-billing. Links: <a href=\"…\">text</a>. Empty: not shown. Text and time of each consent are stored and included in the personal data export."
+msgstr "Eigener Text eines Kästchens, das Bewerber ankreuzen müssen, z. B. für Werberichtlinien oder das Gutschriftverfahren. Links: <a href=\"…\">Text</a>. Leer: wird nicht angezeigt. Text und Zeitpunkt jeder Zustimmung werden gespeichert und sind Teil der Datenauskunft."
+
+msgid "Additional required checkbox 2"
+msgstr "Zusätzliches Pflicht-Kästchen 2"
+
+msgid "Like checkbox 1. Empty: not shown."
+msgstr "Wie Kästchen 1. Leer: wird nicht angezeigt."
+
+msgid "Additional required checkbox 3"
+msgstr "Zusätzliches Pflicht-Kästchen 3"
+
+msgid "Imprint page"
+msgstr "Impressumsseite"
+
+msgid "Linked below the application form next to the privacy policy. None: no link."
+msgstr "Wird unter dem Bewerbungsformular neben der Datenschutzerklärung verlinkt. Keine: kein Link."
+
+msgid "Minimum age of partners (years, 0 = no question)"
+msgstr "Mindestalter der Partner (Jahre, 0 = keine Abfrage)"
+
+msgid "With a minimum age, applicants must confirm with a checkbox that they are at least this old; the confirmation is stored like the other consents. The age is not checked."
+msgstr "Mit einem Mindestalter müssen Bewerber mit einem Kästchen bestätigen, dass sie mindestens so alt sind; die Bestätigung wird wie die anderen Zustimmungen gespeichert. Das Alter wird nicht geprüft."
 
 msgid "Payouts claimed by a payment add-on can be cancelled after (days)"
 msgstr "Von einem Zahlungs-Add-on übernommene Auszahlungen sind stornierbar nach (Tagen)"
@@ -6958,12 +7232,6 @@ msgstr "Dies ist eine Vorschau von Logo und Fußzeile. Sie ist kein Beleg und ha
 msgid "Correction of credit note %1$s of %2$s"
 msgstr "Korrektur zur Gutschrift %1$s vom %2$s"
 
-msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
-msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung. Der Partner kann der Gutschrift widersprechen (§14 Abs. 2 S. 3 UStG) – sie gilt dann nicht mehr als Rechnung und wir stellen eine korrigierte Gutschrift aus. Widersprüche sind im Partnerbereich möglich."
-
-msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
-msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billing, Art. 224 MwStSystRL); der Partner stellt keine eigene Rechnung. Der Partner kann widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
-
 msgid "Cancellation of credit note %s"
 msgstr "Storno zur Gutschrift %s"
 
@@ -7011,6 +7279,9 @@ msgstr "SEPA-Überweisung"
 
 msgid "Other payment method as agreed with the partner"
 msgstr "Andere, mit dem Partner vereinbarte Zahlungsart"
+
+msgid "Bank transfer to the partner's account %s"
+msgstr "Überweisung auf das Konto des Partners %s"
 
 msgid "SEPA credit transfer to the partner's account %s"
 msgstr "SEPA-Überweisung auf das Konto des Partners %s"
@@ -7206,6 +7477,9 @@ msgstr "Das Gutschriftverfahren braucht Partnerbedingungen mit der Gutschriftver
 msgid "Has not accepted the partner terms yet (needed for credit notes) – the partner is asked to accept them on the next login to the partner area"
 msgstr "Hat die Partnerbedingungen noch nicht akzeptiert (für Gutschriften nötig) – der Partner wird bei der nächsten Anmeldung im Partnerbereich darum gebeten"
 
+msgid "No VAT rate is set (Settings → Payouts & credit notes, or apply a country profile)"
+msgstr "Kein Umsatzsteuersatz gesetzt (Einstellungen → Auszahlungen & Gutschriften, oder ein Länderprofil anwenden)"
+
 msgid "Reverse charge needs your VAT ID (Settings → Payouts & credit notes)"
 msgstr "Reverse Charge braucht deine USt-IdNr. (Einstellungen → Auszahlungen & Gutschriften)"
 
@@ -7287,14 +7561,19 @@ msgstr "Bitte hinterlege zuerst Kontoinhaber und IBAN deines Firmenkontos in den
 msgid "SEPA transfers are only possible in EUR."
 msgstr "SEPA-Überweisungen sind nur in EUR möglich."
 
-msgid "The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
-msgstr "Die ausgewählten Auszahlungen nutzen eine andere Auszahlungsart (z. B. PayPal) und sind nicht Teil der SEPA-Datei. Lade für die Zahlungsangaben die Überweisungsliste (CSV) herunter, zahle manuell und markiere die Auszahlungen als bezahlt."
+msgid "The selected payouts use another payment method (e.g. PayPal or a bank transfer outside SEPA) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
+msgstr "Die ausgewählten Auszahlungen nutzen eine andere Zahlungsart (z. B. PayPal oder eine Überweisung außerhalb von SEPA) und sind nicht Teil der SEPA-Datei. Lade die Überweisungsliste (CSV) mit ihren Zahlungsangaben herunter, zahle sie von Hand aus und markiere sie als bezahlt."
 
 msgid "The partner changed the payout details after the payout was created. Please verify the change, cancel the payout and create it again."
 msgstr "Der Partner hat seine Auszahlungsdaten geändert, nachdem die Auszahlung erstellt wurde. Bitte prüfe die Änderung, storniere die Auszahlung und erstelle sie neu."
 
 msgid "Only a created payout that was not exported yet can be paid through a payment provider."
 msgstr "Über einen Zahlungsdienst kann nur eine erstellte, noch nicht exportierte Auszahlung ausgezahlt werden."
+
+msgid "%d digit"
+msgid_plural "%d digits"
+msgstr[0] "%d Ziffer"
+msgstr[1] "%d Ziffern"
 
 msgid "Private individual"
 msgstr "Privatperson"
@@ -7308,11 +7587,62 @@ msgstr "Unternehmen (umsatzsteuerpflichtig)"
 msgid "Bank transfer (SEPA, IBAN)"
 msgstr "Banküberweisung (SEPA, IBAN)"
 
+msgid "Bank transfer (non-SEPA: account number and bank code)"
+msgstr "Überweisung (außerhalb SEPA: Kontonummer und Bankleitzahl)"
+
 msgid "Other payment method (e.g. PayPal), paid manually"
 msgstr "Andere Auszahlungsart (z. B. PayPal), manuelle Zahlung"
 
+msgid "Routing number (ABA)"
+msgstr "Routing Number (ABA)"
+
+msgid "Sort code"
+msgstr "Sort Code"
+
+msgid "Institution and transit number"
+msgstr "Institutsnummer und Transitnummer"
+
+msgid "BSB number"
+msgstr "BSB-Nummer"
+
+msgid "IFSC"
+msgstr "IFSC"
+
+msgid "Bank code"
+msgstr "Bankleitzahl"
+
+msgid "Please choose the country of the bank."
+msgstr "Bitte wähle das Land der Bank."
+
+msgid "Please enter the account number for payouts by bank transfer."
+msgstr "Bitte gib die Kontonummer für Auszahlungen per Überweisung ein."
+
 msgid "%1$s is too long (at most %2$d characters)."
 msgstr "%1$s ist zu lang (höchstens %2$d Zeichen)."
+
+msgid "The account number does not look right for a bank in %1$s: it has %2$d digits."
+msgstr "Die Kontonummer passt nicht zu einer Bank in %1$s: sie hat %2$d Ziffern."
+
+msgid "The account number does not look right for a bank in %1$s: it has %2$d to %3$d digits."
+msgstr "Die Kontonummer passt nicht zu einer Bank in %1$s: sie hat %2$d bis %3$d Ziffern."
+
+msgid "The account number does not look right: it has 4 to 34 letters or digits."
+msgstr "Die Kontonummer sieht nicht richtig aus: sie hat 4 bis 34 Buchstaben oder Ziffern."
+
+msgid "Please enter the bank code of the account (%s)."
+msgstr "Bitte gib die Bankleitzahl des Kontos ein (%s)."
+
+msgid "4 letters, a zero and 6 letters or digits"
+msgstr "4 Buchstaben, eine Null und 6 Buchstaben oder Ziffern"
+
+msgid "%1$d to %2$d digits"
+msgstr "%1$d bis %2$d Ziffern"
+
+msgid "up to 20 letters or digits"
+msgstr "bis zu 20 Buchstaben oder Ziffern"
+
+msgid "The bank code (%1$s) does not look right: expected %2$s. Please check it."
+msgstr "Die Bankleitzahl (%1$s) sieht nicht richtig aus: erwartet sind %2$s. Bitte prüfe sie."
 
 msgid "Please enter your VAT ID (required for reverse charge across borders)."
 msgstr "Bitte gib deine USt-IdNr. ein (für Reverse Charge über die Grenze erforderlich)."
@@ -7332,11 +7662,20 @@ msgstr "Bitte gib deine Steuernummer oder USt-IdNr. an (Pflichtangabe auf Gutsch
 msgid "Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer."
 msgstr "Auszahlungen über eine andere Auszahlungsart werden nicht angeboten. Bitte gib deine IBAN für eine Überweisung ein."
 
-msgid "Please enter your payment details (e.g. your PayPal address)."
-msgstr "Bitte gib deine Zahlungsangaben ein (z. B. deine PayPal-Adresse)."
+msgid "Payouts by SEPA transfer are not offered. Please choose another payout method."
+msgstr "Auszahlungen per SEPA-Überweisung werden nicht angeboten. Bitte wähle eine andere Auszahlungsart."
+
+msgid "Payouts by bank transfer outside SEPA are not offered. Please choose another payout method."
+msgstr "Auszahlungen per Überweisung außerhalb von SEPA werden nicht angeboten. Bitte wähle eine andere Auszahlungsart."
 
 msgid "Please enter the account holder for payouts by bank transfer."
 msgstr "Bitte gib den Kontoinhaber für Auszahlungen per Banküberweisung ein."
+
+msgid "The BIC/SWIFT code is not valid (8 or 11 letters and digits)."
+msgstr "Der BIC/SWIFT-Code ist ungültig (8 oder 11 Buchstaben und Ziffern)."
+
+msgid "Please enter your payment details (e.g. your PayPal address)."
+msgstr "Bitte gib deine Zahlungsangaben ein (z. B. deine PayPal-Adresse)."
 
 msgid "Please enter your IBAN for payouts by bank transfer."
 msgstr "Bitte gib deine IBAN für Auszahlungen per Banküberweisung ein."
@@ -7409,6 +7748,12 @@ msgstr "Keine Umsatzsteuer: Der Partner ist Privatperson und kein Unternehmer."
 
 msgid "Repayments by the partner and claims written off are no service and not subject to VAT."
 msgstr "Rückzahlungen des Partners und abgeschriebene Forderungen sind keine Leistung und nicht umsatzsteuerbar."
+
+msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
+msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung. Der Partner kann der Gutschrift widersprechen (§14 Abs. 2 S. 3 UStG) – sie gilt dann nicht mehr als Rechnung und wir stellen eine korrigierte Gutschrift aus. Widersprüche sind im Partnerbereich möglich."
+
+msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billing, Art. 224 MwStSystRL); der Partner stellt keine eigene Rechnung. Der Partner kann widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
 
 msgid "Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service."
 msgstr "Positionen mit unterschiedlicher umsatzsteuerlicher Behandlung: Jede Behandlung gilt für die Positionen, bei denen sie angegeben ist. Berichtigungen früherer Gutschriften behalten die Behandlung der ursprünglichen Gutschrift; Provisionen die zum Leistungszeitpunkt gültige Behandlung."
@@ -7616,6 +7961,18 @@ msgstr "Der Kontoinhaber ist zu lang (höchstens 190 Zeichen). Es wurde nichts g
 
 msgid "The VAT ID is too long (at most 40 characters). Nothing was changed."
 msgstr "Die USt-IdNr. ist zu lang (höchstens 40 Zeichen). Es wurde nichts geändert."
+
+msgid "This payout method is not offered. Please choose another payout method."
+msgstr "Diese Auszahlungsart wird nicht angeboten. Bitte wähle eine andere Auszahlungsart."
+
+msgid "Please check the account number."
+msgstr "Bitte prüfe die Kontonummer."
+
+msgid "Please check the bank code."
+msgstr "Bitte prüfe die Bankleitzahl."
+
+msgid "The bank name is too long (at most 100 characters). Nothing was changed."
+msgstr "Der Name der Bank ist zu lang (höchstens 100 Zeichen). Es wurde nichts geändert."
 
 msgid "Saved. We have sent a confirmation link to your new e-mail address; it is used once you confirm it."
 msgstr "Gespeichert. Wir haben einen Bestätigungslink an deine neue E-Mail-Adresse geschickt; sie gilt, sobald du bestätigst."
@@ -8157,6 +8514,9 @@ msgstr "IBAN (gespeichert: %s)"
 msgid "Leave empty to keep"
 msgstr "Leer lassen, um beizubehalten"
 
+msgid "BIC / SWIFT (optional)"
+msgstr "BIC / SWIFT (optional)"
+
 msgid "BIC (optional)"
 msgstr "BIC (optional)"
 
@@ -8171,6 +8531,12 @@ msgstr "Aktuelles Passwort (nur zum Ändern deiner Bank- oder Zahlungsangaben n�
 
 msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
 msgstr "Deine Bank- und Zahlungsangaben werden verschlüsselt gespeichert und nur für Provisionsauszahlungen verwendet."
+
+msgid "Account number (stored: %s)"
+msgstr "Kontonummer (gespeichert: %s)"
+
+msgid "For example the routing number (USA, 9 digits), sort code (UK, 6 digits), institution and transit number (Canada), BSB (Australia) or IFSC (India). Leave empty if your bank has none."
+msgstr "Zum Beispiel die Routing Number (USA, 9 Ziffern), der Sort Code (Vereinigtes Königreich, 6 Ziffern), Instituts- und Transitnummer (Kanada), BSB (Australien) oder IFSC (Indien). Leer lassen, wenn deine Bank keine hat."
 
 msgid "%s%%"
 msgstr "%s %%"
@@ -8339,6 +8705,12 @@ msgstr "Beantragt am"
 msgid "Decided on"
 msgstr "Entschieden am"
 
+msgid "Consents in the application"
+msgstr "Zustimmungen in der Bewerbung"
+
+msgid "Checkbox"
+msgstr "Kästchen"
+
 msgid "Payout requests"
 msgstr "Auszahlungsanträge"
 
@@ -8402,6 +8774,9 @@ msgstr "Verknüpftes Benutzerkonto"
 msgid "Unsubscribed from these e-mails"
 msgstr "Von diesen E-Mails abgemeldet"
 
+msgid "Site language"
+msgstr "Website-Sprache"
+
 msgid "Processing restricted since"
 msgstr "Verarbeitung eingeschränkt seit"
 
@@ -8446,6 +8821,9 @@ msgstr "bis Vertragsende"
 
 msgid "payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), "
 msgstr "Zahlungsdienstleister des vom Partner gewählten anderen Zahlungswegs (z. B. PayPal, Wise; ggf. Drittland), "
+
+msgid "correspondent banks and the partner's bank for transfers outside the SEPA area (possibly a third country), "
+msgstr "Korrespondenzbanken und Bank des Partners bei Überweisungen außerhalb des SEPA-Raums (ggf. Drittland), "
 
 msgid "processor storing the credit note PDFs: object storage provider ([provider, location, for a third country the safeguards under Art. 44 ff. GDPR – to be completed by the operator]), "
 msgstr "Auftragsverarbeiter für die Ablage der Gutschrift-PDFs: Objektspeicher-Anbieter ([Anbieter, Standort, bei Drittland die Garantien nach Art. 44 ff. DSGVO – vom Betreiber zu ergänzen]), "
@@ -8548,6 +8926,9 @@ msgstr "Empfänger: Partner sehen nur ihre eigenen Bestellungen, ohne Namen oder
 
 msgid "Credit notes, cancellations and correction credit notes (with the partner's name, address and VAT ID) are stored with an object storage provider on our behalf (Art. 28 GDPR): [provider, location of the storage and, for a location outside the EU/EEA, the safeguards for the transfer (Art. 44 ff. GDPR) – to be completed by the shop operator]."
 msgstr "Gutschriften, Stornobelege und Korrekturgutschriften (mit Name, Anschrift und USt-IdNr. des Partners) werden in unserem Auftrag bei einem Objektspeicher-Anbieter gespeichert (Art. 28 DSGVO): [Anbieter, Speicherort und bei einem Standort außerhalb von EU/EWR die Garantien für die Übermittlung (Art. 44 ff. DSGVO) – vom Shopbetreiber zu ergänzen]."
+
+msgid "Partners with a bank account outside the SEPA area: the account holder, account number, bank code, bank name and country, BIC/SWIFT, the amount and the payment reference go to our bank and, for the international transfer, to correspondent banks and the partner's bank, which may be located in third countries (Art. 49(1)(b) GDPR: necessary for the performance of the contract with the partner)."
+msgstr "Partner mit einem Bankkonto außerhalb des SEPA-Raums: Kontoinhaber, Kontonummer, Bankleitzahl, Name und Land der Bank, BIC/SWIFT, Betrag und Verwendungszweck gehen an unsere Bank und für die Auslandsüberweisung an Korrespondenzbanken und die Bank des Partners, die in Drittländern sitzen können (Art. 49 Abs. 1 lit. b DSGVO: zur Erfüllung des Vertrags mit dem Partner erforderlich)."
 
 msgid "Partners who choose another payment method (e.g. PayPal or Wise) instead of a bank transfer: the amount, the payment reference and the payment details they entered (e.g. their PayPal address) go to that payment provider for the payout. The provider processes them under its own responsibility and may transfer them to third countries (e.g. the USA)."
 msgstr "Partner, die statt einer Überweisung eine andere Auszahlungsart wählen (z. B. PayPal oder Wise): Betrag, Verwendungszweck und die eingegebenen Zahlungsangaben (z. B. ihre PayPal-Adresse) gehen für die Auszahlung an diesen Zahlungsdienst. Der Dienst verarbeitet sie in eigener Verantwortung und übermittelt sie unter Umständen in Drittländer (z. B. die USA)."

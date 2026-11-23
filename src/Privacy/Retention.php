@@ -19,7 +19,10 @@ defined( 'ABSPATH' ) || exit;
 
 final class Retention {
 
-	/** Legal minimum in years by operator country (fallback: 10). */
+	/**
+	 * Legal minimum in years by operator country (fallback: 10). The country profiles (CountryProfiles)
+	 * start from these numbers.
+	 */
 	const MINIMUM = array(
 		'DE' => 8,
 		'AT' => 7,
@@ -27,14 +30,27 @@ final class Retention {
 	);
 
 	/**
-	 * Legal minimum for the operator's country.
+	 * Legal minimum for the operator's country (SET-AC-04 a): the setting
+	 * statement_retention_minimum for the operator country, else the value of the country's
+	 * profile; the filter wpac_retention_minimum_years wins.
 	 *
-	 * @param string $country ISO country (default: operator country).
+	 * @param string   $country ISO country (default: operator country).
+	 * @param int|null $set     Own minimum to use instead of the stored setting (form check).
 	 * @return int
 	 */
-	public static function minimum_years( $country = '' ) {
-		$country = strtoupper( '' !== (string) $country ? (string) $country : (string) Settings::get( 'operator_country' ) );
-		return isset( self::MINIMUM[ $country ] ) ? self::MINIMUM[ $country ] : 10;
+	public static function minimum_years( $country = '', $set = null ) {
+		$operator = strtoupper( (string) Settings::get( 'operator_country' ) );
+		$country  = strtoupper( '' !== (string) $country ? (string) $country : $operator );
+		$set      = null === $set ? (int) Settings::get( 'statement_retention_minimum' ) : (int) $set;
+		// The own minimum belongs to the operator country (it was set for it; the form check passes it with the new country).
+		$years = $set > 0 && ( $country === $operator || func_num_args() > 1 ) ? $set : \WPAffiliateCaptain\Core\CountryProfiles::retention_minimum( $country );
+		/**
+		 * Legal minimum retention of credit notes in years (SET-AC-04 a).
+		 *
+		 * @param int    $years   Minimum (own setting or country profile).
+		 * @param string $country Operator country.
+		 */
+		return max( 0, (int) apply_filters( 'wpac_retention_minimum_years', $years, $country ) );
 	}
 
 	/**

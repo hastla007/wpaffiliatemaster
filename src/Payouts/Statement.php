@@ -338,9 +338,14 @@ final class Statement {
 	 *
 	 * @param string $mode    Mode.
 	 * @param string $country Operator country (legal references follow it).
+	 * @param array  $op      Operator snapshot of the document (its own frozen notes win, SET-AC-04 c).
 	 * @return string
 	 */
-	public static function vat_note( $mode, $country = '' ) {
+	public static function vat_note( $mode, $country = '', array $op = array() ) {
+		$own = self::own_note( $op, (string) $mode );
+		if ( '' !== $own ) {
+			return $own;
+		}
 		$country = strtoupper( '' !== (string) $country ? (string) $country : (string) Settings::get( 'operator_country' ) );
 		$country = '' !== $country ? $country : 'DE';
 		switch ( $mode ) {
@@ -377,6 +382,34 @@ final class Statement {
 	}
 
 	/**
+	 * Own note text frozen with a document (SET-AC-04 c; '' = the built-in text applies).
+	 *
+	 * @param array  $op   Operator snapshot.
+	 * @param string $kind self_billing or a VAT treatment (Vat::REVERSE_CHARGE, …).
+	 * @return string
+	 */
+	public static function own_note( array $op, $kind ) {
+		return isset( $op['notes'][ $kind ] ) && is_string( $op['notes'][ $kind ] ) ? trim( $op['notes'][ $kind ] ) : '';
+	}
+
+	/**
+	 * Self-billing note of a credit note: the own text frozen with it, else the built-in text.
+	 *
+	 * @param string $country Operator country.
+	 * @param array  $op      Operator snapshot.
+	 * @return string
+	 */
+	public static function self_billing_note( $country, array $op = array() ) {
+		$own = self::own_note( $op, 'self_billing' );
+		if ( '' !== $own ) {
+			return $own;
+		}
+		return 'DE' === $country
+			? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' )
+			: __( 'This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
+	}
+
+	/**
 	 * VAT notes of a document: one per treatment that occurs on it (the main treatment first),
 	 * so a correction block with another treatment (e.g. reverse charge or VAT of an earlier
 	 * credit note after a change of the tax status) carries its own note (§14a UStG).
@@ -384,13 +417,14 @@ final class Statement {
 	 * @param string   $main    Main treatment of the document.
 	 * @param string[] $modes   Treatments of the lines.
 	 * @param string   $country Operator country.
+	 * @param array    $op      Operator snapshot of the document (own notes).
 	 * @return string[]
 	 */
-	public static function vat_notes( $main, array $modes, $country ) {
+	public static function vat_notes( $main, array $modes, $country, array $op = array() ) {
 		$modes = array_values( array_unique( array_filter( array_merge( array( (string) $main ), array_map( 'strval', $modes ) ) ) ) );
 		$notes = array();
 		foreach ( $modes as $mode ) {
-			$note = self::vat_note( $mode, $country );
+			$note = self::vat_note( $mode, $country, $op );
 			if ( '' !== $note ) {
 				$notes[] = $note;
 			}
@@ -403,24 +437,28 @@ final class Statement {
 	}
 
 	/**
-	 * Language of the documents: the site language. Languages the PDF fonts cannot show
-	 * (Cyrillic, Greek, Arabic, Asian scripts …) fall back to English (filter wpac_statement_locale).
+	 * Language of the documents: the language chosen in the partner profile, otherwise the site
+	 * language (SET-AC-17). Languages the PDF fonts cannot show (Cyrillic, Greek, Arabic, Asian
+	 * scripts …) fall back to English (filter wpac_statement_locale).
 	 *
-	 * @param string $locale Site language.
+	 * @param string $locale       Site language.
+	 * @param int    $affiliate_id Partner (0 = none: site language).
 	 * @return string
 	 */
-	public static function document_locale( $locale ) {
-		$locale    = '' !== (string) $locale ? (string) $locale : 'en_US';
+	public static function document_locale( $locale, $affiliate_id = 0 ) {
+		$chosen    = (int) $affiliate_id > 0 ? \WPAffiliateCaptain\Core\Locale::partner( (int) $affiliate_id ) : '';
+		$locale    = '' !== $chosen ? $chosen : ( '' !== (string) $locale ? (string) $locale : 'en_US' );
 		$lang      = strtolower( (string) strtok( $locale, '_' ) );
 		$non_latin = array( 'ru', 'uk', 'be', 'bg', 'mk', 'sr', 'el', 'ar', 'ary', 'he', 'fa', 'ur', 'zh', 'ja', 'ko', 'th', 'hi', 'bn', 'ka', 'hy', 'kk', 'ky', 'mn', 'ta', 'te', 'ml', 'kn', 'mr', 'gu', 'pa', 'ne', 'si', 'km', 'lo', 'my', 'am', 'ps', 'ug', 'tg', 'bo', 'dv', 'yi', 'tt', 'ckb', 'azb', 'haz', 'sah', 'os' );
 		$doc       = in_array( $lang, $non_latin, true ) ? 'en_US' : $locale;
 		/**
 		 * Language of credit notes and cancellations (frozen with each document).
 		 *
-		 * @param string $doc    Document language.
-		 * @param string $locale Site language.
+		 * @param string $doc          Document language.
+		 * @param string $locale       Language chosen for the partner, else the site language.
+		 * @param int    $affiliate_id Partner (0 = unknown; SET-AC-17).
 		 */
-		return (string) apply_filters( 'wpac_statement_locale', $doc, $locale );
+		return (string) apply_filters( 'wpac_statement_locale', $doc, $locale, (int) $affiliate_id );
 	}
 
 	/**
@@ -563,6 +601,8 @@ final class Statement {
 		}
 		if ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ) {
 			$facts[ __( 'Payment method', 'affiliate-captain' ) ] = __( 'Other payment method as agreed with the partner', 'affiliate-captain' );
+		} elseif ( isset( $snap['payout_method'] ) && ProfileRepository::METHOD_BANK === $snap['payout_method'] ) {
+			$facts[ __( 'Bank account (non-SEPA)', 'affiliate-captain' ) ] = ! empty( $snap['account_masked'] ) ? $snap['account_masked'] : '—';
 		} else {
 			$facts[ __( 'Bank account', 'affiliate-captain' ) ] = ! empty( $snap['iban_masked'] ) ? $snap['iban_masked'] : '—';
 		}
@@ -783,14 +823,12 @@ final class Statement {
 		}
 		$y += 15;
 		if ( $self && ! $storno ) {
-			$self_note = 'DE' === $country
-				? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' )
-				: __( 'This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
+			$self_note = self::self_billing_note( $country, $op );
 		} else {
 			$self_note = '';
 		}
 		$notes = array_merge(
-			self::vat_notes( (string) $p->vat_mode, $modes, $country ),
+			self::vat_notes( (string) $p->vat_mode, $modes, $country, $op ),
 			array_filter(
 				array(
 					$correct ? __( 'This document settles corrections of earlier credit notes (refunds and cancellations of referred orders) with the repayment received or the claim written off. It reduces the net amounts and VAT of the credit notes named above; nothing is transferred.', 'affiliate-captain' ) : '',

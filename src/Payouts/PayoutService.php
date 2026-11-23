@@ -451,23 +451,44 @@ final class PayoutService {
 	 * Operator details as printed on the credit note, frozen with each payout
 	 * (a later cancellation shows the data of the original document).
 	 *
+	 * @param int $affiliate_id Partner of the document (its language, SET-AC-17; 0 = site language).
+	 * @param bool $issue For a document being issued now: also freeze the own document notes
+	 *                    (SET-AC-04 c). Not for the fallback of old documents without a snapshot.
 	 * @return array
 	 */
-	public static function operator_snapshot() {
+	public static function operator_snapshot( $affiliate_id = 0, $issue = false ) {
 		$name = (string) Settings::get( 'debtor_name' );
-		// Language and date format of the document are frozen too: a credit note is always
-		// written in the site language, whoever triggers it (and can be built again identically).
+		// Language and date format of the document are frozen too: a credit note is written in the
+		// partner's document language (default: site language), whoever triggers it (and can be
+		// built again identically).
 		$locale = \WPAffiliateCaptain\Core\Locale::site();
-		return array(
+		$op     = array(
 			'name'       => '' !== $name ? $name : wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			'address'    => (string) Settings::get( 'operator_address' ),
 			'country'    => strtoupper( (string) Settings::get( 'operator_country' ) ),
 			'vat_id'     => (string) Settings::get( 'operator_vat_id' ),
 			'tax_number' => (string) Settings::get( 'operator_tax_number' ),
 			'self_billing' => (bool) Settings::get( 'self_billing' ),
-			'locale'       => Statement::document_locale( $locale ),
+			'locale'       => Statement::document_locale( $locale, (int) $affiliate_id ),
 			'date_format'  => (string) get_option( 'date_format' ),
 		);
+		if ( $issue ) {
+			// Own document notes (SET-AC-04 c) are frozen with the document when it is issued; empty
+			// settings keep the built-in text, and documents issued before keep theirs.
+			$notes = array_filter(
+				array(
+					'self_billing'      => trim( (string) Settings::get( 'note_self_billing' ) ),
+					Vat::REVERSE_CHARGE => trim( (string) Settings::get( 'note_reverse_charge' ) ),
+					Vat::SMALL_BUSINESS => trim( (string) Settings::get( 'note_small_business' ) ),
+					Vat::PRIVATE_PERSON => trim( (string) Settings::get( 'note_private_person' ) ),
+				),
+				'strlen'
+			);
+			if ( $notes ) {
+				$op['notes'] = $notes;
+			}
+		}
+		return $op;
 	}
 
 	/**
@@ -511,7 +532,7 @@ final class PayoutService {
 	 *
 	 * @param int         $affiliate_id Partner.
 	 * @param array|null  $profile      Payout profile (loaded when null).
-	 * @param string|null $code         Out: reason code (maintenance|terminated|tax_pending|profile|terms_page|terms|operator_vat_id|vies, '' = none).
+	 * @param string|null $code         Out: reason code (maintenance|terminated|tax_pending|profile|terms_page|terms|vat_rate|operator_vat_id|vies, '' = none).
 	 * @return string
 	 */
 	public static function blocked_reason( $affiliate_id, $profile = null, &$code = null ) {
@@ -559,6 +580,11 @@ final class PayoutService {
 			return __( 'Has not accepted the partner terms yet (needed for credit notes) – the partner is asked to accept them on the next login to the partner area', 'affiliate-captain' );
 		}
 		$vat = Vat::treatment( isset( $profile->tax_status ) ? (string) $profile->tax_status : '', isset( $profile->country ) ? (string) $profile->country : '', (string) Settings::get( 'operator_country' ), (string) Settings::get( 'vat_rate' ) );
+		if ( Vat::STANDARD === $vat['mode'] && '' === trim( (string) Settings::get( 'vat_rate' ) ) ) {
+			// No VAT rate set yet (new installation outside Germany, neutral country profile; P3-03).
+			$code = 'vat_rate';
+			return __( 'No VAT rate is set (Settings → Payouts & credit notes, or apply a country profile)', 'affiliate-captain' );
+		}
 		if ( Vat::REVERSE_CHARGE === $vat['mode'] && '' === trim( (string) Settings::get( 'operator_vat_id' ) ) ) {
 			// Reverse-charge documents must show the VAT ID of the recipient (the operator).
 			$code = 'operator_vat_id';
@@ -953,7 +979,7 @@ final class PayoutService {
 					}
 				}
 				// Logo and footer are frozen with the document (SET-AC-16).
-				$operator_snapshot = array_merge( self::operator_snapshot(), DocumentBrand::snapshot() );
+				$operator_snapshot = array_merge( self::operator_snapshot( (int) $affiliate_id, true ), DocumentBrand::snapshot() );
 				if ( $settle ) {
 					$operator_snapshot['document'] = 'correction';
 				}
@@ -1100,8 +1126,9 @@ final class PayoutService {
 
 	/**
 	 * Partners with the tax status "small business" whose credit notes exceed the limits of the
-	 * small business scheme (default §19 UStG: 25,000 € in the previous year or 100,000 € in the
-	 * current year; filter wpac_small_business_limits). Only an indication: the limit counts all
+	 * small business scheme (settings small_business_limit_previous / _current in the program
+	 * currency, empty = no check, SET-AC-04 b; up to and including 0.21.0 fixed §19 UStG: 25,000 € in the
+	 * previous year or 100,000 € in the current year; filter wpac_small_business_limits wins). Only an indication: the limit counts all
 	 * turnover of the partner, not only ours – but if our credit notes alone exceed it, the
 	 * partner is very likely liable for VAT.
 	 *
@@ -1117,7 +1144,16 @@ final class PayoutService {
 		 * @param array  $limits   Currency => [ previous, current ].
 		 * @param string $operator Operator country.
 		 */
-		$limits = (array) apply_filters( 'wpac_small_business_limits', 'DE' === strtoupper( (string) Settings::get( 'operator_country' ) ) ? array( 'EUR' => array( 2500000, 10000000 ) ) : array(), strtoupper( (string) Settings::get( 'operator_country' ) ) );
+		$prev     = trim( (string) Settings::get( 'small_business_limit_previous' ) );
+		$cur      = trim( (string) Settings::get( 'small_business_limit_current' ) );
+		$currency = strtoupper( (string) Settings::get( 'currency' ) );
+		$default  = '' === $prev && '' === $cur ? array() : array(
+			$currency => array(
+				'' === $prev ? PHP_INT_MAX : Money::to_minor( $prev, $currency ),
+				'' === $cur ? PHP_INT_MAX : Money::to_minor( $cur, $currency ),
+			),
+		);
+		$limits = (array) apply_filters( 'wpac_small_business_limits', $default, strtoupper( (string) Settings::get( 'operator_country' ) ) );
 		if ( ! $limits ) {
 			return array();
 		}
@@ -1468,14 +1504,16 @@ final class PayoutService {
 	}
 
 	/**
-	 * Payout method recorded with a payout (snapshot): manual (PayPal etc.) or sepa.
+	 * Payout method recorded with a payout (snapshot): manual (PayPal etc.), bank (bank transfer
+	 * outside SEPA, new after plugin 0.21.0) or sepa.
 	 *
 	 * @param object $p Payout.
 	 * @return string
 	 */
 	public static function snapshot_method( $p ) {
 		$snap = json_decode( (string) ( isset( $p->profile_snapshot ) ? $p->profile_snapshot : '' ), true );
-		return is_array( $snap ) && isset( $snap['payout_method'] ) && ProfileRepository::METHOD_MANUAL === $snap['payout_method'] ? ProfileRepository::METHOD_MANUAL : ProfileRepository::METHOD_SEPA;
+		$m    = is_array( $snap ) && isset( $snap['payout_method'] ) ? (string) $snap['payout_method'] : '';
+		return in_array( $m, array( ProfileRepository::METHOD_MANUAL, ProfileRepository::METHOD_BANK ), true ) ? $m : ProfileRepository::METHOD_SEPA;
 	}
 
 	/**
@@ -1631,14 +1669,23 @@ final class PayoutService {
 								throw new IntegrationException( 'details', esc_html( sprintf( __( 'Payment details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
 							}
 							$holder = '' !== trim( (string) $profile->account_holder ) ? (string) $profile->account_holder : (string) $profile->legal_name;
-							$rows[] = array( $p->number, $holder, '', '', Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_MANUAL, str_replace( array( "\r\n", "\r", "\n" ), ' / ', $details ) );
+							$rows[] = array( $p->number, $holder, '', '', Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_MANUAL, str_replace( array( "\r\n", "\r", "\n" ), ' / ', $details ), '', '', '', '' );
+						} elseif ( ProfileRepository::METHOD_BANK === ProfileRepository::method( $profile ) ) {
+							// Bank transfer outside SEPA (SET-AC-30): account number, bank code, bank name and
+							// country in their own columns, BIC/SWIFT in the BIC column; paid manually.
+							$bank = ProfileRepository::bank_details( $profile );
+							if ( null === $bank || '' === $bank['account_number'] ) {
+								/* translators: %s: payout number */
+								throw new IntegrationException( 'iban', esc_html( sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
+							}
+							$rows[] = array( $p->number, (string) $profile->account_holder, '', (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_BANK, '', $bank['account_number'], $bank['bank_code'], $bank['bank_name'], $bank['bank_country'] );
 						} else {
 							$iban = ProfileRepository::iban( $profile );
 							if ( ! $iban ) {
 								/* translators: %s: payout number */
 								throw new IntegrationException( 'iban', esc_html( sprintf( __( 'Bank details for payout %s are missing or cannot be decrypted.', 'affiliate-captain' ), $p->number ) ) );
 							}
-							$rows[] = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_SEPA, '' );
+							$rows[] = array( $p->number, (string) $profile->account_holder, $iban, (string) $profile->bic, Money::to_decimal( (int) $p->amount_minor, $p->currency ), $p->currency, trim( $prefix . ' ' . $p->number ), ProfileRepository::METHOD_SEPA, '', '', '', '', '' );
 						}
 						$used[ (int) $p->id ] = $p->status;
 					}
@@ -1724,8 +1771,9 @@ final class PayoutService {
 							throw new IntegrationException( 'reexport', esc_html( sprintf( __( 'Payout %s was already exported. Tick "export again" only if the bank did not process the previous file.', 'affiliate-captain' ), $p->number ) ) );
 						}
 						$profile = ProfileRepository::get( (int) $p->affiliate_id );
-						if ( ProfileRepository::METHOD_MANUAL === ProfileRepository::method( $profile ) ) {
-							// Paid by another method (transfer list, then "mark as paid"): never in the SEPA file.
+						if ( ProfileRepository::METHOD_SEPA !== ProfileRepository::method( $profile ) ) {
+							// Paid by another method or by a bank transfer outside SEPA (transfer list, then
+							// "mark as paid"): never in the SEPA file.
 							++$manual;
 							continue;
 						}
@@ -1755,7 +1803,7 @@ final class PayoutService {
 						throw new IntegrationException(
 							'empty',
 							$manual
-								? esc_html__( 'The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.', 'affiliate-captain' )
+								? esc_html__( 'The selected payouts use another payment method (e.g. PayPal or a bank transfer outside SEPA) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid.', 'affiliate-captain' )
 								: esc_html__( 'No exportable payouts selected.', 'affiliate-captain' )
 						);
 					}
@@ -1900,7 +1948,7 @@ final class PayoutService {
 	 * as long as there are any). An unknown status or method gives an empty list, as documented
 	 * in contract 1.3.0 (no WP_Error: callers expect an array).
 	 *
-	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual), affiliate_id, after_id, limit (1–200, default 50).
+	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual|bank), affiliate_id, after_id, limit (1–200, default 50).
 	 * @return array[] Payouts as contract_view(), oldest first.
 	 */
 	public static function contract_list( array $args = array() ) {
@@ -1922,14 +1970,18 @@ final class PayoutService {
 		}
 		$method = isset( $args['method'] ) ? sanitize_key( (string) $args['method'] ) : '';
 		if ( '' !== $method ) {
-			if ( ! in_array( $method, array( ProfileRepository::METHOD_SEPA, ProfileRepository::METHOD_MANUAL ), true ) ) {
+			if ( ! in_array( $method, array( ProfileRepository::METHOD_SEPA, ProfileRepository::METHOD_MANUAL, ProfileRepository::METHOD_BANK ), true ) ) {
 				return array();
 			}
 			// Pre-filter on the snapshot (JSON written by wp_json_encode()); snapshot_method()
 			// below stays the rule, so a row the pattern lets through by mistake is dropped.
-			$pattern  = '%' . $wpdb->esc_like( '"payout_method":"' . ProfileRepository::METHOD_MANUAL . '"' ) . '%';
-			$where[]  = ProfileRepository::METHOD_MANUAL === $method ? 'profile_snapshot LIKE %s' : '( profile_snapshot IS NULL OR profile_snapshot NOT LIKE %s )';
-			$params[] = $pattern;
+			if ( ProfileRepository::METHOD_SEPA === $method ) {
+				$where[] = '( profile_snapshot IS NULL OR ( profile_snapshot NOT LIKE %s AND profile_snapshot NOT LIKE %s ) )';
+				array_push( $params, '%' . $wpdb->esc_like( '"payout_method":"' . ProfileRepository::METHOD_MANUAL . '"' ) . '%', '%' . $wpdb->esc_like( '"payout_method":"' . ProfileRepository::METHOD_BANK . '"' ) . '%' );
+			} else {
+				$where[]  = 'profile_snapshot LIKE %s';
+				$params[] = '%' . $wpdb->esc_like( '"payout_method":"' . $method . '"' ) . '%';
+			}
 		}
 		$limit = isset( $args['limit'] ) ? max( 1, min( 200, (int) $args['limit'] ) ) : 50;
 		$after = isset( $args['after_id'] ) ? max( 0, (int) $args['after_id'] ) : 0;
