@@ -1307,7 +1307,7 @@ final class PayoutService {
 						if ( ! Ledger::transition( (int) $item->commission_id, 'paid', $p->number, get_current_user_id(), (int) $id, 'approved', false ) ) {
 							throw new IntegrationException( 'commission_changed', esc_html( 'Commission ' . $item->commission_id . ' could not be marked as paid.' ) );
 						}
-						$ids[] = (int) $item->commission_id;
+						$ids[ (int) $item->commission_id ] = Ledger::last_event_id( (int) $item->commission_id );
 					}
 					return array( $p, $ids );
 				}
@@ -1323,8 +1323,8 @@ final class PayoutService {
 		// After COMMIT also when called inside an outer transaction (dropped on its rollback, AFF-WF-02).
 		Db::after_commit(
 			static function () use ( $ids, $id ) {
-				foreach ( $ids as $cid ) {
-					do_action( 'wpac_commission_paid', $cid, 'approved' ); // Only approved commissions are paid (Ledger::TRANSITIONS).
+				foreach ( $ids as $cid => $event_row ) {
+					do_action( 'wpac_commission_paid', $cid, 'approved', $event_row ); // Only approved commissions are paid (Ledger::TRANSITIONS); AC-5.
 				}
 				do_action( 'wpac_payout_paid', (int) $id );
 			}

@@ -189,7 +189,7 @@ add_filter( 'wpac_registered_integrations', function ( $list ) {
 | `wpac_affiliate_attributed` | `string $order_id, int $affiliate_id, string $method, string $source` |
 | `wpac_commission_created` | `int $commission_id` – jede neue Buchung im Provisionskonto außer Erstattungs-Korrekturen: Verkauf, Bestellerhöhung, manuelle Buchung, Monatsbonus und Bonuskorrektur, Abschreibung (`writeoff`), Rückzahlung (`repayment`), Wiederherstellung (`reinstatement`), Korrekturgutschrift (`correction`; seit 1.3.0 für alle). Art über `wpac_get_commission( $id )['kind']`. |
 | `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` – Erstattung, Storno, Chargeback (Buchungsarten `refund`, `cancellation`, `chargeback`; dafür kein `wpac_commission_created`). Wird eine WooCommerce-Erstattung gelöscht, kommen die zurückgenommenen, noch nicht freigegebenen Erstattungszeilen mit `$refund['deleted'] = true`; bereits freigegebene bekommen eine Wiederherstellung (`reinstatement`, `wpac_commission_created`). |
-| `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` / `_review` | `int $commission_id, string $old` – `_review` feuert, wenn eine abgelehnte Provision zur Prüfung wieder geöffnet wird. `$old` (seit Vertrag 1.7.0) ist der Status vor diesem Wechsel, gelesen unter der Zeilensperre (`pending`, `review`, `approved` oder `rejected`; bei `_paid` immer `approved`). Callbacks mit nur einem Parameter bleiben gültig. |
+| `wpac_commission_approved` / `_rejected` / `_paid` / `_pending` / `_review` | `int $commission_id, string $old` – `_review` feuert, wenn eine abgelehnte Provision zur Prüfung wieder geöffnet wird. `$old` (seit Vertrag 1.7.0) ist der Status vor diesem Wechsel, gelesen unter der Zeilensperre (`pending`, `review`, `approved` oder `rejected`; bei `_paid` immer `approved`). Neu nach Plugin 0.21.0 (AC-5, Suite-Spezifikation R-7.9a, ohne Wechsel der Vertragsversion): dritter Parameter `int $event_id` – Kennung des Eintrags im Provisionsverlauf (Tabelle `commission_events`, Spalte `id`), den genau dieser Wechsel geschrieben hat; damit lassen sich zwei echte Wechsel derselben Provision in derselben Sekunde unterscheiden. `0` nur, wenn kein Eintrag bekannt ist. Callbacks mit einem oder zwei Parametern bleiben gültig. |
 | `wpac_affiliate_erased` | `int $affiliate_id, bool $open` – nach der Löschung der personenbezogenen Daten eines Partners (Art. 17 DSGVO); Add-ons löschen ihre eigenen Daten des Partners. `$open`: offene Provisionen/Auszahlungen haben einen Teil der Löschung aufgeschoben. |
 | `wpac_payout_created` | `int $payout_id, int $affiliate_id` (siehe „Add-ons“) |
 | `wpac_payout_paid` | `int $payout_id` (auch nach `wpac_complete_payout()`) |
@@ -222,11 +222,11 @@ Spalte „Nach dem Commit“: **ja** = feuert erst nach dem Commit der Buchung, 
 | `wpac_affiliate_status_changed` | `int $affiliate_id, string $new, string $old` | 1.0.0 | 0.1.0 | ja |
 | `wpac_commission_created` | `int $commission_id` | 1.0.0 (für jede Buchungsart seit 1.3.0) | 0.1.0 | ja |
 | `wpac_commission_adjusted` | `array $refund, int[] $adjustment_ids` | 1.0.0 | 0.1.0 | ja |
-| `wpac_commission_approved` | `int $commission_id, string $old` | 1.0.0 (`$old` seit 1.7.0) | 0.1.0 | ja |
-| `wpac_commission_rejected` | `int $commission_id, string $old` | 1.0.0 (`$old` seit 1.7.0) | 0.1.0 | ja |
-| `wpac_commission_paid` | `int $commission_id, string $old` | 1.0.0 (`$old` seit 1.7.0) | 0.1.0 | ja |
-| `wpac_commission_pending` | `int $commission_id, string $old` | 1.0.0 (`$old` seit 1.7.0) | 0.1.0 | ja |
-| `wpac_commission_review` | `int $commission_id, string $old` | 1.3.0 (vorher nur über die allgemeine Statusaction, nicht dokumentiert; `$old` seit 1.7.0) | 0.13.0 | ja |
+| `wpac_commission_approved` | `int $commission_id, string $old, int $event_id` | 1.0.0 (`$old` seit 1.7.0; `$event_id` neu nach Plugin 0.21.0) | 0.1.0 | ja |
+| `wpac_commission_rejected` | `int $commission_id, string $old, int $event_id` | 1.0.0 (`$old` seit 1.7.0; `$event_id` neu nach Plugin 0.21.0) | 0.1.0 | ja |
+| `wpac_commission_paid` | `int $commission_id, string $old, int $event_id` | 1.0.0 (`$old` seit 1.7.0; `$event_id` neu nach Plugin 0.21.0) | 0.1.0 | ja |
+| `wpac_commission_pending` | `int $commission_id, string $old, int $event_id` | 1.0.0 (`$old` seit 1.7.0; `$event_id` neu nach Plugin 0.21.0) | 0.1.0 | ja |
+| `wpac_commission_review` | `int $commission_id, string $old, int $event_id` | 1.3.0 (vorher nur über die allgemeine Statusaction, nicht dokumentiert; `$old` seit 1.7.0; `$event_id` neu nach Plugin 0.21.0) | 0.13.0 | ja |
 | `wpac_payout_paid` | `int $payout_id` | 1.0.0 | 0.1.0 | ja |
 | `wpac_contract_not_queued` | `string $what, array $data` | 1.1.0 | 0.10.0 | – |
 | `wpac_affiliate_created` | `int $affiliate_id, string $status` | 1.2.0 (im Code seit Plugin 0.10.0) | 0.11.0 | ja |

@@ -119,7 +119,7 @@ check(
 	array( 'db_commission_event', 'pending', $h1_events, $h1_bal ),
 	array( $h1_err, Ledger::find( $h1_cid )->status, count( Ledger::events( $h1_cid ) ), Balance::get( $h1_aff, 'EUR' ) )
 );
-check( 'R6-QA8 commission event stored normally', array( true, true ), array( Ledger::event( $h1_cid, 'note', 'pending', 'pending', 0, 'H1' ), Ledger::transition( $h1_cid, 'approved', 'H1' ) ) );
+check( 'R6-QA8 commission event stored normally', array( true, true ), array( Ledger::event( $h1_cid, 'note', 'pending', 'pending', 0, 'H1' ) > 0, Ledger::transition( $h1_cid, 'approved', 'H1' ) ) );
 check( 'R6-QA8 admin actions show a refused booking as an error notice', true, false !== strpos( $h1_src( 'src/Admin/Admin.php' ), "} catch ( \\WPAffiliateCaptain\\Core\\IntegrationException \$e ) {" ) );
 
 /* R7-PU2: admin report by campaign is per partner ---------------------------------------------- */

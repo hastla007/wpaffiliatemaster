@@ -50,6 +50,25 @@ final class Ledger {
 	const LINK_PREFIX = 'parent:';
 
 	/**
+	 * History entry (commission_events.id) of the last transition per commission in this request,
+	 * for callers that fire the status action themselves later (AC-5).
+	 *
+	 * @var array<int,int>
+	 */
+	private static $last_event_ids = array();
+
+	/**
+	 * ID of the history entry written by the last successful transition() of a commission in
+	 * this request (0 = none). Third parameter of the status actions (new after plugin 0.21.0, AC-5).
+	 *
+	 * @param int $id Commission.
+	 * @return int
+	 */
+	public static function last_event_id( $id ) {
+		return isset( self::$last_event_ids[ (int) $id ] ) ? self::$last_event_ids[ (int) $id ] : 0;
+	}
+
+	/**
 	 * Labels.
 	 *
 	 * @return array
@@ -907,14 +926,14 @@ final class Ledger {
 		foreach ( $open as $inc ) {
 			// The row is locked, so the status read above is the status before the transition.
 			if ( self::transition( (int) $inc->id, 'rejected', Db::cut( $reason, 191 ), 0, 0, (string) $inc->status, false ) ) {
-				$ids[ (int) $inc->id ] = (string) $inc->status;
+				$ids[ (int) $inc->id ] = array( (string) $inc->status, self::last_event_id( (int) $inc->id ) );
 			}
 		}
 		if ( $ids ) {
 			Db::after_commit(
 				static function () use ( $ids ) {
-					foreach ( $ids as $inc_id => $old ) {
-						do_action( 'wpac_commission_rejected', (int) $inc_id, $old );
+					foreach ( $ids as $inc_id => $info ) {
+						do_action( 'wpac_commission_rejected', (int) $inc_id, $info[0], $info[1] );
 					}
 				}
 			);
@@ -978,9 +997,10 @@ final class Ledger {
 				$cut = (int) $inc->amount_minor;
 				$id  = (int) $inc->id;
 				$old = (string) $inc->status;
+				$evt = self::last_event_id( $id );
 				Db::after_commit(
-					static function () use ( $id, $old ) {
-						do_action( 'wpac_commission_rejected', $id, $old );
+					static function () use ( $id, $old, $evt ) {
+						do_action( 'wpac_commission_rejected', $id, $old, $evt );
 					}
 				);
 			} else {
@@ -1512,7 +1532,7 @@ final class Ledger {
 					$given                     -= (int) $row->amount_minor;
 					$result['commission_ids'][] = (int) $row->id;
 					$rejected[]                 = (int) $row->id;
-					$rejected_from[ (int) $row->id ] = (string) $row->status;
+					$rejected_from[ (int) $row->id ] = array( (string) $row->status, self::last_event_id( (int) $row->id ) );
 				} else {
 					++$already;
 				}
@@ -1611,8 +1631,8 @@ final class Ledger {
 				Db::after_commit(
 					static function () use ( $refund, $rejected, $rejected_from ) {
 						// Status change of each refund row, as everywhere else (contract 1.7.0; P2-01).
-						foreach ( $rejected_from as $rid => $old ) {
-							do_action( 'wpac_commission_rejected', (int) $rid, $old );
+						foreach ( $rejected_from as $rid => $info ) {
+							do_action( 'wpac_commission_rejected', (int) $rid, $info[0], $info[1] );
 						}
 						do_action( 'wpac_commission_adjusted', $refund, $rejected ); // Report cache, review count.
 					}
@@ -2176,8 +2196,9 @@ final class Ledger {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$sql = "UPDATE {$t} SET status = %s, updated_at = %s WHERE id = %d{$extra} AND status IN ({$in})";
 		$from_status = '';
+		$event_row   = 0;
 		$ok          = Db::transaction(
-			static function () use ( $wpdb, $t, $sql, $args, $id, $to, $c, $reason, $actor, $from, &$from_status ) {
+			static function () use ( $wpdb, $t, $sql, $args, $id, $to, $c, $reason, $actor, $from, &$from_status, &$event_row ) {
 				// Lock the row and read the status it really has now: the balance
 				// booking depends on it (e.g. approved -> rejected reverses the balance),
 				// and the row may have changed since the read outside the transaction.
@@ -2191,7 +2212,7 @@ final class Ledger {
 				if ( 1 !== $rows ) {
 					return false;
 				}
-				self::event( (int) $id, $to, $from_status, $to, (int) $c->amount_minor, $reason, '', $actor );
+				$event_row = self::event( (int) $id, $to, $from_status, $to, (int) $c->amount_minor, $reason, '', $actor );
 				if ( 'approved' === $to ) {
 					Balance::post( (int) $c->affiliate_id, $c->currency, 'approved', (int) $c->amount_minor, (int) $id );
 				} elseif ( 'rejected' === $to && 'approved' === $from_status ) {
@@ -2203,14 +2224,16 @@ final class Ledger {
 		if ( ! $ok ) {
 			return false;
 		}
+		self::$last_event_ids[ (int) $id ] = (int) $event_row; // AC-5: callers that fire the hook later.
 		ReviewAlert::flush(); // Menu bubble count, also when the hooks are fired later.
 		if ( $fire_hooks ) {
 			// transition() may run inside an outer transaction (it nests): the hook waits for the
 			// COMMIT of that one and is dropped on its rollback (AFF-WF-02).
 			// Second parameter (contract 1.7.0): the status before this transition, read under the row lock.
+			// Third parameter (new after plugin 0.21.0, AC-5): ID of the history entry of this transition.
 			Db::after_commit(
-				static function () use ( $to, $id, $from_status ) {
-					do_action( 'wpac_commission_' . $to, (int) $id, (string) $from_status );
+				static function () use ( $to, $id, $from_status, $event_row ) {
+					do_action( 'wpac_commission_' . $to, (int) $id, (string) $from_status, (int) $event_row );
 				}
 			);
 		}
@@ -2228,7 +2251,7 @@ final class Ledger {
 	 * @param string $reason   Reason.
 	 * @param string $event_id Source event ID.
 	 * @param int    $actor    Actor (defaults to current user).
-	 * @return true
+	 * @return int ID of the stored history entry (table commission_events).
 	 * @throws IntegrationException When the event could not be stored: the history of a commission
 	 *                              must not miss a step, so the caller's transaction is rolled back
 	 *                              (and the booking reported as failed) instead of looking saved.
@@ -2252,7 +2275,7 @@ final class Ledger {
 		if ( ! $ok ) {
 			throw new IntegrationException( 'db_commission_event', esc_html( 'Could not store the commission event: ' . $wpdb->last_error ) );
 		}
-		return true;
+		return (int) $wpdb->insert_id;
 	}
 
 	/**
