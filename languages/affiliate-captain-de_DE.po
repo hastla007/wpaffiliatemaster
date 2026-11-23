@@ -3499,6 +3499,9 @@ msgstr "Jetzt"
 msgid "New"
 msgstr "Neu"
 
+msgid "Check legally"
+msgstr "Rechtlich prüfen"
+
 msgid "Nothing would change."
 msgstr "Es würde sich nichts ändern."
 

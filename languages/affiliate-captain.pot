@@ -4636,6 +4636,10 @@ msgid "New"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Check legally"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Nothing would change."
 msgstr ""
 

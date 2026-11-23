@@ -114,6 +114,39 @@ $rv_min = SettingsTransfer::check( array( 'application_confirm_days' => '0', 'co
 $rv_ok  = SettingsTransfer::check( array( 'application_confirm_days' => '7' ), Settings::all() );
 check( 'P1-07 values under the lower limit are rejected, valid values pass', array( true, true, array(), array( 'application_confirm_days' => 7 ) ), array( isset( $rv_min['errors']['application_confirm_days'] ), isset( $rv_min['errors']['code_request_max_length'] ), $rv_min['values'], $rv_ok['values'] ) );
 
+// P4-04 / P6-05: WP-CLI shows private values only on request.
+if ( ! class_exists( '\\WPAffiliateCaptain\\Cli\\SettingsCommand', false ) ) {
+	require_once WPAC_DIR . 'src/Cli/SettingsCommand.php';
+}
+check( 'P4-04 CLI output: IBAN shown as "(set)", secret too, public values in clear', array( '(set)', '(set)', '30' ), array( \WPAffiliateCaptain\Cli\SettingsCommand::shown( 'debtor_iban', 'DE89370400440532013000' ), \WPAffiliateCaptain\Cli\SettingsCommand::shown( 'monitor_token', 'h1:x' ), \WPAffiliateCaptain\Cli\SettingsCommand::shown( 'hold_days', 30 ) ) );
+
+// P5-02 / P3-01 / P5-04: every described field points to its description; legal values are marked.
+$rv_get = $_GET;
+$rv_missing = array();
+$rv_legal_seen = 0;
+foreach ( array_keys( \WPAffiliateCaptain\Admin\Pages\SettingsPage::tab_keys() ) as $rv_tab ) {
+	$_GET  = array( 'page' => 'wpac-settings', 'tab' => $rv_tab );
+	$rv_html = r_render( array( \WPAffiliateCaptain\Admin\Pages\SettingsPage::class, 'render' ) )[0];
+	preg_match_all( '/aria-describedby="([^"]+)"/', $rv_html, $rv_m );
+	foreach ( $rv_m[1] as $rv_ids ) {
+		foreach ( preg_split( '/\s+/', trim( $rv_ids ) ) as $rv_id ) {
+			if ( false === strpos( $rv_html, 'id="' . $rv_id . '"' ) ) {
+				$rv_missing[] = $rv_tab . ':' . $rv_id;
+			}
+		}
+	}
+	$rv_legal_seen += substr_count( $rv_html, 'wpac-legal-mark' );
+}
+$_GET = array( 'page' => 'wpac-settings', 'tab' => 'payouts' );
+$rv_pay = r_render( array( \WPAffiliateCaptain\Admin\Pages\SettingsPage::class, 'render' ) )[0];
+$_GET = $rv_get;
+check( 'P5-02/P3-01/P5-04 descriptions linked (all ids exist), legal marks shown, minimum payout with help text', array( array(), true, true ), array( $rv_missing, $rv_legal_seen >= 10, false !== strpos( $rv_pay, 'id="wpac-desc-min_payout"' ) ) );
+
+// P4-02: private values only from an export made with them; the preview shows new values in full.
+$rv_pv = SettingsTransfer::preview( array( 'format' => 1, 'private' => false, 'settings' => array( 'admin_email' => 'attacker@evil.example' ) ) );
+$rv_pp = SettingsTransfer::preview( array( 'format' => 1, 'private' => true, 'settings' => array( 'admin_email' => 'new-admin@example.de' ) ) );
+check( 'P4-02 private keys ignored without "private": true, taken with it', array( true, array(), 'new-admin@example.de' ), array( in_array( 'admin_email', $rv_pv['ignored'], true ), $rv_pv['values'], $rv_pp['values']['admin_email'] ?? '' ) );
+
 update_option( 'wpac_settings', $rv_saved );
 Settings::flush_cache();
 SettingsSchema::flush();

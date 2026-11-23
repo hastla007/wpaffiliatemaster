@@ -21,6 +21,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class SettingsCommand {
 
+	/** @var bool Whether private values are shown (--with-private). */
+	private static $private = false;
+
 	/**
 	 * List the settings: key, tab, value and default.
 	 *
@@ -32,10 +35,14 @@ final class SettingsCommand {
 	 * [--format=<format>]
 	 * : table (default), json or csv.
 	 *
+	 * [--with-private]
+	 * : Also show bank details, addresses, tax numbers and e-mail addresses.
+	 *
 	 * @param array $args  Positional.
 	 * @param array $assoc Options.
 	 */
 	public function list( $args, $assoc ) {
+		self::$private = ! empty( $assoc['with-private'] );
 		$all  = Settings::all();
 		$tab  = isset( $assoc['tab'] ) ? (string) $assoc['tab'] : '';
 		$rows = array();
@@ -61,10 +68,14 @@ final class SettingsCommand {
 	 * <key>
 	 * : Setting key (see "wp wpac setting list").
 	 *
+	 * [--with-private]
+	 * : Show the value also if it is private (bank details, addresses, tax numbers, e-mail addresses).
+	 *
 	 * @param array $args  Positional.
 	 * @param array $assoc Options.
 	 */
 	public function get( $args, $assoc ) {
+		self::$private = ! empty( $assoc['with-private'] );
 		$key = self::key( $args );
 		\WP_CLI::line( self::shown( $key, Settings::get( $key ) ) );
 	}
@@ -207,15 +218,16 @@ final class SettingsCommand {
 	}
 
 	/**
-	 * Value for the output: secret values are never shown.
+	 * Value for the output: secret values are never shown, private values only with --with-private.
 	 *
 	 * @param string $key   Key.
 	 * @param mixed  $value Value.
 	 * @return string
 	 */
-	private static function shown( $key, $value ) {
+	public static function shown( $key, $value ) {
 		$f = SettingsSchema::field( $key );
-		if ( ! empty( $f['secret'] ) ) {
+		// Secret values never, private values only with --with-private (P4-04).
+		if ( ! empty( $f['secret'] ) || ( ! empty( $f['private'] ) && ! self::$private ) ) {
 			return '' === (string) $value ? '' : '(set)';
 		}
 		return is_scalar( $value ) ? (string) $value : (string) wp_json_encode( $value );

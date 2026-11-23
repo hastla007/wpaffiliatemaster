@@ -78,6 +78,11 @@ final class SettingsTransfer {
 		$ignored = array();
 		foreach ( $data['settings'] as $key => $value ) {
 			$key = (string) $key;
+			// Private values (bank details, addresses) only from an export made with them (P4-02).
+			if ( isset( $core[ $key ] ) && ! empty( $core[ $key ]['private'] ) && empty( $data['private'] ) ) {
+				$ignored[] = $key;
+				continue;
+			}
 			if ( ! isset( $core[ $key ] ) || ! empty( $core[ $key ]['secret'] ) || ! empty( $core[ $key ]['hidden'] ) || ! empty( $core[ $key ]['local'] ) || ! ( is_scalar( $value ) || null === $value ) ) {
 				$ignored[] = $key;
 				continue;
