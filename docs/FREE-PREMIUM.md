@@ -6,6 +6,16 @@
 >
 > Entwicklerdokument, nicht Teil des Plugin-ZIPs (`.distignore`).
 
+## 0. Hinweise auf Add-on-Funktionen im Kern (Entscheidung S1 vom 23.11.2026)
+
+Die Regel vom 13.11.2026 („keine ausgegrauten Funktionen, keine Upgrade-Hinweise im Kern“) ist am 23.11.2026 vom Inhaber neu gefasst worden (S1):
+
+- Einstellungen, die nur das Add-on hat, erscheinen im kostenlosen Kern als **graue Hinweiszeile am Ende des jeweiligen Reiters**: Kennzeichen „Pro“, Titel und ein Satz, was die Funktion kann, optional ein Verweis „Mehr erfahren“ (Filter `wpac_addon_hint_url`). Umgesetzt in `src/Admin/AddonHints.php` (SET-AC-05).
+- **Kein** deaktiviertes Eingabefeld, **kein** Formularfeld, **kein** gespeicherter Wert, **kein** Code der beworbenen Funktion im Kern, keine Prüfung, ob etwas gekauft ist. Alles, was der Kern zeigt und speichert, funktioniert vollständig (Richtlinie 5).
+- Nur auf den eigenen Einstellungsseiten, dezent, vom Betreiber abschaltbar: Einstellung „Hinweise auf Add-on-Funktionen anzeigen“ (Reiter Daten & Wartung, Schlüssel `addon_hints`) und Filter `wpac_show_addon_hints` (Richtlinie 11).
+- Das Add-on meldet über `wpac_settings_rows` eine Zeile mit derselben Kennung an und ersetzt damit den Hinweis (echtes Feld oder Verweis auf seine Seite). Ob eine Freischaltung vorliegt, weiß nur das Add-on.
+- Unverändert: kein Lizenzcode, keine Rechteprüfung, keine Namen von Rechteschlüsseln im Kern (Wächtertest A2); nichts, was heute frei ist, wandert hinter Pro. Hinweise gibt es nur für veröffentlichte Add-on-Funktionen; zurückgehaltene Funktionen und solche mit noch nicht freigegebenem Rechteschlüssel bekommen erst nach der Freigabe eine Zeile (`TODO.md`, SET-AC-05).
+
 ## 1. Ausgangslage
 
 - Affiliate Captain 0.10.0 ist vollständig funktionsfähig und GPL-2.0-or-later lizenziert; alle Funktionen sind ohne Lizenz nutzbar.
@@ -24,7 +34,7 @@
 | **8 – Keine ausführbaren Inhalte/Updates von Dritten** | Das Plugin darf keine Updates, Installationen oder Code von anderen Servern als WordPress.org laden. | #10 (eigener Updater) ist unzulässig. |
 | 6 – SaaS ist erlaubt | Ein externer Dienst mit echter Funktion (nicht nur Lizenzprüfung) ist erlaubt, wenn er dokumentiert ist. | Reine Lizenzprüfung zählt nicht als Dienst. |
 | 7 – Keine Datenübertragung ohne Einwilligung/Offenlegung | Externe Aufrufe müssen in der readme (`== External services ==`) offengelegt werden. | Eine Lizenz-Aktivierung (#9) müsste offengelegt werden – ist aber wegen 5 ohnehin falsch platziert. |
-| 11 – Admin-Bereich nicht kapern | Upgrade-Hinweise sparsam, wegklickbar, nur auf eigenen Seiten. | Gilt auch für „Jetzt Premium kaufen“-Hinweise. |
+| 11 – Admin-Bereich nicht kapern | Upgrade-Hinweise sparsam, wegklickbar, nur auf eigenen Seiten. | Gilt auch für „Jetzt Premium kaufen“-Hinweise. Umsetzung seit 0.20.0: graue Textzeilen nur auf der Einstellungsseite, abschaltbar (Abschnitt 0). |
 | 17 – Marken | Siehe 6. (Name/Slug). | |
 
 Erlaubt ist dagegen: ein **kostenloses, voll funktionsfähiges Plugin auf WordPress.org** plus ein **separates Premium-Add-on**, das außerhalb von WordPress.org verkauft und aktualisiert wird und sich über Hooks einklinkt. Das Add-on darf seinen eigenen Updater und seine Lizenzprüfung haben.
@@ -85,7 +95,7 @@ Nächste Schritte nach der Entscheidung für A/C:
 
 ## Geplante Captain-Suite-Integrationen
 
-Stand 16.11.2026: Die gemeinsame Spezifikation für Form Captain, Review Captain und Workflow Captain liegt als Entwurf vor und ist noch nicht abgenommen (Repository `wp-workflowmaster`, `docs/SPEC-suite-events.md`). Entschieden ist (Inhaber, 16.11.2026; `TODO.md`, „Offene Entscheidungen“): Jeder Kern führt eine eigene versionierte Vertragskonstante (hier `WPAC_CONTRACT_VERSION`, `docs/CONTRACT.md`); der Transport sind die vorhandenen PHP-Hooks; ein Workflow bucht in der ersten Version keine Provision und löst keine Auszahlung aus. Eine eigene Schnittstelle für Workflow Captain ist nicht Teil von 0.15.0; ein Entwurf dafür wurde vor dem Release herausgenommen und kommt erst nach der Abnahme der Spezifikation zurück (`TODO.md`, Abschnitt „Entscheidung D13“, Aufgabe AFF-WF-08). Der Adapter für Workflow Captain liegt im Add-on. Auch für diese Anbindungen gilt: Der Kern prüft keine Rechte; ob eine Anbindung bezahlt ist, entscheidet das jeweilige Add-on. Eine produktübergreifende Automatisierung braucht Workflow Pro und die Pro-Lizenz des Produkt-Add-ons; geprüft wird das nur in den Add-ons.
+Stand 16.11.2026: Die gemeinsame Spezifikation für Form Captain, Review Captain und Workflow Captain liegt als Entwurf vor und ist noch nicht abgenommen (Repository `wp-workflowmaster`, `docs/SPEC-suite-events.md`). Entschieden ist (Inhaber, 16.11.2026; `TODO.md`, „Offene Entscheidungen“): Jeder Kern führt eine eigene versionierte Vertragskonstante (hier `WPAC_CONTRACT_VERSION`, `docs/CONTRACT.md`); der Transport sind die vorhandenen PHP-Hooks; ein Workflow bucht in der ersten Version keine Provision und löst keine Auszahlung aus. Eine eigene Schnittstelle für Workflow Captain ist nicht Teil von 0.15.0; ein Entwurf dafür wurde vor dem Release herausgenommen. Seit 0.19.0 (23.11.2026, AFF-WF-08) ist entschieden, dass er nicht zurückkommt: Abnehmer nutzen die Actions und die Lese-API (`TODO.md`, AFF-WF-07 bis AFF-WF-09). Der Adapter für Workflow Captain liegt im Add-on. Auch für diese Anbindungen gilt: Der Kern prüft keine Rechte; ob eine Anbindung bezahlt ist, entscheidet das jeweilige Add-on. Eine produktübergreifende Automatisierung braucht Workflow Pro und die Pro-Lizenz des Produkt-Add-ons; geprüft wird das nur in den Add-ons.
 
 Die bestehenden Integrationsverträge für Verkauf, Attribution und Provision bleiben für WooCommerce, Pass Captain und Voucher Captain zuständig. Form Captain ersetzt den Affiliate-Bewerbungsablauf nicht; eine optionale Formularübergabe kann nur einen wartenden Antrag einreichen, während Prüfung und Freigabe in Affiliate Captain verbleiben. Review Captain erhält keinen Zugriff auf Provisionsdetails: die spätere Verbindung ist auf freigegebene, aggregierte Qualitätswerte begrenzt und darf keine Einladung oder Provision auslösen. Dafür sind neue, ausdrücklich vereinbarte Schnittstellen nötig; der bestehende Vertrag (1.5.0) stellt für Form Captain und Review Captain keine Funktionen bereit (Vorschläge dazu stehen in `docs/CONTRACT.md`).
 

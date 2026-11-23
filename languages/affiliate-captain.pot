@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.17.0\n"
+"Project-Id-Version: Affiliate Captain 0.20.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -8,6 +8,66 @@ msgstr ""
 "Language: \n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 "X-Domain: affiliate-captain\n"
+
+#: src/Admin/AddonHints.php
+msgid "PayPal payouts"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Pay partners automatically with PayPal Payouts. Available with Affiliate Captain Pro."
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Partner area design"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Show the partner area in your own design. Available with Affiliate Captain Pro."
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "E-mail header and footer"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Add your own header and footer to partner e-mails. Available with Affiliate Captain Pro."
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Webhooks"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Notify other systems about commissions and payouts. Available with Affiliate Captain Pro."
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Extended REST API"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Read and manage partners, commissions and payouts through the REST API. Available with Affiliate Captain Pro."
+msgstr ""
+
+#: src/Admin/AddonHints.php src/Admin/Pages/SettingsPage.php
+msgid "Add-ons"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "More with Affiliate Captain Pro"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Pro"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Learn more"
+msgstr ""
+
+#: src/Admin/AddonHints.php src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "(opens in a new tab)"
+msgstr ""
 
 #. translators: %d: number of commissions
 #: src/Admin/Admin.php
@@ -1777,6 +1837,22 @@ msgid "Settings changed"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Settings imported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Settings exported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Settings reset to defaults"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Setting changed with WP-CLI"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Password confirmed for a money-relevant action"
 msgstr ""
 
@@ -2461,7 +2537,7 @@ msgstr ""
 msgid "Welcome! Here you can introduce your offer to visitors referred by a partner."
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/DashboardPage.php src/Core/SettingsSchema.php src/Portal/Portal.php
 msgid "Partner program terms"
 msgstr ""
 
@@ -2595,7 +2671,7 @@ msgstr ""
 msgid "All programs"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/SettingsPage.php src/Portal/Portal.php
 msgid "Apply"
 msgstr ""
 
@@ -4481,6 +4557,20 @@ msgid_plural "%d fields were not saved because their values are not valid – th
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of changed settings
+#: src/Admin/Pages/SettingsPage.php
+msgid "%d setting changed."
+msgid_plural "%d settings changed."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of changed permissions
+#: src/Admin/Pages/SettingsPage.php
+msgid "%d permission changed."
+msgid_plural "%d permissions changed."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "The settings could not be saved (database error). Nothing was changed; please try again."
 msgstr ""
@@ -4493,6 +4583,106 @@ msgstr ""
 msgid "Settings saved."
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php
+msgid "Discarded. Nothing was changed."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Please choose a settings export (JSON, at most 1 MB)."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Nothing to apply (the preview expired). Please start again."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only users who may change user roles can change these permissions."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Permissions per role"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Administrators always have all permissions. Changes need the WordPress right to change user roles and a password confirmation."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Role"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Save permissions"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Import: please check"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reset: please check"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Setting"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Now"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "New"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Nothing would change."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Ignored (unknown or not importable):"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Discard"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Export, import and reset"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Export the settings as a JSON file to copy them to another shop or keep a backup. The monitoring token is never exported; bank details, addresses, e-mail addresses and tax numbers only when you tick the box. An import first shows what would change."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Include bank details, addresses, e-mail addresses and tax numbers"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Export settings (JSON)"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Settings file"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Check import"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reset"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Reset this tab to the defaults …"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "You see the changes first. The program currency, document number prefixes, bank details and addresses are kept."
+msgstr ""
+
 #. translators: 1: number of rules, 2: number of tier plans
 #: src/Admin/Pages/SettingsPage.php
 msgid "Not converted: %1$d active fixed-amount rules and %2$d bonus tier plans with revenue thresholds – please adjust them under Rules & groups."
@@ -4501,326 +4691,6 @@ msgstr ""
 #. translators: 1: configured cookie lifetime in days, 2: advised maximum in days
 #: src/Admin/Pages/SettingsPage.php
 msgid "A cookie lifetime of %1$d days is longer than data protection authorities usually consider proportionate for a consent-based cookie (up to %2$d days, about 13 months). Choose a shorter lifetime unless you have documented reasons; the lifetime must also be stated in your consent banner."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Link parameter"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Lifetime rate in % (empty = normal rules)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep audit log (days, 0 = forever)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep rejected applications (days, 0 = forever)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep undecided applications (days, 0 = forever)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Max. orders per partner in 24 hours"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Min. seconds between click and order"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Max. refund rate of a partner in % (90 days, min. 5 orders)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep statements (years, 0 = forever)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Lifetime link duration (days, 0 = unlimited)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Cookie lifetime (days)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Cookie domain"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Record link visits (%)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Max. counted link visits per client and minute"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep visit data (days)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Hold period (days after payment)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Renewal commission for (months, 0 = unlimited)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Your country"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Program currency"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Reference exchange rates"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Default rate"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Trusted proxies / CDN"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Review orders above (net)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Minimum payout"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Landing page path"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Default disclosure note"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Terms version"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Notification e-mail"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Sender address"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Monitoring token"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "VAT rate in %"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Prefix credit note numbers"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Prefix cancellation numbers"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Prefix correction credit note numbers"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Company BIC (optional)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Company IBAN (SEPA)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Application page"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partner area page"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Approve applications automatically"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Open commissions on termination"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partners can request an own partner code (e.g. MARIA10) in the partner area"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Sender name"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "E-mail to the partner when a payout was paid"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "E-mail to partners about new, approved and rejected commissions"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "E-mail to the operator when commissions need review"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Show partner code field at checkout (classic + blocks)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Keep the code from a partner link in the WooCommerce shop session"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
-msgid "Affiliate cookie"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Link attribution"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Affiliate coupon has priority over partner links"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Self-referrals"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Review orders with disposable or blocked e-mail domains"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Additional blocked domains"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Ask for the password again before payout files, marking payouts as paid, bank details and account links"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Default commission type"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Lifetime commissions: repeat purchases of referred customers go to the same partner"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Hold period starts"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Rule precedence"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Default landing page"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Promotion guidelines for partners"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Show the disclosure note visibly above the banner embed code"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Apply the partner's coupon automatically after a partner link"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partners can request payouts in the partner area"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Tax audit or legal hold: do not delete any statements"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Your address (for credit notes)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Your VAT ID"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "VIES check: verify partner VAT IDs with the EU Commission"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Your tax number (if no VAT ID)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Send e-invoice (XML) with the credit note e-mail"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Buyer reference on e-invoices (e.g. Leitweg-ID)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Company account holder (SEPA)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Remittance text prefix"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Monthly summary e-mail to the operator"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Monthly summary e-mail to active partners"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
-msgid "Maintenance mode"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Delete all data when the plugin is deleted"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4881,14 +4751,6 @@ msgid "Pages & terms"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Version, text and SHA-256 hash of this page are stored with every acceptance as evidence."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Applications & termination"
 msgstr ""
 
@@ -4901,23 +4763,7 @@ msgid "Are rejected"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Addresses"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Defaults to the site admin e-mail."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Empty: WordPress default (or the setting of your SMTP plugin)."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4925,23 +4771,11 @@ msgid "Notices to partners"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Notices to the operator"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Monthly reports"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Sent on the first days of the month for the previous month."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4955,10 +4789,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
@@ -4975,22 +4805,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use \"Only with marketing consent\" unless your shop is outside the EU and you checked the local law."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Named in the privacy policy text and in the cookie details for your consent banner. Data protection authorities consider up to 13 months (395 days) proportionate for consent-based cookies."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5026,12 +4840,8 @@ msgstr ""
 msgid "Abuse protection"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
-msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that is valid for 15 minutes in the login session (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
+#: src/Admin/Pages/SettingsPage.php src/Core/SettingsSchema.php
+msgid "Program currency"
 msgstr ""
 
 #. translators: %s: currency
@@ -5041,10 +4851,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Default commission"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5060,28 +4866,12 @@ msgid "Lifetime commissions"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Subscription renewals"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Renewals earn commission only within this many months after the first order of the subscription."
 msgstr ""
 
 #. translators: %d: days
 #: src/Admin/Pages/SettingsPage.php src/Portal/Portal.php
 msgid "Hold period"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5092,29 +4882,17 @@ msgstr ""
 msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php
+msgid "Automatically after the hold period"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only by hand"
+msgstr ""
+
 #. translators: %s: example URL of a partner landing page
 #: src/Admin/Pages/SettingsPage.php
 msgid "Partner landing URLs look like %s"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Add [wpac_partner_welcome] to show \"Recommended by …\"."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. \"Advertisement\"), so the label stays with the banner on the partner's website."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an \"individual use\" coupon is not combined. Not for the partner's own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Payment details are stored encrypted like the IBAN. You pay these payouts yourself (transfer list or PayPal payouts file) and then mark them as paid; the payment provider is a further recipient of the partner's data (privacy policy). Off: new partners can only enter an IBAN; partners who already use another method keep it until they change it."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5123,22 +4901,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Credit notes & VAT"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "E.g. 19 or 7,7 – \"%\" may be typed."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Numbers are gapless per year, e.g. GS-2026-000001."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5161,16 +4923,8 @@ msgstr ""
 msgid "Every credit note, correction credit note and cancellation can also be downloaded as an electronic invoice (UN/CEFACT CII XML, EN 16931; XRechnung profile when all its data are known) next to the PDF, in the partner area and here. From 2027/2028 domestic VAT-registered partners need it: the XML is then the invoice, the PDF a visual copy."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
-msgid "Optional. Empty: the document number is used."
-msgstr ""
-
 #: src/Admin/Pages/SettingsPage.php src/Privacy/Privacy.php
 msgid "VAT ID check (VIES)"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again every 30 days; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5182,39 +4936,15 @@ msgid "Retention periods"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted after 2 days."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
 msgid "Maintenance & monitoring"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Uninstall"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
-msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
+#: src/Admin/Pages/SettingsPage.php src/Core/SettingsSchema.php
+msgid "Monitoring token"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5336,6 +5066,22 @@ msgstr ""
 
 #: src/Admin/Reauth.php
 msgid "Book a repayment"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Import settings"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Export settings with bank details and addresses"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Reset commission or payout settings"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Change the permissions of user roles"
 msgstr ""
 
 #: src/Admin/Reauth.php
@@ -6391,10 +6137,6 @@ msgstr ""
 msgid "partner program terms"
 msgstr ""
 
-#: src/Affiliates/Registration.php src/Portal/Portal.php
-msgid "(opens in a new tab)"
-msgstr ""
-
 #: src/Affiliates/Registration.php
 msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
 msgstr ""
@@ -6983,6 +6725,22 @@ msgstr ""
 msgid "Tax advisor (Affiliate Captain, read only)"
 msgstr ""
 
+#: src/Core/Capabilities.php
+msgid "Program and settings"
+msgstr ""
+
+#: src/Core/Capabilities.php
+msgid "Partners, codes and commissions"
+msgstr ""
+
+#: src/Core/Capabilities.php
+msgid "Payouts and credit notes"
+msgstr ""
+
+#: src/Core/Capabilities.php
+msgid "See tax and bank details"
+msgstr ""
+
 #: src/Core/Db.php
 msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
 msgstr ""
@@ -7320,6 +7078,10 @@ msgstr ""
 msgid "Persistent object cache"
 msgstr ""
 
+#: src/Core/Monitor.php src/Core/SettingsSchema.php
+msgid "Affiliate cookie"
+msgstr ""
+
 #: src/Core/Monitor.php
 msgid "Credit notes (self-billing)"
 msgstr ""
@@ -7342,6 +7104,10 @@ msgstr ""
 
 #: src/Core/Monitor.php
 msgid "Object storage / custom store"
+msgstr ""
+
+#: src/Core/Monitor.php src/Core/SettingsSchema.php
+msgid "Maintenance mode"
 msgstr ""
 
 #. translators: %s: site name
@@ -7376,10 +7142,6 @@ msgstr ""
 #. translators: 1: minimum MySQL version, 2: minimum MariaDB version, 3: MySQL or MariaDB, 4: version of this server
 #: src/Core/Requirements.php
 msgid "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer; this site uses %3$s %4$s. The plugin keeps working and nothing is blocked, but older database servers are no longer tested. Ask your host for an update."
-msgstr ""
-
-#: src/Core/Settings.php
-msgid "Advertisement"
 msgstr ""
 
 #: src/Core/Settings.php
@@ -7666,6 +7428,766 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "New Zealand"
+msgstr ""
+
+#: src/Core/Settings.php src/Core/SettingsSchema.php
+msgid "Advertisement"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Link parameter"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Name of the URL parameter in partner links (e.g. ?partner=CODE). Changing it breaks links that partners already shared."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Link attribution"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Which partner gets the sale when a customer used several partner links: the last one before the order or the first one."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Whether the referral is also kept in a browser cookie. In the EU a cookie needs marketing consent; without a cookie the referral lasts only for the visit and the shop session."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Cookie lifetime (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Named in the privacy policy text and in the cookie details for your consent banner. Data protection authorities consider up to 13 months (395 days) proportionate for consent-based cookies."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Keep the code from a partner link in the WooCommerce shop session"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Only when a shop session exists (a cart) or a product is put into the cart – a click alone never creates a session or sets a cookie."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Show partner code field at checkout (classic + blocks)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Customers can enter a partner code at checkout; the code overrides an earlier partner link."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Commission on subscription renewals (WooCommerce Subscriptions)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Off: only the first order of a subscription earns commission; renewals are not attributed. Renewals never earn commission when the commission of the first order was rejected, refunded or cancelled."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Also record partner links via JavaScript (for full-page caches/CDNs)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Only needed if your cache or CDN serves pages with ?partner=… from the cache (e.g. Cloudflare \"Cache Everything\"). Pages with partner links then stay cacheable: a tiny script reports the parameter for guests; a visit is never counted twice."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Cookie domain"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Leave empty normally. Only if landing pages and shop run on different subdomains (e.g. www.example.com and shop.example.com): enter the common domain .example.com, so the referral cookie and the cart fallback work across both."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Record link visits (%)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "100 = every visit, e.g. 10 = a sample of every tenth visit (high-traffic sites), 0 = no visit log. Attribution of orders is not affected."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Affiliate coupon has priority over partner links"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "When a customer uses the coupon linked to a partner, that partner gets the sale even if another partner's link was used before."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Self-referrals"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Orders a partner places with their own link, code or e-mail address: block the commission or create it with the status \"needs review\"."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Max. counted link visits per client and minute"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Protection against bots: visits above this number per client and minute are not counted (attribution of orders is not affected)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Trusted proxies / CDN"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "IP addresses or ranges (CIDR) of your reverse proxy or CDN (e.g. Cloudflare). Only for these, the visitor IP is read from X-Forwarded-For (CF-Connecting-IP only with the filter wpac_client_ip_headers). Leave empty without a proxy."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Keep visit data (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Individual link visits are deleted after this many days; the daily totals for reports are kept."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Keep audit log (days, 0 = forever)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Terms acceptance records and booking-relevant entries are kept as long as the credit notes."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Keep rejected applications (days, 0 = forever)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Afterwards name, e-mail and application data of rejected applicants without commissions are anonymised."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Keep undecided applications (days, 0 = forever)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Applications that were confirmed but never approved or rejected are anonymised after this period (personal data removed, status rejected). Unconfirmed applications (e-mail not confirmed) are deleted when their confirmation link expires (setting on the Program tab)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Currency of commission rates, the minimum payout and the reports. Changing it converts amounts in the settings only."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Reference exchange rates"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "One per line, e.g. USD=0.92: 1 unit of the currency = x program currency. Only used for reports and minimum payouts of other currencies; commissions are never converted."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Default commission type"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Commission for partners without a matching rule: a percentage of the net order value or a fixed amount per unit."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Default rate"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Percent (e.g. 10 or 12,5 %), or amount in program currency for fixed commissions (e.g. 25 €). Use rules for partners, groups, products and course codes."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Hold period (days after payment)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Commissions are released after this period. Integrations can extend it per order (e.g. guarantee end) via hold_until / wpac_hold_until. WooCommerce orders that are on hold are not released until they are processing or completed again."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Lifetime commissions: repeat purchases of referred customers go to the same partner"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Only applies when no new partner link, code or coupon is used. Customers are stored as keyed hashes only."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Lifetime link duration (days, 0 = unlimited)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "How long a referred customer stays linked to the partner for lifetime commissions."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Lifetime rate in % (empty = normal rules)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Own rate for repeat purchases of linked customers; empty = the normal rules apply."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Release of commissions"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Automatic: commissions are approved when the hold period ended. Manual: nothing is approved automatically; approve them on the Commissions page (single or several at once)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Hold period starts"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "When the hold period starts: at payment, or when the WooCommerce order is completed (shipped)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Renewal commission for (months, 0 = unlimited)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Renewals earn commission only within this many months after the first order of the subscription."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Rule precedence"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Which rule wins when several rules match a sale: partner rules first, or the most specific product first."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Approve applications automatically"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "New applications become active partners right after the e-mail confirmation, without review."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Version, text and SHA-256 hash of this page are stored with every acceptance as evidence."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Terms version"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partner area page"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Page with the shortcode [wpac_affiliate_portal]: partners see links, commissions and payouts there."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Application page"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Page with the shortcode [wpac_affiliate_registration] where new partners apply."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Open commissions on termination"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "What happens to commissions that are not yet paid when a partner is terminated."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners can request an own partner code (e.g. MARIA10) in the partner area"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Requests are checked like codes you create (characters, length, reserved words, not used as a code, coupon or partner address) and only work after you approve them on the Partners page."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Notification e-mail"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Defaults to the site admin e-mail."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Sender name"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Empty: WordPress default (or the setting of your SMTP plugin)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Sender address"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Empty: WordPress default. Use an address of your own domain, otherwise mails may land in spam. Replies from partners always go to the notification e-mail (Reply-To)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "E-mail to the partner when a payout was paid"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners get an e-mail with the amount when you mark their payout as paid."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "E-mail to partners about new, approved and rejected commissions"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "At most one e-mail per partner and run (e.g. all approvals of the hourly run together). Partners can unsubscribe with a link in the e-mail, like from the monthly summary."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "E-mail to the operator when commissions need review"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Sent to the notification e-mail at most once per hour with the number of commissions waiting (e.g. self-referrals or orders flagged by the fraud check). Flagged commissions are never approved automatically."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "For migrations or the accounting close: sales are still recorded, but approvals, payouts, report mails and changes in the partner area wait until you switch it off."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Secret for the health check of an external monitor (REST endpoint wpac/v1/health). Only a hash is stored."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Landing page path"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Path of partner landing pages, e.g. /partner/partner-name/."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Default landing page"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Add [wpac_partner_welcome] to show \"Recommended by …\"."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Default disclosure note"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Label shown with creatives so readers recognise advertising (e.g. \"Advertisement\"). Check the wording required in your country."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Promotion guidelines for partners"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Allowed claims, labelling duty, prohibited channels, how to report problems. Shown in the partner area."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Show the disclosure note visibly above the banner embed code"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "The HTML code partners copy for a banner then starts with the disclosure note of the creative (e.g. \"Advertisement\"), so the label stays with the banner on the partner's website."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Apply the partner's coupon automatically after a partner link"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "WooCommerce: when a visitor came through a partner link or short link and the partner has a linked coupon, the coupon is put into the cart once (when the first product is added, also later in the same shop session). WooCommerce checks the coupon as usual (expiry, usage limits, minimum spend); a coupon the customer entered is never removed, and an \"individual use\" coupon is not combined. Not for the partner's own purchases, not for paused or blocked partners, and only with a referral that was recorded under your tracking and consent settings. Partners see the discount next to their link. The order is attributed as before."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Minimum payout"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners are only included in a payout run when their payable balance reaches this amount."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners can request payouts in the partner area"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners can ask for a payout in the partner area once their balance reaches the minimum; you still start the payout."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Keep statements (years, 0 = forever)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzerland 10 years; otherwise 10). Counted from the end of the calendar year (cancellations from their own date). After that, the PDF and the partner data snapshot are deleted; amounts remain."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Tax audit or legal hold: do not delete any statements"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payout period (no effect)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Former setting without effect; kept only for stored settings."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners may choose another payment method (e.g. PayPal, Wise), paid manually"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payment details are stored encrypted like the IBAN. You pay these payouts yourself (transfer list or PayPal payouts file) and then mark them as paid; the payment provider is a further recipient of the partner's data (privacy policy). Off: new partners can only enter an IBAN; partners who already use another method keep it until they change it."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Company account holder (SEPA)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Account holder of your company account; appears in the SEPA payment file."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Company IBAN (SEPA)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "IBAN of the account the payouts are paid from (SEPA payment file)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Company BIC (optional)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "BIC of your bank; only needed by some banks."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Remittance text prefix"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Start of the remittance text on the partner's bank statement, followed by the payout number."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Issue statements as credit notes (self-billing, Gutschrift §14 Abs. 2 UStG)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Commission rates are net; for domestic VAT-registered partners VAT is added and shown. Foreign business partners: reverse charge. Agree self-billing with your partners in the terms and confirm the treatment with your tax advisor."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "VAT rate in %"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "E.g. 19 or 7,7 – \"%\" may be typed."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Your country"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Country of your company: decides domestic VAT, reverse charge and the notes on credit notes."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Your address (for credit notes)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Your company name and address as printed on credit notes."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Your VAT ID"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Your VAT ID, printed on credit notes; required for reverse-charge credit notes."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Your tax number (if no VAT ID)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Your tax number; printed on credit notes when you have no VAT ID."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Prefix credit note numbers"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Numbers are gapless per year, e.g. GS-2026-000001."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Prefix cancellation numbers"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Prefix of cancellation documents, e.g. ST-2026-000001."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Prefix correction credit note numbers"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Correction credit notes of paid payouts, e.g. KG-2026-000001."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Send e-invoice (XML) with the credit note e-mail"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Whether the electronic invoice (XML) is attached to the credit note e-mail."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Buyer reference on e-invoices (e.g. Leitweg-ID)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Optional. Empty: the document number is used."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "VIES check: verify partner VAT IDs with the EU Commission"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partner VAT IDs (and your own VAT ID) are sent to the VIES service of the European Commission (ec.europa.eu) when payout details are saved and again after the period set below; the confirmation number is kept as proof for reverse-charge credit notes. A VAT ID reported as invalid blocks reverse-charge payouts. Off: nothing is sent and earlier results no longer block payouts."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Max. orders per partner in 24 hours"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "More orders of one partner within 24 hours are flagged for review. 0 = rule off."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Review orders above (net)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Orders above this net value are flagged for review. 0 = rule off."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Min. seconds between click and order"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Orders placed sooner after the partner link click are flagged for review. 0 = rule off."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Max. refund rate of a partner in %"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners whose orders are refunded more often than this (period and minimum number of orders below) get new commissions flagged for review. 0 = rule off."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Review orders with disposable or blocked e-mail domains"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Orders with throwaway e-mail addresses or a blocked domain are flagged for review."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Additional blocked domains"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "One e-mail domain per line, in addition to the built-in list of throwaway domains."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Ask for the password again before payout files, marking payouts as paid, bank details and account links"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Approving bank details, linking or unlinking a partner account, changing payout details, downloading SEPA, transfer or PayPal files and marking payouts as paid need a password confirmation that stays valid in the login session for the time set below (with the Two-Factor plugin also its second factor). WP-CLI and the REST API are not affected. Switching this off needs a confirmation too."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Monthly summary e-mail to the operator"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "On the first days of the month you get a summary of the previous month (clicks, sales, commissions, payouts)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Monthly summary e-mail to active partners"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Sent on the first days of the month for the previous month."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Code requests per partner in 30 days"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "How many own codes a partner can request within 30 days (at least 1). Filter wpac_code_requests_per_month wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Maximum length of a requested code"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Characters, 3 to 64. Filter wpac_code_request_max_length wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Confirmation link of an application valid for (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "An application whose e-mail address is not confirmed within this time is deleted (at least 1 day). Also for applications handed over by Form Captain."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "New bank details wait for approval after an account change (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "After a partner's e-mail address or linked user changed, new payout details from the partner area wait this many days for approval by someone with the payout permission. 0 = no waiting. Filter wpac_access_change_days wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Password confirmation valid for (minutes)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "How long a password confirmation before money-relevant actions stays valid in the login session. 0 = ask every time. Filter wpac_reauth_ttl wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Refund rate: period (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Period over which the refund rate of a partner is calculated (at least 1 day)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Refund rate: minimum number of orders"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "The refund rule only applies to partners with at least this many orders in the period (at least 1)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Privacy requests per partner and day"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Limit for requests from the partner area (data access, erasure, objection) per partner and day (at least 1)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Remind partners of new terms at most every (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payouts claimed by a payment add-on can be cancelled after (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Payment providers can settle late; cancelling earlier could pay commissions twice (at least 1 day). Filter wpac_claim_cancel_after wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Show the reason of a rejected payout request for (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "How long partners see your reason for rejecting their payout request in the partner area."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Check VAT IDs again after (days)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "With the VIES check on, valid VAT IDs are checked again after this many days (at least 1)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Show notes about add-on features"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Grey text lines at the end of a tab name features of Affiliate Captain Pro. They contain no form fields and change nothing; switch them off here."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Delete all data when the plugin is deleted"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Commission and payout records, credit notes and the audit log are kept as long as a credit note is within the retention period; everything else is deleted."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "This is not a settings export of Affiliate Captain."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "The file comes from a newer version of Affiliate Captain. Update the plugin first."
 msgstr ""
 
 #: src/Integrations/FormCaptain/Connector.php

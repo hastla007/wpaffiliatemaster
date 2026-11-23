@@ -35,6 +35,7 @@ final class Command {
 			\WP_CLI::add_command( 'wpac', __CLASS__ );
 			\WP_CLI::add_command( 'wpac import', ImportCommand::class );
 			\WP_CLI::add_command( 'wpac export', ExportCommand::class );
+			\WP_CLI::add_command( 'wpac setting', SettingsCommand::class );
 		}
 	}
 

@@ -598,8 +598,23 @@ final class AffiliateRepository {
 		return (string) $prev['email'];
 	}
 
-	/** Days after an account link or an e-mail change in which new bank details wait for approval. */
+	/** Days after an account link or an e-mail change in which new bank details wait for approval (default of the setting bank_change_wait_days). */
 	const ACCESS_CHANGE_DAYS = 30;
+
+	/**
+	 * Days in which new bank details wait for approval after an access change (setting
+	 * bank_change_wait_days, SET-AC-12; the filter wins).
+	 *
+	 * @return int
+	 */
+	public static function access_change_days() {
+		/**
+		 * Days after an e-mail change or a new account link in which new payout details wait for approval.
+		 *
+		 * @param int $days Setting bank_change_wait_days (default 30).
+		 */
+		return max( 0, (int) apply_filters( 'wpac_access_change_days', (int) Settings::get( 'bank_change_wait_days' ) ) );
+	}
 
 	/**
 	 * Remember that the access to the partner account changed (e-mail address, linked user): for
@@ -620,7 +635,7 @@ final class AffiliateRepository {
 	 */
 	public static function access_changed_recently( $id ) {
 		$at = (int) get_option( 'wpac_access_changed_' . (int) $id, 0 );
-		if ( $at && $at < time() - self::ACCESS_CHANGE_DAYS * DAY_IN_SECONDS ) {
+		if ( $at && $at < time() - self::access_change_days() * DAY_IN_SECONDS ) {
 			delete_option( 'wpac_access_changed_' . (int) $id );
 			$at = 0;
 		}

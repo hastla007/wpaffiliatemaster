@@ -16,6 +16,16 @@ defined( 'ABSPATH' ) || exit;
 
 final class Registration {
 
+	/**
+	 * How long the confirmation link of an application is valid (setting application_confirm_days,
+	 * SET-AC-12; at least one day).
+	 *
+	 * @return int Seconds.
+	 */
+	public static function confirm_ttl() {
+		return max( 1, (int) Settings::get( 'application_confirm_days' ) ) * DAY_IN_SECONDS;
+	}
+
 	const SHORTCODE = 'wpac_affiliate_registration';
 
 	public static function register_hooks() {
@@ -209,7 +219,7 @@ final class Registration {
 			Notifications::already_registered( $email );
 		} else {
 			$token = wp_generate_password( 32, false );
-			if ( ! \WPAffiliateCaptain\Core\Pending::set( 'app_' . hash( 'sha256', $token ), $data, 2 * DAY_IN_SECONDS ) ) {
+			if ( ! \WPAffiliateCaptain\Core\Pending::set( 'app_' . hash( 'sha256', $token ), $data, self::confirm_ttl() ) ) {
 				self::back( $redirect, 'error' );
 			}
 			Notifications::confirm_application( $email, add_query_arg( 'wpac_confirm', rawurlencode( $token ), $redirect ) );
@@ -320,7 +330,7 @@ final class Registration {
 		$result = self::finalize( $data );
 		if ( ! is_wp_error( $result ) ) {
 			// Repeated clicks within the link's lifetime show success instead of "expired".
-			\WPAffiliateCaptain\Core\Pending::set( 'appdone_' . $hash, 1, 2 * DAY_IN_SECONDS );
+			\WPAffiliateCaptain\Core\Pending::set( 'appdone_' . $hash, 1, self::confirm_ttl() );
 		}
 		\WPAffiliateCaptain\Core\Pending::delete( 'app_' . $hash );
 		delete_transient( 'wpac_app_' . $hash ); // Stored by an older version.

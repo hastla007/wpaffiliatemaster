@@ -220,6 +220,7 @@ AffiliateRepository::set_status( $wf8_r, 'active' );
 $wf8_c1 = $wf8_cid( $wf8_sale( $wf8_a, 'wf8-1', 100000 ) );                // wpac_affiliate_attributed, wpac_commission_created
 $wf8_c2 = $wf8_cid( $wf8_sale( $wf8_a, 'wf8-2', 20000 ) );
 $wf8_c3 = $wf8_cid( $wf8_sale( $wf8_a, 'wf8-3', 20000 ) );
+$wf8_was = array( (string) Ledger::find( $wf8_c1 )->status, (string) Ledger::find( $wf8_c2 )->status );
 Ledger::transition( $wf8_c1, 'approved' );                                 // wpac_commission_approved
 Ledger::transition( $wf8_c2, 'rejected', 'Storniert' );                    // wpac_commission_rejected
 Ledger::transition( $wf8_c2, 'review' );                                   // wpac_commission_review
@@ -284,9 +285,24 @@ $wf8_ap  = $wf8_args( 'wpac_code_request_approved' );
 $wf8_rv  = $wf8_args( 'wpac_commission_review' );
 $wf8_pe  = $wf8_args( 'wpac_commission_pending' );
 check(
-	'WF8 P-4 argument order: recruited( partner, recruiter ), code_request_approved( partner, code, row, main ), review( id ), pending( id )',
-	array( array( $wf8_r, $wf8_a ), array( $wf8_b, 'wf8wunsch', (int) $wf8_q1 ), array( array( $wf8_c2 ) ), array( array( $wf8_c2 ) ) ),
+	'WF8 P-4 argument order: recruited( partner, recruiter ), code_request_approved( partner, code, row, main ), review( id, old ), pending( id, old )',
+	array( array( $wf8_r, $wf8_a ), array( $wf8_b, 'wf8wunsch', (int) $wf8_q1 ), array( array( $wf8_c2, 'rejected' ) ), array( array( $wf8_c2, 'review' ) ) ),
 	array( $wf8_rec ? $wf8_rec[0] : array(), $wf8_ap ? array( $wf8_ap[0][0], strtolower( (string) $wf8_ap[0][1] ), $wf8_ap[0][2] ) : array(), $wf8_rv, $wf8_pe )
+);
+// Contract 1.7.0: the second parameter of the status actions is the status before the transition
+// (spec 4.4 `previous_status`); paid always comes from approved.
+$wf8_first_of = static function ( $calls, $id ) {
+	foreach ( $calls as $c ) {
+		if ( (int) $c[0] === (int) $id ) {
+			return $c;
+		}
+	}
+	return array();
+};
+check(
+	'WF8 1.7.0 status actions carry the previous status: approved( c1, status before ), rejected( c2, status before ), paid( c1, approved )',
+	array( array( $wf8_c1, $wf8_was[0] ), array( $wf8_c2, $wf8_was[1] ), array( $wf8_c1, 'approved' ) ),
+	array( $wf8_first_of( $wf8_args( 'wpac_commission_approved' ), $wf8_c1 ), $wf8_first_of( $wf8_args( 'wpac_commission_rejected' ), $wf8_c2 ), $wf8_first_of( $wf8_args( 'wpac_commission_paid' ), $wf8_c1 ) )
 );
 
 /* ---------------------------------------------------------------------------------------------

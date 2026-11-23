@@ -106,7 +106,7 @@ check( 'R5-W58 next digest after an hour', array( true, 2 ), array( ReviewAlert:
 check( 'R5-W58 no digest without new commissions', false, ReviewAlert::digest() );
 
 // Setting in the e-mails tab, cleaned on uninstall.
-check( 'R5-W58 setting saved in the e-mails tab', array( true, true ), array( false !== strpos( $h2_src( 'src/Admin/Pages/SettingsPage.php' ), "'notify_commissions', 'notify_admin_review', 'report_admin'" ), false !== strpos( $h2_src( 'src/Admin/Pages/SettingsPage.php' ), "self::checkbox( 'notify_admin_review'" ) ) );
+check( 'R5-W58 setting saved in the e-mails tab', array( true, true ), array( in_array( 'notify_admin_review', \WPAffiliateCaptain\Admin\Pages\SettingsPage::tab_keys()['emails'], true ), false !== strpos( $h2_src( 'src/Admin/Pages/SettingsPage.php' ), "self::checkbox( 'notify_admin_review'" ) ) );
 check( 'R5-W58 setting is a flag', 0, Settings::sanitize( array( 'notify_admin_review' => '' ) )['notify_admin_review'] ?? null );
 check( 'R5-W58 options removed on uninstall', true, false !== strpos( $h2_src( 'uninstall.php' ), "'wpac_review_alert', 'wpac_review_alert_sent'" ) );
 $h2_set( array( 'notify_admin_review' => 0 ) );

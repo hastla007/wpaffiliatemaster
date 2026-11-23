@@ -465,7 +465,7 @@ final class Portal {
 
 		// Requests that send mails to the operator: limited per partner, so the operator's
 		// inbox cannot be flooded (the partner can still write an e-mail at any time).
-		if ( in_array( $action, array( 'privacy', 'objection' ), true ) && ! RateLimiter::allow_for( 'portal_' . $action, (int) $aff->id, self::REQUESTS_PER_DAY, DAY_IN_SECONDS ) ) {
+		if ( in_array( $action, array( 'privacy', 'objection' ), true ) && ! RateLimiter::allow_for( 'portal_' . $action, (int) $aff->id, max( 1, (int) Settings::get( 'privacy_requests_per_day' ) ), DAY_IN_SECONDS ) ) {
 			wp_safe_redirect( add_query_arg( array( 'wpac_msg' => 'request_limit', 'wpac_tab' => 'privacy' === $action ? 'privacy' : 'payouts' ), $redirect ) );
 			exit;
 		}

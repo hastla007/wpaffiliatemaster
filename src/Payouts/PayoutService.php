@@ -1109,7 +1109,7 @@ final class PayoutService {
 		Db::after_commit(
 			static function () use ( $ids, $id ) {
 				foreach ( $ids as $cid ) {
-					do_action( 'wpac_commission_paid', $cid );
+					do_action( 'wpac_commission_paid', $cid, 'approved' ); // Only approved commissions are paid (Ledger::TRANSITIONS).
 				}
 				do_action( 'wpac_payout_paid', (int) $id );
 			}
@@ -1637,7 +1637,7 @@ final class PayoutService {
 		 *
 		 * @param int $seconds Default 45 days.
 		 */
-		return max( DAY_IN_SECONDS, (int) apply_filters( 'wpac_claim_cancel_after', self::CLAIM_CANCEL_AFTER ) );
+		return max( DAY_IN_SECONDS, (int) apply_filters( 'wpac_claim_cancel_after', max( 1, (int) Settings::get( 'claim_cancel_days' ) ) * DAY_IN_SECONDS ) );
 	}
 
 	/**

@@ -65,7 +65,13 @@ final class FraudCheck {
 			return false;
 		}
 		$domain = substr( $email, $at + 1 );
-		foreach ( array_merge( self::DISPOSABLE, $blocked ) as $d ) {
+		/**
+		 * Built-in list of disposable e-mail domains (SET-AC-14).
+		 *
+		 * @param string[] $domains Domains.
+		 */
+		$disposable = function_exists( 'apply_filters' ) ? (array) apply_filters( 'wpac_disposable_domains', self::DISPOSABLE ) : self::DISPOSABLE;
+		foreach ( array_merge( $disposable, $blocked ) as $d ) {
 			$d = strtolower( trim( $d ) );
 			if ( '' !== $d && ( $domain === $d || substr( $domain, -strlen( '.' . $d ) ) === '.' . $d ) ) {
 				return true;
@@ -121,7 +127,7 @@ final class FraudCheck {
 		$max_rate = (float) Settings::get( 'fraud_max_refund_rate' );
 		if ( $max_rate > 0 ) {
 			$row = self::refund_stats( $aff );
-			if ( (int) $row['orders'] >= 5 && (int) $row['sales'] > 0 && abs( (int) $row['corr'] ) * 100 / (int) $row['sales'] > $max_rate ) {
+			if ( (int) $row['orders'] >= max( 1, (int) Settings::get( 'fraud_refund_min_orders' ) ) && (int) $row['sales'] > 0 && abs( (int) $row['corr'] ) * 100 / (int) $row['sales'] > $max_rate ) {
 				$flags[] = 'refund_rate';
 			}
 		}
@@ -173,14 +179,15 @@ final class FraudCheck {
 	 */
 	public static function refund_stats( $affiliate_id ) {
 		global $wpdb;
-		$key    = 'wpac_refund_stats_' . (int) $affiliate_id;
+		$days   = max( 1, (int) Settings::get( 'fraud_refund_window_days' ) );
+		$key    = 'wpac_refund_stats_' . (int) $affiliate_id . ( 90 === $days ? '' : '_' . $days ); // A new period is not served from the old cache.
 		$cached = get_transient( $key );
 		if ( is_array( $cached ) && isset( $cached['orders'], $cached['sales'], $cached['corr'] ) ) {
 			return $cached;
 		}
 		$c = Db::table( 'commissions' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$row   = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(DISTINCT CASE WHEN kind = 'sale' THEN source_order_id END) orders, SUM(CASE WHEN kind IN ('sale','increase') THEN amount_minor ELSE 0 END) sales, SUM(CASE WHEN kind IN ('refund','cancellation','chargeback','reinstatement') THEN amount_minor ELSE 0 END) corr FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at >= %s", $affiliate_id, Db::now( time() - 90 * DAY_IN_SECONDS ) ) );
+		$row   = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(DISTINCT CASE WHEN kind = 'sale' THEN source_order_id END) orders, SUM(CASE WHEN kind IN ('sale','increase') THEN amount_minor ELSE 0 END) sales, SUM(CASE WHEN kind IN ('refund','cancellation','chargeback','reinstatement') THEN amount_minor ELSE 0 END) corr FROM {$c} WHERE affiliate_id = %d AND status <> 'rejected' AND created_at >= %s", $affiliate_id, Db::now( time() - $days * DAY_IN_SECONDS ) ) );
 		$stats = array(
 			'orders' => $row ? (int) $row->orders : 0,
 			'sales'  => $row ? (int) $row->sales : 0,

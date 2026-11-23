@@ -61,7 +61,7 @@ final class CodeRequests {
 		 * @param int $limit        Requests (default 3).
 		 * @param int $affiliate_id Partner.
 		 */
-		return max( 1, (int) apply_filters( 'wpac_code_requests_per_month', 3, (int) $affiliate_id ) );
+		return max( 1, (int) apply_filters( 'wpac_code_requests_per_month', (int) \WPAffiliateCaptain\Core\Settings::get( 'code_requests_per_month' ), (int) $affiliate_id ) );
 	}
 
 	/**
@@ -76,7 +76,7 @@ final class CodeRequests {
 		 * @since 0.15.0
 		 * @param int $length Characters (default 20).
 		 */
-		return min( 64, max( 3, (int) apply_filters( 'wpac_code_request_max_length', 20 ) ) );
+		return min( 64, max( 3, (int) apply_filters( 'wpac_code_request_max_length', (int) \WPAffiliateCaptain\Core\Settings::get( 'code_request_max_length' ) ) ) );
 	}
 
 	/**
