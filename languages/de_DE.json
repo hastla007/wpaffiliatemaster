@@ -3179,5 +3179,19 @@
  "Check import": "Import prüfen",
  "Reset": "Zurücksetzen",
  "Reset this tab to the defaults …": "Diesen Reiter auf Standard zurücksetzen …",
- "You see the changes first. The program currency, document number prefixes, bank details and addresses are kept.": "Du siehst die Änderungen zuerst. Programmwährung, Präfixe der Belegnummern, Bankdaten und Anschriften bleiben erhalten."
+ "You see the changes first. The program currency, document number prefixes, bank details and addresses are kept.": "Du siehst die Änderungen zuerst. Programmwährung, Präfixe der Belegnummern, Bankdaten und Anschriften bleiben erhalten.",
+ "Change the permissions of user roles": "Rechte von Benutzerrollen ändern",
+ "%d permission changed.": [
+  "%d Recht geändert.",
+  "%d Rechte geändert."
+ ],
+ "Only users who may change user roles can change these permissions.": "Nur wer Benutzerrollen ändern darf, kann diese Rechte ändern.",
+ "Permissions per role": "Rechte je Rolle",
+ "Administrators always have all permissions. Changes need the WordPress right to change user roles and a password confirmation.": "Administratoren haben immer alle Rechte. Änderungen brauchen das WordPress-Recht, Benutzerrollen zu ändern, und eine Passwortbestätigung.",
+ "Role": "Rolle",
+ "Save permissions": "Rechte speichern",
+ "Program and settings": "Programm und Einstellungen",
+ "Partners, codes and commissions": "Partner, Codes und Provisionen",
+ "Payouts and credit notes": "Auszahlungen und Gutschriften",
+ "See tax and bank details": "Steuer- und Bankdaten sehen"
 }

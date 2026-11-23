@@ -31,6 +31,10 @@ final class SettingsPage {
 			echo \WPAffiliateCaptain\Privacy\Privacy::ropa( $lang ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown download, not HTML.
 			exit;
 		}
+		if ( 'roles_save' === $do ) {
+			self::handle_roles();
+			return;
+		}
 		if ( in_array( $do, array( 'settings_export', 'settings_import_preview', 'settings_import_apply', 'settings_reset_preview', 'settings_reset_apply', 'settings_pending_discard' ), true ) ) {
 			self::handle_transfer( $do );
 			return;
@@ -200,6 +204,64 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Save the role table (SET-AC-21). Needs the WordPress right to change user roles as well.
+	 */
+	private static function handle_roles() {
+		$url = Admin::url( 'wpac-settings', array( 'tab' => 'data' ) );
+		if ( ! current_user_can( 'promote_users' ) ) {
+			Admin::back( __( 'Only users who may change user roles can change these permissions.', 'affiliate-captain' ), 'error', $url );
+		}
+		$posted = (array) Admin::post( 'wpac_roles', array() );
+		$wanted = array();
+		foreach ( \WPAffiliateCaptain\Core\Capabilities::role_matrix() as $role => $row ) {
+			foreach ( \WPAffiliateCaptain\Core\Capabilities::all() as $cap ) {
+				$wanted[ $role ][ $cap ] = ! empty( $posted[ $role ][ $cap ] );
+			}
+		}
+		$changes = \WPAffiliateCaptain\Core\Capabilities::set_role_caps( $wanted );
+		if ( $changes ) {
+			Audit::log(
+				'settings.roles',
+				'settings',
+				0,
+				array(
+					'roles' => array_map(
+						static function ( $c ) {
+							return $c[0] . ':' . $c[1] . '=' . ( $c[2] ? '1' : '0' );
+						},
+						$changes
+					),
+				)
+			);
+		}
+		/* translators: %d: number of changed permissions */
+		Admin::back( sprintf( _n( '%d permission changed.', '%d permissions changed.', count( $changes ), 'affiliate-captain' ), count( $changes ) ), 'success', $url );
+	}
+
+	/**
+	 * Role table on the "Data & maintenance" tab (SET-AC-21).
+	 */
+	private static function render_roles() {
+		$matrix = \WPAffiliateCaptain\Core\Capabilities::role_matrix();
+		echo '<h2>' . esc_html__( 'Permissions per role', 'affiliate-captain' ) . '</h2><p>' . esc_html__( 'Administrators always have all permissions. Changes need the WordPress right to change user roles and a password confirmation.', 'affiliate-captain' ) . '</p>';
+		Admin::form_open( 'roles_save' );
+		echo '<table class="widefat striped wpac-roles"><thead><tr><th scope="col">' . esc_html__( 'Role', 'affiliate-captain' ) . '</th>';
+		foreach ( \WPAffiliateCaptain\Core\Capabilities::all() as $cap ) {
+			echo '<th scope="col">' . esc_html( \WPAffiliateCaptain\Core\Capabilities::label( $cap ) ) . '</th>';
+		}
+		echo '</tr></thead><tbody>';
+		foreach ( $matrix as $role => $row ) {
+			echo '<tr><th scope="row">' . esc_html( $row['name'] ) . '</th>';
+			foreach ( $row['caps'] as $cap => $on ) {
+				$id = 'wpac-role-' . $role . '-' . $cap;
+				echo '<td><input type="checkbox" id="' . esc_attr( $id ) . '" name="wpac_roles[' . esc_attr( $role ) . '][' . esc_attr( $cap ) . ']" value="1"' . checked( $on, true, false ) . '><label for="' . esc_attr( $id ) . '" class="screen-reader-text">' . esc_html( $row['name'] . ': ' . \WPAffiliateCaptain\Core\Capabilities::label( $cap ) ) . '</label></td>';
+			}
+			echo '</tr>';
+		}
+		echo '</tbody></table><p><button class="button">' . esc_html__( 'Save permissions', 'affiliate-captain' ) . '</button></p></form>';
+	}
+
+	/**
 	 * Export, import and reset on the "Data & maintenance" tab; reset button on every tab.
 	 */
 	private static function render_transfer() {
@@ -240,6 +302,9 @@ final class SettingsPage {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" enctype="multipart/form-data">';
 			Admin::form_fields( 'settings_import_preview' );
 			echo '<p><label for="wpac-settings-file">' . esc_html__( 'Settings file', 'affiliate-captain' ) . '</label> <input type="file" id="wpac-settings-file" name="settings_file" accept=".json,application/json"> <button class="button">' . esc_html__( 'Check import', 'affiliate-captain' ) . '</button></p></form>';
+		}
+		if ( 'data' === self::$tab ) {
+			self::render_roles();
 		}
 		// Reset of the shown tab (preview first). Currency, number prefixes and private values stay.
 		echo '<h2>' . esc_html__( 'Reset', 'affiliate-captain' ) . '</h2>';

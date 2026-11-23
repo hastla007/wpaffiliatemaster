@@ -794,6 +794,7 @@ final class Admin {
 			'settings_reset_preview'   => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_reset_apply'     => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'settings_pending_discard' => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
+			'roles_save'               => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),
 		);

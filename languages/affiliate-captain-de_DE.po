@@ -349,6 +349,9 @@ msgstr "Einstellungen mit Bankdaten und Anschriften exportieren"
 msgid "Reset commission or payout settings"
 msgstr "Provisions- oder Auszahlungseinstellungen zurücksetzen"
 
+msgid "Change the permissions of user roles"
+msgstr "Rechte von Benutzerrollen ändern"
+
 msgid "Change the e-mail address of a partner"
 msgstr "E-Mail-Adresse eines Partners ändern"
 
@@ -3443,6 +3446,11 @@ msgid_plural "%d settings changed."
 msgstr[0] "%d Einstellung geändert."
 msgstr[1] "%d Einstellungen geändert."
 
+msgid "%d permission changed."
+msgid_plural "%d permissions changed."
+msgstr[0] "%d Recht geändert."
+msgstr[1] "%d Rechte geändert."
+
 msgid "The settings could not be saved (database error). Nothing was changed; please try again."
 msgstr "Die Einstellungen konnten nicht gespeichert werden (Datenbankfehler). Es wurde nichts geändert; bitte versuchen Sie es erneut."
 
@@ -3460,6 +3468,21 @@ msgstr "Bitte wähle einen Einstellungs-Export (JSON, höchstens 1 MB)."
 
 msgid "Nothing to apply (the preview expired). Please start again."
 msgstr "Nichts zu übernehmen (die Vorschau ist abgelaufen). Bitte beginne erneut."
+
+msgid "Only users who may change user roles can change these permissions."
+msgstr "Nur wer Benutzerrollen ändern darf, kann diese Rechte ändern."
+
+msgid "Permissions per role"
+msgstr "Rechte je Rolle"
+
+msgid "Administrators always have all permissions. Changes need the WordPress right to change user roles and a password confirmation."
+msgstr "Administratoren haben immer alle Rechte. Änderungen brauchen das WordPress-Recht, Benutzerrollen zu ändern, und eine Passwortbestätigung."
+
+msgid "Role"
+msgstr "Rolle"
+
+msgid "Save permissions"
+msgstr "Rechte speichern"
 
 msgid "Import: please check"
 msgstr "Import: bitte prüfen"
@@ -4844,6 +4867,18 @@ msgstr "Kopieren"
 
 msgid "Tax advisor (Affiliate Captain, read only)"
 msgstr "Steuerberatung (Affiliate Captain, nur lesen)"
+
+msgid "Program and settings"
+msgstr "Programm und Einstellungen"
+
+msgid "Partners, codes and commissions"
+msgstr "Partner, Codes und Provisionen"
+
+msgid "Payouts and credit notes"
+msgstr "Auszahlungen und Gutschriften"
+
+msgid "See tax and bank details"
+msgstr "Steuer- und Bankdaten sehen"
 
 msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
 msgstr "Die Datenbank hat die Buchung abgebrochen (Deadlock, Zeitüberschreitung beim Warten auf eine Sperre oder Verbindungsabbruch). Es wurde nichts gespeichert; bitte versuchen Sie es erneut."

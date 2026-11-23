@@ -206,6 +206,42 @@ check(
 	array( false !== strpos( $set_t[0], 'value="settings_export"' ), false !== strpos( $set_t[0], 'name="settings_file"' ), false !== strpos( $set_u[0], 'value="settings_reset_preview"' ), false !== strpos( $set_u[0], 'value="settings_export"' ), false !== strpos( $set_v[0], 'id="wpac-settings-pending"' ), false !== strpos( $set_v[0], '<td>45</td><td>30</td>' ), false !== strpos( $set_v[0], 'value="settings_reset_apply"' ), array_merge( $set_t[1], $set_u[1], $set_v[1] ), $set_t[2] . $set_u[2] . $set_v[2] )
 );
 
+// SET-AC-21: permissions per role; administrators always keep everything.
+if ( ! function_exists( 'wp_roles' ) ) {
+	final class Set_Test_Role {
+		public $name;
+		public function __construct( $name ) { $this->name = $name; }
+		public function add_cap( $cap ) { $GLOBALS['set_roles'][ $this->name ]['capabilities'][ $cap ] = true; }
+		public function remove_cap( $cap ) { unset( $GLOBALS['set_roles'][ $this->name ]['capabilities'][ $cap ] ); }
+	}
+	final class Set_Test_Roles {
+		public function __get( $k ) { return 'roles' === $k ? $GLOBALS['set_roles'] : null; }
+		public function get_role( $r ) { return isset( $GLOBALS['set_roles'][ $r ] ) ? new Set_Test_Role( $r ) : null; }
+	}
+	function wp_roles() { return new Set_Test_Roles(); }
+}
+$GLOBALS['set_roles'] = array(
+	'administrator' => array( 'name' => 'Administrator', 'capabilities' => array( 'wpac_manage_program' => true ) ),
+	'editor'        => array( 'name' => 'Editor', 'capabilities' => array() ),
+	'shop_manager'  => array( 'name' => 'Shop manager', 'capabilities' => array( 'wpac_manage_payouts' => true ) ),
+);
+$set_ch = WPAffiliateCaptain\Core\Capabilities::set_role_caps(
+	array(
+		'administrator' => array( 'wpac_manage_program' => false ),
+		'editor'        => array( 'wpac_manage_affiliates' => true ),
+		'shop_manager'  => array( 'wpac_manage_payouts' => false ),
+	)
+);
+$set_mx = WPAffiliateCaptain\Core\Capabilities::role_matrix();
+check(
+	'SET-AC-21 role table: editor gets partners, shop manager loses payouts, administrator cannot be changed and is not listed',
+	array( array( array( 'editor', 'wpac_manage_affiliates', true ), array( 'shop_manager', 'wpac_manage_payouts', false ) ), true, false, false, true ),
+	array( $set_ch, $set_mx['editor']['caps']['wpac_manage_affiliates'], $set_mx['shop_manager']['caps']['wpac_manage_payouts'], isset( $set_mx['administrator'] ), ! empty( $GLOBALS['set_roles']['administrator']['capabilities']['wpac_manage_program'] ) )
+);
+$_GET  = array( 'page' => 'wpac-settings', 'tab' => 'data' );
+$set_r = r_render( array( SettingsPage::class, 'render' ) );
+check( 'SET-AC-21 the data tab shows the role table with one checkbox per role and permission', array( true, true, false ), array( false !== strpos( $set_r[0], 'name="wpac_roles[editor][wpac_manage_affiliates]" value="1" checked' ), false !== strpos( $set_r[0], 'value="roles_save"' ), false !== strpos( $set_r[0], 'wpac_roles[administrator]' ) ) );
+
 $_GET = $set_get;
 if ( null !== $set_caps ) {
 	$GLOBALS['test_caps'] = $set_caps;

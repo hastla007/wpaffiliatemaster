@@ -131,6 +131,7 @@ Settings register and add-on rows; add-on contract 1.8.0 (backwards compatible);
 * New: former fixed business rules are settings now, with the same defaults: waiting period for new bank details, code requests per 30 days and code length, password confirmation time, privacy requests per day, confirmation link of applications, reminder interval for new terms, cancellation delay of claimed payouts, display of rejected payout requests, VIES re-check, refund-rate period and minimum orders. Existing filters still win.
 * New: setting "Release of commissions" – automatically after the hold period (as before) or only by hand.
 * New: export and import of the settings (JSON, with a preview of every change; bank details only on request and after a password confirmation), reset of a settings tab to the defaults with a preview, and WP-CLI commands "wp wpac setting list|get|set|reset|export|import".
+* New: permissions per user role (program, partners, payouts, tax data) under Data & maintenance; administrators always keep all.
 * New: grey notes at the end of a settings tab name features of the Affiliate Captain Pro add-on (text only – no fields, nothing locked); switch them off under Data & maintenance.
 * Add-ons (contract 1.8.0): filters wpac_settings_schema, wpac_settings_rows, wpac_show_addon_hints, wpac_addon_hint_url and the action wpac_settings_saved – add-on fields on the settings tabs, replacing a note with the real field.
 

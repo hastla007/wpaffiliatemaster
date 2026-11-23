@@ -4564,6 +4564,13 @@ msgid_plural "%d settings changed."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of changed permissions
+#: src/Admin/Pages/SettingsPage.php
+msgid "%d permission changed."
+msgid_plural "%d permissions changed."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "The settings could not be saved (database error). Nothing was changed; please try again."
 msgstr ""
@@ -4586,6 +4593,26 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Nothing to apply (the preview expired). Please start again."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only users who may change user roles can change these permissions."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Permissions per role"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Administrators always have all permissions. Changes need the WordPress right to change user roles and a password confirmation."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Role"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Save permissions"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5051,6 +5078,10 @@ msgstr ""
 
 #: src/Admin/Reauth.php
 msgid "Reset commission or payout settings"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Change the permissions of user roles"
 msgstr ""
 
 #: src/Admin/Reauth.php
@@ -6692,6 +6723,22 @@ msgstr ""
 
 #: src/Core/Capabilities.php
 msgid "Tax advisor (Affiliate Captain, read only)"
+msgstr ""
+
+#: src/Core/Capabilities.php
+msgid "Program and settings"
+msgstr ""
+
+#: src/Core/Capabilities.php
+msgid "Partners, codes and commissions"
+msgstr ""
+
+#: src/Core/Capabilities.php
+msgid "Payouts and credit notes"
+msgstr ""
+
+#: src/Core/Capabilities.php
+msgid "See tax and bank details"
 msgstr ""
 
 #: src/Core/Db.php

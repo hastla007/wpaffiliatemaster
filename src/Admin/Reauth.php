@@ -55,7 +55,7 @@ final class Reauth {
 	const ATTEMPT_WINDOW = 900;
 
 	/** Actions (see action_key()) that need a confirmation by default. */
-	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money' );
+	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save' );
 
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
@@ -315,6 +315,7 @@ final class Reauth {
 			'settings_import_apply'   => __( 'Import settings', 'affiliate-captain' ),
 			'settings_export_private' => __( 'Export settings with bank details and addresses', 'affiliate-captain' ),
 			'settings_reset_money'    => __( 'Reset commission or payout settings', 'affiliate-captain' ),
+			'roles_save'              => __( 'Change the permissions of user roles', 'affiliate-captain' ),
 			'affiliate_email_change' => __( 'Change the e-mail address of a partner', 'affiliate-captain' ),
 		);
 		return isset( $labels[ $key ] ) ? $labels[ $key ] : (string) $key;
