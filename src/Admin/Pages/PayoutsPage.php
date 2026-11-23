@@ -649,7 +649,8 @@ final class PayoutsPage {
 	}
 
 	/**
-	 * Minimum payout in a currency as a run applies it (converted from the program currency).
+	 * Minimum payout in a currency as a run applies it (own minimum of the currency, else converted
+	 * from the program currency – then with the date of the rates).
 	 *
 	 * With a partner: the value of the partner's program (filter wpac_setting). Without one: the
 	 * value of the settings, followed by the programs of the report selector (filter
@@ -660,12 +661,18 @@ final class PayoutsPage {
 	 * @return string
 	 */
 	public static function min_text( $currency, $affiliate_id = 0 ) {
-		$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $affiliate_id );
+		$info = \WPAffiliateCaptain\Core\Fx::min_payout_info( $currency, (int) $affiliate_id > 0 ? array( 'affiliate_id' => (int) $affiliate_id ) : array() );
+		$min  = $info['minor'];
 		if ( null === $min ) {
 			/* translators: %s: currency */
 			return sprintf( __( 'cannot be checked (no exchange rate for %s)', 'affiliate-captain' ), $currency );
 		}
 		$text = Money::format( (int) $min, $currency );
+		$note = \WPAffiliateCaptain\Core\Fx::rates_note();
+		if ( 'converted' === $info['source'] && '' !== $note ) {
+			/* translators: %s: "Reference exchange rates as of <date>" */
+			$text .= ' ' . sprintf( __( '(converted; %s)', 'affiliate-captain' ), $note );
+		}
 		if ( (int) $affiliate_id > 0 || ( function_exists( 'has_filter' ) && false === has_filter( 'wpac_setting' ) ) ) {
 			return $text;
 		}

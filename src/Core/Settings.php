@@ -501,6 +501,7 @@ final class Settings {
 				$out['exchange_rates'] = implode( "\n", $lines );
 			}
 		}
+		$entered_rates = Fx::parse( $out['exchange_rates'] );
 
 		// A new program currency: amounts stored in minor units of the old currency are converted
 		// (with an exchange rate between the two currencies if one is known, otherwise the shown
@@ -540,6 +541,8 @@ final class Settings {
 				/* translators: 1: old currency, 2: new currency */
 				: sprintf( __( 'Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency.', 'affiliate-captain' ), $old_currency, $out['currency'] );
 		}
+
+		self::sanitize_fx_extras( $in, $out, $errors, $notices, $old, $entered_rates );
 
 		$out['default_rate'] = $d['default_rate'];
 		if ( isset( $in['default_rate'] ) ) {
@@ -583,6 +586,75 @@ final class Settings {
 		self::sanitize_billing_fields( $in, $out, $errors, $old, $d );
 
 		return $out;
+	}
+
+	/**
+	 * Sanitize: date of the exchange rates and the minimum payout per currency (SET-AC-29).
+	 *
+	 * The date is set to today when the rates were changed (a rebase after a currency change is no
+	 * new rate and keeps it). A date given together with changed rates (import, WP-CLI) is kept,
+	 * so an export brings its own date along; without rates there is no date.
+	 *
+	 * @param array    $in            Raw input.
+	 * @param array    $out           Sanitized settings so far (extended).
+	 * @param array    $errors        Rejected fields (extended).
+	 * @param array    $notices       Adjusted fields (extended).
+	 * @param callable $old           Stored value of a key.
+	 * @param array    $entered_rates Rates as entered (before a rebase).
+	 */
+	private static function sanitize_fx_extras( array $in, array &$out, array &$errors, array &$notices, callable $old, array $entered_rates ) {
+		$stored_date                = (string) $old( 'exchange_rates_date' );
+		$out['exchange_rates_date'] = $stored_date;
+		if ( isset( $in['exchange_rates'] ) ) {
+			$given = isset( $in['exchange_rates_date'] ) && is_scalar( $in['exchange_rates_date'] ) ? trim( (string) $in['exchange_rates_date'] ) : '';
+			$today = function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' );
+			$valid = (bool) preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $given, $m ) && checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) && $given <= $today;
+			if ( '' !== $given && ! $valid ) {
+				$errors['exchange_rates_date'] = __( 'Please enter the date of the exchange rates as YYYY-MM-DD (not in the future).', 'affiliate-captain' );
+			}
+			if ( ! Fx::parse( $out['exchange_rates'] ) ) {
+				$out['exchange_rates_date'] = '';
+			} elseif ( $entered_rates !== Fx::parse( (string) $old( 'exchange_rates' ) ) ) {
+				$out['exchange_rates_date'] = $valid && $given !== $stored_date ? $given : $today;
+			} elseif ( $valid ) {
+				$out['exchange_rates_date'] = $given;
+			}
+		}
+
+		$out['min_payout_currency'] = (string) $old( 'min_payout_currency' );
+		if ( ! isset( $in['min_payout_currency'] ) ) {
+			return;
+		}
+		$lines   = array();
+		$invalid = array();
+		$dropped = false;
+		foreach ( preg_split( '/[\r\n;]+/', (string) $in['min_payout_currency'] ) as $line ) {
+			if ( '' === trim( $line ) ) {
+				continue;
+			}
+			$problem = '';
+			$amount  = preg_match( '/^\s*([A-Za-z]{3})\s*[=:]\s*(\S.*?)\s*$/', $line, $m ) ? self::parse_amount( $m[2], strtoupper( $m[1] ), $problem ) : null;
+			if ( null === $amount || '-' === $amount[0] ) {
+				$invalid[] = trim( $line );
+				continue;
+			}
+			$cur = strtoupper( $m[1] );
+			if ( $cur === strtoupper( (string) $out['currency'] ) ) {
+				$dropped = true; // The program currency uses the minimum payout on the Payouts tab.
+				continue;
+			}
+			$lines[ $cur ] = $cur . '=' . Money::to_decimal( Money::to_minor( $amount, $cur ), $cur );
+		}
+		if ( $invalid ) {
+			/* translators: %s: lines */
+			$errors['min_payout_currency'] = sprintf( __( 'Minimum payout not understood: %s. Enter a three-letter currency code and an amount in that currency (e.g. 50 or 50,00), or leave the field empty.', 'affiliate-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) );
+			return;
+		}
+		$out['min_payout_currency'] = implode( "\n", $lines );
+		if ( $dropped ) {
+			/* translators: %s: currency code */
+			$notices['min_payout_currency'] = sprintf( __( 'The minimum payout in the program currency %s is set on the Payouts tab; the entry in the table was not saved.', 'affiliate-captain' ), $out['currency'] );
+		}
 	}
 
 	/**

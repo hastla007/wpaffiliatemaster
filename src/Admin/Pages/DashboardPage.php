@@ -299,6 +299,11 @@ final class DashboardPage {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( $edge ) . ' <a href="' . esc_url( Admin::url( 'wpac-settings', array( 'tab' => 'tracking' ) ) ) . '">' . esc_html__( 'Settings', 'affiliate-captain' ) . '</a></p></div>';
 		}
 
+		$rates_note = \WPAffiliateCaptain\Core\Fx::rates_note();
+		if ( '' !== $rates_note ) {
+			/* translators: %s: "Reference exchange rates as of <date>" */
+			echo '<p class="description wpac-rates-note">' . esc_html( sprintf( __( 'Amounts in other currencies are converted into the program currency. %s.', 'affiliate-captain' ), $rates_note ) ) . '</p>';
+		}
 		if ( $unconverted ) {
 			/* translators: %s: currencies */
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Amounts in %s are not included in the money columns (no reference exchange rate in the settings).', 'affiliate-captain' ), implode( ', ', $unconverted ) ) ) . '</p></div>';

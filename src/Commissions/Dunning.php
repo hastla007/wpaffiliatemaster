@@ -9,6 +9,10 @@
  * amount. Repayments and write-offs are not taxable themselves. When the balance is settled, a
  * correction document is issued (PayoutService::settle()).
  *
+ * Number of stages and payment deadlines are settings since plugin 0.21.0 (SET-AC-13; marked
+ * "check legally"): dunning_levels (3), dunning_days (14) and dunning_final_days (7) – the
+ * defaults are the former fixed values.
+ *
  * @package WPAffiliateCaptain
  */
 
@@ -25,7 +29,62 @@ defined( 'ABSPATH' ) || exit;
 
 final class Dunning {
 
+	/**
+	 * Former fixed number of stages (default of the setting dunning_levels).
+	 *
+	 * @deprecated 0.21.0 Use self::levels().
+	 */
 	const LEVELS = 3;
+
+	/**
+	 * Number of stages (setting dunning_levels, 1 to 5).
+	 *
+	 * @return int
+	 */
+	public static function levels() {
+		return max( 1, min( 5, (int) Settings::get( 'dunning_levels' ) ) );
+	}
+
+	/**
+	 * Kind of a stage: 'request' (first), 'final' (last, with more than one stage) or 'reminder'.
+	 *
+	 * @param int $level Stage (1 = first).
+	 * @return string
+	 */
+	public static function stage( $level ) {
+		$level  = (int) $level;
+		$levels = self::levels();
+		if ( 1 === $level ) {
+			return 'request';
+		}
+		return $level >= $levels ? 'final' : 'reminder';
+	}
+
+	/**
+	 * Payment deadline named in the e-mail of a stage (days).
+	 *
+	 * @param int $level Stage.
+	 * @return int
+	 */
+	public static function deadline_days( $level ) {
+		$days = 'final' === self::stage( $level ) ? (int) Settings::get( 'dunning_final_days' ) : (int) Settings::get( 'dunning_days' );
+		return max( 1, $days );
+	}
+
+	/**
+	 * End of the payment deadline of a sent stage (history entry), as a UTC date-time; '' for
+	 * entries of versions before 0.21.0 (no deadline stored).
+	 *
+	 * @param array $entry History entry.
+	 * @return string
+	 */
+	public static function deadline_end( array $entry ) {
+		if ( empty( $entry['days'] ) || empty( $entry['at'] ) ) {
+			return '';
+		}
+		$ts = strtotime( (string) $entry['at'] . ' UTC' );
+		return false === $ts ? '' : gmdate( 'Y-m-d H:i:s', $ts + (int) $entry['days'] * DAY_IN_SECONDS );
+	}
 
 	/**
 	 * Terminated partners with a negative open balance (VAT included): [ affiliate, currency,
@@ -111,7 +170,8 @@ final class Dunning {
 	}
 
 	/**
-	 * Send the next payment request (1 = request, 2 = reminder, 3 = final reminder).
+	 * Send the next payment request (1 = request, then reminders, the last stage of the setting
+	 * dunning_levels = final reminder).
 	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $currency     Currency.
@@ -130,9 +190,10 @@ final class Dunning {
 		}
 		$history = self::history( (int) $affiliate_id, $currency );
 		$level   = count( $history ) + 1;
-		if ( $level > self::LEVELS ) {
+		if ( $level > self::levels() ) {
 			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'affiliate-captain' ) );
 		}
+		$days        = self::deadline_days( $level );
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		try {
 			$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
@@ -141,20 +202,20 @@ final class Dunning {
 			$ref     = trim( (string) Settings::get( 'remittance_prefix' ) . ' R-' . (int) $affiliate_id );
 			$subject = array(
 				/* translators: %s: site name */
-				1 => __( '[%s] Repayment of commissions', 'affiliate-captain' ),
+				'request'  => __( '[%s] Repayment of commissions', 'affiliate-captain' ),
 				/* translators: %s: site name */
-				2 => __( '[%s] Reminder: repayment of commissions', 'affiliate-captain' ),
+				'reminder' => __( '[%s] Reminder: repayment of commissions', 'affiliate-captain' ),
 				/* translators: %s: site name */
-				3 => __( '[%s] Final reminder: repayment of commissions', 'affiliate-captain' ),
+				'final'    => __( '[%s] Final reminder: repayment of commissions', 'affiliate-captain' ),
 			);
 			$bank = trim( (string) Settings::get( 'debtor_name' ) . "\n" . 'IBAN ' . (string) Settings::get( 'debtor_iban' ) . ( Settings::get( 'debtor_bic' ) ? "\nBIC " . (string) Settings::get( 'debtor_bic' ) : '' ) );
 			// Reply-To: the program's notification address ("please reply to this e-mail").
 			$sent = \WPAffiliateCaptain\Affiliates\Notifications::send(
 				'dunning',
 				$aff->email,
-				sprintf( $subject[ $level ], $site ),
+				sprintf( $subject[ self::stage( $level ) ], $site ),
 				/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
-				sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, 3 === $level ? 7 : 14 )
+				sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, $days )
 					. ( $vat < 0
 						/* translators: %s: VAT amount */
 						? "\n\n" . sprintf( __( 'The amount includes %s VAT that was paid out with earlier credit notes for the refunded commissions (correction of those credit notes). Once the balance is settled you receive a correction document.', 'affiliate-captain' ), html_entity_decode( Money::format( -$vat, $currency ), ENT_QUOTES, 'UTF-8' ) )
@@ -171,9 +232,10 @@ final class Dunning {
 			'level'  => $level,
 			'at'     => Db::now(),
 			'amount' => $open,
+			'days'   => $days,
 		);
 		update_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . $currency, $history, false );
-		Audit::log( 'commission.dunning', 'affiliate', (int) $affiliate_id, array( 'level' => $level, 'amount' => $open, 'currency' => $currency ) );
+		Audit::log( 'commission.dunning', 'affiliate', (int) $affiliate_id, array( 'level' => $level, 'amount' => $open, 'currency' => $currency, 'days' => $days ) );
 		return $level;
 	}
 

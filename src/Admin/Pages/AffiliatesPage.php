@@ -1289,15 +1289,27 @@ final class AffiliatesPage {
 					// Ended partnership: nothing left to offset – claim it back.
 					$history = \WPAffiliateCaptain\Commissions\Dunning::history( $id, $cur );
 					echo '<h4>' . esc_html__( 'Claim back', 'affiliate-captain' ) . '</h4><ul>';
+					$dunning_due = '';
 					foreach ( $history as $h ) {
-						/* translators: 1: level, 2: date */
-						echo '<li>' . esc_html( sprintf( __( 'Level %1$d sent on %2$s', 'affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) ) ) . '</li>';
+						$dunning_due = \WPAffiliateCaptain\Commissions\Dunning::deadline_end( (array) $h );
+						echo '<li>' . esc_html(
+							'' !== $dunning_due
+								/* translators: 1: level, 2: date, 3: end of the payment deadline */
+								? sprintf( __( 'Level %1$d sent on %2$s, payment deadline until %3$s', 'affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ), Admin::date( $dunning_due ) )
+								/* translators: 1: level, 2: date */
+								: sprintf( __( 'Level %1$d sent on %2$s', 'affiliate-captain' ), (int) $h['level'], Admin::date( $h['at'], true ) )
+						) . '</li>';
 					}
 					echo '</ul>';
+					$dunning_levels = \WPAffiliateCaptain\Commissions\Dunning::levels();
+					if ( '' !== $dunning_due && count( $history ) < $dunning_levels && $dunning_due > \WPAffiliateCaptain\Core\Db::now() ) {
+						/* translators: %s: end of the payment deadline */
+						echo '<p class="description wpac-dunning-wait">' . esc_html( sprintf( __( 'The payment deadline of the last stage runs until %s. Send the next stage only after it has passed.', 'affiliate-captain' ), Admin::date( $dunning_due ) ) ) . '</p>';
+					}
 					$dunning_blocked = \WPAffiliateCaptain\Commissions\Dunning::blocked_reason( $partner );
-					if ( '' !== $dunning_blocked && count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+					if ( '' !== $dunning_blocked && count( $history ) < $dunning_levels ) {
 						echo '<p class="description">' . esc_html( $dunning_blocked ) . '</p>';
-					} elseif ( count( $history ) < \WPAffiliateCaptain\Commissions\Dunning::LEVELS ) {
+					} elseif ( count( $history ) < $dunning_levels ) {
 						Admin::form_open( 'dunning_send', 'wpac-inline' );
 						/* translators: 1: amount, 2: e-mail address */
 						$dunning_confirm = sprintf( __( 'Send a payment request for %1$s to %2$s now?', 'affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ), $partner->email );

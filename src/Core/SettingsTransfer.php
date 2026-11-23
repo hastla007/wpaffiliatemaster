@@ -179,9 +179,12 @@ final class SettingsTransfer {
 		$keys = array_keys( $wanted );
 		if ( $fx_change && ! isset( $out['errors']['currency'] ) ) {
 			// Values derived from the currency change go along with it.
-			$keys = array_unique( array_merge( $keys, array( 'min_payout_minor', 'fraud_max_order_minor', 'exchange_rates', 'default_rate' ) ) );
+			$keys = array_unique( array_merge( $keys, array( 'min_payout_minor', 'fraud_max_order_minor', 'exchange_rates', 'min_payout_currency', 'default_rate' ) ) );
 		}
-		foreach ( $keys as $key ) {
+		if ( array_intersect( array( 'exchange_rates', 'currency' ), $keys ) ) {
+			$keys[] = 'exchange_rates_date'; // Follows the rates (SET-AC-29).
+		}
+		foreach ( array_unique( $keys ) as $key ) {
 			if ( isset( $out['errors'][ $key ] ) || ! array_key_exists( $key, $clean ) ) {
 				continue;
 			}
