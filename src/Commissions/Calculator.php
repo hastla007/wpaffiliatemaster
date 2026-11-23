@@ -276,7 +276,10 @@ final class Calculator {
 		$rate_type = $rule ? $rule['rate_type'] : $default['rate_type'];
 		$rate      = $rule ? (string) $rule['rate'] : (string) $default['rate'];
 
-		if ( 'fixed' === $rate_type ) {
+		if ( 'fixed' === $rate_type && self::is_position( $item ) ) {
+			// Shipping and fee positions (SET-AC-02) are no unit sold: only percentages apply.
+			$amount = 0;
+		} elseif ( 'fixed' === $rate_type ) {
 			$qty    = max( 1, (int) ( isset( $item['quantity'] ) ? $item['quantity'] : 1 ) );
 			$amount = (int) $rate * $qty;
 			// A fixed commission never exceeds the net base of the line.
@@ -309,6 +312,16 @@ final class Calculator {
 			'capped'         => $capped,
 			'uncapped_minor' => $uncapped,
 		);
+	}
+
+	/**
+	 * Whether an item is a shipping or fee position (item meta wpac_position, SET-AC-02).
+	 *
+	 * @param array $item Item.
+	 * @return bool
+	 */
+	public static function is_position( array $item ) {
+		return isset( $item['meta']['wpac_position'] ) && in_array( $item['meta']['wpac_position'], array( 'shipping', 'fee' ), true );
 	}
 
 	/**

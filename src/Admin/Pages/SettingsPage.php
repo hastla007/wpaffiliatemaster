@@ -843,7 +843,7 @@ final class SettingsPage {
 		self::end();
 
 		self::section( __( 'Default commission', 'affiliate-captain' ), 'commissions' );
-		self::select( 'default_rate_type', null, $s, array( 'percent' => __( 'Percent of net', 'affiliate-captain' ), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ) ) );
+		self::select( 'default_rate_type', null, $s, array( 'percent' => \WPAffiliateCaptain\Commissions\CommissionBasis::percent_label(), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ) ) );
 		$display = $s;
 		if ( 'fixed' === $s['default_rate_type'] ) {
 			$display['default_rate'] = Money::to_decimal( (int) $s['default_rate'], $currency );
@@ -858,6 +858,23 @@ final class SettingsPage {
 				'target' => __( 'Most specific product first: product > category > all, then partner > group > all partners; exclusions compete like other rules', 'affiliate-captain' ),
 			)
 		);
+		self::end();
+
+		self::section( __( 'Commission base', 'affiliate-captain' ), 'commissions' );
+		self::select(
+			'commission_basis',
+			null,
+			$s,
+			array(
+				'net'   => __( 'Net: after discounts, without VAT (default)', 'affiliate-captain' ),
+				'gross' => __( 'Gross: after discounts, including VAT', 'affiliate-captain' ),
+			)
+		);
+		if ( 'gross' === $s['commission_basis'] ) {
+			echo '<tr><td></td><td><div class="notice notice-warning inline"><p>' . esc_html( self::gross_basis_warning() ) . '</p></div></td></tr>';
+		}
+		self::checkbox( 'commission_include_shipping', null, $s );
+		self::checkbox( 'commission_include_fees', null, $s );
 		self::end();
 
 		self::section( __( 'Lifetime commissions', 'affiliate-captain' ), 'commissions' );
@@ -884,6 +901,15 @@ final class SettingsPage {
 		);
 		self::select( 'approval_mode', null, $s, array( 'auto' => __( 'Automatically after the hold period', 'affiliate-captain' ), 'manual' => __( 'Only by hand', 'affiliate-captain' ) ) );
 		self::end();
+	}
+
+	/**
+	 * Warning shown while the commission base is "gross" (SET-AC-02).
+	 *
+	 * @return string
+	 */
+	public static function gross_basis_warning() {
+		return __( 'Gross base: the commission is also calculated on the VAT the customer paid, which you pass on to the tax office. This is uncommon in the EU, where commissions are usually based on net amounts; it also changes the revenue partners see and the monthly revenue of tier bonuses. Agree it with your partners in the terms and check the tax treatment with your adviser.', 'affiliate-captain' );
 	}
 
 	/**

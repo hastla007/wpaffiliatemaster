@@ -1589,6 +1589,7 @@ require __DIR__ . '/set-ac-pay.php'; // SET-AC-19/31: payout reminder, maximum p
 require __DIR__ . '/set-ac-fx.php'; // SET-AC-13 dunning stages and deadlines, SET-AC-29 exchange rate table (before r8-render).
 require __DIR__ . '/set-ac-sw.php'; // SET-AC-26/28: switches per feature, log level (before r8-render).
 require __DIR__ . '/set-ac-logo.php'; // SET-AC-16: logo and footer on credit notes, logo in HTML mails (before r8-render).
+require __DIR__ . '/set-ac-base.php'; // SET-AC-02: commission base net/gross, shipping and fees (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
