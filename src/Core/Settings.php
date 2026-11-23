@@ -61,6 +61,13 @@ final class Settings {
 					update_option( self::OPTION, $saved, true );
 				}
 			}
+			if ( ! is_array( $saved ) || ! array_key_exists( 'small_business_limit_previous', $saved ) ) {
+				// Settings of a version up to and including 0.21.0 (SET-AC-04 b): the small business check keeps
+				// working as before – German operators with euro amounts 25,000 / 100,000 €, others none.
+				$legacy = self::legacy_small_business( (string) self::$cache['operator_country'], (string) self::$cache['currency'] );
+				self::$cache['small_business_limit_previous'] = $legacy[0];
+				self::$cache['small_business_limit_current']  = $legacy[1];
+			}
 		}
 		return self::$cache;
 	}
@@ -110,6 +117,18 @@ final class Settings {
 			unset( $settings['payout_period'] );
 		}
 		return $settings;
+	}
+
+	/**
+	 * Small business limits of installations up to and including 0.21.0, when the check was fixed in the code:
+	 * § 19 UStG for German operators in euro, no check otherwise.
+	 *
+	 * @param string $country  Operator country.
+	 * @param string $currency Program currency.
+	 * @return string[] [ previous year, current year ] as decimal amounts ('' = no check).
+	 */
+	public static function legacy_small_business( $country, $currency ) {
+		return 'DE' === strtoupper( (string) $country ) && 'EUR' === strtoupper( (string) $currency ) ? array( '25000', '100000' ) : array( '', '' );
 	}
 
 	/** Prefix of a hashed monitoring token (older versions keyed it with the WordPress salt). */
@@ -824,9 +843,15 @@ final class Settings {
 				$out['operator_country']    = (string) $old( 'operator_country' );
 			}
 		}
+		// Own legal minimum (SET-AC-04 a): allowed below the value of the country profile, but not silently.
+		$known = CountryProfiles::retention_minimum( $out['operator_country'] );
+		if ( isset( $in['statement_retention_minimum'] ) && ! isset( $errors['statement_retention_minimum'] ) && $out['statement_retention_minimum'] > 0 && $out['statement_retention_minimum'] < $known ) {
+			/* translators: 1: entered years, 2: years of the country profile */
+			$notices['statement_retention_minimum'] = sprintf( __( 'Saved, but please check: %1$d years is less than the %2$d years known for your country. Only use a shorter minimum when your adviser confirmed it.', 'affiliate-captain' ), $out['statement_retention_minimum'], $known );
+		}
 		// Credit notes: at least the legal minimum of the operator's country (DE 8, AT 7, CH 10, else 10 years); 0 = forever.
 		if ( $out['statement_retention_years'] > 0 ) {
-			$minimum = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $out['operator_country'] );
+			$minimum = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $out['operator_country'], (int) $out['statement_retention_minimum'] );
 			if ( $out['statement_retention_years'] < $minimum ) {
 				if ( isset( $in['statement_retention_years'] ) ) {
 					/* translators: %d: years */
@@ -1174,7 +1199,11 @@ final class Settings {
 	private static function sanitize_billing_fields( array $in, array &$out, array &$errors, callable $old, array $d ) {
 		$out['debtor_name'] = isset( $in['debtor_name'] ) ? sanitize_text_field( (string) $in['debtor_name'] ) : '';
 		$out['vat_rate']    = $d['vat_rate'];
-		if ( isset( $in['vat_rate'] ) ) {
+		if ( isset( $in['vat_rate'] ) && '' === trim( (string) $in['vat_rate'] ) ) {
+			// Not set yet (new installation outside Germany, neutral country profile, P3-03): credit
+			// notes with domestic VAT are held back until a rate is entered.
+			$out['vat_rate'] = '';
+		} elseif ( isset( $in['vat_rate'] ) ) {
 			$vat = self::parse_percent( $in['vat_rate'] );
 			if ( null === $vat || (float) $vat < 0 || (float) $vat >= 100 ) {
 				$errors['vat_rate'] = __( 'Please enter a percentage between 0 and 99 (e.g. 19 or 7,7).', 'affiliate-captain' );
@@ -1188,6 +1217,7 @@ final class Settings {
 		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
 		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', SettingsSchema::field( 'einvoice_mail' )['options'], $d, $errors, $old );
 		$out['einvoice_buyer_reference'] = isset( $in['einvoice_buyer_reference'] ) ? substr( trim( sanitize_text_field( (string) $in['einvoice_buyer_reference'] ) ), 0, 100 ) : '';
+		self::sanitize_country_fields( $in, $out, $errors, $old );
 		foreach ( array( 'credit_prefix', 'storno_prefix', 'correction_prefix' ) as $k ) {
 			$out[ $k ] = $d[ $k ];
 			if ( ! isset( $in[ $k ] ) ) {
@@ -1252,6 +1282,38 @@ final class Settings {
 				? __( 'This IBAN is not valid (check digits). The previous IBAN is still used.', 'affiliate-captain' )
 				: __( 'This IBAN is not valid (check digits).', 'affiliate-captain' );
 			$out['debtor_iban']    = (string) self::get( 'debtor_iban' );
+		}
+	}
+
+	/**
+	 * Sanitize: small business limits and document notes (SET-AC-04 b, c). Not posted (another tab):
+	 * the stored value.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 */
+	private static function sanitize_country_fields( array $in, array &$out, array &$errors, callable $old ) {
+		foreach ( array( 'small_business_limit_previous', 'small_business_limit_current' ) as $k ) {
+			$out[ $k ] = (string) $old( $k );
+			if ( ! isset( $in[ $k ] ) ) {
+				continue;
+			}
+			if ( '' === trim( (string) $in[ $k ] ) ) {
+				$out[ $k ] = ''; // Empty = no check.
+				continue;
+			}
+			$problem = '';
+			$amount  = self::parse_amount( $in[ $k ], $out['currency'], $problem );
+			if ( null === $amount || (float) $amount <= 0 ) {
+				$errors[ $k ] = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 25000) or leave the field empty (no check).', 'affiliate-captain' );
+			} else {
+				$out[ $k ] = $amount;
+			}
+		}
+		foreach ( array( 'note_self_billing', 'note_reverse_charge', 'note_small_business', 'note_private_person' ) as $k ) {
+			$out[ $k ] = isset( $in[ $k ] ) ? Db::cut( trim( sanitize_textarea_field( (string) $in[ $k ] ) ), 1000 ) : (string) $old( $k );
 		}
 	}
 
@@ -1350,15 +1412,15 @@ final class Settings {
 	}
 
 	/**
-	 * Countries the operator can choose (ISO 3166-1 alpha-2 => name): the EU, the EEA,
-	 * Switzerland, the United Kingdom and other common shop countries. Names come from
-	 * WooCommerce, else from PHP intl, else from the plugin's own (translated) list; sorted by
-	 * the reader's language ("Österreich" before "Polen", not after "Zypern").
+	 * Countries the operator can choose (ISO 3166-1 alpha-2 => name): all countries (SET-AC-04 d).
+	 * Names come from WooCommerce, else from PHP intl, else from the plugin's own (translated) list,
+	 * else in English; sorted by the reader's language ("Österreich" before "Polen", not after
+	 * "Zypern").
 	 *
 	 * @return array
 	 */
 	public static function countries() {
-		$own   = self::country_names();
+		$own   = array_merge( CountryProfiles::ISO_COUNTRIES, self::country_names() );
 		$names = array();
 		if ( function_exists( 'WC' ) && WC() && isset( WC()->countries ) && is_object( WC()->countries ) ) {
 			$names = (array) WC()->countries->get_countries();
@@ -1483,7 +1545,9 @@ final class Settings {
 
 	/**
 	 * Settings of a new installation: the defaults with the shop's currency and country from
-	 * WooCommerce, the disclosure note in the site language and the recommended fraud thresholds.
+	 * WooCommerce (outside Germany without a VAT rate), the disclosure note in the site language
+	 * and the recommended fraud thresholds. The matching country profile is proposed on the
+	 * settings page, never applied silently (S8).
 	 *
 	 * @return array
 	 */
@@ -1497,10 +1561,16 @@ final class Settings {
 		}
 		if ( function_exists( 'WC' ) && WC() && isset( WC()->countries ) && is_object( WC()->countries ) && method_exists( WC()->countries, 'get_base_country' ) ) {
 			$country = strtoupper( (string) WC()->countries->get_base_country() );
-			if ( isset( self::country_names()[ $country ] ) ) {
+			if ( isset( CountryProfiles::ISO_COUNTRIES[ $country ] ) ) {
 				$values['operator_country'] = $country;
 			}
 		}
+		if ( 'DE' !== $values['operator_country'] ) {
+			// P3-03: no German VAT rate outside Germany. The country profile is proposed on the
+			// settings page (SET-AC-03); until a rate is set, credit notes with VAT are held back.
+			$values['vat_rate'] = '';
+		}
+		list( $values['small_business_limit_previous'], $values['small_business_limit_current'] ) = self::legacy_small_business( (string) $values['operator_country'], (string) $values['currency'] );
 		$values['default_disclosure'] = __( 'Advertisement', 'affiliate-captain' );
 		return array_merge( $values, self::recommended_fraud( (string) $values['currency'] ) );
 	}

@@ -126,6 +126,7 @@ final class PayoutRequests {
 			'operator'        => __( 'Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'affiliate-captain' ),
 			'operator_vat_id' => __( 'Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'affiliate-captain' ),
 			'terms_page'      => __( 'Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'affiliate-captain' ),
+			'vat_rate'        => __( 'Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'affiliate-captain' ),
 		);
 		if ( '' !== $code ) {
 			return isset( $partner_reasons[ $code ] ) ? $partner_reasons[ $code ] : __( 'Please complete your payout details first.', 'affiliate-captain' );

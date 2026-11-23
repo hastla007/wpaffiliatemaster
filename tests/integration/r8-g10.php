@@ -102,7 +102,7 @@ check( 'R5-O12 no type message when the type was not changed', false, isset( $g1
 $g10_wc = $GLOBALS['g1_wc'] ?? null;
 $GLOBALS['g1_wc'] = null;
 $g10_countries = Settings::countries();
-check( 'R5-O13 countries have names, not ISO codes', array( 36, true, true ), array( count( $g10_countries ), 'DE' !== $g10_countries['DE'] && '' !== $g10_countries['DE'], 'AT' !== $g10_countries['AT'] ) );
+check( 'R5-O13 countries have names, not ISO codes (SET-AC-04 d: all 249 countries)', array( 249, true, true ), array( count( $g10_countries ), 'DE' !== $g10_countries['DE'] && '' !== $g10_countries['DE'], 'AT' !== $g10_countries['AT'] ) );
 check( 'R6-MS13 names sorted by language ("Österreich" before "Polen", not after "Zypern")', array( 'AT', 'PL', 'CY' ), array_keys( Settings::sort_names( array( 'CY' => 'Zypern', 'AT' => 'Österreich', 'PL' => 'Polen' ), 'de_DE' ) ) );
 check( 'R6-MS13 commission and VAT rates localized', array( "12,5\u{00A0}%", "19\u{00A0}%", '7,7', '19' ), array( RuleRepository::format_rate( 'percent', '12.50' ), RuleRepository::format_rate( 'percent', '19' ), Locale::number( '7.70' ), Locale::number( '19.00' ) ) );
 

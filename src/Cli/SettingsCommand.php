@@ -8,6 +8,7 @@
 
 namespace WPAffiliateCaptain\Cli;
 
+use WPAffiliateCaptain\Core\CountryProfiles;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Core\SettingsSchema;
 use WPAffiliateCaptain\Core\SettingsTransfer;
@@ -152,6 +153,49 @@ final class SettingsCommand {
 			return;
 		}
 		self::apply( $preview, 'settings.reset' );
+	}
+
+	/**
+	 * Apply a country profile (DE, AT, CH, EU, OTHER or one added by an add-on): shows every change
+	 * (old → new) and applies it only with --yes. The values are not legally or tax reviewed.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<code>]
+	 * : Profile code. Without it the profiles are listed.
+	 *
+	 * [--yes]
+	 * : Apply the changes shown (without it nothing is changed).
+	 *
+	 * @param array $args  Positional.
+	 * @param array $assoc Options.
+	 */
+	public function profile( $args, $assoc ) {
+		if ( ! isset( $args[0] ) ) {
+			foreach ( CountryProfiles::all() as $code => $p ) {
+				\WP_CLI::line( sprintf( '%s: %s', $code, CountryProfiles::name( $code ) ) );
+			}
+			\WP_CLI::line( 'Proposed for this shop: ' . CountryProfiles::proposed() );
+			return;
+		}
+		$code    = CountryProfiles::clean( $args[0] );
+		$preview = CountryProfiles::preview( $code );
+		if ( is_wp_error( $preview ) ) {
+			\WP_CLI::error( $preview->get_error_message() );
+		}
+		\WP_CLI::line( 'Country profile ' . CountryProfiles::name( $code ) . ':' );
+		self::print_changes( $preview );
+		if ( empty( $assoc['yes'] ) ) {
+			if ( $preview['changes'] ) {
+				\WP_CLI::line( 'Nothing was changed. Run again with --yes to apply these changes.' );
+			}
+			return;
+		}
+		$preview['errors'] = array(); // Like on the settings page: only the valid values are applied.
+		if ( ! CountryProfiles::apply( $code, $preview, 'cli' ) ) {
+			\WP_CLI::error( 'The settings could not be saved (database error).' );
+		}
+		\WP_CLI::success( sprintf( '%d setting(s) changed.', count( $preview['values'] ) ) );
 	}
 
 	/**
