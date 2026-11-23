@@ -112,7 +112,7 @@ if ( $svc && $token ) {
 }
 
 echo "4. Termin abgesagt → Erstattung, Provision und Gutschein\n";
-$r = PassCaptain\Admin\EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ ) );
+$r = PassCaptain\Admin\EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ, 'reason' => 'E2E: Termin abgesagt', 'confirm' => 1 ) ); // Pass Captain 1.6.0: reason and confirmation required.
 chk( 'Termin abgesagt', is_array( $r ) && ! is_wp_error( $r ), is_wp_error( $r ) ? $r->get_error_message() : json_encode( $r ) );
 if ( class_exists( 'PassCaptain\Jobs' ) && method_exists( 'PassCaptain\Jobs', 'run_due' ) ) { PassCaptain\Jobs::run_due(); }
 $order = PassCaptain\Orders::get( $oid );
