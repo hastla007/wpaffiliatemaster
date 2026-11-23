@@ -134,18 +134,18 @@ final class SettingsSchema {
 			'report_admin' => array( 'type' => 'bool', 'tab' => 'emails', 'default' => 1, 'label' => self::l__( 'Monthly summary e-mail to the operator', 'affiliate-captain' ), 'help' => self::l__( 'On the first days of the month you get a summary of the previous month (clicks, sales, commissions, payouts).', 'affiliate-captain' ) ),
 			'report_partners' => array( 'type' => 'bool', 'tab' => 'emails', 'default' => 0, 'label' => self::l__( 'Monthly summary e-mail to active partners', 'affiliate-captain' ), 'help' => self::l__( 'Sent on the first days of the month for the previous month.', 'affiliate-captain' ) ),
 			// Business rules (S2, SET-AC-12/13/14): safe default = the former fixed value; the old filters still win.
-			'code_requests_per_month' => array( 'type' => 'int', 'tab' => 'program', 'default' => 3, 'max' => 100, 'label' => self::l__( 'Code requests per partner in 30 days', 'affiliate-captain' ), 'help' => self::l__( 'How many own codes a partner can request within 30 days (at least 1). Filter wpac_code_requests_per_month wins.', 'affiliate-captain' ) ),
-			'code_request_max_length' => array( 'type' => 'int', 'tab' => 'program', 'default' => 20, 'max' => 64, 'label' => self::l__( 'Maximum length of a requested code', 'affiliate-captain' ), 'help' => self::l__( 'Characters, 3 to 64. Filter wpac_code_request_max_length wins.', 'affiliate-captain' ) ),
-			'application_confirm_days' => array( 'type' => 'int', 'tab' => 'program', 'default' => 2, 'max' => 30, 'label' => self::l__( 'Confirmation link of an application valid for (days)', 'affiliate-captain' ), 'help' => self::l__( 'An application whose e-mail address is not confirmed within this time is deleted (at least 1 day). Also for applications handed over by Form Captain.', 'affiliate-captain' ) ),
+			'code_requests_per_month' => array( 'type' => 'int', 'tab' => 'program', 'default' => 3, 'min' => 1, 'max' => 100, 'label' => self::l__( 'Code requests per partner in 30 days', 'affiliate-captain' ), 'help' => self::l__( 'How many own codes a partner can request within 30 days (at least 1). Filter wpac_code_requests_per_month wins.', 'affiliate-captain' ) ),
+			'code_request_max_length' => array( 'type' => 'int', 'tab' => 'program', 'default' => 20, 'min' => 3, 'max' => 64, 'label' => self::l__( 'Maximum length of a requested code', 'affiliate-captain' ), 'help' => self::l__( 'Characters, 3 to 64. Filter wpac_code_request_max_length wins.', 'affiliate-captain' ) ),
+			'application_confirm_days' => array( 'type' => 'int', 'tab' => 'program', 'default' => 2, 'min' => 1, 'max' => 30, 'label' => self::l__( 'Confirmation link of an application valid for (days)', 'affiliate-captain' ), 'help' => self::l__( 'An application whose e-mail address is not confirmed within this time is deleted (at least 1 day). Also for applications handed over by Form Captain.', 'affiliate-captain' ), 'legal' => true ),
 			'bank_change_wait_days' => array( 'type' => 'int', 'tab' => 'security', 'default' => 30, 'max' => 365, 'label' => self::l__( 'New bank details wait for approval after an account change (days)', 'affiliate-captain' ), 'help' => self::l__( 'After a partner\'s e-mail address or linked user changed, new payout details from the partner area wait this many days for approval by someone with the payout permission. 0 = no waiting. Filter wpac_access_change_days wins.', 'affiliate-captain' ) ),
 			'reauth_minutes' => array( 'type' => 'int', 'tab' => 'security', 'default' => 15, 'max' => 1440, 'label' => self::l__( 'Password confirmation valid for (minutes)', 'affiliate-captain' ), 'help' => self::l__( 'How long a password confirmation before money-relevant actions stays valid in the login session. 0 = ask every time. Filter wpac_reauth_ttl wins.', 'affiliate-captain' ) ),
-			'fraud_refund_window_days' => array( 'type' => 'int', 'tab' => 'security', 'default' => 90, 'max' => 730, 'label' => self::l__( 'Refund rate: period (days)', 'affiliate-captain' ), 'help' => self::l__( 'Period over which the refund rate of a partner is calculated (at least 1 day).', 'affiliate-captain' ) ),
-			'fraud_refund_min_orders' => array( 'type' => 'int', 'tab' => 'security', 'default' => 5, 'max' => 100000, 'label' => self::l__( 'Refund rate: minimum number of orders', 'affiliate-captain' ), 'help' => self::l__( 'The refund rule only applies to partners with at least this many orders in the period (at least 1).', 'affiliate-captain' ) ),
-			'privacy_requests_per_day' => array( 'type' => 'int', 'tab' => 'data', 'default' => 5, 'max' => 100, 'label' => self::l__( 'Privacy requests per partner and day', 'affiliate-captain' ), 'help' => self::l__( 'Limit for requests from the partner area (data access, erasure, objection) per partner and day (at least 1).', 'affiliate-captain' ) ),
-			'terms_reminder_days' => array( 'type' => 'int', 'tab' => 'program', 'default' => 7, 'max' => 365, 'label' => self::l__( 'Remind partners of new terms at most every (days)', 'affiliate-captain' ), 'help' => self::l__( 'Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day).', 'affiliate-captain' ) ),
-			'claim_cancel_days' => array( 'type' => 'int', 'tab' => 'payouts', 'default' => 45, 'max' => 365, 'label' => self::l__( 'Payouts claimed by a payment add-on can be cancelled after (days)', 'affiliate-captain' ), 'help' => self::l__( 'Payment providers can settle late; cancelling earlier could pay commissions twice (at least 1 day). Filter wpac_claim_cancel_after wins.', 'affiliate-captain' ) ),
+			'fraud_refund_window_days' => array( 'type' => 'int', 'tab' => 'security', 'default' => 90, 'min' => 1, 'max' => 730, 'label' => self::l__( 'Refund rate: period (days)', 'affiliate-captain' ), 'help' => self::l__( 'Period over which the refund rate of a partner is calculated (at least 1 day).', 'affiliate-captain' ) ),
+			'fraud_refund_min_orders' => array( 'type' => 'int', 'tab' => 'security', 'default' => 5, 'min' => 1, 'max' => 100000, 'label' => self::l__( 'Refund rate: minimum number of orders', 'affiliate-captain' ), 'help' => self::l__( 'The refund rule only applies to partners with at least this many orders in the period (at least 1).', 'affiliate-captain' ) ),
+			'privacy_requests_per_day' => array( 'type' => 'int', 'tab' => 'data', 'default' => 5, 'min' => 1, 'max' => 100, 'label' => self::l__( 'Privacy requests per partner and day', 'affiliate-captain' ), 'help' => self::l__( 'Limit for requests from the partner area (data access, erasure, objection) per partner and day (at least 1).', 'affiliate-captain' ) ),
+			'terms_reminder_days' => array( 'type' => 'int', 'tab' => 'program', 'default' => 7, 'min' => 1, 'max' => 365, 'label' => self::l__( 'Remind partners of new terms at most every (days)', 'affiliate-captain' ), 'help' => self::l__( 'Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day).', 'affiliate-captain' ) ),
+			'claim_cancel_days' => array( 'type' => 'int', 'tab' => 'payouts', 'default' => 45, 'min' => 1, 'max' => 365, 'label' => self::l__( 'Payouts claimed by a payment add-on can be cancelled after (days)', 'affiliate-captain' ), 'help' => self::l__( 'Payment providers can settle late; cancelling earlier could pay commissions twice (at least 1 day). Filter wpac_claim_cancel_after wins.', 'affiliate-captain' ) ),
 			'payout_request_note_days' => array( 'type' => 'int', 'tab' => 'payouts', 'default' => 60, 'max' => 3650, 'label' => self::l__( 'Show the reason of a rejected payout request for (days)', 'affiliate-captain' ), 'help' => self::l__( 'How long partners see your reason for rejecting their payout request in the partner area.', 'affiliate-captain' ) ),
-			'vies_recheck_days' => array( 'type' => 'int', 'tab' => 'payouts', 'default' => 30, 'max' => 365, 'label' => self::l__( 'Check VAT IDs again after (days)', 'affiliate-captain' ), 'help' => self::l__( 'With the VIES check on, valid VAT IDs are checked again after this many days (at least 1).', 'affiliate-captain' ), 'legal' => true ),
+			'vies_recheck_days' => array( 'type' => 'int', 'tab' => 'payouts', 'default' => 30, 'min' => 1, 'max' => 365, 'label' => self::l__( 'Check VAT IDs again after (days)', 'affiliate-captain' ), 'help' => self::l__( 'With the VIES check on, valid VAT IDs are checked again after this many days (at least 1).', 'affiliate-captain' ), 'legal' => true ),
 			'addon_hints' => array( 'type' => 'bool', 'tab' => 'data', 'default' => 1, 'label' => self::l__( 'Show notes about add-on features', 'affiliate-captain' ), 'help' => self::l__( 'Grey text lines at the end of a tab name features of Affiliate Captain Pro. They contain no form fields and change nothing; switch them off here.', 'affiliate-captain' ) ),
 			'delete_on_uninstall' => array( 'type' => 'bool', 'tab' => 'data', 'default' => 0, 'label' => self::l__( 'Delete all data when the plugin is deleted', 'affiliate-captain' ), 'help' => self::l__( 'Off by default: deleting the plugin keeps all data. When switched on (type DELETE to confirm), deleting the plugin removes partners, links and codes, visits, commissions, payouts, applications, settings and the pages it created. Booking records, credit notes and the audit log stay as long as a credit note is within the retention period. On a multisite network this applies to this site only. Scheduled tasks are always removed. Not part of the settings export.', 'affiliate-captain' ), 'local' => true ),
 		);
@@ -172,6 +172,10 @@ final class SettingsSchema {
 		foreach ( (array) $filtered as $key => $def ) {
 			$key = is_string( $key ) ? sanitize_key( $key ) : '';
 			if ( '' === $key || isset( $core[ $key ] ) || ! is_array( $def ) || empty( $def['option'] ) || empty( $def['label'] ) || ! isset( $def['tab'] ) ) {
+				continue;
+			}
+			// The core settings option is never add-on storage (P6-02).
+			if ( 'wpac_settings' === sanitize_key( (string) $def['option'] ) ) {
 				continue;
 			}
 			$out[ $key ] = array(
@@ -284,6 +288,21 @@ final class SettingsSchema {
 		foreach ( self::core() as $key => $f ) {
 			if ( isset( $f['max'] ) ) {
 				$out[ $key ] = (int) $f['max'];
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Lower limits of whole-number settings (key => min); keys without one allow 0 (P1-07).
+	 *
+	 * @return int[]
+	 */
+	public static function int_min() {
+		$out = array();
+		foreach ( self::core() as $key => $f ) {
+			if ( isset( $f['min'] ) ) {
+				$out[ $key ] = (int) $f['min'];
 			}
 		}
 		return $out;

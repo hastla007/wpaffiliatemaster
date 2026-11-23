@@ -108,8 +108,8 @@ final class Reauth {
 		}
 		if ( 'settings_reset_apply' === $do ) {
 			$pending = get_transient( 'wpac_settings_pending_' . get_current_user_id() );
-			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', '' ), true ) ) {
-				return 'settings_reset_money'; // Money tabs (SET-AC-09).
+			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', 'data', '' ), true ) ) {
+				return 'settings_reset_money'; // Money tabs (SET-AC-09) and retention periods (P1-05).
 			}
 		}
 		if ( 'settings_save' === $do && (int) Settings::get( 'reauth_required' ) && 'security' === Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) ) ) {

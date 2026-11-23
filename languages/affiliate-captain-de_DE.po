@@ -4084,6 +4084,9 @@ msgstr "Partnerlink mit dem neuen Code"
 msgid "Partner link (start page with the partner code)"
 msgstr "Partnerlink (Startseite mit dem Partnercode)"
 
+msgid "How long the confirmation link is valid (setting)"
+msgstr "Wie lange der Bestätigungslink gilt (Einstellung)"
+
 msgid "Address of the list of open requests in the admin"
 msgstr "Adresse der Liste offener Anträge im Admin"
 
@@ -4123,8 +4126,8 @@ msgstr "Ihr Partnerlink: %1$s\nIhr Partnercode: %2$s (Kunden können ihn auch an
 msgid "[%s] Please confirm your partner application"
 msgstr "[%s] Bitte bestätigen Sie Ihre Partnerbewerbung"
 
-msgid "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
-msgstr "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für das Partnerprogramm von %1$s beworben. Bitte bestätigen Sie Ihre E-Mail-Adresse, um die Bewerbung abzuschließen:\n%2$s\n\nDer Link ist 48 Stunden gültig. Wenn Sie sich nicht beworben haben, können Sie diese E-Mail ignorieren."
+msgid "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for %3$s. If you did not apply, you can ignore this e-mail."
+msgstr "Hallo,\n\njemand (wahrscheinlich du) hat sich mit dieser E-Mail-Adresse für das Partnerprogramm von %1$s beworben. Bitte bestätige deine E-Mail-Adresse, um die Bewerbung abzuschließen:\n%2$s\n\nDer Link gilt %3$s. Wenn du dich nicht beworben hast, kannst du diese E-Mail ignorieren."
 
 msgid "[%s] We have received your partner application"
 msgstr "[%s] Wir haben Ihre Partnerbewerbung erhalten"
@@ -5186,6 +5189,9 @@ msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 100 ein (z. B. 10 oder 
 msgid "To switch this on, type DELETE (or LÖSCHEN) into the confirmation field."
 msgstr "Zum Einschalten tippe LÖSCHEN (oder DELETE) in das Bestätigungsfeld."
 
+msgid "Please enter a whole number between %1$d and %2$d."
+msgstr "Bitte gib eine ganze Zahl zwischen %1$d und %2$d ein."
+
 msgid "Please enter a whole number between 0 and %d."
 msgstr "Bitte geben Sie eine ganze Zahl zwischen 0 und %d ein."
 
@@ -5383,6 +5389,9 @@ msgstr "Neuseeland"
 
 msgid "Advertisement"
 msgstr "Werbung"
+
+msgid "Not a valid choice. Allowed: %s"
+msgstr "Keine gültige Auswahl. Erlaubt: %s"
 
 msgid "Link parameter"
 msgstr "Link-Parameter"
@@ -5950,6 +5959,15 @@ msgstr "Das ist kein Einstellungs-Export von Affiliate Captain."
 
 msgid "The file comes from a newer version of Affiliate Captain. Update the plugin first."
 msgstr "Die Datei stammt aus einer neueren Version von Affiliate Captain. Aktualisiere zuerst das Plugin."
+
+msgid "A running retention hold is only lifted on the settings page."
+msgstr "Eine laufende Aufbewahrungssperre wird nur auf der Einstellungsseite aufgehoben."
+
+msgid "Please use 1 or 0 (on or off)."
+msgstr "Bitte 1 oder 0 verwenden (an oder aus)."
+
+msgid "Change the type of the default rate only together with the rate itself."
+msgstr "Ändere die Art des Standardsatzes nur zusammen mit dem Satz selbst."
 
 msgid "Affiliate Captain needs a published registration page (Affiliate Captain → Settings): applicants confirm their e-mail address there."
 msgstr "Affiliate Captain braucht eine veröffentlichte Bewerbungsseite (Affiliate Captain → Einstellungen): Dort bestätigen Bewerber ihre E-Mail-Adresse."
@@ -6939,6 +6957,11 @@ msgid_plural "%d days after the click"
 msgstr[0] "%d Tag nach dem Klick"
 msgstr[1] "%d Tage nach dem Klick"
 
+msgid "%d day (returns and cancellations), then we review and approve the commission"
+msgid_plural "%d days (returns and cancellations), then we review and approve the commission"
+msgstr[0] "%d Tag (Rücksendungen und Stornos), danach prüfen wir die Provision und geben sie frei"
+msgstr[1] "%d Tage (Rücksendungen und Stornos), danach prüfen wir die Provision und geben sie frei"
+
 msgid "%d day (returns and cancellations), then the commission is approved"
 msgid_plural "%d days (returns and cancellations), then the commission is approved"
 msgstr[0] "%d Tag (Rücksendungen und Stornierungen), dann wird die Provision freigegeben"
@@ -7144,6 +7167,9 @@ msgstr "Einige Produkte oder Kategorien haben einen eigenen Satz; jede Provision
 
 msgid "Referral valid for"
 msgstr "Empfehlung gültig für"
+
+msgid "None – we review and approve each commission"
+msgstr "Keine – wir prüfen jede Provision und geben sie frei"
 
 msgid "None – commissions are approved right away"
 msgstr "Keine – Provisionen werden sofort freigegeben"
@@ -7444,6 +7470,9 @@ msgstr "Verfügbar ab"
 
 msgid "Your commissions"
 msgstr "Ihre Provisionen"
+
+msgid "after our review (at the earliest %s)"
+msgstr "nach unserer Prüfung (frühestens %s)"
 
 msgid "after our review"
 msgstr "nach unserer Prüfung"
@@ -7927,8 +7956,8 @@ msgstr "abgelehnte Partnerbewerbungen: bis zur manuellen Löschung"
 msgid "partner applications that were never decided: until deleted manually"
 msgstr "nie entschiedene Partnerbewerbungen: bis zur manuellen Löschung"
 
-msgid "applications whose e-mail address was not confirmed: 2 days"
-msgstr "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: 2 Tage"
+msgid "applications whose e-mail address was not confirmed: %s"
+msgstr "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: %s"
 
 msgid "commission records, credit notes, payout details and the accepted terms: statutory retention period, currently not deleted automatically"
 msgstr "Provisionsdaten, Gutschriften, Auszahlungsdaten und die akzeptierten Partnerbedingungen: gesetzliche Aufbewahrungsfrist, derzeit keine automatische Löschung"

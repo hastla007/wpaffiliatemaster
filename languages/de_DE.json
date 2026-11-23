@@ -1084,7 +1084,6 @@
  "Hello %s,\n\nwe did not accept the recent change of your bank details; payouts still go to the previous account. Please contact us if you want to change them.": "Hallo %s,\n\nwir haben die letzte Änderung Ihrer Bankdaten nicht übernommen; Auszahlungen gehen weiterhin auf das bisherige Konto. Bitte kontaktieren Sie uns, wenn Sie die Bankdaten ändern möchten.",
  "Hello,\n\nplease confirm your new e-mail address for the partner program (valid for 24 hours):\n%s\n\nIf you did not request this, ignore this e-mail.": "Hallo,\n\nbitte bestätigen Sie Ihre neue E-Mail-Adresse für das Partnerprogramm (24 Stunden gültig):\n%s\n\nWenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail.",
  "Hello,\n\nsomeone (probably you) applied for our partner program with this e-mail address. You already have a partner account: %s\n\nIf this was not you, you can ignore this e-mail.": "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für unser Partnerprogramm beworben. Sie haben bereits ein Partnerkonto: %s\n\nWenn Sie das nicht waren, können Sie diese E-Mail ignorieren.",
- "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail.": "Hallo,\n\njemand (vermutlich Sie) hat sich mit dieser E-Mail-Adresse für das Partnerprogramm von %1$s beworben. Bitte bestätigen Sie Ihre E-Mail-Adresse, um die Bewerbung abzuschließen:\n%2$s\n\nDer Link ist 48 Stunden gültig. Wenn Sie sich nicht beworben haben, können Sie diese E-Mail ignorieren.",
  "Hello,\n\nthank you for your application to the partner program of %s. We will review it and let you know by e-mail as soon as we have decided.": "Hallo,\n\nvielen Dank für Ihre Bewerbung für das Partnerprogramm von %s. Wir prüfen sie und informieren Sie per E-Mail, sobald wir entschieden haben.",
  "Hello,\n\nthe e-mail address of your partner account was changed to %s. If you did not make this change, please contact us immediately.": "Hallo,\n\ndie E-Mail-Adresse Ihres Partnerkontos wurde auf %s geändert. Wenn Sie das nicht waren, melden Sie sich bitte sofort bei uns.",
  "Hello,\n\nthere is already a customer account with this e-mail address. Log in to that account and open this link to use it for the partner program (valid for 7 days):\n%s\n\nIf you do not know this account, ignore this e-mail and contact us.": "Hallo,\n\nmit dieser E-Mail-Adresse gibt es bereits ein Kundenkonto. Melden Sie sich in diesem Konto an und öffnen Sie diesen Link, um es für das Partnerprogramm zu nutzen (7 Tage gültig):\n%s\n\nWenn Sie dieses Konto nicht kennen, ignorieren Sie diese E-Mail und melden Sie sich bei uns.",
@@ -2886,7 +2885,6 @@
  "affiliate cookie: %d days": "Affiliate-Cookie: %d Tage",
  "after an erasure request; kept only for the statutory retention": "nach einem Löschantrag; nur noch für die gesetzliche Aufbewahrung gespeichert",
  "after our review": "nach unserer Prüfung",
- "applications whose e-mail address was not confirmed: 2 days": "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: 2 Tage",
  "attribution of an order to a partner (order number, campaign, sub ID): %d year after the end of the calendar year of the last booking of the order": [
   "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahr nach Ende des Kalenderjahres der letzten Buchung der Bestellung",
   "Zuordnung einer Bestellung zu einem Partner (Bestellnummer, Kampagne, Sub-ID): %d Jahre nach Ende des Kalenderjahres der letzten Buchung der Bestellung"
@@ -3196,5 +3194,19 @@
  "Off by default: deleting the plugin keeps all data. When switched on (type DELETE to confirm), deleting the plugin removes partners, links and codes, visits, commissions, payouts, applications, settings and the pages it created. Booking records, credit notes and the audit log stay as long as a credit note is within the retention period. On a multisite network this applies to this site only. Scheduled tasks are always removed. Not part of the settings export.": "Standardmäßig aus: Beim Löschen des Plugins bleiben alle Daten erhalten. Ist es eingeschaltet (zur Bestätigung LÖSCHEN eintippen), entfernt das Löschen des Plugins Partner, Links und Codes, Besuche, Provisionen, Auszahlungen, Bewerbungen, Einstellungen und die vom Plugin angelegten Seiten. Buchungsdaten, Gutschriften und das Protokoll bleiben, solange eine Gutschrift in der Aufbewahrungsfrist liegt. In einem Multisite-Netzwerk gilt das nur für diese Website. Geplante Aufgaben werden immer entfernt. Wird nicht mit den Einstellungen exportiert.",
  "To switch this on, type DELETE (or LÖSCHEN) into the confirmation field.": "Zum Einschalten tippe LÖSCHEN (oder DELETE) in das Bestätigungsfeld.",
  "Confirmation": "Bestätigung",
- "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word.": "Nur zum Einschalten: tippe LÖSCHEN (oder DELETE). Ausschalten und das Speichern anderer Felder brauchen kein Wort."
+ "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word.": "Nur zum Einschalten: tippe LÖSCHEN (oder DELETE). Ausschalten und das Speichern anderer Felder brauchen kein Wort.",
+ "How long the confirmation link is valid (setting)": "Wie lange der Bestätigungslink gilt (Einstellung)",
+ "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for %3$s. If you did not apply, you can ignore this e-mail.": "Hallo,\n\njemand (wahrscheinlich du) hat sich mit dieser E-Mail-Adresse für das Partnerprogramm von %1$s beworben. Bitte bestätige deine E-Mail-Adresse, um die Bewerbung abzuschließen:\n%2$s\n\nDer Link gilt %3$s. Wenn du dich nicht beworben hast, kannst du diese E-Mail ignorieren.",
+ "Please enter a whole number between %1$d and %2$d.": "Bitte gib eine ganze Zahl zwischen %1$d und %2$d ein.",
+ "Not a valid choice. Allowed: %s": "Keine gültige Auswahl. Erlaubt: %s",
+ "A running retention hold is only lifted on the settings page.": "Eine laufende Aufbewahrungssperre wird nur auf der Einstellungsseite aufgehoben.",
+ "Please use 1 or 0 (on or off).": "Bitte 1 oder 0 verwenden (an oder aus).",
+ "Change the type of the default rate only together with the rate itself.": "Ändere die Art des Standardsatzes nur zusammen mit dem Satz selbst.",
+ "%d day (returns and cancellations), then we review and approve the commission": [
+  "%d Tag (Rücksendungen und Stornos), danach prüfen wir die Provision und geben sie frei",
+  "%d Tage (Rücksendungen und Stornos), danach prüfen wir die Provision und geben sie frei"
+ ],
+ "None – we review and approve each commission": "Keine – wir prüfen jede Provision und geben sie frei",
+ "after our review (at the earliest %s)": "nach unserer Prüfung (frühestens %s)",
+ "applications whose e-mail address was not confirmed: %s": "Bewerbungen, deren E-Mail-Adresse nicht bestätigt wurde: %s"
 }

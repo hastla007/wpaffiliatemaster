@@ -208,8 +208,8 @@ Settings::flush_cache();
 $g6_attached = array();
 do_action( 'wpac_statement_generated', (int) $g6_po->id, '' );
 check( 'R14-L1 setting "never": no XML attached (download only)', array(), $g6_attached );
-$g6_settings_out = Settings::sanitize( array( 'einvoice_mail' => 'bogus', 'einvoice_buyer_reference' => ' <b>991-12345-06</b> ' ) );
-check( 'R14-L1 settings sanitized (unknown choice → auto, reference as text)', array( 'auto', '991-12345-06' ), array( $g6_settings_out['einvoice_mail'], $g6_settings_out['einvoice_buyer_reference'] ) );
+$g6_settings_out = Settings::sanitize( array( 'einvoice_mail' => 'bogus', 'einvoice_buyer_reference' => ' <b>991-12345-06</b> ' ), $g6_settings_err );
+check( 'R14-L1 settings sanitized (unknown choice: error, stored value stays (P1-03); reference as text)', array( 'off', true, '991-12345-06' ), array( $g6_settings_out['einvoice_mail'], isset( $g6_settings_err['einvoice_mail'] ), $g6_settings_out['einvoice_buyer_reference'] ) );
 
 /* 4. Mixed VAT groups: S 19 %, S 7 %, AE, a repayment and a settled correction credit note. --- */
 $g6_now  = Db::now();

@@ -381,7 +381,7 @@ msgstr[1] ""
 
 #. translators: %d: number of days
 #. translators: %d: days
-#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/Registration.php src/Privacy/Privacy.php
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
@@ -5581,6 +5581,10 @@ msgid "Partner link (start page with the partner code)"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
+msgid "How long the confirmation link is valid (setting)"
+msgstr ""
+
+#: src/Affiliates/Notifications.php
 msgid "Address of the list of open requests in the admin"
 msgstr ""
 
@@ -5634,9 +5638,9 @@ msgstr ""
 msgid "[%s] Please confirm your partner application"
 msgstr ""
 
-#. translators: 1: site name, 2: link
+#. translators: 1: site name, 2: link, 3: validity (e.g. "2 days")
 #: src/Affiliates/Notifications.php
-msgid "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail."
+msgid "Hello,\n\nsomeone (probably you) applied for the partner program of %1$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2$s\n\nThe link is valid for %3$s. If you did not apply, you can ignore this e-mail."
 msgstr ""
 
 #. translators: %s: site name
@@ -7172,6 +7176,11 @@ msgstr ""
 msgid "To switch this on, type DELETE (or LÖSCHEN) into the confirmation field."
 msgstr ""
 
+#. translators: 1: smallest allowed number, 2: largest allowed number
+#: src/Core/Settings.php
+msgid "Please enter a whole number between %1$d and %2$d."
+msgstr ""
+
 #. translators: %d: largest allowed number
 #: src/Core/Settings.php
 msgid "Please enter a whole number between 0 and %d."
@@ -7444,6 +7453,11 @@ msgstr ""
 
 #: src/Core/Settings.php src/Core/SettingsSchema.php
 msgid "Advertisement"
+msgstr ""
+
+#. translators: %s: allowed values
+#: src/Core/Settings.php
+msgid "Not a valid choice. Allowed: %s"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -8200,6 +8214,18 @@ msgstr ""
 
 #: src/Core/SettingsTransfer.php
 msgid "The file comes from a newer version of Affiliate Captain. Update the plugin first."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "A running retention hold is only lifted on the settings page."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "Please use 1 or 0 (on or off)."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "Change the type of the default rate only together with the rate itself."
 msgstr ""
 
 #: src/Integrations/FormCaptain/Connector.php
@@ -9626,6 +9652,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/Portal/Portal.php
+msgid "%d day (returns and cancellations), then we review and approve the commission"
+msgid_plural "%d days (returns and cancellations), then we review and approve the commission"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Portal/Portal.php
 msgid "%d day (returns and cancellations), then the commission is approved"
 msgid_plural "%d days (returns and cancellations), then the commission is approved"
 msgstr[0] ""
@@ -9902,6 +9934,10 @@ msgstr ""
 #. translators: %d: days
 #: src/Portal/Portal.php
 msgid "Referral valid for"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "None – we review and approve each commission"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -10316,6 +10352,11 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your commissions"
+msgstr ""
+
+#. translators: %s: date
+#: src/Portal/Portal.php
+msgid "after our review (at the earliest %s)"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -10987,8 +11028,9 @@ msgstr ""
 msgid "partner applications that were never decided: until deleted manually"
 msgstr ""
 
+#. translators: %s: validity of the confirmation link (e.g. "2 days")
 #: src/Privacy/Privacy.php
-msgid "applications whose e-mail address was not confirmed: 2 days"
+msgid "applications whose e-mail address was not confirmed: %s"
 msgstr ""
 
 #: src/Privacy/Privacy.php

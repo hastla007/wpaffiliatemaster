@@ -93,14 +93,13 @@ final class AddonHints {
 				$notes[] = $row;
 			}
 		}
+		// The switch "addon_hints" only hides the built-in notes; notes of installed add-ons stay (P6-04).
 		if ( self::shown() ) {
 			foreach ( self::notes() as $n ) {
 				if ( $n['tab'] === $tab && ! isset( $ids[ $n['id'] ] ) ) {
-					$notes[] = self::normalize( $n );
+					$notes[] = array( 'builtin' => true ) + self::normalize( $n );
 				}
 			}
-		} else {
-			$notes = array();
 		}
 		return array(
 			'fields' => $fields,
@@ -114,7 +113,9 @@ final class AddonHints {
 	 * @return bool
 	 */
 	public static function shown() {
-		return (bool) apply_filters( 'wpac_show_addon_hints', (bool) Settings::get( 'addon_hints' ) );
+		// Only while the add-on is on sale, i.e. a product address is set (decision S5; P6-03).
+		$on_sale = '' !== (string) apply_filters( 'wpac_addon_hint_url', '' );
+		return (bool) apply_filters( 'wpac_show_addon_hints', (bool) Settings::get( 'addon_hints' ) && $on_sale );
 	}
 
 	/**
@@ -157,10 +158,12 @@ final class AddonHints {
 			echo '</table>';
 		}
 		if ( $rows['notes'] ) {
-			echo '<h2 class="wpac-addon-notes-title">' . esc_html__( 'More with Affiliate Captain Pro', 'affiliate-captain' ) . '</h2><table class="form-table wpac-addon-notes" role="presentation">';
+			$builtin = (bool) array_filter( array_column( $rows['notes'], 'builtin' ) );
+			echo '<h2 class="wpac-addon-notes-title">' . ( $builtin ? esc_html__( 'More with Affiliate Captain Pro', 'affiliate-captain' ) : esc_html__( 'Add-ons', 'affiliate-captain' ) ) . '</h2><table class="form-table wpac-addon-notes" role="presentation">';
 			foreach ( $rows['notes'] as $row ) {
-				// Text only: no form field, no name attribute, no stored value.
-				echo '<tr class="wpac-addon-note"><th scope="row"><span class="wpac-pro-mark">' . esc_html__( 'Pro', 'affiliate-captain' ) . '</span> ' . esc_html( $row['title'] ) . '</th><td><p class="description">' . esc_html( $row['text'] );
+				// Text only: no form field, no name attribute, no stored value. The Pro mark only on built-in notes.
+				$mark = ! empty( $row['builtin'] ) ? '<span class="wpac-pro-mark">' . esc_html__( 'Pro', 'affiliate-captain' ) . '</span> ' : '';
+				echo '<tr class="wpac-addon-note"><th scope="row">' . $mark . esc_html( $row['title'] ) . '</th><td><p class="description">' . esc_html( $row['text'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $mark is escaped above.
 				if ( '' !== $row['link'] ) {
 					echo ' <a href="' . esc_url( $row['link'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'Learn more', 'affiliate-captain' ) . '<span class="screen-reader-text"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
 				}

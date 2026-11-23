@@ -940,7 +940,8 @@ final class SettingsPage {
 	private static function number( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		$err = self::error_parts( $key );
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="number" min="0" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		$min = \WPAffiliateCaptain\Core\SettingsSchema::int_min();
+		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="number" min="%6$d" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1], isset( $min[ $key ] ) ? (int) $min[ $key ] : 0 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::desc( $desc );
 		echo '</td></tr>';
 	}

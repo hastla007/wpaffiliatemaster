@@ -1202,7 +1202,13 @@ final class Portal {
 		$out[ __( 'Referral valid for', 'affiliate-captain' ) ] = sprintf( _n( '%d day after the click', '%d days after the click', $days, 'affiliate-captain' ), $days );
 		$hold = max( 0, (int) Settings::for_affiliate( 'hold_days', (int) $aff->id ) );
 		/* translators: %d: days */
-		$out[ __( 'Hold period', 'affiliate-captain' ) ] = $hold > 0 ? sprintf( _n( '%d day (returns and cancellations), then the commission is approved', '%d days (returns and cancellations), then the commission is approved', $hold, 'affiliate-captain' ), $hold ) : __( 'None – commissions are approved right away', 'affiliate-captain' );
+		if ( 'manual' === (string) Settings::get( 'approval_mode' ) ) {
+			// Release only by hand (P2-04): no promise of an automatic approval.
+			/* translators: %d: days */
+			$out[ __( 'Hold period', 'affiliate-captain' ) ] = $hold > 0 ? sprintf( _n( '%d day (returns and cancellations), then we review and approve the commission', '%d days (returns and cancellations), then we review and approve the commission', $hold, 'affiliate-captain' ), $hold ) : __( 'None – we review and approve each commission', 'affiliate-captain' );
+		} else {
+			$out[ __( 'Hold period', 'affiliate-captain' ) ] = $hold > 0 ? sprintf( _n( '%d day (returns and cancellations), then the commission is approved', '%d days (returns and cancellations), then the commission is approved', $hold, 'affiliate-captain' ), $hold ) : __( 'None – commissions are approved right away', 'affiliate-captain' );
+		}
 		$group = (int) $aff->group_id ? \WPAffiliateCaptain\Affiliates\Groups::find( (int) $aff->group_id ) : null;
 		if ( $group ) {
 			$out[ __( 'Partner group', 'affiliate-captain' ) ] = (string) $group->name;
@@ -1944,7 +1950,10 @@ final class Portal {
 				$status .= '<br><small class="wpac-muted">' . esc_html( $reasons[ (int) $r->id ] ) . '</small>';
 			}
 			// "Available from" only while the hold period runs; a commission under review has no date yet.
-			if ( 'pending' === $r->status && $r->hold_until ) {
+			if ( 'pending' === $r->status && $r->hold_until && 'manual' === (string) Settings::get( 'approval_mode' ) ) {
+				/* translators: %s: date */
+				$available = sprintf( __( 'after our review (at the earliest %s)', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $r->hold_until . ' UTC' ) ) );
+			} elseif ( 'pending' === $r->status && $r->hold_until ) {
 				$available = wp_date( get_option( 'date_format' ), strtotime( $r->hold_until . ' UTC' ) );
 			} elseif ( 'review' === $r->status ) {
 				$available = __( 'after our review', 'affiliate-captain' );

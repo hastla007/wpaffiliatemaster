@@ -35,8 +35,8 @@ final class CodeRequests {
 	/** Option prefix (+ partner ID, not autoloaded): decided requests of a partner. */
 	const HISTORY_PREFIX = 'wpac_code_requests_';
 
-	/** Entries kept in the history per partner. */
-	const HISTORY_MAX = 20;
+	/** Entries kept in the history per partner: at least the highest allowed monthly limit, so the limit counts them all (P2-05). */
+	const HISTORY_MAX = 100;
 
 	/**
 	 * Whether partners can request codes (setting, default on).

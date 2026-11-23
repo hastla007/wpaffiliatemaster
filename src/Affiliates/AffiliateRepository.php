@@ -634,12 +634,25 @@ final class AffiliateRepository {
 	 * @return bool
 	 */
 	public static function access_changed_recently( $id ) {
+		if ( 0 === self::access_change_days() ) {
+			return false; // Setting 0: no waiting period (P2-03).
+		}
 		$at = (int) get_option( 'wpac_access_changed_' . (int) $id, 0 );
 		if ( $at && $at < time() - self::access_change_days() * DAY_IN_SECONDS ) {
 			delete_option( 'wpac_access_changed_' . (int) $id );
 			$at = 0;
 		}
-		return $at > 0 || '' !== self::previous_email( (int) $id );
+		if ( $at > 0 ) {
+			return true;
+		}
+		// Changes from before the marker existed: the previous address (kept 30 days) tells when the
+		// e-mail changed; only the configured waiting period counts (P2-03).
+		$prev = '' !== self::previous_email( (int) $id ) ? get_option( 'wpac_prev_email_' . (int) $id ) : null;
+		if ( ! is_array( $prev ) ) {
+			return false;
+		}
+		$changed = (int) $prev['until'] - 30 * DAY_IN_SECONDS;
+		return $changed > time() - self::access_change_days() * DAY_IN_SECONDS;
 	}
 
 	/**

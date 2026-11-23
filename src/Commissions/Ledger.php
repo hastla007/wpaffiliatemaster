@@ -1469,7 +1469,8 @@ final class Ledger {
 		$given    = 0;
 		$skipped  = 0;
 		$already  = 0;
-		$rejected = array();
+		$rejected      = array();
+		$rejected_from = array();
 		foreach ( $rows as $row ) {
 			$rkey = self::key( 'reinstate:' . (int) $row->id );
 			if ( 'rejected' === $row->status || self::find_by_key( $rkey ) ) {
@@ -1487,6 +1488,7 @@ final class Ledger {
 					$given                     -= (int) $row->amount_minor;
 					$result['commission_ids'][] = (int) $row->id;
 					$rejected[]                 = (int) $row->id;
+					$rejected_from[ (int) $row->id ] = (string) $row->status;
 				} else {
 					++$already;
 				}
@@ -1583,7 +1585,11 @@ final class Ledger {
 					'deleted'   => true,
 				);
 				Db::after_commit(
-					static function () use ( $refund, $rejected ) {
+					static function () use ( $refund, $rejected, $rejected_from ) {
+						// Status change of each refund row, as everywhere else (contract 1.7.0; P2-01).
+						foreach ( $rejected_from as $rid => $old ) {
+							do_action( 'wpac_commission_rejected', (int) $rid, $old );
+						}
 						do_action( 'wpac_commission_adjusted', $refund, $rejected ); // Report cache, review count.
 					}
 				);

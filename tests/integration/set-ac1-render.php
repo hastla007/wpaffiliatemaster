@@ -86,7 +86,12 @@ remove_filter( 'wpac_settings_schema', $set_filter );
 SettingsSchema::flush();
 
 // SET-AC-05: notes at the end of the tab, text only; an add-on row with the same id replaces the note.
+// P6-03: the built-in notes need a product address (only while the add-on is on sale).
 $_GET  = array( 'page' => 'wpac-settings', 'tab' => 'data' );
+$set_d0 = r_render( array( SettingsPage::class, 'render' ) );
+check( 'P6-03 without a product address no built-in note is shown', false, false !== strpos( $set_d0[0], 'wpac-addon-notes' ) );
+$set_url = static function () { return 'https://example.test/pro'; };
+add_filter( 'wpac_addon_hint_url', $set_url );
 $set_d = r_render( array( SettingsPage::class, 'render' ) );
 $set_notes_html = (string) strstr( $set_d[0], '<table class="form-table wpac-addon-notes"' );
 $set_notes_html = (string) substr( $set_notes_html, 0, (int) strpos( $set_notes_html, '</table>' ) );
@@ -112,6 +117,15 @@ add_filter( 'wpac_show_addon_hints', $set_false );
 $set_d5 = r_render( array( SettingsPage::class, 'render' ) );
 remove_filter( 'wpac_show_addon_hints', $set_false );
 check( 'SET-AC-05 notes off by the setting, the filter wins in both directions', array( false, true, false ), array( false !== strpos( $set_d3[0], 'wpac-addon-notes' ), false !== strpos( $set_d4[0], 'wpac-addon-notes' ), false !== strpos( $set_d5[0], 'wpac-addon-notes' ) ) );
+// P6-04: switching the built-in notes off keeps the note of an installed add-on, without the Pro mark.
+$set_row4 = static function ( $rows ) { $rows[] = array( 'id' => 'acme_sync', 'tab' => 'data', 'title' => 'ACME Sync', 'text' => 'Licence missing.' ); return $rows; };
+add_filter( 'wpac_settings_rows', $set_row4 );
+Settings::update( array( 'addon_hints' => 0 ) );
+$set_d6 = r_render( array( SettingsPage::class, 'render' ) );
+Settings::update( array( 'addon_hints' => 1 ) );
+remove_filter( 'wpac_settings_rows', $set_row4, 10 );
+check( 'P6-04 add-on note stays when the built-in notes are off, without Pro mark', array( true, false ), array( false !== strpos( $set_d6[0], 'ACME Sync' ), false !== strpos( $set_d6[0], 'wpac-pro-mark' ) ) );
+remove_filter( 'wpac_addon_hint_url', $set_url );
 $set_tabs_with_notes = array();
 foreach ( AddonHints::notes() as $set_n ) {
 	$set_tabs_with_notes[ $set_n['tab'] ] = true;
@@ -182,7 +196,7 @@ $set_bad = SettingsTransfer::preview( array( 'format' => 1, 'settings' => array(
 check( 'SET-AC-08 invalid values are reported and change nothing; unknown and secret keys are ignored', array( true, false, false, array( 'monitor_token', 'unknown_key' ) ), array( isset( $set_bad['errors']['hold_days'] ), isset( $set_bad['values']['hold_days'] ), isset( $set_bad['values']['cookie_mode'] ) && 'sometimes' === $set_bad['values']['cookie_mode'], array_values( array_intersect( array( 'monitor_token', 'unknown_key' ), $set_bad['ignored'] ) ) ) );
 check( 'SET-AC-08 not an export / newer format: error, nothing changed', array( 'wpac_import_format', 'wpac_import_format' ), array( SettingsTransfer::preview( array( 'foo' => 1 ) )->get_error_code(), SettingsTransfer::preview( array( 'format' => 99, 'settings' => array() ) )->get_error_code() ) );
 $set_rk = SettingsTransfer::reset_keys( 'payouts' );
-check( 'SET-AC-09 reset of a tab never touches currency, number prefixes, private or secret values', array( false, false, false, true ), array( in_array( 'credit_prefix', $set_rk, true ), in_array( 'debtor_iban', $set_rk, true ), in_array( 'currency', SettingsTransfer::reset_keys(), true ), in_array( 'vat_rate', $set_rk, true ) ) );
+check( 'SET-AC-09 reset of a tab never touches currency, number prefixes, private, secret or legal values (vat_rate kept since P1-05); other values are reset', array( false, false, false, false, true ), array( in_array( 'credit_prefix', $set_rk, true ), in_array( 'debtor_iban', $set_rk, true ), in_array( 'currency', SettingsTransfer::reset_keys(), true ), in_array( 'vat_rate', $set_rk, true ), in_array( 'min_payout_minor', $set_rk, true ) ) );
 $set_rp = SettingsTransfer::reset_preview( SettingsTransfer::reset_keys( 'commissions' ) );
 SettingsTransfer::apply( $set_rp, 'settings.reset' );
 check( 'SET-AC-09 reset of the commissions tab: hold period back to 30, cookie lifetime (other tab) unchanged', array( 30, 60 ), array( (int) Settings::get( 'hold_days' ), (int) Settings::get( 'cookie_days' ) ) );

@@ -1,0 +1,119 @@
+<?php
+/**
+ * Findings of the settings review phase (SET-AC-P1 … P6): each block reproduces one finding.
+ * Included from run.php after set-ac35.php.
+ *
+ * @package WPAffiliateCaptain
+ */
+
+// phpcs:disable
+use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Core\SettingsSchema;
+use WPAffiliateCaptain\Core\SettingsTransfer;
+
+echo "SET-AC review findings\n";
+
+$rv_saved = get_option( 'wpac_settings' );
+$rv_set   = static function ( array $values ) use ( $rv_saved ) {
+	update_option( 'wpac_settings', array_merge( Settings::all(), $values ) );
+	Settings::flush_cache();
+};
+SettingsSchema::flush();
+
+// P1-01: a fixed default rate (stored in minor units) survives export → import, CLI set and type changes.
+$rv_set( array( 'currency' => 'EUR', 'default_rate_type' => 'fixed', 'default_rate' => '2500' ) );
+$rv_round = SettingsTransfer::preview( SettingsTransfer::export() );
+$rv_cli   = SettingsTransfer::check( array( 'default_rate' => '3000' ), Settings::all() );
+$rv_set( array( 'default_rate_type' => 'percent', 'default_rate' => '10' ) );
+$rv_type  = SettingsTransfer::check( array( 'default_rate_type' => 'fixed' ), Settings::all() );
+$rv_both  = SettingsTransfer::check( array( 'default_rate_type' => 'fixed', 'default_rate' => '1500' ), Settings::all() );
+check( 'P1-01 fixed default rate: round trip unchanged, CLI value in minor units, type only with the rate', array( array(), array(), array( 'default_rate' => '3000' ), true, array( 'default_rate_type' => 'fixed', 'default_rate' => '1500' ) ), array( $rv_round['changes'], $rv_round['errors'], $rv_cli['values'], isset( $rv_type['errors']['default_rate_type'] ), $rv_both['values'] ) );
+
+// P1-02: words for switches; P1-03: an unknown choice is an error, the stored value stays.
+$rv_set( array( 'maintenance_mode' => 1, 'touch_model' => 'first' ) );
+$rv_b1 = SettingsTransfer::check( array( 'maintenance_mode' => 'false' ), Settings::all() );
+$rv_b2 = SettingsTransfer::check( array( 'maintenance_mode' => 'foo' ), Settings::all() );
+$rv_c1 = SettingsTransfer::check( array( 'touch_model' => 'firts' ), Settings::all() );
+$rv_c2 = SettingsTransfer::check( array( 'cookie_mode' => 'Always' ), Settings::all() );
+check( 'P1-02/P1-03 "false" switches off, "foo" and unknown choices are errors and change nothing', array( array( 'maintenance_mode' => 0 ), true, true, array(), true ), array( $rv_b1['values'], isset( $rv_b2['errors']['maintenance_mode'] ), isset( $rv_c1['errors']['touch_model'] ), $rv_c1['values'], isset( $rv_c2['errors']['cookie_mode'] ) ) );
+
+// P1-05 / P3-02 / P1-09: a reset of a tab keeps legal values, an import never lifts a retention hold.
+$rv_set( array( 'retention_hold' => 1, 'operator_country' => 'AT', 'vat_rate' => '20', 'statement_retention_years' => 0 ) );
+$rv_rk_data = SettingsTransfer::reset_keys( 'data' );
+$rv_rk_pay  = SettingsTransfer::reset_keys( 'payouts' );
+$rv_imp     = SettingsTransfer::preview( array( 'format' => 1, 'settings' => array( 'retention_hold' => 0, 'hold_days' => 14 ) ) );
+check( 'P1-05 reset keeps retention hold, retention years, country and VAT rate; import cannot lift the hold', array( false, false, false, false, true, array( 'hold_days' => 14 ) ), array( in_array( 'retention_hold', $rv_rk_data, true ), in_array( 'statement_retention_years', $rv_rk_data, true ), in_array( 'operator_country', $rv_rk_pay, true ), in_array( 'vat_rate', $rv_rk_pay, true ), isset( $rv_imp['errors']['retention_hold'] ), $rv_imp['values'] ) );
+
+// P1-06 / P2-02 / P3-06: confirmation mail and privacy text name the configured validity.
+$rv_set( array( 'application_confirm_days' => 7 ) );
+list( , $rv_mail ) = \WPAffiliateCaptain\Affiliates\Notifications::render_template( 'confirm_application', array( 'link' => 'https://example.test/x', 'valid' => \WPAffiliateCaptain\Affiliates\Registration::confirm_ttl_text() ) );
+\WPAffiliateCaptain\Privacy\Privacy::policy_text();
+$rv_policy = (string) ( $GLOBALS['g4_policy'] ?? '' );
+check( 'P1-06 confirmation validity from the setting in mail and privacy text', array( true, false, true, false ), array( false !== strpos( $rv_mail, '7 days' ), false !== strpos( $rv_mail, '48 hours' ), false !== strpos( $rv_policy, 'not confirmed: 7 days' ), defined( '\WPAffiliateCaptain\Integrations\FormCaptain\Handover::CONFIRM_TTL' ) ) );
+
+// P2-01: taking back a deleted refund fires wpac_commission_rejected( $id, 'pending' ) after the commit.
+update_option( 'wpac_settings', array_merge( $rv_saved, array( 'fraud_check_domains' => 0 ) ) );
+Settings::flush_cache();
+$rv_aff  = \WPAffiliateCaptain\Affiliates\AffiliateRepository::create( array( 'name' => 'Rv Anna', 'email' => 'rv-anna@example.de', 'status' => 'active' ) );
+$rv_code = \WPAffiliateCaptain\Codes\CodeRepository::main_code( $rv_aff );
+wpac_record_sale( array( 'source' => 'test', 'order_id' => 'rv-5001', 'currency' => 'EUR', 'partner_code' => $rv_code, 'items' => array( array( 'item_id' => '1', 'product_id' => 1, 'name' => 'K', 'net_minor' => 10000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'rv-k@example.de' ) ) );
+wpac_record_refund( array( 'source' => 'test', 'order_id' => 'rv-5001', 'refund_id' => 'rv-rf1', 'type' => 'refund', 'reason' => 't', 'items' => array( array( 'item_id' => '1', 'net_minor' => 5000 ) ) ) );
+$GLOBALS['rv_hooks'] = array();
+$GLOBALS['rv_on']    = true;
+add_action(
+	'wpac_commission_rejected',
+	static function ( $id, $old = '' ) {
+		if ( ! empty( $GLOBALS['rv_on'] ) ) {
+			$GLOBALS['rv_hooks'][] = 'rejected:' . $old;
+		}
+	},
+	10,
+	2
+);
+$rv_rr = \WPAffiliateCaptain\Commissions\Ledger::reverse_refund( 'test', 'rv-5001', 'rv-rf1', 'refund deleted' );
+$GLOBALS['rv_on'] = false;
+check( 'P2-01 reversed refund row fires wpac_commission_rejected with the old status', array( 1, array( 'rejected:pending' ) ), array( count( (array) ( $rv_rr['commission_ids'] ?? array() ) ), $GLOBALS['rv_hooks'] ) );
+
+// P2-03: the waiting period for new bank details follows the setting also after an e-mail change.
+$rv_set( array( 'bank_change_wait_days' => 0 ) );
+\WPAffiliateCaptain\Affiliates\AffiliateRepository::set_email( $rv_aff, 'rv-anna2@example.de' );
+$rv_w0 = \WPAffiliateCaptain\Affiliates\AffiliateRepository::access_changed_recently( $rv_aff );
+$rv_set( array( 'bank_change_wait_days' => 5 ) );
+\WPAffiliateCaptain\Affiliates\AffiliateRepository::set_email( $rv_aff, 'rv-anna3@example.de' );
+$rv_w5 = \WPAffiliateCaptain\Affiliates\AffiliateRepository::access_changed_recently( $rv_aff );
+update_option( 'wpac_access_changed_' . $rv_aff, time() - 6 * DAY_IN_SECONDS, false );
+update_option( 'wpac_prev_email_' . $rv_aff, array( 'email' => 'rv-anna2@example.de', 'until' => time() + 24 * DAY_IN_SECONDS ), false );
+$rv_w5_later = \WPAffiliateCaptain\Affiliates\AffiliateRepository::access_changed_recently( $rv_aff );
+check( 'P2-03 bank details wait 0 days / 5 days after an e-mail change, as set', array( false, true, false, 'rv-anna2@example.de' ), array( $rv_w0, $rv_w5, $rv_w5_later, \WPAffiliateCaptain\Affiliates\AffiliateRepository::previous_email( $rv_aff ) ) );
+
+// P2-05: the request history is long enough for the highest monthly limit.
+check( 'P2-05 code request history covers the highest allowed monthly limit', true, \WPAffiliateCaptain\Codes\CodeRequests::HISTORY_MAX >= SettingsSchema::int_max()['code_requests_per_month'] );
+
+// P2-04: with release by hand the partner area promises no automatic approval.
+$rv_set( array( 'approval_mode' => 'manual', 'hold_days' => 0 ) );
+$rv_cond_m = implode( ' ', \WPAffiliateCaptain\Portal\Portal::conditions( \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( $rv_aff ) ) );
+$rv_set( array( 'approval_mode' => 'auto', 'hold_days' => 0 ) );
+$rv_cond_a = implode( ' ', \WPAffiliateCaptain\Portal\Portal::conditions( \WPAffiliateCaptain\Affiliates\AffiliateRepository::find( $rv_aff ) ) );
+check( 'P2-04 conditions: manual release says "we review", automatic says "right away"', array( true, false, true ), array( false !== strpos( $rv_cond_m, 'we review and approve' ), false !== strpos( $rv_cond_m, 'approved right away' ), false !== strpos( $rv_cond_a, 'approved right away' ) ) );
+
+// P6-01 / P6-02: add-on sections are reported as skipped; add-on fields cannot use core options.
+$rv_prev6 = SettingsTransfer::preview( array( 'format' => 1, 'settings' => array(), 'addons' => array( 'pro' => array( 'x' => 1 ) ) ) );
+add_filter( 'wpac_settings_schema', static function ( $f ) { $f['pro_hook_url'] = array( 'tab' => 'data', 'label' => 'Hook', 'option' => 'wpac_settings' ); $f['pro_ok'] = array( 'tab' => 'data', 'label' => 'Ok', 'option' => 'captain_pro_settings' ); return $f; } );
+SettingsSchema::flush();
+check( 'P6-01/P6-02 add-on export section reported as skipped; add-on field on a wpac_ option rejected, own option accepted', array( true, null, 'captain_pro_settings' ), array( in_array( 'addons:pro', $rv_prev6['ignored'], true ), SettingsSchema::field( 'pro_hook_url' ), SettingsSchema::field( 'pro_ok' )['option'] ?? '' ) );
+$GLOBALS['test_hooks']['wpac_settings_schema'] = array();
+
+// P1-04: a currency change by WP-CLI converts amounts and exchange rates like the settings page.
+$rv_set( array( 'currency' => 'EUR', 'exchange_rates' => 'USD=0.92', 'min_payout_minor' => 5000, 'fraud_max_order_minor' => 200000, 'default_rate_type' => 'percent', 'default_rate' => '10' ) );
+$rv_fx = SettingsTransfer::check( array( 'currency' => 'USD' ), Settings::all() );
+check( 'P1-04 currency change converts minimum payout, review limit and rates', array( 'USD', 5435, 217391, true ), array( $rv_fx['values']['currency'] ?? '', (int) ( $rv_fx['values']['min_payout_minor'] ?? 0 ), (int) ( $rv_fx['values']['fraud_max_order_minor'] ?? 0 ), 0 === strpos( (string) ( $rv_fx['values']['exchange_rates'] ?? '' ), 'EUR=' ) ) );
+
+// P1-07 / P2-08: lower limits are errors, not silent clamps.
+$rv_set( array( 'application_confirm_days' => 2, 'code_request_max_length' => 20 ) );
+$rv_min = SettingsTransfer::check( array( 'application_confirm_days' => '0', 'code_request_max_length' => '1' ), Settings::all() );
+$rv_ok  = SettingsTransfer::check( array( 'application_confirm_days' => '7' ), Settings::all() );
+check( 'P1-07 values under the lower limit are rejected, valid values pass', array( true, true, array(), array( 'application_confirm_days' => 7 ) ), array( isset( $rv_min['errors']['application_confirm_days'] ), isset( $rv_min['errors']['code_request_max_length'] ), $rv_min['values'], $rv_ok['values'] ) );
+
+update_option( 'wpac_settings', $rv_saved );
+Settings::flush_cache();
+SettingsSchema::flush();
