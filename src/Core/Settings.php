@@ -243,6 +243,7 @@ final class Settings {
 	/**
 	 * Upper limits of whole-number settings (days, years, counts). Beyond them date arithmetic
 	 * overflows (e.g. a hold period of millions of days becomes "0000-00-00" = no hold at all).
+	 * @deprecated 0.20.0 Read the limits from SettingsSchema::int_max() (the register); kept for add-ons, a test keeps both equal.
 	 */
 	const INT_MAX = array(
 		'audit_retention_days'       => 36500,
@@ -398,7 +399,7 @@ final class Settings {
 
 		foreach ( SettingsSchema::keys_of( 'choice' ) as $choice ) {
 			if ( 'einvoice_mail' !== $choice ) { // E-invoice: checked with the billing fields below.
-				$out[ $choice ] = self::choice( $in, $choice, SettingsSchema::field( $choice )['options'], $d );
+				$out[ $choice ] = self::choice( $in, $choice, SettingsSchema::field( $choice )['options'], $d, $errors, $old );
 			}
 		}
 
@@ -423,6 +424,7 @@ final class Settings {
 		}
 
 		$int_max = SettingsSchema::int_max();
+		$int_min = SettingsSchema::int_min();
 		foreach ( SettingsSchema::keys_of( array( 'int', 'page' ) ) as $int ) {
 			if ( 'landing_page_id' === $int ) {
 				continue; // Checked below (must be a published page).
@@ -433,7 +435,13 @@ final class Settings {
 			}
 			$raw = trim( (string) $in[ $int ] );
 			$max = isset( $int_max[ $int ] ) ? $int_max[ $int ] : 2147483647;
-			if ( '' === $raw ) {
+			$min = isset( $int_min[ $int ] ) ? $int_min[ $int ] : 0;
+			if ( $min > 0 && ( '' === $raw || ( preg_match( '/^\d+$/', $raw ) && (int) $raw < $min ) ) ) {
+				// A lower limit is never applied silently (P1-07).
+				/* translators: 1: smallest allowed number, 2: largest allowed number */
+				$errors[ $int ] = sprintf( __( 'Please enter a whole number between %1$d and %2$d.', 'affiliate-captain' ), $min, $max );
+				$out[ $int ]    = (int) $old( $int );
+			} elseif ( '' === $raw ) {
 				$out[ $int ] = 0;
 			} elseif ( preg_match( '/^\d+$/', $raw ) && ( strlen( ltrim( $raw, '0' ) ) < 11 && (int) $raw <= $max ) ) {
 				$out[ $int ] = (int) $raw;
@@ -810,7 +818,7 @@ final class Settings {
 		$out['operator_address']    = isset( $in['operator_address'] ) ? sanitize_textarea_field( (string) $in['operator_address'] ) : '';
 		$out['operator_vat_id']     = isset( $in['operator_vat_id'] ) ? strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) $in['operator_vat_id'] ) ) : '';
 		$out['operator_tax_number'] = isset( $in['operator_tax_number'] ) ? sanitize_text_field( (string) $in['operator_tax_number'] ) : '';
-		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', SettingsSchema::field( 'einvoice_mail' )['options'], $d );
+		$out['einvoice_mail']       = self::choice( $in, 'einvoice_mail', SettingsSchema::field( 'einvoice_mail' )['options'], $d, $errors, $old );
 		$out['einvoice_buyer_reference'] = isset( $in['einvoice_buyer_reference'] ) ? substr( trim( sanitize_text_field( (string) $in['einvoice_buyer_reference'] ) ), 0, 100 ) : '';
 		foreach ( array( 'credit_prefix', 'storno_prefix', 'correction_prefix' ) as $k ) {
 			$out[ $k ] = $d[ $k ];
@@ -1119,8 +1127,20 @@ final class Settings {
 	 * @param array  $d       Defaults.
 	 * @return string
 	 */
-	private static function choice( array $in, $key, array $allowed, array $d ) {
-		return ( isset( $in[ $key ] ) && in_array( $in[ $key ], $allowed, true ) ) ? $in[ $key ] : $d[ $key ];
+	private static function choice( array $in, $key, array $allowed, array $d, &$errors = null, $old = null ) {
+		if ( ! isset( $in[ $key ] ) ) {
+			return $d[ $key ];
+		}
+		if ( in_array( $in[ $key ], $allowed, true ) ) {
+			return $in[ $key ];
+		}
+		// A sent but unknown value is never replaced silently (P1-03): the stored value stays.
+		if ( is_array( $errors ) ) {
+			/* translators: %s: allowed values */
+			$errors[ $key ] = sprintf( __( 'Not a valid choice. Allowed: %s', 'affiliate-captain' ), implode( ', ', $allowed ) );
+		}
+		$keep = is_callable( $old ) ? $old( $key ) : $d[ $key ];
+		return in_array( $keep, $allowed, true ) ? $keep : $d[ $key ];
 	}
 
 	/**

@@ -44,9 +44,6 @@ final class Handover {
 	 */
 	const RECORD_DAYS = 400;
 
-	/** Lifetime of the unconfirmed application (as in the built-in form). */
-	const CONFIRM_TTL = 2 * DAY_IN_SECONDS;
-
 	/** Hand-overs per form and hour (filter wpac_rate_limit, bucket form_captain_handover). */
 	const PER_FORM_HOUR = 30;
 

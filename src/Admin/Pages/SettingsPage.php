@@ -92,6 +92,20 @@ final class SettingsPage {
 		 * @param array  $old Core settings before saving.
 		 */
 		do_action( 'wpac_settings_saved', $tab, $new, $old );
+		/**
+		 * Field errors of add-on fields of this tab (since contract 1.8.1): add "form field name" =>
+		 * "message" for values the add-on did not save. They are shown like core errors, and the page
+		 * no longer says that everything was saved.
+		 *
+		 * @param array  $errors Errors so far (form field name => message).
+		 * @param string $tab    Tab key.
+		 */
+		$addon_errors = function_exists( 'apply_filters' ) ? (array) apply_filters( 'wpac_settings_errors', array(), $tab ) : array();
+		foreach ( $addon_errors as $field => $message ) {
+			if ( is_string( $field ) && '' !== $field && is_scalar( $message ) && ! isset( $errors[ $field ] ) ) {
+				$errors[ sanitize_key( $field ) ] = wp_strip_all_tags( (string) $message );
+			}
+		}
 		$labels = self::field_labels();
 		if ( $errors ) {
 			// Show the rejected input again, with the message next to the field.
@@ -204,6 +218,35 @@ final class SettingsPage {
 	}
 
 	/**
+	 * The permission changes a user may make from the posted role table (P4-03): only roles the user
+	 * may edit, the own roles only with manage_options, and no permission the user does not hold.
+	 *
+	 * @param array $posted role => cap => "1".
+	 * @return array role => cap => bool
+	 */
+	public static function role_request( array $posted ) {
+		$wanted = array();
+		// Only roles the user may edit, never the own roles without manage_options, and no permission
+		// the user does not hold (P4-03: no self-promotion through this table).
+		$editable = function_exists( 'get_editable_roles' ) ? array_keys( (array) get_editable_roles() ) : array();
+		$me       = wp_get_current_user();
+		$own      = isset( $me->roles ) ? (array) $me->roles : array();
+		foreach ( \WPAffiliateCaptain\Core\Capabilities::role_matrix() as $role => $row ) {
+			if ( ( $editable && ! in_array( $role, $editable, true ) ) || ( in_array( $role, $own, true ) && ! current_user_can( 'manage_options' ) ) ) {
+				continue;
+			}
+			foreach ( \WPAffiliateCaptain\Core\Capabilities::all() as $cap ) {
+				$grant = ! empty( $posted[ $role ][ $cap ] );
+				if ( $grant && ! current_user_can( $cap ) ) {
+					continue;
+				}
+				$wanted[ $role ][ $cap ] = $grant;
+			}
+		}
+		return $wanted;
+	}
+
+	/**
 	 * Save the role table (SET-AC-21). Needs the WordPress right to change user roles as well.
 	 */
 	private static function handle_roles() {
@@ -211,13 +254,7 @@ final class SettingsPage {
 		if ( ! current_user_can( 'promote_users' ) ) {
 			Admin::back( __( 'Only users who may change user roles can change these permissions.', 'affiliate-captain' ), 'error', $url );
 		}
-		$posted = (array) Admin::post( 'wpac_roles', array() );
-		$wanted = array();
-		foreach ( \WPAffiliateCaptain\Core\Capabilities::role_matrix() as $role => $row ) {
-			foreach ( \WPAffiliateCaptain\Core\Capabilities::all() as $cap ) {
-				$wanted[ $role ][ $cap ] = ! empty( $posted[ $role ][ $cap ] );
-			}
-		}
+		$wanted  = self::role_request( (array) Admin::post( 'wpac_roles', array() ) );
 		$changes = \WPAffiliateCaptain\Core\Capabilities::set_role_caps( $wanted );
 		if ( $changes ) {
 			Audit::log(
@@ -262,6 +299,21 @@ final class SettingsPage {
 	}
 
 	/**
+	 * A private value with only its last characters visible ("•••2051").
+	 *
+	 * @param string $value Value.
+	 * @return string
+	 */
+	private static function partly_masked( $value ) {
+		$value = (string) $value;
+		if ( '' === $value ) {
+			return '';
+		}
+		$len = function_exists( 'mb_strlen' ) ? mb_strlen( $value ) : strlen( $value );
+		return '•••' . ( $len > 6 ? ( function_exists( 'mb_substr' ) ? mb_substr( $value, -4 ) : substr( $value, -4 ) ) : '' );
+	}
+
+	/**
 	 * Export, import and reset on the "Data & maintenance" tab; reset button on every tab.
 	 */
 	private static function render_transfer() {
@@ -271,11 +323,14 @@ final class SettingsPage {
 			if ( is_array( $pending ) && isset( $pending['check']['changes'] ) ) {
 				echo '<div id="wpac-settings-pending" class="notice notice-info inline"><h2>' . esc_html( 'import' === $pending['kind'] ? __( 'Import: please check', 'affiliate-captain' ) : __( 'Reset: please check', 'affiliate-captain' ) ) . '</h2>';
 				if ( $pending['check']['changes'] ) {
-					echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+					echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 					foreach ( $pending['check']['changes'] as $key => $pair ) {
 						$f = SettingsSchema::field( $key );
 						$p = ! empty( $f['private'] );
-						echo '<tr><td>' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . '</td><td>' . esc_html( $p ? '•••' : (string) $pair[0] ) . '</td><td>' . esc_html( $p ? '•••' : (string) $pair[1] ) . '</td></tr>';
+						// The new value is shown in full, so nobody confirms bank details or addresses blindly (P4-02).
+						$now   = $p ? self::partly_masked( (string) $pair[0] ) : (string) $pair[0];
+						$legal = ! empty( $f['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
+						echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( (string) $pair[1] ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
 					}
 					echo '</tbody></table>';
 				} else {
@@ -422,15 +477,18 @@ final class SettingsPage {
 	 * Attributes and message for a field with an error.
 	 *
 	 * @param string $field Form field name.
+	 * @param bool   $desc  Whether the field has a description (then it is linked too, P5-02).
 	 * @return array [ attributes, message HTML ]
 	 */
-	private static function error_parts( $field ) {
+	private static function error_parts( $field, $desc = false ) {
+		$desc_id = $desc ? ' wpac-desc-' . esc_attr( $field ) : '';
 		if ( ! isset( self::$kept['errors'][ $field ] ) ) {
-			return array( '', '' );
+			return array( '' !== $desc_id ? ' aria-describedby="' . trim( $desc_id ) . '"' : '', '' );
 		}
+		// The summary above the form announces the errors once; the field message is only linked (P5-05).
 		return array(
-			' aria-invalid="true" aria-describedby="wpac-err-' . esc_attr( $field ) . '"',
-			'<p class="wpac-field-error" id="wpac-err-' . esc_attr( $field ) . '" role="alert">' . esc_html( self::$kept['errors'][ $field ] ) . '</p>',
+			' aria-invalid="true" aria-describedby="wpac-err-' . esc_attr( $field ) . $desc_id . '"',
+			'<p class="wpac-field-error" id="wpac-err-' . esc_attr( $field ) . '">' . esc_html( self::$kept['errors'][ $field ] ) . '</p>',
 		);
 	}
 
@@ -662,8 +720,8 @@ final class SettingsPage {
 			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'All fraud thresholds are off, so no order is ever flagged for review. Recommended starting values: %1$d orders per day, orders above %2$s, %3$d seconds between click and order, %4$d %% refund rate.', 'affiliate-captain' ), $rec['fraud_max_orders_day'], Money::format( $rec['fraud_max_order_minor'], $currency ), $rec['fraud_min_click_seconds'], $rec['fraud_max_refund_rate'] ) ) . '</p></div></td></tr>';
 		}
 		self::number( 'fraud_max_orders_day', null, $s );
-		$err = self::error_parts( 'fraud_max_order' );
-		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html( SettingsSchema::label( 'fraud_max_order_minor' ) ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( self::shown( 'fraud_max_order', Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description">' . esc_html__( 'Orders in other currencies are compared after conversion with the reference exchange rates; without a rate for a currency this rule cannot check them (a warning is logged).', 'affiliate-captain' ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		$err = self::error_parts( 'fraud_max_order', true );
+		echo '<tr><th><label for="wpac-fraud_max_order">' . esc_html( SettingsSchema::label( 'fraud_max_order_minor' ) ) . '</label></th><td><input type="text" id="wpac-fraud_max_order" name="wpac[fraud_max_order]" value="' . esc_attr( self::shown( 'fraud_max_order', Money::to_decimal( (int) $s['fraud_max_order_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description" id="wpac-desc-fraud_max_order">' . esc_html( SettingsSchema::help( 'fraud_max_order_minor' ) . ' ' . __( 'Orders in other currencies are compared after conversion with the reference exchange rates; without a rate for a currency this rule cannot check them (a warning is logged).', 'affiliate-captain' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::number( 'fraud_min_click_seconds', null, $s );
 		self::number( 'fraud_max_refund_rate', null, $s );
 		self::number( 'fraud_refund_window_days', null, $s );
@@ -674,8 +732,8 @@ final class SettingsPage {
 
 		self::section( __( 'Abuse protection', 'affiliate-captain' ), 'security' );
 		self::number( 'rate_limit_per_minute', null, $s );
-		$err = self::error_parts( 'trusted_proxies' );
-		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html( SettingsSchema::label( 'trusted_proxies' ) ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html( SettingsSchema::help( 'trusted_proxies' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		$err = self::error_parts( 'trusted_proxies', true );
+		echo '<tr><th><label for="wpac-trusted_proxies">' . esc_html( SettingsSchema::label( 'trusted_proxies' ) ) . '</label></th><td><textarea id="wpac-trusted_proxies" name="wpac[trusted_proxies]" rows="3" class="regular-text code" placeholder="173.245.48.0/20&#10;10.0.0.1"' . $err[0] . '>' . esc_textarea( self::shown( 'trusted_proxies', $s['trusted_proxies'] ) ) . '</textarea>' . $err[1] . '<p class="description" id="wpac-desc-trusted_proxies">' . esc_html( SettingsSchema::help( 'trusted_proxies' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
 		self::checkbox( 'reauth_required', null, $s );
 		self::number( 'reauth_minutes', null, $s );
 		self::number( 'bank_change_wait_days', null, $s );
@@ -691,8 +749,8 @@ final class SettingsPage {
 	private static function render_commissions_tab( array $s, $currency ) {
 		self::section( __( 'Program currency', 'affiliate-captain' ), 'commissions' );
 		self::currency_field( $s );
-		$err = self::error_parts( 'exchange_rates' );
-		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html( SettingsSchema::label( 'exchange_rates' ) ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05"' . $err[0] . '>' . esc_textarea( self::shown( 'exchange_rates', $s['exchange_rates'] ) ) . '</textarea>' . $err[1] . '<p class="description">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'affiliate-captain' ), $currency ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
+		$err = self::error_parts( 'exchange_rates', true );
+		echo '<tr><th><label for="wpac-exchange_rates">' . esc_html( SettingsSchema::label( 'exchange_rates' ) ) . '</label></th><td><textarea id="wpac-exchange_rates" name="wpac[exchange_rates]" rows="3" class="regular-text code" placeholder="USD=0.92&#10;CHF=1.05"' . $err[0] . '>' . esc_textarea( self::shown( 'exchange_rates', $s['exchange_rates'] ) ) . '</textarea>' . $err[1] . '<p class="description" id="wpac-desc-exchange_rates">' . esc_html( sprintf( /* translators: %s: currency */ __( 'One per line: 1 unit of the currency = x %s. Commissions and payouts are never converted; rates are only used for reports and the minimum payout of other currencies.', 'affiliate-captain' ), $currency ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
 		self::end();
 
 		self::section( __( 'Default commission', 'affiliate-captain' ), 'commissions' );
@@ -763,8 +821,8 @@ final class SettingsPage {
 	 */
 	private static function render_payouts_tab( array $s, $currency ) {
 		self::section( __( 'Payouts', 'affiliate-captain' ), 'payouts' );
-		$err = self::error_parts( 'min_payout' );
-		echo '<tr><th><label for="wpac-min_payout">' . esc_html( SettingsSchema::label( 'min_payout_minor' ) ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( self::shown( 'min_payout', Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		$err = self::error_parts( 'min_payout', true );
+		echo '<tr><th><label for="wpac-min_payout">' . esc_html( SettingsSchema::label( 'min_payout_minor' ) ) . '</label></th><td><input type="text" id="wpac-min_payout" name="wpac[min_payout]" value="' . esc_attr( self::shown( 'min_payout', Money::to_decimal( (int) $s['min_payout_minor'], $currency ) ) ) . '" class="small-text" inputmode="decimal"' . $err[0] . '> ' . esc_html( $currency ) . $err[1] . '<p class="description" id="wpac-desc-min_payout">' . esc_html( SettingsSchema::help( 'min_payout_minor' ) ) . '</p></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		// No "payout period" setting: payout runs are started by you (Payouts → New payout run); a
 		// stored value of the former setting is kept but has no effect.
 		self::checkbox( 'payout_requests', null, $s );
@@ -890,10 +948,13 @@ final class SettingsPage {
 	 * Description.
 	 *
 	 * @param string $desc Description.
+	 * @param string $key  Setting key or form field name (id for aria-describedby, legal mark).
 	 */
-	private static function desc( $desc ) {
-		if ( '' !== (string) $desc ) {
-			echo '<p class="description">' . esc_html( $desc ) . '</p>';
+	private static function desc( $desc, $key = '' ) {
+		$f     = '' !== $key ? SettingsSchema::field( $key ) : null;
+		$legal = $f && ! empty( $f['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
+		if ( '' !== trim( (string) $desc ) || '' !== $legal ) {
+			echo '<p class="description"' . ( '' !== $key ? ' id="wpac-desc-' . esc_attr( $key ) . '"' : '' ) . '>' . esc_html( trim( (string) $desc ) ) . $legal . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
 		}
 	}
 
@@ -905,11 +966,12 @@ final class SettingsPage {
 	private static function monitor_token( $s ) {
 		$set = '' !== (string) $s['monitor_token'];
 		// Only a hash is stored: the field is always empty, an empty field keeps the token.
-		printf( '<tr><th><label for="wpac-monitor_token">%1$s</label></th><td><input type="password" id="wpac-monitor_token" name="wpac[monitor_token]" value="" class="regular-text" autocomplete="new-password" placeholder="%2$s">', esc_html__( 'Monitoring token', 'affiliate-captain' ), esc_attr( $set ? __( 'A token is set – enter a new one to replace it', 'affiliate-captain' ) : '' ) );
+		$err = self::error_parts( 'monitor_token', true ); // P5-03: a rejected token is marked at the field (the value is never shown again).
+		printf( '<tr><th><label for="wpac-monitor_token">%1$s</label></th><td><input type="password" id="wpac-monitor_token" name="wpac[monitor_token]" value="" class="regular-text" autocomplete="new-password" placeholder="%2$s"%3$s>%4$s', esc_html__( 'Monitoring token', 'affiliate-captain' ), esc_attr( $set ? __( 'A token is set – enter a new one to replace it', 'affiliate-captain' ) : '' ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		if ( $set ) {
 			echo ' <label><input type="checkbox" name="wpac[monitor_token_clear]" value="1"> ' . esc_html__( 'Remove token', 'affiliate-captain' ) . '</label>';
 		}
-		self::desc( sprintf( /* translators: %s: URL */ __( 'At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header "X-WPAC-Monitor-Token" and gets ok or the names of failing checks (no details).', 'affiliate-captain' ), rest_url( 'wpac/v1/health' ) ) . ' ' . __( 'Only a hash of the token is stored; note it down before saving.', 'affiliate-captain' ) );
+		self::desc( sprintf( /* translators: %s: URL */ __( 'At least 20 letters/digits. An external monitor (e.g. an uptime service) can then call %s with the header "X-WPAC-Monitor-Token" and gets ok or the names of failing checks (no details).', 'affiliate-captain' ), rest_url( 'wpac/v1/health' ) ) . ' ' . __( 'Only a hash of the token is stored; note it down before saving.', 'affiliate-captain' ), 'monitor_token' );
 		echo '</td></tr>';
 	}
 
@@ -923,9 +985,9 @@ final class SettingsPage {
 	 */
 	private static function text( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
-		$err = self::error_parts( $key );
+		$err = self::error_parts( $key, '' !== trim( (string) $desc ) );
 		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="text" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="regular-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
-		self::desc( $desc );
+		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
 
@@ -939,9 +1001,10 @@ final class SettingsPage {
 	 */
 	private static function number( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
-		$err = self::error_parts( $key );
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="number" min="0" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
-		self::desc( $desc );
+		$err = self::error_parts( $key, '' !== trim( (string) $desc ) );
+		$min = \WPAffiliateCaptain\Core\SettingsSchema::int_min();
+		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="number" min="%6$d" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1], isset( $min[ $key ] ) ? (int) $min[ $key ] : 0 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
 
@@ -956,8 +1019,10 @@ final class SettingsPage {
 	private static function checkbox( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		// The checkbox is named by its full label (screen readers announce what is switched on).
-		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1" %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ) );
-		self::desc( $desc );
+		// P5-06: the row title only when it is shorter than the label.
+		$described = '' !== trim( (string) $desc ) ? ' aria-describedby="wpac-desc-' . esc_attr( $key ) . '"' : '';
+		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) === $label ? '' : self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $described ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $described is built from esc_attr() above.
+		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
 
@@ -1006,13 +1071,13 @@ final class SettingsPage {
 	 */
 	private static function select( $key, $label, $s, array $options, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
-		$err = self::error_parts( $key );
+		$err = self::error_parts( $key, '' !== trim( (string) $desc ) );
 		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]"%3$s>', esc_attr( $key ), esc_html( $label ), $err[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		foreach ( $options as $v => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $v ), selected( self::shown( $key, $s[ $key ] ), (string) $v, false ), esc_html( $l ) );
 		}
 		echo '</select>' . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
-		self::desc( $desc );
+		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
 
@@ -1036,7 +1101,7 @@ final class SettingsPage {
 				'option_none_value' => '0',
 			)
 		);
-		self::desc( $desc );
+		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
 }

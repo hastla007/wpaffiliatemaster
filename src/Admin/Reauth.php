@@ -55,7 +55,7 @@ final class Reauth {
 	const ATTEMPT_WINDOW = 900;
 
 	/** Actions (see action_key()) that need a confirmation by default. */
-	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save' );
+	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive' );
 
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
@@ -108,8 +108,8 @@ final class Reauth {
 		}
 		if ( 'settings_reset_apply' === $do ) {
 			$pending = get_transient( 'wpac_settings_pending_' . get_current_user_id() );
-			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', '' ), true ) ) {
-				return 'settings_reset_money'; // Money tabs (SET-AC-09).
+			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', 'data', '' ), true ) ) {
+				return 'settings_reset_money'; // Money tabs (SET-AC-09) and retention periods (P1-05).
 			}
 		}
 		if ( 'settings_save' === $do && (int) Settings::get( 'reauth_required' ) && 'security' === Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) ) ) {
@@ -118,7 +118,29 @@ final class Reauth {
 				return 'settings_reauth_off';
 			}
 		}
+		if ( 'settings_save' === $do ) {
+			// Values that weaken a protection or redirect money/alerts need the same confirmation
+			// as an import of them (P4-01): bank details, notification address, waiting periods.
+			$raw = Admin::post( 'wpac', array() );
+			if ( is_array( $raw ) ) {
+				foreach ( \WPAffiliateCaptain\Core\SettingsSchema::core() as $key => $f ) {
+					if ( ! empty( $f['sensitive'] ) && array_key_exists( $key, $raw ) && self::norm( wp_unslash( $raw[ $key ] ) ) !== self::norm( Settings::get( $key ) ) ) {
+						return 'settings_sensitive';
+					}
+				}
+			}
+		}
 		return $do;
+	}
+
+	/**
+	 * A setting value compared without case, spaces and line-break style (IBAN "de89 3704…" = "DE893704…").
+	 *
+	 * @param mixed $value Value.
+	 * @return string
+	 */
+	private static function norm( $value ) {
+		return strtoupper( (string) preg_replace( '/\s+/', '', (string) $value ) );
 	}
 
 	/**
@@ -315,6 +337,7 @@ final class Reauth {
 			'settings_import_apply'   => __( 'Import settings', 'affiliate-captain' ),
 			'settings_export_private' => __( 'Export settings with bank details and addresses', 'affiliate-captain' ),
 			'settings_reset_money'    => __( 'Reset commission or payout settings', 'affiliate-captain' ),
+			'settings_sensitive'      => __( 'Change bank details, notification address or protection settings', 'affiliate-captain' ),
 			'roles_save'              => __( 'Change the permissions of user roles', 'affiliate-captain' ),
 			'affiliate_email_change' => __( 'Change the e-mail address of a partner', 'affiliate-captain' ),
 		);

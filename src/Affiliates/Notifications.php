@@ -127,7 +127,7 @@ final class Notifications {
 			'confirm_application'    => array(
 				'type'  => 'confirm_application',
 				'label' => __( 'Application: confirm e-mail address (double opt-in)', 'affiliate-captain' ),
-				'vars'  => array( 'site', 'link' ),
+				'vars'  => array( 'site', 'link', 'valid' ),
 			),
 			'application_confirmed'  => array(
 				'type'  => 'application_confirmed',
@@ -245,6 +245,7 @@ final class Notifications {
 			'site'              => __( 'Name of your website', 'affiliate-captain' ),
 			'link'              => 'confirm_application' === $key ? __( 'Confirmation link', 'affiliate-captain' ) : ( 'code_request_approved' === $key ? __( 'Partner link with the new code', 'affiliate-captain' ) : __( 'Partner link (start page with the partner code)', 'affiliate-captain' ) ),
 			'code'              => 0 === strpos( (string) $key, 'code_request' ) ? __( 'Requested code', 'affiliate-captain' ) : __( 'Partner code', 'affiliate-captain' ),
+			'valid'             => __( 'How long the confirmation link is valid (setting)', 'affiliate-captain' ),
 			'admin_url'         => __( 'Address of the list of open requests in the admin', 'affiliate-captain' ),
 			'rate'              => __( 'Commission rate', 'affiliate-captain' ),
 			'portal_url'        => __( 'Address of the partner area', 'affiliate-captain' ),
@@ -274,8 +275,8 @@ final class Notifications {
 			case 'confirm_application':
 				/* translators: %s: site name */
 				$subject = sprintf( __( '[%s] Please confirm your partner application', 'affiliate-captain' ), '{site}' );
-				/* translators: 1: site name, 2: link */
-				$body = sprintf( __( "Hello,\n\nsomeone (probably you) applied for the partner program of %1\$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2\$s\n\nThe link is valid for 48 hours. If you did not apply, you can ignore this e-mail.", 'affiliate-captain' ), '{site}', '{link}' );
+				/* translators: 1: site name, 2: link, 3: validity (e.g. "2 days") */
+				$body = sprintf( __( "Hello,\n\nsomeone (probably you) applied for the partner program of %1\$s with this e-mail address. Please confirm your e-mail address to complete the application:\n%2\$s\n\nThe link is valid for %3\$s. If you did not apply, you can ignore this e-mail.", 'affiliate-captain' ), '{site}', '{link}', '{valid}' );
 				break;
 			case 'application_confirmed':
 				/* translators: %s: site name */
@@ -569,6 +570,7 @@ final class Notifications {
 			'name'              => __( 'Max Mustermann', 'affiliate-captain' ),
 			'link'              => 'confirm_application' === $key ? add_query_arg( 'wpac_confirm', 'example', home_url( '/' ) ) : add_query_arg( (string) Settings::get( 'referral_param' ), $code, home_url( '/' ) ),
 			'code'              => $code,
+			'valid'             => Registration::confirm_ttl_text(),
 			'rate'              => \WPAffiliateCaptain\Commissions\RuleRepository::format_rate( (string) Settings::get( 'default_rate_type' ), (string) Settings::get( 'default_rate' ) ),
 			'portal_url'        => $portal,
 			/* translators: %s: portal URL */
@@ -1709,7 +1711,7 @@ final class Notifications {
 	 * @param string $link  Confirmation link.
 	 */
 	public static function confirm_application( $email, $link ) {
-		list( $subject, $body ) = self::render_template( 'confirm_application', array( 'link' => (string) $link ) );
+		list( $subject, $body ) = self::render_template( 'confirm_application', array( 'link' => (string) $link, 'valid' => Registration::confirm_ttl_text() ) );
 		self::send( 'confirm_application', $email, $subject, $body, array( 'template' => 'confirm_application' ) );
 	}
 

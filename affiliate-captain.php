@@ -60,7 +60,7 @@ if ( defined( 'WPAC_VERSION' ) ) {
 define( 'WPAC_VERSION', '0.20.0' );
 define( 'WPAC_DB_VERSION', 16 );
 /** Version of the public integration contract (hooks + payload schema). */
-define( 'WPAC_CONTRACT_VERSION', '1.8.0' );
+define( 'WPAC_CONTRACT_VERSION', '1.8.1' );
 define( 'WPAC_FILE', __FILE__ );
 define( 'WPAC_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WPAC_URL', plugin_dir_url( __FILE__ ) );

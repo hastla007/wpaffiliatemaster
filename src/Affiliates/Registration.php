@@ -26,6 +26,17 @@ final class Registration {
 		return max( 1, (int) Settings::get( 'application_confirm_days' ) ) * DAY_IN_SECONDS;
 	}
 
+	/**
+	 * Validity of the confirmation link as text ("2 days"), for mails and the privacy text (P1-06).
+	 *
+	 * @return string
+	 */
+	public static function confirm_ttl_text() {
+		$days = (int) ( self::confirm_ttl() / DAY_IN_SECONDS );
+		/* translators: %d: days */
+		return sprintf( _n( '%d day', '%d days', $days, 'affiliate-captain' ), $days );
+	}
+
 	const SHORTCODE = 'wpac_affiliate_registration';
 
 	public static function register_hooks() {

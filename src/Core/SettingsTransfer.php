@@ -22,7 +22,7 @@ final class SettingsTransfer {
 	/** Version of the export format. */
 	const FORMAT = 1;
 
-	/** Keys that a reset of a tab or of everything never changes (SET-AC-09). */
+	/** Keys that a reset of a tab or of everything never changes (SET-AC-09); values marked "legal" are kept too (P1-05). */
 	const RESET_PROTECTED = array( 'currency', 'credit_prefix', 'storno_prefix', 'correction_prefix' );
 
 	/**
@@ -78,6 +78,11 @@ final class SettingsTransfer {
 		$ignored = array();
 		foreach ( $data['settings'] as $key => $value ) {
 			$key = (string) $key;
+			// Private values (bank details, addresses) only from an export made with them (P4-02).
+			if ( isset( $core[ $key ] ) && ! empty( $core[ $key ]['private'] ) && empty( $data['private'] ) ) {
+				$ignored[] = $key;
+				continue;
+			}
 			if ( ! isset( $core[ $key ] ) || ! empty( $core[ $key ]['secret'] ) || ! empty( $core[ $key ]['hidden'] ) || ! empty( $core[ $key ]['local'] ) || ! ( is_scalar( $value ) || null === $value ) ) {
 				$ignored[] = $key;
 				continue;
@@ -85,6 +90,17 @@ final class SettingsTransfer {
 			$wanted[ $key ] = null === $value ? '' : $value;
 		}
 		$check = self::check( $wanted, $current );
+		// Sections of add-ons are not imported by the core (contract, wpac_settings_export; P6-01).
+		if ( ! empty( $data['addons'] ) && is_array( $data['addons'] ) ) {
+			foreach ( array_keys( $data['addons'] ) as $section ) {
+				$ignored[] = 'addons:' . sanitize_key( (string) $section );
+			}
+		}
+		// A running retention hold (tax audit) is never lifted by a file (P1-05).
+		if ( ! empty( $current['retention_hold'] ) && array_key_exists( 'retention_hold', $wanted ) && empty( $wanted['retention_hold'] ) ) {
+			unset( $check['changes']['retention_hold'], $check['values']['retention_hold'] );
+			$check['errors']['retention_hold'] = __( 'A running retention hold is only lifted on the settings page.', 'affiliate-captain' );
+		}
 		$check['ignored'] = $ignored;
 		return $check;
 	}
@@ -99,16 +115,52 @@ final class SettingsTransfer {
 	public static function check( array $wanted, array $current ) {
 		// The settings page sends every field of a tab; here every stored value is sent and the
 		// wanted ones replace them, so absent checkboxes are not read as "off".
-		$input = $current;
+		$input   = $current;
+		$bool_in = array();
 		foreach ( $wanted as $key => $value ) {
+			$f = SettingsSchema::field( (string) $key );
+			if ( $f && 'bool' === $f['type'] && ! is_bool( $value ) ) {
+				// Words from WP-CLI or a file (P1-02): "false", "no", "off" mean off; anything unknown is an error.
+				$word = strtolower( trim( (string) $value ) );
+				if ( in_array( $word, array( '1', 'true', 'yes', 'on' ), true ) ) {
+					$value = 1;
+				} elseif ( in_array( $word, array( '0', 'false', 'no', 'off', '' ), true ) ) {
+					$value = 0;
+				} else {
+					$bool_in[ $key ] = __( 'Please use 1 or 0 (on or off).', 'affiliate-captain' );
+					continue;
+				}
+				$wanted[ $key ] = $value;
+			}
 			$input[ $key ] = $value;
 		}
 		$currency = isset( $input['currency'] ) ? (string) $input['currency'] : (string) $current['currency'];
 		unset( $input['monitor_token'] );
-		$input['min_payout']      = Money::to_decimal( (int) $input['min_payout_minor'], $currency );
-		$input['fraud_max_order'] = Money::to_decimal( (int) $input['fraud_max_order_minor'], $currency );
-		$errors = array();
+		// A currency change converts the stored amounts like the settings page does, unless they
+		// are given together with the new currency (P1-04).
+		$fx_change = strtoupper( $currency ) !== strtoupper( (string) $current['currency'] );
+		foreach ( array( 'min_payout_minor' => 'min_payout', 'fraud_max_order_minor' => 'fraud_max_order' ) as $minor_key => $field ) {
+			if ( ! $fx_change || array_key_exists( $minor_key, $wanted ) ) {
+				$input[ $field ] = Money::to_decimal( (int) $input[ $minor_key ], $currency );
+			}
+		}
+		$errors = $bool_in;
+		// A fixed default rate is stored in minor units, the form takes it as an amount (P1-01).
+		$type_changed = isset( $wanted['default_rate_type'] ) && (string) $wanted['default_rate_type'] !== (string) $current['default_rate_type'];
+		if ( $type_changed && ! array_key_exists( 'default_rate', $wanted ) ) {
+			$errors['default_rate_type'] = __( 'Change the type of the default rate only together with the rate itself.', 'affiliate-captain' );
+			unset( $input['default_rate_type'] );
+			$input['default_rate_type'] = $current['default_rate_type'];
+		}
+		if ( 'fixed' === (string) $input['default_rate_type'] && is_numeric( $input['default_rate'] ) ) {
+			$old_currency = (string) $current['currency'];
+			// Same currency as Settings::sanitize() reads it in: the old one while a stored fixed rate is converted.
+			$rate_in                = ( 'fixed' === (string) $current['default_rate_type'] && strtoupper( $currency ) !== strtoupper( $old_currency ) && ! array_key_exists( 'default_rate', $wanted ) ) ? $old_currency : $currency;
+			$input['default_rate'] = Money::to_decimal( (int) $input['default_rate'], $rate_in );
+		}
+		$extra  = $errors;
 		$clean  = Settings::sanitize( $input, $errors );
+		$errors = array_merge( $errors, $extra );
 		$out    = array(
 			'changes' => array(),
 			'errors'  => array(),
@@ -124,7 +176,12 @@ final class SettingsTransfer {
 				$out['errors'][ $key ] = $message;
 			}
 		}
-		foreach ( $wanted as $key => $value ) {
+		$keys = array_keys( $wanted );
+		if ( $fx_change && ! isset( $out['errors']['currency'] ) ) {
+			// Values derived from the currency change go along with it.
+			$keys = array_unique( array_merge( $keys, array( 'min_payout_minor', 'fraud_max_order_minor', 'exchange_rates', 'default_rate' ) ) );
+		}
+		foreach ( $keys as $key ) {
 			if ( isset( $out['errors'][ $key ] ) || ! array_key_exists( $key, $clean ) ) {
 				continue;
 			}
@@ -167,7 +224,7 @@ final class SettingsTransfer {
 	public static function reset_keys( $tab = '' ) {
 		$keys = array();
 		foreach ( SettingsSchema::core() as $key => $f ) {
-			if ( ( '' !== $tab && $f['tab'] !== $tab ) || ! empty( $f['hidden'] ) || ! empty( $f['secret'] ) || ! empty( $f['private'] ) || in_array( $key, self::RESET_PROTECTED, true ) ) {
+			if ( ( '' !== $tab && $f['tab'] !== $tab ) || ! empty( $f['hidden'] ) || ! empty( $f['secret'] ) || ! empty( $f['private'] ) || ! empty( $f['local'] ) || ! empty( $f['legal'] ) || in_array( $key, self::RESET_PROTECTED, true ) ) {
 				continue;
 			}
 			$keys[] = $key;
