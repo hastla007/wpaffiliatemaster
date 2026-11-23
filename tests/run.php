@@ -768,5 +768,23 @@ check( 'C16 no VALUES(col) in ON DUPLICATE KEY UPDATE (MySQL 9.7 deprecation; sc
 // The scan itself finds the old form (guards against a pattern that never matches).
 check( 'C16 scan detects the old form', 1, preg_match_all( '/ON\s+DUPLICATE\s+KEY\s+UPDATE([^;"\']*)/i', "x ON DUPLICATE KEY UPDATE visits = visits + VALUES(visits)'", $c16_t ) && preg_match( '/\bVALUES\s*\(/i', $c16_t[1][0] ) ? 1 : 0 );
 
+// P5-01 / SET-AC-07: de_DE says "du" everywhere, de_DE_formal says "Sie" everywhere (decision S4).
+// Capitalised Sie/Ihr in the middle of a sentence is the formal address; at a sentence start it can
+// be "they/their" and is allowed. Quoted example words („Sie“, „du“) are allowed.
+$p501_lang = dirname( __DIR__ ) . '/languages/';
+$p501_bad  = array( 'de_DE' => array(), 'de_DE_formal' => array() );
+foreach ( array( 'de_DE', 'de_DE_formal' ) as $p501_loc ) {
+	foreach ( (array) json_decode( (string) file_get_contents( $p501_lang . $p501_loc . '.json' ), true ) as $p501_k => $p501_v ) {
+		foreach ( (array) $p501_v as $p501_s ) {
+			$p501_s = (string) preg_replace( '/„[^“]*“/u', '', (string) $p501_s );
+			$p501_re = 'de_DE' === $p501_loc ? '/(?<![.!?:]\s)(?<!^)(?<!\n)\b(Sie|Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\b/u' : '/\b(du|dich|dir|dein|deine|deinen|deinem|deiner|deines)\b/u';
+			if ( preg_match( $p501_re, $p501_s ) ) {
+				$p501_bad[ $p501_loc ][] = $p501_k;
+			}
+		}
+	}
+}
+check( 'P5-01 de_DE informal ("du"), de_DE_formal formal ("Sie"), same keys', array( array(), array(), true ), array( $p501_bad['de_DE'], $p501_bad['de_DE_formal'], array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE.json' ), true ) ) === array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE_formal.json' ), true ) ) ) );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

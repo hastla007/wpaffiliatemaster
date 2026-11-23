@@ -147,6 +147,18 @@ $rv_pv = SettingsTransfer::preview( array( 'format' => 1, 'private' => false, 's
 $rv_pp = SettingsTransfer::preview( array( 'format' => 1, 'private' => true, 'settings' => array( 'admin_email' => 'new-admin@example.de' ) ) );
 check( 'P4-02 private keys ignored without "private": true, taken with it', array( true, array(), 'new-admin@example.de' ), array( in_array( 'admin_email', $rv_pv['ignored'], true ), $rv_pv['values'], $rv_pp['values']['admin_email'] ?? '' ) );
 
+// P4-01: saving a tab that changes bank details, the alert address or a protection needs a confirmation.
+$rv_set( array( 'reauth_required' => 1, 'bank_change_wait_days' => 30, 'debtor_iban' => 'DE89370400440532013000' ) );
+$rv_post = $_POST;
+$_POST = array( 'tab' => 'security', 'wpac' => array( 'reauth_required' => '1', 'bank_change_wait_days' => '0' ) );
+$rv_k1 = \WPAffiliateCaptain\Admin\Reauth::action_key( 'settings_save' );
+$_POST = array( 'tab' => 'payouts', 'wpac' => array( 'debtor_iban' => 'de89 3704 0044 0532 0130 00', 'hold_days' => '14' ) );
+$rv_k2 = \WPAffiliateCaptain\Admin\Reauth::action_key( 'settings_save' );
+$_POST = array( 'tab' => 'payouts', 'wpac' => array( 'debtor_iban' => 'DE02120300000000202051' ) );
+$rv_k3 = \WPAffiliateCaptain\Admin\Reauth::action_key( 'settings_save' );
+$_POST = $rv_post;
+check( 'P4-01 sensitive change → settings_sensitive (required); unchanged IBAN in another spelling → settings_save', array( 'settings_sensitive', 'settings_save', 'settings_sensitive', true ), array( $rv_k1, $rv_k2, $rv_k3, \WPAffiliateCaptain\Admin\Reauth::required( 'settings_sensitive' ) ) );
+
 update_option( 'wpac_settings', $rv_saved );
 Settings::flush_cache();
 SettingsSchema::flush();

@@ -5093,6 +5093,10 @@ msgid "Reset commission or payout settings"
 msgstr ""
 
 #: src/Admin/Reauth.php
+msgid "Change bank details, notification address or protection settings"
+msgstr ""
+
+#: src/Admin/Reauth.php
 msgid "Change the permissions of user roles"
 msgstr ""
 

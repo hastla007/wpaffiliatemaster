@@ -253,12 +253,14 @@ jobs:
           persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y zbar-tools && pip install pillow
       - run: python3 tests/qr_decode_check.py
-      - name: German translation complete and up to date
+      - name: German translations (de_DE "du", de_DE_formal "Sie") complete and up to date
         run: |
-          missing=$(python3 bin/i18n.py missing de_DE)
-          if [ -n "$missing" ]; then echo "Untranslated strings:"; echo "$missing"; exit 1; fi
-          python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE
-          git diff --exit-code -- languages/*.po languages/*.pot || (echo "Run: python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE" && exit 1)
+          for loc in de_DE de_DE_formal; do
+            missing=$(python3 bin/i18n.py missing "$loc")
+            if [ -n "$missing" ]; then echo "Untranslated strings ($loc):"; echo "$missing"; exit 1; fi
+          done
+          python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE && python3 bin/i18n.py build de_DE_formal
+          git diff --exit-code -- languages/*.po languages/*.pot || (echo "Run: python3 bin/i18n.py pot && python3 bin/i18n.py build de_DE && python3 bin/i18n.py build de_DE_formal" && exit 1)
 
   e2e:
     name: Browser tests (WordPress + WooCommerce, object cache ${{ matrix.cache }})
