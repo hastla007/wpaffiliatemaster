@@ -238,6 +238,23 @@ final class AuditPage {
 			if ( in_array( $key, array( 'tax_status', 'vat_id', 'vat_mode' ), true ) && ! current_user_can( \WPAffiliateCaptain\Core\Capabilities::VIEW_TAX_DATA ) ) {
 				$value = '***'; // Tax data only for users with the tax data permission.
 			}
+			if ( 'changed' === $key && isset( $data['values'] ) && is_array( $data['values'] ) ) {
+				continue; // The old → new list below names the same fields.
+			}
+			if ( 'values' === $key && is_array( $value ) ) {
+				// Settings: old → new per field (SET-AC-11); secret and private values stay "[redacted]".
+				$list = array();
+				foreach ( $value as $setting => $pair ) {
+					if ( ! is_array( $pair ) ) {
+						continue;
+					}
+					$from   = isset( $pair['from'] ) && is_scalar( $pair['from'] ) ? (string) $pair['from'] : '';
+					$to     = isset( $pair['to'] ) && is_scalar( $pair['to'] ) ? (string) $pair['to'] : '';
+					$list[] = ( isset( $settings[ $setting ] ) ? $settings[ $setting ] : (string) $setting ) . ': ' . ( '' === $from ? '—' : $from ) . ' → ' . ( '' === $to ? '—' : $to );
+				}
+				$parts[] = implode( '; ', $list ); // Escaped by the callers.
+				continue;
+			}
 			if ( is_bool( $value ) ) {
 				$value = $value ? __( 'yes', 'affiliate-captain' ) : __( 'no', 'affiliate-captain' );
 			} elseif ( is_array( $value ) ) {

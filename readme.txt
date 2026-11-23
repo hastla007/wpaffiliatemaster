@@ -127,6 +127,7 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 = 0.20.0 =
 Settings register and add-on rows; add-on contract 1.8.0 (backwards compatible); database schema 16 (unchanged):
 * New: all settings come from one register (key, type, default, tab, limits, label, help text, legal/secret marks). Defaults, tabs and labels are unchanged; every setting now has a help text on the settings page.
+* New: the audit log shows old and new value of every changed setting (bank details, token, addresses and e-mail addresses redacted).
 * New: grey notes at the end of a settings tab name features of the Affiliate Captain Pro add-on (text only – no fields, nothing locked); switch them off under Data & maintenance.
 * Add-ons (contract 1.8.0): filters wpac_settings_schema, wpac_settings_rows, wpac_show_addon_hints, wpac_addon_hint_url and the action wpac_settings_saved – add-on fields on the settings tabs, replacing a note with the real field.
 

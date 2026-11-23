@@ -117,6 +117,16 @@ foreach ( AddonHints::notes() as $set_n ) {
 }
 check( 'SET-AC-05 built-in notes only on existing tabs', array(), array_values( array_diff( array_keys( $set_tabs_with_notes ), array_keys( SettingsPage::tab_keys() ) ) ) );
 
+// SET-AC-11: the audit log keeps old and new value per setting; secret and private values are redacted.
+$set_av = SettingsPage::audit_values( array( 'hold_days', 'debtor_iban', 'monitor_token', 'admin_email', 'promotion_guidelines' ), array( 'hold_days' => 30, 'debtor_iban' => 'DE02120300000000202051', 'monitor_token' => 'h1:abc', 'admin_email' => 'old@example.de', 'promotion_guidelines' => str_repeat( 'x', 200 ) ), array( 'hold_days' => 14, 'debtor_iban' => 'DE89370400440532013000', 'monitor_token' => 'h1:def', 'admin_email' => 'new@example.de', 'promotion_guidelines' => 'kurz' ) );
+check(
+	'SET-AC-11 old → new per setting; IBAN, token and e-mail address redacted; long text shortened',
+	array( array( 'from' => '30', 'to' => '14' ), array( 'from' => '[redacted]', 'to' => '[redacted]' ), array( 'from' => '[redacted]', 'to' => '[redacted]' ), array( 'from' => '[redacted]', 'to' => '[redacted]' ), 118, false ),
+	array( $set_av['hold_days'], $set_av['debtor_iban'], $set_av['monitor_token'], $set_av['admin_email'], mb_strlen( $set_av['promotion_guidelines']['from'] ), false !== strpos( wp_json_encode( $set_av ), 'DE89' ) || false !== strpos( wp_json_encode( $set_av ), 'example.de' ) )
+);
+$set_text = \WPAffiliateCaptain\Admin\Pages\AuditPage::details_text( wp_json_encode( array( 'changed' => array( 'hold_days' ), 'values' => array( 'hold_days' => $set_av['hold_days'] ) ) ) );
+check( 'SET-AC-11 audit log shows "Hold period …: 30 → 14" (field label, not the key)', true, false !== strpos( $set_text, SettingsSchema::label( 'hold_days' ) . ': 30 → 14' ) );
+
 $_GET = $set_get;
 if ( null !== $set_caps ) {
 	$GLOBALS['test_caps'] = $set_caps;

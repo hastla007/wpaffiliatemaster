@@ -64,7 +64,15 @@ final class SettingsPage {
 			}
 		}
 		if ( $changed ) {
-			Audit::log( 'settings.updated', 'settings', 0, array( 'changed' => $changed ) );
+			Audit::log(
+				'settings.updated',
+				'settings',
+				0,
+				array(
+					'changed' => $changed,
+					'values'  => self::audit_values( $changed, $old, $new ),
+				)
+			);
 		}
 		/**
 		 * After the core fields of a tab were saved (contract 1.8.0): add-on fields of this tab
@@ -113,6 +121,39 @@ final class SettingsPage {
 			Admin::back( __( 'Settings saved with an adjustment:', 'affiliate-captain' ), 'warning', $url, $lines );
 		}
 		Admin::back( __( 'Settings saved.', 'affiliate-captain' ), 'success', $url );
+	}
+
+	/**
+	 * Old and new value of each changed setting for the audit log (SET-AC-11). Secret and private
+	 * values (token, bank details, addresses, e-mail addresses, tax numbers) are only marked as
+	 * changed; long texts are shortened.
+	 *
+	 * @param string[] $changed Changed keys.
+	 * @param array    $old     Settings before.
+	 * @param array    $new     Saved values.
+	 * @return array key => [ from, to ]
+	 */
+	public static function audit_values( array $changed, array $old, array $new ) {
+		$out = array();
+		foreach ( $changed as $key ) {
+			$field = SettingsSchema::field( $key );
+			if ( ! $field || ! empty( $field['secret'] ) || ! empty( $field['private'] ) ) {
+				$out[ $key ] = array(
+					'from' => '[redacted]',
+					'to'   => '[redacted]',
+				);
+				continue;
+			}
+			$short       = static function ( $v ) {
+				$v = is_scalar( $v ) ? (string) $v : wp_json_encode( $v );
+				return function_exists( 'mb_strlen' ) && mb_strlen( $v ) > 120 ? mb_substr( $v, 0, 117 ) . '…' : $v;
+			};
+			$out[ $key ] = array(
+				'from' => $short( isset( $old[ $key ] ) ? $old[ $key ] : '' ),
+				'to'   => $short( isset( $new[ $key ] ) ? $new[ $key ] : '' ),
+			);
+		}
+		return $out;
 	}
 
 	/**
