@@ -116,6 +116,7 @@ final class SettingsCommand {
 	 * @param array $assoc Options.
 	 */
 	public function reset( $args, $assoc ) {
+		$keys = array();
 		if ( isset( $args[0] ) ) {
 			$key  = self::key( $args );
 			$f    = SettingsSchema::field( $key );
@@ -124,6 +125,7 @@ final class SettingsCommand {
 			$keys = SettingsTransfer::reset_keys( ! empty( $assoc['all'] ) ? '' : (string) $assoc['tab'] );
 		} else {
 			\WP_CLI::error( 'Name a key, --tab=<tab> or --all.' );
+			return;
 		}
 		$preview = SettingsTransfer::reset_preview( $keys );
 		if ( ! empty( $assoc['dry-run'] ) ) {
