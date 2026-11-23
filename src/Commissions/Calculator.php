@@ -3,8 +3,17 @@
  * Pure commission calculation (no WordPress dependency → unit tested).
  *
  * Rule shape: [ id, scope (global|group|affiliate), scope_id, target (all|product|category|tag|sku),
- *               target_value, rate_type (percent|fixed|exclude), rate, priority, active ]
- * Item shape: [ product_id, parent_id, sku, category_ids[], category_ancestor_ids[], quantity, net_minor ]
+ *               target_value, rate_type (percent|fixed|exclude), rate, priority, active,
+ *               max_amount_minor, min_base_minor, valid_from, valid_until ]
+ * Item shape: [ product_id, parent_id, sku, category_ids[], category_ancestor_ids[], quantity, net_minor,
+ *               sale_date ]
+ *
+ * Conditions of a rule (SET-AC-22, all optional): a rule only matches from its minimum base
+ * (min_base_minor, compared with the line base net_minor) and within its validity (valid_from /
+ * valid_until: calendar days of the site's time zone, both inclusive, empty = open), compared with
+ * the item's sale_date (Y-m-d in the site's time zone; today when missing). A rule that does not
+ * match leaves the line to the next rule or the program default. max_amount_minor caps the
+ * commission of the line the rule applies to (0 = no cap); the amount filter runs after the cap.
  *
  * Resolution (precedence "scope", the default):
  *  - A matching "exclude" rule on any level excludes the item (explicit exclusions win).
@@ -58,6 +67,12 @@ final class Calculator {
 		if ( isset( $rule['active'] ) && ! $rule['active'] ) {
 			return false;
 		}
+		if ( ! empty( $rule['min_base_minor'] ) && max( 0, (int) $item['net_minor'] ) < (int) $rule['min_base_minor'] ) {
+			return false;
+		}
+		if ( ( ! empty( $rule['valid_from'] ) || ! empty( $rule['valid_until'] ) ) && ! self::valid_on( $rule, self::item_date( $item ) ) ) {
+			return false;
+		}
 		switch ( $rule['scope'] ) {
 			case 'affiliate':
 				if ( (int) $rule['scope_id'] !== (int) $affiliate_id ) {
@@ -101,6 +116,53 @@ final class Calculator {
 				return false;
 		}
 		return false;
+	}
+
+	/**
+	 * Whether a rule is valid on a day: valid_from <= day <= valid_until (calendar days, Y-m-d;
+	 * an empty bound is open).
+	 *
+	 * @param array  $rule Rule.
+	 * @param string $day  Day (Y-m-d, site time zone).
+	 * @return bool
+	 */
+	public static function valid_on( array $rule, $day ) {
+		$from  = self::day( isset( $rule['valid_from'] ) ? $rule['valid_from'] : '' );
+		$until = self::day( isset( $rule['valid_until'] ) ? $rule['valid_until'] : '' );
+		return ( '' === $from || strcmp( (string) $day, $from ) >= 0 ) && ( '' === $until || strcmp( (string) $day, $until ) <= 0 );
+	}
+
+	/**
+	 * A stored validity bound as Y-m-d ('' for empty, NULL or the zero date).
+	 *
+	 * @param mixed $value Value.
+	 * @return string
+	 */
+	public static function day( $value ) {
+		$value = substr( trim( (string) $value ), 0, 10 );
+		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) && '0000-00-00' !== $value ? $value : '';
+	}
+
+	/**
+	 * Calendar day in the site's time zone (UTC without WordPress).
+	 *
+	 * @param int|null $ts UNIX timestamp (null = now).
+	 * @return string Y-m-d
+	 */
+	public static function local_date( $ts = null ) {
+		$tz = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		return ( new \DateTimeImmutable( '@' . ( null === $ts ? time() : (int) $ts ) ) )->setTimezone( $tz )->format( 'Y-m-d' );
+	}
+
+	/**
+	 * Day of the sale an item belongs to: its sale_date (Y-m-d, site time zone), today otherwise.
+	 *
+	 * @param array $item Item.
+	 * @return string
+	 */
+	private static function item_date( array $item ) {
+		$day = self::day( isset( $item['sale_date'] ) ? $item['sale_date'] : '' );
+		return '' !== $day ? $day : self::local_date();
 	}
 
 	/**
@@ -189,7 +251,8 @@ final class Calculator {
 	 * @param array  $default      [ rate_type, rate ] program default (fixed = minor units).
 	 * @param bool   $filter       Apply the wpac_commission_amount filter (false: the caller does it once, see filter_amount()).
 	 * @param string $precedence   Rule precedence (scope|target).
-	 * @return array amount_minor, base_minor, rate_type, rate, rule_id, excluded, rule
+	 * @return array amount_minor, base_minor, rate_type, rate, rule_id, excluded, rule, cap_minor (0 = none),
+	 *               capped (the cap lowered the amount), uncapped_minor (amount before the cap)
 	 */
 	public static function calculate( array $item, array $rules, $affiliate_id, $group_id, array $default, $filter = true, $precedence = 'scope' ) {
 		$base = max( 0, (int) $item['net_minor'] );
@@ -197,13 +260,16 @@ final class Calculator {
 
 		if ( $rule && 'exclude' === $rule['rate_type'] ) {
 			return array(
-				'amount_minor' => 0,
-				'base_minor'   => $base,
-				'rate_type'    => 'exclude',
-				'rate'         => '0',
-				'rule_id'      => (int) $rule['id'],
-				'excluded'     => true,
-				'rule'         => $rule,
+				'amount_minor'   => 0,
+				'base_minor'     => $base,
+				'rate_type'      => 'exclude',
+				'rate'           => '0',
+				'rule_id'        => (int) $rule['id'],
+				'excluded'       => true,
+				'rule'           => $rule,
+				'cap_minor'      => 0,
+				'capped'         => false,
+				'uncapped_minor' => 0,
 			);
 		}
 
@@ -219,19 +285,29 @@ final class Calculator {
 			$amount = Money::percent_of( $base, $rate );
 		}
 
-		$amount = max( 0, $amount );
+		$amount   = max( 0, $amount );
+		$uncapped = $amount;
+		$cap      = $rule && ! empty( $rule['max_amount_minor'] ) ? max( 0, (int) $rule['max_amount_minor'] ) : 0;
+		if ( $cap > 0 && $amount > $cap ) {
+			// Cap of the rule per line (SET-AC-22).
+			$amount = $cap;
+		}
+		$capped = $amount < $uncapped;
 		if ( $filter ) {
 			$amount = self::filter_amount( $amount, $item, $affiliate_id, $rule, $base );
 		}
 
 		return array(
-			'amount_minor' => $amount,
-			'base_minor'   => $base,
-			'rate_type'    => $rate_type,
-			'rate'         => $rate,
-			'rule_id'      => $rule ? (int) $rule['id'] : 0,
-			'excluded'     => false,
-			'rule'         => $rule,
+			'amount_minor'   => $amount,
+			'base_minor'     => $base,
+			'rate_type'      => $rate_type,
+			'rate'           => $rate,
+			'rule_id'        => $rule ? (int) $rule['id'] : 0,
+			'excluded'       => false,
+			'rule'           => $rule,
+			'cap_minor'      => $cap,
+			'capped'         => $capped,
+			'uncapped_minor' => $uncapped,
 		);
 	}
 

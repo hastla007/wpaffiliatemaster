@@ -42,6 +42,10 @@ final class RulesPage {
 						'target_value' => self::posted_target_value( sanitize_key( Admin::post( 'target' ) ) ),
 						'rate_type'    => sanitize_key( Admin::post( 'rate_type' ) ),
 						'rate'         => Admin::post( 'rate' ),
+						'max_amount'   => Admin::post( 'max_amount' ),
+						'min_base'     => Admin::post( 'min_base' ),
+						'valid_from'   => sanitize_text_field( (string) Admin::post( 'valid_from' ) ),
+						'valid_until'  => sanitize_text_field( (string) Admin::post( 'valid_until' ) ),
 						'priority'     => (int) Admin::post( 'priority', 0 ),
 						'active'       => Admin::post( 'active' ),
 						'note'         => Admin::post( 'note' ),
@@ -235,7 +239,7 @@ final class RulesPage {
 		}
 		foreach ( $rules as $r ) {
 			printf(
-				'<tr class="%s"><td>%d <small>v%d</small></td><td>%s</td><td>%s%s</td><td><strong>%s</strong></td><td>%d</td><td>%s</td><td><a href="%s">%s</a> ',
+				'<tr class="%s"><td>%d <small>v%d</small></td><td>%s</td><td>%s%s</td><td><strong>%s</strong>%s</td><td>%d</td><td>%s</td><td><a href="%s">%s</a> ',
 				$r->active ? '' : 'wpac-inactive',
 				(int) $r->id,
 				(int) $r->version,
@@ -243,6 +247,7 @@ final class RulesPage {
 				esc_html( $targets[ $r->target ] ),
 				'' !== $r->target_value ? ': <code>' . esc_html( $r->target_value ) . '</code>' : '',
 				esc_html( RuleRepository::format_rate( $r->rate_type, $r->rate, $currency ) ),
+				'' !== RuleRepository::format_conditions( $r, $currency ) ? '<br><small>' . esc_html( RuleRepository::format_conditions( $r, $currency ) ) . '</small>' : '',
 				(int) $r->priority,
 				esc_html( $r->note ),
 				esc_url( Admin::url( 'wpac-rules', array( 'edit' => $r->id ) ) ),
@@ -295,6 +300,13 @@ final class RulesPage {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'rate_type', 'percent' ), $k, false ), esc_html( $l ) );
 		}
 		echo '</select> <span data-wpac-depends="rate_type=percent|fixed"><input type="text" name="rate" value="' . esc_attr( $rate_display ) . '" size="8" aria-label="' . esc_attr__( 'Rate', 'affiliate-captain' ) . '"> <span data-wpac-depends="rate_type=percent">%</span><span data-wpac-depends="rate_type=fixed">' . esc_html( $currency . ' ' . __( 'per unit', 'affiliate-captain' ) ) . '</span></span></td></tr>';
+		// SET-AC-22: cap per line, minimum line amount, validity (all optional).
+		$money = static function ( $k ) use ( $edit, $currency ) {
+			return $edit && ! empty( $edit->$k ) ? Money::to_decimal( (int) $edit->$k, $currency ) : '';
+		};
+		echo '<tr data-wpac-depends="rate_type=percent|fixed"><th><label for="wpac-rule-max">' . esc_html__( 'Maximum commission per line', 'affiliate-captain' ) . '</label></th><td><input type="text" name="max_amount" id="wpac-rule-max" value="' . esc_attr( $money( 'max_amount_minor' ) ) . '" size="8" aria-describedby="wpac-rule-max-hint"> ' . esc_html( $currency ) . ' <span class="wpac-field-hint" id="wpac-rule-max-hint">' . esc_html__( 'Empty = no cap. Limits the commission of one order line (all units together) under this rule.', 'affiliate-captain' ) . '</span></td></tr>';
+		echo '<tr><th><label for="wpac-rule-min">' . esc_html__( 'Minimum line amount', 'affiliate-captain' ) . '</label></th><td><input type="text" name="min_base" id="wpac-rule-min" value="' . esc_attr( $money( 'min_base_minor' ) ) . '" size="8" aria-describedby="wpac-rule-min-hint"> ' . esc_html( $currency ) . ' <span class="wpac-field-hint" id="wpac-rule-min-hint">' . esc_html__( 'Empty = always. The rule only applies to order lines with at least this commission basis; smaller lines fall to the next rule or the program default.', 'affiliate-captain' ) . '</span></td></tr>';
+		echo '<tr><th><label for="wpac-rule-from">' . esc_html__( 'Valid', 'affiliate-captain' ) . '</label></th><td><input type="date" name="valid_from" id="wpac-rule-from" value="' . esc_attr( Calculator::day( $v( 'valid_from' ) ) ) . '" aria-describedby="wpac-rule-valid-hint"> <label for="wpac-rule-until">' . esc_html__( 'until', 'affiliate-captain' ) . '</label> <input type="date" name="valid_until" id="wpac-rule-until" value="' . esc_attr( Calculator::day( $v( 'valid_until' ) ) ) . '" aria-describedby="wpac-rule-valid-hint"> <span class="wpac-field-hint" id="wpac-rule-valid-hint">' . esc_html__( 'Both days included, in the time zone of the website; empty = open. The payment date of the order counts. Outside this period the next rule or the program default applies.', 'affiliate-captain' ) . '</span></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Priority', 'affiliate-captain' ) . '</th><td><input type="number" name="priority" value="' . esc_attr( $v( 'priority', '0' ) ) . '" class="small-text" aria-label="' . esc_attr__( 'Priority', 'affiliate-captain' ) . '"> <label><input type="checkbox" name="active" value="1" ' . checked( $v( 'active', '1' ), '1', false ) . '> ' . esc_html__( 'Active', 'affiliate-captain' ) . '</label></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Note', 'affiliate-captain' ) . '</th><td><input type="text" name="note" value="' . esc_attr( $v( 'note' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'Note', 'affiliate-captain' ) . '"></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Reason for change', 'affiliate-captain' ) . '</th><td><input type="text" name="reason" class="regular-text" aria-label="' . esc_attr__( 'Reason for change', 'affiliate-captain' ) . '" ' . ( $edit ? 'required' : '' ) . '></td></tr>';
@@ -470,6 +482,9 @@ final class RulesPage {
 		echo '<input type="text" name="p_cats" aria-label="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8"> ';
 		echo '<input type="text" name="p_tags" aria-label="' . esc_attr__( 'Tag IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Tag IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_tags' ) ) . '" size="8"> ';
 		echo '<input type="text" name="p_net" aria-label="' . esc_attr__( 'Net amount', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Net amount', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_net' ) ? Admin::get( 'p_net' ) : '100' ) . '" size="7"> ';
+		$p_date = Calculator::day( Admin::get( 'p_date' ) );
+		$p_date = '' !== $p_date ? $p_date : Calculator::local_date();
+		echo '<input type="date" name="p_date" aria-label="' . esc_attr__( 'Payment date', 'affiliate-captain' ) . '" title="' . esc_attr__( 'Payment date', 'affiliate-captain' ) . '" value="' . esc_attr( $p_date ) . '"> ';
 		echo '<button class="button">' . esc_html__( 'Calculate', 'affiliate-captain' ) . '</button></form>';
 
 		if ( ! Admin::get( 'preview' ) ) {
@@ -509,6 +524,7 @@ final class RulesPage {
 				'tag_ids'               => $tags,
 				'quantity'              => 1,
 				'net_minor'             => $net,
+				'sale_date'             => $p_date,
 			),
 			RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id ),
 			(int) $aff->id,
@@ -529,6 +545,20 @@ final class RulesPage {
 				esc_html( RuleRepository::format_rate( $calc['rate_type'], $calc['rate'], $currency ) ),
 				esc_html( $calc['rule_id'] ? sprintf( /* translators: %d: rule */ __( 'rule #%d', 'affiliate-captain' ), $calc['rule_id'] ) : __( 'program default', 'affiliate-captain' ) )
 			);
+			if ( $calc['cap_minor'] > 0 ) {
+				echo ' ';
+				if ( $calc['capped'] ) {
+					/* translators: 1: cap, 2: amount without the cap */
+					echo esc_html( sprintf( __( 'Capped at %1$s per line (without the cap: %2$s).', 'affiliate-captain' ), Money::format( $calc['cap_minor'], $currency ), Money::format( $calc['uncapped_minor'], $currency ) ) );
+				} else {
+					/* translators: %s: cap */
+					echo esc_html( sprintf( __( 'Cap of the rule: %s per line (not reached).', 'affiliate-captain' ), Money::format( $calc['cap_minor'], $currency ) ) );
+				}
+			}
+			if ( $calc['rule'] && '' !== RuleRepository::format_conditions( $calc['rule'], $currency ) ) {
+				/* translators: %s: conditions of the rule */
+				echo ' ' . esc_html( sprintf( __( 'Conditions of the rule: %s.', 'affiliate-captain' ), RuleRepository::format_conditions( $calc['rule'], $currency ) ) );
+			}
 		}
 		echo '</p></div>';
 	}

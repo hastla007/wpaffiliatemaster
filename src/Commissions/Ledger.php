@@ -401,7 +401,23 @@ final class Ledger {
 			// so a broader percent rule never takes over a more specific fixed rule.
 			$rates = Fx::rates();
 			foreach ( $rules as $i => $r ) {
-				if ( 'fixed' === $r['rate_type'] ) {
+				// SET-AC-22: cap and minimum base are stored in the program currency as well.
+				// Without a rate a minimum cannot be shown to be reached (the rule does not match)
+				// and a cap cannot be shown to be kept (the rule pays 0, like a fixed rule).
+				if ( ! empty( $r['min_base_minor'] ) ) {
+					$converted                     = Fx::from_program( (int) $r['min_base_minor'], $currency, $program, $rates );
+					$rules[ $i ]['min_base_minor'] = null === $converted ? PHP_INT_MAX : max( 1, (int) $converted );
+				}
+				if ( ! empty( $r['max_amount_minor'] ) && 'exclude' !== $r['rate_type'] ) {
+					$converted = Fx::from_program( (int) $r['max_amount_minor'], $currency, $program, $rates );
+					if ( null === $converted ) {
+						$rules[ $i ]['rate']    = '0';
+						$rules[ $i ]['no_rate'] = 1;
+					} else {
+						$rules[ $i ]['max_amount_minor'] = max( 1, (int) $converted );
+					}
+				}
+				if ( 'fixed' === $r['rate_type'] && empty( $rules[ $i ]['no_rate'] ) ) {
 					$converted = Fx::from_program( (int) $r['rate'], $currency, $program, $rates );
 					if ( null === $converted ) {
 						// Stays a (zero) fixed rule: it competes by specificity like any other rule.
@@ -454,6 +470,10 @@ final class Ledger {
 	 * @return array|null [ calc, line_net ], null when the line earns nothing.
 	 */
 	private static function line_commission( array $item, array $sale, $aff, array $rules, array $default, $precedence ) {
+		// Validity of the rules (SET-AC-22): the day of the payment in the site's time zone; a line
+		// added to the order later (no payment date) is booked with the rules valid today.
+		$paid              = ! empty( $sale['paid_at'] ) ? strtotime( $sale['paid_at'] . ' UTC' ) : false;
+		$item['sale_date'] = Calculator::local_date( false === $paid ? null : $paid );
 		// The amount filter runs once, after the base filter (Calculator::filter_amount()).
 		$calc = Calculator::calculate( $item, $rules, (int) $aff->id, (int) $aff->group_id, $default, false, $precedence );
 
@@ -806,7 +826,11 @@ final class Ledger {
 		} else {
 			$amount = Money::percent_of( $delta, (string) $parent->rate );
 		}
-		$rule   = is_array( $snap ) && ! empty( $snap['rule'] ) ? $snap['rule'] : null;
+		$rule = is_array( $snap ) && ! empty( $snap['rule'] ) ? $snap['rule'] : null;
+		if ( is_array( $rule ) && ! empty( $rule['max_amount_minor'] ) ) {
+			// Cap of the original rule per line (SET-AC-22): original + increases stay below it.
+			$amount = min( (int) $amount, max( 0, (int) $rule['max_amount_minor'] - (int) $parent->amount_minor - (int) $inc['amount'] ) );
+		}
 		$amount = Calculator::filter_amount(
 			max( 0, (int) $amount ),
 			array_merge(

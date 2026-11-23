@@ -1,0 +1,22 @@
+{
+ "Both days included, in the time zone of the website; empty = open. The payment date of the order counts. Outside this period the next rule or the program default applies.": "Beide Tage einschließlich, in der Zeitzone der Website; leer = offen. Es zählt das Zahlungsdatum der Bestellung. Außerhalb dieses Zeitraums gilt die nächste Regel oder der Standardsatz des Programms.",
+ "Cap of the rule: %s per line (not reached).": "Deckel der Regel: %s je Position (nicht erreicht).",
+ "Capped at %1$s per line (without the cap: %2$s).": "Gedeckelt auf %1$s je Position (ohne Deckel: %2$s).",
+ "Conditions of the rule: %s.": "Bedingungen der Regel: %s.",
+ "Empty = always. The rule only applies to order lines with at least this commission basis; smaller lines fall to the next rule or the program default.": "Leer = immer. Die Regel gilt nur für Bestellpositionen mit mindestens dieser Provisionsbasis; kleinere Positionen fallen an die nächste Regel oder den Standardsatz des Programms.",
+ "Empty = no cap. Limits the commission of one order line (all units together) under this rule.": "Leer = kein Deckel. Begrenzt die Provision einer Bestellposition (alle Stück zusammen) nach dieser Regel.",
+ "Maximum commission per line": "Höchstprovision je Position",
+ "Minimum line amount": "Mindestbetrag der Position",
+ "Payment date": "Zahlungsdatum",
+ "Please enter a valid maximum commission per line (or leave it empty).": "Bitte gib eine gültige Höchstprovision je Position ein (oder lass das Feld leer).",
+ "Please enter a valid minimum amount (or leave it empty).": "Bitte gib einen gültigen Mindestbetrag ein (oder lass das Feld leer).",
+ "Please enter the validity dates as YYYY-MM-DD (or leave them empty).": "Bitte gib die Gültigkeit als JJJJ-MM-TT ein (oder lass die Felder leer).",
+ "The end of the validity cannot be before its start.": "Das Ende der Gültigkeit kann nicht vor ihrem Beginn liegen.",
+ "Valid": "Gültig",
+ "from a line amount of %s": "ab einem Positionsbetrag von %s",
+ "max. %s per line": "max. %s je Position",
+ "until": "bis",
+ "valid %1$s – %2$s": "gültig %1$s – %2$s",
+ "valid from %s": "gültig ab %s",
+ "valid until %s": "gültig bis %s"
+}

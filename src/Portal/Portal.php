@@ -1181,8 +1181,12 @@ final class Portal {
 		$base    = \WPAffiliateCaptain\Commissions\RuleRepository::default_rate( (int) $aff->id );
 		$best    = null;
 		$special = 0;
+		$today   = \WPAffiliateCaptain\Commissions\Calculator::local_date();
 		foreach ( \WPAffiliateCaptain\Commissions\RuleRepository::active_for( (int) $aff->id, (int) $aff->group_id ) as $r ) {
-			if ( 'all' !== $r['target'] ) {
+			if ( ! \WPAffiliateCaptain\Commissions\Calculator::valid_on( $r, $today ) ) {
+				continue; // Expired or not yet valid (SET-AC-22).
+			}
+			if ( 'all' !== $r['target'] || ! empty( $r['min_base_minor'] ) ) {
 				++$special;
 				continue;
 			}
