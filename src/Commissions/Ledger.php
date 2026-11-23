@@ -59,7 +59,7 @@ final class Ledger {
 
 	/**
 	 * ID of the history entry written by the last successful transition() of a commission in
-	 * this request (0 = none). Third parameter of the status actions (new after plugin 0.21.0, AC-5).
+	 * this request (0 = none). Third parameter of the status actions (contract 1.10.0, AC-5).
 	 *
 	 * @param int $id Commission.
 	 * @return int
@@ -2230,7 +2230,7 @@ final class Ledger {
 			// transition() may run inside an outer transaction (it nests): the hook waits for the
 			// COMMIT of that one and is dropped on its rollback (AFF-WF-02).
 			// Second parameter (contract 1.7.0): the status before this transition, read under the row lock.
-			// Third parameter (new after plugin 0.21.0, AC-5): ID of the history entry of this transition.
+			// Third parameter (contract 1.10.0, AC-5): ID of the history entry of this transition.
 			Db::after_commit(
 				static function () use ( $to, $id, $from_status, $event_row ) {
 					do_action( 'wpac_commission_' . $to, (int) $id, (string) $from_status, (int) $event_row );

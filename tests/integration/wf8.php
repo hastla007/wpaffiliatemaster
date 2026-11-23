@@ -307,7 +307,7 @@ check(
 	array( array( $wf8_c1, $wf8_was[0] ), array( $wf8_c2, $wf8_was[1] ), array( $wf8_c1, 'approved' ) ),
 	array( $wf8_first_of( $wf8_args( 'wpac_commission_approved' ), $wf8_c1 ), $wf8_first_of( $wf8_args( 'wpac_commission_rejected' ), $wf8_c2 ), $wf8_first_of( $wf8_args( 'wpac_commission_paid' ), $wf8_c1 ) )
 );
-// AC-5 (spec R-7.9a, new after plugin 0.21.0): the third parameter is the ID of the history entry
+// AC-5 (spec R-7.9a, contract 1.10.0): the third parameter is the ID of the history entry
 // this very transition wrote (commission_events), unique per call – two transitions of the same
 // commission in the same second stay apart.
 $wf8_ev_bad = array();
