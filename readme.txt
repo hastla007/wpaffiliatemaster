@@ -129,6 +129,7 @@ Settings register and add-on rows; add-on contract 1.8.0 (backwards compatible);
 * New: all settings come from one register (key, type, default, tab, limits, label, help text, legal/secret marks). Defaults, tabs and labels are unchanged; every setting now has a help text on the settings page.
 * New: the audit log shows old and new value of every changed setting (bank details, token, addresses and e-mail addresses redacted).
 * New: former fixed business rules are settings now, with the same defaults: waiting period for new bank details, code requests per 30 days and code length, password confirmation time, privacy requests per day, confirmation link of applications, reminder interval for new terms, cancellation delay of claimed payouts, display of rejected payout requests, VIES re-check, refund-rate period and minimum orders. Existing filters still win.
+* New: setting "Release of commissions" – automatically after the hold period (as before) or only by hand.
 * New: grey notes at the end of a settings tab name features of the Affiliate Captain Pro add-on (text only – no fields, nothing locked); switch them off under Data & maintenance.
 * Add-ons (contract 1.8.0): filters wpac_settings_schema, wpac_settings_rows, wpac_show_addon_hints, wpac_addon_hint_url and the action wpac_settings_saved – add-on fields on the settings tabs, replacing a note with the real field.
 

@@ -1637,6 +1637,9 @@ final class Ledger {
 	 */
 	public static function approve_due() {
 		global $wpdb;
+		if ( 'manual' === Settings::get( 'approval_mode' ) ) {
+			return 0; // SET-AC-23: only approved by hand (commissions page, single or bulk).
+		}
 		$t     = Db::table( 'commissions' );
 		$count = 0;
 		// Time budget per run: the rest follows in the next (hourly) run, so one

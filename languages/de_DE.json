@@ -3142,5 +3142,9 @@
  "Show the reason of a rejected payout request for (days)": "Grund einer abgelehnten Auszahlungsanfrage anzeigen für (Tage)",
  "How long partners see your reason for rejecting their payout request in the partner area.": "Wie lange Partner deinen Grund für die Ablehnung ihrer Auszahlungsanfrage im Partnerbereich sehen.",
  "Check VAT IDs again after (days)": "USt-IdNr. erneut prüfen nach (Tagen)",
- "With the VIES check on, valid VAT IDs are checked again after this many days (at least 1).": "Bei eingeschalteter VIES-Prüfung werden gültige USt-IdNr. nach so vielen Tagen erneut geprüft (mindestens 1)."
+ "With the VIES check on, valid VAT IDs are checked again after this many days (at least 1).": "Bei eingeschalteter VIES-Prüfung werden gültige USt-IdNr. nach so vielen Tagen erneut geprüft (mindestens 1).",
+ "Release of commissions": "Freigabe der Provisionen",
+ "Automatic: commissions are approved when the hold period ended. Manual: nothing is approved automatically; approve them on the Commissions page (single or several at once).": "Automatisch: Provisionen werden nach Ablauf der Wartefrist freigegeben. Von Hand: Nichts wird automatisch freigegeben; gib sie auf der Seite Provisionen frei (einzeln oder mehrere auf einmal).",
+ "Automatically after the hold period": "Automatisch nach der Wartefrist",
+ "Only by hand": "Nur von Hand"
 }

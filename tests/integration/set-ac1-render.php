@@ -23,7 +23,7 @@ SettingsSchema::flush();
 // Defaults of 0.19.0 (before the register): unchanged, plus the new key addon_hints.
 $set_before = array( 'referral_param' => 'partner', 'touch_model' => 'last', 'cookie_mode' => 'consent', 'cookie_days' => 30, 'use_wc_session' => 1, 'checkout_field' => 1, 'renewal_commission' => 1, 'js_tracking' => 0, 'cookie_domain' => '', 'visit_log_percent' => 100, 'coupon_priority' => 1, 'self_referral' => 'block', 'rate_limit_per_minute' => 30, 'trusted_proxies' => '', 'visit_retention_days' => 90, 'audit_retention_days' => 1095, 'application_retention_days' => 180, 'pending_application_days' => 365, 'currency' => 'EUR', 'exchange_rates' => '', 'default_rate_type' => 'percent', 'default_rate' => '10', 'hold_days' => 30, 'lifetime_enabled' => 0, 'lifetime_days' => 365, 'lifetime_rate' => '', 'hold_start' => 'paid', 'renewal_limit_months' => 0, 'rule_precedence' => 'scope', 'auto_approve' => 0, 'terms_page_id' => 0, 'terms_version' => '1.0', 'portal_page_id' => 0, 'registration_page_id' => 0, 'terminated_open' => 'pay', 'code_requests' => 1, 'admin_email' => '', 'mail_from_name' => '', 'mail_from_email' => '', 'notify_payout_paid' => 1, 'notify_commissions' => 0, 'notify_admin_review' => 0, 'maintenance_mode' => 0, 'monitor_token' => '', 'landing_prefix' => 'partner', 'landing_page_id' => 0, 'default_disclosure' => 'Advertisement', 'promotion_guidelines' => '', 'embed_disclosure_label' => 1, 'auto_apply_coupon' => 0, 'min_payout_minor' => 5000, 'payout_requests' => 0, 'statement_retention_years' => 10, 'retention_hold' => 0, 'payout_period' => 'monthly', 'payout_method_manual' => 1, 'debtor_name' => '', 'debtor_iban' => '', 'debtor_bic' => '', 'remittance_prefix' => 'Provision', 'self_billing' => 1, 'vat_rate' => '19', 'operator_country' => 'DE', 'operator_address' => '', 'operator_vat_id' => '', 'operator_tax_number' => '', 'credit_prefix' => 'GS', 'storno_prefix' => 'ST', 'correction_prefix' => 'KG', 'einvoice_mail' => 'auto', 'einvoice_buyer_reference' => '', 'vies_check' => 0, 'fraud_max_orders_day' => 0, 'fraud_max_order_minor' => 0, 'fraud_min_click_seconds' => 0, 'fraud_max_refund_rate' => 0, 'fraud_check_domains' => 1, 'fraud_blocked_domains' => '', 'reauth_required' => 1, 'report_admin' => 1, 'report_partners' => 0, 'delete_on_uninstall' => 0 );
 $set_now    = SettingsSchema::defaults();
-$set_new_keys = array( 'addon_hints' => 1, 'code_requests_per_month' => 3, 'code_request_max_length' => 20, 'application_confirm_days' => 2, 'bank_change_wait_days' => 30, 'reauth_minutes' => 15, 'fraud_refund_window_days' => 90, 'fraud_refund_min_orders' => 5, 'privacy_requests_per_day' => 5, 'terms_reminder_days' => 7, 'claim_cancel_days' => 45, 'payout_request_note_days' => 60, 'vies_recheck_days' => 30 );
+$set_new_keys = array( 'addon_hints' => 1, 'approval_mode' => 'auto', 'code_requests_per_month' => 3, 'code_request_max_length' => 20, 'application_confirm_days' => 2, 'bank_change_wait_days' => 30, 'reauth_minutes' => 15, 'fraud_refund_window_days' => 90, 'fraud_refund_min_orders' => 5, 'privacy_requests_per_day' => 5, 'terms_reminder_days' => 7, 'claim_cancel_days' => 45, 'payout_request_note_days' => 60, 'vies_recheck_days' => 30 );
 check( 'SET-AC-01 defaults: the 82 keys of 0.19.0 keep their order and values; new keys default to the former fixed values (S2)', array( $set_before, $set_new_keys ), array( array_diff_key( $set_now, $set_new_keys ), array_merge( $set_new_keys, array_intersect_key( $set_now, $set_new_keys ) ) ) );
 check( 'SET-AC-01 Settings::defaults() is the register', SettingsSchema::defaults(), Settings::defaults() );
 
@@ -149,6 +149,19 @@ add_filter( 'wpac_disposable_domains', $set_dom );
 $set_blocked = WPAffiliateCaptain\Tracking\FraudCheck::domain_blocked( 'x@wegwerf.example' );
 remove_filter( 'wpac_disposable_domains', $set_dom );
 check( 'SET-AC-14 filter wpac_disposable_domains extends the built-in list', array( true, false ), array( $set_blocked, WPAffiliateCaptain\Tracking\FraudCheck::domain_blocked( 'x@wegwerf.example' ) ) );
+
+// SET-AC-23: approval mode "manual" releases nothing automatically; "auto" releases due commissions as before.
+$set_aid = (int) WPAffiliateCaptain\Affiliates\AffiliateRepository::create( array( 'name' => 'SET23 Partner', 'email' => 'set23@example.de', 'status' => 'active' ) );
+WPAffiliateCaptain\Codes\CodeRepository::create( $set_aid, 'SET23CODE' );
+$set_sale = wpac_record_sale( array( 'source' => 'set23', 'order_id' => 'set23-1', 'currency' => 'EUR', 'partner_code' => 'SET23CODE', 'items' => array( array( 'item_id' => '1', 'product_id' => 10, 'name' => 'Kurs', 'net_minor' => 10000 ) ), 'customer' => array( 'user_id' => 0, 'email' => 'k23@example.de', 'name' => 'K' ) ) );
+$set_cid  = is_array( $set_sale ) && ! empty( $set_sale['commission_ids'] ) ? (int) $set_sale['commission_ids'][0] : 0;
+$GLOBALS['wpdb']->query( 'UPDATE ' . t( 'commissions' ) . " SET status = 'pending', hold_until = '2000-01-01 00:00:00' WHERE id = " . $set_cid );
+Settings::update( array( 'approval_mode' => 'manual' ) );
+WPAffiliateCaptain\Commissions\Ledger::approve_due();
+$set_manual = (string) WPAffiliateCaptain\Commissions\Ledger::find( $set_cid )->status;
+Settings::update( array( 'approval_mode' => 'auto' ) );
+WPAffiliateCaptain\Commissions\Ledger::approve_due();
+check( 'SET-AC-23 manual mode: a due commission stays pending; auto mode: it is approved', array( true, 'pending', 'approved' ), array( $set_cid > 0, $set_manual, (string) WPAffiliateCaptain\Commissions\Ledger::find( $set_cid )->status ) );
 
 $_GET = $set_get;
 if ( null !== $set_caps ) {

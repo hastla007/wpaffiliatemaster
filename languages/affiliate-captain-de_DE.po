@@ -3570,6 +3570,12 @@ msgstr "Bei Zahlung"
 msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
 msgstr "Wenn die WooCommerce-Bestellung abgeschlossen (versendet) ist – für Vorbestellung, Rechnung und Nachnahme"
 
+msgid "Automatically after the hold period"
+msgstr "Automatisch nach der Wartefrist"
+
+msgid "Only by hand"
+msgstr "Nur von Hand"
+
 msgid "Partner landing URLs look like %s"
 msgstr "Partner-Landing-URLs sehen so aus: %s"
 
@@ -5397,6 +5403,12 @@ msgstr "Lifetime-Satz in % (leer = normale Regeln)"
 
 msgid "Own rate for repeat purchases of linked customers; empty = the normal rules apply."
 msgstr "Eigener Satz für Wiederholungskäufe verbundener Kunden; leer = es gelten die normalen Regeln."
+
+msgid "Release of commissions"
+msgstr "Freigabe der Provisionen"
+
+msgid "Automatic: commissions are approved when the hold period ended. Manual: nothing is approved automatically; approve them on the Commissions page (single or several at once)."
+msgstr "Automatisch: Provisionen werden nach Ablauf der Wartefrist freigegeben. Von Hand: Nichts wird automatisch freigegeben; gib sie auf der Seite Provisionen frei (einzeln oder mehrere auf einmal)."
 
 msgid "Hold period starts"
 msgstr "Haltefrist beginnt"

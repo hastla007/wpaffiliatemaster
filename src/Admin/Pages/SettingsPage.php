@@ -545,6 +545,7 @@ final class SettingsPage {
 				'completed' => __( 'When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery', 'affiliate-captain' ),
 			)
 		);
+		self::select( 'approval_mode', null, $s, array( 'auto' => __( 'Automatically after the hold period', 'affiliate-captain' ), 'manual' => __( 'Only by hand', 'affiliate-captain' ) ) );
 		self::end();
 	}
 

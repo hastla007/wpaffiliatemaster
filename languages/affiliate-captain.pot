@@ -4752,6 +4752,14 @@ msgstr ""
 msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php
+msgid "Automatically after the hold period"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only by hand"
+msgstr ""
+
 #. translators: %s: example URL of a partner landing page
 #: src/Admin/Pages/SettingsPage.php
 msgid "Partner landing URLs look like %s"
@@ -7462,6 +7470,14 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Own rate for repeat purchases of linked customers; empty = the normal rules apply."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Release of commissions"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Automatic: commissions are approved when the hold period ended. Manual: nothing is approved automatically; approve them on the Commissions page (single or several at once)."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
