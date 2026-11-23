@@ -55,7 +55,8 @@ final class Admin {
 		add_action( 'load-' . $partners, array( AffiliatesPage::class, 'process_bulk' ) );
 		add_action( 'load-' . $ledger, array( CommissionsPage::class, 'process_bulk' ) );
 		$payouts = add_submenu_page( 'wpac', __( 'Payouts', 'affiliate-captain' ), __( 'Payouts', 'affiliate-captain' ), Capabilities::payouts_page_cap(), 'wpac-payouts', array( PayoutsPage::class, 'render' ) );
-		$creatives = add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) );
+		// Creatives can be switched off in the settings (SET-AC-26): no menu item then, the creatives stay.
+		$creatives = \WPAffiliateCaptain\Core\Features::enabled( 'creatives' ) ? add_submenu_page( 'wpac', __( 'Creatives', 'affiliate-captain' ), __( 'Creatives', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-creatives', array( CreativesPage::class, 'render' ) ) : false;
 		add_submenu_page( 'wpac', __( 'Rules & groups', 'affiliate-captain' ), __( 'Rules & groups', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-rules', array( RulesPage::class, 'render' ) );
 		// Daily work first, technical pages and settings last (R5-O46).
 		Pages\ImportExportPage::menu();
@@ -67,7 +68,9 @@ final class Admin {
 		add_action( 'load-' . $partners, array( __CLASS__, 'screen_partners' ) );
 		add_action( 'load-' . $ledger, array( __CLASS__, 'screen_commissions' ) );
 		add_action( 'load-' . $payouts, array( __CLASS__, 'screen_payouts' ) );
-		add_action( 'load-' . $creatives, array( __CLASS__, 'screen_creatives' ) );
+		if ( $creatives ) {
+			add_action( 'load-' . $creatives, array( __CLASS__, 'screen_creatives' ) );
+		}
 		add_action( 'load-' . $audit, array( __CLASS__, 'screen_audit' ) );
 		foreach ( array( $dashboard, $partners, $ledger, $payouts, $settings ) as $hook ) {
 			add_action( 'load-' . $hook, array( __CLASS__, 'help_tabs' ) );
@@ -806,6 +809,10 @@ final class Admin {
 		list( $class, $cap ) = $routes[ $do ];
 		if ( ! current_user_can( $cap ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'affiliate-captain' ), 403 );
+		}
+		if ( ! \WPAffiliateCaptain\Core\Features::action_allowed( $do ) ) {
+			// The feature of this action is switched off (SET-AC-26): nothing is changed.
+			self::back( __( 'This feature is switched off in the settings.', 'affiliate-captain' ), 'error' );
 		}
 		// Money-relevant actions need a recent password confirmation (R14-P2): the request is kept
 		// and carried out after the confirmation step.

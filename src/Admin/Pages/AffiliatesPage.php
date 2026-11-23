@@ -1185,6 +1185,9 @@ final class AffiliatesPage {
 	 * Broadcast mail to all active partners (or one group), sent in batches.
 	 */
 	private static function broadcast_box() {
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'broadcast' ) ) {
+			return; // Broadcast mail switched off (SET-AC-26).
+		}
 		$state = \WPAffiliateCaptain\Affiliates\Notifications::broadcast_state();
 		echo '<details class="wpac-broadcast"><summary>' . esc_html__( 'Write to all active partners', 'affiliate-captain' ) . '</summary>';
 		if ( $state ) {

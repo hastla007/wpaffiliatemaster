@@ -1587,6 +1587,7 @@ require __DIR__ . '/set-ac-seq.php'; // SET-AC-15: start number and digits per n
 require __DIR__ . '/set-ac-rules.php'; // SET-AC-22: rule cap, minimum base, validity (schema 17).
 require __DIR__ . '/set-ac-pay.php'; // SET-AC-19/31: payout reminder, maximum payout, payout_period migration (before r8-render).
 require __DIR__ . '/set-ac-fx.php'; // SET-AC-13 dunning stages and deadlines, SET-AC-29 exchange rate table (before r8-render).
+require __DIR__ . '/set-ac-sw.php'; // SET-AC-26/28: switches per feature, log level (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1607,6 +1608,7 @@ require __DIR__ . '/set-ac35.php'; // Uninstall standard: typed confirmation wor
 require __DIR__ . '/set-ac-fx-render.php'; // SET-AC-13 / SET-AC-29 on the settings page (after the render files: template stubs).
 require __DIR__ . '/set-ac-review.php'; // Findings of the settings review phase (SET-AC-P1 … P6).
 require __DIR__ . '/set-ac-rules-render.php'; // After the render files: rule form, list and preview (SET-AC-22).
+require __DIR__ . '/set-ac-sw-render.php'; // SET-AC-26/28 render: menu, settings page, partner area with features on/off.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

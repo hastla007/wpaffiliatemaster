@@ -306,6 +306,7 @@ final class Cron {
 			'vies'                  => array( array( '\WPAffiliateCaptain\Payouts\Vies', 'recheck_stale' ), true ), // Only schedules background checks.
 			'balances'              => array( array( '\WPAffiliateCaptain\Commissions\Balance', 'scheduled_check' ), true ),
 			'payout_reminder'       => array( array( '\WPAffiliateCaptain\Payouts\PayoutReminder', 'send_due' ), true ), // Only a mail, never a booking (SET-AC-19).
+			'log_level'             => array( array( Log::class, 'expire_verbose' ), false ), // "Verbose" ends after 7 days (SET-AC-28).
 			'alert'                 => array( array( Monitor::class, 'daily_alert' ), false ),
 		);
 	}

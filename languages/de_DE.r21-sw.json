@@ -1,0 +1,23 @@
+{
+ "Creatives (banners and texts for partners)": "Werbemittel (Banner und Texte für Partner)",
+ "Off: the menu item Creatives and the partner area tab Creatives disappear. Creatives stay stored and are shown again when you switch this on.": "Aus: Der Menüpunkt Werbemittel und der Reiter Werbemittel im Partnerbereich verschwinden. Die Werbemittel bleiben gespeichert und erscheinen wieder, wenn du dies einschaltest.",
+ "Partner landing pages (short links /partner/name/)": "Partner-Landingpages (Kurzlinks /partner/name/)",
+ "Off: short links of partners no longer redirect (the address is treated like any other address of the site), the short link disappears from the partner area and [wpac_partner_welcome] shows nothing. Partner links with the code keep working.": "Aus: Kurzlinks der Partner leiten nicht mehr weiter (die Adresse wird wie jede andere Adresse der Website behandelt), der Kurzlink verschwindet aus dem Partnerbereich und [wpac_partner_welcome] zeigt nichts an. Partnerlinks mit dem Code funktionieren weiter.",
+ "Monthly tiers (bonus steps)": "Monatsstufen (Bonusstufen)",
+ "Off: the tab Monthly tiers and the bonus details in the partner area disappear, and no monthly bonuses or bonus corrections are booked. Tier plans and booked bonuses stay; months not yet closed are closed when you switch this on again.": "Aus: Der Reiter Monatsstufen und die Bonusangaben im Partnerbereich verschwinden, und es werden keine Monatsboni und keine Bonuskorrekturen gebucht. Stufenpläne und gebuchte Boni bleiben; noch nicht abgeschlossene Monate werden abgeschlossen, wenn du dies wieder einschaltest.",
+ "QR codes in the partner area": "QR-Codes im Partnerbereich",
+ "Off: partners no longer see or download QR codes of their links. Printed QR codes keep working.": "Aus: Partner sehen keine QR-Codes ihrer Links mehr und können keine herunterladen. Gedruckte QR-Codes funktionieren weiter.",
+ "Broadcast mail to all partners": "Rundmail an alle Partner",
+ "Off: the box \"Write to all active partners\" and the partners' choice \"News and announcements\" disappear, and a running broadcast pauses until you switch this on again. Opt-outs stay stored.": "Aus: Der Kasten „An alle aktiven Partner schreiben“ und die Auswahl „Neuigkeiten und Ankündigungen“ der Partner verschwinden, und eine laufende Rundmail pausiert, bis du dies wieder einschaltest. Abmeldungen bleiben gespeichert.",
+ "Technical log": "Technisches Protokoll",
+ "What the plugin writes to the technical log (WooCommerce → Status → Logs, otherwise the PHP error log): only errors, errors and notices (default), or verbose with debug entries for troubleshooting. Verbose switches back to the default automatically after 7 days. With WP_DEBUG everything is written; the filters wpac_log_level and wpac_log_debug win.": "Was das Plugin ins technische Protokoll schreibt (WooCommerce → Status → Protokolle, sonst das PHP-Fehlerprotokoll): nur Fehler, Fehler und Hinweise (Standard) oder ausführlich mit Debug-Einträgen zur Fehlersuche. „Ausführlich“ springt nach 7 Tagen von selbst auf den Standard zurück. Mit WP_DEBUG wird alles geschrieben; die Filter wpac_log_level und wpac_log_debug gewinnen.",
+ "Features": "Funktionen",
+ "Verbose is on until %s, then the default applies again.": "„Ausführlich“ ist bis %s an, danach gilt wieder der Standard.",
+ "The 7 days of verbose logging have ended: the default applies again.": "Die 7 Tage ausführliches Protokoll sind vorbei: Es gilt wieder der Standard.",
+ "WP_DEBUG is on: everything is written at the moment.": "WP_DEBUG ist an: Zurzeit wird alles geschrieben.",
+ "Errors only": "Nur Fehler",
+ "Errors and notices (default)": "Fehler und Hinweise (Standard)",
+ "Verbose (debug entries, ends after 7 days)": "Ausführlich (Debug-Einträge, endet nach 7 Tagen)",
+ "This feature is switched off in the settings.": "Diese Funktion ist in den Einstellungen ausgeschaltet.",
+ "Short link": "Kurzlink"
+}

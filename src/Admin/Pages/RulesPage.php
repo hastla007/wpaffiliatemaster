@@ -183,6 +183,9 @@ final class RulesPage {
 			'tiers'   => __( 'Monthly tiers', 'affiliate-captain' ),
 			'groups'  => __( 'Partner groups', 'affiliate-captain' ),
 		);
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) ) {
+			unset( $tabs['tiers'] ); // Monthly tiers switched off (SET-AC-26); tier plans stay stored.
+		}
 		$tab  = Admin::get( 'tab' );
 		$tab  = isset( $tabs[ $tab ] ) ? $tab : ( Admin::get( 'preview' ) ? 'preview' : 'rules' );
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Sections', 'affiliate-captain' ) . '">';

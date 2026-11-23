@@ -279,6 +279,9 @@ final class TierService {
 	 * Close all months that are due (cron).
 	 */
 	public static function close_due_months() {
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) ) {
+			return true; // Monthly tiers switched off (SET-AC-26): nothing is booked, months wait.
+		}
 		if ( ! self::all() ) {
 			return true;
 		}
@@ -314,7 +317,7 @@ final class TierService {
 	public static function close_month( $month, $deadline = 0.0 ) {
 		global $wpdb;
 		self::$stopped = false;
-		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) || ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) ) {
 			return 0;
 		}
 		$first = Settings::state( 'tier_month_first' );
@@ -486,7 +489,7 @@ final class TierService {
 	public static function recalculate_closed_months( $budget = null ) {
 		$budget = null === $budget ? self::budget() : (float) $budget;
 		$last = Settings::state( 'tier_month_closed' );
-		if ( '' === $last || ! self::all() ) {
+		if ( '' === $last || ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) || ! self::all() ) {
 			return 0;
 		}
 		$months = array();
@@ -564,8 +567,8 @@ final class TierService {
 	 */
 	public static function recalculate_month( $month, $deadline = 0.0 ) {
 		self::$stopped = false;
-		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ) {
-			return 0;
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', (string) $month ) || ! \WPAffiliateCaptain\Core\Features::enabled( 'tiers' ) ) {
+			return 0; // Switched off (SET-AC-26): booked bonuses stay as they are.
 		}
 		global $wpdb;
 		$c        = Db::table( 'commissions' );

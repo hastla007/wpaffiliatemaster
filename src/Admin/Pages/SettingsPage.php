@@ -640,6 +640,13 @@ final class SettingsPage {
 		self::number( 'application_confirm_days', null, $s );
 		self::number( 'terms_reminder_days', null, $s );
 		self::end();
+
+		// SET-AC-26: switches per feature (off hides menu item and partner area part; data stay).
+		self::section( __( 'Features', 'affiliate-captain' ), 'program' );
+		foreach ( \WPAffiliateCaptain\Core\Features::SETTINGS as $key ) {
+			self::checkbox( $key, null, $s );
+		}
+		self::end();
 	}
 
 	/**
@@ -1000,6 +1007,7 @@ final class SettingsPage {
 		self::checkbox( 'maintenance_mode', null, $s );
 		self::number( 'privacy_requests_per_day', null, $s );
 		self::monitor_token( $s );
+		self::log_level( $s );
 		self::end();
 
 		self::section( __( 'Add-ons', 'affiliate-captain' ), 'data' );
@@ -1127,6 +1135,36 @@ final class SettingsPage {
 		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) === $label ? '' : self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $described ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $described is built from esc_attr() above.
 		self::desc( $desc, $key );
 		echo '</td></tr>';
+	}
+
+	/**
+	 * Log level (SET-AC-28) with the end of "verbose" at the field.
+	 *
+	 * @param array $s Settings.
+	 */
+	private static function log_level( $s ) {
+		$desc  = SettingsSchema::help( 'log_level' );
+		$until = \WPAffiliateCaptain\Core\Log::verbose_until();
+		if ( 'verbose' === (string) $s['log_level'] ) {
+			$desc .= ' ' . ( $until > time()
+				/* translators: %s: date and time */
+				? sprintf( __( 'Verbose is on until %s, then the default applies again.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $until ) )
+				: __( 'The 7 days of verbose logging have ended: the default applies again.', 'affiliate-captain' ) );
+		}
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			$desc .= ' ' . __( 'WP_DEBUG is on: everything is written at the moment.', 'affiliate-captain' );
+		}
+		self::select(
+			'log_level',
+			null,
+			$s,
+			array(
+				'errors'  => __( 'Errors only', 'affiliate-captain' ),
+				'notices' => __( 'Errors and notices (default)', 'affiliate-captain' ),
+				'verbose' => __( 'Verbose (debug entries, ends after 7 days)', 'affiliate-captain' ),
+			),
+			$desc
+		);
 	}
 
 	/**

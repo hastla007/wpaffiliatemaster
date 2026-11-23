@@ -32,11 +32,14 @@ final class Log {
 	 * @param array  $context Context.
 	 */
 	public static function warning( $message, array $context = array() ) {
+		if ( 'errors' === self::level() ) {
+			return; // Log level "errors only" (SET-AC-28).
+		}
 		self::write( 'warning', $message, $context );
 	}
 
 	/**
-	 * Log a debug message (only with WP_DEBUG or the filter wpac_log_debug).
+	 * Log a debug message (only with the log level "verbose", WP_DEBUG or the filter wpac_log_debug).
 	 *
 	 * @param string $message Message.
 	 * @param array  $context Context.
@@ -45,11 +48,99 @@ final class Log {
 		/**
 		 * Whether debug messages of Affiliate Captain are written to the log.
 		 *
-		 * @param bool $enabled Default: WP_DEBUG.
+		 * @param bool $enabled Default: WP_DEBUG or the log level "verbose" (setting log_level, since plugin 0.21.0).
 		 */
-		if ( apply_filters( 'wpac_log_debug', defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+		if ( apply_filters( 'wpac_log_debug', 'verbose' === self::level() ) ) {
 			self::write( 'debug', $message, $context );
 		}
+	}
+
+	/** Log levels of the setting log_level (SET-AC-28). */
+	const LEVELS = array( 'errors', 'notices', 'verbose' );
+
+	/** Default log level: errors and warnings, as before the setting existed. */
+	const DEFAULT_LEVEL = 'notices';
+
+	/** Option: until when (Unix time) the log level "verbose" applies. */
+	const VERBOSE_UNTIL = 'wpac_log_verbose_until';
+
+	/** "Verbose" switches back to the default after this many days. */
+	const VERBOSE_DAYS = 7;
+
+	/**
+	 * Log level in effect: the setting log_level ("verbose" only until its end), "verbose" with
+	 * WP_DEBUG, then the filter wpac_log_level.
+	 *
+	 * @return string errors|notices|verbose
+	 */
+	public static function level() {
+		$level = self::DEFAULT_LEVEL;
+		if ( function_exists( 'get_option' ) ) {
+			$stored = (string) Settings::get( 'log_level' );
+			if ( in_array( $stored, self::LEVELS, true ) ) {
+				$level = $stored;
+			}
+			if ( 'verbose' === $level && self::verbose_until() <= time() ) {
+				$level = self::DEFAULT_LEVEL; // Ended (the daily run also resets the stored value).
+			}
+		}
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			$level = 'verbose';
+		}
+		if ( ! function_exists( 'apply_filters' ) ) {
+			return $level;
+		}
+		/**
+		 * Log level of Affiliate Captain's technical log (since plugin 0.21.0): errors (only errors),
+		 * notices (errors and warnings) or verbose (also debug entries). The filter wins over the
+		 * setting and WP_DEBUG.
+		 *
+		 * @param string $level Level from the setting (verbose with WP_DEBUG).
+		 */
+		$filtered = (string) apply_filters( 'wpac_log_level', $level );
+		return in_array( $filtered, self::LEVELS, true ) ? $filtered : $level;
+	}
+
+	/**
+	 * End of the log level "verbose" (Unix time, 0 = not set).
+	 *
+	 * @return int
+	 */
+	public static function verbose_until() {
+		return function_exists( 'get_option' ) ? (int) get_option( self::VERBOSE_UNTIL, 0 ) : 0;
+	}
+
+	/**
+	 * Called by Settings::update() before log_level is stored: switching to "verbose" starts the
+	 * 7 days (saving "verbose" again keeps the running end), any other level removes the end.
+	 *
+	 * @param string $new New level.
+	 * @param string $old Stored level.
+	 */
+	public static function level_saved( $new, $old ) {
+		if ( 'verbose' !== (string) $new ) {
+			delete_option( self::VERBOSE_UNTIL );
+			return;
+		}
+		if ( 'verbose' !== (string) $old || self::verbose_until() <= time() ) {
+			update_option( self::VERBOSE_UNTIL, time() + self::VERBOSE_DAYS * DAY_IN_SECONDS, false );
+		}
+	}
+
+	/**
+	 * Daily: an ended "verbose" level is set back to the default (audit log entry).
+	 *
+	 * @return bool Whether the level was set back.
+	 */
+	public static function expire_verbose() {
+		if ( 'verbose' !== (string) Settings::get( 'log_level' ) || self::verbose_until() > time() ) {
+			return false;
+		}
+		if ( ! Settings::update( array( 'log_level' => self::DEFAULT_LEVEL ) ) ) {
+			return false;
+		}
+		Audit::log( 'settings.log_level_expired', 'settings', 0, array( 'changed' => array( 'log_level' ), 'values' => array( 'log_level' => array( 'from' => 'verbose', 'to' => self::DEFAULT_LEVEL ) ), 'automatic' => true ) );
+		return true;
 	}
 
 	/**
@@ -67,7 +158,11 @@ final class Log {
 			self::debug( $message, $context );
 			return;
 		}
-		self::write( 'warning' === $level ? 'warning' : 'error', $message, $context );
+		if ( 'warning' === $level ) {
+			self::warning( $message, $context );
+			return;
+		}
+		self::write( 'error', $message, $context );
 	}
 
 	/**
