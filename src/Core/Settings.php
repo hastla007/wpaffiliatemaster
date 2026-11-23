@@ -280,6 +280,9 @@ final class Settings {
 			// The VAT of a credit note follows the rate valid at the time of the service: keep the old rate.
 			\WPAffiliateCaptain\Payouts\TaxHistory::record_rate( (string) self::get( 'vat_rate' ), (string) $values['vat_rate'] );
 		}
+		if ( array_key_exists( 'log_level', $values ) ) {
+			Log::level_saved( (string) $values['log_level'], (string) self::get( 'log_level' ) ); // "Verbose" ends after 7 days (SET-AC-28).
+		}
 		update_option( self::OPTION, $merged, true ); // Read on every request → autoload.
 		self::$cache = null;
 		// A failed write leaves the cached (old) value in place, so reading back detects it.

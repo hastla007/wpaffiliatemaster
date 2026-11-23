@@ -81,14 +81,24 @@ Set both **before** the first partner enters bank details and the first credit n
 
 | Tab | What to set |
 |---|---|
-| Program | application and partner area pages, terms page and version, automatic approval, open commissions on termination |
+| Program | application and partner area pages, terms page and version, automatic approval, open commissions on termination, features that can be switched off (since 0.21.0, see below) |
 | E-mails & reports | notification e-mail, e-mail sender, optional partner e-mails, monthly summary mails |
 | Tracking | link parameter (default `partner`), checkout field, shop session, cookie mode, attribution (first/last touch), JavaScript tracking for caches |
 | Fraud & abuse | fraud rules, rate limit, trusted proxies (Cloudflare/reverse proxy IP ranges) |
 | Commissions | program currency (changing it converts the minimum payout, review limit and a fixed default rate – with an exchange rate between the two currencies if one is entered; fixed rules and bonus tiers must be adjusted by hand), exchange rates for reports, default rate, rule precedence, lifetime commissions, subscription renewals, hold period |
 | Promotion | landing page path, disclosure note, visible disclosure label in the banner embed code, promotion guidelines |
 | Payouts & credit notes | minimum payout, payout requests, other payment method (on/off); your country, address, VAT ID/tax number; self-billing, VAT rate, number prefixes; VIES check; company bank account for SEPA |
-| Data & maintenance | all retention periods (visits, rejected applications, audit log, statements, legal hold), maintenance mode, monitoring token, data deletion on uninstall, record of processing activities |
+| Data & maintenance | all retention periods (visits, rejected applications, audit log, statements, legal hold), maintenance mode, monitoring token, technical log level (since 0.21.0), data deletion on uninstall, record of processing activities |
+
+**Switching features off** (since 0.21.0, Settings → Program → Features; all on by default). Creatives, partner landing pages (short links /partner/name/), monthly tiers, QR codes and the broadcast mail can each be switched off when you do not use them:
+
+- *Creatives:* the menu item Creatives and the partner area tab Creatives (with the promotion guidelines) disappear; admin actions on creatives are refused.
+- *Landing pages:* short links no longer redirect (the address is treated like any other address of your site, usually "not found"), the short link disappears from the partner area (with QR codes on, the QR code then encodes the partner link), `[wpac_partner_welcome]` and its block show nothing, and the REST field `landing_url` is empty. Partner links with the code keep working.
+- *Monthly tiers:* the tab Rules & groups → Monthly tiers and the bonus details in the partner area disappear; no monthly bonuses and no bonus corrections are booked. Tier plans and booked bonuses stay. When you switch tiers on again, the months not closed meanwhile are closed (bonuses booked) by the next daily run.
+- *QR codes:* partners no longer see or download QR codes. Printed QR codes keep working (with landing pages on).
+- *Broadcast mail:* the box "Write to all active partners" and the partners' choice "News and announcements" disappear; a broadcast being sent pauses and continues within an hour after you switch it on again. Partners' opt-outs stay stored.
+
+Nothing is deleted: switching a feature on again shows all its data as before. The setting is part of the settings export; the filter `wpac_feature_enabled` wins over it.
 
 **Server cron.** Commissions are released, retries run and old data is deleted by scheduled tasks (hourly and daily). On sites with few visits or with `DISABLE_WP_CRON`, set up a system cron:
 
@@ -397,7 +407,7 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
   ```
 
   `200` = OK, `503` = a critical check failed (the body names the failing checks, no details).
-- **Logs:** errors go to the WooCommerce logger (WooCommerce → Status → Logs, source `affiliate-captain`; entries written before 0.11 are under `wp-affiliate-captain`) or, without WooCommerce, to the PHP error log (lines start with `Affiliate Captain error:` / `warning:`). Logged are: failed jobs (the first failure and the final one, with exception class, file and line), sales/refunds that could neither be booked nor queued (hook `wpac_contract_not_queued`), e-mails that could not be sent (with the reason of the mailer), credit notes that could not be written (with the cause), aborted migrations and failed scheduled steps. With `WP_DEBUG` (or the filter `wpac_log_debug`) also repeated job failures and skipped mails. Every administrative change is in the audit log.
+- **Logs:** errors go to the WooCommerce logger (WooCommerce → Status → Logs, source `affiliate-captain`; entries written before 0.11 are under `wp-affiliate-captain`) or, without WooCommerce, to the PHP error log (lines start with `Affiliate Captain error:` / `warning:`). Logged are: failed jobs (the first failure and the final one, with exception class, file and line), sales/refunds that could neither be booked nor queued (hook `wpac_contract_not_queued`), e-mails that could not be sent (with the reason of the mailer), credit notes that could not be written (with the cause), aborted migrations and failed scheduled steps. With `WP_DEBUG` (or the filter `wpac_log_debug`) also repeated job failures and skipped mails. Since 0.21.0 Settings → Data & maintenance → "Technical log" chooses what is written: *errors only*, *errors and notices* (default, as before) or *verbose* (also the debug entries, for troubleshooting). Verbose switches back to the default automatically after 7 days; the field shows until when it is on, and the switch-back is in the audit log. `WP_DEBUG` writes everything regardless of the setting; the filters `wpac_log_level` and `wpac_log_debug` win over both. Every administrative change is in the audit log.
 
 ### E-mails (sender, Reply-To, partner e-mails)
 

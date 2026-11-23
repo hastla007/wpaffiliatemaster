@@ -401,6 +401,10 @@ final class Landing {
 		if ( empty( $vars[ self::QUERY_VAR ] ) ) {
 			return $vars;
 		}
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
+			// Landing pages switched off (SET-AC-26): the address is an ordinary page address (or a 404).
+			return array( 'pagename' => Settings::get( 'landing_prefix' ) . '/' . sanitize_title( (string) $vars[ self::QUERY_VAR ] ) );
+		}
 		$aff = self::affiliate_for_slug( (string) $vars[ self::QUERY_VAR ] );
 		if ( $aff && 'active' === $aff->status ) {
 			return $vars;
@@ -485,6 +489,9 @@ final class Landing {
 	 * @return string|null
 	 */
 	public static function redirect_url( $slug, array $query, $is_404 ) {
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
+			return null; // Landing pages switched off (SET-AC-26): no redirect.
+		}
 		$aff = self::affiliate_for_slug( $slug );
 		if ( ! $aff || 'active' !== $aff->status ) {
 			if ( ! $is_404 ) {
@@ -612,6 +619,9 @@ final class Landing {
 	 * @return string
 	 */
 	public static function welcome( $atts = array() ) {
+		if ( ! \WPAffiliateCaptain\Core\Features::enabled( 'landing' ) ) {
+			return ''; // Landing pages switched off (SET-AC-26).
+		}
 		$atts  = shortcode_atts(
 			array(
 				/* translators: %s: partner name */
