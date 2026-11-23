@@ -458,6 +458,10 @@ msgid "Nothing was saved."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
+msgid "This language is not installed on this site. The other changes were saved."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
 msgid "Partner saved."
 msgstr ""
 
@@ -863,7 +867,7 @@ msgstr ""
 msgid "Restrict processing"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/SettingsPage.php
 msgid "Profile"
 msgstr ""
 
@@ -969,6 +973,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Declined"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Consent given"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Tables/AuditTable.php src/Admin/Tables/CommissionsTable.php src/Payouts/Corrections.php src/Payouts/Statement.php src/Portal/Portal.php src/Privacy/Privacy.php
@@ -1218,6 +1226,26 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "leave empty to keep"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php
+msgid "Country of the bank"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Account number"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+msgid "Bank code / sort code / routing number"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Bank name"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "BIC / SWIFT"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php
@@ -1513,6 +1541,19 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Partner sections"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Privacy/Privacy.php
+msgid "Language of e-mails and credit notes"
+msgstr ""
+
+#. translators: %s: language name
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Site language: %s"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Credit notes, cancellations and e-mails to this partner are written in this language. Site language: credit notes in the site language, e-mails in the language of the partner's user account. Applies to documents issued from now on."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
@@ -1896,6 +1937,10 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "Start number of a document number range raised"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
+msgid "Country profile applied"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -2482,7 +2527,7 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
-#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/MailTemplatesPage.php src/Portal/Portal.php src/Promotion/Creatives.php
+#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/MailTemplatesPage.php src/Portal/Portal.php src/Privacy/Privacy.php src/Promotion/Creatives.php
 msgid "Text"
 msgstr ""
 
@@ -3544,6 +3589,10 @@ msgid "Template saved."
 msgstr ""
 
 #: src/Admin/Pages/MailTemplatesPage.php
+msgid "The text of the site language is used again for this language."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
 msgid "The built-in text is used again."
 msgstr ""
 
@@ -3558,6 +3607,10 @@ msgstr ""
 
 #: src/Admin/Pages/MailTemplatesPage.php
 msgid "Adjust the e-mails your partners receive, e.g. to address them informally. Placeholders in curly brackets are replaced with the values of the partner. Templates you have not changed follow the language of the partner; changed templates are sent as you wrote them."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "With several installed languages you can store a text per language: partners get the text of their language (partner profile, otherwise their user account), otherwise the text of the site language."
 msgstr ""
 
 #: src/Admin/Pages/MailTemplatesPage.php
@@ -3599,6 +3652,22 @@ msgstr ""
 
 #: src/Admin/Pages/MailTemplatesPage.php
 msgid "All e-mail templates"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Language of the template"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "Language:"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "A text is stored for this language."
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php
+msgid "No text is stored for this language: partners of this language get the text of the site language (a changed one) or the built-in text in their language."
 msgstr ""
 
 #: src/Admin/Pages/MailTemplatesPage.php
@@ -3858,7 +3927,15 @@ msgid "Payment details"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
+msgid "Bank country"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
 msgid "Bank transfer"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php
+msgid "Bank transfer (non-SEPA)"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -4215,6 +4292,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Admin/Tables/PayoutsTable.php
 msgid "Other payment method (paid manually)"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
+msgid "Bank account (non-SEPA)"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Payouts/Statement.php
@@ -4690,6 +4771,13 @@ msgid_plural "%d settings changed."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: 1: profile name, 2: number of changed settings
+#: src/Admin/Pages/SettingsPage.php
+msgid "Country profile %1$s applied: %2$d setting changed. Everything can still be changed below."
+msgid_plural "Country profile %1$s applied: %2$d settings changed. Everything can still be changed below."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %d: number of changed permissions
 #: src/Admin/Pages/SettingsPage.php
 msgid "%d permission changed."
@@ -4722,6 +4810,57 @@ msgid "Nothing to apply (the preview expired). Please start again."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
+msgid "Country profile"
+msgstr ""
+
+#. translators: %s: profile name
+#: src/Admin/Pages/SettingsPage.php
+msgid "Country profile %s: please check"
+msgstr ""
+
+#. translators: 1: profile name, 2: date
+#: src/Admin/Pages/SettingsPage.php
+msgid "Applied last: %1$s on %2$s."
+msgstr ""
+
+#. translators: %s: profile name
+#: src/Admin/Pages/SettingsPage.php
+msgid "Proposal for your shop country: %s. Show the changes to see what it would set – nothing is changed before you confirm."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "A profile proposes VAT rate, currency, your country, retention periods, cookie and hold periods, e-invoice mail, credit notes, number prefixes, disclosure note, small business limits and document notes. You see every change before it is applied; afterwards everything can be changed as usual. The values are not legally or tax reviewed – check them with your adviser."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Show changes …"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Setting"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Now"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "New"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Nothing would change."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Ignored (unknown or not importable):"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Discard"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
 msgid "Only users who may change user roles can change these permissions."
 msgstr ""
 
@@ -4747,30 +4886,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Reset: please check"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Setting"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Now"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "New"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Nothing would change."
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Ignored (unknown or not importable):"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
-msgid "Discard"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -4824,7 +4939,8 @@ msgid "Changing it converts the minimum payout, the review limit and a fixed def
 msgstr ""
 
 #. translators: 1: currency name, 2: ISO code
-#: src/Admin/Pages/SettingsPage.php
+#. translators: 1: profile name, 2: profile code
+#: src/Admin/Pages/SettingsPage.php src/Core/CountryProfiles.php
 msgid "%1$s (%2$s)"
 msgstr ""
 
@@ -4902,6 +5018,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Features"
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Application form"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5098,6 +5218,15 @@ msgstr ""
 msgid "Credit notes & VAT"
 msgstr ""
 
+#. translators: %s: currency code
+#: src/Admin/Pages/SettingsPage.php
+msgid "Currency: %s."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Notes on credit notes"
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "Document numbers"
 msgstr ""
@@ -5112,7 +5241,7 @@ msgid "Electronic invoice (EN 16931)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
-msgid "Automatic: for partners with German VAT on the credit note (domestic VAT-registered businesses)"
+msgid "Automatic: for credit notes with domestic VAT, where the country profile of your country expects e-invoices (Germany)"
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5212,6 +5341,10 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word."
+msgstr ""
+
+#: src/Admin/Pages/SettingsPage.php
+msgid "Only the site language is installed. Install further languages under Settings → General to store texts for them."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
@@ -5348,6 +5481,10 @@ msgstr ""
 
 #: src/Admin/Reauth.php
 msgid "Change the permissions of user roles"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Apply a country profile (VAT, retention, credit notes)"
 msgstr ""
 
 #: src/Admin/Reauth.php
@@ -5491,6 +5628,11 @@ msgstr ""
 
 #: src/Admin/Tables/PayoutsTable.php
 msgid "Bank details"
+msgstr ""
+
+#. translators: %s: masked account, e.g. US •••• 6789
+#: src/Admin/Tables/PayoutsTable.php
+msgid "Non-SEPA: %s"
 msgstr ""
 
 #: src/Affiliates/AffiliateRepository.php
@@ -6101,6 +6243,10 @@ msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
 msgstr ""
 
 #: src/Affiliates/Notifications.php
+msgid "This language is not installed on this site."
+msgstr ""
+
+#: src/Affiliates/Notifications.php
 msgid "Please enter a subject and a text."
 msgstr ""
 
@@ -6276,6 +6422,13 @@ msgstr ""
 msgid "On your first visit, please read and accept the partner program terms – we need them to pay out your commissions."
 msgstr ""
 
+#. translators: %d: minimum age in years
+#: src/Affiliates/Registration.php
+msgid "I confirm that I am at least %d year old."
+msgid_plural "I confirm that I am at least %d years old."
+msgstr[0] ""
+msgstr[1] ""
+
 #: src/Affiliates/Registration.php
 msgid "Please enter your name or company."
 msgstr ""
@@ -6397,6 +6550,22 @@ msgstr ""
 msgid "How do you want to promote us?"
 msgstr ""
 
+#: src/Affiliates/Registration.php
+msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Privacy policy"
+msgstr ""
+
+#: src/Affiliates/Registration.php
+msgid "Imprint"
+msgstr ""
+
+#: src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Apply now"
+msgstr ""
+
 #. translators: 1: link to terms, 2: version
 #. translators: 1: link, 2: version
 #: src/Affiliates/Registration.php src/Portal/Portal.php
@@ -6407,16 +6576,9 @@ msgstr ""
 msgid "partner program terms"
 msgstr ""
 
+#. translators: %s: text of the checkbox (shortened)
 #: src/Affiliates/Registration.php
-msgid "We use your details to review your application and, if approved, to run the partner program with you (contract, Art. 6(1)(b) GDPR). Rejected applications are deleted after the period stated in our privacy policy."
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "Privacy policy"
-msgstr ""
-
-#: src/Affiliates/Registration.php src/Portal/Portal.php
-msgid "Apply now"
+msgid "Please confirm: %s"
 msgstr ""
 
 #: src/Affiliates/Registration.php
@@ -7096,6 +7258,84 @@ msgstr ""
 msgid "See tax and bank details"
 msgstr ""
 
+#: src/Core/CountryProfiles.php
+msgid "This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service."
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "No VAT is shown because the partner is not registered for VAT."
+msgstr ""
+
+#: src/Core/CountryProfiles.php src/Core/Settings.php
+msgid "Germany"
+msgstr ""
+
+#: src/Core/CountryProfiles.php src/Core/Settings.php src/Core/SettingsSchema.php
+msgid "Advertisement"
+msgstr ""
+
+#: src/Core/CountryProfiles.php src/Core/Settings.php
+msgid "Austria"
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "Paid advertisement"
+msgstr ""
+
+#: src/Core/CountryProfiles.php src/Core/Settings.php
+msgid "Switzerland"
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "EU (general)"
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "Outside the EU"
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "not legally or tax reviewed"
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "Unknown country profile."
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "Retention of credit notes (Affiliate Captain)"
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "A retention period for credit notes is set"
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "No retention period for credit notes is set yet"
+msgstr ""
+
+#: src/Core/CountryProfiles.php src/Core/Monitor.php src/Portal/Portal.php src/Tracking/Tracker.php
+msgid "Partner program"
+msgstr ""
+
+#. translators: %d: years
+#: src/Core/CountryProfiles.php
+msgid "Credit notes are kept for at least %d years."
+msgstr ""
+
+#. translators: 1: years, 2: country code
+#: src/Core/CountryProfiles.php
+msgid "Until you set the legal minimum retention of credit notes, the built-in value of %1$d years for your country (%2$s) applies; it is not legally reviewed. Apply a country profile (Settings → Payouts & credit notes) or enter the minimum on the \"Data & maintenance\" tab, after checking it with your adviser."
+msgstr ""
+
+#: src/Core/CountryProfiles.php
+msgid "Open the settings"
+msgstr ""
+
 #: src/Core/Db.php
 msgid "The database aborted the booking (deadlock, lock wait timeout or lost connection). Nothing was saved; please try again."
 msgstr ""
@@ -7386,10 +7626,6 @@ msgstr ""
 msgid "The partner program is working"
 msgstr ""
 
-#: src/Core/Monitor.php src/Portal/Portal.php src/Tracking/Tracker.php
-msgid "Partner program"
-msgstr ""
-
 #: src/Core/Monitor.php
 msgid "Schema, scheduled tasks, retry queue, account balances and credit notes are fine."
 msgstr ""
@@ -7505,6 +7741,10 @@ msgid "Affiliate Captain supports MySQL %1$s or newer and MariaDB %2$s or newer;
 msgstr ""
 
 #: src/Core/Settings.php
+msgid "At least one payout method must stay on; SEPA bank transfer was kept on."
+msgstr ""
+
+#: src/Core/Settings.php
 msgid "Please enter a parameter name."
 msgstr ""
 
@@ -7610,6 +7850,11 @@ msgstr ""
 msgid "Please choose your country from the list."
 msgstr ""
 
+#. translators: 1: entered years, 2: years of the country profile
+#: src/Core/Settings.php
+msgid "Saved, but please check: %1$d years is less than the %2$d years known for your country. Only use a shorter minimum when your adviser confirmed it."
+msgstr ""
+
 #. translators: %d: years
 #: src/Core/Settings.php
 msgid "Raised to the legal minimum of %d years for your country."
@@ -7668,6 +7913,19 @@ msgid "The token needs 20 to 64 letters and digits (no spaces or special charact
 msgstr ""
 
 #: src/Core/Settings.php
+msgid "Please keep the placeholder {terms} for the link to the terms, or leave the field empty for the built-in text."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Not understood: expected one text per language."
+msgstr ""
+
+#. translators: %s: language codes
+#: src/Core/Settings.php
+msgid "These languages are not installed on this site: %s."
+msgstr ""
+
+#: src/Core/Settings.php
 msgid "Please enter a percentage between 0 and 99 (e.g. 19 or 7,7)."
 msgstr ""
 
@@ -7697,7 +7955,7 @@ msgid "This IBAN is not valid (check digits)."
 msgstr ""
 
 #: src/Core/Settings.php
-msgid "Austria"
+msgid "Please enter an amount (e.g. 25000) or leave the field empty (no check)."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -7734,10 +7992,6 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "France"
-msgstr ""
-
-#: src/Core/Settings.php
-msgid "Germany"
 msgstr ""
 
 #: src/Core/Settings.php
@@ -7805,10 +8059,6 @@ msgid "Sweden"
 msgstr ""
 
 #: src/Core/Settings.php
-msgid "Switzerland"
-msgstr ""
-
-#: src/Core/Settings.php
 msgid "Liechtenstein"
 msgstr ""
 
@@ -7838,10 +8088,6 @@ msgstr ""
 
 #: src/Core/Settings.php
 msgid "New Zealand"
-msgstr ""
-
-#: src/Core/Settings.php src/Core/SettingsSchema.php
-msgid "Advertisement"
 msgstr ""
 
 #. translators: %s: allowed values
@@ -8314,6 +8560,22 @@ msgid "Allowed claims, labelling duty, prohibited channels, how to report proble
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "Disclosure note in other languages"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Per installed language; empty: the note above (site language) is used. Partners see the note in their language."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Promotion guidelines in other languages"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Per installed language; empty: the guidelines above (site language) are used."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Show the disclosure note visibly above the banner embed code"
 msgstr ""
 
@@ -8354,11 +8616,35 @@ msgid "At least the legal minimum of your country (Germany 8, Austria 7, Switzer
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "Legal minimum retention of statements (years, 0 = value of your country)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Statements are never deleted earlier. 0: the value of the country profile of your country applies (Germany 8, Austria 7, Switzerland 10 years, otherwise 10; not legally reviewed). A smaller value than that is saved with a warning. Filter wpac_retention_minimum_years wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Tax audit or legal hold: do not delete any statements"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "The retention period is suspended while a tax audit is running (§147 Abs. 3 AO)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners may choose SEPA bank transfer (IBAN)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "The SEPA payment file (XML) contains only payouts of partners with an IBAN. Off (e.g. a program without partners in the SEPA area): new partners cannot enter an IBAN; partners who already have one keep it until they change it. At least one payout method stays on."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Partners may choose bank transfer outside SEPA (account number and bank code)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "For accounts without IBAN, e.g. in the USA, the United Kingdom, Canada or Australia: account holder, account number, bank code (routing number, sort code, BSB …), bank name, bank country and optional BIC/SWIFT, stored encrypted like the IBAN. These payouts are not part of the SEPA file: pay them with the transfer list (CSV) and then mark them as paid. Your bank and possibly correspondent banks abroad receive the partner's data (privacy policy)."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -8562,6 +8848,54 @@ msgid "Digits correction credit note numbers"
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "Small business limit: previous year"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Amount in the program currency. Small business partners whose credit notes alone exceeded it in the previous year are listed under Payouts. Empty = no check. Filter wpac_small_business_limits wins."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Small business limit: current year"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Amount in the program currency for the current year. Empty = no check."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Note on credit notes (self-billing)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Printed on credit notes and in the e-invoice. Empty: the built-in text for your country (shown in the field). A text is frozen with each document when it is issued; documents already issued keep their text."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Note for reverse charge"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "For foreign business partners (the recipient owes the VAT). Empty: the built-in text for your country. Frozen with each document."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Note for small businesses"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "For partners under the small business scheme (no VAT). Empty: the built-in text for your country. Frozen with each document."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Note for private individuals"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "For partners who are not entrepreneurs (no VAT). Empty: the built-in text. Frozen with each document."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Send e-invoice (XML) with the credit note e-mail"
 msgstr ""
 
@@ -8727,6 +9061,50 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day)."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Text of the terms checkbox"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Wording of the checkbox for the partner program terms on the application form. {terms} becomes the link to the terms page (required), {version} the terms version. Empty: \"I accept the {terms} (version {version}).\" The text shown is stored with each application."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Additional required checkbox 1"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Own text of a checkbox applicants must tick, e.g. for promotion guidelines or self-billing. Links: <a href=\"…\">text</a>. Empty: not shown. Text and time of each consent are stored and included in the personal data export."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Additional required checkbox 2"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Like checkbox 1. Empty: not shown."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Additional required checkbox 3"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Imprint page"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Linked below the application form next to the privacy policy. None: no link."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Minimum age of partners (years, 0 = no question)"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "With a minimum age, applicants must confirm with a checkbox that they are at least this old; the confirmation is stored like the other consents. The age is not checked."
 msgstr ""
 
 #: src/Core/SettingsSchema.php
@@ -9637,14 +10015,6 @@ msgstr ""
 msgid "Correction of credit note %1$s of %2$s"
 msgstr ""
 
-#: src/Payouts/EInvoice.php src/Payouts/Statement.php
-msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
-msgstr ""
-
-#: src/Payouts/EInvoice.php src/Payouts/Statement.php
-msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
-msgstr ""
-
 #. translators: %s: original document number
 #: src/Payouts/EInvoice.php src/Payouts/Statement.php
 msgid "Cancellation of credit note %s"
@@ -9711,6 +10081,11 @@ msgstr ""
 
 #: src/Payouts/EInvoice.php src/Payouts/Statement.php
 msgid "Other payment method as agreed with the partner"
+msgstr ""
+
+#. translators: %s: masked account, e.g. US •••• 6789
+#: src/Payouts/EInvoice.php
+msgid "Bank transfer to the partner's account %s"
 msgstr ""
 
 #. translators: %s: masked IBAN
@@ -9988,6 +10363,10 @@ msgid "Has not accepted the partner terms yet (needed for credit notes) – the 
 msgstr ""
 
 #: src/Payouts/PayoutService.php
+msgid "No VAT rate is set (Settings → Payouts & credit notes, or apply a country profile)"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
 msgid "Reverse charge needs your VAT ID (Settings → Payouts & credit notes)"
 msgstr ""
 
@@ -10107,7 +10486,7 @@ msgid "SEPA transfers are only possible in EUR."
 msgstr ""
 
 #: src/Payouts/PayoutService.php
-msgid "The selected payouts use another payment method (e.g. PayPal) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
+msgid "The selected payouts use another payment method (e.g. PayPal or a bank transfer outside SEPA) and are not part of the SEPA file. Download the transfer list (CSV) for their payment details, pay them manually and mark them as paid."
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -10117,6 +10496,13 @@ msgstr ""
 #: src/Payouts/PayoutService.php
 msgid "Only a created payout that was not exported yet can be paid through a payment provider."
 msgstr ""
+
+#. translators: 1: minimum, 2: maximum number of digits
+#: src/Payouts/ProfileRepository.php
+msgid "%d digit"
+msgid_plural "%d digits"
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/Payouts/ProfileRepository.php
 msgid "Private individual"
@@ -10135,12 +10521,84 @@ msgid "Bank transfer (SEPA, IBAN)"
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php
+msgid "Bank transfer (non-SEPA: account number and bank code)"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
 msgid "Other payment method (e.g. PayPal), paid manually"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Routing number (ABA)"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Sort code"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Institution and transit number"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "BSB number"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "IFSC"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Bank code"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Please choose the country of the bank."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Please enter the account number for payouts by bank transfer."
 msgstr ""
 
 #. translators: 1: field, 2: number of characters
 #: src/Payouts/ProfileRepository.php
 msgid "%1$s is too long (at most %2$d characters)."
+msgstr ""
+
+#. translators: 1: country code, 2: number of digits
+#: src/Payouts/ProfileRepository.php
+msgid "The account number does not look right for a bank in %1$s: it has %2$d digits."
+msgstr ""
+
+#. translators: 1: country code, 2: minimum, 3: maximum number of digits
+#: src/Payouts/ProfileRepository.php
+msgid "The account number does not look right for a bank in %1$s: it has %2$d to %3$d digits."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "The account number does not look right: it has 4 to 34 letters or digits."
+msgstr ""
+
+#. translators: %s: name of the bank code in the country, e.g. Sort code
+#: src/Payouts/ProfileRepository.php
+msgid "Please enter the bank code of the account (%s)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "4 letters, a zero and 6 letters or digits"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "%1$d to %2$d digits"
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "up to 20 letters or digits"
+msgstr ""
+
+#. translators: 1: name of the bank code in the country, e.g. Sort code, 2: expected format, e.g. 6 digits
+#: src/Payouts/ProfileRepository.php
+msgid "The bank code (%1$s) does not look right: expected %2$s. Please check it."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php
@@ -10167,12 +10625,24 @@ msgstr ""
 msgid "Payouts by another payment method are not offered. Please enter your IBAN for a bank transfer."
 msgstr ""
 
-#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
-msgid "Please enter your payment details (e.g. your PayPal address)."
+#: src/Payouts/ProfileRepository.php
+msgid "Payouts by SEPA transfer are not offered. Please choose another payout method."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php
+msgid "Payouts by bank transfer outside SEPA are not offered. Please choose another payout method."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
 msgid "Please enter the account holder for payouts by bank transfer."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "The BIC/SWIFT code is not valid (8 or 11 letters and digits)."
+msgstr ""
+
+#: src/Payouts/ProfileRepository.php src/Portal/Portal.php
+msgid "Please enter your payment details (e.g. your PayPal address)."
 msgstr ""
 
 #: src/Payouts/ProfileRepository.php src/Portal/Portal.php
@@ -10275,6 +10745,14 @@ msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "Repayments by the partner and claims written off are no service and not subject to VAT."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -10570,6 +11048,22 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "The VAT ID is too long (at most 40 characters). Nothing was changed."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "This payout method is not offered. Please choose another payout method."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please check the account number."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "Please check the bank code."
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "The bank name is too long (at most 100 characters). Nothing was changed."
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -11320,6 +11814,10 @@ msgid "Leave empty to keep"
 msgstr ""
 
 #: src/Portal/Portal.php
+msgid "BIC / SWIFT (optional)"
+msgstr ""
+
+#: src/Portal/Portal.php
 msgid "BIC (optional)"
 msgstr ""
 
@@ -11338,6 +11836,15 @@ msgstr ""
 
 #: src/Portal/Portal.php
 msgid "Your bank and payment details are stored encrypted and are only used for commission payouts."
+msgstr ""
+
+#. translators: %s: masked account number, e.g. US •••• 6789
+#: src/Portal/Portal.php
+msgid "Account number (stored: %s)"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "For example the routing number (USA, 9 digits), sort code (UK, 6 digits), institution and transit number (Canada), BSB (Australia) or IFSC (India). Leave empty if your bank has none."
 msgstr ""
 
 #. translators: %s: number with one decimal, e.g. 12.5
@@ -11574,6 +12081,14 @@ msgid "Decided on"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Consents in the application"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Checkbox"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Payout requests"
 msgstr ""
 
@@ -11658,6 +12173,10 @@ msgid "Unsubscribed from these e-mails"
 msgstr ""
 
 #: src/Privacy/Privacy.php
+msgid "Site language"
+msgstr ""
+
+#: src/Privacy/Privacy.php
 msgid "Processing restricted since"
 msgstr ""
 
@@ -11718,6 +12237,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "payment provider of the other payment method chosen by the partner (e.g. PayPal, Wise; possibly a third country), "
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "correspondent banks and the partner's bank for transfers outside the SEPA area (possibly a third country), "
 msgstr ""
 
 #: src/Privacy/Privacy.php
@@ -11857,6 +12380,10 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Credit notes, cancellations and correction credit notes (with the partner's name, address and VAT ID) are stored with an object storage provider on our behalf (Art. 28 GDPR): [provider, location of the storage and, for a location outside the EU/EEA, the safeguards for the transfer (Art. 44 ff. GDPR) – to be completed by the shop operator]."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Partners with a bank account outside the SEPA area: the account holder, account number, bank code, bank name and country, BIC/SWIFT, the amount and the payment reference go to our bank and, for the international transfer, to correspondent banks and the partner's bank, which may be located in third countries (Art. 49(1)(b) GDPR: necessary for the performance of the contract with the partner)."
 msgstr ""
 
 #: src/Privacy/Privacy.php
