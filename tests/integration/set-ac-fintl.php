@@ -253,6 +253,17 @@ check(
 	)
 );
 
+check(
+	'P3-05 correction note of a self-billing credit note: neutral outside the EU and CH, EU directive in the EU, German law for DE',
+	array( false, false, true, true ),
+	array(
+		false !== strpos( Statement::correction_note( 'US' ), 'Directive' ),
+		false !== strpos( Statement::correction_note( 'gb' ), 'UStG' ),
+		false !== strpos( Statement::correction_note( 'FR' ), 'Art. 224' ),
+		false !== strpos( Statement::correction_note( 'DE' ), '§17 UStG' ),
+	)
+);
+
 update_option( 'wpac_settings', $fi_saved );
 Settings::flush_cache();
 $GLOBALS['g10_locale'] = $fi_locale;

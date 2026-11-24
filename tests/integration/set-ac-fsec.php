@@ -158,6 +158,43 @@ $fs_pi     = wp_list_pluck( Privacy::payout_item( $fs_payout )['data'], 'value' 
 $fs_pi0    = wp_list_pluck( Privacy::payout_item( (object) ( array( 'amount_minor' => 11900 ) + (array) $fs_payout ) )['data'], 'name' );
 check( 'P4-10 export of a payout: line with the amount withheld; none without withholding', array( true, false ), array( (bool) preg_grep( '/15[,.]00/', $fs_pi ), (bool) preg_grep( '/Withholding/', $fs_pi0 ) ) );
 
+/* P4-11: saving relaxed fraud rule fields asks for the password; tightening or unchanged does not */
+$fs_set( array( 'reauth_required' => 1, 'currency' => 'EUR', 'fraud_max_orders_day' => 50, 'fraud_max_order_minor' => 200000, 'fraud_min_click_seconds' => 5, 'fraud_max_refund_rate' => 30, 'fraud_check_domains' => 1, 'fraud_blocked_domains' => "spam.example\nbad.example", 'fraud_refund_window_days' => 90, 'fraud_refund_min_orders' => 5, 'bank_change_wait_days' => 30, 'reauth_minutes' => 15, 'rate_limit_per_minute' => 30, 'trusted_proxies' => '' ) );
+$fs_sec = array( 'reauth_required' => '1', 'fraud_max_orders_day' => '50', 'fraud_max_order' => '2000', 'fraud_min_click_seconds' => '5', 'fraud_max_refund_rate' => '30', 'fraud_check_domains' => '1', 'fraud_blocked_domains' => "spam.example\nbad.example", 'fraud_refund_window_days' => '90', 'fraud_refund_min_orders' => '5', 'bank_change_wait_days' => '30', 'reauth_minutes' => '15', 'rate_limit_per_minute' => '30', 'trusted_proxies' => '' );
+$fs_p411 = array();
+foreach ( array(
+	array(),                                             // Unchanged.
+	array( 'fraud_max_orders_day' => '20', 'fraud_max_order' => '1000', 'fraud_min_click_seconds' => '10', 'fraud_max_refund_rate' => '20', 'fraud_refund_min_orders' => '3', 'fraud_blocked_domains' => "spam.example\nbad.example\nmore.example", 'fraud_refund_window_days' => '30' ), // Tighter.
+	array( 'fraud_max_orders_day' => '0' ),              // Rule off.
+	array( 'fraud_max_order' => '5000' ),                // Higher limit.
+	array( 'fraud_min_click_seconds' => '1' ),
+	array( 'fraud_max_refund_rate' => '50' ),
+	array( 'fraud_refund_min_orders' => '20' ),
+	array( 'fraud_blocked_domains' => 'spam.example' ),  // Domain removed.
+) as $fs_change ) {
+	$fs_p411[] = $fs_key( 'settings_save', array( 'tab' => 'security', 'wpac' => $fs_change + $fs_sec ) );
+}
+$fs_nodom = $fs_sec;
+unset( $fs_nodom['fraud_check_domains'] ); // Checkbox absent = off.
+$fs_p411[] = $fs_key( 'settings_save', array( 'tab' => 'security', 'wpac' => $fs_nodom ) );
+$fs_p411[] = $fs_key( 'wizard_save', array( 'wpac' => array( 'fraud_max_order' => '0' ) ) );
+$fs_p411[] = $fs_key( 'wizard_save', array( 'wpac' => array( 'fraud_max_order' => '1500' ) ) );
+$fs_p411[] = $fs_key( 'settings_save', array( 'tab' => 'emails', 'wpac' => array( 'fraud_max_orders_day' => '0' ) ) ); // Not a field of that tab.
+$_POST     = $fs_post;
+check(
+	'P4-11 security tab: a weaker fraud rule (higher/0 limit, shorter click time, more refund orders, domain check off or domain removed) asks for the password (settings_sensitive); tighter or unchanged does not; wizard step too',
+	array( 'settings_save', 'settings_save', 'settings_sensitive', 'settings_sensitive', 'settings_sensitive', 'settings_sensitive', 'settings_sensitive', 'settings_sensitive', 'settings_sensitive', 'settings_sensitive', 'wizard_save', 'settings_save' ),
+	$fs_p411
+);
+check(
+	'P4-11 relaxed_fraud_rules(): only weaker values are listed',
+	array( array( 'fraud_max_orders_day', 'fraud_check_domains' ), array() ),
+	array(
+		Reauth::relaxed_fraud_rules( array( 'fraud_max_orders_day' => 10, 'fraud_check_domains' => 1 ), array( 'fraud_max_orders_day' => 0, 'fraud_check_domains' => 0 ) ),
+		Reauth::relaxed_fraud_rules( array( 'fraud_max_orders_day' => 0, 'fraud_blocked_domains' => 'a.example' ), array( 'fraud_max_orders_day' => 10, 'fraud_blocked_domains' => "A.example\nb.example" ) ),
+	)
+);
+
 foreach ( array( $fs_br, $fs_a, $fs_b, $fs_c ) as $fs_id ) {
 	ProfileRepository::delete( $fs_id );
 }

@@ -52,6 +52,7 @@ fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
 
 /* Field errors after a rejected save; details below admin notices. */
 .wpac-field-error { color: #b32d2e; margin: .25em 0 0; font-weight: 600; }
+.wpac-field-notice { border-inline-start: 4px solid #72aee6; padding: 2px 8px; margin: .25em 0 0; color: #50575e; }
 [aria-invalid="true"] { border-color: #b32d2e !important; }
 .notice .wpac-notice-details { list-style: disc; margin-block: 0 .5em; margin-inline: 1.5em 0; }
 .wpac-hide-notice { white-space: nowrap; }

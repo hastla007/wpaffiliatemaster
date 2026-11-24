@@ -520,6 +520,21 @@ final class PayoutsPage {
 	}
 
 	/**
+	 * Amount and progress of a claim of an ended partnership: "%1$s (%2$d of %3$d reminders sent)"
+	 * with the number of stages of the setting dunning_levels (P5-16; before, always "of 3"). When
+	 * the setting was lowered below the stages already sent, the sent number is the total.
+	 *
+	 * @param string $amount  Formatted amount.
+	 * @param array  $history Sent stages (Dunning::history()).
+	 * @return string
+	 */
+	public static function claim_progress( $amount, array $history ) {
+		$sent = count( $history );
+		/* translators: 1: amount, 2: payment requests and reminders sent, 3: number of stages (setting) */
+		return sprintf( __( '%1$s (%2$d of %3$d reminders sent)', 'affiliate-captain' ), $amount, $sent, max( $sent, \WPAffiliateCaptain\Commissions\Dunning::levels() ) );
+	}
+
+	/**
 	 * Open tasks, new payout run and payout requests (payout managers only).
 	 *
 	 * @param string $currency Currency of the run.
@@ -533,8 +548,7 @@ final class PayoutsPage {
 				if ( ! $cl['affiliate'] ) {
 					continue;
 				}
-				/* translators: 1: partner, 2: amount, 3: reminders sent */
-				echo '<li><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $cl['affiliate']->id, 'tab' => 'balance' ) ) ) . '">' . esc_html( $cl['affiliate']->name ) . '</a>: ' . esc_html( sprintf( __( '%1$s (%2$d of 3 reminders sent)', 'affiliate-captain' ), Money::format( $cl['amount'], $cl['currency'] ), count( $cl['history'] ) ) ) . '</li>';
+				echo '<li><a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => (int) $cl['affiliate']->id, 'tab' => 'balance' ) ) ) . '">' . esc_html( $cl['affiliate']->name ) . '</a>: ' . esc_html( self::claim_progress( Money::format( $cl['amount'], $cl['currency'] ), (array) $cl['history'] ) ) . '</li>';
 			}
 			echo '</ul></div>';
 		}

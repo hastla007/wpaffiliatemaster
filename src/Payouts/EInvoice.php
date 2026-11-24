@@ -518,9 +518,7 @@ final class EInvoice {
 			$notes[] = sprintf( __( 'This correction concerns only the part of credit note %1$s with %2$s; the other parts of the credit note are unchanged.', 'affiliate-captain' ), $orig_no, Corrections::part_label( array( 'mode' => (string) $c->vat_mode, 'rate' => (string) $c->vat_rate ) ) );
 		}
 		$notes[] = Statement::vat_note( (string) $c->vat_mode, $country, $op );
-		$notes[] = 'DE' === $country
-			? __( 'This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note.', 'affiliate-captain' )
-			: __( 'This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document.', 'affiliate-captain' );
+		$notes[] = Statement::correction_note( $country );
 		$notes[] = self::copy_note();
 		$day     = self::day( get_date_from_gmt( (string) $c->created_at ) );
 		return array(

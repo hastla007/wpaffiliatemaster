@@ -200,3 +200,17 @@ check(
 	array( array( hash( 'sha256', "extra_1\nIch akzeptiere die Werberichtlinien." ), hash( 'sha256', "extra_2\nIch akzeptiere die Werberichtlinien." ) ), false, 'Ich akzeptiere die Werberichtlinien.' ),
 	array( $r24_hashes, in_array( hash( 'sha256', 'Ich akzeptiere die Werberichtlinien.' ), $r24_hashes, true ), WPAffiliateCaptain\Affiliates\Agreements::consent_text( (string) ( $r24_hashes[0] ?? '' ) ) )
 );
+
+// P5-16: the claims list on the payouts page counts against dunning_levels, not a fixed 3.
+$r24_set( array( 'dunning_levels' => 5 ) );
+$r24_p516 = array( PayoutsPage::claim_progress( '50,00 €', array( array( 'level' => 1 ), array( 'level' => 2 ) ) ) );
+$r24_set( array( 'dunning_levels' => 2 ) );
+$r24_p516[] = PayoutsPage::claim_progress( '50,00 €', array( array( 'level' => 1 ) ) );
+$r24_p516[] = PayoutsPage::claim_progress( '50,00 €', array( array( 'level' => 1 ), array( 'level' => 2 ), array( 'level' => 3 ) ) );
+update_option( 'wpac_settings', $r24_saved );
+Settings::flush_cache();
+check(
+	'P5-16 claims list: "x of <dunning_levels> reminders sent"; more stages sent than set = sent number is the total',
+	array( '50,00 € (2 of 5 reminders sent)', '50,00 € (1 of 2 reminders sent)', '50,00 € (3 of 3 reminders sent)' ),
+	$r24_p516
+);

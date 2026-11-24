@@ -56,6 +56,9 @@ msgstr "Mehr erfahren"
 msgid "(opens in a new tab)"
 msgstr "(öffnet in neuem Tab)"
 
+msgid "Hide these hints"
+msgstr "Diese Hinweise ausblenden"
+
 msgid "%d commission needs review"
 msgid_plural "%d commissions need review"
 msgstr[0] "%d Provision benötigt Prüfung"
@@ -352,8 +355,14 @@ msgstr "Einstellungen importieren"
 msgid "Export settings with bank details and addresses"
 msgstr "Einstellungen mit Bankdaten und Anschriften exportieren"
 
-msgid "Reset commission or payout settings"
-msgstr "Provisions- oder Auszahlungseinstellungen zurücksetzen"
+msgid "Reset commission, payout, retention or security settings"
+msgstr "Provisions-, Auszahlungs-, Aufbewahrungs- oder Sicherheitseinstellungen zurücksetzen"
+
+msgid "Shorten the retention of statements or lift the retention hold"
+msgstr "Aufbewahrung der Gutschriften verkürzen oder Aufbewahrungssperre aufheben"
+
+msgid "Export the program with tax and bank data"
+msgstr "Programm mit Steuer- und Bankdaten exportieren"
 
 msgid "Change bank details, notification address or protection settings"
 msgstr "Bankdaten, Benachrichtigungsadresse oder Schutzeinstellungen ändern"
@@ -538,14 +547,23 @@ msgstr "Der WordPress-Benutzer wurde getrennt. Der Partner behält alle Daten; e
 msgid "Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved."
 msgstr "Die E-Mail-Adresse eines Partners mit Zugang zum Partnerbereich oder mit Auszahlungsdaten kann nur mit der Berechtigung für Auszahlungen geändert werden. Es wurde nichts gespeichert."
 
+msgid "Please enter a valid e-mail address."
+msgstr "Bitte geben Sie eine gültige E-Mail-Adresse ein."
+
+msgid "This e-mail address is already used by another partner account."
+msgstr "Diese E-Mail-Adresse wird bereits von einem anderen Partnerkonto verwendet."
+
 msgid "The recruiting partner does not exist."
 msgstr "Der werbende Partner existiert nicht."
 
-msgid "Nothing was saved."
-msgstr "Es wurde nichts gespeichert."
+msgid "Please enter a name."
+msgstr "Bitte geben Sie einen Namen ein."
 
 msgid "This language is not installed on this site. The other changes were saved."
 msgstr "Diese Sprache ist auf dieser Website nicht installiert. Die übrigen Änderungen wurden gespeichert."
+
+msgid "Partner saved. The vanity slug \"%1$s\" is already taken (or too long), so \"%2$s\" was stored. Change it if you prefer another one."
+msgstr "Partner gespeichert. Der Kurzname „%1$s“ ist schon vergeben (oder zu lang), deshalb wurde „%2$s“ gespeichert. Ändern Sie ihn, wenn Sie einen anderen möchten."
 
 msgid "Partner saved."
 msgstr "Partner gespeichert."
@@ -709,11 +727,17 @@ msgstr "Auszahlungsdaten gespeichert."
 msgid "Withholding saved. It applies to payouts created from now on."
 msgstr "Steuerabzug gespeichert. Er gilt für Auszahlungen, die ab jetzt erstellt werden."
 
+msgid "The partner was not saved. Please correct the marked fields; your input is kept."
+msgstr "Der Partner wurde nicht gespeichert. Bitte korrigieren Sie die markierten Felder; Ihre Eingaben bleiben erhalten."
+
 msgid "Add partner"
 msgstr "Partner hinzufügen"
 
 msgid "Search partners"
 msgstr "Partner suchen"
+
+msgid "Fields marked with * are required."
+msgstr "Mit * markierte Felder sind Pflichtfelder."
 
 msgid "Name / company"
 msgstr "Name / Firma"
@@ -870,6 +894,9 @@ msgstr "Landingpage"
 
 msgid "— default —"
 msgstr "— Standard —"
+
+msgid "Where the partner link %s leads. Default: the landing page of the program settings."
+msgstr "Wohin der Partnerlink %s führt. Standard: die Landingpage aus den Programmeinstellungen."
 
 msgid "Welcome message on landing page"
 msgstr "Begrüßungstext auf der Landingpage"
@@ -1291,6 +1318,9 @@ msgstr "Jetzt eine Zahlungsaufforderung über %1$s an %2$s senden?"
 msgid "Send payment request (level %d)"
 msgstr "Zahlungsaufforderung senden (Stufe %d)"
 
+msgid "No further stage: the number of stages was lowered after these were sent, so no final reminder was sent. Write the balance off or hand it over for collection."
+msgstr "Keine weitere Stufe: Die Zahl der Stufen wurde gesenkt, nachdem diese gesendet waren; eine letzte Mahnung wurde daher nicht gesendet. Schreiben Sie den Betrag ab oder geben Sie ihn ans Inkasso."
+
 msgid "All reminders were sent. Write the balance off or hand it over for collection."
 msgstr "Alle Mahnungen wurden gesendet. Schreiben Sie den Betrag ab oder geben Sie ihn ans Inkasso."
 
@@ -1332,6 +1362,21 @@ msgstr "Website-Sprache: %s"
 
 msgid "Credit notes, cancellations and e-mails to this partner are written in this language. Site language: credit notes in the site language, e-mails in the language of the partner's user account. Applies to documents issued from now on."
 msgstr "Gutschriften, Stornos und E-Mails an diesen Partner werden in dieser Sprache geschrieben. Website-Sprache: Gutschriften in der Website-Sprache, E-Mails in der Sprache des Benutzerkontos des Partners. Gilt für Belege, die ab jetzt erstellt werden."
+
+msgid "Public name of the partner: shown in the \"recommended by\" box, in creatives and in e-mails."
+msgstr "Öffentlicher Name des Partners: erscheint in der Box „Empfohlen von“, in Werbemitteln und in E-Mails."
+
+msgid "Notifications go to this address. It also decides which WordPress account can be linked to the partner."
+msgstr "An diese Adresse gehen die Benachrichtigungen. Sie entscheidet auch, welches WordPress-Konto mit dem Partner verknüpft werden kann."
+
+msgid "Optional. Shown together with the public name."
+msgstr "Optional. Wird zusammen mit dem öffentlichen Namen angezeigt."
+
+msgid "How the partner promotes you, e.g. blog, podcast or newsletter (optional)."
+msgstr "Wie der Partner für Sie wirbt, z. B. Blog, Podcast oder Newsletter (optional)."
+
+msgid "Short name in the partner link (e.g. /partner/{slug}/; letters, digits, hyphens). Links with the previous name stop working after a change. A name that is already taken gets a number added."
+msgstr "Kurzname im Partnerlink (z. B. /partner/{slug}/; Buchstaben, Ziffern, Bindestriche). Nach einer Änderung funktionieren Links mit dem bisherigen Namen nicht mehr. Ein schon vergebener Name bekommt eine Nummer angehängt."
 
 msgid "Partner group"
 msgstr "Partnergruppe"
@@ -3081,11 +3126,11 @@ msgstr "Überweisung (außerhalb SEPA)"
 msgid "Other payment method"
 msgstr "Andere Auszahlungsart"
 
+msgid "%1$s (%2$d of %3$d reminders sent)"
+msgstr "%1$s (%2$d von %3$d Mahnungen gesendet)"
+
 msgid "Negative balances of ended partnerships (to claim back):"
 msgstr "Negative Guthaben beendeter Partnerschaften (zurückzufordern):"
-
-msgid "%1$s (%2$d of 3 reminders sent)"
-msgstr "%1$s (%2$d von 3 Mahnungen gesendet)"
 
 msgid "Small business partners above the small business limit (§19 UStG: 25,000 € in the previous year or 100,000 € in the current year):"
 msgstr "Kleinunternehmer-Partner über der Kleinunternehmergrenze (§19 UStG: 25.000 € im Vorjahr oder 100.000 € im laufenden Jahr):"
@@ -3361,20 +3406,20 @@ msgstr[1] "%d Provisionsregeln der Gruppe wurden deaktiviert."
 
 msgid "%d partner now falls under the program terms and must accept them before the next credit note."
 msgid_plural "%d partners now fall under the program terms and must accept them before the next credit note."
-msgstr[0] "%d Partner fällt jetzt unter die Programmbedingungen und muss sie vor der nächsten Gutschrift annehmen."
-msgstr[1] "%d Partner fallen jetzt unter die Programmbedingungen und müssen sie vor der nächsten Gutschrift annehmen."
+msgstr[0] "%d Partner fällt jetzt unter die allgemeinen Partnerbedingungen und muss sie vor der nächsten Gutschrift annehmen."
+msgstr[1] "%d Partner fallen jetzt unter die allgemeinen Partnerbedingungen und müssen sie vor der nächsten Gutschrift annehmen."
 
 msgid "Please enter a reason for the change."
 msgstr "Bitte geben Sie einen Grund für die Änderung an."
+
+msgid "The rule was not saved. Please correct the marked fields; your input is kept."
+msgstr "Die Regel wurde nicht gespeichert. Bitte korrigieren Sie die markierten Felder; Ihre Eingaben bleiben erhalten."
 
 msgid "Rule saved. Existing commissions are not changed."
 msgstr "Regel gespeichert. Bestehende Provisionen werden nicht geändert."
 
 msgid "Rule deleted."
 msgstr "Regel gelöscht."
-
-msgid "Please enter a name."
-msgstr "Bitte geben Sie einen Namen ein."
 
 msgid "Group created."
 msgstr "Gruppe angelegt."
@@ -3502,8 +3547,14 @@ msgstr "bis"
 msgid "Both days included, in the time zone of the website; empty = open. The payment date of the order counts. Outside this period the next rule or the program default applies."
 msgstr "Beide Tage einschließlich, in der Zeitzone der Website; leer = offen. Es zählt das Zahlungsdatum der Bestellung. Außerhalb dieses Zeitraums gilt die nächste Regel oder der Standardsatz des Programms."
 
+msgid "Higher number wins among equally specific rules."
+msgstr "Bei gleich spezifischen Regeln gewinnt die höhere Zahl."
+
 msgid "Reason for change"
 msgstr "Grund der Änderung"
+
+msgid "Reason for change (optional)"
+msgstr "Grund der Änderung (optional)"
 
 msgid "Save rule"
 msgstr "Regel speichern"
@@ -3530,7 +3581,7 @@ msgid "Own terms page"
 msgstr "Eigene Bedingungsseite"
 
 msgid "— program terms —"
-msgstr "— Programmbedingungen —"
+msgstr "— allgemeine Partnerbedingungen —"
 
 msgid "Applicants can choose this group"
 msgstr "Bewerber können diese Gruppe wählen"
@@ -3548,7 +3599,7 @@ msgid "Save group"
 msgstr "Gruppe speichern"
 
 msgid "Delete this group? Its partners fall back to the program rules and terms (with own terms they must accept the program terms before the next credit note) and the commission rules of the group are deactivated."
-msgstr "Diese Gruppe löschen? Ihre Partner fallen auf die Regeln und Bedingungen des Programms zurück (bei eigenen Bedingungen müssen sie vor der nächsten Gutschrift die Programmbedingungen annehmen), und die Provisionsregeln der Gruppe werden deaktiviert."
+msgstr "Diese Gruppe löschen? Die Partner dieser Gruppe fallen auf die Regeln und Bedingungen des Programms zurück (bei eigenen Bedingungen müssen sie vor der nächsten Gutschrift die allgemeinen Partnerbedingungen annehmen), und die Provisionsregeln der Gruppe werden deaktiviert."
 
 msgid "Delete group"
 msgstr "Gruppe löschen"
@@ -3615,6 +3666,9 @@ msgstr "Produkt-ID"
 
 msgid "Tag IDs"
 msgstr "Tag-IDs"
+
+msgid "Comma separated. Empty = taken from the product."
+msgstr "Durch Kommas getrennt. Leer = vom Produkt übernommen."
 
 msgid "Gross amount"
 msgstr "Bruttobetrag"
@@ -3800,9 +3854,6 @@ msgstr "Einstellungen Affiliate Captain"
 
 msgid "Settings sections"
 msgstr "Einstellungsbereiche"
-
-msgid "Fields marked with * are required."
-msgstr "Mit * markierte Felder sind Pflichtfelder."
 
 msgid "Sample credit note"
 msgstr "Muster-Gutschrift"
@@ -4071,6 +4122,9 @@ msgstr "Bestätigung"
 msgid "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word."
 msgstr "Nur zum Einschalten: tippen Sie LÖSCHEN (oder DELETE). Ausschalten und das Speichern anderer Felder brauchen kein Wort."
 
+msgid "%s (not installed)"
+msgstr "%s (nicht installiert)"
+
 msgid "Only the site language is installed. Install further languages under Settings → General to store texts for them."
 msgstr "Nur die Website-Sprache ist installiert. Installieren Sie weitere Sprachen unter Einstellungen → Allgemein, um Texte für sie zu speichern."
 
@@ -4102,7 +4156,7 @@ msgid "Pages"
 msgstr "Seiten"
 
 msgid "The application page, the partner area and the partner program terms. Missing pages can be created automatically; the terms are created as a draft from a template – review them with your legal advisor, then publish them."
-msgstr "Die Bewerbungsseite, der Partnerbereich und die Teilnahmebedingungen. Fehlende Seiten können automatisch angelegt werden; die Bedingungen entstehen als Entwurf aus einer Vorlage – prüfen Sie sie mit Ihrer Rechtsberatung und veröffentlichen Sie sie dann."
+msgstr "Die Bewerbungsseite, der Partnerbereich und die Partnerbedingungen. Fehlende Seiten können automatisch angelegt werden; die Bedingungen entstehen als Entwurf aus einer Vorlage – prüfen Sie sie mit Ihrer Rechtsberatung und veröffentlichen Sie sie dann."
 
 msgid "Consent & cookie"
 msgstr "Einwilligung & Cookie"
@@ -4207,7 +4261,7 @@ msgid "Apply and continue"
 msgstr "Übernehmen und weiter"
 
 msgid "The partner program terms are not published yet. Review the draft with your legal advisor, then publish it."
-msgstr "Die Teilnahmebedingungen sind noch nicht veröffentlicht. Prüfen Sie den Entwurf mit Ihrer Rechtsberatung und veröffentlichen Sie ihn dann."
+msgstr "Die Partnerbedingungen sind noch nicht veröffentlicht. Prüfen Sie den Entwurf mit Ihrer Rechtsberatung und veröffentlichen Sie ihn dann."
 
 msgid "Edit the terms page"
 msgstr "Seite der Bedingungen bearbeiten"
@@ -4356,9 +4410,6 @@ msgstr "Beendet"
 msgid "Rejected"
 msgstr "Abgelehnt"
 
-msgid "Please enter a valid e-mail address."
-msgstr "Bitte geben Sie eine gültige E-Mail-Adresse ein."
-
 msgid "An affiliate account with this e-mail address already exists."
 msgstr "Mit dieser E-Mail-Adresse existiert bereits ein Partnerkonto."
 
@@ -4382,9 +4433,6 @@ msgstr "Die Partnerdaten konnten nicht gespeichert werden. Bitte versuchen Sie e
 
 msgid "%1$s is too long (at most %2$d characters). Nothing was changed."
 msgstr "%1$s ist zu lang (höchstens %2$d Zeichen). Es wurde nichts geändert."
-
-msgid "This e-mail address is already used by another partner account."
-msgstr "Diese E-Mail-Adresse wird bereits von einem anderen Partnerkonto verwendet."
 
 msgid "[%s] The e-mail address of your partner account was changed"
 msgstr "[%s] Die E-Mail-Adresse Ihres Partnerkontos wurde geändert"
@@ -4741,10 +4789,10 @@ msgid "[%s] Your partnership has been terminated"
 msgstr "[%s] Ihre Partnerschaft wurde beendet"
 
 msgid "Your partnership has been terminated. Open commissions that were not yet paid have been cancelled according to the program terms."
-msgstr "Ihre Partnerschaft wurde beendet. Offene, noch nicht ausgezahlte Provisionen wurden gemäß den Programmbedingungen storniert."
+msgstr "Ihre Partnerschaft wurde beendet. Offene, noch nicht ausgezahlte Provisionen wurden gemäß den Partnerbedingungen storniert."
 
 msgid "Your partnership has been terminated. Approved commissions will still be paid out according to the program terms."
-msgstr "Ihre Partnerschaft wurde beendet. Freigegebene Provisionen werden gemäß den Programmbedingungen weiterhin ausgezahlt."
+msgstr "Ihre Partnerschaft wurde beendet. Freigegebene Provisionen werden gemäß den Partnerbedingungen weiterhin ausgezahlt."
 
 msgid "[%s] Your partner account is active again"
 msgstr "[%s] Ihr Partnerkonto ist wieder aktiv"
@@ -5161,8 +5209,14 @@ msgstr "Keine Zahlungsaufforderung möglich: Die Daten des Partners wurden gelö
 msgid "No payment request possible yet: enter your company's account holder and IBAN under Settings → Payouts first, so the partner knows where to transfer the amount."
 msgstr "Noch keine Zahlungsaufforderung möglich: Tragen Sie zuerst Kontoinhaber und IBAN Ihres Firmenkontos unter Einstellungen → Auszahlungen ein, damit der Partner weiß, wohin er den Betrag überweisen soll."
 
+msgid "Another payment request for this partner is being sent right now. Please reload the page."
+msgstr "Für diesen Partner wird gerade eine andere Zahlungsaufforderung gesendet. Bitte laden Sie die Seite neu."
+
 msgid "The balance is not negative."
 msgstr "Der Saldo ist nicht negativ."
+
+msgid "Payment request level %d was already sent (the form was probably submitted twice). Nothing was sent again."
+msgstr "Die Zahlungsaufforderung Stufe %d wurde bereits gesendet (das Formular wurde vermutlich doppelt abgeschickt). Es wurde nichts erneut gesendet."
 
 msgid "[%s] Repayment of commissions"
 msgstr "[%s] Rückzahlung von Provisionen"
@@ -5182,8 +5236,17 @@ msgstr "Der Betrag enthält %s USt, die mit früheren Gutschriften für die erst
 msgid "The payment request could not be sent (e-mail error). Please check the e-mail delivery of your site and try again."
 msgstr "Die Zahlungsaufforderung konnte nicht gesendet werden (E-Mail-Fehler). Bitte prüfen Sie den E-Mail-Versand Ihrer Website und versuchen Sie es erneut."
 
+msgid "Another booking for this partner is running right now. Please reload the page and check the account before booking again."
+msgstr "Für diesen Partner läuft gerade eine andere Buchung. Bitte laden Sie die Seite neu und prüfen Sie das Konto, bevor Sie erneut buchen."
+
 msgid "Please enter the amount received."
 msgstr "Bitte geben Sie den erhaltenen Betrag ein."
+
+msgid "This repayment was already booked (the form was submitted twice). Nothing was booked again."
+msgstr "Diese Rückzahlung wurde bereits gebucht (das Formular wurde doppelt abgeschickt). Es wurde nichts erneut gebucht."
+
+msgid "A repayment with the same amount and bank reference was booked less than %d minutes ago. Check the partner account: if it is really a second payment, enter its own bank reference."
+msgstr "Eine Rückzahlung mit demselben Betrag und Verwendungszweck wurde vor weniger als %d Minuten gebucht. Prüfen Sie das Partnerkonto: Ist es wirklich eine zweite Zahlung, geben Sie deren eigenen Verwendungszweck ein."
 
 msgid "The amount is larger than the negative balance."
 msgstr "Der Betrag ist größer als das negative Guthaben."
@@ -5463,15 +5526,6 @@ msgstr "Auszahlungen und Gutschriften"
 msgid "See tax and bank details"
 msgstr "Steuer- und Bankdaten sehen"
 
-msgid "This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
-msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung aus. Der Partner kann ihr widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
-
-msgid "No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service."
-msgstr "Auf diesem Beleg wird keine Umsatzsteuer berechnet; eine für die Leistung geschuldete Umsatzsteuer schuldet der Leistungsempfänger."
-
-msgid "No VAT is shown because the partner is not registered for VAT."
-msgstr "Es wird keine Umsatzsteuer ausgewiesen, da der Partner nicht umsatzsteuerlich registriert ist."
-
 msgid "Germany"
 msgstr "Deutschland"
 
@@ -5548,7 +5602,7 @@ msgid "\"Delete all data on uninstall\" was switched off so deleting the old cop
 msgstr "„Alle Daten bei der Deinstallation löschen“ wurde ausgeschaltet, damit das Löschen der alten Kopie die gemeinsamen Daten nicht entfernt; schalten Sie es danach bei Bedarf wieder ein."
 
 msgid "Affiliate Captain found booking records kept from an earlier installation (uninstalled %1$s, within their retention period). Their %2$d partner numbers stay reserved as \"Deleted partner\", so new partners never get them. \"Delete all data on uninstall\" is off."
-msgstr "Affiliate Captain hat aufbewahrte Buchungsdaten einer früheren Installation gefunden (deinstalliert %1$s, innerhalb der Aufbewahrungsfrist). Ihre %2$d Partnernummern bleiben als „Gelöschter Partner“ reserviert, damit neue Partner sie nie erhalten. „Alle Daten bei der Deinstallation löschen“ ist aus."
+msgstr "Affiliate Captain hat aufbewahrte Buchungsdaten einer früheren Installation gefunden (deinstalliert %1$s, innerhalb der Aufbewahrungsfrist). Deren %2$d Partnernummern bleiben als „Gelöschter Partner“ reserviert, damit neue Partner sie nie erhalten. „Alle Daten bei der Deinstallation löschen“ ist aus."
 
 msgid "Bank details of %d partner cannot be decrypted"
 msgid_plural "Bank details of %d partners cannot be decrypted"
@@ -5853,6 +5907,12 @@ msgstr "Es ist kein Wechselkurs zwischen %1$s und %2$s bekannt, daher behalten B
 msgid "Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency."
 msgstr "Beträge wurden von %1$s in %2$s umgerechnet. Bitte prüfen Sie feste Provisionsregeln, Stufenpläne und die Wechselkurse; bestehende Buchungen behalten ihre Währung."
 
+msgid "The small business limits (%1$s) stay amounts in %2$s and are only checked against credit notes in %2$s."
+msgstr "Die Kleinunternehmergrenzen (%1$s) bleiben Beträge in %2$s und werden nur mit Gutschriften in %2$s verglichen."
+
+msgid "The small business limits (%1$s) are not converted: they now count in %2$s, please check them."
+msgstr "Die Kleinunternehmergrenzen (%1$s) werden nicht umgerechnet: Sie gelten jetzt in %2$s, bitte prüfen Sie sie."
+
 msgid "Please enter an amount (e.g. 25 or 25,50)."
 msgstr "Bitte geben Sie einen Betrag ein (z. B. 25 oder 25,50)."
 
@@ -5907,6 +5967,9 @@ msgstr "Die Höchstauszahlung muss mindestens so hoch wie die Mindestauszahlung 
 msgid "The minimum payout cannot be higher than the maximum payout."
 msgstr "Die Mindestauszahlung kann nicht höher als die Höchstauszahlung sein."
 
+msgid "The minimum payout in %1$s is higher than the maximum payout converted to %1$s (%2$s). Partners paid in this currency could never be paid – lower the minimum or raise the maximum payout."
+msgstr "Die Mindestauszahlung in %1$s ist höher als die in %1$s umgerechnete Höchstauszahlung (%2$s). Partner mit dieser Währung könnten nie ausgezahlt werden – senken Sie die Mindestauszahlung oder erhöhen Sie die Höchstauszahlung."
+
 msgid "Please enter a path (letters, digits and \"-\")."
 msgstr "Bitte geben Sie einen Pfad ein (Buchstaben, Ziffern und „-“)."
 
@@ -5922,6 +5985,12 @@ msgstr "Bitte geben Sie eine gültige E-Mail-Adresse ein oder lassen Sie das Fel
 msgid "The token needs 20 to 64 letters and digits (no spaces or special characters). The previous token stays valid."
 msgstr "Das Token braucht 20 bis 64 Buchstaben und Ziffern (keine Leer- oder Sonderzeichen). Das bisherige Token bleibt gültig."
 
+msgid "This page does not exist on this site. Please choose another page."
+msgstr "Diese Seite gibt es auf dieser Website nicht. Bitte wählen Sie eine andere Seite."
+
+msgid "Please choose a published page (or a draft that you publish later), not a trashed page or another kind of content."
+msgstr "Bitte wählen Sie eine veröffentlichte Seite (oder einen Entwurf, den Sie später veröffentlichen), keine Seite im Papierkorb und keinen anderen Inhaltstyp."
+
 msgid "Please keep the placeholder {terms} for the link to the terms, or leave the field empty for the built-in text."
 msgstr "Bitte behalten Sie den Platzhalter {terms} für den Link zu den Bedingungen bei oder lassen Sie das Feld für den eingebauten Text leer."
 
@@ -5930,6 +5999,9 @@ msgstr "Nicht verstanden: erwartet wird ein Text je Sprache."
 
 msgid "These languages are not installed on this site: %s."
 msgstr "Diese Sprachen sind auf dieser Website nicht installiert: %s."
+
+msgid "Please shorten the text to at most %1$s characters (%2$s)."
+msgstr "Bitte kürzen Sie den Text auf höchstens %1$s Zeichen (%2$s)."
 
 msgid "Please enter a percentage between 0 and 99 (e.g. 19 or 7,7)."
 msgstr "Bitte geben Sie einen Prozentsatz zwischen 0 und 99 ein (z. B. 19 oder 7,7)."
@@ -6598,7 +6670,7 @@ msgid "Start number credit notes"
 msgstr "Startnummer Gutschriften"
 
 msgid "The next number of the current year continues at this number. It can only be raised, never to or below the highest number already issued this year; the numbers in between are skipped (the audit log records the change). Documents already issued keep their numbers. Each new year starts again at 1."
-msgstr "Die nächste Nummer des laufenden Jahres geht bei dieser Nummer weiter. Sie können sie nur erhöhen, nie auf oder unter die höchste in diesem Jahr schon vergebene Nummer; die Nummern dazwischen werden übersprungen (das Protokoll hält die Änderung fest). Bereits erstellte Belege behalten ihre Nummern. Jedes neue Jahr beginnt wieder bei 1."
+msgstr "Die nächste Nummer des laufenden Jahres geht bei dieser Nummer weiter. Sie können sie nur erhöhen, nie auf oder unter die höchste in diesem Jahr schon vergebene Nummer; die Nummern dazwischen werden übersprungen (das Audit-Log hält die Änderung fest). Bereits erstellte Belege behalten ihre Nummern. Jedes neue Jahr beginnt wieder bei 1."
 
 msgid "Digits credit note numbers"
 msgstr "Stellen der Gutschriftnummern"
@@ -6653,6 +6725,24 @@ msgstr "Hinweis Privatperson"
 
 msgid "For partners who are not entrepreneurs (no VAT). Empty: the built-in text. Frozen with each document."
 msgstr "Für Partner, die keine Unternehmer sind (keine Umsatzsteuer). Leer: der eingebaute Text. Wird mit jedem Beleg eingefroren."
+
+msgid "Note on credit notes (self-billing) in other languages"
+msgstr "Hinweis Gutschrift in anderen Sprachen"
+
+msgid "Per installed language, for documents in that language (the partner's document language). Empty: the built-in text in that language – the own text above applies to documents in the site language only. Frozen with each document."
+msgstr "Je installierter Sprache, für Belege in dieser Sprache (Belegsprache des Partners). Leer: der eingebaute Text in dieser Sprache – der eigene Text oben gilt nur für Belege in der Website-Sprache. Wird mit jedem Beleg eingefroren."
+
+msgid "Note for reverse charge in other languages"
+msgstr "Hinweis Umkehr der Steuerschuld in anderen Sprachen"
+
+msgid "Per installed language, for documents in that language. Empty: the built-in text in that language. Frozen with each document."
+msgstr "Je installierter Sprache, für Belege in dieser Sprache. Leer: der eingebaute Text in dieser Sprache. Wird mit jedem Beleg eingefroren."
+
+msgid "Note for small businesses in other languages"
+msgstr "Hinweis Kleinunternehmer in anderen Sprachen"
+
+msgid "Note for private individuals in other languages"
+msgstr "Hinweis Privatperson in anderen Sprachen"
 
 msgid "Send e-invoice (XML) with the credit note e-mail"
 msgstr "E-Rechnung (XML) mit der Gutschrift-E-Mail senden"
@@ -6778,13 +6868,13 @@ msgid "Remind partners of new terms at most every (days)"
 msgstr "An neue Bedingungen höchstens erinnern alle (Tage)"
 
 msgid "Minimum time between two reminder e-mails about new partner program terms to the same partner (at least 1 day)."
-msgstr "Mindestabstand zwischen zwei Erinnerungsmails zu neuen Programmbedingungen an denselben Partner (mindestens 1 Tag)."
+msgstr "Mindestabstand zwischen zwei Erinnerungsmails zu neuen Partnerbedingungen an denselben Partner (mindestens 1 Tag)."
 
 msgid "Text of the terms checkbox"
 msgstr "Text des Kästchens für die Bedingungen"
 
 msgid "Wording of the checkbox for the partner program terms on the application form. {terms} becomes the link to the terms page (required), {version} the terms version. Empty: \"I accept the {terms} (version {version}).\" The text shown is stored with each application."
-msgstr "Wortlaut des Kästchens für die Partnerprogramm-Bedingungen im Bewerbungsformular. {terms} wird zum Link auf die Bedingungsseite (Pflicht), {version} zur Version der Bedingungen. Leer: „Ich akzeptiere die {terms} (Version {version}).“ Der angezeigte Text wird mit jeder Bewerbung gespeichert."
+msgstr "Wortlaut des Kästchens für die Partnerbedingungen im Bewerbungsformular. {terms} wird zum Link auf die Bedingungsseite (Pflicht), {version} zur Version der Bedingungen. Leer: „Ich akzeptiere die {terms} (Version {version}).“ Der angezeigte Text wird mit jeder Bewerbung gespeichert."
 
 msgid "Additional required checkbox 1"
 msgstr "Zusätzliches Pflicht-Kästchen 1"
@@ -6859,7 +6949,7 @@ msgid "Delete all data when the plugin is deleted"
 msgstr "Beim Löschen des Plugins alle Daten entfernen"
 
 msgid "Off by default: deleting the plugin keeps all data. When switched on (type DELETE to confirm), deleting the plugin removes partners, links and codes, visits, commissions, payouts, applications, settings and the pages it created. Booking records, credit notes and the audit log stay as long as a credit note is within the retention period. On a multisite network this applies to this site only. Scheduled tasks are always removed. Not part of the settings export."
-msgstr "Standardmäßig aus: Beim Löschen des Plugins bleiben alle Daten erhalten. Ist es eingeschaltet (zur Bestätigung LÖSCHEN eintippen), entfernt das Löschen des Plugins Partner, Links und Codes, Besuche, Provisionen, Auszahlungen, Bewerbungen, Einstellungen und die vom Plugin angelegten Seiten. Buchungsdaten, Gutschriften und das Protokoll bleiben, solange eine Gutschrift in der Aufbewahrungsfrist liegt. In einem Multisite-Netzwerk gilt das nur für diese Website. Geplante Aufgaben werden immer entfernt. Wird nicht mit den Einstellungen exportiert."
+msgstr "Standardmäßig aus: Beim Löschen des Plugins bleiben alle Daten erhalten. Ist es eingeschaltet (zur Bestätigung LÖSCHEN eintippen), entfernt das Löschen des Plugins Partner, Links und Codes, Besuche, Provisionen, Auszahlungen, Bewerbungen, Einstellungen und die vom Plugin angelegten Seiten. Buchungsdaten, Gutschriften und das Audit-Log bleiben, solange eine Gutschrift in der Aufbewahrungsfrist liegt. In einem Multisite-Netzwerk gilt das nur für diese Website. Geplante Aufgaben werden immer entfernt. Wird nicht mit den Einstellungen exportiert."
 
 msgid "Commission rules"
 msgstr "Provisionsregeln"
@@ -6939,14 +7029,20 @@ msgstr "Das ist kein Einstellungs-Export von Affiliate Captain."
 msgid "The file comes from a newer version of Affiliate Captain. Update the plugin first."
 msgstr "Die Datei stammt aus einer neueren Version von Affiliate Captain. Aktualisieren Sie zuerst das Plugin."
 
-msgid "A running retention hold is only lifted on the settings page."
-msgstr "Eine laufende Aufbewahrungssperre wird nur auf der Einstellungsseite aufgehoben."
+msgid "Not imported: a running retention hold is only lifted on the settings page. The other values are imported."
+msgstr "Nicht importiert: Eine laufende Aufbewahrungssperre wird nur auf der Einstellungsseite aufgehoben. Die übrigen Werte werden importiert."
+
+msgid "Please give a whole number of minor units (e.g. 5000 for 50.00), 0 or more."
+msgstr "Bitte geben Sie eine ganze Zahl in kleinsten Einheiten an (z. B. 5000 für 50,00), 0 oder mehr."
 
 msgid "Please use 1 or 0 (on or off)."
 msgstr "Bitte 1 oder 0 verwenden (an oder aus)."
 
 msgid "Change the type of the default rate only together with the rate itself."
 msgstr "Ändern Sie die Art des Standardsatzes nur zusammen mit dem Satz selbst."
+
+msgid "There is no page \"%s\" on this site. Create it or choose the page after the import."
+msgstr "Auf dieser Website gibt es keine Seite „%s“. Legen Sie sie an oder wählen Sie die Seite nach dem Import."
 
 msgid "Affiliate Captain needs a published registration page (Affiliate Captain → Settings): applicants confirm their e-mail address there."
 msgstr "Affiliate Captain braucht eine veröffentlichte Bewerbungsseite (Affiliate Captain → Einstellungen): Dort bestätigen Bewerber ihre E-Mail-Adresse."
@@ -6964,7 +7060,7 @@ msgid "none"
 msgstr "keine"
 
 msgid "Version of the partner program terms shown in the form (current version in Affiliate Captain: %s)"
-msgstr "Version der im Formular gezeigten Teilnahmebedingungen (aktuelle Version in Affiliate Captain: %s)"
+msgstr "Version der im Formular gezeigten Partnerbedingungen (aktuelle Version in Affiliate Captain: %s)"
 
 msgid "Name or company"
 msgstr "Name oder Firma"
@@ -6973,10 +7069,13 @@ msgid "Message"
 msgstr "Nachricht"
 
 msgid "Consent to the partner program terms"
-msgstr "Zustimmung zu den Teilnahmebedingungen"
+msgstr "Zustimmung zu den Partnerbedingungen"
 
 msgid "Referring partner code"
 msgstr "Partnercode des Werbers"
+
+msgid "%1$s (consent field of Form Captain form %2$d, entry %3$d)"
+msgstr "%1$s (Einwilligungsfeld von Form-Captain-Formular %2$d, Eintrag %3$d)"
 
 msgid "Your partner discount (coupon %s) was applied automatically."
 msgstr "Ihr Partnerrabatt (Gutschein %s) wurde automatisch eingelöst."
@@ -7460,12 +7559,6 @@ msgstr "Diese Korrektur betrifft nur den Teil der Gutschrift %1$s mit %2$s; die 
 msgid "Repayments, write-offs and settled correction credit notes on credit note %1$s (%2$s) are not taxable and not part of the amounts above."
 msgstr "Rückzahlungen, Abschreibungen und ausgeglichene Korrekturgutschriften auf der Gutschrift %1$s (%2$s) sind nicht steuerbar und nicht Teil der obigen Beträge."
 
-msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
-msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (§ 14 Abs. 2 UStG); die Änderung der Beträge ist eine Berichtigung nach § 17 UStG. Der Partner kann ihr wie der Gutschrift widersprechen."
-
-msgid "This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document."
-msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (Art. 224 MwSt-Systemrichtlinie). Der Partner kann ihr wie dem ursprünglichen Beleg widersprechen."
-
 msgid "Duplicate: built again from the stored data because the original file was not available on this server."
 msgstr "Duplikat: aus den gespeicherten Daten neu erstellt, weil die Originaldatei auf diesem Server nicht verfügbar war."
 
@@ -7672,6 +7765,12 @@ msgstr "Ihre USt-IdNr. konnte in der EU-Datenbank VIES nicht bestätigt werden. 
 msgid "Payouts are currently not possible for organisational reasons on our side. We are working on it – your balance is safe."
 msgstr "Auszahlungen sind derzeit aus organisatorischen Gründen auf unserer Seite nicht möglich. Wir arbeiten daran – Ihr Guthaben bleibt erhalten."
 
+msgid "Your last payout is still being processed. You can request the next payout once it has been paid."
+msgstr "Ihre letzte Auszahlung wird noch bearbeitet. Die nächste Auszahlung können Sie beantragen, sobald sie überwiesen ist."
+
+msgid "Payouts in this currency are currently not possible for organisational reasons on our side. We are working on it – your balance is safe."
+msgstr "Auszahlungen in dieser Währung sind derzeit aus organisatorischen Gründen auf unserer Seite nicht möglich. Wir arbeiten daran – Ihr Guthaben bleibt erhalten."
+
 msgid "Your oldest open commission is larger than the maximum payout amount. Please contact us."
 msgstr "Ihre älteste offene Provision ist höher als der Höchstbetrag je Auszahlung. Bitte wenden Sie sich an uns."
 
@@ -7719,6 +7818,12 @@ msgstr "Bitte wählen Sie ein gültiges Periodenende."
 
 msgid "Negative balance – carried forward"
 msgstr "Negativer Saldo – vorgetragen"
+
+msgid "Under the maximum payout only one payout per partner and currency can be open: the last payout of this partner in this currency is not paid yet (created or exported) – mark it as paid or cancel it first; the balance waits until then"
+msgstr "Mit Höchstauszahlung kann je Partner und Währung nur eine Auszahlung offen sein: Die letzte Auszahlung dieses Partners in dieser Währung ist noch nicht bezahlt (erstellt oder exportiert) – markieren Sie sie zuerst als bezahlt oder stornieren Sie sie; das Guthaben wartet bis dahin"
+
+msgid "Minimum above maximum: the minimum payout in this currency (%1$s) is higher than the maximum payout converted to it (%2$s) – lower the minimum or raise the maximum in the settings"
+msgstr "Mindestbetrag über Höchstbetrag: Die Mindestauszahlung in dieser Währung (%1$s) ist höher als die umgerechnete Höchstauszahlung (%2$s) – senken Sie die Mindestauszahlung oder erhöhen Sie die Höchstauszahlung in den Einstellungen"
 
 msgid "The oldest open commission is larger than the maximum payout – raise the maximum payout to pay it"
 msgstr "Die älteste offene Provision ist höher als die Höchstauszahlung – erhöhen Sie die Höchstauszahlung, um sie auszuzahlen"
@@ -8001,6 +8106,12 @@ msgstr "Es gibt keine offene Änderung der Steuerdaten."
 msgid "The SEPA XML export needs the PHP extension \"dom\" (DOMDocument), which is not installed on this server. Ask your hosting provider to enable it, or use the transfer list (CSV) instead."
 msgstr "Der SEPA-XML-Export benötigt die PHP-Erweiterung „dom“ (DOMDocument), die auf diesem Server nicht installiert ist. Bitten Sie Ihren Hosting-Anbieter, sie zu aktivieren, oder nutzen Sie stattdessen die Überweisungsliste (CSV)."
 
+msgid "No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service."
+msgstr "Auf diesem Beleg wird keine Umsatzsteuer berechnet; eine für die Leistung geschuldete Umsatzsteuer schuldet der Leistungsempfänger."
+
+msgid "No VAT is shown because the partner is not registered for VAT."
+msgstr "Es wird keine Umsatzsteuer ausgewiesen, da der Partner nicht umsatzsteuerlich registriert ist."
+
 msgid "The commission rates are net amounts; VAT is added at the statutory rate."
 msgstr "Die Provisionssätze sind Nettobeträge; die Umsatzsteuer wird in gesetzlicher Höhe hinzugerechnet."
 
@@ -8034,11 +8145,23 @@ msgstr "Keine Umsatzsteuer: Der Partner ist Privatperson und kein Unternehmer."
 msgid "Repayments by the partner and claims written off are no service and not subject to VAT."
 msgstr "Rückzahlungen des Partners und abgeschriebene Forderungen sind keine Leistung und nicht umsatzsteuerbar."
 
+msgid "This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung aus. Der Partner kann ihr widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
+
 msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
 msgstr "Dieses Dokument ist eine mit dem Partner vereinbarte Gutschrift; der Partner stellt keine eigene Rechnung. Der Partner kann der Gutschrift widersprechen (§14 Abs. 2 S. 3 UStG) – sie gilt dann nicht mehr als Rechnung und wir stellen eine korrigierte Gutschrift aus. Widersprüche sind im Partnerbereich möglich."
 
 msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
 msgstr "Dieser Beleg ist eine mit dem Partner vereinbarte Gutschrift (Self-Billing, Art. 224 MwStSystRL); der Partner stellt keine eigene Rechnung. Der Partner kann widersprechen – wir stellen dann einen berichtigten Beleg aus. Widersprüche sind im Partnerbereich möglich."
+
+msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
+msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (§ 14 Abs. 2 UStG); die Änderung der Beträge ist eine Berichtigung nach § 17 UStG. Der Partner kann ihr wie der Gutschrift widersprechen."
+
+msgid "This document corrects the self-billing invoice named above. The partner may object to it as to the original document."
+msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift. Der Partner kann ihr wie dem ursprünglichen Beleg widersprechen."
+
+msgid "This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document."
+msgstr "Dieser Beleg korrigiert die oben genannte Gutschrift (Art. 224 MwSt-Systemrichtlinie). Der Partner kann ihr wie dem ursprünglichen Beleg widersprechen."
 
 msgid "Lines with different VAT treatments: each treatment applies to the lines it is shown for. Corrections of earlier credit notes keep the treatment of the original credit note; commissions keep the treatment valid at the time of the service."
 msgstr "Positionen mit unterschiedlicher umsatzsteuerlicher Behandlung: Jede Behandlung gilt für die Positionen, bei denen sie angegeben ist. Berichtigungen früherer Gutschriften behalten die Behandlung der ursprünglichen Gutschrift; Provisionen die zum Leistungszeitpunkt gültige Behandlung."
@@ -8320,10 +8443,10 @@ msgid "Your code request was withdrawn."
 msgstr "Ihr Code-Antrag wurde zurückgezogen."
 
 msgid "Our partner program terms have been updated."
-msgstr "Die Bedingungen unseres Partnerprogramms wurden aktualisiert."
+msgstr "Unsere Partnerbedingungen wurden aktualisiert."
 
 msgid "Welcome! Please read and accept our partner program terms. We need your acceptance to issue credit notes and pay out your commissions."
-msgstr "Willkommen! Bitte lesen und akzeptieren Sie die Bedingungen unseres Partnerprogramms. Wir benötigen Ihre Zustimmung, um Gutschriften auszustellen und Ihre Provisionen auszuzahlen."
+msgstr "Willkommen! Bitte lesen und akzeptieren Sie unsere Partnerbedingungen. Wir benötigen Ihre Zustimmung, um Gutschriften auszustellen und Ihre Provisionen auszuzahlen."
 
 msgid "Accept"
 msgstr "Akzeptieren"
@@ -8670,8 +8793,14 @@ msgstr "nach unserer Prüfung (frühestens %s)"
 msgid "after our review"
 msgstr "nach unserer Prüfung"
 
+msgid "%1$s (%2$s before withholding)"
+msgstr "%1$s (%2$s vor Steuerabzug)"
+
 msgid "Available for payout: %s"
 msgstr "Für Auszahlung verfügbar: %s"
+
+msgid "A withholding is deducted from your payouts; the amount in brackets is the amount before the withholding. The minimum payout applies to the amount before the withholding."
+msgstr "Von Ihren Auszahlungen wird ein Steuerabzug einbehalten; der Betrag in Klammern ist der Betrag vor dem Steuerabzug. Die Mindestauszahlung gilt für den Betrag vor dem Steuerabzug."
 
 msgid "Payout requested on %s – in progress."
 msgstr "Auszahlung beantragt am %s – in Bearbeitung."
@@ -8769,8 +8898,8 @@ msgstr "Antrag senden"
 msgid "Name / company for the statement"
 msgstr "Name / Firma für die Abrechnung"
 
-msgid "Country (ISO code, e.g. DE)"
-msgstr "Land (ISO-Code, z. B. DE)"
+msgid "Country of residence"
+msgstr "Wohnsitzland"
 
 msgid "VAT ID (businesses)"
 msgstr "USt-IdNr. (Unternehmen)"
@@ -8995,6 +9124,12 @@ msgstr "Auszahlungsanträge"
 
 msgid "Bank and payment details are stored encrypted and are masked in this file, which is not encrypted. You can check and change them in the partner area (payout details); on request the operator tells you the complete details stored."
 msgstr "Bank- und Zahlungsangaben werden verschlüsselt gespeichert und sind in dieser unverschlüsselten Datei maskiert. Sie können sie im Partnerbereich (Auszahlungsdaten) prüfen und ändern; auf Anfrage teilt Ihnen der Betreiber die vollständig gespeicherten Angaben mit."
+
+msgid "Requested change of the bank details (waiting for approval)"
+msgstr "Beantragte Änderung der Bankverbindung (wartet auf Freigabe)"
+
+msgid "Percentage"
+msgstr "Prozentsatz"
 
 msgid "Earlier tax data"
 msgstr "Frühere Steuerdaten"

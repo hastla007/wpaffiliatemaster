@@ -57,6 +57,17 @@ final class Reauth {
 	/** Actions (see action_key()) that need a confirmation by default. */
 	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive', 'withholding_update', 'settings_profile_apply', 'program_export_tax', 'settings_retention_lower' );
 
+	/** Fraud rule settings and how a weaker value looks (relaxed_fraud_rules(), P4-11). */
+	const FRAUD_RULES = array(
+		'fraud_max_orders_day'    => 'max',
+		'fraud_max_order_minor'   => 'max',
+		'fraud_max_refund_rate'   => 'max',
+		'fraud_min_click_seconds' => 'min',
+		'fraud_refund_min_orders' => 'count',
+		'fraud_check_domains'     => 'bool',
+		'fraud_blocked_domains'   => 'list',
+	);
+
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
 
@@ -133,6 +144,9 @@ final class Reauth {
 		if ( ( 'settings_save' === $do || 'wizard_save' === $do ) && self::lowers_retention( $do ) ) {
 			return 'settings_retention_lower'; // A file never lifts the hold either (P1-05, P4-06).
 		}
+		if ( ( 'settings_save' === $do || 'wizard_save' === $do ) && self::relaxes_fraud_rules( $do ) ) {
+			return 'settings_sensitive'; // A weaker fraud check like other protections; tightening needs nothing (P4-11).
+		}
 		if ( 'settings_save' === $do || 'wizard_save' === $do ) {
 			// Values that weaken a protection or redirect money/alerts need the same confirmation
 			// as an import of them (P4-01): bank details, notification address, waiting periods.
@@ -146,6 +160,92 @@ final class Reauth {
 			}
 		}
 		return $do;
+	}
+
+	/**
+	 * Whether a posted settings form relaxes a fraud rule (P4-11): see relaxed_fraud_rules(). Only
+	 * the fields of the submitted settings tab, or the fields a wizard step sends, count.
+	 *
+	 * @param string $do settings_save or wizard_save.
+	 * @return bool
+	 */
+	private static function relaxes_fraud_rules( $do ) {
+		$raw = Admin::post( 'wpac', array() );
+		if ( ! is_array( $raw ) ) {
+			return false;
+		}
+		$raw  = wp_unslash( $raw );
+		$keys = array();
+		if ( 'settings_save' === $do ) {
+			$tabs = Pages\SettingsPage::tab_keys();
+			$tab  = Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) );
+			$keys = isset( $tabs[ $tab ] ) ? (array) $tabs[ $tab ] : array();
+		} else {
+			foreach ( array_keys( self::FRAUD_RULES ) as $key ) {
+				if ( array_key_exists( Pages\SetupWizard::form_name( $key ), $raw ) ) {
+					$keys[] = $key; // A wizard step sends its fields; absent ones stay as they are.
+				}
+			}
+		}
+		$keys = array_intersect( $keys, array_keys( self::FRAUD_RULES ) );
+		if ( ! $keys ) {
+			return false;
+		}
+		$old   = Settings::all();
+		$clean = Settings::sanitize( $raw );
+		$new   = array_intersect_key( $clean, array_flip( $keys ) );
+		if ( isset( $new['fraud_max_order_minor'] ) && (string) $clean['currency'] !== (string) $old['currency'] ) {
+			unset( $new['fraud_max_order_minor'] ); // Converted with the currency, not changed by the operator.
+		}
+		return array() !== self::relaxed_fraud_rules( $old, $new );
+	}
+
+	/**
+	 * Fraud rule fields whose new value weakens the check (P4-11): a higher limit or "0 = rule
+	 * off" for the maximums, a shorter minimum time between click and order, a higher minimum
+	 * number of orders of the refund rule, the domain check switched off or a blocked domain
+	 * removed. The period of the refund rate is not judged (shorter and longer both can let more
+	 * through). Tightening a rule returns nothing.
+	 *
+	 * @param array $old Stored settings.
+	 * @param array $new New values (only the posted keys).
+	 * @return string[] Relaxed keys.
+	 */
+	public static function relaxed_fraud_rules( array $old, array $new ) {
+		$limit   = static function ( $v ) {
+			return (int) $v <= 0 ? PHP_INT_MAX : (int) $v; // 0 = rule off = no limit.
+		};
+		$relaxed = array();
+		foreach ( self::FRAUD_RULES as $key => $kind ) {
+			if ( ! array_key_exists( $key, $new ) ) {
+				continue;
+			}
+			$o = isset( $old[ $key ] ) ? $old[ $key ] : '';
+			$n = $new[ $key ];
+			switch ( $kind ) {
+				case 'max':
+					$weaker = $limit( $n ) > $limit( $o );
+					break;
+				case 'min':
+					$weaker = (int) $n < (int) $o;
+					break;
+				case 'count':
+					$weaker = (int) $n > (int) $o;
+					break;
+				case 'bool':
+					$weaker = (int) $o && ! (int) $n;
+					break;
+				default: // Domain list: a domain that was blocked is no longer.
+					$split  = static function ( $v ) {
+						return array_filter( array_map( 'strtolower', array_map( 'trim', (array) preg_split( '/[\s,]+/', (string) $v ) ) ) );
+					};
+					$weaker = array() !== array_diff( $split( $o ), $split( $n ) );
+			}
+			if ( $weaker ) {
+				$relaxed[] = $key;
+			}
+		}
+		return $relaxed;
 	}
 
 	/**

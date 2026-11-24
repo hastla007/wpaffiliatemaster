@@ -434,6 +434,25 @@ final class Statement {
 	}
 
 	/**
+	 * Note of a correction of a self-billing credit note: German law for DE, the EU VAT Directive
+	 * for the EU and Switzerland, a neutral text without legal references elsewhere (P3-05, like
+	 * self_billing_note()).
+	 *
+	 * @param string $country Operator country.
+	 * @return string
+	 */
+	public static function correction_note( $country ) {
+		$country = strtoupper( (string) $country );
+		if ( 'DE' === $country ) {
+			return __( 'This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note.', 'affiliate-captain' );
+		}
+		if ( self::neutral_country( $country ) ) {
+			return __( 'This document corrects the self-billing invoice named above. The partner may object to it as to the original document.', 'affiliate-captain' );
+		}
+		return __( 'This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document.', 'affiliate-captain' );
+	}
+
+	/**
 	 * VAT notes of a document: one per treatment that occurs on it (the main treatment first),
 	 * so a correction block with another treatment (e.g. reverse charge or VAT of an earlier
 	 * credit note after a change of the tax status) carries its own note (§14a UStG).
