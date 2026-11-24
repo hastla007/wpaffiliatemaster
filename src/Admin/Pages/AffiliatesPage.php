@@ -95,39 +95,74 @@ final class AffiliatesPage {
 				break;
 
 			case 'affiliate_update':
-				$email = sanitize_email( (string) Admin::post( 'email' ) );
 				$cur   = AffiliateRepository::find( $id );
-				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) && ! self::may_change_email( $cur ) ) {
+				$typed = array(
+					'name'            => sanitize_text_field( (string) Admin::post( 'name' ) ),
+					'email'           => sanitize_text_field( (string) Admin::post( 'email' ) ),
+					'slug'            => sanitize_text_field( (string) Admin::post( 'slug' ) ),
+					'website'         => sanitize_text_field( (string) Admin::post( 'website' ) ),
+					'channel'         => sanitize_text_field( (string) Admin::post( 'channel' ) ),
+					'group_id'        => absint( Admin::post( 'group_id', 0 ) ),
+					'landing_page_id' => absint( Admin::post( 'landing_page_id', 0 ) ),
+					'landing_message' => sanitize_textarea_field( (string) Admin::post( 'landing_message' ) ),
+				);
+				// Everything is checked before anything is saved (all or nothing, P5-09): e-mail,
+				// recruiting partner and field lengths. On an error the input is kept and the
+				// message is shown at its field.
+				$errors = array();
+				$email  = sanitize_email( $typed['email'] );
+				$new_email = $cur && strtolower( $typed['email'] ) !== strtolower( (string) $cur->email );
+				if ( $new_email && ! self::may_change_email( $cur ) ) {
 					// The address decides which account can be linked and where security alerts go:
 					// with account access or payout details it is as sensitive as the bank details (R14-S1).
-					Admin::back( __( 'Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved.', 'affiliate-captain' ), 'error' );
+					$errors['email'] = __( 'Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved.', 'affiliate-captain' );
+				} elseif ( $new_email && ( '' === $email || ! is_email( $email ) ) ) {
+					$errors['email'] = __( 'Please enter a valid e-mail address.', 'affiliate-captain' );
+				} elseif ( $new_email ) {
+					$other = AffiliateRepository::find_by_email( $email );
+					if ( $other && (int) $other->id !== $id ) {
+						$errors['email'] = __( 'This e-mail address is already used by another partner account.', 'affiliate-captain' );
+					}
 				}
-				// Recruiting partner (sub-affiliate add-ons): checked before anything is saved.
+				// Recruiting partner (sub-affiliate add-ons).
 				$recruiter = null;
 				if ( null !== Admin::post( 'referred_by', null ) ) {
-					$raw       = sanitize_text_field( (string) Admin::post( 'referred_by' ) );
-					$recruiter = AffiliateRepository::resolve_input( $raw );
-					$problem   = '' !== trim( $raw ) && ! $recruiter
+					$raw                  = sanitize_text_field( (string) Admin::post( 'referred_by' ) );
+					$typed['referred_by'] = $raw;
+					$recruiter            = AffiliateRepository::resolve_input( $raw );
+					$problem              = '' !== trim( $raw ) && ! $recruiter
 						? new \WP_Error( 'wpac_invalid_recruiter', __( 'The recruiting partner does not exist.', 'affiliate-captain' ) )
 						: AffiliateRepository::recruiter_problem( $id, $recruiter );
 					if ( $problem ) {
-						Admin::back( $problem->get_error_message() . ' ' . __( 'Nothing was saved.', 'affiliate-captain' ), 'error' );
+						$errors['referred_by'] = $problem->get_error_message();
 					}
+				}
+				if ( '' === trim( $typed['name'] ) ) {
+					$errors['name'] = __( 'Please enter a name.', 'affiliate-captain' );
+				}
+				foreach ( array( 'name', 'website', 'channel', 'landing_message' ) as $field ) {
+					$problem = AffiliateRepository::length_problem( array( $field => 'website' === $field ? esc_url_raw( $typed[ $field ] ) : $typed[ $field ] ) );
+					if ( $problem ) {
+						$errors[ $field ] = $problem->get_error_message();
+					}
+				}
+				if ( $errors ) {
+					self::back_with_profile_errors( $id, $typed, $errors );
 				}
 				$saved = AffiliateRepository::update(
 					$id,
 					array(
-						'name'     => Admin::post( 'name' ),
-						'website'  => Admin::post( 'website' ),
-						'channel'  => Admin::post( 'channel' ),
-						'group_id' => absint( Admin::post( 'group_id', 0 ) ),
-						'slug'     => Admin::post( 'slug' ),
-						'landing_page_id' => absint( Admin::post( 'landing_page_id', 0 ) ),
-						'landing_message' => (string) Admin::post( 'landing_message' ),
+						'name'            => $typed['name'],
+						'website'         => $typed['website'],
+						'channel'         => $typed['channel'],
+						'group_id'        => $typed['group_id'],
+						'slug'            => $typed['slug'],
+						'landing_page_id' => $typed['landing_page_id'],
+						'landing_message' => $typed['landing_message'],
 					)
 				);
 				if ( is_wp_error( $saved ) ) {
-					Admin::back( $saved->get_error_message(), 'error' );
+					self::back_with_profile_errors( $id, $typed, array( '' => $saved->get_error_message() ) );
 				}
 				if ( null !== $recruiter ) {
 					$changed = AffiliateRepository::set_referred_by( $id, $recruiter ); // Audited (affiliate.referred_by).
@@ -135,7 +170,7 @@ final class AffiliatesPage {
 						Admin::back( $changed->get_error_message(), 'error' );
 					}
 				}
-				if ( '' !== $email && $cur && strtolower( $email ) !== strtolower( (string) $cur->email ) ) {
+				if ( $new_email ) {
 					$changed = AffiliateRepository::set_email( $id, $email );
 					if ( is_wp_error( $changed ) ) {
 						Admin::back( $changed->get_error_message(), 'error' );
@@ -143,6 +178,12 @@ final class AffiliatesPage {
 				}
 				if ( null !== Admin::post( 'wpac_locale', null ) && ! \WPAffiliateCaptain\Core\Locale::set_partner( $id, sanitize_text_field( (string) Admin::post( 'wpac_locale' ) ) ) ) {
 					Admin::back( __( 'This language is not installed on this site. The other changes were saved.', 'affiliate-captain' ), 'error' );
+				}
+				// A taken (or too long) slug is stored with a suffix: say which one (P5-09).
+				$adjusted = AffiliateRepository::adjusted_slug( $id, $typed['slug'] );
+				if ( null !== $adjusted ) {
+					/* translators: 1: entered vanity slug, 2: stored vanity slug */
+					Admin::back( sprintf( __( 'Partner saved. The vanity slug "%1$s" is already taken (or too long), so "%2$s" was stored. Change it if you prefer another one.', 'affiliate-captain' ), sanitize_title( $typed['slug'] ), $adjusted ), 'warning' );
 				}
 				Admin::back( __( 'Partner saved.', 'affiliate-captain' ) );
 				break;
@@ -535,6 +576,25 @@ final class AffiliatesPage {
 	}
 
 	/**
+	 * Back to the profile form after a rejected save: nothing was saved, the input is kept and
+	 * each error is shown at its field (P5-09).
+	 *
+	 * @param int                  $id     Partner.
+	 * @param array                $typed  Entered values.
+	 * @param array<string,string> $errors Field => message ('' = not tied to a field).
+	 */
+	private static function back_with_profile_errors( $id, array $typed, array $errors ) {
+		Admin::keep_form(
+			'affiliate_update_' . (int) $id,
+			array(
+				'values' => $typed,
+				'errors' => $errors,
+			)
+		);
+		Admin::back( __( 'The partner was not saved. Please correct the marked fields; your input is kept.', 'affiliate-captain' ), 'error', '', array_values( $errors ) );
+	}
+
+	/**
 	 * Whether the current user may change the partner's e-mail address: with partner area access
 	 * or payout details only with the payout permission (R14-S1).
 	 *
@@ -634,11 +694,12 @@ final class AffiliatesPage {
 			)
 		);
 		Admin::form_open( 'affiliate_create' );
-		echo '<table class="form-table">';
-		self::row_input( 'name', __( 'Name / company', 'affiliate-captain' ), $kept['name'], 'required' );
-		self::row_input( 'email', __( 'E-mail', 'affiliate-captain' ), $kept['email'], 'required type="email"' );
-		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $kept['website'], 'type="url"' );
-		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $kept['channel'] );
+		$help = self::field_help();
+		echo '<p class="wpac-required-note">' . esc_html__( 'Fields marked with * are required.', 'affiliate-captain' ) . '</p><table class="form-table">';
+		self::row_input( 'name', __( 'Name / company', 'affiliate-captain' ), $kept['name'], 'required', '', $help['name'] );
+		self::row_input( 'email', __( 'E-mail', 'affiliate-captain' ), $kept['email'], 'required type="email"', '', $help['email'] );
+		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $kept['website'], 'type="url"', '', $help['website'] );
+		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $kept['channel'], '', '', $help['channel'] );
 		self::row_group( (int) $kept['group_id'] );
 		echo '</table><p class="description">' . esc_html__( 'The partner is activated immediately, gets a partner code and a welcome e-mail with the link to the partner area. Without a WordPress account, one is created (the e-mail contains the link to set a password). If a customer account with this e-mail already exists, the partner gets a link to connect it – or you link a user on the partner page.', 'affiliate-captain' ) . '</p>';
 		submit_button( __( 'Create partner', 'affiliate-captain' ) );
@@ -849,18 +910,41 @@ final class AffiliatesPage {
 	private static function render_profile_box( $a, $id ) {
 		// Profile.
 		echo '<div class="postbox"><h2 class="hndle">' . esc_html__( 'Profile', 'affiliate-captain' ) . '</h2><div class="inside">';
+		// After a rejected save: the input and the error at each field (P5-09).
+		$kept   = Admin::kept_form( 'affiliate_update_' . (int) $id );
+		$typed  = isset( $kept['values'] ) ? (array) $kept['values'] : array();
+		$errs   = isset( $kept['errors'] ) ? (array) $kept['errors'] : array();
+		$val    = static function ( $key ) use ( $a, $typed ) {
+			return array_key_exists( $key, $typed ) ? (string) $typed[ $key ] : (string) $a->$key;
+		};
+		$err    = static function ( $key ) use ( $errs ) {
+			return isset( $errs[ $key ] ) ? (string) $errs[ $key ] : '';
+		};
+		$help   = self::field_help();
+		$locked = ! self::may_change_email( $a );
 		Admin::form_open( 'affiliate_update' );
-		echo '<input type="hidden" name="id" value="' . (int) $id . '"><table class="form-table">';
-		self::row_input( 'name', __( 'Name / company', 'affiliate-captain' ), $a->name, 'maxlength="190"' );
-		echo '<tr><th><label for="wpac-email">' . esc_html__( 'E-mail', 'affiliate-captain' ) . '</label></th><td><input type="email" id="wpac-email" name="email" class="regular-text" value="' . esc_attr( $a->email ) . '"' . ( self::may_change_email( $a ) ? '' : ' readonly aria-describedby="wpac-email-locked"' ) . '>' . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'affiliate-captain' ) . '</a>' : '' ) . ( self::may_change_email( $a ) ? '' : '<p class="description" id="wpac-email-locked">' . esc_html__( 'Only users with the payout permission can change the e-mail address of a partner with partner area access or payout details.', 'affiliate-captain' ) . '</p>' ) . '</td></tr>';
+		echo '<input type="hidden" name="id" value="' . (int) $id . '"><p class="wpac-required-note">' . esc_html__( 'Fields marked with * are required.', 'affiliate-captain' ) . '</p><table class="form-table">';
+		self::row_input( 'name', __( 'Name / company', 'affiliate-captain' ), $val( 'name' ), 'maxlength="190" required', '', $help['name'], $err( 'name' ) );
+		$email_ids = array_filter( array( 'wpac-email-desc', $locked ? 'wpac-email-locked' : '', '' !== $err( 'email' ) ? 'wpac-email-err' : '' ) );
+		echo '<tr><th><label for="wpac-email">' . esc_html__( 'E-mail', 'affiliate-captain' ) . ' <span class="wpac-required" aria-hidden="true">*</span></label></th><td><input type="email" id="wpac-email" name="email" class="regular-text" required value="' . esc_attr( $val( 'email' ) ) . '" aria-describedby="' . esc_attr( implode( ' ', $email_ids ) ) . '"' . ( $locked ? ' readonly' : '' ) . ( '' !== $err( 'email' ) ? ' aria-invalid="true"' : '' ) . '>' . ( $a->user_id ? ' · <a href="' . esc_url( get_edit_user_link( (int) $a->user_id ) ) . '">' . esc_html__( 'WordPress user', 'affiliate-captain' ) . '</a>' : '' );
+		if ( '' !== $err( 'email' ) ) {
+			echo '<p class="wpac-field-error" id="wpac-email-err">' . esc_html( $err( 'email' ) ) . '</p>';
+		}
+		echo '<p class="description" id="wpac-email-desc">' . esc_html( $help['email'] ) . '</p>' . ( $locked ? '<p class="description" id="wpac-email-locked">' . esc_html__( 'Only users with the payout permission can change the e-mail address of a partner with partner area access or payout details.', 'affiliate-captain' ) . '</p>' : '' ) . '</td></tr>';
 		if ( ! $a->user_id && in_array( $a->status, array( 'active', 'paused' ), true ) ) {
 			echo '<tr><td colspan="2"><div class="notice notice-warning inline"><p>' . esc_html__( 'No WordPress user is linked: the partner cannot log in to the partner area yet. See "Partner area access" on the overview tab.', 'affiliate-captain' ) . '</p></div></td></tr>';
 		}
-		self::row_input( 'slug', __( 'Vanity slug', 'affiliate-captain' ), $a->slug );
-		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $a->website, 'type="url" maxlength="255"' );
-		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $a->channel, 'maxlength="255"' );
-		self::row_group( (int) $a->group_id );
+		self::row_input( 'slug', __( 'Vanity slug', 'affiliate-captain' ), $val( 'slug' ), '', '', $help['slug'], $err( 'slug' ) );
+		self::row_input( 'website', __( 'Website', 'affiliate-captain' ), $val( 'website' ), 'type="url" maxlength="255"', '', $help['website'], $err( 'website' ) );
+		self::row_input( 'channel', __( 'Channel', 'affiliate-captain' ), $val( 'channel' ), 'maxlength="255"', '', $help['channel'], $err( 'channel' ) );
+		if ( isset( $errs[''] ) ) {
+			echo '<tr><td colspan="2"><p class="wpac-field-error">' . esc_html( (string) $errs[''] ) . '</p></td></tr>';
+		}
+		self::row_group( (int) ( isset( $typed['group_id'] ) ? $typed['group_id'] : $a->group_id ) );
 		$recruiter = isset( $a->referred_by ) ? (int) $a->referred_by : 0;
+		if ( isset( $typed['referred_by'] ) ) {
+			$recruiter = (int) AffiliateRepository::resolve_input( (string) $typed['referred_by'] );
+		}
 		$recruits  = AffiliateRepository::query(
 			array(
 				'referred_by' => (int) $id,
@@ -868,25 +952,38 @@ final class AffiliatesPage {
 			)
 		)[1];
 		echo '<tr><th><label for="wpac-referred_by">' . esc_html__( 'Recruited by', 'affiliate-captain' ) . '</label></th><td>';
-		echo Admin::partner_picker( 'referred_by', $recruiter, '', array( 'id' => 'wpac-referred_by', 'aria-describedby' => 'wpac-referred_by-desc' ), array( (int) $id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		$picker_attrs = array(
+			'id'               => 'wpac-referred_by',
+			'aria-describedby' => trim( 'wpac-referred_by-desc ' . ( '' !== $err( 'referred_by' ) ? 'wpac-referred_by-err' : '' ) ),
+		);
+		if ( '' !== $err( 'referred_by' ) ) {
+			$picker_attrs['aria-invalid'] = 'true';
+		}
+		echo Admin::partner_picker( 'referred_by', $recruiter, '', $picker_attrs, array( (int) $id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		if ( '' !== $err( 'referred_by' ) ) {
+			echo '<p class="wpac-field-error" id="wpac-referred_by-err">' . esc_html( $err( 'referred_by' ) ) . '</p>';
+		}
 		if ( $recruiter ) {
 			echo ' <a href="' . esc_url( Admin::url( 'wpac-affiliates', array( 'action' => 'edit', 'id' => $recruiter ) ) ) . '">' . esc_html__( 'Open recruiting partner', 'affiliate-captain' ) . '</a>';
 		}
 		/* translators: %d: number of partners */
 		echo '<p class="description" id="wpac-referred_by-desc">' . esc_html__( 'The partner whose referral link this partner registered through. Stored for add-ons (e.g. sub-affiliate programs); the free plugin pays no commission for it.', 'affiliate-captain' ) . ( $recruits ? ' ' . esc_html( sprintf( _n( 'This partner recruited %d partner.', 'This partner recruited %d partners.', (int) $recruits, 'affiliate-captain' ), (int) $recruits ) ) : '' ) . '</p></td></tr>';
 		echo '<tr><th><label for="wpac-landing_page_id">' . esc_html__( 'Landing page', 'affiliate-captain' ) . '</label></th><td>';
-		wp_dropdown_pages(
+		$pages = (string) wp_dropdown_pages(
 			array(
 				'name'              => 'landing_page_id',
 				'id'                => 'wpac-landing_page_id',
-				'selected'          => (int) $a->landing_page_id,
+				'selected'          => (int) $val( 'landing_page_id' ),
 				'show_option_none'  => esc_html__( '— default —', 'affiliate-captain' ),
 				'option_none_value' => '0',
+				'echo'              => 0,
 			)
 		);
-		echo '<p class="description">' . esc_html( \WPAffiliateCaptain\Promotion\Landing::url( $a ) ) . '</p></td></tr>';
+		echo preg_replace( '/<select\b/', '<select aria-describedby="wpac-landing_page_id-desc"', $pages, 1 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup of wp_dropdown_pages() plus a fixed attribute.
+		/* translators: %s: landing link of the partner */
+		echo '<p class="description" id="wpac-landing_page_id-desc">' . esc_html( sprintf( __( 'Where the partner link %s leads. Default: the landing page of the program settings.', 'affiliate-captain' ), \WPAffiliateCaptain\Promotion\Landing::url( $a ) ) ) . '</p></td></tr>';
 		self::row_locale( (int) $id );
-		echo '<tr><th><label for="wpac-landing_message">' . esc_html__( 'Welcome message on landing page', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-landing_message" name="landing_message" rows="3" class="large-text" maxlength="' . (int) AffiliateRepository::LANDING_MESSAGE_MAX . '">' . esc_textarea( (string) $a->landing_message ) . '</textarea><p class="description">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'affiliate-captain' ) . '</p></td></tr>';
+		echo '<tr><th><label for="wpac-landing_message">' . esc_html__( 'Welcome message on landing page', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-landing_message" name="landing_message" rows="3" class="large-text" maxlength="' . (int) AffiliateRepository::LANDING_MESSAGE_MAX . '" aria-describedby="wpac-landing_message-desc' . ( '' !== $err( 'landing_message' ) ? ' wpac-landing_message-err' : '' ) . '"' . ( '' !== $err( 'landing_message' ) ? ' aria-invalid="true"' : '' ) . '>' . esc_textarea( $val( 'landing_message' ) ) . '</textarea>' . ( '' !== $err( 'landing_message' ) ? '<p class="wpac-field-error" id="wpac-landing_message-err">' . esc_html( $err( 'landing_message' ) ) . '</p>' : '' ) . '<p class="description" id="wpac-landing_message-desc">' . esc_html__( 'Shown via [wpac_partner_welcome]. Maintained by the operator only.', 'affiliate-captain' ) . '</p></td></tr>';
 		echo '</table>';
 		submit_button( __( 'Save', 'affiliate-captain' ), 'secondary' );
 		echo '</form></div></div>';
@@ -966,7 +1063,7 @@ final class AffiliatesPage {
 		$codes = CodeRepository::for_affiliate( $id );
 		$param = (string) Settings::get( 'referral_param' );
 		if ( $codes ) {
-			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Code', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Coupon', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Used', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
+			echo '<div class="wpac-table-scroll"><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Code', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Coupon', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Used', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Status', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
 			$shown   = 0;
 			$batches = array();
 			foreach ( $codes as $c ) {
@@ -985,7 +1082,7 @@ final class AffiliatesPage {
 				Admin::form_open( 'code_status', 'wpac-inline' );
 				echo '<input type="hidden" name="code_id" value="' . (int) $c->id . '"><input type="hidden" name="status" value="' . ( 'active' === $c->status ? 'blocked' : 'active' ) . '"><button class="button button-small"' . ( 'active' === $c->status ? ' data-wpac-confirm="' . esc_attr__( 'Block this code? Links and coupons with it no longer credit the partner.', 'affiliate-captain' ) . '"' : '' ) . '>' . esc_html( 'active' === $c->status ? __( 'Block', 'affiliate-captain' ) : __( 'Unblock', 'affiliate-captain' ) ) . '</button></form></td></tr>';
 			}
-			echo '</tbody></table>';
+			echo '</tbody></table></div>';
 			foreach ( $batches as $batch => $count ) {
 				echo '<p>';
 				/* translators: 1: batch, 2: count */
@@ -1069,7 +1166,17 @@ final class AffiliatesPage {
 			echo '</select></td></tr>';
 			self::row_input( 'legal_name', __( 'Legal name', 'affiliate-captain' ), $v( 'legal_name' ) );
 			echo '<tr><th><label for="wpac-address">' . esc_html__( 'Address', 'affiliate-captain' ) . '</label></th><td><textarea id="wpac-address" name="address" rows="3" class="regular-text">' . esc_textarea( $v( 'address' ) ) . '</textarea></td></tr>';
-			self::row_input( 'country', __( 'Country', 'affiliate-captain' ), $v( 'country' ), 'maxlength="2" dir="ltr"' );
+			// Country from a list (stored as the ISO code, P5-11); an unknown stored code stays selectable.
+			$country   = strtoupper( $v( 'country' ) );
+			$countries = \WPAffiliateCaptain\Core\Settings::countries();
+			if ( '' !== $country && ! isset( $countries[ $country ] ) ) {
+				$countries[ $country ] = $country;
+			}
+			echo '<tr><th><label for="wpac-country">' . esc_html__( 'Country', 'affiliate-captain' ) . '</label></th><td><select id="wpac-country" name="country"><option value="">—</option>';
+			foreach ( $countries as $code => $name ) {
+				printf( '<option value="%s" %s>%s</option>', esc_attr( $code ), selected( $country, $code, false ), esc_html( $name ) );
+			}
+			echo '</select></td></tr>';
 			self::row_input( 'vat_id', __( 'VAT ID', 'affiliate-captain' ), $v( 'vat_id' ), 'dir="ltr"' );
 			$pending = TaxHistory::pending( $id );
 			// Only a result for the stored VAT ID (or the one waiting for approval) is meaningful.
@@ -1103,13 +1210,13 @@ final class AffiliatesPage {
 			$methods = ProfileRepository::method_labels();
 			$method  = isset( $kept['payout_method'] ) && isset( $methods[ $kept['payout_method'] ] ) ? (string) $kept['payout_method'] : ProfileRepository::method( $p );
 			$typed   = ProfileRepository::form_details( $kept );
-			echo '<tr><th><label for="wpac-payout-method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . '</label></th><td><select name="payout_method" id="wpac-payout-method">';
+			echo '<tr><th><label for="wpac-payout-method">' . esc_html__( 'Payout method', 'affiliate-captain' ) . '</label></th><td><select name="payout_method" id="wpac-payout-method" aria-describedby="wpac-payout-method-desc">';
 			// Switched-off methods only while the partner uses them (SET-AC-30).
 			$options = ProfileRepository::method_options( $p );
 			foreach ( $options as $k => $l ) {
 				printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $method, $k, false ), esc_html( $l ) );
 			}
-			echo '</select><p class="description">' . esc_html__( 'Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.', 'affiliate-captain' ) . '</p></td></tr>';
+			echo '</select><p class="description" id="wpac-payout-method-desc">' . esc_html__( 'Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid.', 'affiliate-captain' ) . '</p></td></tr>';
 			// Fields of the chosen method only (admin.js; all visible without JavaScript) – R5-O48.
 			$bank_dep = 'data-wpac-depends="payout_method=' . ProfileRepository::METHOD_SEPA . '|' . ProfileRepository::METHOD_BANK . '"';
 			self::row_input( 'account_holder', __( 'Account holder', 'affiliate-captain' ), $v( 'account_holder' ), '', $bank_dep );
@@ -1487,23 +1594,49 @@ final class AffiliatesPage {
 	}
 
 	/**
-	 * Input row.
+	 * Help texts of the partner fields (form "Add partner" and profile, P5-12).
+	 *
+	 * @return array<string,string>
+	 */
+	private static function field_help() {
+		return array(
+			'name'    => __( 'Public name of the partner: shown in the "recommended by" box, in creatives and in e-mails.', 'affiliate-captain' ),
+			'email'   => __( 'Notifications go to this address. It also decides which WordPress account can be linked to the partner.', 'affiliate-captain' ),
+			'website' => __( 'Optional. Shown together with the public name.', 'affiliate-captain' ),
+			'channel' => __( 'How the partner promotes you, e.g. blog, podcast or newsletter (optional).', 'affiliate-captain' ),
+			'slug'    => __( 'Short name in the partner link (e.g. /partner/{slug}/; letters, digits, hyphens). Links with the previous name stop working after a change. A name that is already taken gets a number added.', 'affiliate-captain' ),
+		);
+	}
+
+	/**
+	 * Input row. A field with "required" in $extra gets a visible * (explained by the note above
+	 * the form); a help text and an error are linked with aria-describedby (P5-12).
 	 *
 	 * @param string $name  Name.
 	 * @param string $label Label.
 	 * @param string $value Value.
 	 * @param string $extra Extra attributes (escaped).
+	 * @param string $row   Extra attributes of the row (escaped).
+	 * @param string $help  Help text below the field ('' = none).
+	 * @param string $error Error of a rejected save ('' = none).
 	 */
-	private static function row_input( $name, $label, $value, $extra = '', $row = '' ) {
-		$type = false !== strpos( $extra, 'type=' ) ? '' : 'type="text"';
+	private static function row_input( $name, $label, $value, $extra = '', $row = '', $help = '', $error = '' ) {
+		$type     = false !== strpos( $extra, 'type=' ) ? '' : 'type="text"';
+		$required = (bool) preg_match( '/(^|\s)required(\s|=|$)/', $extra );
+		$ids      = array_filter( array( '' !== $help ? 'wpac-' . $name . '-desc' : '', '' !== $error ? 'wpac-' . $name . '-err' : '' ) );
+		$aria     = ( $ids ? ' aria-describedby="' . esc_attr( implode( ' ', $ids ) ) . '"' : '' ) . ( '' !== $error ? ' aria-invalid="true"' : '' );
 		printf(
-			'<tr%6$s><th><label for="wpac-%1$s">%2$s</label></th><td><input %5$s id="wpac-%1$s" name="%1$s" value="%3$s" class="regular-text" %4$s></td></tr>',
+			'<tr%6$s><th><label for="wpac-%1$s">%2$s%7$s</label></th><td><input %5$s id="wpac-%1$s" name="%1$s" value="%3$s" class="regular-text" %4$s%8$s>%9$s%10$s</td></tr>',
 			esc_attr( $name ),
 			esc_html( $label ),
 			esc_attr( $value ),
 			$extra, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			$type, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			'' !== $row ? ' ' . $row : '' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute strings of the callers.
+			'' !== $row ? ' ' . $row : '', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute strings of the callers.
+			$required ? ' <span class="wpac-required" aria-hidden="true">*</span>' : '', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup.
+			$aria, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+			'' !== $error ? '<p class="wpac-field-error" id="wpac-' . esc_attr( $name ) . '-err">' . esc_html( $error ) . '</p>' : '', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped here.
+			'' !== $help ? '<p class="description" id="wpac-' . esc_attr( $name ) . '-desc">' . esc_html( $help ) . '</p>' : '' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped here.
 		);
 	}
 

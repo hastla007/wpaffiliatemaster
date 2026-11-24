@@ -268,7 +268,7 @@ check( 'referred_by: removed with 0; then the former cycle is allowed', array( 0
 /* Admin form: capability, picker, validation before saving. */
 check( 'referred_by: admin action needs MANAGE_AFFILIATES', true, false !== strpos( (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Admin/Admin.php' ), "'affiliate_update'  => array( AffiliatesPage::class, Capabilities::MANAGE_AFFILIATES )" ) );
 $f4_page = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Admin/Pages/AffiliatesPage.php' );
-check( 'referred_by: edit page offers the picker without the partner itself and saves through set_referred_by()', array( true, true ), array( false !== strpos( $f4_page, "partner_picker( 'referred_by', \$recruiter, '', array( 'id' => 'wpac-referred_by', 'aria-describedby' => 'wpac-referred_by-desc' ), array( (int) \$id ) )" ), false !== strpos( $f4_page, 'AffiliateRepository::set_referred_by( $id, $recruiter )' ) ) );
+check( 'referred_by: edit page offers the picker without the partner itself and saves through set_referred_by()', array( true, true ), array( false !== strpos( $f4_page, "'id'               => 'wpac-referred_by',\n\t\t\t'aria-describedby' => trim( 'wpac-referred_by-desc '" ) && false !== strpos( $f4_page, "partner_picker( 'referred_by', \$recruiter, '', \$picker_attrs, array( (int) \$id ) )" ), false !== strpos( $f4_page, 'AffiliateRepository::set_referred_by( $id, $recruiter )' ) ) );
 
 /* Privacy: export lists the recruiter ID; erasure keeps the pseudonymous links only. */
 $f4_w = $f4_partner( 'chain-w' );

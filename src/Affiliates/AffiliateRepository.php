@@ -1325,6 +1325,23 @@ final class AffiliateRepository {
 	}
 
 	/**
+	 * The stored vanity slug when it differs from the one entered (update() adds a suffix to a
+	 * taken slug and shortens a long one), so the form can say which slug was stored (P5-09).
+	 *
+	 * @param int    $id        Partner.
+	 * @param string $requested Slug as entered ('' = not changed).
+	 * @return string|null Stored slug, or null when it is the one entered.
+	 */
+	public static function adjusted_slug( $id, $requested ) {
+		$wanted = sanitize_title( (string) $requested );
+		if ( '' === $wanted ) {
+			return null;
+		}
+		$aff = self::find( (int) $id );
+		return $aff && (string) $aff->slug !== $wanted ? (string) $aff->slug : null;
+	}
+
+	/**
 	 * Unique vanity slug.
 	 *
 	 * @param string $base Base.

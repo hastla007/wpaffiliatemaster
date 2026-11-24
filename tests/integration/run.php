@@ -1626,6 +1626,7 @@ require __DIR__ . '/set-ac-acct-render.php'; // After the render files: SET-AC-3
 require __DIR__ . '/set-ac-a11y-render.php'; // After the render files: SET-AC-25 aria-describedby, limits and required marks on the settings page.
 require __DIR__ . '/set-ac-wiz-render.php'; // After the render files: SET-AC-24 setup wizard pages, notice and links.
 require __DIR__ . '/set-ac-xfer-render.php'; // After the render files: SET-AC-08a sections in the settings export and import preview.
+require __DIR__ . '/r24-fux-render.php'; // After the render files: final review P5-08 … P5-14 (rule and partner forms, payout details, add-on notes, tables).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

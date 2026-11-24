@@ -786,5 +786,29 @@ foreach ( array( 'de_DE', 'de_DE_formal' ) as $p501_loc ) {
 }
 check( 'P5-01 de_DE informal ("du"), de_DE_formal formal ("Sie"), same keys', array( array(), array(), true ), array( $p501_bad['de_DE'], $p501_bad['de_DE_formal'], array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE.json' ), true ) ) === array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE_formal.json' ), true ) ) ) );
 
+// P5-15: glossary of the German translations. "(partner) program terms" is always
+// "Partnerbedingungen", the audit log is always "Audit-Log" (not "das Protokoll", which reads like the
+// technical log); "Their"/"Its partners" is not the formal "Ihre" in the du version.
+$p515_bad = array();
+foreach ( array( 'de_DE', 'de_DE_formal' ) as $p515_loc ) {
+	foreach ( (array) json_decode( (string) file_get_contents( $p501_lang . $p515_loc . '.json' ), true ) as $p515_k => $p515_v ) {
+		$p515_all = implode( "\n", array_map( 'strval', (array) $p515_v ) );
+		$p515_k   = (string) $p515_k;
+		if ( preg_match( '/Teilnahmebedingungen|Programmbedingungen|Partnerprogramm-Bedingungen|Bedingungen unseres Partnerprogramms/u', $p515_all ) ) {
+			$p515_bad[] = $p515_loc . ': ' . $p515_k;
+		}
+		if ( preg_match( '/\bprogram terms\b/i', $p515_k ) && false === strpos( $p515_all, 'Partnerbedingungen' ) ) {
+			$p515_bad[] = $p515_loc . ' (terms): ' . $p515_k;
+		}
+		if ( preg_match( '/\baudit log\b/i', $p515_k ) && false === strpos( $p515_all, 'Audit-Log' ) ) {
+			$p515_bad[] = $p515_loc . ' (audit log): ' . $p515_k;
+		}
+		if ( ( 0 === strpos( $p515_k, 'Affiliate Captain found booking records kept' ) && false !== strpos( $p515_all, 'Ihre %2$d' ) ) || ( 0 === strpos( $p515_k, 'Delete this group? Its partners' ) && false !== strpos( $p515_all, 'Ihre Partner' ) ) ) {
+			$p515_bad[] = $p515_loc . ' (their): ' . $p515_k;
+		}
+	}
+}
+check( 'P5-15 German glossary: Partnerbedingungen, Audit-Log, "Deren"/"Die Partner dieser Gruppe"', array(), $p515_bad );
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

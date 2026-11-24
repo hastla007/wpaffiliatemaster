@@ -248,6 +248,9 @@ document.addEventListener( 'DOMContentLoaded', function () {
 	};
 	Array.prototype.forEach.call( document.querySelectorAll( '.wrap table.widefat:not(.table-view-list)' ), function ( table ) {
 		if ( table.parentNode.classList.contains( 'wpac-table-scroll' ) ) {
+			// Wrapped on the server (works without JavaScript): named and made focusable all the same.
+			table.parentNode.setAttribute( 'data-wpac-label', heading( table ) );
+			boxes.push( table.parentNode );
 			return;
 		}
 		var box = document.createElement( 'div' );

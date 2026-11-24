@@ -32,28 +32,64 @@ final class RulesPage {
 			case 'rule_save':
 				$reason = sanitize_text_field( Admin::post( 'reason' ) );
 				$id     = absint( Admin::post( 'id', 0 ) );
-				if ( $id && '' === $reason ) {
-					Admin::back( __( 'Please enter a reason for the change.', 'affiliate-captain' ), 'error' );
-				}
-				$data = RuleRepository::sanitize(
-					array(
-						'scope'        => sanitize_key( Admin::post( 'scope' ) ),
-						'scope_id'     => Admin::post( 'scope' ) === 'group' ? absint( Admin::post( 'group_id' ) ) : AffiliateRepository::resolve_input( sanitize_text_field( (string) Admin::post( 'affiliate_id' ) ) ),
-						'target'       => sanitize_key( Admin::post( 'target' ) ),
-						'target_value' => self::posted_target_value( sanitize_key( Admin::post( 'target' ) ) ),
-						'rate_type'    => sanitize_key( Admin::post( 'rate_type' ) ),
-						'rate'         => Admin::post( 'rate' ),
-						'max_amount'   => Admin::post( 'max_amount' ),
-						'min_base'     => Admin::post( 'min_base' ),
-						'valid_from'   => sanitize_text_field( (string) Admin::post( 'valid_from' ) ),
-						'valid_until'  => sanitize_text_field( (string) Admin::post( 'valid_until' ) ),
-						'priority'     => (int) Admin::post( 'priority', 0 ),
-						'active'       => Admin::post( 'active' ),
-						'note'         => Admin::post( 'note' ),
-					)
+				$scope  = sanitize_key( Admin::post( 'scope' ) );
+				$target = sanitize_key( Admin::post( 'target' ) );
+				// What was entered, as typed: shown again with the errors at their fields (P5-08).
+				$typed = array(
+					'scope'        => $scope,
+					'group_id'     => absint( Admin::post( 'group_id' ) ),
+					'affiliate_id' => AffiliateRepository::resolve_input( sanitize_text_field( (string) Admin::post( 'affiliate_id' ) ) ),
+					'target'       => $target,
+					'target_value' => sanitize_text_field( self::posted_target_value( $target ) ),
+					'rate_type'    => sanitize_key( Admin::post( 'rate_type' ) ),
+					'rate'         => sanitize_text_field( (string) Admin::post( 'rate' ) ),
+					'max_amount'   => sanitize_text_field( (string) Admin::post( 'max_amount' ) ),
+					'min_base'     => sanitize_text_field( (string) Admin::post( 'min_base' ) ),
+					'valid_from'   => sanitize_text_field( (string) Admin::post( 'valid_from' ) ),
+					'valid_until'  => sanitize_text_field( (string) Admin::post( 'valid_until' ) ),
+					'priority'     => (int) Admin::post( 'priority', 0 ),
+					'active'       => Admin::post( 'active' ) ? '1' : '0',
+					'note'         => sanitize_text_field( (string) Admin::post( 'note' ) ),
+					'reason'       => $reason,
 				);
+				$input  = array(
+					'scope'        => $scope,
+					'scope_id'     => 'group' === $scope ? $typed['group_id'] : $typed['affiliate_id'],
+					'target'       => $target,
+					'target_value' => $typed['target_value'],
+					'rate_type'    => $typed['rate_type'],
+					'rate'         => $typed['rate'],
+					'max_amount'   => $typed['max_amount'],
+					'min_base'     => $typed['min_base'],
+					'valid_from'   => $typed['valid_from'],
+					'valid_until'  => $typed['valid_until'],
+					'priority'     => $typed['priority'],
+					'active'       => $typed['active'],
+					'note'         => $typed['note'],
+				);
+				$errors = RuleRepository::field_errors( $input );
+				if ( $id && '' === $reason ) {
+					$errors['reason'] = __( 'Please enter a reason for the change.', 'affiliate-captain' );
+				}
+				if ( $errors ) {
+					Admin::keep_form(
+						'rule_save',
+						array(
+							'id'     => $id,
+							'values' => $typed,
+							'errors' => $errors,
+						)
+					);
+					$labels  = self::rule_field_labels();
+					$details = array();
+					foreach ( $errors as $field => $message ) {
+						$details[] = ( isset( $labels[ $field ] ) ? $labels[ $field ] . ': ' : '' ) . $message;
+					}
+					Admin::back( __( 'The rule was not saved. Please correct the marked fields; your input is kept.', 'affiliate-captain' ), 'error', '', $details );
+				}
+				$data = RuleRepository::sanitize( $input );
 				if ( is_wp_error( $data ) ) {
-					Admin::back( $data->get_error_message(), 'error' );
+					Admin::back( $data->get_error_message(), 'error' ); // Not reached: field_errors() found nothing.
 				}
 				RuleRepository::save( $data, $id, $reason );
 				Admin::back( __( 'Rule saved. Existing commissions are not changed.', 'affiliate-captain' ), 'success', Admin::url( 'wpac-rules' ) );
@@ -239,7 +275,8 @@ final class RulesPage {
 			'sku'      => __( 'SKU / course code', 'affiliate-captain' ),
 		);
 
-		echo '<table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Products', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Rate', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Priority', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Note', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
+		// Scrolls sideways on narrow screens instead of widening the page (P5-14).
+		echo '<div class="wpac-table-scroll"><table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Products', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Rate', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Priority', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Note', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
 		$rules = RuleRepository::all();
 		if ( ! $rules ) {
 			echo '<tr><td colspan="7">' . esc_html__( 'No rules yet – the program default applies to all sales.', 'affiliate-captain' ) . '</td></tr>';
@@ -261,37 +298,80 @@ final class RulesPage {
 				esc_html__( 'Edit', 'affiliate-captain' )
 			);
 			Admin::form_open( 'rule_delete', 'wpac-inline' );
-			echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><input type="text" name="reason" aria-label="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" size="10"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this rule? Existing commissions are not changed.', 'affiliate-captain' ) . '">' . esc_html__( 'Delete', 'affiliate-captain' ) . '</button></form></td></tr>';
+			// Visible label; the reason is required (the handler refuses an empty one) – P5-10.
+			echo '<input type="hidden" name="id" value="' . (int) $r->id . '"><label for="wpac-rule-del-' . (int) $r->id . '">' . esc_html__( 'Reason', 'affiliate-captain' ) . ' *</label> <input type="text" name="reason" id="wpac-rule-del-' . (int) $r->id . '" size="10" required> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Delete this rule? Existing commissions are not changed.', 'affiliate-captain' ) . '">' . esc_html__( 'Delete', 'affiliate-captain' ) . '</button></form></td></tr>';
 		}
-		echo '</tbody></table>';
+		echo '</tbody></table></div>';
 
-		// Rule form.
-		$v = static function ( $k, $d = '' ) use ( $edit ) {
+		// Rule form. After a rejected save: what was entered, with the error at each field (P5-08).
+		$kept = Admin::kept_form( 'rule_save' );
+		$kept = isset( $kept['id'], $kept['values'] ) && (int) $kept['id'] === ( $edit ? (int) $edit->id : 0 ) ? $kept : array();
+		$errs = $kept && isset( $kept['errors'] ) ? (array) $kept['errors'] : array();
+		$typed = $kept ? (array) $kept['values'] : array();
+		$v     = static function ( $k, $d = '' ) use ( $edit, $typed ) {
+			if ( array_key_exists( $k, $typed ) ) {
+				return (string) $typed[ $k ];
+			}
 			return $edit ? (string) $edit->$k : $d;
 		};
-		$rate_display = $edit && 'fixed' === $edit->rate_type ? Money::to_decimal( (int) $edit->rate, $currency ) : $v( 'rate' );
+		// aria-describedby (hint and error) and aria-invalid of a field.
+		$aria = static function ( $field, $hint = '' ) use ( $errs ) {
+			$ids = array_filter( array( $hint, isset( $errs[ $field ] ) ? 'wpac-rule-' . $field . '-err' : '' ) );
+			return ( $ids ? ' aria-describedby="' . esc_attr( implode( ' ', $ids ) ) . '"' : '' ) . ( isset( $errs[ $field ] ) ? ' aria-invalid="true"' : '' );
+		};
+		$err  = static function ( $field ) use ( $errs ) {
+			return isset( $errs[ $field ] ) ? '<p class="wpac-field-error" id="wpac-rule-' . esc_attr( $field ) . '-err">' . esc_html( (string) $errs[ $field ] ) . '</p>' : '';
+		};
+		if ( $typed ) {
+			$scope_id     = 'group' === $v( 'scope' ) ? (int) $v( 'group_id' ) : (int) $v( 'affiliate_id' );
+			$rate_display = $v( 'rate' );
+			$money        = static function ( $k ) use ( $typed ) {
+				$field = array(
+					'max_amount_minor' => 'max_amount',
+					'min_base_minor'   => 'min_base',
+				)[ $k ];
+				return isset( $typed[ $field ] ) ? (string) $typed[ $field ] : '';
+			};
+			$day          = static function ( $k ) use ( $typed ) {
+				return isset( $typed[ $k ] ) ? (string) $typed[ $k ] : '';
+			};
+		} else {
+			$scope_id     = (int) $v( 'scope_id' );
+			$rate_display = $edit && 'fixed' === $edit->rate_type ? Money::to_decimal( (int) $edit->rate, $currency ) : $v( 'rate' );
+			// SET-AC-22: cap per line, minimum line amount, validity (all optional).
+			$money = static function ( $k ) use ( $edit, $currency ) {
+				return $edit && ! empty( $edit->$k ) ? Money::to_decimal( (int) $edit->$k, $currency ) : '';
+			};
+			$day   = static function ( $k ) use ( $v ) {
+				return Calculator::day( $v( $k ) );
+			};
+		}
 		echo '<h2>' . esc_html( $edit ? __( 'Edit rule', 'affiliate-captain' ) . ' #' . $edit->id : __( 'Add rule', 'affiliate-captain' ) ) . '</h2>';
 		Admin::form_open( 'rule_save' );
-		echo '<input type="hidden" name="id" value="' . (int) ( $edit ? $edit->id : 0 ) . '"><table class="form-table">';
-		echo '<tr><th><label for="wpac-rule-scope">' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</label></th><td><select name="scope" id="wpac-rule-scope">';
+		echo '<input type="hidden" name="id" value="' . (int) ( $edit ? $edit->id : 0 ) . '">';
+		if ( $edit ) {
+			echo '<p class="wpac-required-note">' . esc_html__( 'Fields marked with * are required.', 'affiliate-captain' ) . '</p>';
+		}
+		echo '<table class="form-table">';
+		echo '<tr><th><label for="wpac-rule-scope">' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</label></th><td><select name="scope" id="wpac-rule-scope"' . $aria( 'scope' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria.
 		foreach ( array( 'global' => __( 'All partners', 'affiliate-captain' ), 'group' => __( 'Partner group', 'affiliate-captain' ), 'affiliate' => __( 'Single partner', 'affiliate-captain' ) ) as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'scope', 'global' ), $k, false ), esc_html( $l ) );
 		}
-		echo '</select> <select name="group_id" aria-label="' . esc_attr__( 'Partner group', 'affiliate-captain' ) . '" data-wpac-depends="scope=group"><option value="">' . esc_html__( '– group –', 'affiliate-captain' ) . '</option>';
+		echo '</select> <select name="group_id" aria-label="' . esc_attr__( 'Partner group', 'affiliate-captain' ) . '" data-wpac-depends="scope=group"' . $aria( 'scope' ) . '><option value="">' . esc_html__( '– group –', 'affiliate-captain' ) . '</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria.
 		foreach ( $groups as $gid => $name ) {
-			printf( '<option value="%d" %s>%s</option>', (int) $gid, selected( 'group' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0, $gid, false ), esc_html( $name ) );
+			printf( '<option value="%d" %s>%s</option>', (int) $gid, selected( 'group' === $v( 'scope' ) ? $scope_id : 0, $gid, false ), esc_html( $name ) );
 		}
 		echo '</select> ';
-		$picker = Admin::partner_picker(
-			'affiliate_id',
-			'affiliate' === $v( 'scope' ) ? (int) $v( 'scope_id' ) : 0,
-			'',
-			array(
-				'aria-label'        => __( 'Partner', 'affiliate-captain' ),
-				'data-wpac-depends' => 'scope=affiliate',
-			)
+		$picker_attrs = array(
+			'aria-label'        => __( 'Partner', 'affiliate-captain' ),
+			'data-wpac-depends' => 'scope=affiliate',
 		);
-		echo $picker; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		if ( isset( $errs['scope'] ) ) {
+			$picker_attrs['aria-describedby'] = 'wpac-rule-scope-err';
+			$picker_attrs['aria-invalid']     = 'true';
+		}
+		$picker = Admin::partner_picker( 'affiliate_id', 'affiliate' === $v( 'scope' ) ? $scope_id : 0, '', $picker_attrs );
+		echo $picker . $err( 'scope' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker() and $err.
 		echo '</td></tr>';
 		echo '<tr><th><label for="wpac-rule-target">' . esc_html__( 'Products', 'affiliate-captain' ) . '</label></th><td><select name="target" id="wpac-rule-target">';
 		foreach ( $targets as $k => $l ) {
@@ -301,26 +381,42 @@ final class RulesPage {
 		// With WooCommerce: products by search and categories from a list instead of typed IDs (R5-O51).
 		$pickers = self::target_pickers( $v( 'target' ), $v( 'target_value' ) );
 		echo $pickers; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped in target_pickers().
-		echo ' <span data-wpac-depends="target=' . ( '' !== $pickers ? 'tag|sku' : 'product|category|tag|sku' ) . '"><input type="text" name="target_value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'IDs or SKUs', 'affiliate-captain' ) . '" aria-describedby="wpac-target-hint"><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'affiliate-captain' ) . '</span></span></td></tr>';
+		echo ' <span data-wpac-depends="target=' . ( '' !== $pickers ? 'tag|sku' : 'product|category|tag|sku' ) . '"><label for="wpac-rule-value" class="screen-reader-text">' . esc_html__( 'IDs or SKUs', 'affiliate-captain' ) . '</label><input type="text" name="target_value" id="wpac-rule-value" value="' . esc_attr( $v( 'target_value' ) ) . '" class="regular-text"' . $aria( 'target_value', 'wpac-target-hint' ) . '><span class="wpac-field-hint" id="wpac-target-hint">' . esc_html__( 'Comma separated; SKUs support trailing * (e.g. GROUP-*)', 'affiliate-captain' ) . '</span></span>' . $err( 'target_value' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria and $err.
 		echo '<tr><th><label for="wpac-rule-type">' . esc_html__( 'Commission', 'affiliate-captain' ) . '</label></th><td><select name="rate_type" id="wpac-rule-type">';
 		foreach ( array( 'percent' => CommissionBasis::percent_label(), 'fixed' => __( 'Fixed amount per unit', 'affiliate-captain' ), 'exclude' => __( 'Exclude (no commission)', 'affiliate-captain' ) ) as $k => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $k ), selected( $v( 'rate_type', 'percent' ), $k, false ), esc_html( $l ) );
 		}
-		echo '</select> <span data-wpac-depends="rate_type=percent|fixed"><input type="text" name="rate" value="' . esc_attr( $rate_display ) . '" size="8" aria-label="' . esc_attr__( 'Rate', 'affiliate-captain' ) . '"> <span data-wpac-depends="rate_type=percent">%</span><span data-wpac-depends="rate_type=fixed">' . esc_html( $currency . ' ' . __( 'per unit', 'affiliate-captain' ) ) . '</span></span></td></tr>';
-		// SET-AC-22: cap per line, minimum line amount, validity (all optional).
-		$money = static function ( $k ) use ( $edit, $currency ) {
-			return $edit && ! empty( $edit->$k ) ? Money::to_decimal( (int) $edit->$k, $currency ) : '';
-		};
-		echo '<tr data-wpac-depends="rate_type=percent|fixed"><th><label for="wpac-rule-max">' . esc_html__( 'Maximum commission per line', 'affiliate-captain' ) . '</label></th><td><input type="text" name="max_amount" id="wpac-rule-max" value="' . esc_attr( $money( 'max_amount_minor' ) ) . '" size="8" aria-describedby="wpac-rule-max-hint"> ' . esc_html( $currency ) . ' <span class="wpac-field-hint" id="wpac-rule-max-hint">' . esc_html__( 'Empty = no cap. Limits the commission of one order line (all units together) under this rule.', 'affiliate-captain' ) . '</span></td></tr>';
-		echo '<tr><th><label for="wpac-rule-min">' . esc_html__( 'Minimum line amount', 'affiliate-captain' ) . '</label></th><td><input type="text" name="min_base" id="wpac-rule-min" value="' . esc_attr( $money( 'min_base_minor' ) ) . '" size="8" aria-describedby="wpac-rule-min-hint"> ' . esc_html( $currency ) . ' <span class="wpac-field-hint" id="wpac-rule-min-hint">' . esc_html__( 'Empty = always. The rule only applies to order lines with at least this commission basis; smaller lines fall to the next rule or the program default.', 'affiliate-captain' ) . '</span></td></tr>';
-		echo '<tr><th><label for="wpac-rule-from">' . esc_html__( 'Valid', 'affiliate-captain' ) . '</label></th><td><input type="date" name="valid_from" id="wpac-rule-from" value="' . esc_attr( Calculator::day( $v( 'valid_from' ) ) ) . '" aria-describedby="wpac-rule-valid-hint"> <label for="wpac-rule-until">' . esc_html__( 'until', 'affiliate-captain' ) . '</label> <input type="date" name="valid_until" id="wpac-rule-until" value="' . esc_attr( Calculator::day( $v( 'valid_until' ) ) ) . '" aria-describedby="wpac-rule-valid-hint"> <span class="wpac-field-hint" id="wpac-rule-valid-hint">' . esc_html__( 'Both days included, in the time zone of the website; empty = open. The payment date of the order counts. Outside this period the next rule or the program default applies.', 'affiliate-captain' ) . '</span></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Priority', 'affiliate-captain' ) . '</th><td><input type="number" name="priority" value="' . esc_attr( $v( 'priority', '0' ) ) . '" class="small-text" aria-label="' . esc_attr__( 'Priority', 'affiliate-captain' ) . '"> <label><input type="checkbox" name="active" value="1" ' . checked( $v( 'active', '1' ), '1', false ) . '> ' . esc_html__( 'Active', 'affiliate-captain' ) . '</label></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Note', 'affiliate-captain' ) . '</th><td><input type="text" name="note" value="' . esc_attr( $v( 'note' ) ) . '" class="regular-text" aria-label="' . esc_attr__( 'Note', 'affiliate-captain' ) . '"></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Reason for change', 'affiliate-captain' ) . '</th><td><input type="text" name="reason" class="regular-text" aria-label="' . esc_attr__( 'Reason for change', 'affiliate-captain' ) . '" ' . ( $edit ? 'required' : '' ) . '></td></tr>';
+		echo '</select> <span data-wpac-depends="rate_type=percent|fixed"><label for="wpac-rule-rate">' . esc_html__( 'Rate', 'affiliate-captain' ) . '</label> <input type="text" name="rate" id="wpac-rule-rate" value="' . esc_attr( $rate_display ) . '" size="8"' . $aria( 'rate' ) . '> <span data-wpac-depends="rate_type=percent">%</span><span data-wpac-depends="rate_type=fixed">' . esc_html( $currency . ' ' . __( 'per unit', 'affiliate-captain' ) ) . '</span></span>' . $err( 'rate' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria and $err.
+		echo '<tr data-wpac-depends="rate_type=percent|fixed"><th><label for="wpac-rule-max">' . esc_html__( 'Maximum commission per line', 'affiliate-captain' ) . '</label></th><td><input type="text" name="max_amount" id="wpac-rule-max" value="' . esc_attr( $money( 'max_amount_minor' ) ) . '" size="8"' . $aria( 'max_amount', 'wpac-rule-max-hint' ) . '> ' . esc_html( $currency ) . ' <span class="wpac-field-hint" id="wpac-rule-max-hint">' . esc_html__( 'Empty = no cap. Limits the commission of one order line (all units together) under this rule.', 'affiliate-captain' ) . '</span>' . $err( 'max_amount' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria and $err.
+		echo '<tr><th><label for="wpac-rule-min">' . esc_html__( 'Minimum line amount', 'affiliate-captain' ) . '</label></th><td><input type="text" name="min_base" id="wpac-rule-min" value="' . esc_attr( $money( 'min_base_minor' ) ) . '" size="8"' . $aria( 'min_base', 'wpac-rule-min-hint' ) . '> ' . esc_html( $currency ) . ' <span class="wpac-field-hint" id="wpac-rule-min-hint">' . esc_html__( 'Empty = always. The rule only applies to order lines with at least this commission basis; smaller lines fall to the next rule or the program default.', 'affiliate-captain' ) . '</span>' . $err( 'min_base' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria and $err.
+		echo '<tr><th><label for="wpac-rule-from">' . esc_html__( 'Valid', 'affiliate-captain' ) . '</label></th><td><input type="date" name="valid_from" id="wpac-rule-from" value="' . esc_attr( $day( 'valid_from' ) ) . '"' . $aria( 'valid_from', 'wpac-rule-valid-hint' ) . '> <label for="wpac-rule-until">' . esc_html__( 'until', 'affiliate-captain' ) . '</label> <input type="date" name="valid_until" id="wpac-rule-until" value="' . esc_attr( $day( 'valid_until' ) ) . '"' . $aria( 'valid_until', 'wpac-rule-valid-hint' ) . '> <span class="wpac-field-hint" id="wpac-rule-valid-hint">' . esc_html__( 'Both days included, in the time zone of the website; empty = open. The payment date of the order counts. Outside this period the next rule or the program default applies.', 'affiliate-captain' ) . '</span>' . $err( 'valid_from' ) . $err( 'valid_until' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria and $err.
+		// Priority: the list and the calculator sort by priority descending (P5-12).
+		echo '<tr><th><label for="wpac-rule-priority">' . esc_html__( 'Priority', 'affiliate-captain' ) . '</label></th><td><input type="number" name="priority" id="wpac-rule-priority" value="' . esc_attr( $v( 'priority', '0' ) ) . '" class="small-text" aria-describedby="wpac-rule-priority-hint"> <label><input type="checkbox" name="active" value="1" ' . checked( $v( 'active', '1' ), '1', false ) . '> ' . esc_html__( 'Active', 'affiliate-captain' ) . '</label> <span class="wpac-field-hint" id="wpac-rule-priority-hint">' . esc_html__( 'Higher number wins among equally specific rules.', 'affiliate-captain' ) . '</span></td></tr>';
+		echo '<tr><th><label for="wpac-rule-note">' . esc_html__( 'Note', 'affiliate-captain' ) . '</label></th><td><input type="text" name="note" id="wpac-rule-note" value="' . esc_attr( $v( 'note' ) ) . '" class="regular-text"></td></tr>';
+		// Required when editing (the handler refuses a change without a reason): visible * and attribute.
+		echo '<tr><th><label for="wpac-rule-reason">' . esc_html( $edit ? __( 'Reason for change', 'affiliate-captain' ) . ' *' : __( 'Reason for change (optional)', 'affiliate-captain' ) ) . '</label></th><td><input type="text" name="reason" id="wpac-rule-reason" value="' . esc_attr( isset( $typed['reason'] ) ? (string) $typed['reason'] : '' ) . '" class="regular-text"' . ( $edit ? ' required' : '' ) . $aria( 'reason' ) . '>' . $err( 'reason' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $aria and $err.
 		echo '</table>';
 		submit_button( $edit ? __( 'Save rule', 'affiliate-captain' ) : __( 'Add rule', 'affiliate-captain' ) );
 		echo '</form>';
 
+	}
+
+	/**
+	 * Labels of the rule form fields (for the list of errors in the notice).
+	 *
+	 * @return array<string,string>
+	 */
+	private static function rule_field_labels() {
+		return array(
+			'scope'        => __( 'Applies to', 'affiliate-captain' ),
+			'target_value' => __( 'Products', 'affiliate-captain' ),
+			'rate'         => __( 'Rate', 'affiliate-captain' ),
+			'max_amount'   => __( 'Maximum commission per line', 'affiliate-captain' ),
+			'min_base'     => __( 'Minimum line amount', 'affiliate-captain' ),
+			'valid_from'   => __( 'Valid from', 'affiliate-captain' ),
+			'valid_until'  => __( 'Valid until', 'affiliate-captain' ),
+			'reason'       => __( 'Reason for change', 'affiliate-captain' ),
+		);
 	}
 
 	/**
@@ -425,7 +521,7 @@ final class RulesPage {
 	private static function render_tiers( array $groups, array $aff_names, $currency ) {
 		echo '<h2>' . esc_html__( 'Monthly tiers', 'affiliate-captain' ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Additional bonus in percent of the monthly net revenue (after refunds). The most specific active plan applies (partner > group > global). Months are closed automatically after the hold period; the plan is frozen in the booked bonus.', 'affiliate-captain' ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Basis', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Mode', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Steps', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<div class="wpac-table-scroll"><table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Basis', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Mode', 'affiliate-captain' ) . '</th><th>' . esc_html__( 'Steps', 'affiliate-captain' ) . '</th><th></th></tr></thead><tbody>';
 		$plans = TierService::all();
 		if ( ! $plans ) {
 			echo '<tr><td colspan="6">' . esc_html__( 'No tier plans.', 'affiliate-captain' ) . '</td></tr>';
@@ -443,29 +539,33 @@ final class RulesPage {
 			);
 			if ( $p->active ) {
 				Admin::form_open( 'tier_deactivate', 'wpac-inline' );
-				echo '<input type="hidden" name="id" value="' . (int) $p->id . '"><input type="text" name="reason" size="10" aria-label="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '"> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Deactivate this tier plan?', 'affiliate-captain' ) . '">' . esc_html__( 'Deactivate', 'affiliate-captain' ) . '</button></form>';
+				echo '<input type="hidden" name="id" value="' . (int) $p->id . '"><label for="wpac-tier-off-' . (int) $p->id . '">' . esc_html__( 'Reason', 'affiliate-captain' ) . ' *</label> <input type="text" name="reason" id="wpac-tier-off-' . (int) $p->id . '" size="10" required> <button class="button-link wpac-danger" data-wpac-confirm="' . esc_attr__( 'Deactivate this tier plan?', 'affiliate-captain' ) . '">' . esc_html__( 'Deactivate', 'affiliate-captain' ) . '</button></form>';
 			}
 			echo '</td></tr>';
 		}
-		echo '</tbody></table>';
+		echo '</tbody></table></div>';
 
 		echo '<h3>' . esc_html__( 'Add tier plan', 'affiliate-captain' ) . '</h3>';
 		Admin::form_open( 'tier_create' );
-		echo '<p><label class="screen-reader-text" for="wpac-tier-scope">' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</label><select name="scope" id="wpac-tier-scope"><option value="global">' . esc_html__( 'All partners', 'affiliate-captain' ) . '</option><option value="group">' . esc_html__( 'Partner group', 'affiliate-captain' ) . '</option><option value="affiliate">' . esc_html__( 'Single partner', 'affiliate-captain' ) . '</option></select> ';
-		echo '<label class="screen-reader-text" for="wpac-tier-group">' . esc_html__( 'Partner group', 'affiliate-captain' ) . '</label><select name="group_id" id="wpac-tier-group"><option value="">' . esc_html__( '– group –', 'affiliate-captain' ) . '</option>';
+		// Visible labels for every field, not only placeholders (P5-10).
+		echo '<table class="form-table">';
+		echo '<tr><th><label for="wpac-tier-scope">' . esc_html__( 'Applies to', 'affiliate-captain' ) . '</label></th><td><select name="scope" id="wpac-tier-scope"><option value="global">' . esc_html__( 'All partners', 'affiliate-captain' ) . '</option><option value="group">' . esc_html__( 'Partner group', 'affiliate-captain' ) . '</option><option value="affiliate">' . esc_html__( 'Single partner', 'affiliate-captain' ) . '</option></select> ';
+		echo '<span data-wpac-depends="scope=group"><label for="wpac-tier-group">' . esc_html__( 'Partner group', 'affiliate-captain' ) . '</label> <select name="group_id" id="wpac-tier-group"><option value="">' . esc_html__( '– group –', 'affiliate-captain' ) . '</option>';
 		foreach ( $groups as $gid => $name ) {
 			printf( '<option value="%d">%s</option>', (int) $gid, esc_html( $name ) );
 		}
-		echo '</select> ' . Admin::partner_picker( 'affiliate_id', 0, '', array( 'aria-label' => __( 'Partner', 'affiliate-captain' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
-		echo '</p><p><label class="screen-reader-text" for="wpac-tier-basis">' . esc_html__( 'Basis', 'affiliate-captain' ) . '</label><select name="basis" id="wpac-tier-basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select> ';
-		echo '<label class="screen-reader-text" for="wpac-tier-mode">' . esc_html__( 'Mode', 'affiliate-captain' ) . '</label><select name="mode" id="wpac-tier-mode"><option value="marginal">' . esc_html__( 'Marginal (only above the threshold)', 'affiliate-captain' ) . '</option><option value="retroactive">' . esc_html__( 'Retroactive (whole month)', 'affiliate-captain' ) . '</option></select></p>';
+		echo '</select></span> <span data-wpac-depends="scope=affiliate"><label for="wpac-tier-partner">' . esc_html__( 'Partner', 'affiliate-captain' ) . '</label> ' . Admin::partner_picker( 'affiliate_id', 0, '', array( 'id' => 'wpac-tier-partner' ) ) . '</span></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		echo '<tr><th><label for="wpac-tier-basis">' . esc_html__( 'Basis', 'affiliate-captain' ) . '</label></th><td><select name="basis" id="wpac-tier-basis"><option value="revenue">' . esc_html__( 'Basis: net revenue per month', 'affiliate-captain' ) . '</option><option value="orders">' . esc_html__( 'Basis: number of orders per month', 'affiliate-captain' ) . '</option></select></td></tr>';
+		echo '<tr><th><label for="wpac-tier-mode">' . esc_html__( 'Mode', 'affiliate-captain' ) . '</label></th><td><select name="mode" id="wpac-tier-mode"><option value="marginal">' . esc_html__( 'Marginal (only above the threshold)', 'affiliate-captain' ) . '</option><option value="retroactive">' . esc_html__( 'Retroactive (whole month)', 'affiliate-captain' ) . '</option></select></td></tr>';
 		// The format is in a visible help text (aria-describedby), not only in the placeholder.
-		echo '<p><label for="wpac-tier-steps">' . esc_html__( 'Steps', 'affiliate-captain' ) . '</label><br>';
+		echo '<tr><th><label for="wpac-tier-steps">' . esc_html__( 'Steps', 'affiliate-captain' ) . '</label></th><td>';
 		/* translators: %s: currency */
-		echo '<textarea name="steps" id="wpac-tier-steps" rows="3" cols="40" aria-describedby="wpac-tier-steps-help" placeholder="' . esc_attr( sprintf( __( "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)", 'affiliate-captain' ), $currency ) ) . '"></textarea></p>';
+		echo '<textarea name="steps" id="wpac-tier-steps" rows="3" cols="40" aria-describedby="wpac-tier-steps-help" placeholder="' . esc_attr( sprintf( __( "threshold:bonus %%\n1000:2\n5000:3   (revenue in %s, or number of orders)", 'affiliate-captain' ), $currency ) ) . '"></textarea>';
 		/* translators: %s: currency */
-		echo '<p class="description" id="wpac-tier-steps-help">' . esc_html( sprintf( __( 'One step per line as threshold:bonus in percent, e.g. 1000:2 – the threshold is the monthly net revenue in %s or the number of orders (see basis).', 'affiliate-captain' ), $currency ) ) . '</p>';
-		echo '<p><input type="text" name="note" aria-label="' . esc_attr__( 'Note', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Note', 'affiliate-captain' ) . '" class="regular-text"> <input type="text" name="reason" aria-label="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Reason', 'affiliate-captain' ) . '" class="regular-text"> <button class="button">' . esc_html__( 'Add tier plan', 'affiliate-captain' ) . '</button></p></form>';
+		echo '<p class="description" id="wpac-tier-steps-help">' . esc_html( sprintf( __( 'One step per line as threshold:bonus in percent, e.g. 1000:2 – the threshold is the monthly net revenue in %s or the number of orders (see basis).', 'affiliate-captain' ), $currency ) ) . '</p></td></tr>';
+		echo '<tr><th><label for="wpac-tier-note">' . esc_html__( 'Note', 'affiliate-captain' ) . '</label></th><td><input type="text" name="note" id="wpac-tier-note" class="regular-text"></td></tr>';
+		echo '<tr><th><label for="wpac-tier-reason">' . esc_html__( 'Reason for change (optional)', 'affiliate-captain' ) . '</label></th><td><input type="text" name="reason" id="wpac-tier-reason" class="regular-text"></td></tr>';
+		echo '</table><p><button class="button">' . esc_html__( 'Add tier plan', 'affiliate-captain' ) . '</button></p></form>';
 
 		Admin::form_open( 'tier_close_month' );
 		$closed = (string) Settings::get( 'tier_month_closed' );
@@ -483,17 +583,19 @@ final class RulesPage {
 	private static function render_preview( array $aff_names, $currency ) {
 		echo '<h2>' . esc_html__( 'Rule preview', 'affiliate-captain' ) . '</h2>';
 		echo '<form method="get"><input type="hidden" name="page" value="wpac-rules"><input type="hidden" name="tab" value="preview"><input type="hidden" name="preview" value="1">';
-		echo Admin::partner_picker( 'p_affiliate', AffiliateRepository::resolve_input( Admin::get( 'p_affiliate' ) ), '', array( 'aria-label' => __( 'Partner', 'affiliate-captain' ) ) ) . ' '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
-		echo '<input type="number" name="p_product" aria-label="' . esc_attr__( 'Product ID', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Product ID', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_product' ) ) . '" class="small-text"> ';
-		echo '<input type="text" name="p_sku" aria-label="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'SKU / course code', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_sku' ) ) . '" size="10"> ';
-		echo '<input type="text" name="p_cats" aria-label="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Category IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8"> ';
-		echo '<input type="text" name="p_tags" aria-label="' . esc_attr__( 'Tag IDs', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Tag IDs', 'affiliate-captain' ) . '" value="' . esc_attr( Admin::get( 'p_tags' ) ) . '" size="8"> ';
+		// Visible labels (P5-10): the placeholders alone disappeared as soon as a value was there.
+		echo '<table class="form-table wpac-preview-form">';
+		echo '<tr><th><label for="wpac-preview-partner">' . esc_html__( 'Partner', 'affiliate-captain' ) . '</label></th><td>' . Admin::partner_picker( 'p_affiliate', AffiliateRepository::resolve_input( Admin::get( 'p_affiliate' ) ), '', array( 'id' => 'wpac-preview-partner' ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in partner_picker().
+		echo '<tr><th><label for="wpac-preview-product">' . esc_html__( 'Product ID', 'affiliate-captain' ) . '</label></th><td><input type="number" name="p_product" id="wpac-preview-product" value="' . esc_attr( Admin::get( 'p_product' ) ) . '" class="small-text"></td></tr>';
+		echo '<tr><th><label for="wpac-preview-sku">' . esc_html__( 'SKU / course code', 'affiliate-captain' ) . '</label></th><td><input type="text" name="p_sku" id="wpac-preview-sku" value="' . esc_attr( Admin::get( 'p_sku' ) ) . '" size="10"></td></tr>';
+		echo '<tr><th><label for="wpac-preview-cats">' . esc_html__( 'Category IDs', 'affiliate-captain' ) . '</label></th><td><input type="text" name="p_cats" id="wpac-preview-cats" value="' . esc_attr( Admin::get( 'p_cats' ) ) . '" size="8" aria-describedby="wpac-preview-ids-hint"></td></tr>';
+		echo '<tr><th><label for="wpac-preview-tags">' . esc_html__( 'Tag IDs', 'affiliate-captain' ) . '</label></th><td><input type="text" name="p_tags" id="wpac-preview-tags" value="' . esc_attr( Admin::get( 'p_tags' ) ) . '" size="8" aria-describedby="wpac-preview-ids-hint"> <span class="wpac-field-hint" id="wpac-preview-ids-hint">' . esc_html__( 'Comma separated. Empty = taken from the product.', 'affiliate-captain' ) . '</span></td></tr>';
 		$amount_label = 'gross' === CommissionBasis::current()['basis'] ? __( 'Gross amount', 'affiliate-captain' ) : __( 'Net amount', 'affiliate-captain' );
-		echo '<input type="text" name="p_net" aria-label="' . esc_attr( $amount_label ) . '" placeholder="' . esc_attr( $amount_label ) . '" value="' . esc_attr( Admin::get( 'p_net' ) ? Admin::get( 'p_net' ) : '100' ) . '" size="7"> ';
+		echo '<tr><th><label for="wpac-preview-net">' . esc_html( $amount_label ) . '</label></th><td><input type="text" name="p_net" id="wpac-preview-net" value="' . esc_attr( Admin::get( 'p_net' ) ? Admin::get( 'p_net' ) : '100' ) . '" size="7"> ' . esc_html( $currency ) . '</td></tr>';
 		$p_date = Calculator::day( Admin::get( 'p_date' ) );
 		$p_date = '' !== $p_date ? $p_date : Calculator::local_date();
-		echo '<input type="date" name="p_date" aria-label="' . esc_attr__( 'Payment date', 'affiliate-captain' ) . '" title="' . esc_attr__( 'Payment date', 'affiliate-captain' ) . '" value="' . esc_attr( $p_date ) . '"> ';
-		echo '<button class="button">' . esc_html__( 'Calculate', 'affiliate-captain' ) . '</button></form>';
+		echo '<tr><th><label for="wpac-preview-date">' . esc_html__( 'Payment date', 'affiliate-captain' ) . '</label></th><td><input type="date" name="p_date" id="wpac-preview-date" value="' . esc_attr( $p_date ) . '"></td></tr>';
+		echo '</table><p><button class="button">' . esc_html__( 'Calculate', 'affiliate-captain' ) . '</button></p></form>';
 		echo '<p class="description wpac-commission-basis">' . esc_html( CommissionBasis::description() ) . '</p>';
 
 		if ( ! Admin::get( 'preview' ) ) {
