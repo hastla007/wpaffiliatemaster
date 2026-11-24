@@ -122,3 +122,40 @@ check( 'P2-12 same reference and amount after the repeat window: booked (settles
 
 update_option( 'wpac_settings', $r24_saved );
 Settings::flush_cache();
+
+// P6-12: the setup checklist is evaluated once per page load for the welcome notice and the hint.
+if ( ! function_exists( 'get_current_screen' ) ) {
+	function get_current_screen() {
+		return isset( $GLOBALS['r24_screen'] ) ? $GLOBALS['r24_screen'] : null;
+	}
+}
+$GLOBALS['r24_screen'] = (object) array( 'id' => 'plugins' );
+delete_option( WPAffiliateCaptain\Admin\Pages\SetupWizard::OPTION );
+$r24_set( array( 'cookie_mode' => 'always' ) ); // A required checklist item is open.
+$r24_q     = 0;
+$r24_count = static function ( $sql ) use ( &$r24_q ) {
+	$r24_q++;
+	return $sql;
+};
+// One direct evaluation = the queries of one checklist run.
+add_filter( 'query', $r24_count );
+WPAffiliateCaptain\Admin\Pages\DashboardPage::setup_open();
+$r24_one = $r24_q;
+// A changed setting starts a fresh evaluation (nothing cached from before).
+$r24_set( array( 'cookie_mode' => 'always', 'dunning_days' => 15 ) );
+$r24_q = 0;
+ob_start();
+WPAffiliateCaptain\Admin\Admin::setup_notice();
+WPAffiliateCaptain\Admin\Pages\SetupWizard::first_run_notice();
+$r24_html = (string) ob_get_clean();
+$r24_two  = $r24_q;
+remove_filter( 'query', $r24_count );
+check(
+	'P6-12 welcome notice + setup hint on the plugins screen: checklist queries of one evaluation (not three); welcome notice shown',
+	array( true, $r24_one, true ),
+	array( $r24_one > 0, $r24_two, false !== strpos( $r24_html, 'wpac-wizard-notice' ) )
+);
+check( 'P6-12 cache follows the settings: a changed setting is evaluated again', true, WPAffiliateCaptain\Admin\Pages\SetupWizard::setup_open() === WPAffiliateCaptain\Admin\Pages\DashboardPage::setup_open() );
+unset( $GLOBALS['r24_screen'] );
+update_option( 'wpac_settings', $r24_saved );
+Settings::flush_cache();

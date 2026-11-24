@@ -514,7 +514,8 @@ final class Admin {
 		if ( ! $screen || 'toplevel_page_wpac' === $screen->id || ( ! $ours && ! in_array( $screen->id, array( 'plugins', 'dashboard' ), true ) ) ) {
 			return;
 		}
-		if ( ! DashboardPage::setup_open() ) {
+		// DashboardPage::setup_open(), evaluated once per request (also for the wizard notice below).
+		if ( ! Pages\SetupWizard::setup_open() ) {
 			return;
 		}
 		// SET-AC-24: while the setup wizard notice is shown on this screen, it replaces this hint.
