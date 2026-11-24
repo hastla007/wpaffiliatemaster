@@ -37,6 +37,12 @@ final class Dunning {
 	const LEVELS = 3;
 
 	/**
+	 * Seconds after which the lock of a request that died is taken over (payment requests and
+	 * repayments of one partner and currency; a second call while it is held is refused at once).
+	 */
+	const LOCK_TTL = 120;
+
+	/**
 	 * Number of stages (setting dunning_levels, 1 to 5).
 	 *
 	 * @return int
@@ -48,27 +54,90 @@ final class Dunning {
 	/**
 	 * Kind of a stage: 'request' (first), 'final' (last, with more than one stage) or 'reminder'.
 	 *
-	 * @param int $level Stage (1 = first).
+	 * With a history, a stage that was already sent keeps the kind stored with it (entries since
+	 * plugin 0.22.0; older entries are judged by the current setting), and the next stage is
+	 * judged by next_stage(): a change of dunning_levels never turns a sent final reminder into a
+	 * reminder or the other way round.
+	 *
+	 * @param int        $level   Stage (1 = first).
+	 * @param array|null $history Sent stages (history()); null = judge by the setting alone.
 	 * @return string
 	 */
-	public static function stage( $level ) {
-		$level  = (int) $level;
-		$levels = self::levels();
+	public static function stage( $level, $history = null ) {
+		$level = (int) $level;
+		if ( is_array( $history ) ) {
+			$history = array_values( $history );
+			if ( isset( $history[ $level - 1 ] ) ) {
+				return self::entry_stage( (array) $history[ $level - 1 ] );
+			}
+			$next = self::next_stage( $history );
+			if ( $next && $next['level'] === $level ) {
+				return $next['stage'];
+			}
+		}
 		if ( 1 === $level ) {
 			return 'request';
 		}
-		return $level >= $levels ? 'final' : 'reminder';
+		return $level >= self::levels() ? 'final' : 'reminder';
 	}
 
 	/**
-	 * Payment deadline named in the e-mail of a stage (days).
+	 * Kind of a sent stage (history entry): the stored kind, for entries of versions before
+	 * 0.22.0 judged by the level and the current setting.
 	 *
-	 * @param int $level Stage.
-	 * @return int
+	 * @param array $entry History entry.
+	 * @return string
 	 */
-	public static function deadline_days( $level ) {
-		$days = 'final' === self::stage( $level ) ? (int) Settings::get( 'dunning_final_days' ) : (int) Settings::get( 'dunning_days' );
-		return max( 1, $days );
+	public static function entry_stage( array $entry ) {
+		if ( isset( $entry['stage'] ) && in_array( $entry['stage'], array( 'request', 'reminder', 'final' ), true ) ) {
+			return (string) $entry['stage'];
+		}
+		return self::stage( isset( $entry['level'] ) ? (int) $entry['level'] : 1 );
+	}
+
+	/**
+	 * The next stage that may be sent: [ level, stage ], or null when the sequence is complete.
+	 *
+	 * Nothing follows a final reminder, even when dunning_levels was raised afterwards. When the
+	 * setting was lowered to the number of stages already sent or below, nothing follows either
+	 * (ended_without_final() tells whether the sequence then ended without a final reminder).
+	 *
+	 * @param array $history Sent stages (history()).
+	 * @return array|null
+	 */
+	public static function next_stage( array $history ) {
+		$sent   = count( $history );
+		$levels = self::levels();
+		if ( 0 === $sent ) {
+			return array(
+				'level' => 1,
+				'stage' => 'request',
+			);
+		}
+		$last = (array) end( $history );
+		if ( 'final' === self::entry_stage( $last ) || $sent >= $levels ) {
+			return null;
+		}
+		return array(
+			'level' => $sent + 1,
+			'stage' => $sent + 1 >= $levels ? 'final' : 'reminder',
+		);
+	}
+
+	/**
+	 * Whether the sequence is complete although no final reminder was sent (dunning_levels was
+	 * lowered after stages had been sent).
+	 *
+	 * @param array $history Sent stages (history()).
+	 * @return bool
+	 */
+	public static function ended_without_final( array $history ) {
+		if ( ! $history || null !== self::next_stage( $history ) ) {
+			return false;
+		}
+		$last = (array) end( $history );
+		// A single payment request is complete by itself (dunning_levels = 1).
+		return 1 < count( $history ) && 'final' !== self::entry_stage( $last );
 	}
 
 	/**
@@ -170,17 +239,53 @@ final class Dunning {
 	}
 
 	/**
-	 * Send the next payment request (1 = request, then reminders, the last stage of the setting
-	 * dunning_levels = final reminder).
+	 * Lock name of the payment requests and repayments of one partner and currency.
 	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $currency     Currency.
+	 * @return string
+	 */
+	private static function lock_name( $affiliate_id, $currency ) {
+		return 'wpac_lock_dunning_' . (int) $affiliate_id . '_' . strtoupper( (string) $currency );
+	}
+
+	/**
+	 * Send the next payment request (1 = request, then reminders, the last stage of the setting
+	 * dunning_levels = final reminder; nothing after a final reminder, see next_stage()).
+	 *
+	 * Runs under a lock per partner and currency (a second call while it is held is refused with
+	 * wpac_dunning_locked), so two parallel calls cannot both send a stage. $expected_level (the stage the form showed) makes a form submitted twice harmless: the
+	 * second call finds the stage already sent and sends nothing.
+	 *
+	 * @param int    $affiliate_id   Partner.
+	 * @param string $currency       Currency.
+	 * @param int    $expected_level Stage the caller means to send (0 = the next one, whatever it is).
 	 * @return int|\WP_Error Level sent.
 	 */
-	public static function remind( $affiliate_id, $currency ) {
-		$aff      = AffiliateRepository::find( (int) $affiliate_id );
-		$currency = strtoupper( (string) $currency );
-		$open     = self::open( (int) $affiliate_id, $currency );
+	public static function remind( $affiliate_id, $currency, $expected_level = 0 ) {
+		$lock  = self::lock_name( (int) $affiliate_id, (string) $currency );
+		$owner = Db::lock( $lock, self::LOCK_TTL );
+		if ( '' === $owner ) {
+			return new \WP_Error( 'wpac_dunning_locked', __( 'Another payment request for this partner is being sent right now. Please reload the page.', 'affiliate-captain' ) );
+		}
+		try {
+			return self::remind_locked( (int) $affiliate_id, strtoupper( (string) $currency ), (int) $expected_level );
+		} finally {
+			Db::unlock( $lock, $owner );
+		}
+	}
+
+	/**
+	 * Body of remind(), called under the lock.
+	 *
+	 * @param int    $affiliate_id   Partner.
+	 * @param string $currency       Currency (upper case).
+	 * @param int    $expected_level Expected stage (0 = any).
+	 * @return int|\WP_Error
+	 */
+	private static function remind_locked( $affiliate_id, $currency, $expected_level ) {
+		$aff  = AffiliateRepository::find( (int) $affiliate_id );
+		$open = self::open( (int) $affiliate_id, $currency );
 		if ( ! $aff || $open >= 0 ) {
 			return new \WP_Error( 'wpac_not_negative', __( 'The balance is not negative.', 'affiliate-captain' ) );
 		}
@@ -188,12 +293,18 @@ final class Dunning {
 		if ( '' !== $blocked ) {
 			return new \WP_Error( 'wpac_dunning_blocked', $blocked );
 		}
-		$history = self::history( (int) $affiliate_id, $currency );
-		$level   = count( $history ) + 1;
-		if ( $level > self::levels() ) {
+		$history = array_values( self::history( (int) $affiliate_id, $currency ) );
+		$next    = self::next_stage( $history );
+		if ( $expected_level > 0 && ( ! $next || $next['level'] !== $expected_level ) ) {
+			/* translators: %d: level */
+			return new \WP_Error( 'wpac_dunning_sent', sprintf( __( 'Payment request level %d was already sent (the form was probably submitted twice). Nothing was sent again.', 'affiliate-captain' ), $expected_level ) );
+		}
+		if ( ! $next ) {
 			return new \WP_Error( 'wpac_dunning_done', __( 'All reminders were sent. Write the balance off or hand it over for collection.', 'affiliate-captain' ) );
 		}
-		$days        = self::deadline_days( $level );
+		$level = (int) $next['level'];
+		$stage = (string) $next['stage'];
+		$days  = max( 1, 'final' === $stage ? (int) Settings::get( 'dunning_final_days' ) : (int) Settings::get( 'dunning_days' ) );
 		$wpac_locale = \WPAffiliateCaptain\Core\Locale::switch_for_affiliate( $aff );
 		try {
 			$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
@@ -213,7 +324,7 @@ final class Dunning {
 			$sent = \WPAffiliateCaptain\Affiliates\Notifications::send(
 				'dunning',
 				$aff->email,
-				sprintf( $subject[ self::stage( $level ) ], $site ),
+				sprintf( $subject[ $stage ], $site ),
 				/* translators: 1: name, 2: amount, 3: bank details, 4: reference, 5: days */
 				sprintf( __( "Hello %1\$s,\n\nafter refunds and cancellations of orders you referred, your partner account shows a balance of -%2\$s. As the partnership has ended, it can no longer be offset against new commissions. Please transfer the amount within %5\$d days to:\n\n%3\$s\nReference: %4\$s\n\nThe bookings are listed in the partner area. If you think this is wrong, please reply to this e-mail.", 'affiliate-captain' ), $aff->name, $amount, $bank, $ref, $days )
 					. ( $vat < 0
@@ -233,9 +344,10 @@ final class Dunning {
 			'at'     => Db::now(),
 			'amount' => $open,
 			'days'   => $days,
+			'stage'  => $stage,
 		);
 		update_option( 'wpac_dunning_' . (int) $affiliate_id . '_' . $currency, $history, false );
-		Audit::log( 'commission.dunning', 'affiliate', (int) $affiliate_id, array( 'level' => $level, 'amount' => $open, 'currency' => $currency, 'days' => $days ) );
+		Audit::log( 'commission.dunning', 'affiliate', (int) $affiliate_id, array( 'level' => $level, 'amount' => $open, 'currency' => $currency, 'days' => $days, 'stage' => $stage ) );
 		return $level;
 	}
 
@@ -265,27 +377,76 @@ final class Dunning {
 	}
 
 	/**
+	 * Seconds within which a second repayment of the same partner, currency, amount and note
+	 * (bank reference) counts as the same booking entered twice and is refused.
+	 */
+	const REPAYMENT_REPEAT_WINDOW = 600;
+
+	/**
 	 * Book a repayment received from the partner (at most the open negative balance including
 	 * VAT). The repayment is not taxable; when it settles the balance, the correction document
 	 * is issued.
+	 *
+	 * Protection against booking one payment twice (since plugin 0.22.0): the booking runs under
+	 * the lock of the partner and currency; a form token ($token, one per displayed form) can be
+	 * used only once; and a repayment with the same amount and note as one booked within the last
+	 * REPAYMENT_REPEAT_WINDOW seconds is refused (error code wpac_repayment_repeat).
 	 *
 	 * @param int    $affiliate_id Partner.
 	 * @param string $currency     Currency.
 	 * @param int    $amount_minor Amount received (positive).
 	 * @param string $note         Note (e.g. bank reference).
+	 * @param string $token        Form token ('' = none).
 	 * @return int|\WP_Error Booking ID.
 	 */
-	public static function record_repayment( $affiliate_id, $currency, $amount_minor, $note ) {
+	public static function record_repayment( $affiliate_id, $currency, $amount_minor, $note, $token = '' ) {
+		$lock  = self::lock_name( (int) $affiliate_id, (string) $currency );
+		$owner = Db::lock( $lock, self::LOCK_TTL );
+		if ( '' === $owner ) {
+			return new \WP_Error( 'wpac_dunning_locked', __( 'Another booking for this partner is running right now. Please reload the page and check the account before booking again.', 'affiliate-captain' ) );
+		}
+		try {
+			return self::record_repayment_locked( (int) $affiliate_id, strtoupper( (string) $currency ), (int) $amount_minor, (string) $note, (string) $token );
+		} finally {
+			Db::unlock( $lock, $owner );
+		}
+	}
+
+	/**
+	 * Body of record_repayment(), called under the lock.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency (upper case).
+	 * @param int    $amount_minor Amount.
+	 * @param string $note         Note.
+	 * @param string $token        Form token.
+	 * @return int|\WP_Error
+	 */
+	private static function record_repayment_locked( $affiliate_id, $currency, $amount_minor, $note, $token ) {
 		global $wpdb;
-		$currency     = strtoupper( (string) $currency );
-		$amount_minor = (int) $amount_minor;
 		if ( $amount_minor <= 0 ) {
 			return new \WP_Error( 'wpac_amount', __( 'Please enter the amount received.', 'affiliate-captain' ) );
+		}
+		$t           = Db::table( 'commissions' );
+		$description = Db::cut( sanitize_text_field( $note ), 255 );
+		$token       = preg_replace( '/[^A-Za-z0-9]/', '', $token );
+		$key         = '' !== $token
+			? Ledger::key( 'repayment:' . $affiliate_id . ':' . $currency . ':form:' . $token )
+			: Ledger::key( 'repayment:' . $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
+		if ( '' !== $token && Ledger::find_by_key( $key ) ) {
+			return new \WP_Error( 'wpac_repayment_repeat', __( 'This repayment was already booked (the form was submitted twice). Nothing was booked again.', 'affiliate-captain' ) );
+		}
+		$since = gmdate( 'Y-m-d H:i:s', time() - self::REPAYMENT_REPEAT_WINDOW );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$repeat = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$t} WHERE affiliate_id = %d AND currency = %s AND kind = 'repayment' AND amount_minor = %d AND description = %s AND created_at >= %s", $affiliate_id, $currency, $amount_minor, $description, $since ) );
+		if ( $repeat > 0 ) {
+			/* translators: %d: minutes */
+			return new \WP_Error( 'wpac_repayment_repeat', sprintf( __( 'A repayment with the same amount and bank reference was booked less than %d minutes ago. Check the partner account: if it is really a second payment, enter its own bank reference.', 'affiliate-captain' ), (int) ( self::REPAYMENT_REPEAT_WINDOW / 60 ) ) );
 		}
 		$t = Db::table( 'commissions' );
 		try {
 			$id = Db::transaction(
-				static function () use ( $wpdb, $t, $affiliate_id, $currency, $amount_minor, $note ) {
+				static function () use ( $wpdb, $t, $affiliate_id, $currency, $amount_minor, $description, $key ) {
 					// Lock the open rows, then compute the balance with VAT.
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status = 'approved' AND payout_id = 0 FOR UPDATE", $affiliate_id, $currency ) );
@@ -293,8 +454,7 @@ final class Dunning {
 					if ( $open >= 0 || $amount_minor > -$open ) {
 						throw new IntegrationException( 'amount', esc_html__( 'The amount is larger than the negative balance.', 'affiliate-captain' ) );
 					}
-					$key = Ledger::key( 'repayment:' . (int) $affiliate_id . ':' . $currency . ':' . Db::now() . ':' . wp_generate_password( 6, false ) );
-					$ok  = $wpdb->insert(
+					$ok = $wpdb->insert(
 						$t,
 						array(
 							'affiliate_id'    => (int) $affiliate_id,
@@ -304,7 +464,7 @@ final class Dunning {
 							'kind'            => 'repayment',
 							'parent_id'       => 0,
 							'product_ref'     => '',
-							'description'     => Db::cut( sanitize_text_field( (string) $note ), 255 ),
+							'description'     => $description,
 							'currency'        => $currency,
 							'base_minor'      => 0,
 							'amount_minor'    => $amount_minor,

@@ -1600,6 +1600,7 @@ require __DIR__ . '/set-ac-acct.php'; // SET-AC-30: payout methods outside SEPA 
 require __DIR__ . '/set-ac-a11y.php'; // SET-AC-25: required keys and limits of the register (before r8-render).
 require __DIR__ . '/set-ac-wiz.php'; // SET-AC-24: setup wizard flow (before r8-render).
 require __DIR__ . '/set-ac-xfer.php'; // SET-AC-08a: groups, rules, tiers and e-mail templates in the settings export (before r8-render).
+require __DIR__ . '/r24-fops.php'; // Fix round 24.11.2026 (fops): dunning stages, locks, repeated repayments (P2-12).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
