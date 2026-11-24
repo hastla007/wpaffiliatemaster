@@ -974,6 +974,51 @@ final class OrderSync {
 		return $items;
 	}
 
+	/** @var int[] Refund that made the order fully refunded in this request (order ID => refund ID). */
+	private static $fully_refunded = array();
+
+	/**
+	 * woocommerce_order_fully_refunded: wc_create_refund() stored the refund that leaves nothing
+	 * to refund and sets the status "refunded" next (before woocommerce_order_refunded). The full
+	 * reversal of that status change names this refund in its hooks (AC-6).
+	 *
+	 * @param int $order_id  Order.
+	 * @param int $refund_id Refund.
+	 */
+	public static function fully_refunded( $order_id, $refund_id ) {
+		if ( (int) $order_id && (int) $refund_id ) {
+			self::$fully_refunded[ (int) $order_id ] = (int) $refund_id;
+		}
+	}
+
+	/**
+	 * The WooCommerce refund behind a full reversal via the status "refunded" (contract 1.11.0,
+	 * AC-6): the refund announced by woocommerce_order_fully_refunded in this request; otherwise
+	 * the newest refund of the order (highest ID), unless it was already booked under its own ID
+	 * or already deducted in the booked sale. 0 = none (status set without a new refund object).
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return int
+	 */
+	private static function status_refund_id( $order ) {
+		$order_id = (int) $order->get_id();
+		if ( isset( self::$fully_refunded[ $order_id ] ) ) {
+			$id = self::$fully_refunded[ $order_id ];
+			unset( self::$fully_refunded[ $order_id ] );
+			return $id;
+		}
+		$newest = 0;
+		foreach ( (array) $order->get_refunds() as $refund ) {
+			if ( is_object( $refund ) && method_exists( $refund, 'get_id' ) ) {
+				$newest = max( $newest, (int) $refund->get_id() );
+			}
+		}
+		if ( ! $newest || Ledger::refund_booked( WooCommerce::SOURCE, (string) $order_id, (string) $newest ) || Jobs::is_superseded( WooCommerce::SOURCE, (string) $order_id, (string) $newest ) ) {
+			return 0;
+		}
+		return $newest;
+	}
+
 	/**
 	 * Order fully refunded.
 	 *
@@ -1695,19 +1740,26 @@ final class OrderSync {
 			return;
 		}
 		// After a reinstatement a new reversal of the same kind is a new event (own key).
-		$order  = wc_get_order( $order_id );
-		$round  = $order ? (int) $order->get_meta( '_wpac_reinstated' ) : 0;
-		$result = ContractApi::record_refund(
-			array(
-				'contract'  => WPAC_CONTRACT_VERSION,
-				'source'    => WooCommerce::SOURCE,
-				'order_id'  => (string) $order_id,
-				'refund_id' => 'status-' . ( '' !== $event ? $event : $type ) . ( $round ? '-' . $round : '' ),
-				'type'      => $type,
-				'full'      => true,
-				'reason'    => $reason,
-			)
+		$order   = wc_get_order( $order_id );
+		$round   = $order ? (int) $order->get_meta( '_wpac_reinstated' ) : 0;
+		$payload = array(
+			'contract'  => WPAC_CONTRACT_VERSION,
+			'source'    => WooCommerce::SOURCE,
+			'order_id'  => (string) $order_id,
+			'refund_id' => 'status-' . ( '' !== $event ? $event : $type ) . ( $round ? '-' . $round : '' ),
+			'type'      => $type,
+			'full'      => true,
+			'reason'    => $reason,
 		);
+		// AC-6: the key above stays the idempotency key (a later sync_refund() of the same refund
+		// finds nothing left; after a reinstatement it is deducted again under its own ID). The
+		// hooks name the WooCommerce refund behind the status "refunded" as refund_id (stored
+		// with the payload, so a queued retry carries it too).
+		$wc_refund = 'refund' === $type && $order ? self::status_refund_id( $order ) : 0;
+		if ( $wc_refund ) {
+			$payload['source_refund_id'] = (string) $wc_refund;
+		}
+		$result = ContractApi::record_refund( $payload );
 		if ( $order && is_wp_error( $result ) ) {
 			self::report_error( $order, $result, 'refund' );
 		}

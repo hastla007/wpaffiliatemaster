@@ -353,6 +353,10 @@ final class RestApi {
 							'required'  => true,
 							'maxLength' => 64,
 						),
+						'source_refund_id' => array(
+							'type'      => array( 'string', 'integer' ),
+							'maxLength' => 64,
+						),
 						'items'     => array(
 							'type'     => 'array',
 							'maxItems' => ContractApi::MAX_ITEMS,

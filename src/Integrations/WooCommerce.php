@@ -68,6 +68,8 @@ final class WooCommerce {
 		add_action( 'woocommerce_before_delete_order', array( OrderSync::class, 'order_deleting' ), 0 );
 		add_action( 'woocommerce_delete_order_refund', array( OrderSync::class, 'refund_gone' ) );
 		add_action( 'deleted_post', array( OrderSync::class, 'refund_gone' ) );
+		// AC-6: remember the refund that makes the order fully refunded (fires before the status).
+		add_action( 'woocommerce_order_fully_refunded', array( OrderSync::class, 'fully_refunded' ), 10, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( OrderSync::class, 'full_reversal_refunded' ) );
 		add_action( 'woocommerce_order_status_cancelled', array( OrderSync::class, 'full_reversal_cancelled' ) );
 		// Evaluated at status change time, so filters from themes/snippets (loaded later) apply.
