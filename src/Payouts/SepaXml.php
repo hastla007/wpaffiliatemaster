@@ -103,14 +103,22 @@ final class SepaXml {
 	}
 
 	/**
-	 * Requested execution date: next TARGET2 business day after $from
-	 * (skips weekends, 1 Jan, Good Friday, Easter Monday, 1 May, 25/26 Dec).
+	 * Requested execution date: next TARGET2 business day after the day of $from in the site's
+	 * time zone (skips weekends, 1 Jan, Good Friday, Easter Monday, 1 May, 25/26 Dec). The day,
+	 * weekday and holidays are those of the local calendar (P2-15): an export on 24 December at
+	 * 00:30 in Berlin is still 23 December in UTC, but the next business day is 28 December.
 	 *
-	 * @param int $from Timestamp.
+	 * @param int                $from Timestamp.
+	 * @param \DateTimeZone|null $tz   Time zone (default: wp_timezone(), without WordPress UTC).
 	 * @return string Y-m-d
 	 */
-	public static function next_business_day( $from ) {
-		$ts = (int) $from + 86400;
+	public static function next_business_day( $from, $tz = null ) {
+		if ( ! $tz instanceof \DateTimeZone ) {
+			$tz = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+		}
+		$local = ( new \DateTimeImmutable( '@' . (int) $from ) )->setTimezone( $tz );
+		// Calendar arithmetic on the local date, at noon UTC (no daylight saving time in UTC).
+		$ts = gmmktime( 12, 0, 0, (int) $local->format( 'n' ), (int) $local->format( 'j' ), (int) $local->format( 'Y' ) ) + 86400;
 		for ( $i = 0; $i < 10; $i++ ) {
 			$day    = gmdate( 'Y-m-d', $ts );
 			$easter = self::easter( (int) gmdate( 'Y', $ts ) );

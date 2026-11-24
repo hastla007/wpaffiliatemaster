@@ -2050,6 +2050,23 @@ final class Portal {
 	}
 
 	/**
+	 * Amount a payout transfers (P2-14): without a withholding the gross amount, with one the
+	 * amount after it and the amount before it in brackets.
+	 *
+	 * @param int    $gross    Gross amount (incl. VAT).
+	 * @param int    $withheld Expected withholding.
+	 * @param string $currency Currency.
+	 * @return string
+	 */
+	private static function amount_after_withholding( $gross, $withheld, $currency ) {
+		if ( $withheld <= 0 ) {
+			return Money::format( (int) $gross, $currency );
+		}
+		/* translators: 1: amount transferred after the withholding, 2: amount before the withholding */
+		return sprintf( __( '%1$s (%2$s before withholding)', 'affiliate-captain' ), Money::format( (int) $gross - (int) $withheld, $currency ), Money::format( (int) $gross, $currency ) );
+	}
+
+	/**
 	 * Payouts tab.
 	 *
 	 * @param object $aff Affiliate.
@@ -2059,14 +2076,21 @@ final class Portal {
 			$open      = PayoutRequests::open_for( (int) $aff->id );
 			$amounts   = PayoutRequests::available_all( (int) $aff->id );
 			$shown     = array();
+			$withheld  = false;
 			foreach ( $amounts as $cur => $a ) {
-				$shown[] = Money::format( $a['gross'], $cur );
+				// P2-14: with a withholding the amount transferred, the amount before it in brackets.
+				$shown[]  = self::amount_after_withholding( (int) $a['gross'], (int) $a['withheld'], $cur );
+				$withheld = $withheld || $a['withheld'] > 0;
 			}
 			// What a payout would pay now (incl. VAT, without commissions held back by an open correction).
 			/* translators: %s: amount(s) */
 			echo '<p>' . esc_html( sprintf( __( 'Available for payout: %s', 'affiliate-captain' ), $shown ? implode( ' · ', $shown ) : Money::format( 0, Settings::get( 'currency' ) ) ) ) . '</p>';
+			if ( $withheld ) {
+				echo '<p class="wpac-muted">' . esc_html__( 'A withholding is deducted from your payouts; the amount in brackets is the amount before the withholding. The minimum payout applies to the amount before the withholding.', 'affiliate-captain' ) . '</p>';
+			}
 			$req_cur   = PayoutRequests::request_currency( (int) $aff->id );
 			$available = '' !== $req_cur ? (int) $amounts[ $req_cur ]['payout_gross'] : 0; // Within the maximum payout (SET-AC-19).
+			$req_held  = '' !== $req_cur ? (int) $amounts[ $req_cur ]['payout_withheld'] : 0;
 			if ( $open ) {
 				/* translators: %s: date */
 				echo '<div class="wpac-notice">' . esc_html( sprintf( __( 'Payout requested on %s – in progress.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ), strtotime( $open->created_at . ' UTC' ) ) ) ) . '</div>';
@@ -2081,7 +2105,7 @@ final class Portal {
 					echo '<form method="post">';
 					wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 					/* translators: %s: amount */
-					echo '<input type="hidden" name="wpac_portal_action" value="payout_request"><button class="wpac-button">' . esc_html( sprintf( __( 'Request payout of %s', 'affiliate-captain' ), Money::format( $available, '' !== $req_cur ? $req_cur : (string) Settings::get( 'currency' ) ) ) ) . '</button></form>';
+					echo '<input type="hidden" name="wpac_portal_action" value="payout_request"><button class="wpac-button">' . esc_html( sprintf( __( 'Request payout of %s', 'affiliate-captain' ), self::amount_after_withholding( $available, $req_held, '' !== $req_cur ? $req_cur : (string) Settings::get( 'currency' ) ) ) ) . '</button></form>';
 				} else {
 					echo '<p class="wpac-muted">' . esc_html( $can ) . '</p>';
 				}

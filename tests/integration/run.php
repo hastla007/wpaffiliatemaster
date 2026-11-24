@@ -1601,6 +1601,7 @@ require __DIR__ . '/set-ac-a11y.php'; // SET-AC-25: required keys and limits of 
 require __DIR__ . '/set-ac-wiz.php'; // SET-AC-24: setup wizard flow (before r8-render).
 require __DIR__ . '/set-ac-xfer.php'; // SET-AC-08a: groups, rules, tiers and e-mail templates in the settings export (before r8-render).
 require __DIR__ . '/set-ac-fsec.php'; // fsec (0.22.0 review fixes): retention/reset confirmation, non-SEPA destination and shared accounts, privacy export (before r8-render).
+require __DIR__ . '/r24-fpay.php'; // Fix round 24, agent fpay: maximum payout, one open payout, minimum per currency, withholding shown (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1628,6 +1629,7 @@ require __DIR__ . '/set-ac-a11y-render.php'; // After the render files: SET-AC-2
 require __DIR__ . '/set-ac-wiz-render.php'; // After the render files: SET-AC-24 setup wizard pages, notice and links.
 require __DIR__ . '/set-ac-xfer-render.php'; // After the render files: SET-AC-08a sections in the settings export and import preview.
 require __DIR__ . '/set-ac-fsec-render.php'; // After the render files: P4-05 program export with bank data asks for the password (fsec).
+require __DIR__ . '/r24-fpay-render.php'; // After the render files: P2-14 withholding in the partner area (agent fpay).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

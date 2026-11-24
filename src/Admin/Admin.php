@@ -492,6 +492,10 @@ final class Admin {
 				return __( 'Below minimum – carried forward', 'affiliate-captain' );
 			case 'above_maximum':
 				return \WPAffiliateCaptain\Payouts\PayoutService::above_maximum_text();
+			case 'open_payout':
+				return \WPAffiliateCaptain\Payouts\PayoutService::open_payout_text();
+			case 'min_above_max':
+				return \WPAffiliateCaptain\Payouts\PayoutService::min_above_max_text( $currency, (int) \WPAffiliateCaptain\Core\Fx::min_payout( $currency, $affiliate_id ), (int) \WPAffiliateCaptain\Core\Fx::max_payout( $currency, $affiliate_id ) );
 			case 'no_rate':
 				/* translators: %s: currency */
 				return sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'affiliate-captain' ), $currency );

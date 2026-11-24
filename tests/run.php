@@ -282,6 +282,14 @@ check( 'friday → monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 
 check( 'thursday before good friday → easter tuesday', '2026-04-07', SepaXml::next_business_day( gmmktime( 10, 0, 0, 4, 2, 2026 ) ) );
 check( 'christmas eve → 28 dec', '2026-12-28', SepaXml::next_business_day( gmmktime( 10, 0, 0, 12, 24, 2026 ) ) );
 check( 'normal weekday', '2026-11-12', SepaXml::next_business_day( gmmktime( 10, 0, 0, 11, 11, 2026 ) ) );
+// P2-15: day, weekday and holidays of the site's time zone, not UTC (just after midnight in Berlin).
+$p215_berlin = new DateTimeZone( 'Europe/Berlin' );
+check( 'P2-15 Berlin 24.12. 00:30 (23.12. in UTC) → 28.12.', '2026-12-28', SepaXml::next_business_day( gmmktime( 23, 30, 0, 12, 23, 2026 ), $p215_berlin ) );
+check( 'P2-15 Berlin 31.12. 00:30 (30.12. in UTC) → 04.01.', '2027-01-04', SepaXml::next_business_day( gmmktime( 23, 30, 0, 12, 30, 2026 ), $p215_berlin ) );
+check( 'P2-15 Berlin Saturday 00:30 (Friday in UTC) → Monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 23, 30, 0, 11, 13, 2026 ), $p215_berlin ) );
+check( 'P2-15 Berlin 23.12. 23:30 (22:30 in UTC) → 24.12.', '2026-12-24', SepaXml::next_business_day( gmmktime( 22, 30, 0, 12, 23, 2026 ), $p215_berlin ) );
+check( 'P2-15 New York Friday 22:00 (Saturday in UTC) → Monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 3, 0, 0, 11, 14, 2026 ), new DateTimeZone( 'America/New_York' ) ) );
+check( 'P2-15 New York Thursday 22:00 before Good Friday (Friday in UTC) → Easter Tuesday', '2026-04-07', SepaXml::next_business_day( gmmktime( 2, 0, 0, 4, 3, 2026 ), new DateTimeZone( 'America/New_York' ) ) );
 
 /* Client IP / proxies ----------------------------------------------------- */
 $cf = array( '173.245.48.0/20', '2400:cb00::/32' );

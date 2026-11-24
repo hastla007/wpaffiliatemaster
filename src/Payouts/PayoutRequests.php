@@ -64,7 +64,9 @@ final class PayoutRequests {
 
 	/**
 	 * Currency a request is made in: the program currency when its balance reaches the minimum,
-	 * otherwise the first other currency that does ('' = none reaches it).
+	 * otherwise the first other currency that does ('' = none reaches it). Under a maximum payout
+	 * a currency with a payout that is not paid yet is skipped (P2-10: one payout per partner and
+	 * currency at a time, so the limit cannot be bypassed by a request right after a payout).
 	 *
 	 * @param int $affiliate_id Affiliate.
 	 * @return string
@@ -72,7 +74,7 @@ final class PayoutRequests {
 	public static function request_currency( $affiliate_id ) {
 		foreach ( self::available_all( (int) $affiliate_id ) as $currency => $amounts ) {
 			$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $affiliate_id );
-			if ( null !== $min && $amounts['payout_gross'] >= max( 1, (int) $min ) ) {
+			if ( null !== $min && $amounts['payout_gross'] >= max( 1, (int) $min ) && ! PayoutService::waits_for_open_payout( (int) $affiliate_id, (string) $currency ) ) {
 				return (string) $currency;
 			}
 		}
@@ -135,6 +137,15 @@ final class PayoutRequests {
 		if ( '' === self::request_currency( (int) $aff->id ) ) {
 			foreach ( self::available_all( (int) $aff->id ) as $currency => $amounts ) {
 				$min = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $aff->id );
+				if ( null !== $min && $amounts['gross'] >= max( 1, (int) $min ) && PayoutService::waits_for_open_payout( (int) $aff->id, (string) $currency ) ) {
+					// P2-10: the last payout in this currency is not paid yet.
+					return __( 'Your last payout is still being processed. You can request the next payout once it has been paid.', 'affiliate-captain' );
+				}
+				$max = \WPAffiliateCaptain\Core\Fx::max_payout( $currency, (int) $aff->id );
+				if ( null !== $min && null !== $max && $max > 0 && $min > $max && $amounts['gross'] >= max( 1, (int) $min ) ) {
+					// P2-11: the minimum of this currency is above the maximum payout (a setting on our side).
+					return __( 'Payouts in this currency are currently not possible for organisational reasons on our side. We are working on it – your balance is safe.', 'affiliate-captain' );
+				}
 				if ( null !== $min && $amounts['gross'] >= max( 1, (int) $min ) ) {
 					// Enough balance, but its oldest commission alone exceeds the maximum payout (SET-AC-19).
 					return __( 'Your oldest open commission is larger than the maximum payout amount. Please contact us.', 'affiliate-captain' );
