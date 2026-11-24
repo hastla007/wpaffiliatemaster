@@ -399,7 +399,7 @@ final class PayoutsPage {
 			__( 'Reference', 'affiliate-captain' ),
 			__( 'Payout method', 'affiliate-captain' ),
 			__( 'Payment details', 'affiliate-captain' ),
-			// Bank transfer outside SEPA (new after plugin 0.21.0); the BIC column holds the BIC/SWIFT code.
+			// Bank transfer outside SEPA (since plugin 0.22.0); the BIC column holds the BIC/SWIFT code.
 			__( 'Account number', 'affiliate-captain' ),
 			__( 'Bank code / sort code / routing number', 'affiliate-captain' ),
 			__( 'Bank name', 'affiliate-captain' ),

@@ -1505,7 +1505,7 @@ final class PayoutService {
 
 	/**
 	 * Payout method recorded with a payout (snapshot): manual (PayPal etc.), bank (bank transfer
-	 * outside SEPA, new after plugin 0.21.0) or sepa.
+	 * outside SEPA, since plugin 0.22.0) or sepa.
 	 *
 	 * @param object $p Payout.
 	 * @return string

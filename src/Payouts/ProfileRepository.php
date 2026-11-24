@@ -41,7 +41,7 @@ final class ProfileRepository {
 	/** Prefix of the encrypted payment details of the manual method (distinguishes them from an IBAN). */
 	const MANUAL_PREFIX = 'manual:';
 
-	/** Payout by bank transfer outside SEPA (account number, bank code, bank country; SET-AC-30, new after plugin 0.21.0). */
+	/** Payout by bank transfer outside SEPA (account number, bank code, bank country; SET-AC-30, since plugin 0.22.0). */
 	const METHOD_BANK = 'bank';
 
 	/** Prefix of the encrypted account details of the non-SEPA bank transfer (JSON follows). */
@@ -364,7 +364,7 @@ final class ProfileRepository {
 		 * Format rules of bank accounts outside SEPA per bank country (ISO code => rule, see
 		 * ProfileRepository::bank_rules()). Add or relax countries here.
 		 *
-		 * @since new after plugin 0.21.0
+		 * @since plugin 0.22.0
 		 * @param array $rules Rules.
 		 */
 		$filtered = apply_filters( 'wpac_bank_account_rules', $rules );

@@ -4,7 +4,7 @@ Tags: affiliate, partner program, referral, commission, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 0.21.0
+Stable tag: 0.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -123,6 +123,18 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 8. CSV import of partners with the check result before the import.
 
 == Changelog ==
+
+= 0.22.0 =
+Settings for selling in more countries, part 2; add-on contract 1.10.0 (backwards compatible); database schema 17 (unchanged):
+* New: setup wizard (Affiliate Captain → Setup wizard) – guided, skippable steps for country profile, company details, commission, pages, consent/cookie and a test order; every field uses the settings register and its checks, re-openable from the dashboard checklist and the settings page
+* New: country profiles (DE, AT, CH, EU, other) with a preview of every value before it is applied; taxes per country (retention minimum, small business limits, VAT texts) are settings instead of code. All values are marked "legally and fiscally unchecked" until reviewed. Existing installations keep their current behaviour
+* New: texts per language – partner disclosure, promotion guidelines and e-mail templates per installed language; a language per partner for e-mails and credit notes
+* New: application form – wording of the terms checkbox, up to three extra consent boxes, imprint page and minimum age as settings; every consent is stored with its wording and time and included in the data export
+* New: payout by bank transfer outside SEPA (account number, bank code/sort code/routing number, bank name and country); SEPA and "other payment method" can be switched off; the transfer list has four more columns
+* New: the settings export can include partner groups, commission rules, tier plans and e-mail templates (per language); the import shows per section what is new, changed or rejected, matches items by name/key instead of IDs and never deletes anything or touches partners and commissions (also via WP-CLI --sections)
+* Settings page accessibility: every field is linked to its help text and error message, number fields carry the allowed range, required fields are marked; add-on rows are labelled groups
+* Changed (already active since 0.21.0, now documented): switching on "delete all data on uninstall" needs the typed word DELETE/LÖSCHEN; the setting is no longer exported or imported
+* Developers: commission status actions pass the ID of the history entry as third parameter (contract 1.10.0); filters wpac_country_profiles, wpac_retention_minimum_years, wpac_localized_setting, wpac_text_locales, wpac_bank_account_rules; wpac_statement_locale with partner language and third parameter; payout method bank
 
 = 0.21.0 =
 Settings for selling in more countries; add-on contract 1.9.0 (backwards compatible); database schema 17:
@@ -387,6 +399,9 @@ Review of all modules (security, money, legal, operations, usability):
 * Initial version
 
 == Upgrade Notice ==
+
+= 0.22.0 =
+No database change. New setup wizard, country profiles, texts per language and payout outside SEPA; defaults keep the current behaviour. Add-ons keep working (contract 1.10.0).
 
 = 0.21.0 =
 Database schema 17 (rule columns, added online). New settings for commission base, withholding, logo on documents, document numbers, payout reminder and feature switches; defaults keep the current behaviour.
