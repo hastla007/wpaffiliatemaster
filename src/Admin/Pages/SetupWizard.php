@@ -19,6 +19,7 @@ use WPAffiliateCaptain\Core\CountryProfiles;
 use WPAffiliateCaptain\Core\Money;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Core\SettingsSchema;
+use WPAffiliateCaptain\Core\SettingsTransfer;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -266,6 +267,16 @@ final class SetupWizard {
 			// Unchecked checkboxes are absent: sanitize() reads them as off.
 			if ( isset( $raw[ $name ] ) && is_scalar( $raw[ $name ] ) ) {
 				$in[ $name ] = (string) $raw[ $name ];
+			}
+		}
+		// Amounts of other steps and tabs go along as stored, so the cross checks of sanitize() see
+		// them: a minimum payout above the stored maximum is refused (P1-10). Only the fields of
+		// this step are saved.
+		$stored = Settings::all();
+		foreach ( SettingsSchema::keys_of( 'money' ) as $money ) {
+			$name = self::form_name( $money );
+			if ( ! in_array( $money, $keys, true ) && ! isset( $in[ $name ] ) && isset( $stored[ $money ] ) ) {
+				$in[ $name ] = Money::to_decimal( (int) $stored[ $money ], (string) $stored['currency'] );
 			}
 		}
 		$errors  = array();
@@ -951,14 +962,15 @@ final class SetupWizard {
 		echo '<div id="wpac-wizard-pending" class="notice notice-info inline"><h3>' . esc_html( sprintf( __( 'Country profile %s: please check', 'affiliate-captain' ), CountryProfiles::name( (string) $pending['profile'] ) ) ) . '</h3>';
 		if ( $check['changes'] ) {
 			echo '<table class="widefat striped"><caption class="screen-reader-text">' . esc_html__( 'Changes of the country profile', 'affiliate-captain' ) . '</caption><thead><tr><th scope="col">' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
+			list( $side_old, $side_new ) = SettingsTransfer::sides( $check );
 			foreach ( (array) $check['changes'] as $key => $pair ) {
 				$f   = SettingsSchema::field( (string) $key );
-				$now = (string) $pair[0];
+				$now = SettingsTransfer::shown( (string) $key, $pair[0], $side_old ); // Amounts formatted (P1-14).
 				if ( ! empty( $f['private'] ) && '' !== $now ) {
 					$now = '•••' . ( strlen( $now ) > 6 ? substr( $now, -4 ) : '' );
 				}
 				$legal = ! empty( $f['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
-				echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : (string) $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( (string) $pair[1] ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
+				echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : (string) $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( SettingsTransfer::shown( (string) $key, $pair[1], $side_new ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
 			}
 			echo '</tbody></table>';
 		} else {
@@ -966,6 +978,10 @@ final class SetupWizard {
 		}
 		foreach ( (array) $check['errors'] as $key => $message ) {
 			echo '<p class="wpac-field-error">' . esc_html( ( isset( $labels[ $key ] ) ? $labels[ $key ] : (string) $key ) . ': ' . $message ) . '</p>';
+		}
+		foreach ( isset( $check['notices'] ) ? (array) $check['notices'] : array() as $key => $message ) {
+			// E.g. amounts that keep their value after a currency change without exchange rate (P3-12).
+			echo '<p class="wpac-field-notice">' . esc_html( ( isset( $labels[ $key ] ) ? $labels[ $key ] : (string) $key ) . ': ' . $message ) . '</p>';
 		}
 		echo '<p>';
 		if ( $check['changes'] ) {

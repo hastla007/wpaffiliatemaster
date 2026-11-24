@@ -1330,7 +1330,7 @@ final class PayoutService {
 		 */
 		$prev     = trim( (string) Settings::get( 'small_business_limit_previous' ) );
 		$cur      = trim( (string) Settings::get( 'small_business_limit_current' ) );
-		$currency = strtoupper( (string) Settings::get( 'currency' ) );
+		$currency = Settings::small_business_currency(); // Euro limits taken over from 0.21.0 stay euro (P1-15).
 		$default  = '' === $prev && '' === $cur ? array() : array(
 			$currency => array(
 				'' === $prev ? PHP_INT_MAX : Money::to_minor( $prev, $currency ),

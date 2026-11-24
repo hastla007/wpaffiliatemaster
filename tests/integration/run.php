@@ -1604,6 +1604,7 @@ require __DIR__ . '/set-ac-fsec.php'; // fsec (0.22.0 review fixes): retention/r
 require __DIR__ . '/r24-fpay.php'; // Fix round 24, agent fpay: maximum payout, one open payout, minimum per currency, withholding shown (before r8-render).
 require __DIR__ . '/set-ac-fintl.php'; // Final review fixes P3-08/09/10/11, P6-09 (before r8-render).
 require __DIR__ . '/r24-fops.php'; // Fix round 24.11.2026 (fops): dunning stages, locks, repeated repayments (P2-12).
+require __DIR__ . '/set-ac-fset.php'; // R24 fset: settings transfer, wizard, reset, pages, copy pause (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1633,6 +1634,7 @@ require __DIR__ . '/set-ac-xfer-render.php'; // After the render files: SET-AC-0
 require __DIR__ . '/set-ac-fsec-render.php'; // After the render files: P4-05 program export with bank data asks for the password (fsec).
 require __DIR__ . '/r24-fpay-render.php'; // After the render files: P2-14 withholding in the partner area (agent fpay).
 require __DIR__ . '/r24-fux-render.php'; // After the render files: final review P5-08 … P5-14 (rule and partner forms, payout details, add-on notes, tables).
+require __DIR__ . '/set-ac-fset-render.php'; // After the render files: R24 fset preview notices, texts per language, log level.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

@@ -116,8 +116,9 @@ final class SettingsCommand {
 	}
 
 	/**
-	 * Reset settings to their defaults: one key, a tab, or all tabs. The program currency and the
-	 * document number prefixes are only reset when named as a key; private and secret values never.
+	 * Reset settings to their defaults: one key, a tab, or all tabs. The program currency, the
+	 * document number prefixes and the chosen pages are only reset when named as a key; private,
+	 * secret and local values (maintenance mode, start numbers) never.
 	 *
 	 * ## OPTIONS
 	 *
@@ -141,7 +142,7 @@ final class SettingsCommand {
 		if ( isset( $args[0] ) ) {
 			$key  = self::key( $args );
 			$f    = SettingsSchema::field( $key );
-			$keys = empty( $f['secret'] ) && empty( $f['private'] ) ? array( $key ) : array();
+			$keys = empty( $f['secret'] ) && empty( $f['private'] ) && empty( $f['local'] ) ? array( $key ) : array();
 		} elseif ( ! empty( $assoc['tab'] ) || ! empty( $assoc['all'] ) ) {
 			$keys = SettingsTransfer::reset_keys( ! empty( $assoc['all'] ) ? '' : (string) $assoc['tab'] );
 		} else {
@@ -309,17 +310,34 @@ final class SettingsCommand {
 	/**
 	 * Value for the output: secret values are never shown, private values only with --with-private.
 	 *
-	 * @param string $key   Key.
-	 * @param mixed  $value Value.
+	 * @param string $key      Key.
+	 * @param mixed  $value    Value.
+	 * @param array|null $settings Optional: settings the value belongs to (formats amounts).
 	 * @return string
 	 */
-	public static function shown( $key, $value ) {
+	public static function shown( $key, $value, $settings = null ) {
 		$f = SettingsSchema::field( $key );
 		// Secret values never, private values only with --with-private (P4-04).
 		if ( ! empty( $f['secret'] ) || ( ! empty( $f['private'] ) && ! self::$private ) ) {
 			return '' === (string) $value ? '' : '(set)';
 		}
+		if ( is_array( $settings ) ) {
+			// In a preview of changes amounts are shown formatted in their currency (P1-14).
+			return SettingsTransfer::shown( (string) $key, $value, $settings );
+		}
 		return is_scalar( $value ) ? (string) $value : (string) wp_json_encode( $value );
+	}
+
+	/**
+	 * Print accepted but adjusted values (P3-12), e.g. amounts that keep their value after a
+	 * currency change without exchange rate, or a retention hold that a file cannot lift.
+	 *
+	 * @param array $checked Result of a check.
+	 */
+	private static function print_notices( array $checked ) {
+		foreach ( isset( $checked['notices'] ) ? (array) $checked['notices'] : array() as $key => $message ) {
+			\WP_CLI::warning( $key . ': ' . $message );
+		}
 	}
 
 	/**
@@ -328,12 +346,14 @@ final class SettingsCommand {
 	 * @param array $checked Result of a check.
 	 */
 	private static function print_changes( array $checked ) {
+		list( $old, $new ) = SettingsTransfer::sides( $checked );
 		foreach ( $checked['changes'] as $key => $pair ) {
-			\WP_CLI::line( sprintf( '%s: %s → %s', $key, self::shown( $key, $pair[0] ), self::shown( $key, $pair[1] ) ) );
+			\WP_CLI::line( sprintf( '%s: %s → %s', $key, self::shown( $key, $pair[0], $old ), self::shown( $key, $pair[1], $new ) ) );
 		}
 		foreach ( $checked['errors'] as $key => $message ) {
 			\WP_CLI::warning( $key . ': ' . $message );
 		}
+		self::print_notices( $checked );
 		if ( ! $checked['changes'] && ! $checked['errors'] ) {
 			\WP_CLI::line( 'Nothing to change.' );
 		}
@@ -353,6 +373,7 @@ final class SettingsCommand {
 			}
 			\WP_CLI::error( 'Nothing was changed: some values are not valid.' );
 		}
+		self::print_notices( $checked );
 		if ( ! SettingsTransfer::apply( $checked, $action, $context ) ) {
 			\WP_CLI::error( 'The settings could not be saved (database error).' );
 		}

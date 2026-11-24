@@ -335,14 +335,16 @@ final class SettingsPage {
 		$sections = ! empty( $pending['check']['sections'] ) && \WPAffiliateCaptain\Core\SettingsSections::has_changes( (array) $pending['check']['sections'] ); // SET-AC-08a.
 		echo '<div id="wpac-settings-pending" class="notice notice-info inline"><h2>' . esc_html( $title ) . '</h2>';
 		if ( $pending['check']['changes'] ) {
+			list( $side_old, $side_new ) = \WPAffiliateCaptain\Core\SettingsTransfer::sides( (array) $pending['check'] );
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $pending['check']['changes'] as $key => $pair ) {
 				$f = SettingsSchema::field( $key );
 				$p = ! empty( $f['private'] );
 				// The new value is shown in full, so nobody confirms bank details or addresses blindly (P4-02).
-				$now   = $p ? self::partly_masked( (string) $pair[0] ) : (string) $pair[0];
+				// Amounts are shown formatted in their currency (P1-14).
+				$now   = $p ? self::partly_masked( (string) $pair[0] ) : \WPAffiliateCaptain\Core\SettingsTransfer::shown( (string) $key, $pair[0], $side_old );
 				$legal = ! empty( $f['legal'] ) ? ' <span class="wpac-legal-mark">' . esc_html__( 'Check legally', 'affiliate-captain' ) . '</span>' : '';
-				echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( (string) $pair[1] ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
+				echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( $p ? (string) $pair[1] : \WPAffiliateCaptain\Core\SettingsTransfer::shown( (string) $key, $pair[1], $side_new ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
 			}
 			echo '</tbody></table>';
 		} elseif ( empty( $pending['check']['sections'] ) ) {
@@ -350,6 +352,10 @@ final class SettingsPage {
 		}
 		foreach ( (array) $pending['check']['errors'] as $key => $message ) {
 			echo '<p class="wpac-field-error">' . esc_html( ( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . ': ' . $message ) . '</p>';
+		}
+		// Accepted but adjusted values, e.g. amounts that keep their value after a currency change (P3-12).
+		foreach ( isset( $pending['check']['notices'] ) ? (array) $pending['check']['notices'] : array() as $key => $message ) {
+			echo '<p class="wpac-field-notice">' . esc_html( ( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . ': ' . $message ) . '</p>';
 		}
 		if ( ! empty( $pending['check']['ignored'] ) ) {
 			echo '<p class="description">' . esc_html( __( 'Ignored (unknown or not importable):', 'affiliate-captain' ) . ' ' . implode( ', ', array_map( 'strval', (array) $pending['check']['ignored'] ) ) ) . '</p>';
@@ -1104,7 +1110,7 @@ final class SettingsPage {
 		self::text( 'storno_prefix', null, $s );
 		self::text( 'correction_prefix', null, $s );
 		/* translators: %s: currency code */
-		$in_currency = sprintf( __( 'Currency: %s.', 'affiliate-captain' ), $currency );
+		$in_currency = sprintf( __( 'Currency: %s.', 'affiliate-captain' ), \WPAffiliateCaptain\Core\Settings::small_business_currency() );
 		self::text( 'small_business_limit_previous', null, $s, SettingsSchema::help( 'small_business_limit_previous' ) . ' ' . $in_currency );
 		self::text( 'small_business_limit_current', null, $s, SettingsSchema::help( 'small_business_limit_current' ) . ' ' . $in_currency );
 		self::end();
@@ -1427,6 +1433,11 @@ final class SettingsPage {
 				/* translators: %s: date and time */
 				? sprintf( __( 'Verbose is on until %s, then the default applies again.', 'affiliate-captain' ), wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $until ) )
 				: __( 'The 7 days of verbose logging have ended: the default applies again.', 'affiliate-captain' ) );
+			if ( $until <= time() ) {
+				// The level in effect is selected (P1-17): saving the tab must not start 7 more days of
+				// verbose logging; choosing "verbose" again does.
+				$s['log_level'] = \WPAffiliateCaptain\Core\Log::DEFAULT_LEVEL;
+			}
 		}
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			$desc .= ' ' . __( 'WP_DEBUG is on: everything is written at the moment.', 'affiliate-captain' );
@@ -1480,6 +1491,8 @@ final class SettingsPage {
 
 	/**
 	 * Texts per installed language (SET-AC-17): one field per language other than the site language.
+	 * Stored texts of a language that is not installed (any more) get their own field marked "not
+	 * installed", so they are neither lost nor hidden (P1-16).
 	 *
 	 * @param string $key       Setting key of type i18n.
 	 * @param array  $s         Settings.
@@ -1491,6 +1504,12 @@ final class SettingsPage {
 		$texts                = is_array( $texts ) ? $texts : array();
 		$langs                = \WPAffiliateCaptain\Core\Locale::installed();
 		unset( $langs[ \WPAffiliateCaptain\Core\Locale::site() ] );
+		foreach ( $texts as $locale => $text ) {
+			if ( ! isset( $langs[ $locale ] ) && (string) $locale !== \WPAffiliateCaptain\Core\Locale::site() && '' !== trim( (string) $text ) ) {
+				/* translators: %s: language code, e.g. fr_FR */
+				$langs[ $locale ] = sprintf( __( '%s (not installed)', 'affiliate-captain' ), $locale );
+			}
+		}
 		$err = self::error_parts( $key, true );
 		echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>';
 		if ( ! $langs ) {
