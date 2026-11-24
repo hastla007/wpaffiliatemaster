@@ -150,10 +150,29 @@ final class ProfileRepository {
 			if ( is_wp_error( $bank ) ) {
 				return true; // Refused by save() anyway; never let it pass without the password.
 			}
-			return null !== $bank && self::bank_details( $profile ) !== $bank;
+			// Outside SEPA the SWIFT/BIC names the receiving bank and the holder the account of many
+			// banks (no IBAN check digits): both redirect the money like the account number (P4-08).
+			return ( null !== $bank && self::bank_details( $profile ) !== $bank ) || self::bank_holder_changed( $profile, $in );
 		}
 		$iban = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
 		return '' !== $iban && self::iban( $profile ) !== $iban;
+	}
+
+	/**
+	 * Whether an input changes the SWIFT/BIC or the account holder of a stored non-SEPA account
+	 * (normalized as save() stores them; P4-08).
+	 *
+	 * @param object|null $profile Stored profile.
+	 * @param array       $in      Input as passed to save().
+	 * @return bool
+	 */
+	private static function bank_holder_changed( $profile, array $in ) {
+		if ( ! $profile || self::METHOD_BANK !== self::method( $profile ) ) {
+			return false;
+		}
+		$holder = sanitize_text_field( isset( $in['account_holder'] ) ? (string) $in['account_holder'] : '' );
+		$bic    = strtoupper( substr( (string) preg_replace( '/[^A-Za-z0-9]/', '', isset( $in['bic'] ) ? (string) $in['bic'] : '' ), 0, 11 ) );
+		return (string) $profile->account_holder !== $holder || strtoupper( (string) $profile->bic ) !== $bic;
 	}
 
 	/**
@@ -672,6 +691,7 @@ final class ProfileRepository {
 		$old_method  = self::method( $existing );
 		$details_new = false;
 		$bank_new    = false;
+		$bank        = null;
 		$iban        = Iban::normalize( isset( $in['iban'] ) ? (string) $in['iban'] : '' );
 		$current     = self::current_method( $existing );
 		if ( self::METHOD_MANUAL === $method && self::METHOD_MANUAL !== $old_method && ! self::manual_enabled() ) {
@@ -827,13 +847,16 @@ final class ProfileRepository {
 			Vies::schedule( (int) $affiliate_id ); // Check the new VAT ID against VIES in the background.
 		}
 		if ( ! $held && ( '' !== $iban || self::METHOD_SEPA !== $method ) ) {
-			self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : array() );
+			// Accounts outside SEPA count for the fraud rule "shared_iban" too (P4-09).
+			$others = '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : ( self::METHOD_BANK === $method && is_array( $bank ) ? self::partners_with_account( (int) $affiliate_id, $bank ) : array() );
+			self::note_shared_iban( (int) $affiliate_id, $others );
 		}
 		if ( $pending && '' !== $tax_new['vat_id'] ) {
 			Vies::schedule( (int) $affiliate_id ); // Checks the requested VAT ID: the result helps the admin decide.
 		}
 		$had_details = $existing && '' !== (string) $existing->iban_encrypted;
-		$changed     = ! $held && $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $bank_new || $method !== $old_method );
+		$holder_new  = self::METHOD_BANK === $method && self::bank_holder_changed( $existing, $in ); // SWIFT/BIC or holder outside SEPA (P4-08).
+		$changed     = ! $held && $had_details && ( ( '' !== $iban && Crypto::decrypt( (string) $existing->iban_encrypted ) !== $iban ) || $details_new || $bank_new || $holder_new || $method !== $old_method );
 		if ( $held ) {
 			Audit::log( 'payout_profile.bank_change_requested', 'affiliate', (int) $affiliate_id, array( 'payout_method' => $method ) );
 			self::notify_bank_change_held( (int) $affiliate_id );
@@ -851,7 +874,7 @@ final class ProfileRepository {
 				'payout_method'   => $method,
 				'iban_changed'    => ! $held && '' !== $iban,
 				'details_changed' => ! $held && $details_new,
-				'account_changed' => ! $held && $bank_new,
+				'account_changed' => ! $held && ( $bank_new || $holder_new ),
 				'bank_held'       => $held,
 			)
 		);
@@ -917,7 +940,8 @@ final class ProfileRepository {
 		Audit::log( 'payout_profile.bank_change_approved', 'affiliate', (int) $affiliate_id, array( 'payout_method' => (string) $pending['method'] ) );
 		$profile = self::get( (int) $affiliate_id );
 		$iban    = self::METHOD_SEPA === self::method( $profile ) ? (string) self::iban( $profile ) : '';
-		self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : array() );
+		$bank    = self::bank_details( $profile );
+		self::note_shared_iban( (int) $affiliate_id, '' !== $iban ? self::partners_with_iban( (int) $affiliate_id, $iban ) : ( $bank ? self::partners_with_account( (int) $affiliate_id, $bank ) : array() ) );
 		\WPAffiliateCaptain\Affiliates\Notifications::bank_details_changed( (int) $affiliate_id );
 		return true;
 	}
@@ -1022,6 +1046,36 @@ final class ProfileRepository {
 		$out = array();
 		foreach ( (array) $rows as $row ) {
 			if ( Crypto::decrypt( (string) $row->iban_encrypted ) === $iban ) {
+				$out[] = (int) $row->affiliate_id;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Other partners whose payout profile has the same account outside SEPA: same bank country,
+	 * account number and bank code (only rows of the bank transfer with the same last four
+	 * characters are decrypted; P4-09).
+	 *
+	 * @param int   $affiliate_id Partner.
+	 * @param array $bank         Account (bank_details() / bank_input()).
+	 * @return int[]
+	 */
+	public static function partners_with_account( $affiliate_id, array $bank ) {
+		global $wpdb;
+		$number = isset( $bank['account_number'] ) ? self::bank_clean( (string) $bank['account_number'] ) : '';
+		if ( '' === $number ) {
+			return array();
+		}
+		$country = strtoupper( isset( $bank['bank_country'] ) ? (string) $bank['bank_country'] : '' );
+		$code    = self::bank_clean( isset( $bank['bank_code'] ) ? (string) $bank['bank_code'] : '' );
+		$t       = Db::table( 'payout_profiles' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT affiliate_id, iban_encrypted, iban_country, iban_last4 FROM {$t} WHERE iban_country = '' AND iban_last4 = %s AND affiliate_id <> %d LIMIT 200", substr( $number, -4 ), $affiliate_id ) );
+		$out  = array();
+		foreach ( (array) $rows as $row ) {
+			$other = self::bank_details( $row );
+			if ( $other && self::bank_clean( $other['account_number'] ) === $number && strtoupper( $other['bank_country'] ) === $country && self::bank_clean( $other['bank_code'] ) === $code ) {
 				$out[] = (int) $row->affiliate_id;
 			}
 		}

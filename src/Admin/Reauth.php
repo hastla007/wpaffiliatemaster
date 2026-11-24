@@ -55,7 +55,7 @@ final class Reauth {
 	const ATTEMPT_WINDOW = 900;
 
 	/** Actions (see action_key()) that need a confirmation by default. */
-	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive', 'withholding_update', 'settings_profile_apply' );
+	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive', 'withholding_update', 'settings_profile_apply', 'program_export_tax', 'settings_retention_lower' );
 
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
@@ -108,8 +108,17 @@ final class Reauth {
 		}
 		if ( 'settings_reset_apply' === $do ) {
 			$pending = get_transient( 'wpac_settings_pending_' . get_current_user_id() );
-			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', 'data', '' ), true ) ) {
-				return 'settings_reset_money'; // Money tabs (SET-AC-09) and retention periods (P1-05).
+			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', 'data', 'security', '' ), true ) ) {
+				return 'settings_reset_money'; // Money tabs (SET-AC-09), retention periods (P1-05), protections (P4-07).
+			}
+			// Any other reset that changes a protected value (bank details, alert address, waiting
+			// periods, password confirmation window) asks like saving it would (P4-07).
+			$changes = is_array( $pending ) && isset( $pending['check']['changes'] ) && is_array( $pending['check']['changes'] ) ? $pending['check']['changes'] : array();
+			foreach ( array_keys( $changes ) as $key ) {
+				$f = \WPAffiliateCaptain\Core\SettingsSchema::field( (string) $key );
+				if ( $f && ! empty( $f['sensitive'] ) ) {
+					return 'settings_reset_money';
+				}
 			}
 		}
 		if ( 'settings_save' === $do && (int) Settings::get( 'reauth_required' ) && 'security' === Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) ) ) {
@@ -120,6 +129,9 @@ final class Reauth {
 		}
 		if ( 'wizard_profile_apply' === $do ) {
 			return 'settings_profile_apply'; // Same confirmation as on the settings page (SET-AC-24).
+		}
+		if ( ( 'settings_save' === $do || 'wizard_save' === $do ) && self::lowers_retention( $do ) ) {
+			return 'settings_retention_lower'; // A file never lifts the hold either (P1-05, P4-06).
 		}
 		if ( 'settings_save' === $do || 'wizard_save' === $do ) {
 			// Values that weaken a protection or redirect money/alerts need the same confirmation
@@ -134,6 +146,46 @@ final class Reauth {
 			}
 		}
 		return $do;
+	}
+
+	/**
+	 * Whether a posted settings form lifts the retention hold or shortens the retention of
+	 * statements (period or legal minimum; P4-06). Raising them needs no confirmation. An absent
+	 * checkbox means "off" only on the settings tab that shows it.
+	 *
+	 * @param string $do settings_save or wizard_save.
+	 * @return bool
+	 */
+	private static function lowers_retention( $do ) {
+		$raw = Admin::post( 'wpac', array() );
+		if ( ! is_array( $raw ) ) {
+			return false;
+		}
+		if ( (int) Settings::get( 'retention_hold' ) ) {
+			$tabs  = \WPAffiliateCaptain\Core\SettingsSchema::tabs();
+			$tab   = Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) );
+			$shown = 'settings_save' === $do && isset( $tabs[ $tab ] ) && in_array( 'retention_hold', (array) $tabs[ $tab ], true );
+			if ( array_key_exists( 'retention_hold', $raw ) ? empty( $raw['retention_hold'] ) : $shown ) {
+				return true;
+			}
+		}
+		// Years: 0 = keep forever.
+		$years = static function ( $v ) {
+			return (int) $v <= 0 ? PHP_INT_MAX : (int) $v;
+		};
+		if ( array_key_exists( 'statement_retention_years', $raw ) && is_numeric( trim( (string) $raw['statement_retention_years'] ) ) && $years( trim( (string) $raw['statement_retention_years'] ) ) < $years( Settings::get( 'statement_retention_years' ) ) ) {
+			return true;
+		}
+		if ( array_key_exists( 'statement_retention_minimum', $raw ) && is_numeric( trim( (string) $raw['statement_retention_minimum'] ) ) ) {
+			// Minimum: 0 = value of the country profile; compared as it applies.
+			$country = isset( $raw['operator_country'] ) && is_string( $raw['operator_country'] ) && '' !== trim( $raw['operator_country'] ) ? (string) $raw['operator_country'] : (string) Settings::get( 'operator_country' );
+			$new     = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $country, (int) trim( (string) $raw['statement_retention_minimum'] ) );
+			$old     = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $country, (int) Settings::get( 'statement_retention_minimum' ) );
+			if ( $new < $old ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -340,7 +392,9 @@ final class Reauth {
 			'repayment'           => __( 'Book a repayment', 'affiliate-captain' ),
 			'settings_import_apply'   => __( 'Import settings', 'affiliate-captain' ),
 			'settings_export_private' => __( 'Export settings with bank details and addresses', 'affiliate-captain' ),
-			'settings_reset_money'    => __( 'Reset commission or payout settings', 'affiliate-captain' ),
+			'settings_reset_money'    => __( 'Reset commission, payout, retention or security settings', 'affiliate-captain' ),
+			'settings_retention_lower' => __( 'Shorten the retention of statements or lift the retention hold', 'affiliate-captain' ),
+			'program_export_tax'      => __( 'Export the program with tax and bank data', 'affiliate-captain' ),
 			'settings_sensitive'      => __( 'Change bank details, notification address or protection settings', 'affiliate-captain' ),
 			'roles_save'              => __( 'Change the permissions of user roles', 'affiliate-captain' ),
 			'settings_profile_apply'  => __( 'Apply a country profile (VAT, retention, credit notes)', 'affiliate-captain' ),
@@ -525,6 +579,10 @@ final class Reauth {
 			$_SERVER['HTTP_REFERER'] = (string) $p['return'];
 		}
 		// phpcs:enable
+		if ( isset( $_POST['action'] ) && 'wpac_export' === $_POST['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the handler verifies the kept nonce.
+			Pages\ImportExportPage::handle_export(); // Own admin-post action, not routed by dispatch() (P4-05).
+			return;
+		}
 		Admin::dispatch();
 	}
 

@@ -542,7 +542,7 @@ final class Privacy {
 	 * @return array
 	 */
 	public static function payout_item( $p ) {
-		return array(
+		$item = array(
 			'group_id'    => 'wpac-payouts',
 			'group_label' => __( 'Payouts', 'affiliate-captain' ),
 			'item_id'     => 'wpac-payout-' . $p->id,
@@ -558,6 +558,15 @@ final class Privacy {
 				array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $p->note ),
 			),
 		);
+		// Amount withheld from the transfer (SET-AC-20; P4-10): the line of the credit note.
+		$w = \WPAffiliateCaptain\Payouts\Withholding::of_payout( $p );
+		if ( $w ) {
+			$item['data'][] = array(
+				'name'  => \WPAffiliateCaptain\Payouts\Withholding::label( $w, (string) $p->currency ),
+				'value' => Money::format( (int) $w['minor'], $p->currency ),
+			);
+		}
+		return $item;
 	}
 
 	/**
@@ -805,6 +814,36 @@ final class Privacy {
 				'group_label' => __( 'Payout details', 'affiliate-captain' ),
 				'item_id'     => 'wpac-profile-' . $id,
 				'data'        => $data,
+			);
+		}
+		// A new payout destination waiting for approval (R14-S1), masked like the stored one (P4-10).
+		$bank_pending = ProfileRepository::pending_bank_change( $id );
+		if ( $bank_pending ) {
+			$methods = ProfileRepository::method_labels();
+			$method  = isset( $bank_pending['method'] ) ? (string) $bank_pending['method'] : '';
+			$items[] = array(
+				'group_id'    => 'wpac-payout-profile',
+				'group_label' => __( 'Payout details', 'affiliate-captain' ),
+				'item_id'     => 'wpac-profile-pending-' . $id,
+				'data'        => array(
+					array( 'name' => __( 'Requested change of the bank details (waiting for approval)', 'affiliate-captain' ), 'value' => ProfileRepository::pending_bank_label( $bank_pending ) ),
+					array( 'name' => __( 'Payout method', 'affiliate-captain' ), 'value' => isset( $methods[ $method ] ) ? $methods[ $method ] : $method ),
+					array( 'name' => __( 'Account holder', 'affiliate-captain' ), 'value' => isset( $bank_pending['data']['account_holder'] ) ? (string) $bank_pending['data']['account_holder'] : '' ),
+					array( 'name' => __( 'Requested on', 'affiliate-captain' ), 'value' => isset( $bank_pending['requested_at'] ) ? (string) $bank_pending['requested_at'] : '' ),
+				),
+			);
+		}
+		// Withholding set for the partner (SET-AC-20; P4-10): percentage and the note on credit notes.
+		$withholding = \WPAffiliateCaptain\Payouts\Withholding::get( $id );
+		if ( '0' !== (string) $withholding['percent'] ) {
+			$items[] = array(
+				'group_id'    => 'wpac-withholding',
+				'group_label' => __( 'Withholding', 'affiliate-captain' ),
+				'item_id'     => 'wpac-withholding-' . $id,
+				'data'        => array(
+					array( 'name' => __( 'Percentage', 'affiliate-captain' ), 'value' => \WPAffiliateCaptain\Core\Locale::number( (string) $withholding['percent'] ) . ' %' ),
+					array( 'name' => __( 'Note', 'affiliate-captain' ), 'value' => (string) $withholding['note'] ),
+				),
 			);
 		}
 		// Earlier tax data (decide the VAT of payouts of earlier services) and a pending change.
