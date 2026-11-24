@@ -179,16 +179,23 @@ final class AddonHints {
 		if ( $rows['notes'] ) {
 			$builtin = (bool) array_filter( array_column( $rows['notes'], 'builtin' ) );
 			echo '<h2 class="wpac-addon-notes-title">' . ( $builtin ? esc_html__( 'More with Affiliate Captain Pro', 'affiliate-captain' ) : esc_html__( 'Add-ons', 'affiliate-captain' ) ) . '</h2><table class="form-table wpac-addon-notes" role="presentation">';
+			$linked = array();
 			foreach ( $rows['notes'] as $row ) {
 				// Text only: no form field, no name attribute, no stored value. The Pro mark only on built-in notes.
 				$mark = ! empty( $row['builtin'] ) ? '<span class="wpac-pro-mark">' . esc_html__( 'Pro', 'affiliate-captain' ) . '</span> ' : '';
 				echo '<tr class="wpac-addon-note"><th scope="row">' . $mark . esc_html( $row['title'] ) . '</th><td><p class="description">' . esc_html( $row['text'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $mark is escaped above.
-				if ( '' !== $row['link'] ) {
+				// One "Learn more" per address in the block: identical links side by side say nothing new (P5-13).
+				if ( '' !== $row['link'] && ! isset( $linked[ $row['link'] ] ) ) {
+					$linked[ $row['link'] ] = true;
 					echo ' <a href="' . esc_url( $row['link'] ) . '" target="_blank" rel="noopener">' . esc_html__( 'Learn more', 'affiliate-captain' ) . '<span class="screen-reader-text"> ' . esc_html__( '(opens in a new tab)', 'affiliate-captain' ) . '</span></a>';
 				}
 				echo '</p></td></tr>';
 			}
 			echo '</table>';
+			if ( $builtin ) {
+				// The switch is on tab "Data"; the link leads to it from where the notes appear (P5-13).
+				echo '<p class="wpac-addon-notes-hide"><a href="' . esc_url( \WPAffiliateCaptain\Admin\Admin::url( 'wpac-settings', array( 'tab' => 'data' ) ) . '#wpac-addon_hints' ) . '">' . esc_html__( 'Hide these hints', 'affiliate-captain' ) . '</a></p>';
+			}
 		}
 	}
 }

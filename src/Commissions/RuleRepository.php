@@ -92,9 +92,40 @@ final class RuleRepository {
 	 * currency; valid_from/valid_until as YYYY-MM-DD (site time zone, inclusive; empty = open).
 	 *
 	 * @param array $in Input.
-	 * @return array|\WP_Error
+	 * @return array|\WP_Error The first problem (see field_errors() for all of them).
 	 */
 	public static function sanitize( array $in ) {
+		$checked = self::check( $in );
+		if ( $checked['errors'] ) {
+			$first = reset( $checked['errors'] );
+			return new \WP_Error( $first[0], $first[1] );
+		}
+		return $checked['data'];
+	}
+
+	/**
+	 * All problems of raw rule input, per form field (scope, target_value, rate, max_amount,
+	 * min_base, valid_from, valid_until), so a form can show each one at its field.
+	 *
+	 * @param array $in Input (as for sanitize()).
+	 * @return array<string,string> Field => message; empty when the input is valid.
+	 */
+	public static function field_errors( array $in ) {
+		$out = array();
+		foreach ( self::check( $in )['errors'] as $field => $error ) {
+			$out[ $field ] = $error[1];
+		}
+		return $out;
+	}
+
+	/**
+	 * Check and sanitize raw rule input.
+	 *
+	 * @param array $in Input.
+	 * @return array{data: array|null, errors: array<string,array{0:string,1:string}>} Errors per field (code, message), in form order.
+	 */
+	private static function check( array $in ) {
+		$errors    = array();
 		$scope     = isset( $in['scope'] ) && in_array( $in['scope'], array( 'global', 'group', 'affiliate' ), true ) ? $in['scope'] : 'global';
 		$target    = isset( $in['target'] ) && in_array( $in['target'], array( 'all', 'product', 'category', 'tag', 'sku' ), true ) ? $in['target'] : 'all';
 		$rate_type = isset( $in['rate_type'] ) && in_array( $in['rate_type'], array( 'percent', 'fixed', 'exclude' ), true ) ? $in['rate_type'] : 'percent';
@@ -102,70 +133,85 @@ final class RuleRepository {
 		if ( 'exclude' !== $rate_type ) {
 			$dec = Money::normalize_decimal( isset( $in['rate'] ) ? (string) $in['rate'] : '' );
 			if ( null === $dec || (float) $dec < 0 ) {
-				return new \WP_Error( 'wpac_rate', __( 'Please enter a valid rate.', 'affiliate-captain' ) );
+				$errors['rate'] = array( 'wpac_rate', __( 'Please enter a valid rate.', 'affiliate-captain' ) );
+			} elseif ( 'percent' === $rate_type && (float) $dec > 100 ) {
+				$errors['rate'] = array( 'wpac_rate', __( 'A percentage cannot exceed 100.', 'affiliate-captain' ) );
+			} else {
+				$rate = 'fixed' === $rate_type ? (string) Money::to_minor( $dec, Settings::get( 'currency' ) ) : $dec;
 			}
-			if ( 'percent' === $rate_type && (float) $dec > 100 ) {
-				return new \WP_Error( 'wpac_rate', __( 'A percentage cannot exceed 100.', 'affiliate-captain' ) );
-			}
-			$rate = 'fixed' === $rate_type ? (string) Money::to_minor( $dec, Settings::get( 'currency' ) ) : $dec;
 		}
 		$scope_id = 'global' === $scope ? 0 : ( isset( $in['scope_id'] ) ? absint( $in['scope_id'] ) : 0 );
 		if ( 'global' !== $scope && ! $scope_id ) {
-			return new \WP_Error( 'wpac_scope', __( 'Please choose a partner or group for this rule.', 'affiliate-captain' ) );
+			$errors['scope'] = array( 'wpac_scope', __( 'Please choose a partner or group for this rule.', 'affiliate-captain' ) );
 		}
 		$value = 'all' === $target ? '' : sanitize_text_field( isset( $in['target_value'] ) ? (string) $in['target_value'] : '' );
 		if ( 'all' !== $target && '' === $value ) {
-			return new \WP_Error( 'wpac_target', __( 'Please enter product IDs, category/tag IDs or SKUs/course codes.', 'affiliate-captain' ) );
+			$errors['target_value'] = array( 'wpac_target', __( 'Please enter product IDs, category/tag IDs or SKUs/course codes.', 'affiliate-captain' ) );
 		}
 		// SET-AC-22: cap per line and minimum base (decimal amounts in the program currency,
 		// empty = none), validity in calendar days of the site's time zone (empty = open).
-		$amounts = array();
+		$amounts = array(
+			'max_amount_minor' => 0,
+			'min_base_minor'   => 0,
+		);
 		foreach ( array( 'max_amount' => 'max_amount_minor', 'min_base' => 'min_base_minor' ) as $field => $column ) {
 			$raw = isset( $in[ $field ] ) ? trim( (string) $in[ $field ] ) : '';
 			if ( '' === $raw ) {
-				$amounts[ $column ] = 0;
 				continue;
 			}
 			$dec = Money::normalize_decimal( $raw );
 			if ( null === $dec || (float) $dec < 0 ) {
-				return new \WP_Error( 'wpac_rule_' . $field, 'max_amount' === $field ? __( 'Please enter a valid maximum commission per line (or leave it empty).', 'affiliate-captain' ) : __( 'Please enter a valid minimum amount (or leave it empty).', 'affiliate-captain' ) );
+				$errors[ $field ] = array( 'wpac_rule_' . $field, 'max_amount' === $field ? __( 'Please enter a valid maximum commission per line (or leave it empty).', 'affiliate-captain' ) : __( 'Please enter a valid minimum amount (or leave it empty).', 'affiliate-captain' ) );
+				continue;
 			}
 			$amounts[ $column ] = Money::to_minor( $dec, Settings::get( 'currency' ) );
 		}
 		if ( 'exclude' === $rate_type ) {
 			$amounts['max_amount_minor'] = 0; // Nothing to cap.
 		}
-		$days = array();
+		$days = array(
+			'valid_from'  => null,
+			'valid_until' => null,
+		);
 		foreach ( array( 'valid_from', 'valid_until' ) as $field ) {
 			$raw = isset( $in[ $field ] ) ? trim( (string) $in[ $field ] ) : '';
 			if ( '' === $raw ) {
-				$days[ $field ] = null;
 				continue;
 			}
 			$day = Calculator::day( $raw );
 			$dt  = '' !== $day ? \DateTimeImmutable::createFromFormat( '!Y-m-d', $day ) : false;
 			if ( ! $dt || $dt->format( 'Y-m-d' ) !== $day ) {
-				return new \WP_Error( 'wpac_rule_' . $field, __( 'Please enter the validity dates as YYYY-MM-DD (or leave them empty).', 'affiliate-captain' ) );
+				$errors[ $field ] = array( 'wpac_rule_' . $field, __( 'Please enter the validity dates as YYYY-MM-DD (or leave them empty).', 'affiliate-captain' ) );
+				continue;
 			}
 			$days[ $field ] = $day;
 		}
 		if ( null !== $days['valid_from'] && null !== $days['valid_until'] && $days['valid_until'] < $days['valid_from'] ) {
-			return new \WP_Error( 'wpac_rule_valid_until', __( 'The end of the validity cannot be before its start.', 'affiliate-captain' ) );
+			$errors['valid_until'] = array( 'wpac_rule_valid_until', __( 'The end of the validity cannot be before its start.', 'affiliate-captain' ) );
+		}
+		if ( $errors ) {
+			return array(
+				'data'   => null,
+				'errors' => $errors,
+			);
 		}
 		return array(
-			'scope'            => $scope,
-			'scope_id'         => $scope_id,
-			'target'           => $target,
-			'target_value'     => $value,
-			'rate_type'        => $rate_type,
-			'rate'             => $rate,
-			'max_amount_minor' => $amounts['max_amount_minor'],
-			'min_base_minor'   => $amounts['min_base_minor'],
-			'valid_from'       => $days['valid_from'],
-			'valid_until'      => $days['valid_until'],
-			'priority'         => isset( $in['priority'] ) ? (int) $in['priority'] : 0,
-			'active'           => empty( $in['active'] ) ? 0 : 1,
-			'note'             => sanitize_text_field( isset( $in['note'] ) ? (string) $in['note'] : '' ),
+			'errors' => array(),
+			'data'   => array(
+				'scope'            => $scope,
+				'scope_id'         => $scope_id,
+				'target'           => $target,
+				'target_value'     => $value,
+				'rate_type'        => $rate_type,
+				'rate'             => $rate,
+				'max_amount_minor' => $amounts['max_amount_minor'],
+				'min_base_minor'   => $amounts['min_base_minor'],
+				'valid_from'       => $days['valid_from'],
+				'valid_until'      => $days['valid_until'],
+				'priority'         => isset( $in['priority'] ) ? (int) $in['priority'] : 0,
+				'active'           => empty( $in['active'] ) ? 0 : 1,
+				'note'             => sanitize_text_field( isset( $in['note'] ) ? (string) $in['note'] : '' ),
+			),
 		);
 	}
 

@@ -65,6 +65,15 @@ final class Settings {
 				// Settings of a version up to and including 0.21.0 (SET-AC-04 b): the small business check keeps
 				// working as before – German operators with euro amounts 25,000 / 100,000 €, others none.
 				$legacy = self::legacy_small_business( (string) self::$cache['operator_country'], (string) self::$cache['currency'] );
+				if ( is_array( $saved ) && 'DE' === strtoupper( (string) self::$cache['operator_country'] ) && 'EUR' !== strtoupper( (string) self::$cache['currency'] ) ) {
+					// Up to 0.21.0 German operators were checked against fixed euro limits whatever the
+					// program currency (P1-15): the limits stay euro amounts and keep checking credit
+					// notes in euro. Whether these values fit is a legal question (check with your adviser).
+					$legacy = array( '25000', '100000' );
+					if ( function_exists( 'add_option' ) && '' === (string) get_option( self::SMALL_BUSINESS_CURRENCY, '' ) ) {
+						add_option( self::SMALL_BUSINESS_CURRENCY, 'EUR', '', false );
+					}
+				}
 				self::$cache['small_business_limit_previous'] = $legacy[0];
 				self::$cache['small_business_limit_current']  = $legacy[1];
 			}
@@ -129,6 +138,28 @@ final class Settings {
 	 */
 	public static function legacy_small_business( $country, $currency ) {
 		return 'DE' === strtoupper( (string) $country ) && 'EUR' === strtoupper( (string) $currency ) ? array( '25000', '100000' ) : array( '', '' );
+	}
+
+	/**
+	 * Option: currency of the small business limits when it is not the program currency (P1-15:
+	 * euro limits taken over from a version up to 0.21.0 for a German operator with another
+	 * program currency). Removed when both limits are cleared.
+	 */
+	const SMALL_BUSINESS_CURRENCY = 'wpac_small_business_currency';
+
+	/**
+	 * Currency of the small business limits: the program currency, unless the limits were taken
+	 * over as euro amounts from an older version (P1-15).
+	 *
+	 * @param string $program Program currency ('' = the stored one).
+	 * @return string
+	 */
+	public static function small_business_currency( $program = '' ) {
+		$bound = function_exists( 'get_option' ) ? strtoupper( (string) get_option( self::SMALL_BUSINESS_CURRENCY, '' ) ) : '';
+		if ( preg_match( '/^[A-Z]{3}$/', $bound ) ) {
+			return $bound;
+		}
+		return strtoupper( '' !== (string) $program ? (string) $program : (string) self::get( 'currency' ) );
 	}
 
 	/** Prefix of a hashed monitoring token (older versions keyed it with the WordPress salt). */
@@ -367,6 +398,9 @@ final class Settings {
 				'skipped' => max( 0, (int) $values[ $k ] - 1 - $before ),
 			);
 		}
+		if ( array_key_exists( 'small_business_limit_previous', $values ) && array_key_exists( 'small_business_limit_current', $values ) && '' === trim( (string) $values['small_business_limit_previous'] ) && '' === trim( (string) $values['small_business_limit_current'] ) ) {
+			delete_option( self::SMALL_BUSINESS_CURRENCY ); // No limits: nothing bound to a currency any more (P1-15).
+		}
 		if ( array_key_exists( 'log_level', $values ) ) {
 			Log::level_saved( (string) $values['log_level'], (string) self::get( 'log_level' ) ); // "Verbose" ends after 7 days (SET-AC-28).
 		}
@@ -544,7 +578,7 @@ final class Settings {
 		$int_min = SettingsSchema::int_min();
 		foreach ( SettingsSchema::keys_of( array( 'int', 'page' ) ) as $int ) {
 			if ( 'landing_page_id' === $int ) {
-				continue; // Checked below (must be a published page).
+				continue; // Below with the promotion fields.
 			}
 			if ( ! isset( $in[ $int ] ) ) {
 				$out[ $int ] = $d[ $int ];
@@ -570,6 +604,17 @@ final class Settings {
 			} else {
 				$errors[ $int ] = __( 'Please enter a whole number (0 or more).', 'affiliate-captain' );
 				$out[ $int ]    = (int) $old( $int );
+			}
+		}
+		foreach ( SettingsSchema::keys_of( 'page' ) as $page ) {
+			// A chosen page must exist and be a page (P1-12): an ID from another site or a deleted
+			// page is never stored. Unchanged values are not checked again.
+			if ( 'landing_page_id' !== $page && ! isset( $errors[ $page ] ) && $out[ $page ] && (int) $out[ $page ] !== (int) $old( $page ) ) {
+				$problem = self::page_problem( (int) $out[ $page ] );
+				if ( '' !== $problem ) {
+					$errors[ $page ] = $problem;
+					$out[ $page ]    = (int) $old( $page );
+				}
 			}
 		}
 		if ( 100 < $out['fraud_max_refund_rate'] && ! isset( $errors['fraud_max_refund_rate'] ) ) {
@@ -657,6 +702,22 @@ final class Settings {
 				? sprintf( __( 'No exchange rate between %1$s and %2$s is known, so amounts keep their value (e.g. 50.00 %1$s becomes 50 %2$s). Please check the minimum payout, the review limit for large orders, fixed commission rules, bonus tiers and the exchange rates.', 'affiliate-captain' ), $old_currency, $out['currency'] )
 				/* translators: 1: old currency, 2: new currency */
 				: sprintf( __( 'Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency.', 'affiliate-captain' ), $old_currency, $out['currency'] );
+			$sb_limits = array();
+			foreach ( array( 'small_business_limit_previous', 'small_business_limit_current' ) as $sb_key ) {
+				$sb_value = trim( (string) ( isset( $in[ $sb_key ] ) ? $in[ $sb_key ] : $old( $sb_key ) ) );
+				if ( '' !== $sb_value ) {
+					$sb_limits[] = $sb_value;
+				}
+			}
+			if ( $sb_limits ) {
+				// The small business limits are amounts too, never converted (P1-15).
+				$sb_currency          = self::small_business_currency( $old_currency );
+				$notices['currency'] .= ' ' . ( $sb_currency !== $old_currency
+					/* translators: 1: limits, 2: currency of the limits */
+					? sprintf( __( 'The small business limits (%1$s) stay amounts in %2$s and are only checked against credit notes in %2$s.', 'affiliate-captain' ), implode( ' / ', $sb_limits ), $sb_currency )
+					/* translators: 1: limits, 2: new currency */
+					: sprintf( __( 'The small business limits (%1$s) are not converted: they now count in %2$s, please check them.', 'affiliate-captain' ), implode( ' / ', $sb_limits ), $out['currency'] ) );
+			}
 		}
 
 		self::sanitize_fx_extras( $in, $out, $errors, $notices, $old, $entered_rates );
@@ -999,6 +1060,52 @@ final class Settings {
 			$errors['min_payout']    = __( 'The minimum payout cannot be higher than the maximum payout.', 'affiliate-captain' );
 			$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
 		}
+		self::check_currency_minimums( $in, $out, $errors, $old );
+	}
+
+	/**
+	 * Minimum payouts per currency (min_payout_currency) must not be above the maximum payout
+	 * converted to that currency (P2-11): partners in that currency could never be paid. A changed
+	 * table is rejected (field error, the stored table stays); otherwise a changed maximum is.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 */
+	private static function check_currency_minimums( array $in, array &$out, array &$errors, callable $old ) {
+		$too_high = static function () use ( &$out ) {
+			$max = (int) $out['max_payout_minor'];
+			if ( $max <= 0 || ! isset( $out['min_payout_currency'] ) ) {
+				return array();
+			}
+			$rates = Fx::parse( isset( $out['exchange_rates'] ) ? (string) $out['exchange_rates'] : '' );
+			$bad   = array();
+			foreach ( Fx::parse_minimums( (string) $out['min_payout_currency'] ) as $cur => $minor ) {
+				$limit = Fx::from_program( $max, (string) $cur, (string) $out['currency'], $rates );
+				if ( null !== $limit && (int) $minor > max( 1, (int) $limit ) ) {
+					$bad[ $cur ] = max( 1, (int) $limit );
+				}
+			}
+			return $bad;
+		};
+		$bad = $too_high();
+		if ( ! $bad ) {
+			return;
+		}
+		$cur   = (string) key( $bad );
+		$limit = (int) current( $bad );
+		/* translators: 1: currency code, 2: maximum payout converted to that currency */
+		$message = sprintf( __( 'The minimum payout in %1$s is higher than the maximum payout converted to %1$s (%2$s). Partners paid in this currency could never be paid – lower the minimum or raise the maximum payout.', 'affiliate-captain' ), $cur, Money::format( $limit, $cur ) );
+		if ( isset( $in['min_payout_currency'] ) && (string) $out['min_payout_currency'] !== (string) $old( 'min_payout_currency' ) && ! isset( $errors['min_payout_currency'] ) ) {
+			$errors['min_payout_currency'] = $message;
+			$out['min_payout_currency']    = (string) $old( 'min_payout_currency' );
+			$bad                           = $too_high();
+		}
+		if ( $bad && isset( $in['max_payout'] ) && (int) $out['max_payout_minor'] !== (int) $old( 'max_payout_minor' ) && ! isset( $errors['max_payout'] ) ) {
+			$errors['max_payout']    = $message;
+			$out['max_payout_minor'] = (int) $old( 'max_payout_minor' );
+		}
 	}
 
 	/**
@@ -1022,7 +1129,14 @@ final class Settings {
 				$out['landing_prefix'] = $landing;
 			}
 		}
-		$out['landing_page_id']    = isset( $in['landing_page_id'] ) ? absint( $in['landing_page_id'] ) : 0;
+		$out['landing_page_id'] = isset( $in['landing_page_id'] ) ? absint( $in['landing_page_id'] ) : 0;
+		if ( $out['landing_page_id'] && $out['landing_page_id'] !== (int) $old( 'landing_page_id' ) ) {
+			$problem = self::page_problem( $out['landing_page_id'] );
+			if ( '' !== $problem ) {
+				$errors['landing_page_id'] = $problem;
+				$out['landing_page_id']    = (int) $old( 'landing_page_id' );
+			}
+		}
 		$out['default_disclosure'] = $d['default_disclosure'];
 		if ( isset( $in['default_disclosure'] ) ) {
 			if ( '' === trim( (string) $in['default_disclosure'] ) ) {
@@ -1083,6 +1197,27 @@ final class Settings {
 		}
 	}
 
+	/**
+	 * Why a page ID cannot be chosen ('' = it can): the page must exist and be a page that is
+	 * published, private or a draft (the wizard creates the terms as a draft); trashed pages and
+	 * other post types are refused (P1-12).
+	 *
+	 * @param int $id Page ID.
+	 * @return string
+	 */
+	public static function page_problem( $id ) {
+		$post = function_exists( 'get_post' ) ? get_post( (int) $id ) : null;
+		if ( ! is_object( $post ) ) {
+			return __( 'This page does not exist on this site. Please choose another page.', 'affiliate-captain' );
+		}
+		$type   = isset( $post->post_type ) ? (string) $post->post_type : 'page';
+		$status = function_exists( 'get_post_status' ) ? (string) get_post_status( $post ) : ( isset( $post->post_status ) ? (string) $post->post_status : '' );
+		if ( 'page' !== $type || ! in_array( $status, array( 'publish', 'private', 'draft', 'pending', 'future' ), true ) ) {
+			return __( 'Please choose a published page (or a draft that you publish later), not a trashed page or another kind of content.', 'affiliate-captain' );
+		}
+		return '';
+	}
+
 	/** HTML allowed in the texts of the application checkboxes: links only. */
 	const CONSENT_HTML = array(
 		'a' => array(
@@ -1117,10 +1252,20 @@ final class Settings {
 		}
 	}
 
+	/** Maximum length of a per-language text in characters (they are autoloaded with the settings, P6-09). */
+	const I18N_MAX = 20000;
+
+	/** Maximum length of a per-language document note (as the note of the site language). */
+	const NOTE_MAX = 1000;
+
 	/**
 	 * Sanitize a per-language text (SET-AC-17): form input (locale => text) or the stored JSON
 	 * (import, WP-CLI). Only installed languages other than the site language; empty texts are
-	 * dropped (the text of the site language is used for them). Stored as JSON ('' = none).
+	 * dropped (the text of the site language is used for them; for document notes the built-in text
+	 * of that language). Texts longer than I18N_MAX (notes: NOTE_MAX) characters are rejected at the
+	 * field. Stored as JSON ('' = none).
+	 * A field that was not sent keeps its stored texts, and on the form stored texts of a language
+	 * that is no longer installed stay unless they are sent empty (P1-16).
 	 *
 	 * @param array    $in     Raw input.
 	 * @param array    $out    Sanitized settings so far (extended).
@@ -1129,11 +1274,12 @@ final class Settings {
 	 * @param string   $key    Setting key.
 	 */
 	private static function sanitize_i18n( array $in, array &$out, array &$errors, callable $old, $key ) {
-		$out[ $key ] = '';
+		$out[ $key ] = (string) $old( $key );
 		if ( ! isset( $in[ $key ] ) ) {
 			return;
 		}
-		$raw = $in[ $key ];
+		$raw  = $in[ $key ];
+		$form = is_array( $raw ); // The form sends one field per language; a file or WP-CLI the whole JSON.
 		if ( is_string( $raw ) ) {
 			$raw = '' === trim( $raw ) ? array() : json_decode( $raw, true );
 		}
@@ -1145,23 +1291,51 @@ final class Settings {
 		$base      = (string) SettingsSchema::field( $key )['base'];
 		$installed = Locale::installed();
 		$site      = Locale::site();
+		$stored    = json_decode( (string) $old( $key ), true );
+		$stored    = is_array( $stored ) ? $stored : array();
 		$texts     = array();
 		$unknown   = array();
+		$too_long  = array();
+		$limit     = 0 === strpos( $base, 'note_' ) ? self::NOTE_MAX : self::I18N_MAX;
+		foreach ( $form ? $stored : array() as $locale => $text ) {
+			// Texts of languages that are not installed (any more) are kept: no field sends them.
+			if ( ! isset( $installed[ $locale ] ) && (string) $locale !== $site && ! array_key_exists( $locale, $raw ) && is_scalar( $text ) && '' !== trim( (string) $text ) ) {
+				$texts[ (string) $locale ] = (string) $text;
+			}
+		}
 		foreach ( $raw as $locale => $text ) {
 			$locale = (string) $locale;
 			$text   = is_scalar( $text ) ? trim( (string) $text ) : '';
 			if ( '' === $text || $locale === $site ) {
 				continue;
 			}
-			if ( ! isset( $installed[ $locale ] ) ) {
+			if ( ! isset( $installed[ $locale ] ) && ! isset( $stored[ $locale ] ) ) {
 				$unknown[] = $locale;
 				continue;
 			}
-			$texts[ $locale ] = 'promotion_guidelines' === $base ? wp_kses_post( $text ) : sanitize_text_field( $text );
+			if ( 'promotion_guidelines' === $base ) {
+				$text = wp_kses_post( $text );
+			} elseif ( 0 === strpos( $base, 'note_' ) ) {
+				$text = trim( sanitize_textarea_field( $text ) ); // Like the note of the site language.
+			} else {
+				$text = sanitize_text_field( $text );
+			}
+			if ( function_exists( 'mb_strlen' ) ? mb_strlen( $text, 'UTF-8' ) > $limit : strlen( $text ) > $limit ) {
+				$too_long[] = $locale;
+				continue;
+			}
+			$texts[ $locale ] = $text;
 		}
 		if ( $unknown ) {
 			/* translators: %s: language codes */
 			$errors[ $key ] = sprintf( __( 'These languages are not installed on this site: %s.', 'affiliate-captain' ), implode( ', ', array_slice( array_map( 'sanitize_text_field', $unknown ), 0, 5 ) ) );
+			$out[ $key ]    = (string) $old( $key );
+			return;
+		}
+		if ( $too_long ) {
+			// The texts are part of the autoloaded settings (read on every request, P6-09).
+			/* translators: 1: maximum number of characters, 2: language codes */
+			$errors[ $key ] = sprintf( __( 'Please shorten the text to at most %1$s characters (%2$s).', 'affiliate-captain' ), number_format_i18n( $limit ), implode( ', ', $too_long ) );
 			$out[ $key ]    = (string) $old( $key );
 			return;
 		}
@@ -1185,13 +1359,16 @@ final class Settings {
 	 * text of the site language (default_disclosure, promotion_guidelines). The filter
 	 * wpac_localized_setting can change it.
 	 *
-	 * @param string      $key    Base key (default_disclosure or promotion_guidelines).
-	 * @param string|null $locale Locale (null = the language texts are written in right now).
+	 * @param string      $key      Base key (default_disclosure, promotion_guidelines, note_*).
+	 * @param string|null $locale   Locale (null = the language texts are written in right now).
+	 * @param bool        $fallback Use the text of the site language for a language without its own
+	 *                              text; false: '' then (document notes: the built-in text of that
+	 *                              language applies, P3-11).
 	 * @return string
 	 */
-	public static function localized( $key, $locale = null ) {
+	public static function localized( $key, $locale = null, $fallback = true ) {
 		$locale = null === $locale ? Locale::current() : (string) $locale;
-		$value  = (string) self::get( $key );
+		$value  = $fallback || Locale::site() === $locale ? (string) self::get( $key ) : '';
 		$texts  = SettingsSchema::field( $key . '_i18n' ) ? self::texts( $key . '_i18n' ) : array();
 		if ( isset( $texts[ $locale ] ) && '' !== trim( (string) $texts[ $locale ] ) ) {
 			$value = (string) $texts[ $locale ];
@@ -1324,7 +1501,7 @@ final class Settings {
 				continue;
 			}
 			$problem = '';
-			$amount  = self::parse_amount( $in[ $k ], $out['currency'], $problem );
+			$amount  = self::parse_amount( $in[ $k ], self::small_business_currency( $out['currency'] ), $problem );
 			if ( null === $amount || (float) $amount <= 0 ) {
 				$errors[ $k ] = 'ambiguous' === $problem ? self::ambiguous_amount() : __( 'Please enter an amount (e.g. 25000) or leave the field empty (no check).', 'affiliate-captain' );
 			} else {

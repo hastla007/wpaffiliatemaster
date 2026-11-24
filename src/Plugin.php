@@ -56,6 +56,9 @@ final class Plugin {
 			},
 			1
 		);
+		// Austrian and Swiss German use the German translation (P3-08), also for the editor scripts.
+		add_filter( 'load_textdomain_mofile', array( \WPAffiliateCaptain\Core\Locale::class, 'mofile' ), 10, 2 );
+		add_filter( 'load_script_translation_file', array( \WPAffiliateCaptain\Core\Locale::class, 'script_file' ), 10, 3 );
 
 		self::prime_options();
 

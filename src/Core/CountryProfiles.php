@@ -58,15 +58,9 @@ final class CountryProfiles {
 	 * @return array
 	 */
 	public static function all() {
-		$neutral_notes = array(
-			// Outside the EU no EU or German legal references (P3-05); still to be checked per country.
-			'note_self_billing'   => __( 'This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' ),
-			'note_reverse_charge' => __( 'No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service.', 'affiliate-captain' ),
-			'note_small_business' => __( 'No VAT is shown because the partner is not registered for VAT.', 'affiliate-captain' ),
-			'note_private_person' => '',
-		);
 		$own_notes     = array(
-			// Empty = the built-in text of the operator country (as before).
+			// Empty = the built-in text of the operator country in the document language (outside the EU
+			// the neutral texts, P3-11); own texts per language are set on the settings page.
 			'note_self_billing'   => '',
 			'note_reverse_charge' => '',
 			'note_small_business' => '',
@@ -193,7 +187,7 @@ final class CountryProfiles {
 						'small_business_limit_previous' => '',
 						'small_business_limit_current'  => '',
 					),
-					$neutral_notes
+					$own_notes
 				),
 			),
 		);
@@ -340,7 +334,9 @@ final class CountryProfiles {
 	}
 
 	/**
-	 * Values of a profile in stored form, texts in the site language (documents are written in it).
+	 * Values of a profile in stored form. Texts (the disclosure note) in the site language: the base
+	 * settings hold the site language, other languages are set per language (SET-AC-17). Document
+	 * notes are not set as texts: empty = the built-in text in each document language (P3-11).
 	 *
 	 * @param string $code Code.
 	 * @return array|null
@@ -366,7 +362,26 @@ final class CountryProfiles {
 		if ( null === $values ) {
 			return new \WP_Error( 'wpac_profile_unknown', __( 'Unknown country profile.', 'affiliate-captain' ) );
 		}
-		return SettingsTransfer::check( $values, Settings::all() );
+		$current = Settings::all();
+		return SettingsTransfer::check( self::keep_country( $code, $values, $current ), $current );
+	}
+
+	/**
+	 * A profile proposed for several countries (CH for Switzerland and Liechtenstein) keeps an
+	 * operator country of its list: a Liechtenstein operator stays in LI (P3-09).
+	 *
+	 * @param string $code    Code.
+	 * @param array  $values  Values of the profile.
+	 * @param array  $current Current settings.
+	 * @return array
+	 */
+	public static function keep_country( $code, array $values, array $current ) {
+		$p       = self::get( $code );
+		$country = isset( $current['operator_country'] ) ? strtoupper( (string) $current['operator_country'] ) : '';
+		if ( $p && isset( $values['operator_country'] ) && '' !== $country && in_array( $country, $p['countries'], true ) ) {
+			$values['operator_country'] = $country;
+		}
+		return $values;
 	}
 
 	/**

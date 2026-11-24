@@ -70,7 +70,7 @@ $cp_expect = array(
 	),
 	'CH'    => array( 'operator_country', 'currency', 'vat_rate', 'statement_retention_minimum', 'small_business_limit_previous' ),
 	'EU'    => array( 'vat_rate', 'statement_retention_minimum', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'small_business_limit_previous', 'small_business_limit_current' ),
-	'OTHER' => array( 'vat_rate', 'statement_retention_minimum', 'self_billing', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'small_business_limit_previous', 'small_business_limit_current', 'note_self_billing', 'note_reverse_charge', 'note_small_business' ),
+	'OTHER' => array( 'vat_rate', 'statement_retention_minimum', 'self_billing', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'small_business_limit_previous', 'small_business_limit_current' ), // P3-11: no fixed note texts (built-in neutral texts per language).
 );
 foreach ( $cp_expect as $cp_code => $cp_want ) {
 	update_option( 'wpac_settings', $cp_base );

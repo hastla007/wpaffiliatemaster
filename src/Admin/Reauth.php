@@ -55,7 +55,18 @@ final class Reauth {
 	const ATTEMPT_WINDOW = 900;
 
 	/** Actions (see action_key()) that need a confirmation by default. */
-	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive', 'withholding_update', 'settings_profile_apply' );
+	const ACTIONS = array( 'bank_approve', 'user_link_manual', 'user_unlink', 'user_link_resend', 'profile_update', 'payout_bulk_sepa', 'payout_bulk_csv', 'payout_bulk_paypal', 'payout_bulk_paid', 'settings_reauth_off', 'commission_manual', 'commission_status_approved', 'payout_run', 'payout_request_process', 'balance_writeoff', 'repayment', 'affiliate_email_change', 'settings_import_apply', 'settings_export_private', 'settings_reset_money', 'roles_save', 'settings_sensitive', 'withholding_update', 'settings_profile_apply', 'program_export_tax', 'settings_retention_lower' );
+
+	/** Fraud rule settings and how a weaker value looks (relaxed_fraud_rules(), P4-11). */
+	const FRAUD_RULES = array(
+		'fraud_max_orders_day'    => 'max',
+		'fraud_max_order_minor'   => 'max',
+		'fraud_max_refund_rate'   => 'max',
+		'fraud_min_click_seconds' => 'min',
+		'fraud_refund_min_orders' => 'count',
+		'fraud_check_domains'     => 'bool',
+		'fraud_blocked_domains'   => 'list',
+	);
 
 	/** @var bool Confirmed in this request (also without a stored session, e.g. custom logins). */
 	private static $confirmed_now = false;
@@ -108,8 +119,17 @@ final class Reauth {
 		}
 		if ( 'settings_reset_apply' === $do ) {
 			$pending = get_transient( 'wpac_settings_pending_' . get_current_user_id() );
-			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', 'data', '' ), true ) ) {
-				return 'settings_reset_money'; // Money tabs (SET-AC-09) and retention periods (P1-05).
+			if ( is_array( $pending ) && isset( $pending['tab'] ) && in_array( $pending['tab'], array( 'payouts', 'commissions', 'data', 'security', '' ), true ) ) {
+				return 'settings_reset_money'; // Money tabs (SET-AC-09), retention periods (P1-05), protections (P4-07).
+			}
+			// Any other reset that changes a protected value (bank details, alert address, waiting
+			// periods, password confirmation window) asks like saving it would (P4-07).
+			$changes = is_array( $pending ) && isset( $pending['check']['changes'] ) && is_array( $pending['check']['changes'] ) ? $pending['check']['changes'] : array();
+			foreach ( array_keys( $changes ) as $key ) {
+				$f = \WPAffiliateCaptain\Core\SettingsSchema::field( (string) $key );
+				if ( $f && ! empty( $f['sensitive'] ) ) {
+					return 'settings_reset_money';
+				}
 			}
 		}
 		if ( 'settings_save' === $do && (int) Settings::get( 'reauth_required' ) && 'security' === Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) ) ) {
@@ -120,6 +140,12 @@ final class Reauth {
 		}
 		if ( 'wizard_profile_apply' === $do ) {
 			return 'settings_profile_apply'; // Same confirmation as on the settings page (SET-AC-24).
+		}
+		if ( ( 'settings_save' === $do || 'wizard_save' === $do ) && self::lowers_retention( $do ) ) {
+			return 'settings_retention_lower'; // A file never lifts the hold either (P1-05, P4-06).
+		}
+		if ( ( 'settings_save' === $do || 'wizard_save' === $do ) && self::relaxes_fraud_rules( $do ) ) {
+			return 'settings_sensitive'; // A weaker fraud check like other protections; tightening needs nothing (P4-11).
 		}
 		if ( 'settings_save' === $do || 'wizard_save' === $do ) {
 			// Values that weaken a protection or redirect money/alerts need the same confirmation
@@ -134,6 +160,132 @@ final class Reauth {
 			}
 		}
 		return $do;
+	}
+
+	/**
+	 * Whether a posted settings form relaxes a fraud rule (P4-11): see relaxed_fraud_rules(). Only
+	 * the fields of the submitted settings tab, or the fields a wizard step sends, count.
+	 *
+	 * @param string $do settings_save or wizard_save.
+	 * @return bool
+	 */
+	private static function relaxes_fraud_rules( $do ) {
+		$raw = Admin::post( 'wpac', array() );
+		if ( ! is_array( $raw ) ) {
+			return false;
+		}
+		$raw  = wp_unslash( $raw );
+		$keys = array();
+		if ( 'settings_save' === $do ) {
+			$tabs = Pages\SettingsPage::tab_keys();
+			$tab  = Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) );
+			$keys = isset( $tabs[ $tab ] ) ? (array) $tabs[ $tab ] : array();
+		} else {
+			foreach ( array_keys( self::FRAUD_RULES ) as $key ) {
+				if ( array_key_exists( Pages\SetupWizard::form_name( $key ), $raw ) ) {
+					$keys[] = $key; // A wizard step sends its fields; absent ones stay as they are.
+				}
+			}
+		}
+		$keys = array_intersect( $keys, array_keys( self::FRAUD_RULES ) );
+		if ( ! $keys ) {
+			return false;
+		}
+		$old   = Settings::all();
+		$clean = Settings::sanitize( $raw );
+		$new   = array_intersect_key( $clean, array_flip( $keys ) );
+		if ( isset( $new['fraud_max_order_minor'] ) && (string) $clean['currency'] !== (string) $old['currency'] ) {
+			unset( $new['fraud_max_order_minor'] ); // Converted with the currency, not changed by the operator.
+		}
+		return array() !== self::relaxed_fraud_rules( $old, $new );
+	}
+
+	/**
+	 * Fraud rule fields whose new value weakens the check (P4-11): a higher limit or "0 = rule
+	 * off" for the maximums, a shorter minimum time between click and order, a higher minimum
+	 * number of orders of the refund rule, the domain check switched off or a blocked domain
+	 * removed. The period of the refund rate is not judged (shorter and longer both can let more
+	 * through). Tightening a rule returns nothing.
+	 *
+	 * @param array $old Stored settings.
+	 * @param array $new New values (only the posted keys).
+	 * @return string[] Relaxed keys.
+	 */
+	public static function relaxed_fraud_rules( array $old, array $new ) {
+		$limit   = static function ( $v ) {
+			return (int) $v <= 0 ? PHP_INT_MAX : (int) $v; // 0 = rule off = no limit.
+		};
+		$relaxed = array();
+		foreach ( self::FRAUD_RULES as $key => $kind ) {
+			if ( ! array_key_exists( $key, $new ) ) {
+				continue;
+			}
+			$o = isset( $old[ $key ] ) ? $old[ $key ] : '';
+			$n = $new[ $key ];
+			switch ( $kind ) {
+				case 'max':
+					$weaker = $limit( $n ) > $limit( $o );
+					break;
+				case 'min':
+					$weaker = (int) $n < (int) $o;
+					break;
+				case 'count':
+					$weaker = (int) $n > (int) $o;
+					break;
+				case 'bool':
+					$weaker = (int) $o && ! (int) $n;
+					break;
+				default: // Domain list: a domain that was blocked is no longer.
+					$split  = static function ( $v ) {
+						return array_filter( array_map( 'strtolower', array_map( 'trim', (array) preg_split( '/[\s,]+/', (string) $v ) ) ) );
+					};
+					$weaker = array() !== array_diff( $split( $o ), $split( $n ) );
+			}
+			if ( $weaker ) {
+				$relaxed[] = $key;
+			}
+		}
+		return $relaxed;
+	}
+
+	/**
+	 * Whether a posted settings form lifts the retention hold or shortens the retention of
+	 * statements (period or legal minimum; P4-06). Raising them needs no confirmation. An absent
+	 * checkbox means "off" only on the settings tab that shows it.
+	 *
+	 * @param string $do settings_save or wizard_save.
+	 * @return bool
+	 */
+	private static function lowers_retention( $do ) {
+		$raw = Admin::post( 'wpac', array() );
+		if ( ! is_array( $raw ) ) {
+			return false;
+		}
+		if ( (int) Settings::get( 'retention_hold' ) ) {
+			$tabs  = \WPAffiliateCaptain\Core\SettingsSchema::tabs();
+			$tab   = Pages\SettingsPage::tab_alias( sanitize_key( (string) Admin::post( 'tab' ) ) );
+			$shown = 'settings_save' === $do && isset( $tabs[ $tab ] ) && in_array( 'retention_hold', (array) $tabs[ $tab ], true );
+			if ( array_key_exists( 'retention_hold', $raw ) ? empty( $raw['retention_hold'] ) : $shown ) {
+				return true;
+			}
+		}
+		// Years: 0 = keep forever.
+		$years = static function ( $v ) {
+			return (int) $v <= 0 ? PHP_INT_MAX : (int) $v;
+		};
+		if ( array_key_exists( 'statement_retention_years', $raw ) && is_numeric( trim( (string) $raw['statement_retention_years'] ) ) && $years( trim( (string) $raw['statement_retention_years'] ) ) < $years( Settings::get( 'statement_retention_years' ) ) ) {
+			return true;
+		}
+		if ( array_key_exists( 'statement_retention_minimum', $raw ) && is_numeric( trim( (string) $raw['statement_retention_minimum'] ) ) ) {
+			// Minimum: 0 = value of the country profile; compared as it applies.
+			$country = isset( $raw['operator_country'] ) && is_string( $raw['operator_country'] ) && '' !== trim( $raw['operator_country'] ) ? (string) $raw['operator_country'] : (string) Settings::get( 'operator_country' );
+			$new     = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $country, (int) trim( (string) $raw['statement_retention_minimum'] ) );
+			$old     = \WPAffiliateCaptain\Privacy\Retention::minimum_years( $country, (int) Settings::get( 'statement_retention_minimum' ) );
+			if ( $new < $old ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -340,7 +492,9 @@ final class Reauth {
 			'repayment'           => __( 'Book a repayment', 'affiliate-captain' ),
 			'settings_import_apply'   => __( 'Import settings', 'affiliate-captain' ),
 			'settings_export_private' => __( 'Export settings with bank details and addresses', 'affiliate-captain' ),
-			'settings_reset_money'    => __( 'Reset commission or payout settings', 'affiliate-captain' ),
+			'settings_reset_money'    => __( 'Reset commission, payout, retention or security settings', 'affiliate-captain' ),
+			'settings_retention_lower' => __( 'Shorten the retention of statements or lift the retention hold', 'affiliate-captain' ),
+			'program_export_tax'      => __( 'Export the program with tax and bank data', 'affiliate-captain' ),
 			'settings_sensitive'      => __( 'Change bank details, notification address or protection settings', 'affiliate-captain' ),
 			'roles_save'              => __( 'Change the permissions of user roles', 'affiliate-captain' ),
 			'settings_profile_apply'  => __( 'Apply a country profile (VAT, retention, credit notes)', 'affiliate-captain' ),
@@ -525,6 +679,10 @@ final class Reauth {
 			$_SERVER['HTTP_REFERER'] = (string) $p['return'];
 		}
 		// phpcs:enable
+		if ( isset( $_POST['action'] ) && 'wpac_export' === $_POST['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the handler verifies the kept nonce.
+			Pages\ImportExportPage::handle_export(); // Own admin-post action, not routed by dispatch() (P4-05).
+			return;
+		}
 		Admin::dispatch();
 	}
 

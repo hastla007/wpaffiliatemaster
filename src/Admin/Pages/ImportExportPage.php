@@ -261,6 +261,11 @@ final class ImportExportPage {
 		if ( $tax && ! current_user_can( Capabilities::VIEW_TAX_DATA ) ) {
 			wp_die( esc_html__( 'You are not allowed to export tax and bank data.', 'affiliate-captain' ), 403 );
 		}
+		// Decrypted IBANs and accounts leave the site: the same password confirmation as the
+		// transfer list and the settings export with private values (P4-05). WP-CLI is not affected.
+		if ( $tax && \WPAffiliateCaptain\Admin\Reauth::required( 'program_export_tax' ) && ! \WPAffiliateCaptain\Admin\Reauth::confirmed() ) {
+			\WPAffiliateCaptain\Admin\Reauth::challenge( 'program_export_tax' );
+		}
 		// The ZIP may contain decrypted IBANs: private file (0600, outside the web root where
 		// possible), finished and deleted even when the browser disconnects or PHP stops early.
 		ignore_user_abort( true );

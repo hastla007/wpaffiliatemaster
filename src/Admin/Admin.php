@@ -492,6 +492,10 @@ final class Admin {
 				return __( 'Below minimum – carried forward', 'affiliate-captain' );
 			case 'above_maximum':
 				return \WPAffiliateCaptain\Payouts\PayoutService::above_maximum_text();
+			case 'open_payout':
+				return \WPAffiliateCaptain\Payouts\PayoutService::open_payout_text();
+			case 'min_above_max':
+				return \WPAffiliateCaptain\Payouts\PayoutService::min_above_max_text( $currency, (int) \WPAffiliateCaptain\Core\Fx::min_payout( $currency, $affiliate_id ), (int) \WPAffiliateCaptain\Core\Fx::max_payout( $currency, $affiliate_id ) );
 			case 'no_rate':
 				/* translators: %s: currency */
 				return sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'affiliate-captain' ), $currency );
@@ -514,7 +518,8 @@ final class Admin {
 		if ( ! $screen || 'toplevel_page_wpac' === $screen->id || ( ! $ours && ! in_array( $screen->id, array( 'plugins', 'dashboard' ), true ) ) ) {
 			return;
 		}
-		if ( ! DashboardPage::setup_open() ) {
+		// DashboardPage::setup_open(), evaluated once per request (also for the wizard notice below).
+		if ( ! Pages\SetupWizard::setup_open() ) {
 			return;
 		}
 		// SET-AC-24: while the setup wizard notice is shown on this screen, it replaces this hint.

@@ -7,7 +7,7 @@ Stand 16.11.2026. Optionaler Connector in Affiliate Captain für [Form Captain](
 Ein Formular in Form Captain kann eine Partnerbewerbung an Affiliate Captain übergeben. Die Übergabe nutzt den eingebauten Bewerbungsablauf von Affiliate Captain und keinen zweiten:
 
 1. Form Captain speichert die Einsendung und legt für die Aktion einen Outbox-Job an. Der Job läuft im Worker von Form Captain (WP-Cron oder `wp form-captain jobs run`), nie in der Anfrage der Einsendung.
-2. Affiliate Captain prüft die Werte wie beim eigenen Formular, legt die Bewerbung für höchstens zwei Tage in `Core\Pending` ab und schickt die eigene Bestätigungsmail („Bewerbung bestätigen“, Vorlage `confirm_application`).
+2. Affiliate Captain prüft die Werte wie beim eigenen Formular, legt die Bewerbung für die Gültigkeit des Bestätigungslinks in `Core\Pending` ab (Einstellung `application_confirm_days`, 1 bis 30 Tage, Standard 2) und schickt die eigene Bestätigungsmail („Bewerbung bestätigen“, Vorlage `confirm_application`).
 3. Erst der Klick auf den Link in der Mail legt den Partner an, über denselben Code wie beim eigenen Formular (`Registration::handle_confirm()` → `finalize()` → `AffiliateRepository::create()`), **immer mit Status `pending`**, auch wenn „Bewerbungen automatisch freigeben“ eingeschaltet ist. Die Admin-Mail „Neue Partnerbewerbung“ und die Eingangsbestätigung an den Bewerber kommen wie gewohnt.
 4. Freigabe, Ablehnung, Partnercode, Gutschein, Provisionsregeln und Provisionen bleiben in Affiliate Captain. Der Connector gibt nichts davon frei und legt nichts davon an.
 
@@ -34,7 +34,8 @@ Andere Felder des Formulars erreichen Affiliate Captain nicht: Form Captain übe
 Einstellungen der Aktion:
 
 - **Partnergruppe (ID, 0 = keine).** Nur aktive, **öffentliche** Gruppen ohne Pflicht-Zusatzfelder. Die Beschriftung nennt die öffentlichen Gruppen mit ID. Private Gruppen brauchen beim eigenen Formular die Freigabe eines Partner-Managers; sie sind für Übergaben gesperrt (`group_invalid`). Gruppen mit Pflicht-Zusatzfeldern ergeben `group_fields_unsupported`, weil die Zusatzfelder der Gruppe nicht Teil der Zuordnung sind.
-- **Version der Teilnahmebedingungen.** Ist in Affiliate Captain eine Bedingungsseite gesetzt (Programm oder Gruppe), muss hier genau deren aktuelle Version stehen. Das Einwilligungsfeld im Formular soll auf diese Seite verlinken. Ändert sich die Version in Affiliate Captain, schlagen weitere Übergaben mit `terms_version_mismatch` fehl, bis Formular und Einstellung angepasst sind. So wird nie eine Zustimmung zu einem Text gespeichert, den das Formular nicht gezeigt hat.
+- **Zusätzliche Zustimmungen und Mindestalter (seit Plugin 0.22.0).** Verlangt Affiliate Captain im eigenen Bewerbungsformular weitere Pflicht-Kästchen (`consent_extra_1` … `_3`) oder ein Mindestalter (`min_partner_age`), schlagen Übergaben mit `consents_unsupported` fehl (auch im Testlauf): Diese Bestätigungen sind nicht Teil der Zuordnung und dürfen nicht umgangen werden. Abhilfe: die Kästchen bzw. das Mindestalter in Affiliate Captain entfernen oder im Formular auf die eigene Bewerbungsseite verweisen. (Standard bis zur Rechtsprüfung; eine Zuordnung dieser Bestätigungen ist nicht gebaut.)
+- **Version der Teilnahmebedingungen.** Ist in Affiliate Captain eine Bedingungsseite gesetzt (Programm oder Gruppe), muss hier genau deren aktuelle Version stehen. Das Einwilligungsfeld im Formular soll auf diese Seite verlinken. Ändert sich die Version in Affiliate Captain, schlagen weitere Übergaben mit `terms_version_mismatch` fehl, bis Formular und Einstellung angepasst sind. So wird nie eine Zustimmung zu einem Text gespeichert, den das Formular nicht gezeigt hat. Seit Plugin 0.22.0 wird nach der Bestätigung zusätzlich der Nachweis der Zustimmung gespeichert wie beim eigenen Formular (Tabelle `agreements`, `result = 'consent'`, `version = 'consent:terms'`; Wortlaut „Ich akzeptiere die Teilnahmebedingungen (URL) (Version …) (Einwilligungsfeld von Form-Captain-Formular X, Eintrag Y)“, Zeitpunkt der Übergabe).
 
 ## Ergebnisse (Form Captain → Integrations-Jobs)
 
@@ -49,6 +50,7 @@ Einstellungen der Aktion:
 | retry | `locked`, `storage_failed` | Dieselbe Einsendung wird gerade übergeben bzw. Speichern fehlgeschlagen. |
 | fail | `terms_required` | Einwilligung zu den Teilnahmebedingungen fehlt. |
 | fail | `invalid_field` | Name fehlt oder E-Mail-Adresse ungültig. |
+| fail | `consents_unsupported` | Affiliate Captain verlangt zusätzliche Pflicht-Zustimmungen oder ein Mindestalter (siehe oben); nach der Korrektur den Job wiederholen. |
 | fail | `group_invalid`, `group_fields_unsupported`, `terms_version_mismatch` | Einstellung der Aktion passt nicht (siehe oben); nach der Korrektur den Job wiederholen. |
 | fail | `invalid_job` | Formular- oder Eintrags-ID fehlt. |
 

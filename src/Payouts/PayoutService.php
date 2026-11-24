@@ -119,14 +119,64 @@ final class PayoutService {
 		// corrections as on the original credit note, repayments and write-offs without VAT.
 		$treat                           = self::treatments( (int) $affiliate_id, $rows );
 		list( $net, $vat_minor, $gross ) = Vat::totals( $rows, $treat );
+		$take                            = self::capped_take( (int) $affiliate_id, strtoupper( (string) $currency ), $rows, $treat, (int) $gross );
+		$payout_gross                    = null === $take ? 0 : (int) Vat::totals( $take, $treat )[2];
+		$day                             = null === $period_end ? wp_date( 'Y-m-d' ) : (string) $period_end;
 		return array(
-			'net'          => (int) $net,
-			'vat'          => (int) $vat_minor,
-			'gross'        => (int) $gross,
-			'count'        => count( $rows ),
+			'net'             => (int) $net,
+			'vat'             => (int) $vat_minor,
+			'gross'           => (int) $gross,
+			'count'           => count( $rows ),
 			// What one payout pays now: the gross amount, or less under the maximum payout (SET-AC-19).
-			'payout_gross' => self::capped_gross( (int) $affiliate_id, strtoupper( (string) $currency ), $rows, $treat, (int) $gross ),
+			'payout_gross'    => $payout_gross,
+			// Expected withholding (SET-AC-20) of all rows and of what one payout pays (P2-14): the
+			// amount transferred is the gross amount less it. The minimum applies to the gross amount.
+			'withheld'        => self::estimate_withholding( (int) $affiliate_id, strtoupper( (string) $currency ), $rows, $treat, $day ),
+			'payout_withheld' => null === $take ? 0 : self::estimate_withholding( (int) $affiliate_id, strtoupper( (string) $currency ), $take, $treat, $day ),
 		);
+	}
+
+	/**
+	 * Withholding a payout of these rows would have (SET-AC-20), as Withholding::compute() works
+	 * it out when the payout is created (0 = none; an estimate: the filter wpac_withholding may
+	 * decide differently when the payout is created).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param array  $rows         Rows of the payout.
+	 * @param array  $treat        item_treatments() of the rows.
+	 * @param string $period_end   Y-m-d.
+	 * @return int
+	 */
+	private static function estimate_withholding( $affiliate_id, $currency, array $rows, array $treat, $period_end ) {
+		if ( ! $rows || ( '0' === Withholding::get( (int) $affiliate_id )['percent'] && ! has_filter( 'wpac_withholding' ) ) ) {
+			return 0;
+		}
+		list( $net, $vat_minor, $gross ) = Vat::totals( $rows, $treat );
+		if ( $gross <= 0 ) {
+			return 0;
+		}
+		$taxable = 0;
+		foreach ( $rows as $r ) {
+			if ( Corrections::KIND !== (string) ( isset( $r->kind ) ? $r->kind : '' ) && isset( $treat[ (int) $r->id ] ) && Vat::NONE !== $treat[ (int) $r->id ]['mode'] ) {
+				$taxable += (int) $r->amount_minor;
+			}
+		}
+		$resolver = self::treatment_resolver( (int) $affiliate_id, ProfileRepository::snapshot( ProfileRepository::get( (int) $affiliate_id ) ) );
+		$vat      = $resolver( (object) array( 'created_at' => Db::now() ) );
+		$w        = Withholding::compute(
+			(int) $affiliate_id,
+			array(
+				'currency'      => (string) $currency,
+				'period_end'    => (string) $period_end,
+				'net_minor'     => (int) $net,
+				'taxable_minor' => $taxable,
+				'vat_minor'     => (int) $vat_minor,
+				'gross_minor'   => (int) $gross,
+				'vat_mode'      => (string) $vat['mode'],
+			)
+		);
+		return $w ? (int) $w['minor'] : 0;
 	}
 
 	/**
@@ -141,25 +191,44 @@ final class PayoutService {
 	 * @return int
 	 */
 	private static function capped_gross( $affiliate_id, $currency, array $rows, array $treat, $gross ) {
-		$max = \WPAffiliateCaptain\Core\Fx::max_payout( $currency, (int) $affiliate_id );
-		if ( null === $max ) {
-			return 0;
-		}
-		if ( 0 === $max || $gross <= $max ) {
-			return (int) $gross;
-		}
-		list( $take ) = self::cap_rows( $rows, $treat, $max );
-		return (int) Vat::totals( $take, $treat )[2];
+		$take = self::capped_take( $affiliate_id, $currency, $rows, $treat, $gross );
+		return null === $take ? 0 : (int) Vat::totals( $take, $treat )[2];
 	}
 
 	/**
-	 * Rows one payout pays under a maximum payout (SET-AC-19): negative rows (corrections,
-	 * repayments) always, then the positive rows from the oldest on as long as the gross amount
-	 * (VAT included, computed per rate as on the credit note) stays within the maximum. The first
-	 * row that does not fit ends the selection, so commissions are paid in order; the rest stays
-	 * payable for the next payout.
+	 * Rows one payout pays under the maximum payout of the partner (all rows without a limit;
+	 * null when the limit cannot be converted).
 	 *
-	 * @param array $rows  Rows (id, amount_minor, created_at).
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param array  $rows         Payable rows.
+	 * @param array  $treat        item_treatments() of the rows.
+	 * @param int    $gross        Gross amount of all rows.
+	 * @return array|null
+	 */
+	private static function capped_take( $affiliate_id, $currency, array $rows, array $treat, $gross ) {
+		$max = \WPAffiliateCaptain\Core\Fx::max_payout( $currency, (int) $affiliate_id );
+		if ( null === $max ) {
+			return null;
+		}
+		if ( 0 === $max || $gross <= $max ) {
+			return $rows;
+		}
+		return self::cap_rows( $rows, $treat, $max )[0];
+	}
+
+	/**
+	 * Rows one payout pays under a maximum payout (SET-AC-19). The rows are grouped into units:
+	 * a commission together with its own follow-up rows (corrections of a partial refund,
+	 * increases) that are payable now – they are taken or held back together, ordered by the
+	 * commission's date (P2-09). Taken first, always: negative rows without a commission of their
+	 * own (repayments, write-offs) and corrections whose commission was already paid out. Then the
+	 * units from the oldest on as long as the gross amount (VAT included, computed per rate as on
+	 * the credit note) stays within the maximum. The first unit that does not fit ends the
+	 * selection, so commissions are paid in order; the rest stays payable for the next payout.
+	 *
+	 * @param array $rows  Rows (id, amount_minor, created_at; parent_id, parent_created_at,
+	 *                     parent_payout_id when known).
 	 * @param array $treat item_treatments() of the rows.
 	 * @param int   $max   Maximum gross amount (0 = no limit).
 	 * @return array [ rows, capped (bool) ]
@@ -169,33 +238,63 @@ final class PayoutService {
 		if ( $max <= 0 || Vat::totals( $rows, $treat )[2] <= $max ) {
 			return array( $rows, false );
 		}
-		$take     = array();
-		$positive = array();
+		$ids = array();
 		foreach ( $rows as $r ) {
-			if ( (int) $r->amount_minor <= 0 ) {
-				$take[] = $r;
+			$ids[ (int) $r->id ] = true;
+		}
+		$take  = array();
+		$units = array();
+		foreach ( $rows as $r ) {
+			$parent = (int) ( isset( $r->parent_id ) ? $r->parent_id : 0 );
+			if ( $parent > 0 && isset( $ids[ $parent ] ) ) {
+				$key = $parent; // Held or taken with its commission.
+				$at  = null;
+			} elseif ( $parent > 0 ) {
+				if ( (int) $r->amount_minor <= 0 && (int) ( isset( $r->parent_payout_id ) ? $r->parent_payout_id : 0 ) > 0 ) {
+					$take[] = $r; // Correction of a commission that was already paid out.
+					continue;
+				}
+				$key = $parent; // The commission itself is not payable now: a unit of its own, at the commission's place.
+				$at  = (string) ( isset( $r->parent_created_at ) ? $r->parent_created_at : ( isset( $r->created_at ) ? $r->created_at : '' ) );
+			} elseif ( (int) $r->amount_minor <= 0 ) {
+				$take[] = $r; // Repayment, write-off.
+				continue;
 			} else {
-				$positive[] = $r;
+				$key = (int) $r->id;
+				$at  = (string) ( isset( $r->created_at ) ? $r->created_at : '' );
 			}
+			if ( ! isset( $units[ $key ] ) ) {
+				$units[ $key ] = array(
+					'at'   => '',
+					'id'   => $key,
+					'rows' => array(),
+				);
+			}
+			if ( null !== $at ) {
+				$units[ $key ]['at'] = $at;
+			}
+			$units[ $key ]['rows'][] = $r;
 		}
 		usort(
-			$positive,
+			$units,
 			static function ( $a, $b ) {
-				$by_date = strcmp( (string) ( isset( $a->created_at ) ? $a->created_at : '' ), (string) ( isset( $b->created_at ) ? $b->created_at : '' ) );
-				return 0 !== $by_date ? $by_date : (int) $a->id - (int) $b->id;
+				$by_date = strcmp( $a['at'], $b['at'] );
+				return 0 !== $by_date ? $by_date : $a['id'] - $b['id'];
 			}
 		);
-		// Net sums per VAT rate, updated row by row (the VAT is computed per rate, not per line).
+		// Net sums per VAT rate, updated unit by unit (the VAT is computed per rate, not per line).
 		$groups = array();
 		foreach ( $take as $r ) {
 			$key            = Vat::rate_key( isset( $treat[ (int) $r->id ] ) ? (string) $treat[ (int) $r->id ]['rate'] : '0' );
 			$groups[ $key ] = ( isset( $groups[ $key ] ) ? $groups[ $key ] : 0 ) + (int) $r->amount_minor;
 		}
-		foreach ( $positive as $r ) {
-			$key            = Vat::rate_key( isset( $treat[ (int) $r->id ] ) ? (string) $treat[ (int) $r->id ]['rate'] : '0' );
-			$try            = $groups;
-			$try[ $key ]    = ( isset( $try[ $key ] ) ? $try[ $key ] : 0 ) + (int) $r->amount_minor;
-			$gross          = 0;
+		foreach ( $units as $unit ) {
+			$try = $groups;
+			foreach ( $unit['rows'] as $r ) {
+				$key         = Vat::rate_key( isset( $treat[ (int) $r->id ] ) ? (string) $treat[ (int) $r->id ]['rate'] : '0' );
+				$try[ $key ] = ( isset( $try[ $key ] ) ? $try[ $key ] : 0 ) + (int) $r->amount_minor;
+			}
+			$gross = 0;
 			foreach ( $try as $rate => $net ) {
 				$gross += $net + Vat::amount( $net, (string) $rate );
 			}
@@ -203,7 +302,9 @@ final class PayoutService {
 				break;
 			}
 			$groups = $try;
-			$take[] = $r;
+			foreach ( $unit['rows'] as $r ) {
+				$take[] = $r;
+			}
 		}
 		return array( $take, true );
 	}
@@ -226,6 +327,7 @@ final class PayoutService {
 		// One query for all partners instead of one per row; profiles are only loaded for
 		// partners above the minimum (the others are carried forward anyway).
 		AffiliateRepository::find_many( wp_list_pluck( $rows, 'affiliate_id' ) );
+		$open = self::open_payout_partners( $currency );
 		foreach ( $rows as $r ) {
 			$aff    = AffiliateRepository::find( (int) $r->affiliate_id );
 			$min    = \WPAffiliateCaptain\Core\Fx::min_payout( $currency, (int) $r->affiliate_id ); // Per program (wpac_setting).
@@ -241,6 +343,11 @@ final class PayoutService {
 			} elseif ( $operator ) {
 				$reason = $operator;
 				$code   = 'operator';
+			} elseif ( null !== $max && $max > 0 && isset( $open[ (int) $r->affiliate_id ] ) ) {
+				// Under a maximum payout one payout per partner and currency at a time (P2-10): the
+				// limit must not be bypassed by a second run (double click) while the first is not paid.
+				$reason = self::open_payout_text();
+				$code   = 'open_payout';
 			} elseif ( null === $min || null === $max ) {
 				/* translators: %s: currency */
 				$reason = sprintf( __( 'No reference rate for %s – minimum cannot be checked', 'affiliate-captain' ), $currency );
@@ -258,6 +365,10 @@ final class PayoutService {
 				} elseif ( $gross < $min ) {
 					$reason = __( 'Below minimum – carried forward', 'affiliate-captain' );
 					$code   = 'below_minimum';
+				} elseif ( $max > 0 && $min > $max ) {
+					// The minimum in this currency is above the (converted) maximum payout (P2-11).
+					$reason = self::min_above_max_text( $currency, (int) $min, (int) $max );
+					$code   = 'min_above_max';
 				} elseif ( $pay <= 0 || $pay < $min ) {
 					// The oldest commission alone is larger than the maximum payout (SET-AC-19).
 					$reason = self::above_maximum_text();
@@ -279,6 +390,72 @@ final class PayoutService {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Partners with a payout in a currency that is not paid yet (pending or exported).
+	 *
+	 * @param string $currency Currency.
+	 * @return array affiliate ID => true
+	 */
+	private static function open_payout_partners( $currency ) {
+		global $wpdb;
+		$t   = Db::table( 'payouts' );
+		$ids = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT affiliate_id FROM {$t} WHERE currency = %s AND status IN ('pending','exported')", strtoupper( (string) $currency ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return array_fill_keys( array_map( 'intval', $ids ), true );
+	}
+
+	/**
+	 * Payout of a partner in a currency that is not paid yet (pending or exported), if any (P2-10).
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param bool   $lock         Locking read (inside the transaction of a new payout).
+	 * @return object|null id, number, status
+	 */
+	public static function open_payout( $affiliate_id, $currency, $lock = false ) {
+		global $wpdb;
+		$t   = Db::table( 'payouts' );
+		$sql = $wpdb->prepare( "SELECT id, number, status FROM {$t} WHERE affiliate_id = %d AND currency = %s AND status IN ('pending','exported') ORDER BY id LIMIT 1", (int) $affiliate_id, strtoupper( (string) $currency ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = $wpdb->get_row( $sql . ( $lock ? ' FOR UPDATE' : '' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $row ? $row : null;
+	}
+
+	/**
+	 * Whether a new payout of a partner in a currency has to wait (P2-10): a maximum payout applies
+	 * and a payout in that currency is not paid yet (pending or exported). Without a maximum a
+	 * second payout only contains what became payable since, so it is not limited.
+	 *
+	 * @param int    $affiliate_id Partner.
+	 * @param string $currency     Currency.
+	 * @param bool   $lock         Locking read (inside the transaction of a new payout).
+	 * @return bool
+	 */
+	public static function waits_for_open_payout( $affiliate_id, $currency, $lock = false ) {
+		$max = \WPAffiliateCaptain\Core\Fx::max_payout( (string) $currency, (int) $affiliate_id );
+		return null !== $max && $max > 0 && null !== self::open_payout( (int) $affiliate_id, (string) $currency, $lock );
+	}
+
+	/**
+	 * Reason when a partner still has a payout in the currency that is not paid yet (P2-10).
+	 *
+	 * @return string
+	 */
+	public static function open_payout_text() {
+		return __( 'Under the maximum payout only one payout per partner and currency can be open: the last payout of this partner in this currency is not paid yet (created or exported) – mark it as paid or cancel it first; the balance waits until then', 'affiliate-captain' );
+	}
+
+	/**
+	 * Reason when the minimum payout of a currency is above the maximum payout converted to it (P2-11).
+	 *
+	 * @param string $currency Currency.
+	 * @param int    $min      Minimum in the currency.
+	 * @param int    $max      Maximum in the currency.
+	 * @return string
+	 */
+	public static function min_above_max_text( $currency, $min, $max ) {
+		/* translators: 1: minimum payout, 2: maximum payout converted to the same currency */
+		return sprintf( __( 'Minimum above maximum: the minimum payout in this currency (%1$s) is higher than the maximum payout converted to it (%2$s) – lower the minimum or raise the maximum in the settings', 'affiliate-captain' ), Money::format( (int) $min, (string) $currency ), Money::format( (int) $max, (string) $currency ) );
 	}
 
 	/**
@@ -473,14 +650,20 @@ final class PayoutService {
 			'date_format'  => (string) get_option( 'date_format' ),
 		);
 		if ( $issue ) {
-			// Own document notes (SET-AC-04 c) are frozen with the document when it is issued; empty
-			// settings keep the built-in text, and documents issued before keep theirs.
+			// Version of the built-in notes (Statement::neutral_notes()): documents issued from now on
+			// get the neutral texts outside the EU and Switzerland, older ones keep theirs.
+			$op['notes_v'] = Statement::NOTES_V;
+			// Own document notes (SET-AC-04 c) are frozen with the document when it is issued, in the
+			// document language (P3-11): the text stored for that language, the own text of the site
+			// language only for documents in the site language. Without one the built-in text applies
+			// (in the document language), and documents issued before keep theirs.
+			$doc   = (string) $op['locale'];
 			$notes = array_filter(
 				array(
-					'self_billing'      => trim( (string) Settings::get( 'note_self_billing' ) ),
-					Vat::REVERSE_CHARGE => trim( (string) Settings::get( 'note_reverse_charge' ) ),
-					Vat::SMALL_BUSINESS => trim( (string) Settings::get( 'note_small_business' ) ),
-					Vat::PRIVATE_PERSON => trim( (string) Settings::get( 'note_private_person' ) ),
+					'self_billing'      => trim( Settings::localized( 'note_self_billing', $doc, false ) ),
+					Vat::REVERSE_CHARGE => trim( Settings::localized( 'note_reverse_charge', $doc, false ) ),
+					Vat::SMALL_BUSINESS => trim( Settings::localized( 'note_small_business', $doc, false ) ),
+					Vat::PRIVATE_PERSON => trim( Settings::localized( 'note_private_person', $doc, false ) ),
 				),
 				'strlen'
 			);
@@ -897,6 +1080,10 @@ final class PayoutService {
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT c.id, c.amount_minor, c.kind, c.parent_id, c.created_at, p.created_at AS parent_created_at, p.payout_id AS parent_payout_id {$from} FOR UPDATE", $params ) );
 				Db::check( 'Locking the payable commissions' ); // R13-K1: an error is not "nothing payable".
+				if ( ! $settle && $rows && self::waits_for_open_payout( (int) $affiliate_id, (string) $currency, true ) ) {
+					// Under a maximum payout one payout per partner and currency at a time (P2-10, e.g. a run started twice).
+					throw new IntegrationException( 'not_eligible', esc_html( self::open_payout_text() ) );
+				}
 				$total = 0;
 				foreach ( $rows as $r ) {
 					$total += (int) $r->amount_minor;
@@ -1146,7 +1333,7 @@ final class PayoutService {
 		 */
 		$prev     = trim( (string) Settings::get( 'small_business_limit_previous' ) );
 		$cur      = trim( (string) Settings::get( 'small_business_limit_current' ) );
-		$currency = strtoupper( (string) Settings::get( 'currency' ) );
+		$currency = Settings::small_business_currency(); // Euro limits taken over from 0.21.0 stay euro (P1-15).
 		$default  = '' === $prev && '' === $cur ? array() : array(
 			$currency => array(
 				'' === $prev ? PHP_INT_MAX : Money::to_minor( $prev, $currency ),
@@ -1505,7 +1692,7 @@ final class PayoutService {
 
 	/**
 	 * Payout method recorded with a payout (snapshot): manual (PayPal etc.), bank (bank transfer
-	 * outside SEPA, new after plugin 0.21.0) or sepa.
+	 * outside SEPA, since plugin 0.22.0) or sepa.
 	 *
 	 * @param object $p Payout.
 	 * @return string
@@ -1626,9 +1813,13 @@ final class PayoutService {
 	 * providers; marks them exported like the SEPA file (same checks: no second export without
 	 * "export again", no export after the partner changed the bank details).
 	 *
+	 * The four columns of bank transfers outside SEPA (10–13) are only part of the rows when the
+	 * method is switched on (payout_method_bank) or a payout of the list uses it; otherwise the
+	 * rows have the 9 columns of plugin 0.21.0, so columns of add-ons stay at position 10.
+	 *
 	 * @param int[] $ids            Payout IDs.
 	 * @param bool  $allow_reexport Include payouts that were already exported.
-	 * @return array|\WP_Error [ batch, rows ]
+	 * @return array|\WP_Error [ batch, rows, bank columns included (bool) ]
 	 */
 	public static function transfer_csv( array $ids, $allow_reexport = false ) {
 		global $wpdb;
@@ -1716,8 +1907,33 @@ final class PayoutService {
 		 * @param string $batch   Export batch.
 		 * @param int[]  $payouts Exported payouts.
 		 */
+		$bank_columns = self::transfer_bank_columns( $result[1] );
+		if ( ! $bank_columns ) {
+			foreach ( $result[1] as $i => $row ) {
+				$result[1][ $i ] = array_slice( $row, 0, 9 );
+			}
+		}
 		$rows = apply_filters( 'wpac_transfer_rows', $result[1], $result[0], $result[2] );
-		return array( $result[0], is_array( $rows ) ? $rows : $result[1] );
+		return array( $result[0], is_array( $rows ) ? $rows : $result[1], $bank_columns );
+	}
+
+	/**
+	 * Whether the transfer list has the columns of bank transfers outside SEPA (10–13): the method
+	 * is switched on, or one of the rows uses it (switched off after the payout was created).
+	 *
+	 * @param array|null $rows Rows of the list (null = judge by the setting alone).
+	 * @return bool
+	 */
+	public static function transfer_bank_columns( $rows = null ) {
+		if ( Settings::get( 'payout_method_bank' ) ) {
+			return true;
+		}
+		foreach ( (array) $rows as $row ) {
+			if ( isset( $row[7] ) && ProfileRepository::METHOD_BANK === $row[7] ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Affiliate Captain 0.21.0\n"
+"Project-Id-Version: Affiliate Captain 0.22.0\n"
 "Report-Msgid-Bugs-To: https://github.com/hastla007/wpaffiliatemaster/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -67,6 +67,10 @@ msgstr ""
 
 #: src/Admin/AddonHints.php src/Affiliates/Registration.php src/Portal/Portal.php
 msgid "(opens in a new tab)"
+msgstr ""
+
+#: src/Admin/AddonHints.php
+msgid "Hide these hints"
 msgstr ""
 
 #. translators: %d: number of commissions
@@ -341,7 +345,7 @@ msgstr ""
 msgid "Search: name, slug, e-mail or ID"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/SettingsSectionsView.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Valid until"
 msgstr ""
 
@@ -461,16 +465,29 @@ msgstr ""
 msgid "Changing the e-mail address of a partner with partner area access or payout details needs the payout permission. Nothing was saved."
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Please enter a valid e-mail address."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
+msgid "This e-mail address is already used by another partner account."
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php
 msgid "The recruiting partner does not exist."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php
-msgid "Nothing was saved."
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Core/PublicApi.php
+msgid "Please enter a name."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "This language is not installed on this site. The other changes were saved."
+msgstr ""
+
+#. translators: 1: entered vanity slug, 2: stored vanity slug
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Partner saved. The vanity slug \"%1$s\" is already taken (or too long), so \"%2$s\" was stored. Change it if you prefer another one."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -696,12 +713,20 @@ msgstr ""
 msgid "Withholding saved. It applies to payouts created from now on."
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "The partner was not saved. Please correct the marked fields; your input is kept."
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Tables/AffiliatesTable.php
 msgid "Add partner"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Search partners"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Admin/Pages/SettingsPage.php src/Affiliates/Registration.php src/Portal/Portal.php
+msgid "Fields marked with * are required."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Payouts/ProfileRepository.php src/Portal/Portal.php
@@ -914,6 +939,11 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "— default —"
+msgstr ""
+
+#. translators: %s: landing link of the partner
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Where the partner link %s leads. Default: the landing page of the program settings."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Affiliates/AffiliateRepository.php src/Privacy/Privacy.php
@@ -1212,7 +1242,7 @@ msgstr ""
 msgid "Tax number"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/PayoutsPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Payout method"
 msgstr ""
 
@@ -1220,7 +1250,7 @@ msgstr ""
 msgid "Other methods are left out of the SEPA file: the transfer list contains the payment details; pay manually and mark the payout as paid."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/ProfileRepository.php src/Portal/Portal.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/PayoutsPage.php src/Payouts/ProfileRepository.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Account holder"
 msgstr ""
 
@@ -1315,7 +1345,7 @@ msgstr ""
 msgid "Check legally"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Payouts/Withholding.php
+#: src/Admin/Pages/AffiliatesPage.php src/Payouts/Withholding.php src/Privacy/Privacy.php
 msgid "Withholding"
 msgstr ""
 
@@ -1499,6 +1529,10 @@ msgstr ""
 msgid "Send payment request (level %d)"
 msgstr ""
 
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "No further stage: the number of stages was lowered after these were sent, so no final reminder was sent. Write the balance off or hand it over for collection."
+msgstr ""
+
 #: src/Admin/Pages/AffiliatesPage.php src/Commissions/Dunning.php
 msgid "All reminders were sent. Write the balance off or hand it over for collection."
 msgstr ""
@@ -1554,6 +1588,26 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Credit notes, cancellations and e-mails to this partner are written in this language. Site language: credit notes in the site language, e-mails in the language of the partner's user account. Applies to documents issued from now on."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Public name of the partner: shown in the \"recommended by\" box, in creatives and in e-mails."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Notifications go to this address. It also decides which WordPress account can be linked to the partner."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Optional. Shown together with the public name."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "How the partner promotes you, e.g. blog, podcast or newsletter (optional)."
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php
+msgid "Short name in the partner link (e.g. /partner/{slug}/; letters, digits, hyphens). Links with the previous name stop working after a change. A name that is already taken gets a number added."
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
@@ -3958,13 +4012,13 @@ msgstr ""
 msgid "Other payment method"
 msgstr ""
 
+#. translators: 1: amount, 2: payment requests and reminders sent, 3: number of stages (setting)
 #: src/Admin/Pages/PayoutsPage.php
-msgid "Negative balances of ended partnerships (to claim back):"
+msgid "%1$s (%2$d of %3$d reminders sent)"
 msgstr ""
 
-#. translators: 1: partner, 2: amount, 3: reminders sent
 #: src/Admin/Pages/PayoutsPage.php
-msgid "%1$s (%2$d of 3 reminders sent)"
+msgid "Negative balances of ended partnerships (to claim back):"
 msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
@@ -4349,6 +4403,10 @@ msgid "Minimum line amount"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php
+msgid "Valid from"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php
 msgid "Priority"
 msgstr ""
 
@@ -4387,15 +4445,15 @@ msgid "Please enter a reason for the change."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "The rule was not saved. Please correct the marked fields; your input is kept."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "Rule saved. Existing commissions are not changed."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Rule deleted."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Core/PublicApi.php
-msgid "Please enter a name."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4569,7 +4627,15 @@ msgid "Both days included, in the time zone of the website; empty = open. The pa
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
+msgid "Higher number wins among equally specific rules."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
 msgid "Reason for change"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Reason for change (optional)"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4721,6 +4787,10 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Tag IDs"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php
+msgid "Comma separated. Empty = taken from the product."
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4986,10 +5056,6 @@ msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php
 msgid "Settings sections"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php src/Affiliates/Registration.php
-msgid "Fields marked with * are required."
 msgstr ""
 
 #: src/Admin/Pages/SettingsPage.php src/Payouts/DocumentBrand.php
@@ -5359,6 +5425,11 @@ msgstr ""
 msgid "Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word."
 msgstr ""
 
+#. translators: %s: language code, e.g. fr_FR
+#: src/Admin/Pages/SettingsPage.php
+msgid "%s (not installed)"
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php
 msgid "Only the site language is installed. Install further languages under Settings → General to store texts for them."
 msgstr ""
@@ -5714,7 +5785,15 @@ msgid "Export settings with bank details and addresses"
 msgstr ""
 
 #: src/Admin/Reauth.php
-msgid "Reset commission or payout settings"
+msgid "Reset commission, payout, retention or security settings"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Shorten the retention of statements or lift the retention hold"
+msgstr ""
+
+#: src/Admin/Reauth.php
+msgid "Export the program with tax and bank data"
 msgstr ""
 
 #: src/Admin/Reauth.php
@@ -5775,10 +5854,6 @@ msgstr ""
 
 #: src/Admin/SettingsSectionsView.php
 msgid "Maximum per line"
-msgstr ""
-
-#: src/Admin/SettingsSectionsView.php
-msgid "Valid from"
 msgstr ""
 
 #. translators: 1: new items, 2: changed items, 3: unchanged items, 4: rejected items
@@ -5950,10 +6025,6 @@ msgstr ""
 msgid "Rejected"
 msgstr ""
 
-#: src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php src/Portal/Portal.php
-msgid "Please enter a valid e-mail address."
-msgstr ""
-
 #: src/Affiliates/AffiliateRepository.php src/Affiliates/Registration.php
 msgid "An affiliate account with this e-mail address already exists."
 msgstr ""
@@ -5985,10 +6056,6 @@ msgstr ""
 #. translators: 1: field, 2: number of characters
 #: src/Affiliates/AffiliateRepository.php src/Core/PublicApi.php src/Promotion/Creatives.php
 msgid "%1$s is too long (at most %2$d characters). Nothing was changed."
-msgstr ""
-
-#: src/Affiliates/AffiliateRepository.php src/Portal/Portal.php
-msgid "This e-mail address is already used by another partner account."
 msgstr ""
 
 #. translators: %s: site name
@@ -7124,8 +7191,17 @@ msgstr ""
 msgid "No payment request possible yet: enter your company's account holder and IBAN under Settings → Payouts first, so the partner knows where to transfer the amount."
 msgstr ""
 
+#: src/Commissions/Dunning.php
+msgid "Another payment request for this partner is being sent right now. Please reload the page."
+msgstr ""
+
 #: src/Commissions/Dunning.php src/Commissions/Ledger.php
 msgid "The balance is not negative."
+msgstr ""
+
+#. translators: %d: level
+#: src/Commissions/Dunning.php
+msgid "Payment request level %d was already sent (the form was probably submitted twice). Nothing was sent again."
 msgstr ""
 
 #. translators: %s: site name
@@ -7158,7 +7234,20 @@ msgid "The payment request could not be sent (e-mail error). Please check the e-
 msgstr ""
 
 #: src/Commissions/Dunning.php
+msgid "Another booking for this partner is running right now. Please reload the page and check the account before booking again."
+msgstr ""
+
+#: src/Commissions/Dunning.php
 msgid "Please enter the amount received."
+msgstr ""
+
+#: src/Commissions/Dunning.php
+msgid "This repayment was already booked (the form was submitted twice). Nothing was booked again."
+msgstr ""
+
+#. translators: %d: minutes
+#: src/Commissions/Dunning.php
+msgid "A repayment with the same amount and bank reference was booked less than %d minutes ago. Check the partner account: if it is really a second payment, enter its own bank reference."
 msgstr ""
 
 #: src/Commissions/Dunning.php
@@ -7551,18 +7640,6 @@ msgstr ""
 
 #: src/Core/Capabilities.php
 msgid "See tax and bank details"
-msgstr ""
-
-#: src/Core/CountryProfiles.php
-msgid "This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
-msgstr ""
-
-#: src/Core/CountryProfiles.php
-msgid "No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service."
-msgstr ""
-
-#: src/Core/CountryProfiles.php
-msgid "No VAT is shown because the partner is not registered for VAT."
 msgstr ""
 
 #: src/Core/CountryProfiles.php src/Core/Settings.php
@@ -8106,6 +8183,16 @@ msgstr ""
 msgid "Amounts were converted from %1$s to %2$s. Please check fixed commission rules, bonus tiers and the exchange rates; bookings already made keep their currency."
 msgstr ""
 
+#. translators: 1: limits, 2: currency of the limits
+#: src/Core/Settings.php
+msgid "The small business limits (%1$s) stay amounts in %2$s and are only checked against credit notes in %2$s."
+msgstr ""
+
+#. translators: 1: limits, 2: new currency
+#: src/Core/Settings.php
+msgid "The small business limits (%1$s) are not converted: they now count in %2$s, please check them."
+msgstr ""
+
 #: src/Core/Settings.php
 msgid "Please enter an amount (e.g. 25 or 25,50)."
 msgstr ""
@@ -8114,7 +8201,7 @@ msgstr ""
 msgid "Please enter a percentage between 0 and 100 (e.g. 10 or 12,5)."
 msgstr ""
 
-#: src/Core/Settings.php
+#: src/Core/Settings.php src/Core/SettingsTransfer.php
 msgid "Not changed, because the default rate entered with it is not valid."
 msgstr ""
 
@@ -8187,6 +8274,11 @@ msgstr ""
 msgid "The minimum payout cannot be higher than the maximum payout."
 msgstr ""
 
+#. translators: 1: currency code, 2: maximum payout converted to that currency
+#: src/Core/Settings.php
+msgid "The minimum payout in %1$s is higher than the maximum payout converted to %1$s (%2$s). Partners paid in this currency could never be paid – lower the minimum or raise the maximum payout."
+msgstr ""
+
 #: src/Core/Settings.php
 msgid "Please enter a path (letters, digits and \"-\")."
 msgstr ""
@@ -8208,6 +8300,14 @@ msgid "The token needs 20 to 64 letters and digits (no spaces or special charact
 msgstr ""
 
 #: src/Core/Settings.php
+msgid "This page does not exist on this site. Please choose another page."
+msgstr ""
+
+#: src/Core/Settings.php
+msgid "Please choose a published page (or a draft that you publish later), not a trashed page or another kind of content."
+msgstr ""
+
+#: src/Core/Settings.php
 msgid "Please keep the placeholder {terms} for the link to the terms, or leave the field empty for the built-in text."
 msgstr ""
 
@@ -8218,6 +8318,11 @@ msgstr ""
 #. translators: %s: language codes
 #: src/Core/Settings.php
 msgid "These languages are not installed on this site: %s."
+msgstr ""
+
+#. translators: 1: maximum number of characters, 2: language codes
+#: src/Core/Settings.php
+msgid "Please shorten the text to at most %1$s characters (%2$s)."
 msgstr ""
 
 #: src/Core/Settings.php
@@ -9187,6 +9292,30 @@ msgid "For partners who are not entrepreneurs (no VAT). Empty: the built-in text
 msgstr ""
 
 #: src/Core/SettingsSchema.php
+msgid "Note on credit notes (self-billing) in other languages"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Per installed language, for documents in that language (the partner's document language). Empty: the built-in text in that language – the own text above applies to documents in the site language only. Frozen with each document."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Note for reverse charge in other languages"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Per installed language, for documents in that language. Empty: the built-in text in that language. Frozen with each document."
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Note for small businesses in other languages"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
+msgid "Note for private individuals in other languages"
+msgstr ""
+
+#: src/Core/SettingsSchema.php
 msgid "Send e-invoice (XML) with the credit note e-mail"
 msgstr ""
 
@@ -9572,7 +9701,11 @@ msgid "The file comes from a newer version of Affiliate Captain. Update the plug
 msgstr ""
 
 #: src/Core/SettingsTransfer.php
-msgid "A running retention hold is only lifted on the settings page."
+msgid "Not imported: a running retention hold is only lifted on the settings page. The other values are imported."
+msgstr ""
+
+#: src/Core/SettingsTransfer.php
+msgid "Please give a whole number of minor units (e.g. 5000 for 50.00), 0 or more."
 msgstr ""
 
 #: src/Core/SettingsTransfer.php
@@ -9581,6 +9714,11 @@ msgstr ""
 
 #: src/Core/SettingsTransfer.php
 msgid "Change the type of the default rate only together with the rate itself."
+msgstr ""
+
+#. translators: %s: path (slug) of a page
+#: src/Core/SettingsTransfer.php
+msgid "There is no page \"%s\" on this site. Create it or choose the page after the import."
 msgstr ""
 
 #: src/Integrations/FormCaptain/Connector.php
@@ -9623,6 +9761,11 @@ msgstr ""
 
 #: src/Integrations/FormCaptain/Connector.php
 msgid "Referring partner code"
+msgstr ""
+
+#. translators: 1: wording of the terms consent, 2: Form Captain form ID, 3: entry ID
+#: src/Integrations/FormCaptain/Handover.php
+msgid "%1$s (consent field of Form Captain form %2$d, entry %3$d)"
 msgstr ""
 
 #. translators: %s: coupon code
@@ -10328,14 +10471,6 @@ msgstr ""
 msgid "Repayments, write-offs and settled correction credit notes on credit note %1$s (%2$s) are not taxable and not part of the amounts above."
 msgstr ""
 
-#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
-msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
-msgstr ""
-
-#: src/Payouts/Corrections.php src/Payouts/EInvoice.php
-msgid "This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document."
-msgstr ""
-
 #: src/Payouts/Corrections.php src/Payouts/Statement.php
 msgid "Duplicate: built again from the stored data because the original file was not available on this server."
 msgstr ""
@@ -10629,6 +10764,14 @@ msgid "Payouts are currently not possible for organisational reasons on our side
 msgstr ""
 
 #: src/Payouts/PayoutRequests.php
+msgid "Your last payout is still being processed. You can request the next payout once it has been paid."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
+msgid "Payouts in this currency are currently not possible for organisational reasons on our side. We are working on it – your balance is safe."
+msgstr ""
+
+#: src/Payouts/PayoutRequests.php
 msgid "Your oldest open commission is larger than the maximum payout amount. Please contact us."
 msgstr ""
 
@@ -10695,6 +10838,15 @@ msgstr ""
 
 #: src/Payouts/PayoutService.php
 msgid "Negative balance – carried forward"
+msgstr ""
+
+#: src/Payouts/PayoutService.php
+msgid "Under the maximum payout only one payout per partner and currency can be open: the last payout of this partner in this currency is not paid yet (created or exported) – mark it as paid or cancel it first; the balance waits until then"
+msgstr ""
+
+#. translators: 1: minimum payout, 2: maximum payout converted to the same currency
+#: src/Payouts/PayoutService.php
+msgid "Minimum above maximum: the minimum payout in this currency (%1$s) is higher than the maximum payout converted to it (%2$s) – lower the minimum or raise the maximum in the settings"
 msgstr ""
 
 #: src/Payouts/PayoutService.php
@@ -11096,6 +11248,14 @@ msgid "The SEPA XML export needs the PHP extension \"dom\" (DOMDocument), which 
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "No VAT is shown because the partner is not registered for VAT."
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "The commission rates are net amounts; VAT is added at the statutory rate."
 msgstr ""
 
@@ -11140,11 +11300,27 @@ msgid "Repayments by the partner and claims written off are no service and not s
 msgstr ""
 
 #: src/Payouts/Statement.php
+msgid "This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr ""
+
+#: src/Payouts/Statement.php
 msgid "This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area."
 msgstr ""
 
 #: src/Payouts/Statement.php
 msgid "This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document corrects the self-billing invoice named above. The partner may object to it as to the original document."
+msgstr ""
+
+#: src/Payouts/Statement.php
+msgid "This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document."
 msgstr ""
 
 #: src/Payouts/Statement.php
@@ -12023,9 +12199,18 @@ msgstr ""
 msgid "after our review"
 msgstr ""
 
+#. translators: 1: amount transferred after the withholding, 2: amount before the withholding
+#: src/Portal/Portal.php
+msgid "%1$s (%2$s before withholding)"
+msgstr ""
+
 #. translators: %s: amount(s)
 #: src/Portal/Portal.php
 msgid "Available for payout: %s"
+msgstr ""
+
+#: src/Portal/Portal.php
+msgid "A withholding is deducted from your payouts; the amount in brackets is the amount before the withholding. The minimum payout applies to the amount before the withholding."
 msgstr ""
 
 #. translators: %s: date
@@ -12163,7 +12348,7 @@ msgid "Name / company for the statement"
 msgstr ""
 
 #: src/Portal/Portal.php
-msgid "Country (ISO code, e.g. DE)"
+msgid "Country of residence"
 msgstr ""
 
 #: src/Portal/Portal.php
@@ -12478,6 +12663,14 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "Bank and payment details are stored encrypted and are masked in this file, which is not encrypted. You can check and change them in the partner area (payout details); on request the operator tells you the complete details stored."
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Requested change of the bank details (waiting for approval)"
+msgstr ""
+
+#: src/Privacy/Privacy.php
+msgid "Percentage"
 msgstr ""
 
 #: src/Privacy/Privacy.php

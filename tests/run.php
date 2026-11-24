@@ -282,6 +282,14 @@ check( 'friday → monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 
 check( 'thursday before good friday → easter tuesday', '2026-04-07', SepaXml::next_business_day( gmmktime( 10, 0, 0, 4, 2, 2026 ) ) );
 check( 'christmas eve → 28 dec', '2026-12-28', SepaXml::next_business_day( gmmktime( 10, 0, 0, 12, 24, 2026 ) ) );
 check( 'normal weekday', '2026-11-12', SepaXml::next_business_day( gmmktime( 10, 0, 0, 11, 11, 2026 ) ) );
+// P2-15: day, weekday and holidays of the site's time zone, not UTC (just after midnight in Berlin).
+$p215_berlin = new DateTimeZone( 'Europe/Berlin' );
+check( 'P2-15 Berlin 24.12. 00:30 (23.12. in UTC) → 28.12.', '2026-12-28', SepaXml::next_business_day( gmmktime( 23, 30, 0, 12, 23, 2026 ), $p215_berlin ) );
+check( 'P2-15 Berlin 31.12. 00:30 (30.12. in UTC) → 04.01.', '2027-01-04', SepaXml::next_business_day( gmmktime( 23, 30, 0, 12, 30, 2026 ), $p215_berlin ) );
+check( 'P2-15 Berlin Saturday 00:30 (Friday in UTC) → Monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 23, 30, 0, 11, 13, 2026 ), $p215_berlin ) );
+check( 'P2-15 Berlin 23.12. 23:30 (22:30 in UTC) → 24.12.', '2026-12-24', SepaXml::next_business_day( gmmktime( 22, 30, 0, 12, 23, 2026 ), $p215_berlin ) );
+check( 'P2-15 New York Friday 22:00 (Saturday in UTC) → Monday', '2026-11-16', SepaXml::next_business_day( gmmktime( 3, 0, 0, 11, 14, 2026 ), new DateTimeZone( 'America/New_York' ) ) );
+check( 'P2-15 New York Thursday 22:00 before Good Friday (Friday in UTC) → Easter Tuesday', '2026-04-07', SepaXml::next_business_day( gmmktime( 2, 0, 0, 4, 3, 2026 ), new DateTimeZone( 'America/New_York' ) ) );
 
 /* Client IP / proxies ----------------------------------------------------- */
 $cf = array( '173.245.48.0/20', '2400:cb00::/32' );
@@ -351,16 +359,38 @@ foreach ( array( 'src', 'assets', 'blocks', 'tools' ) as $wpac_guard_dir ) {
 		}
 	}
 }
+// P6-10: any mention of a licence (is_licensed(), wpac_pro_license_status …) and any "pro" switch
+// (is_pro, pro_active) – only the GPL lines of the plugin header and licence notices are allowed.
+$wpac_guard_patterns['pro switch (is_pro / pro_active)'] = '/\bis_pro(?:_|\b)|pro_active/i';
+$wpac_guard_scan = static function ( $src ) use ( $wpac_guard_patterns ) {
+	$labels = array();
+	foreach ( $wpac_guard_patterns as $label => $re ) {
+		if ( preg_match( $re, $src ) ) {
+			$labels[] = $label;
+		}
+	}
+	foreach ( preg_split( '/\R/', (string) $src ) as $line ) {
+		if ( preg_match( '/licen[cs]e/i', $line ) && ! preg_match( '/^\s*(?:\*|\/\/|#)?\s*License(?: URI)?\s*:|GPL|GNU General Public|gnu\.org\/licenses/i', $line ) ) {
+			$labels[] = 'licence mention: ' . trim( substr( $line, 0, 80 ) );
+		}
+	}
+	return array_values( array_unique( $labels ) );
+};
 $wpac_guard_hits = array();
 foreach ( $wpac_guard_files as $wpac_f ) {
-	$wpac_src = (string) file_get_contents( dirname( __DIR__ ) . '/' . $wpac_f );
-	foreach ( $wpac_guard_patterns as $wpac_label => $wpac_re ) {
-		if ( preg_match( $wpac_re, $wpac_src ) ) {
-			$wpac_guard_hits[] = $wpac_f . ': ' . $wpac_label;
-		}
+	foreach ( $wpac_guard_scan( (string) file_get_contents( dirname( __DIR__ ) . '/' . $wpac_f ) ) as $wpac_label ) {
+		$wpac_guard_hits[] = $wpac_f . ': ' . $wpac_label;
 	}
 }
 check( 'A2 core plugin contains no license client, gating or own updater (' . count( $wpac_guard_files ) . ' files)', array(), $wpac_guard_hits );
+check(
+	'P6-10 A2 guard catches a probe with is_licensed(), the licence status option and pro_active(); the GPL header passes',
+	array( 3, array() ),
+	array(
+		count( $wpac_guard_scan( "<?php\nif ( is_licensed() ) {}\n\$s = get_option( 'wpac_pro_license_status' );\nif ( pro_active() ) {}\n" ) ),
+		$wpac_guard_scan( "<?php\n/**\n * License:           GPL-2.0-or-later\n * License URI:       https://www.gnu.org/licenses/gpl-2.0.html\n */\n" ),
+	)
+);
 
 // D13 (owner decision of 16 Nov 2026) and AFF-WF-08 (closed 23 Nov 2026, AC-3): the core has no
 // workflow interface of its own – no envelope, no workflow read functions (suite spec R-4.4/R-4.5);
@@ -785,6 +815,114 @@ foreach ( array( 'de_DE', 'de_DE_formal' ) as $p501_loc ) {
 	}
 }
 check( 'P5-01 de_DE informal ("du"), de_DE_formal formal ("Sie"), same keys', array( array(), array(), true ), array( $p501_bad['de_DE'], $p501_bad['de_DE_formal'], array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE.json' ), true ) ) === array_keys( (array) json_decode( (string) file_get_contents( $p501_lang . 'de_DE_formal.json' ), true ) ) ) );
+
+// P5-15: glossary of the German translations. "(partner) program terms" is always
+// "Partnerbedingungen", the audit log is always "Audit-Log" (not "das Protokoll", which reads like the
+// technical log); "Their"/"Its partners" is not the formal "Ihre" in the du version.
+$p515_bad = array();
+foreach ( array( 'de_DE', 'de_DE_formal' ) as $p515_loc ) {
+	foreach ( (array) json_decode( (string) file_get_contents( $p501_lang . $p515_loc . '.json' ), true ) as $p515_k => $p515_v ) {
+		$p515_all = implode( "\n", array_map( 'strval', (array) $p515_v ) );
+		$p515_k   = (string) $p515_k;
+		if ( preg_match( '/Teilnahmebedingungen|Programmbedingungen|Partnerprogramm-Bedingungen|Bedingungen unseres Partnerprogramms/u', $p515_all ) ) {
+			$p515_bad[] = $p515_loc . ': ' . $p515_k;
+		}
+		if ( preg_match( '/\bprogram terms\b/i', $p515_k ) && false === strpos( $p515_all, 'Partnerbedingungen' ) ) {
+			$p515_bad[] = $p515_loc . ' (terms): ' . $p515_k;
+		}
+		if ( preg_match( '/\baudit log\b/i', $p515_k ) && false === strpos( $p515_all, 'Audit-Log' ) ) {
+			$p515_bad[] = $p515_loc . ' (audit log): ' . $p515_k;
+		}
+		if ( ( 0 === strpos( $p515_k, 'Affiliate Captain found booking records kept' ) && false !== strpos( $p515_all, 'Ihre %2$d' ) ) || ( 0 === strpos( $p515_k, 'Delete this group? Its partners' ) && false !== strpos( $p515_all, 'Ihre Partner' ) ) ) {
+			$p515_bad[] = $p515_loc . ' (their): ' . $p515_k;
+		}
+	}
+}
+check( 'P5-15 German glossary: Partnerbedingungen, Audit-Log, "Deren"/"Die Partner dieser Gruppe"', array(), $p515_bad );
+// P6-07: every wpac_ hook the core fires (apply_filters/do_action with a literal name, or a class
+// constant holding a wpac_ name) is documented in docs/CONTRACT.md – or listed here as internal,
+// with the reason. A hook only described in a docblock is invisible to add-on developers.
+$p607_internal = array(
+	// 'wpac_example' => 'reason why it is not part of the contract',
+);
+$p607_root  = dirname( __DIR__ );
+$p607_doc   = (string) file_get_contents( $p607_root . '/docs/CONTRACT.md' );
+$p607_names = array();
+$p607_it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $p607_root . '/src', FilesystemIterator::SKIP_DOTS ) );
+foreach ( $p607_it as $p607_f ) {
+	if ( 'php' !== $p607_f->getExtension() ) {
+		continue;
+	}
+	$p607_src = (string) file_get_contents( $p607_f->getPathname() );
+	if ( preg_match_all( '/\b(?:apply_filters|apply_filters_ref_array|do_action|do_action_ref_array)\(\s*[\'"](wpac_[a-z0-9_]+)[\'"]/', $p607_src, $p607_m ) ) {
+		$p607_names = array_merge( $p607_names, $p607_m[1] );
+	}
+	// Hooks fired through a class constant: apply_filters( self::FILTER, … ) with const FILTER = 'wpac_…'.
+	if ( preg_match_all( '/\b(?:apply_filters|do_action)\(\s*(?:self|static|[A-Z][A-Za-z]+)::([A-Z_]+)\b/', $p607_src, $p607_c ) ) {
+		foreach ( $p607_c[1] as $p607_const ) {
+			if ( preg_match( '/\bconst\s+' . $p607_const . '\s*=\s*[\'"](wpac_[a-z0-9_]+)[\'"]/', $p607_src, $p607_v ) ) {
+				$p607_names[] = $p607_v[1];
+			}
+		}
+	}
+}
+$p607_names   = array_values( array_unique( $p607_names ) );
+$p607_missing = array();
+foreach ( $p607_names as $p607_n ) {
+	// A name ending in "_" is the fixed part of a dynamic hook ('wpac_portal_tab_' . $key): documented
+	// as `wpac_portal_tab_{key}` or by its concrete names.
+	$p607_re = '_' === substr( $p607_n, -1 ) ? '/`' . preg_quote( $p607_n, '/' ) . '[a-z{]/' : '/`' . preg_quote( $p607_n, '/' ) . '(?:`| \()/';
+	if ( ! isset( $p607_internal[ $p607_n ] ) && ! preg_match( $p607_re, $p607_doc ) ) {
+		$p607_missing[] = $p607_n;
+	}
+}
+sort( $p607_missing );
+check( 'P6-07 every wpac_ hook of the core is documented in docs/CONTRACT.md (' . count( $p607_names ) . ' hooks; scan finds > 150)', array( array(), true ), array( $p607_missing, count( $p607_names ) > 150 ) );
+
+// P6-08: the consent fingerprint is documented with its real formula (box key, line break, wording).
+check(
+	'P6-08 consent doc_hash formula in code and docs: sha256( box . "\n" . wording )',
+	array( 1, 1, 1 ),
+	array(
+		preg_match( '/hash\(\s*\'sha256\',\s*\$key\s*\.\s*"\\\\n"\s*\.\s*\$text\s*\)/', (string) file_get_contents( $p607_root . '/src/Affiliates/Agreements.php' ) ),
+		preg_match( '/`doc_hash` = SHA-256 von Kästchen und Wortlaut, `hash\( \'sha256\', \$box \. "\\\\n" \. \$wortlaut \)`/u', $p607_doc ),
+		preg_match( '/fingerprint is the SHA-256 of the box key, a line break and the wording/', (string) file_get_contents( $p607_root . '/docs/HANDBOOK.md' ) ),
+	)
+);
+
+// P6-11 / P6-12: outdated statements in the documents stay corrected.
+$p611_contract = $p607_doc;
+$p611_handbook = (string) file_get_contents( $p607_root . '/docs/HANDBOOK.md' );
+$p611_fc       = (string) file_get_contents( $p607_root . '/docs/FORM-CAPTAIN.md' );
+$p611_fn       = (string) file_get_contents( $p607_root . '/src/functions.php' );
+check(
+	'P6-11/12 docs: non-SEPA since 0.22.0, add-on hint rows named, confirmation days from the setting, method bank in the docblock, wizard notice also after an update',
+	array( false, true, false, true, false, false, true, 2, true ),
+	array(
+		false !== strpos( $p611_handbook, 'Bank transfer outside SEPA (since 0.21.0)' ),
+		false !== strpos( $p611_handbook, 'Bank transfer outside SEPA (since 0.22.0)' ),
+		false !== strpos( $p611_contract, 'Hinweise auf das Add-on im Kernplugin** (WordPress.org-Richtlinie 11): derzeit keine' ),
+		false !== strpos( $p611_contract, 'Hinweise auf das Add-on im Kernplugin** (WordPress.org-Richtlinie 11): seit Plugin 0.20.0 nur die eingebauten Hinweiszeilen' ),
+		false !== strpos( $p611_contract, 'höchstens zwei Tage' ),
+		false !== strpos( $p611_fc, 'höchstens zwei Tage' ),
+		false !== strpos( $p611_contract, '`application_confirm_days`' ) && false !== strpos( $p611_fc, '`application_confirm_days`' ),
+		substr_count( $p611_fn, 'sepa|bank|manual' ) + substr_count( $p611_fn, 'method (sepa, bank' ),
+		false !== strpos( $p611_handbook, 'After activation – and after an update while required items of the setup checklist are open – a notice' ),
+	)
+);
+
+// P6-13: the real upgrade job compares the settings and what depends on them before and after.
+$p613_src = (string) file_get_contents( $p607_root . '/tests/ci/upgrade-check.php' );
+check(
+	'P6-13 upgrade check compares Settings::all(), small business limits and minimum retention before/after',
+	array( true, true, true, true ),
+	array(
+		false !== strpos( $p613_src, "settings of the previous version unchanged" ),
+		false !== strpos( $p613_src, "'wpac_small_business_limits'" ) && false !== strpos( $p613_src, 'small business limits and warnings unchanged' ),
+		false !== strpos( $p613_src, 'minimum_years' ) && false !== strpos( $p613_src, 'legal minimum retention of credit notes unchanged' ),
+		false !== strpos( (string) file_get_contents( $p607_root . '/.github/workflows/ci.yml' ), 'php tests/ci/upgrade-check.php "$RUNNER_TEMP/wp" 127.0.0.1:8088 "$RUNNER_TEMP/before.json"' ),
+	)
+);
 
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

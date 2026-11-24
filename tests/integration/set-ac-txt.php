@@ -138,6 +138,7 @@ Locale::forget_partner( $txt_en );
 check( 'SET-AC-17 forgotten with the partner', '', Locale::partner( $txt_en ) );
 
 /* ---------- SET-AC-18: settings ---------- */
+$GLOBALS['test_posts'][901] = (object) array( 'ID' => 901, 'post_type' => 'page', 'post_name' => 'impressum', 'post_title' => 'Impressum', 'post_status' => 'publish' ); // A chosen page must exist (P1-12).
 $txt_out = Settings::sanitize( array( 'consent_terms_label' => 'Ich akzeptiere die Bedingungen.' ), $txt_err, $txt_notes );
 check( 'SET-AC-18 terms wording without {terms} rejected', array( true, '' ), array( isset( $txt_err['consent_terms_label'] ), $txt_out['consent_terms_label'] ) );
 $txt_out = Settings::sanitize(

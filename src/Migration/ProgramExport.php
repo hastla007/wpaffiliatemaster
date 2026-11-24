@@ -257,7 +257,7 @@ final class ProgramExport {
 			// Other payment method (PayPal …): method and decrypted payment details, else they would be lost.
 			$row['payout_method']   = ProfileRepository::method( $profile );
 			$row['payment_details'] = null !== $details ? $details : '';
-			// Bank transfer outside SEPA (new after plugin 0.21.0): the decrypted account in its own columns.
+			// Bank transfer outside SEPA (since plugin 0.22.0): the decrypted account in its own columns.
 			$bank = ProfileRepository::bank_details( $profile );
 			foreach ( ProfileRepository::BANK_FIELDS as $f ) {
 				$row[ $f ] = null !== $bank ? $bank[ $f ] : '';

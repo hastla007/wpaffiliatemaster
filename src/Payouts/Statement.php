@@ -28,6 +28,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class Statement {
 
+	/** Version of the built-in document notes frozen in the operator snapshot (2 = neutral notes outside the EU and Switzerland, plugin 0.22.0). */
+	const NOTES_V = 2;
+
 	/**
 	 * Local storage folder (created on demand, with deny rules and index.php): see LocalStore.
 	 *
@@ -348,6 +351,16 @@ final class Statement {
 		}
 		$country = strtoupper( '' !== (string) $country ? (string) $country : (string) Settings::get( 'operator_country' ) );
 		$country = '' !== $country ? $country : 'DE';
+		if ( self::neutral_notes( $country, $op ) ) {
+			// Outside the EU (and Switzerland) no EU or German legal references (P3-05, P3-11): neutral
+			// built-in texts, translated into every document language; still to be checked per country.
+			if ( Vat::REVERSE_CHARGE === $mode ) {
+				return __( 'No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service.', 'affiliate-captain' );
+			}
+			if ( Vat::SMALL_BUSINESS === $mode ) {
+				return __( 'No VAT is shown because the partner is not registered for VAT.', 'affiliate-captain' );
+			}
+		}
 		switch ( $mode ) {
 			case Vat::STANDARD:
 				return __( 'The commission rates are net amounts; VAT is added at the statutory rate.', 'affiliate-captain' );
@@ -382,6 +395,35 @@ final class Statement {
 	}
 
 	/**
+	 * Whether the built-in notes for an operator country are the neutral ones (outside the EU and
+	 * Switzerland: no references to EU or national law; '' = Germany as before).
+	 *
+	 * @param string $country Operator country (upper case).
+	 * @return bool
+	 */
+	public static function neutral_country( $country ) {
+		return '' !== (string) $country && 'CH' !== $country && ! in_array( $country, \WPAffiliateCaptain\Core\CountryProfiles::EU, true );
+	}
+
+	/**
+	 * Whether a document uses the neutral built-in notes: operator outside the EU and Switzerland
+	 * (neutral_country()) and a document issued since plugin 0.22.0 – its snapshot carries
+	 * 'notes_v' >= NOTES_V. Documents issued before keep their built-in text (EU citation) when
+	 * they are built again, byte for byte. Without a snapshot (preview, settings page) the
+	 * current logic applies.
+	 *
+	 * @param string $country Operator country (upper case).
+	 * @param array  $op      Operator snapshot of the document (empty = none).
+	 * @return bool
+	 */
+	public static function neutral_notes( $country, array $op = array() ) {
+		if ( ! self::neutral_country( (string) $country ) ) {
+			return false;
+		}
+		return ! $op || ( isset( $op['notes_v'] ) && (int) $op['notes_v'] >= self::NOTES_V );
+	}
+
+	/**
 	 * Own note text frozen with a document (SET-AC-04 c; '' = the built-in text applies).
 	 *
 	 * @param array  $op   Operator snapshot.
@@ -404,9 +446,32 @@ final class Statement {
 		if ( '' !== $own ) {
 			return $own;
 		}
+		if ( self::neutral_notes( strtoupper( (string) $country ), $op ) ) {
+			return __( 'This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
+		}
 		return 'DE' === $country
 			? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' )
 			: __( 'This document is a self-billing invoice agreed with the partner (Art. 224 VAT Directive); the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
+	}
+
+	/**
+	 * Note of a correction of a self-billing credit note: German law for DE, the EU VAT Directive
+	 * for the EU and Switzerland, a neutral text without legal references elsewhere (P3-05, like
+	 * self_billing_note()).
+	 *
+	 * @param string $country Operator country.
+	 * @param array  $op      Operator snapshot of the document (neutral_notes()).
+	 * @return string
+	 */
+	public static function correction_note( $country, array $op = array() ) {
+		$country = strtoupper( (string) $country );
+		if ( 'DE' === $country ) {
+			return __( 'This document corrects the credit note named above (self-billing, §14 Abs. 2 UStG); the change of the amounts is a correction under §17 UStG. The partner may object to it as to the credit note.', 'affiliate-captain' );
+		}
+		if ( self::neutral_notes( $country, $op ) ) {
+			return __( 'This document corrects the self-billing invoice named above. The partner may object to it as to the original document.', 'affiliate-captain' );
+		}
+		return __( 'This document corrects the self-billing invoice named above (Art. 224 VAT Directive). The partner may object to it as to the original document.', 'affiliate-captain' );
 	}
 
 	/**
