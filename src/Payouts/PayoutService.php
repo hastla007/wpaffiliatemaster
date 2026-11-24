@@ -650,14 +650,17 @@ final class PayoutService {
 			'date_format'  => (string) get_option( 'date_format' ),
 		);
 		if ( $issue ) {
-			// Own document notes (SET-AC-04 c) are frozen with the document when it is issued; empty
-			// settings keep the built-in text, and documents issued before keep theirs.
+			// Own document notes (SET-AC-04 c) are frozen with the document when it is issued, in the
+			// document language (P3-11): the text stored for that language, the own text of the site
+			// language only for documents in the site language. Without one the built-in text applies
+			// (in the document language), and documents issued before keep theirs.
+			$doc   = (string) $op['locale'];
 			$notes = array_filter(
 				array(
-					'self_billing'      => trim( (string) Settings::get( 'note_self_billing' ) ),
-					Vat::REVERSE_CHARGE => trim( (string) Settings::get( 'note_reverse_charge' ) ),
-					Vat::SMALL_BUSINESS => trim( (string) Settings::get( 'note_small_business' ) ),
-					Vat::PRIVATE_PERSON => trim( (string) Settings::get( 'note_private_person' ) ),
+					'self_billing'      => trim( Settings::localized( 'note_self_billing', $doc, false ) ),
+					Vat::REVERSE_CHARGE => trim( Settings::localized( 'note_reverse_charge', $doc, false ) ),
+					Vat::SMALL_BUSINESS => trim( Settings::localized( 'note_small_business', $doc, false ) ),
+					Vat::PRIVATE_PERSON => trim( Settings::localized( 'note_private_person', $doc, false ) ),
 				),
 				'strlen'
 			);

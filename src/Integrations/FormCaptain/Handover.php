@@ -69,6 +69,11 @@ final class Handover {
 		if ( '' !== $problem ) {
 			return self::result( 'fail', $problem, 'The partner group in the action settings cannot be used for hand-overs.' );
 		}
+		if ( Registration::consent_boxes() ) {
+			// Additional required consents or a minimum age (SET-AC-18) cannot be confirmed through the
+			// mapping: no hand-over may bypass them (P3-10). Final until the settings change.
+			return self::result( 'fail', 'consents_unsupported', 'Affiliate Captain asks for additional consents or a minimum age on its own registration form; a hand-over cannot confirm them. Remove them in Affiliate Captain or link to its own registration form.' );
+		}
 		$terms = Agreements::current( $group_id );
 		if ( $terms['page_id'] && (string) $terms['version'] !== trim( isset( $settings['terms_version'] ) && is_scalar( $settings['terms_version'] ) ? (string) $settings['terms_version'] : '' ) ) {
 			return self::result( 'fail', 'terms_version_mismatch', 'The terms version in the action settings is not the current version in Affiliate Captain.' );
@@ -157,6 +162,7 @@ final class Handover {
 			'group_id'         => $group_id,
 			'referred_by'      => self::recruiter( $data['referrer'], $data['email'] ),
 			'terms'            => $terms['page_id'] ? $terms + array( 'accepted_at' => Db::now() ) : null,
+			'consents'         => self::consents( $terms, $form_id, $entry_id ), // Proof of the terms consent (P3-10).
 			'redirect'         => $url,
 			'pending_only'     => true, // Registration::finalize(): never "active", whatever auto_approve says.
 			'handover'         => $ref,
@@ -207,6 +213,35 @@ final class Handover {
 			'channel'  => Registration::cap( sanitize_text_field( $text( 'channel' ) ), Registration::MAX_CHANNEL ),
 			'message'  => Registration::cap( sanitize_textarea_field( $text( 'message' ) ), Registration::MAX_NOTE ),
 			'referrer' => Db::cut( sanitize_text_field( $text( 'referrer' ) ), 100 ),
+		);
+	}
+
+	/**
+	 * Consents of a hand-over to store with the partner (Agreements::record_consents() through
+	 * Registration::finalize()): the terms consent like the built-in form, with the Form Captain
+	 * form and entry it was given in. Further boxes never occur (handle() refuses hand-overs while
+	 * they are configured).
+	 *
+	 * @param array $terms    Current terms (Agreements::current()).
+	 * @param int   $form_id  Form Captain form.
+	 * @param int   $entry_id Form Captain entry.
+	 * @return array List of { key, text, accepted_at }.
+	 */
+	public static function consents( array $terms, $form_id, $entry_id ) {
+		$out = Registration::consents( array(), $terms )[1];
+		foreach ( $out as $i => $consent ) {
+			if ( 'terms' === $consent['key'] ) {
+				/* translators: 1: wording of the terms consent, 2: Form Captain form ID, 3: entry ID */
+				$out[ $i ]['text'] = sprintf( __( '%1$s (consent field of Form Captain form %2$d, entry %3$d)', 'affiliate-captain' ), $consent['text'], (int) $form_id, (int) $entry_id );
+			}
+		}
+		return array_values(
+			array_filter(
+				$out,
+				static function ( $c ) {
+					return 'terms' === $c['key'];
+				}
+			)
 		);
 	}
 

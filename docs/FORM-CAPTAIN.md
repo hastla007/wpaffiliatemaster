@@ -34,7 +34,8 @@ Andere Felder des Formulars erreichen Affiliate Captain nicht: Form Captain übe
 Einstellungen der Aktion:
 
 - **Partnergruppe (ID, 0 = keine).** Nur aktive, **öffentliche** Gruppen ohne Pflicht-Zusatzfelder. Die Beschriftung nennt die öffentlichen Gruppen mit ID. Private Gruppen brauchen beim eigenen Formular die Freigabe eines Partner-Managers; sie sind für Übergaben gesperrt (`group_invalid`). Gruppen mit Pflicht-Zusatzfeldern ergeben `group_fields_unsupported`, weil die Zusatzfelder der Gruppe nicht Teil der Zuordnung sind.
-- **Version der Teilnahmebedingungen.** Ist in Affiliate Captain eine Bedingungsseite gesetzt (Programm oder Gruppe), muss hier genau deren aktuelle Version stehen. Das Einwilligungsfeld im Formular soll auf diese Seite verlinken. Ändert sich die Version in Affiliate Captain, schlagen weitere Übergaben mit `terms_version_mismatch` fehl, bis Formular und Einstellung angepasst sind. So wird nie eine Zustimmung zu einem Text gespeichert, den das Formular nicht gezeigt hat.
+- **Zusätzliche Zustimmungen und Mindestalter (seit Plugin 0.22.0).** Verlangt Affiliate Captain im eigenen Bewerbungsformular weitere Pflicht-Kästchen (`consent_extra_1` … `_3`) oder ein Mindestalter (`min_partner_age`), schlagen Übergaben mit `consents_unsupported` fehl (auch im Testlauf): Diese Bestätigungen sind nicht Teil der Zuordnung und dürfen nicht umgangen werden. Abhilfe: die Kästchen bzw. das Mindestalter in Affiliate Captain entfernen oder im Formular auf die eigene Bewerbungsseite verweisen. (Standard bis zur Rechtsprüfung; eine Zuordnung dieser Bestätigungen ist nicht gebaut.)
+- **Version der Teilnahmebedingungen.** Ist in Affiliate Captain eine Bedingungsseite gesetzt (Programm oder Gruppe), muss hier genau deren aktuelle Version stehen. Das Einwilligungsfeld im Formular soll auf diese Seite verlinken. Ändert sich die Version in Affiliate Captain, schlagen weitere Übergaben mit `terms_version_mismatch` fehl, bis Formular und Einstellung angepasst sind. So wird nie eine Zustimmung zu einem Text gespeichert, den das Formular nicht gezeigt hat. Seit Plugin 0.22.0 wird nach der Bestätigung zusätzlich der Nachweis der Zustimmung gespeichert wie beim eigenen Formular (Tabelle `agreements`, `result = 'consent'`, `version = 'consent:terms'`; Wortlaut „Ich akzeptiere die Teilnahmebedingungen (URL) (Version …) (Einwilligungsfeld von Form-Captain-Formular X, Eintrag Y)“, Zeitpunkt der Übergabe).
 
 ## Ergebnisse (Form Captain → Integrations-Jobs)
 
@@ -49,6 +50,7 @@ Einstellungen der Aktion:
 | retry | `locked`, `storage_failed` | Dieselbe Einsendung wird gerade übergeben bzw. Speichern fehlgeschlagen. |
 | fail | `terms_required` | Einwilligung zu den Teilnahmebedingungen fehlt. |
 | fail | `invalid_field` | Name fehlt oder E-Mail-Adresse ungültig. |
+| fail | `consents_unsupported` | Affiliate Captain verlangt zusätzliche Pflicht-Zustimmungen oder ein Mindestalter (siehe oben); nach der Korrektur den Job wiederholen. |
 | fail | `group_invalid`, `group_fields_unsupported`, `terms_version_mismatch` | Einstellung der Aktion passt nicht (siehe oben); nach der Korrektur den Job wiederholen. |
 | fail | `invalid_job` | Formular- oder Eintrags-ID fehlt. |
 

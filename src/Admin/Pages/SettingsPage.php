@@ -1115,6 +1115,9 @@ final class SettingsPage {
 		self::note( 'note_reverse_charge', $s, \WPAffiliateCaptain\Payouts\Statement::vat_note( \WPAffiliateCaptain\Payouts\Vat::REVERSE_CHARGE, $country ) );
 		self::note( 'note_small_business', $s, \WPAffiliateCaptain\Payouts\Statement::vat_note( \WPAffiliateCaptain\Payouts\Vat::SMALL_BUSINESS, $country ) );
 		self::note( 'note_private_person', $s, \WPAffiliateCaptain\Payouts\Statement::vat_note( \WPAffiliateCaptain\Payouts\Vat::PRIVATE_PERSON, $country ) );
+		foreach ( array( 'note_self_billing', 'note_reverse_charge', 'note_small_business', 'note_private_person' ) as $note ) {
+			self::i18n( $note . '_i18n', $s, true ); // Per document language (P3-11).
+		}
 		self::end();
 
 		self::section( __( 'Document numbers', 'affiliate-captain' ), 'payouts' );

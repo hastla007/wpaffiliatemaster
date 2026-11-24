@@ -1602,6 +1602,7 @@ require __DIR__ . '/set-ac-wiz.php'; // SET-AC-24: setup wizard flow (before r8-
 require __DIR__ . '/set-ac-xfer.php'; // SET-AC-08a: groups, rules, tiers and e-mail templates in the settings export (before r8-render).
 require __DIR__ . '/set-ac-fsec.php'; // fsec (0.22.0 review fixes): retention/reset confirmation, non-SEPA destination and shared accounts, privacy export (before r8-render).
 require __DIR__ . '/r24-fpay.php'; // Fix round 24, agent fpay: maximum payout, one open payout, minimum per currency, withholding shown (before r8-render).
+require __DIR__ . '/set-ac-fintl.php'; // Final review fixes P3-08/09/10/11, P6-09 (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
