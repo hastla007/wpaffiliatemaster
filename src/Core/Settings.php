@@ -999,6 +999,52 @@ final class Settings {
 			$errors['min_payout']    = __( 'The minimum payout cannot be higher than the maximum payout.', 'affiliate-captain' );
 			$out['min_payout_minor'] = (int) $old( 'min_payout_minor' );
 		}
+		self::check_currency_minimums( $in, $out, $errors, $old );
+	}
+
+	/**
+	 * Minimum payouts per currency (min_payout_currency) must not be above the maximum payout
+	 * converted to that currency (P2-11): partners in that currency could never be paid. A changed
+	 * table is rejected (field error, the stored table stays); otherwise a changed maximum is.
+	 *
+	 * @param array    $in     Raw input.
+	 * @param array    $out    Sanitized settings so far (extended).
+	 * @param array    $errors Rejected fields (extended).
+	 * @param callable $old    Stored value of a key.
+	 */
+	private static function check_currency_minimums( array $in, array &$out, array &$errors, callable $old ) {
+		$too_high = static function () use ( &$out ) {
+			$max = (int) $out['max_payout_minor'];
+			if ( $max <= 0 || ! isset( $out['min_payout_currency'] ) ) {
+				return array();
+			}
+			$rates = Fx::parse( isset( $out['exchange_rates'] ) ? (string) $out['exchange_rates'] : '' );
+			$bad   = array();
+			foreach ( Fx::parse_minimums( (string) $out['min_payout_currency'] ) as $cur => $minor ) {
+				$limit = Fx::from_program( $max, (string) $cur, (string) $out['currency'], $rates );
+				if ( null !== $limit && (int) $minor > max( 1, (int) $limit ) ) {
+					$bad[ $cur ] = max( 1, (int) $limit );
+				}
+			}
+			return $bad;
+		};
+		$bad = $too_high();
+		if ( ! $bad ) {
+			return;
+		}
+		$cur   = (string) key( $bad );
+		$limit = (int) current( $bad );
+		/* translators: 1: currency code, 2: maximum payout converted to that currency */
+		$message = sprintf( __( 'The minimum payout in %1$s is higher than the maximum payout converted to %1$s (%2$s). Partners paid in this currency could never be paid – lower the minimum or raise the maximum payout.', 'affiliate-captain' ), $cur, Money::format( $limit, $cur ) );
+		if ( isset( $in['min_payout_currency'] ) && (string) $out['min_payout_currency'] !== (string) $old( 'min_payout_currency' ) && ! isset( $errors['min_payout_currency'] ) ) {
+			$errors['min_payout_currency'] = $message;
+			$out['min_payout_currency']    = (string) $old( 'min_payout_currency' );
+			$bad                           = $too_high();
+		}
+		if ( $bad && isset( $in['max_payout'] ) && (int) $out['max_payout_minor'] !== (int) $old( 'max_payout_minor' ) && ! isset( $errors['max_payout'] ) ) {
+			$errors['max_payout']    = $message;
+			$out['max_payout_minor'] = (int) $old( 'max_payout_minor' );
+		}
 	}
 
 	/**
