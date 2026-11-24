@@ -693,6 +693,7 @@ final class SettingsPage {
 		}
 		echo '<div class="wrap"><h1>' . esc_html__( 'Affiliate Captain settings', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
+		echo SetupWizard::link_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped there (SET-AC-24).
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Settings sections', 'affiliate-captain' ) . '">';
 		foreach ( $labels as $key => $label ) {
 			printf( '<a class="nav-tab %s" href="%s"%s>%s</a>', $key === self::$tab ? 'nav-tab-active' : '', esc_url( Admin::url( 'wpac-settings', array( 'tab' => $key ) ) ), $key === self::$tab ? ' aria-current="page"' : '', esc_html( $label ) );

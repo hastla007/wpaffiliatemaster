@@ -65,7 +65,7 @@ final class DashboardPage {
 	 *
 	 * @return array [ titles of created pages, error lines ]
 	 */
-	private static function create_pages() {
+	public static function create_pages() {
 		$pages = array(
 			'registration_page_id' => array( __( 'Become a partner', 'affiliate-captain' ), '<!-- wp:wpac/registration /-->' ),
 			'portal_page_id'       => array( __( 'Partner area', 'affiliate-captain' ), '<!-- wp:wpac/portal /-->' ),
@@ -201,7 +201,7 @@ final class DashboardPage {
 		if ( ! self::setup_open() ) {
 			return;
 		}
-		echo '<div class="wpac-checklist"><h2>' . esc_html__( 'Setup checklist', 'affiliate-captain' ) . '</h2><ul>';
+		echo '<div class="wpac-checklist"><h2>' . esc_html__( 'Setup checklist', 'affiliate-captain' ) . '</h2>' . SetupWizard::link_html() . '<ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- link_html() is escaped.
 		foreach ( $items as $i ) {
 			$class = $i[0] ? 'done' : ( $i[3] ? 'todo' : 'optional' );
 			$state = $i[0] ? __( 'done', 'affiliate-captain' ) : ( $i[3] ? __( 'open', 'affiliate-captain' ) : __( 'optional', 'affiliate-captain' ) );

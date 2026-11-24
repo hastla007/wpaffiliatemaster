@@ -147,6 +147,7 @@ function wpac_uninstall_site() {
 		// The restriction list belongs to the kept booking records; without them it is not needed.
 		$wpac_options = array_merge( $wpac_options, array( 'wpac_settings', 'wpac_db_version', 'wpac_restricted', 'wpac_objections', 'wpac_clawback', 'wpac_tier_month_closed', 'wpac_tier_month_first', 'wpac_tier_deferred', 'wpac_tier_off_periods', 'wpac_vat_rate_history', 'wpac_monitor_key', 'wpac_mail_templates' ) );
 		$wpac_options[] = 'wpac_country_profile'; // Profile applied last (SET-AC-03).
+		$wpac_options[] = 'wpac_setup_wizard'; // Progress of the setup wizard (SET-AC-24).
 		// Stored terms texts belong to the acceptance records (agreements), which are dropped now.
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wpac\\_terms\\_text\\_%' OR option_name LIKE 'wpac\\_consent\\_text\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		// Main code chosen by the admin and the history of code requests (30-day limit, Art. 15

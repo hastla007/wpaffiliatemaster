@@ -118,7 +118,10 @@ final class Reauth {
 				return 'settings_reauth_off';
 			}
 		}
-		if ( 'settings_save' === $do ) {
+		if ( 'wizard_profile_apply' === $do ) {
+			return 'settings_profile_apply'; // Same confirmation as on the settings page (SET-AC-24).
+		}
+		if ( 'settings_save' === $do || 'wizard_save' === $do ) {
 			// Values that weaken a protection or redirect money/alerts need the same confirmation
 			// as an import of them (P4-01): bank details, notification address, waiting periods.
 			$raw = Admin::post( 'wpac', array() );

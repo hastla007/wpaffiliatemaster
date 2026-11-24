@@ -1597,6 +1597,7 @@ require __DIR__ . '/set-ac-wht.php'; // SET-AC-20: withholding per partner (befo
 require __DIR__ . '/set-ac-txt.php'; // SET-AC-17/18: texts per language, document language per partner, application consents (before r8-render).
 require __DIR__ . '/set-ac-cp.php'; // Country profiles and taxes per country as settings (SET-AC-03/04).
 require __DIR__ . '/set-ac-acct.php'; // SET-AC-30: payout methods outside SEPA (before r8-render).
+require __DIR__ . '/set-ac-wiz.php'; // SET-AC-24: setup wizard flow (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.
@@ -1620,6 +1621,7 @@ require __DIR__ . '/set-ac-review.php'; // Findings of the settings review phase
 require __DIR__ . '/set-ac-rules-render.php'; // After the render files: rule form, list and preview (SET-AC-22).
 require __DIR__ . '/set-ac-sw-render.php'; // SET-AC-26/28 render: menu, settings page, partner area with features on/off.
 require __DIR__ . '/set-ac-acct-render.php'; // After the render files: SET-AC-30 payout form in the partner area.
+require __DIR__ . '/set-ac-wiz-render.php'; // After the render files: SET-AC-24 setup wizard pages, notice and links.
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );
