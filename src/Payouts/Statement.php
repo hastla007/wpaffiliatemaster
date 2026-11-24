@@ -348,6 +348,16 @@ final class Statement {
 		}
 		$country = strtoupper( '' !== (string) $country ? (string) $country : (string) Settings::get( 'operator_country' ) );
 		$country = '' !== $country ? $country : 'DE';
+		if ( self::neutral_country( $country ) ) {
+			// Outside the EU (and Switzerland) no EU or German legal references (P3-05, P3-11): neutral
+			// built-in texts, translated into every document language; still to be checked per country.
+			if ( Vat::REVERSE_CHARGE === $mode ) {
+				return __( 'No VAT is charged on this document; any VAT due on the service is owed by the recipient of the service.', 'affiliate-captain' );
+			}
+			if ( Vat::SMALL_BUSINESS === $mode ) {
+				return __( 'No VAT is shown because the partner is not registered for VAT.', 'affiliate-captain' );
+			}
+		}
 		switch ( $mode ) {
 			case Vat::STANDARD:
 				return __( 'The commission rates are net amounts; VAT is added at the statutory rate.', 'affiliate-captain' );
@@ -382,6 +392,17 @@ final class Statement {
 	}
 
 	/**
+	 * Whether the built-in notes for an operator country are the neutral ones (outside the EU and
+	 * Switzerland: no references to EU or national law; '' = Germany as before).
+	 *
+	 * @param string $country Operator country (upper case).
+	 * @return bool
+	 */
+	public static function neutral_country( $country ) {
+		return '' !== (string) $country && 'CH' !== $country && ! in_array( $country, \WPAffiliateCaptain\Core\CountryProfiles::EU, true );
+	}
+
+	/**
 	 * Own note text frozen with a document (SET-AC-04 c; '' = the built-in text applies).
 	 *
 	 * @param array  $op   Operator snapshot.
@@ -403,6 +424,9 @@ final class Statement {
 		$own = self::own_note( $op, 'self_billing' );
 		if ( '' !== $own ) {
 			return $own;
+		}
+		if ( self::neutral_country( strtoupper( (string) $country ) ) ) {
+			return __( 'This document is a self-billing invoice agreed with the partner; the partner does not issue a separate invoice. The partner may object to it – we then issue a corrected document. Objections can be filed in the partner area.', 'affiliate-captain' );
 		}
 		return 'DE' === $country
 			? __( 'This document is a credit note (self-billing) agreed with the partner; the partner does not issue a separate invoice. The partner may object to it (§14 Abs. 2 S. 3 UStG) – it then no longer counts as an invoice and we issue a corrected credit note. Objections can be filed in the partner area.', 'affiliate-captain' )

@@ -1,0 +1,10 @@
+{
+ "Note on credit notes (self-billing) in other languages": "Hinweis Gutschrift in anderen Sprachen",
+ "Note for reverse charge in other languages": "Hinweis Umkehr der Steuerschuld in anderen Sprachen",
+ "Note for small businesses in other languages": "Hinweis Kleinunternehmer in anderen Sprachen",
+ "Note for private individuals in other languages": "Hinweis Privatperson in anderen Sprachen",
+ "Per installed language, for documents in that language (the partner's document language). Empty: the built-in text in that language – the own text above applies to documents in the site language only. Frozen with each document.": "Je installierter Sprache, für Belege in dieser Sprache (Belegsprache des Partners). Leer: der eingebaute Text in dieser Sprache – der eigene Text oben gilt nur für Belege in der Website-Sprache. Wird mit jedem Beleg eingefroren.",
+ "Per installed language, for documents in that language. Empty: the built-in text in that language. Frozen with each document.": "Je installierter Sprache, für Belege in dieser Sprache. Leer: der eingebaute Text in dieser Sprache. Wird mit jedem Beleg eingefroren.",
+ "%1$s (consent field of Form Captain form %2$d, entry %3$d)": "%1$s (Einwilligungsfeld von Form-Captain-Formular %2$d, Eintrag %3$d)",
+ "Please shorten the text to at most %1$s characters (%2$s).": "Bitte kürze den Text auf höchstens %1$s Zeichen (%2$s)."
+}

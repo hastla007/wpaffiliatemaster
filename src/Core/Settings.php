@@ -1117,10 +1117,18 @@ final class Settings {
 		}
 	}
 
+	/** Maximum length of a per-language text in characters (they are autoloaded with the settings, P6-09). */
+	const I18N_MAX = 20000;
+
+	/** Maximum length of a per-language document note (as the note of the site language). */
+	const NOTE_MAX = 1000;
+
 	/**
 	 * Sanitize a per-language text (SET-AC-17): form input (locale => text) or the stored JSON
 	 * (import, WP-CLI). Only installed languages other than the site language; empty texts are
-	 * dropped (the text of the site language is used for them). Stored as JSON ('' = none).
+	 * dropped (the text of the site language is used for them; for document notes the built-in text
+	 * of that language). Texts longer than I18N_MAX (notes: NOTE_MAX) characters are rejected at the
+	 * field. Stored as JSON ('' = none).
 	 *
 	 * @param array    $in     Raw input.
 	 * @param array    $out    Sanitized settings so far (extended).
@@ -1147,6 +1155,8 @@ final class Settings {
 		$site      = Locale::site();
 		$texts     = array();
 		$unknown   = array();
+		$too_long  = array();
+		$limit     = 0 === strpos( $base, 'note_' ) ? self::NOTE_MAX : self::I18N_MAX;
 		foreach ( $raw as $locale => $text ) {
 			$locale = (string) $locale;
 			$text   = is_scalar( $text ) ? trim( (string) $text ) : '';
@@ -1157,11 +1167,29 @@ final class Settings {
 				$unknown[] = $locale;
 				continue;
 			}
-			$texts[ $locale ] = 'promotion_guidelines' === $base ? wp_kses_post( $text ) : sanitize_text_field( $text );
+			if ( 'promotion_guidelines' === $base ) {
+				$text = wp_kses_post( $text );
+			} elseif ( 0 === strpos( $base, 'note_' ) ) {
+				$text = trim( sanitize_textarea_field( $text ) ); // Like the note of the site language.
+			} else {
+				$text = sanitize_text_field( $text );
+			}
+			if ( function_exists( 'mb_strlen' ) ? mb_strlen( $text, 'UTF-8' ) > $limit : strlen( $text ) > $limit ) {
+				$too_long[] = $locale;
+				continue;
+			}
+			$texts[ $locale ] = $text;
 		}
 		if ( $unknown ) {
 			/* translators: %s: language codes */
 			$errors[ $key ] = sprintf( __( 'These languages are not installed on this site: %s.', 'affiliate-captain' ), implode( ', ', array_slice( array_map( 'sanitize_text_field', $unknown ), 0, 5 ) ) );
+			$out[ $key ]    = (string) $old( $key );
+			return;
+		}
+		if ( $too_long ) {
+			// The texts are part of the autoloaded settings (read on every request, P6-09).
+			/* translators: 1: maximum number of characters, 2: language codes */
+			$errors[ $key ] = sprintf( __( 'Please shorten the text to at most %1$s characters (%2$s).', 'affiliate-captain' ), number_format_i18n( $limit ), implode( ', ', $too_long ) );
 			$out[ $key ]    = (string) $old( $key );
 			return;
 		}
@@ -1185,13 +1213,16 @@ final class Settings {
 	 * text of the site language (default_disclosure, promotion_guidelines). The filter
 	 * wpac_localized_setting can change it.
 	 *
-	 * @param string      $key    Base key (default_disclosure or promotion_guidelines).
-	 * @param string|null $locale Locale (null = the language texts are written in right now).
+	 * @param string      $key      Base key (default_disclosure, promotion_guidelines, note_*).
+	 * @param string|null $locale   Locale (null = the language texts are written in right now).
+	 * @param bool        $fallback Use the text of the site language for a language without its own
+	 *                              text; false: '' then (document notes: the built-in text of that
+	 *                              language applies, P3-11).
 	 * @return string
 	 */
-	public static function localized( $key, $locale = null ) {
+	public static function localized( $key, $locale = null, $fallback = true ) {
 		$locale = null === $locale ? Locale::current() : (string) $locale;
-		$value  = (string) self::get( $key );
+		$value  = $fallback || Locale::site() === $locale ? (string) self::get( $key ) : '';
 		$texts  = SettingsSchema::field( $key . '_i18n' ) ? self::texts( $key . '_i18n' ) : array();
 		if ( isset( $texts[ $locale ] ) && '' !== trim( (string) $texts[ $locale ] ) ) {
 			$value = (string) $texts[ $locale ];

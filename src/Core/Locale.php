@@ -219,6 +219,120 @@ final class Locale {
 	}
 
 	/**
+	 * Languages without an own translation of the plugin that use another one (P3-08): Austrian and
+	 * Swiss German use the formal German translation ("Sie", as WordPress does for de_AT/de_CH),
+	 * informal Swiss German the informal one ("du"). A translation of the language itself (from
+	 * translate.wordpress.org or in the plugin) always wins.
+	 */
+	const FALLBACKS = array(
+		'de_AT'          => 'de_DE_formal',
+		'de_CH'          => 'de_DE_formal',
+		'de_CH_informal' => 'de_DE',
+	);
+
+	/**
+	 * Locale whose translation the plugin uses for a language without its own ('' = none).
+	 *
+	 * @param string $locale Locale.
+	 * @return string
+	 */
+	public static function fallback( $locale ) {
+		$map = self::FALLBACKS;
+		/**
+		 * Languages that use the plugin translation of another language (locale => locale).
+		 *
+		 * @param array $map locale => fallback locale.
+		 */
+		$map = function_exists( 'apply_filters' ) ? (array) apply_filters( 'wpac_translation_fallbacks', $map ) : $map;
+		return isset( $map[ (string) $locale ] ) && is_string( $map[ (string) $locale ] ) && $map[ (string) $locale ] !== $locale ? $map[ (string) $locale ] : '';
+	}
+
+	/**
+	 * Filter load_textdomain_mofile: a missing .mo file of the plugin in a language with a fallback
+	 * becomes the file of the fallback language (same folder first, then the plugin's folder).
+	 *
+	 * @param string $mofile Path.
+	 * @param string $domain Text domain.
+	 * @return string
+	 */
+	public static function mofile( $mofile, $domain = '' ) {
+		if ( self::DOMAIN !== $domain || ! is_string( $mofile ) || is_readable( $mofile ) ) {
+			return $mofile;
+		}
+		$name = basename( $mofile );
+		if ( ! preg_match( '/^' . self::DOMAIN . '-(.+)\.mo$/', $name, $m ) ) {
+			return $mofile;
+		}
+		return self::fallback_file( $mofile, $m[1], '.mo' );
+	}
+
+	/**
+	 * Filter load_script_translation_file: the same for the JSON translations of the block editor
+	 * scripts (affiliate-captain-<locale>-<md5>.json).
+	 *
+	 * @param string|false $file   Path.
+	 * @param string       $handle Script handle.
+	 * @param string       $domain Text domain.
+	 * @return string|false
+	 */
+	public static function script_file( $file, $handle = '', $domain = '' ) {
+		if ( self::DOMAIN !== $domain || ! is_string( $file ) || is_readable( $file ) ) {
+			return $file;
+		}
+		if ( ! preg_match( '/^' . self::DOMAIN . '-([a-z]{2,3}(?:_[A-Za-z0-9]+)*)(-[0-9a-f]{32}\.json)$/', basename( $file ), $m ) ) {
+			return $file;
+		}
+		return self::fallback_file( $file, $m[1], $m[2] );
+	}
+
+	/**
+	 * Path of the fallback translation of a missing file, or the path unchanged.
+	 *
+	 * @param string $file   Missing file.
+	 * @param string $locale Its locale.
+	 * @param string $suffix What follows the locale in the file name.
+	 * @return string
+	 */
+	private static function fallback_file( $file, $locale, $suffix ) {
+		$fallback = self::fallback( $locale );
+		if ( '' === $fallback ) {
+			return $file;
+		}
+		$name = self::DOMAIN . '-' . $fallback . $suffix;
+		foreach ( array( dirname( $file ) . '/' . $name, WPAC_DIR . 'languages/' . $name ) as $candidate ) {
+			if ( is_readable( $candidate ) ) {
+				return $candidate;
+			}
+		}
+		return $file;
+	}
+
+	/**
+	 * Translation files of the plugin for a locale, in loading order (the language's own files,
+	 * else those of its fallback language).
+	 *
+	 * @param string $locale Locale.
+	 * @return string[] Readable files.
+	 */
+	public static function mo_files( $locale ) {
+		foreach ( array_filter( array( (string) $locale, self::fallback( $locale ) ) ) as $try ) {
+			$files = array_values(
+				array_filter(
+					array(
+						( defined( 'WP_LANG_DIR' ) ? WP_LANG_DIR : WPAC_DIR . 'languages' ) . '/plugins/' . self::DOMAIN . '-' . $try . '.mo',
+						WPAC_DIR . 'languages/' . self::DOMAIN . '-' . $try . '.mo',
+					),
+					'is_readable'
+				)
+			);
+			if ( $files ) {
+				return $files;
+			}
+		}
+		return array();
+	}
+
+	/**
 	 * Reload the plugin's translations for a locale. WordPress versions differ in whether
 	 * plugin text domains follow switch_to_locale() (and in the admin determine_locale()
 	 * returns the admin's language), so the files are loaded explicitly.
@@ -232,14 +346,8 @@ final class Locale {
 		// Reloadable: without it WordPress (6.1+) marks the domain as unloaded for good and the
 		// just-in-time loader no longer finds translations for later strings of the request.
 		unload_textdomain( self::DOMAIN, true );
-		$files = array(
-			WP_LANG_DIR . '/plugins/' . self::DOMAIN . '-' . $locale . '.mo',
-			WPAC_DIR . 'languages/' . self::DOMAIN . '-' . $locale . '.mo',
-		);
-		foreach ( $files as $file ) {
-			if ( is_readable( $file ) ) {
-				load_textdomain( self::DOMAIN, $file, $locale );
-			}
+		foreach ( self::mo_files( $locale ) as $file ) {
+			load_textdomain( self::DOMAIN, $file, $locale );
 		}
 	}
 
