@@ -12,6 +12,8 @@ use WPAffiliateCaptain\Affiliates\AffiliateRepository;
 use WPAffiliateCaptain\Commissions\Dunning;
 use WPAffiliateCaptain\Core\Db;
 use WPAffiliateCaptain\Core\Settings;
+use WPAffiliateCaptain\Admin\Pages\PayoutsPage;
+use WPAffiliateCaptain\Payouts\PayoutService;
 
 echo "R24 fops: dunning stages, locks and repeated repayments (P2-12)\n";
 
@@ -157,5 +159,34 @@ check(
 );
 check( 'P6-12 cache follows the settings: a changed setting is evaluated again', true, WPAffiliateCaptain\Admin\Pages\SetupWizard::setup_open() === WPAffiliateCaptain\Admin\Pages\DashboardPage::setup_open() );
 unset( $GLOBALS['r24_screen'] );
+update_option( 'wpac_settings', $r24_saved );
+Settings::flush_cache();
+
+// P6-07: the transfer list keeps the 9 columns of 0.21.0 while bank transfer outside SEPA is off.
+$r24_set( array( 'payout_method_bank' => 0 ) );
+$r24_pa = g4b_partner( 'r24-xfer' );
+g4b_earn( $r24_pa, 'r24-xfer-1', 150000 );
+$r24_pid = PayoutService::create_for_affiliate( $r24_pa, gmdate( 'Y-m-d' ), 'EUR' );
+$r24_addon = static function ( $rows ) {
+	foreach ( $rows as $i => $row ) {
+		$rows[ $i ][] = 'ADDON';
+	}
+	return $rows;
+};
+add_filter( 'wpac_transfer_rows', $r24_addon );
+$r24_tl = PayoutService::transfer_csv( array( $r24_pid ) );
+check(
+	'P6-07 bank transfer outside SEPA off: transfer list and header with 9 columns, add-on column at position 10 (as in 0.21.0)',
+	array( 10, 'ADDON', 9, false ),
+	is_array( $r24_tl ) ? array( count( $r24_tl[1][0] ), $r24_tl[1][0][9], count( PayoutsPage::transfer_header( $r24_tl[2] ) ), $r24_tl[2] ) : array( $r24_code( $r24_tl ) )
+);
+$r24_set( array( 'payout_method_bank' => 1 ) );
+$r24_tl2 = PayoutService::transfer_csv( array( $r24_pid ), true );
+remove_filter( 'wpac_transfer_rows', $r24_addon );
+check(
+	'P6-07 bank transfer outside SEPA on: 13 columns (empty bank columns for SEPA), add-on column at position 14',
+	array( 14, 'ADDON', '', 13, 13 ),
+	is_array( $r24_tl2 ) ? array( count( $r24_tl2[1][0] ), $r24_tl2[1][0][13], $r24_tl2[1][0][9], count( PayoutsPage::transfer_header( $r24_tl2[2] ) ), count( PayoutsPage::transfer_header() ) ) : array( $r24_code( $r24_tl2 ) )
+);
 update_option( 'wpac_settings', $r24_saved );
 Settings::flush_cache();

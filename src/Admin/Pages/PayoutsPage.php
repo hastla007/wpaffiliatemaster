@@ -277,7 +277,7 @@ final class PayoutsPage {
 			 * @since contract 1.2.0
 			 * @param string[] $header Column names.
 			 */
-			$header = (array) apply_filters( 'wpac_transfer_header', self::transfer_header() );
+			$header = (array) apply_filters( 'wpac_transfer_header', self::transfer_header( ! empty( $result[2] ) ) );
 			/* translators: 1: number of payouts, 2: file name */
 			self::download_notice( sprintf( _n( 'Transfer list with %1$d payout downloaded (%2$s). The payout is now marked as exported; once the money went out, select it and choose "Mark as paid".', 'Transfer list with %1$d payouts downloaded (%2$s). They are now marked as exported; once the money went out, select them and choose "Mark as paid".', count( $result[1] ), 'affiliate-captain' ), count( $result[1] ), $result[0] . '.csv' ) );
 			\WPAffiliateCaptain\Core\Csv::download( sanitize_file_name( $result[0] ) . '.csv', $header, self::transfer_rows_for_excel( $result[1] ) );
@@ -384,12 +384,15 @@ final class PayoutsPage {
 	}
 
 	/**
-	 * Column names of the transfer list (translated: it is opened in a spreadsheet).
+	 * Column names of the transfer list (translated: it is opened in a spreadsheet). The four
+	 * columns of bank transfers outside SEPA only when the list has them (see
+	 * PayoutService::transfer_csv()); otherwise the 9 columns of plugin 0.21.0.
 	 *
+	 * @param bool|null $bank_columns Include columns 10–13 (null = when payout_method_bank is on).
 	 * @return string[]
 	 */
-	public static function transfer_header() {
-		return array(
+	public static function transfer_header( $bank_columns = null ) {
+		$header = array(
 			_x( 'Number', 'document number', 'affiliate-captain' ),
 			__( 'Account holder', 'affiliate-captain' ),
 			__( 'IBAN', 'affiliate-captain' ),
@@ -399,12 +402,15 @@ final class PayoutsPage {
 			__( 'Reference', 'affiliate-captain' ),
 			__( 'Payout method', 'affiliate-captain' ),
 			__( 'Payment details', 'affiliate-captain' ),
-			// Bank transfer outside SEPA (since plugin 0.22.0); the BIC column holds the BIC/SWIFT code.
-			__( 'Account number', 'affiliate-captain' ),
-			__( 'Bank code / sort code / routing number', 'affiliate-captain' ),
-			__( 'Bank name', 'affiliate-captain' ),
-			__( 'Bank country', 'affiliate-captain' ),
 		);
+		if ( null === $bank_columns ? PayoutService::transfer_bank_columns() : $bank_columns ) {
+			// Bank transfer outside SEPA (since plugin 0.22.0); the BIC column holds the BIC/SWIFT code.
+			$header[] = __( 'Account number', 'affiliate-captain' );
+			$header[] = __( 'Bank code / sort code / routing number', 'affiliate-captain' );
+			$header[] = __( 'Bank name', 'affiliate-captain' );
+			$header[] = __( 'Bank country', 'affiliate-captain' );
+		}
+		return $header;
 	}
 
 	/**

@@ -1626,9 +1626,13 @@ final class PayoutService {
 	 * providers; marks them exported like the SEPA file (same checks: no second export without
 	 * "export again", no export after the partner changed the bank details).
 	 *
+	 * The four columns of bank transfers outside SEPA (10–13) are only part of the rows when the
+	 * method is switched on (payout_method_bank) or a payout of the list uses it; otherwise the
+	 * rows have the 9 columns of plugin 0.21.0, so columns of add-ons stay at position 10.
+	 *
 	 * @param int[] $ids            Payout IDs.
 	 * @param bool  $allow_reexport Include payouts that were already exported.
-	 * @return array|\WP_Error [ batch, rows ]
+	 * @return array|\WP_Error [ batch, rows, bank columns included (bool) ]
 	 */
 	public static function transfer_csv( array $ids, $allow_reexport = false ) {
 		global $wpdb;
@@ -1716,8 +1720,33 @@ final class PayoutService {
 		 * @param string $batch   Export batch.
 		 * @param int[]  $payouts Exported payouts.
 		 */
+		$bank_columns = self::transfer_bank_columns( $result[1] );
+		if ( ! $bank_columns ) {
+			foreach ( $result[1] as $i => $row ) {
+				$result[1][ $i ] = array_slice( $row, 0, 9 );
+			}
+		}
 		$rows = apply_filters( 'wpac_transfer_rows', $result[1], $result[0], $result[2] );
-		return array( $result[0], is_array( $rows ) ? $rows : $result[1] );
+		return array( $result[0], is_array( $rows ) ? $rows : $result[1], $bank_columns );
+	}
+
+	/**
+	 * Whether the transfer list has the columns of bank transfers outside SEPA (10–13): the method
+	 * is switched on, or one of the rows uses it (switched off after the payout was created).
+	 *
+	 * @param array|null $rows Rows of the list (null = judge by the setting alone).
+	 * @return bool
+	 */
+	public static function transfer_bank_columns( $rows = null ) {
+		if ( Settings::get( 'payout_method_bank' ) ) {
+			return true;
+		}
+		foreach ( (array) $rows as $row ) {
+			if ( isset( $row[7] ) && ProfileRepository::METHOD_BANK === $row[7] ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
