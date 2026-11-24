@@ -425,6 +425,17 @@ Affiliate Captain → Import & export:
 
 Commissions and payouts of the old plugin are not imported – keep the old plugin's records (or its export) for your bookkeeping, and start the new program with the import date.
 
+**Copying the configuration to another shop (settings export, new after plugin 0.21.0, SET-AC-08a).** Settings → Data & maintenance → "Export settings (JSON)" exports the settings and, when ticked, these sections: *partner groups* (name, description, terms version, terms page by its slug, visibility in the application form, application fields), *commission rules* for all partners and for groups (group by name, products by SKU or slug, categories and tags by slug; amounts with the program currency), the *monthly tier plan* in effect for all partners and per group, and the *e-mail templates* you changed, per language, with the layout (text/HTML). Never exported: rules and tier plans for single partners, partners, commissions, payouts and secret values (monitoring token); bank details and addresses only with their own box as before.
+
+"Check import" shows per section what is **new**, **changed** (field: now → new) or **unchanged**, and what is **not imported** with the reason (e.g. a group, product or category that does not exist on this site, a language that is not installed, amounts in another currency – amounts are never converted). Untick a section to leave it out; "Apply" (with password confirmation, like the settings import) writes the sections after the settings. Items are matched by keys, not by database IDs, so the same file can be imported again without duplicates:
+
+- groups by name (case does not matter; two groups with the same name on the site stop the import of that group),
+- rules by scope, group, products/categories/SKUs and note – give rules a note to tell them apart; several rules with the same key are matched in their order,
+- tier plans by scope (all partners or group): a changed plan replaces the plan in effect as a new plan, the old one is deactivated and kept (booked bonuses keep their snapshot),
+- e-mail templates by template and language (the site language of the file is the site language of the target only when both are the same).
+
+Nothing is deleted: groups, rules, plans and templates of the site that are not in the file stay as they are. Existing commissions are never recalculated. A rule for a group that this import creates is only imported together with the groups section. The audit log gets one entry "Groups, rules, tier plans or e-mail templates imported" with the counts per section, plus the usual entry for each rule, group, plan and template. Files without sections (older versions) import as before; an older plugin version imports the settings of a new file and skips the sections.
+
 ## 11. WP-CLI
 
 | Command | Purpose |
@@ -444,6 +455,8 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 | `wp wpac statements test` | write, read and delete a probe file in the active document store |
 | `… --network` | `status`, `health`, `upgrade`, `jobs`, `cron`, `verify` and `statements sweep` on every site of the network |
 | `wp wpac setting profile [<code>] [--yes]` | list the country profiles, show the changes of one (old → new) and apply them with `--yes` |
+| `wp wpac setting export [--with-private] [--sections=<list>]` | export the settings as JSON; `--sections=groups,rules,tiers,mail_templates` (or `all`) adds the sections (new after plugin 0.21.0) |
+| `wp wpac setting import <file> [--dry-run] [--sections=<list>]` | import a settings export; shows new, changed and rejected items of each section; `--sections` imports only these sections of the file |
 | `wp wpac import partners <file.csv> [--dry-run] [--notify]` | import partners |
 | `wp wpac export <file.zip> [--include-tax-data --user=<login>]` | export the program |
 

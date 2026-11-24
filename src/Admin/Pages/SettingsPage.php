@@ -186,11 +186,12 @@ final class SettingsPage {
 		$url = Admin::url( 'wpac-settings', array( 'tab' => 'data' ) );
 		if ( 'settings_export' === $do ) {
 			$with_private = ! empty( Admin::post( 'with_private' ) );
-			Audit::log( 'settings.exported', 'settings', 0, array( 'private' => $with_private ) );
+			$sections     = \WPAffiliateCaptain\Core\SettingsSections::clean( (array) Admin::post( 'sections', array() ) ); // SET-AC-08a.
+			Audit::log( 'settings.exported', 'settings', 0, array( 'private' => $with_private, 'sections' => $sections ) );
 			nocache_headers();
 			header( 'Content-Type: application/json; charset=utf-8' );
 			header( 'Content-Disposition: attachment; filename="affiliate-captain-settings-' . gmdate( 'Y-m-d' ) . '.json"' );
-			echo wp_json_encode( \WPAffiliateCaptain\Core\SettingsTransfer::export( $with_private ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON download.
+			echo wp_json_encode( \WPAffiliateCaptain\Core\SettingsTransfer::export( $with_private, $sections ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON download.
 			exit;
 		}
 		if ( 'settings_pending_discard' === $do ) {
@@ -233,12 +234,15 @@ final class SettingsPage {
 			// Only the valid values are applied; the rejected ones keep their current value.
 			$check['errors'] = array();
 		}
+		if ( 'import' === $kind && ! empty( Admin::post( 'import_sections_shown' ) ) ) {
+			$check['sections_selected'] = \WPAffiliateCaptain\Core\SettingsSections::clean( (array) Admin::post( 'import_sections', array() ) ); // SET-AC-08a.
+		}
 		$ok = \WPAffiliateCaptain\Core\SettingsTransfer::apply( $check, 'import' === $kind ? 'settings.imported' : 'settings.reset', array( 'tab' => (string) $pending['tab'] ) );
 		if ( ! $ok ) {
 			Admin::back( __( 'The settings could not be saved (database error). Nothing was changed; please try again.', 'affiliate-captain' ), 'error', $url );
 		}
 		/* translators: %d: number of changed settings */
-		Admin::back( sprintf( _n( '%d setting changed.', '%d settings changed.', count( (array) $check['values'] ), 'affiliate-captain' ), count( (array) $check['values'] ) ), 'success', $url );
+		Admin::back( sprintf( _n( '%d setting changed.', '%d settings changed.', count( (array) $check['values'] ), 'affiliate-captain' ), count( (array) $check['values'] ) ), 'success', $url, \WPAffiliateCaptain\Core\SettingsSections::summary( \WPAffiliateCaptain\Core\SettingsSections::last_report() ) );
 	}
 
 	/**
@@ -324,7 +328,8 @@ final class SettingsPage {
 	 * @param string $apply   Admin action of the Apply button.
 	 */
 	private static function pending_box( array $pending, $title, $apply ) {
-		$labels = self::setting_labels();
+		$labels   = self::setting_labels();
+		$sections = ! empty( $pending['check']['sections'] ) && \WPAffiliateCaptain\Core\SettingsSections::has_changes( (array) $pending['check']['sections'] ); // SET-AC-08a.
 		echo '<div id="wpac-settings-pending" class="notice notice-info inline"><h2>' . esc_html( $title ) . '</h2>';
 		if ( $pending['check']['changes'] ) {
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Setting', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'Now', 'affiliate-captain' ) . '</th><th scope="col">' . esc_html__( 'New', 'affiliate-captain' ) . '</th></tr></thead><tbody>';
@@ -337,7 +342,7 @@ final class SettingsPage {
 				echo '<tr><th scope="row">' . esc_html( isset( $labels[ $key ] ) ? $labels[ $key ] : $key ) . $legal . '</th><td>' . esc_html( $now ) . '</td><td>' . esc_html( (string) $pair[1] ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $legal is escaped above.
 			}
 			echo '</tbody></table>';
-		} else {
+		} elseif ( empty( $pending['check']['sections'] ) ) {
 			echo '<p>' . esc_html__( 'Nothing would change.', 'affiliate-captain' ) . '</p>';
 		}
 		foreach ( (array) $pending['check']['errors'] as $key => $message ) {
@@ -346,9 +351,11 @@ final class SettingsPage {
 		if ( ! empty( $pending['check']['ignored'] ) ) {
 			echo '<p class="description">' . esc_html( __( 'Ignored (unknown or not importable):', 'affiliate-captain' ) . ' ' . implode( ', ', array_map( 'strval', (array) $pending['check']['ignored'] ) ) ) . '</p>';
 		}
+		\WPAffiliateCaptain\Admin\SettingsSectionsView::preview( (array) $pending['check'] );
 		echo '<p>';
-		if ( $pending['check']['changes'] ) {
-			Admin::form_open( $apply, 'wpac-inline-form' );
+		if ( $pending['check']['changes'] || $sections ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpac-inline-form" id="' . esc_attr( \WPAffiliateCaptain\Admin\SettingsSectionsView::FORM_ID ) . '">';
+			Admin::form_fields( $apply );
 			echo '<button class="button button-primary">' . esc_html__( 'Apply', 'affiliate-captain' ) . '</button></form> ';
 		}
 		Admin::form_open( 'settings_pending_discard', 'wpac-inline-form' );
@@ -463,6 +470,7 @@ final class SettingsPage {
 			echo '<h2>' . esc_html__( 'Export, import and reset', 'affiliate-captain' ) . '</h2>';
 			echo '<p>' . esc_html__( 'Export the settings as a JSON file to copy them to another shop or keep a backup. The monitoring token is never exported; bank details, addresses, e-mail addresses and tax numbers only when you tick the box. An import first shows what would change.', 'affiliate-captain' ) . '</p>';
 			Admin::form_open( 'settings_export' );
+			\WPAffiliateCaptain\Admin\SettingsSectionsView::export_choices(); // SET-AC-08a.
 			echo '<p><label><input type="checkbox" name="with_private" value="1"> ' . esc_html__( 'Include bank details, addresses, e-mail addresses and tax numbers', 'affiliate-captain' ) . '</label> <button class="button">' . esc_html__( 'Export settings (JSON)', 'affiliate-captain' ) . '</button></p></form>';
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" enctype="multipart/form-data">';
 			Admin::form_fields( 'settings_import_preview' );
