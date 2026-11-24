@@ -591,6 +591,10 @@ final class ContractApi {
 			'full'      => $full,
 			'items'     => $items,
 			'reason'    => isset( $p['reason'] ) && is_scalar( $p['reason'] ) ? Db::cut( sanitize_text_field( (string) $p['reason'] ), 255 ) : '',
+			// Contract 1.11.0 (AC-6): the refund of the source behind a refund_id that is a key of
+			// its own (e.g. a full refund booked via the order status). Shown to the hooks as
+			// refund_id; booking and idempotency keep using refund_id (Ledger::hook_refund()).
+			'source_refund_id' => self::reference( isset( $p['source_refund_id'] ) ? $p['source_refund_id'] : null ),
 		);
 	}
 
