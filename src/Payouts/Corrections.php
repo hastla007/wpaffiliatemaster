@@ -741,7 +741,7 @@ final class Corrections {
 				$settle,
 				implode( "\n", $scope ),
 				Statement::vat_note( (string) $c->vat_mode, $country, $op ),
-				$self ? Statement::correction_note( $country ) : '',
+				$self ? Statement::correction_note( $country, $op ) : '',
 				$duplicate ? __( 'Duplicate: built again from the stored data because the original file was not available on this server.', 'affiliate-captain' ) : '',
 			)
 		);

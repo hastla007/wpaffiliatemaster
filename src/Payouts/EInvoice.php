@@ -518,7 +518,7 @@ final class EInvoice {
 			$notes[] = sprintf( __( 'This correction concerns only the part of credit note %1$s with %2$s; the other parts of the credit note are unchanged.', 'affiliate-captain' ), $orig_no, Corrections::part_label( array( 'mode' => (string) $c->vat_mode, 'rate' => (string) $c->vat_rate ) ) );
 		}
 		$notes[] = Statement::vat_note( (string) $c->vat_mode, $country, $op );
-		$notes[] = Statement::correction_note( $country );
+		$notes[] = Statement::correction_note( $country, $op );
 		$notes[] = self::copy_note();
 		$day     = self::day( get_date_from_gmt( (string) $c->created_at ) );
 		return array(

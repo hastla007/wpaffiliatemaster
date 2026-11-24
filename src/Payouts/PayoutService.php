@@ -650,6 +650,9 @@ final class PayoutService {
 			'date_format'  => (string) get_option( 'date_format' ),
 		);
 		if ( $issue ) {
+			// Version of the built-in notes (Statement::neutral_notes()): documents issued from now on
+			// get the neutral texts outside the EU and Switzerland, older ones keep theirs.
+			$op['notes_v'] = Statement::NOTES_V;
 			// Own document notes (SET-AC-04 c) are frozen with the document when it is issued, in the
 			// document language (P3-11): the text stored for that language, the own text of the site
 			// language only for documents in the site language. Without one the built-in text applies

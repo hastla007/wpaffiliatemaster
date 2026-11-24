@@ -264,6 +264,30 @@ check(
 	)
 );
 
+// Documents issued before 0.22.0 (snapshot without notes_v) keep their built-in text when built again.
+$fi_old_op = array( 'name' => 'US Inc.', 'country' => 'US', 'locale' => 'en_US' );
+$fi_new_op = $fi_old_op + array( 'notes_v' => Statement::NOTES_V );
+update_option( 'wpac_settings', array_merge( (array) get_option( 'wpac_settings' ), array( 'operator_country' => 'US' ) ) );
+Settings::flush_cache();
+$fi_issue = PayoutService::operator_snapshot( 0, true );
+$fi_plain = PayoutService::operator_snapshot();
+check(
+	'P3-05 old snapshot without notes_v (US operator): old texts with EU citation; new snapshot (notes_v 2): neutral; issue snapshot carries notes_v, a non-issue one not',
+	array( true, true, true, true, false, false, false, false, 2, false ),
+	array(
+		false !== strpos( Statement::correction_note( 'US', $fi_old_op ), 'Art. 224' ),
+		false !== strpos( Statement::self_billing_note( 'US', $fi_old_op ), 'Art. 224' ),
+		false !== strpos( Statement::vat_note( Vat::REVERSE_CHARGE, 'US', $fi_old_op ), 'Art. 196' ),
+		false !== strpos( implode( ' ', Statement::vat_notes( Vat::REVERSE_CHARGE, array(), 'US', $fi_old_op ) ), 'Art. 196' ),
+		false !== strpos( Statement::correction_note( 'US', $fi_new_op ), 'Directive' ),
+		false !== strpos( Statement::self_billing_note( 'US', $fi_new_op ), 'Directive' ),
+		false !== strpos( Statement::vat_note( Vat::REVERSE_CHARGE, 'US', $fi_new_op ), 'Directive' ),
+		false !== strpos( Statement::vat_note( Vat::REVERSE_CHARGE, 'US', $fi_issue ), 'Directive' ),
+		isset( $fi_issue['notes_v'] ) ? $fi_issue['notes_v'] : null,
+		isset( $fi_plain['notes_v'] ),
+	)
+);
+
 update_option( 'wpac_settings', $fi_saved );
 Settings::flush_cache();
 $GLOBALS['g10_locale'] = $fi_locale;

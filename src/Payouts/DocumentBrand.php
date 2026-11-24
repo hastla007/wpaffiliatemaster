@@ -247,7 +247,7 @@ final class DocumentBrand {
 	 * @return string PDF bytes.
 	 */
 	public static function sample_pdf() {
-		$op  = array_merge( PayoutService::operator_snapshot(), self::snapshot() );
+		$op  = array_merge( PayoutService::operator_snapshot(), self::snapshot(), array( 'notes_v' => Statement::NOTES_V ) ); // A sample shows the current notes.
 		$pdf = new Pdf(
 			array(
 				'title'  => __( 'Sample credit note', 'affiliate-captain' ),
