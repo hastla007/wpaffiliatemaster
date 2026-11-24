@@ -9,6 +9,8 @@
  *   request and are then imported like any other value.
  * - A reset never touches the program currency, the document number prefixes, secret or private
  *   values unless they are named one by one (WP-CLI "reset <key>").
+ * - Optional sections (SET-AC-08a): e-mail templates, partner groups, commission rules and tier
+ *   plans, see SettingsSections. Files without them import as before.
  *
  * @package WPAffiliateCaptain
  */
@@ -28,10 +30,11 @@ final class SettingsTransfer {
 	/**
 	 * Export of the core settings as an array (JSON-ready).
 	 *
-	 * @param bool $with_private Include private values (bank details, addresses, …).
+	 * @param bool     $with_private Include private values (bank details, addresses, …).
+	 * @param string[] $sections     Optional sections (SET-AC-08a): groups, rules, tiers, mail_templates.
 	 * @return array
 	 */
-	public static function export( $with_private = false ) {
+	public static function export( $with_private = false, array $sections = array() ) {
 		$all  = Settings::all();
 		$data = array();
 		foreach ( SettingsSchema::core() as $key => $f ) {
@@ -47,7 +50,7 @@ final class SettingsTransfer {
 		 * @param bool  $with_private Whether private values were requested.
 		 */
 		$addons = function_exists( 'apply_filters' ) ? (array) apply_filters( 'wpac_settings_export', array(), (bool) $with_private ) : array();
-		return array(
+		$out    = array(
 			'format'     => self::FORMAT,
 			'plugin'     => defined( 'WPAC_VERSION' ) ? WPAC_VERSION : '',
 			'contract'   => defined( 'WPAC_CONTRACT_VERSION' ) ? WPAC_CONTRACT_VERSION : '',
@@ -56,6 +59,13 @@ final class SettingsTransfer {
 			'settings'   => $data,
 			'addons'     => $addons,
 		);
+		$sections = SettingsSections::clean( $sections );
+		if ( $sections ) {
+			// The format number stays 1: older versions import the settings and skip the sections.
+			$out['sections_format'] = SettingsSections::FORMAT;
+			$out['sections']        = SettingsSections::export( $sections );
+		}
+		return $out;
 	}
 
 	/**
@@ -101,6 +111,20 @@ final class SettingsTransfer {
 		if ( ! empty( $current['retention_hold'] ) && array_key_exists( 'retention_hold', $wanted ) && empty( $wanted['retention_hold'] ) ) {
 			unset( $check['changes']['retention_hold'], $check['values']['retention_hold'] );
 			$check['errors']['retention_hold'] = __( 'A running retention hold is only lifted on the settings page.', 'affiliate-captain' );
+		}
+		// Optional sections (SET-AC-08a), checked against the program currency after the import.
+		$check['sections']      = array();
+		$check['sections_data'] = array();
+		if ( isset( $data['sections'] ) && is_array( $data['sections'] ) ) {
+			if ( isset( $data['sections_format'] ) && (int) $data['sections_format'] > SettingsSections::FORMAT ) {
+				$ignored[] = 'sections';
+			} else {
+				$currency               = isset( $check['values']['currency'] ) ? (string) $check['values']['currency'] : (string) $current['currency'];
+				$sections               = SettingsSections::preview( $data['sections'], $currency );
+				$ignored                = array_merge( $ignored, $sections['ignored'] );
+				$check['sections']      = $sections['sections'];
+				$check['sections_data'] = array_intersect_key( $data['sections'], $sections['sections'] );
+			}
 		}
 		$check['ignored'] = $ignored;
 		return $check;
@@ -200,23 +224,24 @@ final class SettingsTransfer {
 	}
 
 	/**
-	 * Apply checked values (the result of preview() or check()) and write the audit log.
+	 * Apply checked values (the result of preview() or check()) and write the audit log. Sections
+	 * of an import (SET-AC-08a) follow the settings: only those in "sections_selected" when given.
 	 *
-	 * @param array  $checked Result with "values" and "changes".
+	 * @param array  $checked Result with "values" and "changes" (and "sections_data").
 	 * @param string $action  Audit action (settings.imported, settings.reset, settings.cli).
 	 * @param array  $context Extra audit details.
 	 * @return bool
 	 */
 	public static function apply( array $checked, $action, array $context = array() ) {
 		$values = isset( $checked['values'] ) ? (array) $checked['values'] : array();
-		if ( ! $values ) {
-			return true;
+		if ( $values ) {
+			$old = Settings::all();
+			if ( ! Settings::update( $values ) ) {
+				return false;
+			}
+			Audit::log( $action, 'settings', 0, $context + array( 'changed' => array_keys( $values ), 'values' => \WPAffiliateCaptain\Admin\Pages\SettingsPage::audit_values( array_keys( $values ), $old, $values ) ) );
 		}
-		$old = Settings::all();
-		if ( ! Settings::update( $values ) ) {
-			return false;
-		}
-		Audit::log( $action, 'settings', 0, $context + array( 'changed' => array_keys( $values ), 'values' => \WPAffiliateCaptain\Admin\Pages\SettingsPage::audit_values( array_keys( $values ), $old, $values ) ) );
+		SettingsSections::apply( ! empty( $checked['sections_data'] ) ? $checked['sections_data'] : array(), (string) Settings::get( 'currency' ), isset( $checked['sections_selected'] ) ? (array) $checked['sections_selected'] : null, $context );
 		return true;
 	}
 

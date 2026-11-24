@@ -53,7 +53,7 @@ foreach ( array( 'dunning_levels', 'dunning_days', 'dunning_final_days' ) as $fx
 		$fx_legal++;
 	}
 }
-check( 'SET-AC-13 page: the three dunning fields on the Payouts tab, each with the "Check legally" mark and the lower limit', array( 3, true ), array( $fx_legal, false !== strpos( $fx_html, 'min="7" step="1" id="wpac-dunning_days"' ) ) );
+check( 'SET-AC-13 page: the three dunning fields on the Payouts tab, each with the "Check legally" mark and the lower limit', array( 3, true ), array( $fx_legal, false !== strpos( $fx_html, 'min="7" max="60" step="1" id="wpac-dunning_days"' ) ) );
 if ( null !== $fx_caps ) {
 	$GLOBALS['test_caps'] = $fx_caps;
 }

@@ -98,11 +98,11 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/DashboardPage.php
+#: src/Admin/Admin.php src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php
 msgid "Partners"
 msgstr ""
 
-#: src/Admin/Admin.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/SettingsPage.php src/Admin/Tables/AffiliatesTable.php src/Portal/Portal.php src/Privacy/Privacy.php
+#: src/Admin/Admin.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php src/Admin/Tables/AffiliatesTable.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Commissions"
 msgstr ""
 
@@ -320,7 +320,7 @@ msgstr ""
 msgid "You are not allowed to do this."
 msgstr ""
 
-#: src/Admin/Admin.php
+#: src/Admin/Admin.php src/Admin/Pages/SetupWizard.php
 msgid "Unknown action."
 msgstr ""
 
@@ -339,6 +339,18 @@ msgstr ""
 
 #: src/Admin/Admin.php
 msgid "Search: name, slug, e-mail or ID"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/SettingsSectionsView.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Valid until"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/SettingsSectionsView.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php src/Admin/Tables/PayoutsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
+msgid "Status"
+msgstr ""
+
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/MailTemplatesPage.php src/Admin/SettingsSectionsView.php
+msgid "Subject"
 msgstr ""
 
 #. translators: %d: number of partners
@@ -720,7 +732,7 @@ msgstr ""
 msgid "Partner not found."
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/CreativesPage.php src/Admin/Pages/RulesPage.php src/Core/SettingsSections.php
 msgid "All partners"
 msgstr ""
 
@@ -779,10 +791,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "From the review plugin: only verified, published reviews of orders attributed to this partner. Read only, not stored, never shown to the partner; it never changes commissions, rules or payouts."
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/IntegrationsPage.php src/Admin/Tables/AffiliatesTable.php src/Admin/Tables/CommissionsTable.php src/Admin/Tables/CreativesTable.php src/Admin/Tables/PayoutsTable.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Status"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -867,7 +875,7 @@ msgstr ""
 msgid "Restrict processing"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Profile"
 msgstr ""
 
@@ -1075,10 +1083,6 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Usage limit"
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
-msgid "Valid until"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -1307,7 +1311,7 @@ msgstr ""
 msgid "Check VAT ID with VIES now"
 msgstr ""
 
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Check legally"
 msgstr ""
 
@@ -1391,10 +1395,6 @@ msgstr ""
 #. translators: 1: date, 2: sent, 3: skipped
 #: src/Admin/Pages/AffiliatesPage.php
 msgid "Last broadcast mail on %1$s: %2$d sent, %3$d skipped (unsubscribed or restricted)."
-msgstr ""
-
-#: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/MailTemplatesPage.php
-msgid "Subject"
 msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php
@@ -1558,6 +1558,10 @@ msgstr ""
 
 #: src/Admin/Pages/AffiliatesPage.php src/Admin/Pages/RulesPage.php src/Portal/Portal.php src/Privacy/Privacy.php
 msgid "Partner group"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/MailTemplatesPage.php src/Admin/SettingsSectionsView.php
+msgid "Changed"
 msgstr ""
 
 #. translators: %d: number of days
@@ -1928,6 +1932,10 @@ msgid "Settings exported"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
+msgid "Groups, rules, tier plans or e-mail templates imported"
+msgstr ""
+
+#: src/Admin/Pages/AuditPage.php
 msgid "Settings reset to defaults"
 msgstr ""
 
@@ -2045,10 +2053,6 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Privacy/Privacy.php
 msgid "Reason"
-msgstr ""
-
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/MailTemplatesPage.php
-msgid "Changed"
 msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
@@ -2179,7 +2183,7 @@ msgstr ""
 msgid "No entries yet. Changes to partners, commissions, payouts and settings are recorded here."
 msgstr ""
 
-#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Portal/Portal.php src/Privacy/Privacy.php src/Reports/MonthlyMail.php
+#: src/Admin/Pages/AuditPage.php src/Admin/Pages/CommissionsPage.php src/Admin/Pages/DashboardPage.php src/Admin/Pages/RulesPage.php src/Admin/Pages/SetupWizard.php src/Admin/Tables/CommissionsTable.php src/Integrations/WooCommerce/OrderMetaBox.php src/Portal/Portal.php src/Privacy/Privacy.php src/Reports/MonthlyMail.php
 msgid "Commission"
 msgstr ""
 
@@ -2262,6 +2266,10 @@ msgstr ""
 
 #: src/Admin/Pages/AuditPage.php
 msgid "Search audit log"
+msgstr ""
+
+#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php
+msgid "Rate"
 msgstr ""
 
 #. translators: 1: number of errors, 2: message
@@ -2353,10 +2361,6 @@ msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php
 msgid "Base"
-msgstr ""
-
-#: src/Admin/Pages/CommissionsPage.php src/Admin/Pages/ImportExportPage.php src/Admin/Pages/RulesPage.php src/Admin/Tables/CommissionsTable.php src/Portal/Portal.php
-msgid "Rate"
 msgstr ""
 
 #: src/Admin/Pages/CommissionsPage.php
@@ -2494,6 +2498,10 @@ msgstr ""
 msgid "Subscription renewal"
 msgstr ""
 
+#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/MailTemplatesPage.php src/Admin/SettingsSectionsView.php src/Portal/Portal.php src/Privacy/Privacy.php src/Promotion/Creatives.php
+msgid "Text"
+msgstr ""
+
 #: src/Admin/Pages/CreativesPage.php
 msgid "Draft saved. Approve it to make it visible to partners."
 msgstr ""
@@ -2525,10 +2533,6 @@ msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php src/Promotion/Creatives.php
 msgid "Title"
-msgstr ""
-
-#: src/Admin/Pages/CreativesPage.php src/Admin/Pages/MailTemplatesPage.php src/Portal/Portal.php src/Privacy/Privacy.php src/Promotion/Creatives.php
-msgid "Text"
 msgstr ""
 
 #: src/Admin/Pages/CreativesPage.php
@@ -2600,15 +2604,15 @@ msgid_plural "%d integration jobs failed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php
 msgid "Some pages could not be created. Please create them yourself with the blocks \"Partner application form\" and \"Partner area\" and select them in the settings."
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php
 msgid "All pages already exist – nothing was created."
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php
 msgid "Pages created and selected in the settings."
 msgstr ""
 
@@ -2725,11 +2729,11 @@ msgstr ""
 msgid "Setup checklist"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php src/Portal/Portal.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php src/Portal/Portal.php
 msgid "done"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php src/Portal/Portal.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php src/Portal/Portal.php
 msgid "open"
 msgstr ""
 
@@ -2737,11 +2741,11 @@ msgstr ""
 msgid "optional"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php
 msgid "Create pages automatically"
 msgstr ""
 
-#: src/Admin/Pages/DashboardPage.php
+#: src/Admin/Pages/DashboardPage.php src/Admin/Pages/SetupWizard.php
 msgid "Creates \"Become a partner\", \"Partner area\" and a landing page with the matching blocks, and a draft of the partner terms from a template (review it with your legal advisor, then publish it)."
 msgstr ""
 
@@ -3062,6 +3066,14 @@ msgstr ""
 
 #: src/Admin/Pages/ImportExportPage.php
 msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items, correction credit notes and payout requests. Use it as a backup, for your tax advisor or to move to another system."
+msgstr ""
+
+#: src/Admin/Pages/ImportExportPage.php
+msgid "To copy the configuration to another shop – settings, partner groups, commission rules, tier plans and e-mail templates, without partners or commissions – use the settings export:"
+msgstr ""
+
+#: src/Admin/Pages/ImportExportPage.php
+msgid "Settings → Data & maintenance"
 msgstr ""
 
 #: src/Admin/Pages/ImportExportPage.php src/Migration/ProgramExport.php
@@ -3572,7 +3584,11 @@ msgstr ""
 msgid "Dismiss"
 msgstr ""
 
-#: src/Admin/Pages/MailTemplatesPage.php
+#: src/Admin/Pages/MailTemplatesPage.php src/Admin/SettingsSectionsView.php
+msgid "Layout"
+msgstr ""
+
+#: src/Admin/Pages/MailTemplatesPage.php src/Core/SettingsSections.php
 msgid "E-mail templates"
 msgstr ""
 
@@ -3580,7 +3596,7 @@ msgstr ""
 msgid "Layout saved."
 msgstr ""
 
-#: src/Admin/Pages/MailTemplatesPage.php src/Affiliates/Notifications.php
+#: src/Admin/Pages/MailTemplatesPage.php src/Affiliates/Notifications.php src/Core/SettingsSections.php
 msgid "Unknown e-mail template."
 msgstr ""
 
@@ -3611,10 +3627,6 @@ msgstr ""
 
 #: src/Admin/Pages/MailTemplatesPage.php
 msgid "With several installed languages you can store a text per language: partners get the text of their language (partner profile, otherwise their user account), otherwise the text of the site language."
-msgstr ""
-
-#: src/Admin/Pages/MailTemplatesPage.php
-msgid "Layout"
 msgstr ""
 
 #: src/Admin/Pages/MailTemplatesPage.php
@@ -3720,6 +3732,10 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php src/Admin/Reauth.php
 msgid "Mark as paid"
+msgstr ""
+
+#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php src/Payouts/DocumentBrand.php src/Payouts/Statement.php src/Privacy/Privacy.php
+msgid "Description"
 msgstr ""
 
 #. translators: 1: correction credit note number(s), comma separated, 2: credit note number
@@ -4306,10 +4322,6 @@ msgstr ""
 msgid "Period until"
 msgstr ""
 
-#: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/DocumentBrand.php src/Payouts/Statement.php src/Privacy/Privacy.php
-msgid "Description"
-msgstr ""
-
 #: src/Admin/Pages/PayoutsPage.php src/Admin/Pages/RulesPage.php src/Payouts/Statement.php src/Privacy/Privacy.php
 msgid "Net amount"
 msgstr ""
@@ -4330,6 +4342,30 @@ msgstr ""
 
 #: src/Admin/Pages/PayoutsPage.php
 msgid "VAT treatment depends on the partner's tax status and must be confirmed by your tax advisor. This statement does not calculate VAT."
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php
+msgid "Minimum line amount"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php
+msgid "Priority"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php
+msgid "Basis"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php
+msgid "Mode"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php
+msgid "Steps"
+msgstr ""
+
+#: src/Admin/Pages/RulesPage.php src/Admin/SettingsSectionsView.php src/Privacy/Privacy.php
+msgid "Note"
 msgstr ""
 
 #. translators: %d: number of rules
@@ -4411,7 +4447,7 @@ msgstr ""
 msgid "Monthly tiers"
 msgstr ""
 
-#: src/Admin/Pages/RulesPage.php
+#: src/Admin/Pages/RulesPage.php src/Core/SettingsSections.php
 msgid "Partner groups"
 msgstr ""
 
@@ -4461,14 +4497,6 @@ msgid "Products"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
-msgid "Priority"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php src/Privacy/Privacy.php
-msgid "Note"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
 msgid "No rules yet – the program default applies to all sales."
 msgstr ""
 
@@ -4504,7 +4532,7 @@ msgstr ""
 msgid "Comma separated; SKUs support trailing * (e.g. GROUP-*)"
 msgstr ""
 
-#: src/Admin/Pages/RulesPage.php src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/RulesPage.php src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Fixed amount per unit"
 msgstr ""
 
@@ -4522,10 +4550,6 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Empty = no cap. Limits the commission of one order line (all units together) under this rule."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Minimum line amount"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4618,18 +4642,6 @@ msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
 msgid "Additional bonus in percent of the monthly net revenue (after refunds). The most specific active plan applies (partner > group > global). Months are closed automatically after the hold period; the plan is frozen in the booked bonus."
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Basis"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Mode"
-msgstr ""
-
-#: src/Admin/Pages/RulesPage.php
-msgid "Steps"
 msgstr ""
 
 #: src/Admin/Pages/RulesPage.php
@@ -4757,8 +4769,12 @@ msgstr ""
 msgid "Conditions of the rule: %s."
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php src/Admin/SettingsSectionsView.php
+msgid "New"
+msgstr ""
+
 #. translators: %d: number of fields
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "%d field was not saved because its value is not valid – it keeps its previous value. All other changes were saved."
 msgid_plural "%d fields were not saved because their values are not valid – they keep their previous values. All other changes were saved."
 msgstr[0] ""
@@ -4772,7 +4788,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: profile name, 2: number of changed settings
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Country profile %1$s applied: %2$d setting changed. Everything can still be changed below."
 msgid_plural "Country profile %1$s applied: %2$d settings changed. Everything can still be changed below."
 msgstr[0] ""
@@ -4785,19 +4801,19 @@ msgid_plural "%d permissions changed."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "The settings could not be saved (database error). Nothing was changed; please try again."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Settings saved with an adjustment:"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Settings saved."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Discarded. Nothing was changed."
 msgstr ""
 
@@ -4805,7 +4821,7 @@ msgstr ""
 msgid "Please choose a settings export (JSON, at most 1 MB)."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Nothing to apply (the preview expired). Please start again."
 msgstr ""
 
@@ -4814,17 +4830,17 @@ msgid "Country profile"
 msgstr ""
 
 #. translators: %s: profile name
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Country profile %s: please check"
 msgstr ""
 
 #. translators: 1: profile name, 2: date
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Applied last: %1$s on %2$s."
 msgstr ""
 
 #. translators: %s: profile name
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Proposal for your shop country: %s. Show the changes to see what it would set – nothing is changed before you confirm."
 msgstr ""
 
@@ -4832,23 +4848,19 @@ msgstr ""
 msgid "A profile proposes VAT rate, currency, your country, retention periods, cookie and hold periods, e-invoice mail, credit notes, number prefixes, disclosure note, small business limits and document notes. You see every change before it is applied; afterwards everything can be changed as usual. The values are not legally or tax reviewed – check them with your adviser."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Show changes …"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Setting"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Now"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
-msgid "New"
-msgstr ""
-
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Nothing would change."
 msgstr ""
 
@@ -4856,7 +4868,7 @@ msgstr ""
 msgid "Ignored (unknown or not importable):"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Discard"
 msgstr ""
 
@@ -4976,6 +4988,10 @@ msgstr ""
 msgid "Settings sections"
 msgstr ""
 
+#: src/Admin/Pages/SettingsPage.php src/Affiliates/Registration.php
+msgid "Fields marked with * are required."
+msgstr ""
+
 #: src/Admin/Pages/SettingsPage.php src/Payouts/DocumentBrand.php
 msgid "Sample credit note"
 msgstr ""
@@ -5053,19 +5069,19 @@ msgstr ""
 msgid "The block checkout shows the partner code field from WooCommerce 8.9 on; with this version only the classic checkout shows it."
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php src/Core/Monitor.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php src/Core/Monitor.php
 msgid "Never set"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Only with marketing consent (WP Consent API / wpac_has_marketing_consent filter)"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Always, without consent (not permitted in the EU – §25 TDDDG, ePrivacy)"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "An affiliate cookie is not strictly necessary: in the EU it may only be set with consent. Use \"Only with marketing consent\" unless your shop is outside the EU and you checked the local law."
 msgstr ""
 
@@ -5148,11 +5164,11 @@ msgstr ""
 msgid "Commission base"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Net: after discounts, without VAT (default)"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Gross: after discounts, including VAT"
 msgstr ""
 
@@ -5177,11 +5193,11 @@ msgstr ""
 msgid "When the WooCommerce order is completed (shipped) – for pre-orders, invoice and cash on delivery"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Automatically after the hold period"
 msgstr ""
 
-#: src/Admin/Pages/SettingsPage.php
+#: src/Admin/Pages/SettingsPage.php src/Admin/Pages/SetupWizard.php
 msgid "Only by hand"
 msgstr ""
 
@@ -5355,6 +5371,232 @@ msgstr ""
 msgid "The field holds the ID of the image in the media library (0 = none)."
 msgstr ""
 
+#: src/Admin/Pages/SetupWizard.php
+msgid "Setup wizard"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Country & profile"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "A country profile proposes VAT rate, currency, your country, retention periods, cookie and hold periods, document number prefixes and notes on credit notes. You see every change before it is applied – nothing is changed before you confirm."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Company details"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Your details as printed on credit notes. Needed when you settle commissions by credit note (self-billing)."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "The default commission for partners without a matching rule, the hold period and the minimum payout. Rules for partners, groups and products can be added later under Rules & groups."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php src/Portal/Portal.php
+msgid "Pages"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "The application page, the partner area and the partner program terms. Missing pages can be created automatically; the terms are created as a draft from a template – review them with your legal advisor, then publish them."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Consent & cookie"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Whether the referral is kept in a browser cookie, for how long, and the texts applicants and readers see."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Test order"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Check once that a sale through a partner link is recorded. The wizard creates no orders; you place the test order yourself in your shop."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "The setup wizard notice is hidden. You can open the wizard at any time from the dashboard or the settings page."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Setup wizard skipped. You can open it again at any time from the dashboard checklist or the settings page."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Setup wizard finished. Open points stay in the setup checklist; everything can be changed on the settings page."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Welcome to Affiliate Captain."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "The setup wizard guides you through country, company details, commission, pages, consent and a test order. Every step can be skipped."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Start the setup wizard"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Dismiss this notice"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Open the setup wizard again"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Open the setup wizard"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Guided steps for country, company details, commission, pages, consent and a test order; every step can be skipped."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "You skipped the setup wizard. You can still go through any step."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "You finished the setup wizard. You can go through any step again; everything can also be changed on the settings page."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Six short steps for a first working setup. Every step can be skipped and the wizard can be opened again at any time from the dashboard or the settings page; all values can be changed later on the settings page."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Setup steps"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "skipped"
+msgstr ""
+
+#. translators: 1: number of the step, 2: number of steps, 3: step title
+#: src/Admin/Pages/SetupWizard.php
+msgid "Step %1$d of %2$d: %3$s"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Skip the setup wizard"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Nothing is changed; the setup checklist on the dashboard stays."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Start the wizard again"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Clears the progress of the wizard; your settings stay as they are."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Finish the setup wizard"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Skip this step"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Save and continue"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Back to the previous step"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Please check these fields:"
+msgstr ""
+
+#. translators: %s: page title
+#: src/Admin/Pages/SetupWizard.php
+msgid "%s (draft)"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "No country profile is available. Continue with the company details."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "The values are not legally or tax reviewed – check them with your adviser."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Changes of the country profile"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Apply and continue"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "The partner program terms are not published yet. Review the draft with your legal advisor, then publish it."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Edit the terms page"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "No consent banner is connected yet (WP Consent API or the filter wpac_has_marketing_consent): with \"only with consent\" the affiliate cookie is never set, and only partner codes and the shop session count."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Check the system status"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "A consent banner is connected: the affiliate cookie is set once a visitor gives marketing consent."
+msgstr ""
+
+#. translators: %s: link to the partner list
+#: src/Admin/Pages/SetupWizard.php
+msgid "Approve a test partner (e.g. yourself with a second e-mail address) on the %s page."
+msgstr ""
+
+#. translators: %s: example partner link
+#: src/Admin/Pages/SetupWizard.php
+msgid "Open the partner link in a private browser window, e.g. %s with the code of the test partner, and accept marketing in your consent banner. In the developer tools of the browser the cookie wpac_ref should now exist (with the cookie mode \"only with consent\")."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Place a small order in the same window, with a test payment method of your shop (e.g. cash on delivery, bank transfer or the sandbox mode of your payment provider), or enter the partner code at checkout."
+msgstr ""
+
+#. translators: %s: link to the commission list
+#: src/Admin/Pages/SetupWizard.php
+msgid "Check on the %s page that the order shows up with the test partner (status \"pending\"). Then cancel or refund the test order: the commission is rejected automatically."
+msgstr ""
+
+#. translators: %s: link to the system status
+#: src/Admin/Pages/SetupWizard.php
+msgid "If nothing shows up: the %s lists the sales source, the consent banner, scheduled tasks and failed jobs, and the audit log shows what happened."
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "system status"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Still open in the setup checklist"
+msgstr ""
+
+#: src/Admin/Pages/SetupWizard.php
+msgid "Every required item of the setup checklist is done."
+msgstr ""
+
 #. translators: %d: minutes
 #: src/Admin/Reauth.php
 msgid "This action changes where money goes or exports bank details. For your protection, please enter your password again. Afterwards such actions work without asking again for %d minute in this login session."
@@ -5497,6 +5739,63 @@ msgstr ""
 
 #: src/Admin/Reauth.php
 msgid "The second factor could not be confirmed."
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Also export (optional):"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Rules and tier plans for single partners, partners and commissions are never exported. On import, items are matched by name (groups), by scope, group, products and note (rules), by group (tier plans) and by template and language (e-mail templates); nothing is deleted."
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Unchanged"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Not imported"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php src/Core/SettingsSchema.php
+msgid "Terms version"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Terms page"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Selectable in the application form"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Application fields"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Maximum per line"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Valid from"
+msgstr ""
+
+#. translators: 1: new items, 2: changed items, 3: unchanged items, 4: rejected items
+#: src/Admin/SettingsSectionsView.php
+msgid "%1$d new, %2$d changed, %3$d unchanged, %4$d not imported."
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Import this section"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Entry"
+msgstr ""
+
+#: src/Admin/SettingsSectionsView.php
+msgid "Changes"
 msgstr ""
 
 #: src/Admin/Tables/AffiliatesTable.php
@@ -6242,11 +6541,11 @@ msgstr ""
 msgid "Hello %1$s,\n\n%2$s\n\n%3$s"
 msgstr ""
 
-#: src/Affiliates/Notifications.php
+#: src/Affiliates/Notifications.php src/Core/SettingsSections.php
 msgid "This language is not installed on this site."
 msgstr ""
 
-#: src/Affiliates/Notifications.php
+#: src/Affiliates/Notifications.php src/Core/SettingsSections.php
 msgid "Please enter a subject and a text."
 msgstr ""
 
@@ -6527,10 +6826,6 @@ msgstr ""
 
 #: src/Affiliates/Registration.php
 msgid "Which kind of partner are you?"
-msgstr ""
-
-#: src/Affiliates/Registration.php
-msgid "Fields marked with * are required."
 msgstr ""
 
 #. translators: %s: group
@@ -8376,10 +8671,6 @@ msgid "Version, text and SHA-256 hash of this page are stored with every accepta
 msgstr ""
 
 #: src/Core/SettingsSchema.php
-msgid "Terms version"
-msgstr ""
-
-#: src/Core/SettingsSchema.php
 msgid "Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list."
 msgstr ""
 
@@ -9169,6 +9460,107 @@ msgstr ""
 
 #: src/Core/SettingsSchema.php
 msgid "Off by default: deleting the plugin keeps all data. When switched on (type DELETE to confirm), deleting the plugin removes partners, links and codes, visits, commissions, payouts, applications, settings and the pages it created. Booking records, credit notes and the audit log stay as long as a credit note is within the retention period. On a multisite network this applies to this site only. Scheduled tasks are always removed. Not part of the settings export."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Commission rules"
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Monthly tier plans"
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "The group has no name."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "This name is in the file twice; only the first entry is used."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Several groups with this name exist on this site. Rename them first."
+msgstr ""
+
+#. translators: %s: page slug
+#: src/Core/SettingsSections.php
+msgid "Terms page \"%s\" not found on this site; the terms page of the group is not changed."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Rules for single partners are not imported."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Unknown scope."
+msgstr ""
+
+#. translators: %s: list of SKUs, slugs or IDs
+#: src/Core/SettingsSections.php
+msgid "Not found on this site: %s"
+msgstr ""
+
+#. translators: 1: currency of the file, 2: program currency
+#: src/Core/SettingsSections.php
+msgid "The amounts are in %1$s, the program currency is %2$s. Amounts are not converted."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "The group is created by this import (only when partner groups are imported too)."
+msgstr ""
+
+#: src/Core/SettingsSections.php src/Privacy/Privacy.php
+msgid "active"
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "inactive"
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Tier plans for single partners are not imported."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "This plan is in the file twice; only the first entry is used."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Basis, mode or steps of the plan are not valid."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Replaces the plan in effect; the old plan is deactivated and kept."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Layout of the e-mails"
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "This template is in the file twice; only the first entry is used."
+msgstr ""
+
+#. translators: 1: section name, 2: new items, 3: changed items, 4: unchanged items, 5: skipped items
+#: src/Core/SettingsSections.php
+msgid "%1$s: %2$d new, %3$d changed, %4$d unchanged, %5$d skipped."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "Import of a settings file"
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "The group is missing."
+msgstr ""
+
+#. translators: %s: group name
+#: src/Core/SettingsSections.php
+msgid "Group \"%s\" not found on this site. Import the partner groups too, or create the group first."
+msgstr ""
+
+#: src/Core/SettingsSections.php
+msgid "all products"
 msgstr ""
 
 #: src/Core/SettingsTransfer.php
@@ -11878,10 +12270,6 @@ msgstr ""
 msgid "To delete your data or get a copy, use the %1$s tab. To end the partnership, write to %2$s."
 msgstr ""
 
-#: src/Portal/Portal.php
-msgid "Pages"
-msgstr ""
-
 #. translators: %s: date
 #: src/Portal/Portal.php
 msgid "Paid on %s"
@@ -12062,10 +12450,6 @@ msgstr ""
 
 #: src/Privacy/Privacy.php
 msgid "waiting for the order to be completed"
-msgstr ""
-
-#: src/Privacy/Privacy.php
-msgid "active"
 msgstr ""
 
 #: src/Privacy/Privacy.php

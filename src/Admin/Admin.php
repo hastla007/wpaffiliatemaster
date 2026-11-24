@@ -43,6 +43,7 @@ final class Admin {
 		add_action( 'wp_ajax_wpac_partner_search', array( __CLASS__, 'ajax_partner_search' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WPAC_FILE ), array( __CLASS__, 'action_links' ) );
 		Pages\ImportExportPage::register_hooks(); // Own menu entry and admin-post actions.
+		Pages\SetupWizard::register_hooks(); // First-run notice of the setup wizard (SET-AC-24).
 	}
 
 	public static function menu() {
@@ -63,6 +64,7 @@ final class Admin {
 		Pages\MailTemplatesPage::menu(); // R14-P1.
 		add_submenu_page( 'wpac', __( 'Integrations', 'affiliate-captain' ), __( 'Integrations', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-integrations', array( IntegrationsPage::class, 'render' ) );
 		$audit = add_submenu_page( 'wpac', __( 'Audit log', 'affiliate-captain' ), __( 'Audit log', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-audit', array( AuditPage::class, 'render' ) );
+		Pages\SetupWizard::menu(); // SET-AC-24.
 		$settings = add_submenu_page( 'wpac', __( 'Settings', 'affiliate-captain' ), __( 'Settings', 'affiliate-captain' ), Capabilities::MANAGE_PROGRAM, 'wpac-settings', array( SettingsPage::class, 'render' ) );
 		// Screen options (rows per page, columns) and help tabs (R5-O47).
 		add_action( 'load-' . $partners, array( __CLASS__, 'screen_partners' ) );
@@ -515,6 +517,10 @@ final class Admin {
 		if ( ! DashboardPage::setup_open() ) {
 			return;
 		}
+		// SET-AC-24: while the setup wizard notice is shown on this screen, it replaces this hint.
+		if ( in_array( (string) $screen->id, array( 'plugins', 'dashboard' ), true ) && '' !== Pages\SetupWizard::notice_html() ) {
+			return;
+		}
 		$state = 'setup';
 		if ( ! $ours && self::notice_hidden( 'setup', $state ) ) {
 			return;
@@ -808,6 +814,12 @@ final class Admin {
 			'roles_save'               => array( SettingsPage::class, Capabilities::MANAGE_PROGRAM ),
 			'report_export'     => array( DashboardPage::class, Capabilities::MANAGE_AFFILIATES ),
 			'setup_pages'       => array( DashboardPage::class, Capabilities::MANAGE_PROGRAM ),
+			// Setup wizard (SET-AC-24): capability of the settings page.
+			'wizard_save'          => array( Pages\SetupWizard::class, Capabilities::MANAGE_PROGRAM ),
+			'wizard_profile'       => array( Pages\SetupWizard::class, Capabilities::MANAGE_PROGRAM ),
+			'wizard_profile_apply' => array( Pages\SetupWizard::class, Capabilities::MANAGE_PROGRAM ),
+			'wizard_pages'         => array( Pages\SetupWizard::class, Capabilities::MANAGE_PROGRAM ),
+			'wizard_state'         => array( Pages\SetupWizard::class, Capabilities::MANAGE_PROGRAM ),
 		);
 		if ( ! isset( $routes[ $do ] ) ) {
 			wp_die( esc_html__( 'Unknown action.', 'affiliate-captain' ), 400 );

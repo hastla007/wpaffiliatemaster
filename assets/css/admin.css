@@ -36,6 +36,13 @@
 .wpac-checklist .done::before{content:'✔ '}
 .wpac-checklist .todo::before{content:'○ '}
 .wpac-checklist .optional::before{content:'– '}
+.wpac-wizard-steps{display:flex;flex-wrap:wrap;gap:4px 16px;margin:12px 0 16px 1.5em;padding:0}
+.wpac-wizard-steps li{margin:0}
+.wpac-wizard-steps .is-current a{font-weight:600;color:#1d2327}
+.wpac-wizard-steps .is-done .wpac-wizard-status{color:#00704a}
+.wpac-wizard-status{color:#50575e}
+.wpac-wizard-buttons{margin-top:16px}
+.wpac-wizard-buttons a{margin-inline-start:8px}
 .wpac-field-hint{color:#50575e;font-size:12px;margin:4px 0 0}
 fieldset.wpac-bulk{border:1px solid #dcdcde;padding:8px 12px;margin-top:12px}
 fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
@@ -65,3 +72,6 @@ fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
 .wpac-addon-notes th, .wpac-addon-notes td { color: #50575e; padding-top: 6px; padding-bottom: 6px; }
 .wpac-pro-mark { display: inline-block; padding: 0 .4em; border: 1px solid #8c8f94; border-radius: 3px; font-size: 11px; font-weight: 600; line-height: 1.6; color: #50575e; }
 .wpac-legal-mark { display: inline-block; margin-inline-start: .4em; padding: 0 .4em; border: 1px solid #996800; border-radius: 3px; font-size: 11px; font-weight: 600; line-height: 1.6; color: #6b4800; background: #fcf9e8; }
+/* Required settings fields (SET-AC-25): the star is explained by the note above the form. */
+.wpac-required { color: #b32d2e; font-weight: 600; }
+fieldset.wpac-addon-field { margin: 0; padding: 0; border: 0; }

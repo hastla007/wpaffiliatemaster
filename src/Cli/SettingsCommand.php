@@ -11,6 +11,7 @@ namespace WPAffiliateCaptain\Cli;
 use WPAffiliateCaptain\Core\CountryProfiles;
 use WPAffiliateCaptain\Core\Settings;
 use WPAffiliateCaptain\Core\SettingsSchema;
+use WPAffiliateCaptain\Core\SettingsSections;
 use WPAffiliateCaptain\Core\SettingsTransfer;
 
 defined( 'ABSPATH' ) || exit;
@@ -206,11 +207,18 @@ final class SettingsCommand {
 	 * [--with-private]
 	 * : Also bank details, addresses, e-mail addresses and tax numbers.
 	 *
+	 * [--sections=<list>]
+	 * : Also these sections, comma separated: groups, rules, tiers, mail_templates – or "all".
+	 *
 	 * @param array $args  Positional.
 	 * @param array $assoc Options.
 	 */
 	public function export( $args, $assoc ) {
-		\WP_CLI::line( (string) wp_json_encode( SettingsTransfer::export( ! empty( $assoc['with-private'] ) ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+		$sections = isset( $assoc['sections'] ) ? SettingsSections::clean( (string) $assoc['sections'] ) : array();
+		if ( isset( $assoc['sections'] ) && ! $sections ) {
+			\WP_CLI::error( 'Unknown sections. Use groups, rules, tiers, mail_templates or all.' );
+		}
+		\WP_CLI::line( (string) wp_json_encode( SettingsTransfer::export( ! empty( $assoc['with-private'] ), $sections ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 	}
 
 	/**
@@ -223,6 +231,9 @@ final class SettingsCommand {
 	 *
 	 * [--dry-run]
 	 * : Only show what would change.
+	 *
+	 * [--sections=<list>]
+	 * : Import only these sections of the file (groups, rules, tiers, mail_templates); default all in the file.
 	 *
 	 * @param array $args  Positional.
 	 * @param array $assoc Options.
@@ -239,11 +250,45 @@ final class SettingsCommand {
 		if ( $preview['ignored'] ) {
 			\WP_CLI::warning( 'Ignored (unknown or not importable): ' . implode( ', ', $preview['ignored'] ) );
 		}
+		if ( isset( $assoc['sections'] ) ) {
+			$preview['sections_selected'] = SettingsSections::clean( (string) $assoc['sections'] );
+			$preview['sections']          = array_intersect_key( $preview['sections'], array_flip( $preview['sections_selected'] ) );
+		}
 		if ( ! empty( $assoc['dry-run'] ) ) {
 			self::print_changes( $preview );
+			self::print_sections( $preview['sections'] );
 			return;
 		}
+		self::print_sections( $preview['sections'] );
 		self::apply( $preview, 'settings.imported', array( 'source' => 'cli' ) );
+	}
+
+	/**
+	 * Print the preview of the sections of an import (SET-AC-08a): new, changed and rejected items.
+	 *
+	 * @param array $sections section => { items, counts }.
+	 */
+	private static function print_sections( array $sections ) {
+		$labels = SettingsSections::labels();
+		foreach ( $sections as $section => $data ) {
+			$c = $data['counts'];
+			\WP_CLI::line( sprintf( '%s: %d new, %d changed, %d unchanged, %d not imported', isset( $labels[ $section ] ) ? $labels[ $section ] : $section, $c['new'], $c['changed'], $c['unchanged'], $c['error'] ) );
+			foreach ( $data['items'] as $item ) {
+				if ( 'unchanged' === $item['status'] ) {
+					continue;
+				}
+				$parts = array();
+				foreach ( $item['changes'] as $field => $pair ) {
+					$parts[] = $field . ': ' . $pair[0] . ' → ' . $pair[1];
+				}
+				$line = sprintf( '  %s  %s%s', $item['status'], $item['label'], $parts ? ' (' . implode( '; ', $parts ) . ')' : '' );
+				if ( 'error' === $item['status'] ) {
+					\WP_CLI::warning( trim( $line ) . ': ' . $item['message'] );
+				} else {
+					\WP_CLI::line( $line . ( '' !== $item['message'] ? ' – ' . $item['message'] : '' ) );
+				}
+			}
+		}
 	}
 
 	/**
@@ -311,6 +356,13 @@ final class SettingsCommand {
 		if ( ! SettingsTransfer::apply( $checked, $action, $context ) ) {
 			\WP_CLI::error( 'The settings could not be saved (database error).' );
 		}
-		\WP_CLI::success( count( $checked['values'] ) ? sprintf( '%d setting(s) changed.', count( $checked['values'] ) ) : 'Nothing to change.' );
+		foreach ( SettingsSections::summary( SettingsSections::last_report() ) as $line ) {
+			\WP_CLI::line( $line );
+		}
+		if ( count( $checked['values'] ) ) {
+			\WP_CLI::success( sprintf( '%d setting(s) changed.', count( $checked['values'] ) ) );
+			return;
+		}
+		\WP_CLI::success( SettingsSections::last_report() ? 'No setting changed.' : 'Nothing to change.' );
 	}
 }

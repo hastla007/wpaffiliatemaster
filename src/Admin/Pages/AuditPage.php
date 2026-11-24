@@ -132,6 +132,7 @@ final class AuditPage {
 				'settings.updated'                  => __( 'Settings changed', 'affiliate-captain' ),
 				'settings.imported'                 => __( 'Settings imported', 'affiliate-captain' ),
 				'settings.exported'                 => __( 'Settings exported', 'affiliate-captain' ),
+				'settings.sections_imported'        => __( 'Groups, rules, tier plans or e-mail templates imported', 'affiliate-captain' ),
 				'settings.reset'                    => __( 'Settings reset to defaults', 'affiliate-captain' ),
 				'settings.cli'                      => __( 'Setting changed with WP-CLI', 'affiliate-captain' ),
 				'sequence.start_raised'             => __( 'Start number of a document number range raised', 'affiliate-captain' ),

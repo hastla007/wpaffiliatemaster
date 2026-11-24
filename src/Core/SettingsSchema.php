@@ -355,6 +355,25 @@ final class SettingsSchema {
 		return $out;
 	}
 
+	/**
+	 * Keys that cannot be saved empty (SET-AC-25): whole numbers with a lower limit above 0 and the
+	 * texts that Settings::sanitize() rejects when empty. Used to mark the fields as required.
+	 *
+	 * @return string[]
+	 */
+	public static function required() {
+		$texts = array( 'referral_param', 'currency', 'default_rate', 'landing_prefix', 'default_disclosure', 'terms_version', 'credit_prefix', 'storno_prefix', 'correction_prefix', 'visit_log_percent', 'operator_country' );
+		$ints  = array_keys(
+			array_filter(
+				self::int_min(),
+				static function ( $min ) {
+					return $min > 0;
+				}
+			)
+		);
+		return array_values( array_unique( array_merge( $texts, $ints ) ) );
+	}
+
 	/** Forget the cached definitions (tests, language switch). */
 	public static function flush() {
 		self::$core  = null;

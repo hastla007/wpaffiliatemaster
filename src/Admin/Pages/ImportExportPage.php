@@ -438,6 +438,8 @@ final class ImportExportPage {
 	 */
 	private static function render_export() {
 		echo '<p>' . esc_html__( 'Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items, correction credit notes and payout requests. Use it as a backup, for your tax advisor or to move to another system.', 'affiliate-captain' ) . '</p>';
+		// SET-AC-08a: the configuration (settings, groups, rules, tier plans, e-mail templates) moves as JSON with a preview on import.
+		echo '<p>' . esc_html__( 'To copy the configuration to another shop – settings, partner groups, commission rules, tier plans and e-mail templates, without partners or commissions – use the settings export:', 'affiliate-captain' ) . ' <a href="' . esc_url( Admin::url( 'wpac-settings', array( 'tab' => 'data' ) ) ) . '">' . esc_html__( 'Settings → Data & maintenance', 'affiliate-captain' ) . '</a></p>';
 		if ( ! ProgramExport::available() ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The program export needs the PHP extension "zip". Ask your hosting provider to enable it, or use the CSV exports of the individual lists.', 'affiliate-captain' ) . '</p></div>';
 			return;

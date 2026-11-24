@@ -77,6 +77,12 @@ define( 'WPAC_S3_SSE', 'AES256' );                   // optional: server-side en
 
 Set both **before** the first partner enters bank details and the first credit note is written. Without `WPAC_ENCRYPTION_KEY` the key is derived from the WordPress salts – changing the salts later makes stored IBANs unreadable. Keep a copy of the key in your password manager: without it, bank details cannot be decrypted after a server move.
 
+**Setup wizard (new after plugin 0.21.0).** Affiliate Captain → Setup wizard (capability "Manage program", like the settings page) guides you in six steps through a first working setup: **1. Country & profile** – choose a country profile (proposal from the shop country); "Show changes …" lists every setting the profile would change (now → new, values marked "Check legally"), and only "Apply and continue" changes them, exactly as shown – nothing is overwritten silently; applying asks for your password again like on the settings page. **2. Company details** – your country, address, VAT ID or tax number, self-billing and VAT rate for credit notes. **3. Commission** – default commission type and rate, commission base, hold period, release of commissions and minimum payout. **4. Pages** – application page, partner area, terms page and terms version; "Create pages automatically" creates the missing pages like the dashboard checklist (the terms as a draft from a template – review it with your legal advisor, then publish it). **5. Consent & cookie** – cookie mode and lifetime, text of the terms checkbox, disclosure note; the step says whether a consent banner is connected. **6. Test order** – explains how to check tracking with a test partner, a partner link in a private window and an order with a test payment method of your shop, and where to look (Commissions, Integrations → System status, audit log); the wizard itself creates no orders. It also lists what is still open in the setup checklist.
+
+Every field comes from the settings register: the same label, help text and "Check legally" mark as on the settings page, and the same checks (an invalid value is not saved, keeps its previous value and is shown again with its message next to the field; all other values of the step are saved). Changes are written to the audit log like on the settings page ("Settings changed", with the details `source: wizard` and the step). Every step has "Skip this step", the whole wizard "Skip the setup wizard"; nothing is changed by skipping. The progress (done/skipped per step, finished) is stored in the option `wpac_setup_wizard`; "Start the wizard again" clears only the progress, never settings. The wizard can be opened at any time from the setup checklist on the dashboard, from the top of the settings page and from the menu. After the first activation a notice on the dashboard and the plugins screen offers to start it; it disappears once the wizard was opened, skipped or finished, when you click "Dismiss this notice", or when every required checklist item is done.
+
+**Keyboard and screen readers.** The wizard uses plain HTML forms and works without JavaScript: the step list is a numbered list of links in a navigation region ("Setup steps") with `aria-current="step"` on the shown step and the state (done, skipped, open) as visible text; every control has a label; help texts and error messages are linked to their field with `aria-describedby`, rejected fields carry `aria-invalid`, and a summary with links to the fields is announced once (`role="alert"`). In each step the tab order is: fields, "Save and continue" (Enter in a field saves), "Skip this step", "Back to the previous step", then "Skip the setup wizard".
+
 **Setup checklist.** After activation, Affiliate Captain → Dashboard shows a checklist. "Create pages automatically" adds the application form, the partner area and a landing page with the matching blocks. Then go through Settings:
 
 | Tab | What to set |
@@ -117,6 +123,25 @@ On a multisite network `wp cron event run` only reaches the main site. Run it fo
 **Copies of the site.** When the site address changes (staging copy, clone, backup restored on another domain), maintenance mode is switched on automatically and a notice explains it: the copy sends no report mails, alarms, VIES requests or payouts to real partners. After a real move of the site, switch maintenance mode off under Settings → Data & maintenance. The filter `wpac_clone_protection` (return `false`) turns the detection off.
 
 **Updating by FTP/rsync.** Since 0.10 the main file is `affiliate-captain.php` (folder `affiliate-captain`). If you copy a new version over an old folder `wp-affiliate-captain/`, the old main file `wp-affiliate-captain.php` may stay active: the plugin then switches the activation to the new main file in the same folder by itself (from the next request on; the schema version is part of the code, so nothing runs with old version numbers meanwhile). An old copy in another folder is taken over the same way; "Delete all data on uninstall" is then switched off, so deleting the old copy cannot remove the shared data. A deployment that deletes the old main file (e.g. git) deactivates the plugin – activate "Affiliate Captain" again; nothing is lost.
+
+### Accessibility of the settings page (new after plugin 0.21.0, SET-AC-25)
+
+Every field on Affiliate Captain → Settings is linked to its help text (`aria-describedby`); after a rejected save the message at the field is linked as well and the field is marked invalid. Number fields carry the lower and upper limit of the register (`min`/`max`), so the browser and screen readers know the allowed range; amounts stay text fields because they accept a decimal comma and thousands separators. Fields that cannot be saved empty (e.g. link parameter, terms version, document number prefixes, numbers with a lower limit above 0) have the attribute `required` and a red star; a note above the form explains the star. Add-on rows (`wpac_settings_rows`) are groups named by their title and described by their text.
+
+**Screen reader check (to be done by a person, once per release with changes to the settings page).** Use NVDA with Firefox or Chrome on Windows and VoiceOver with Safari on macOS; tick each point per tab and note the date, browser and screen reader version:
+
+1. Tab through the tab navigation: the current tab is announced as "current page".
+2. Tab to a text field (Tracking → Link parameter): label, "required", the value and then the help text are read.
+3. Tab to a number field (Tracking → Cookie lifetime): label and help text are read; arrow keys stop at the limits; VoiceOver/NVDA announce the value range where they support it.
+4. Tab to a checkbox (Payouts → SEPA bank transfer): label, state and help text are read.
+5. Tab to a dropdown (Commissions → Program currency, Program → pages): label and help text are read.
+6. Clear Tracking → Link parameter and save: the error summary at the top is announced once; tabbing to the field reads "invalid", the error message and the help text.
+7. Payouts tab: switch off all three payout methods and save: the message is read at the SEPA checkbox.
+8. Fields with the mark "Check legally": the mark is read with the help text.
+9. With an add-on that adds a row: entering the row announces its title as a group and its description.
+10. Zoom to 200 % and use the keyboard only: every field is reachable and the focus is visible.
+
+Report problems with the tab, field, browser and screen reader.
 
 ## 2. Partners
 
@@ -425,6 +450,17 @@ Affiliate Captain → Import & export:
 
 Commissions and payouts of the old plugin are not imported – keep the old plugin's records (or its export) for your bookkeeping, and start the new program with the import date.
 
+**Copying the configuration to another shop (settings export, new after plugin 0.21.0, SET-AC-08a).** Settings → Data & maintenance → "Export settings (JSON)" exports the settings and, when ticked, these sections: *partner groups* (name, description, terms version, terms page by its slug, visibility in the application form, application fields), *commission rules* for all partners and for groups (group by name, products by SKU or slug, categories and tags by slug; amounts with the program currency), the *monthly tier plan* in effect for all partners and per group, and the *e-mail templates* you changed, per language, with the layout (text/HTML). Never exported: rules and tier plans for single partners, partners, commissions, payouts and secret values (monitoring token); bank details and addresses only with their own box as before.
+
+"Check import" shows per section what is **new**, **changed** (field: now → new) or **unchanged**, and what is **not imported** with the reason (e.g. a group, product or category that does not exist on this site, a language that is not installed, amounts in another currency – amounts are never converted). Untick a section to leave it out; "Apply" (with password confirmation, like the settings import) writes the sections after the settings. Items are matched by keys, not by database IDs, so the same file can be imported again without duplicates:
+
+- groups by name (case does not matter; two groups with the same name on the site stop the import of that group),
+- rules by scope, group, products/categories/SKUs and note – give rules a note to tell them apart; several rules with the same key are matched in their order,
+- tier plans by scope (all partners or group): a changed plan replaces the plan in effect as a new plan, the old one is deactivated and kept (booked bonuses keep their snapshot),
+- e-mail templates by template and language (the site language of the file is the site language of the target only when both are the same).
+
+Nothing is deleted: groups, rules, plans and templates of the site that are not in the file stay as they are. Existing commissions are never recalculated. A rule for a group that this import creates is only imported together with the groups section. The audit log gets one entry "Groups, rules, tier plans or e-mail templates imported" with the counts per section, plus the usual entry for each rule, group, plan and template. Files without sections (older versions) import as before; an older plugin version imports the settings of a new file and skips the sections.
+
 ## 11. WP-CLI
 
 | Command | Purpose |
@@ -444,6 +480,8 @@ Commissions and payouts of the old plugin are not imported – keep the old plug
 | `wp wpac statements test` | write, read and delete a probe file in the active document store |
 | `… --network` | `status`, `health`, `upgrade`, `jobs`, `cron`, `verify` and `statements sweep` on every site of the network |
 | `wp wpac setting profile [<code>] [--yes]` | list the country profiles, show the changes of one (old → new) and apply them with `--yes` |
+| `wp wpac setting export [--with-private] [--sections=<list>]` | export the settings as JSON; `--sections=groups,rules,tiers,mail_templates` (or `all`) adds the sections (new after plugin 0.21.0) |
+| `wp wpac setting import <file> [--dry-run] [--sections=<list>]` | import a settings export; shows new, changed and rejected items of each section; `--sections` imports only these sections of the file |
 | `wp wpac import partners <file.csv> [--dry-run] [--notify]` | import partners |
 | `wp wpac export <file.zip> [--include-tax-data --user=<login>]` | export the program |
 
