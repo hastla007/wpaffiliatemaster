@@ -190,3 +190,13 @@ check(
 );
 update_option( 'wpac_settings', $r24_saved );
 Settings::flush_cache();
+
+// P6-08: the consent fingerprint is SHA-256 of "<box>\n<wording>" (same text in two boxes = two records).
+$r24_ca = AffiliateRepository::create( array( 'name' => 'R24 consent', 'email' => 'r24-consent@example.de', 'status' => 'pending' ) );
+WPAffiliateCaptain\Affiliates\Agreements::record_consents( $r24_ca, array( array( 'key' => 'extra_1', 'text' => 'Ich akzeptiere die Werberichtlinien.' ), array( 'key' => 'extra_2', 'text' => 'Ich akzeptiere die Werberichtlinien.' ) ) );
+$r24_hashes = $wpdb->get_col( $wpdb->prepare( 'SELECT doc_hash FROM ' . Db::table( 'agreements' ) . " WHERE affiliate_id = %d AND result = 'consent' ORDER BY id", $r24_ca ) );
+check(
+	'P6-08 consent doc_hash = sha256( box . "\n" . wording ), not sha256( wording ); the wording is found by the hash',
+	array( array( hash( 'sha256', "extra_1\nIch akzeptiere die Werberichtlinien." ), hash( 'sha256', "extra_2\nIch akzeptiere die Werberichtlinien." ) ), false, 'Ich akzeptiere die Werberichtlinien.' ),
+	array( $r24_hashes, in_array( hash( 'sha256', 'Ich akzeptiere die Werberichtlinien.' ), $r24_hashes, true ), WPAffiliateCaptain\Affiliates\Agreements::consent_text( (string) ( $r24_hashes[0] ?? '' ) ) )
+);
