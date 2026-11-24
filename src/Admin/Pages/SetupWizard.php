@@ -525,8 +525,30 @@ final class SetupWizard {
 	}
 
 	/**
-	 * Admin notice after the first activation: once, until the wizard is opened, finished, skipped
-	 * or the notice is dismissed, and only while the setup checklist has open required items.
+	 * Result of DashboardPage::setup_open() per request, keyed by the settings it depends on
+	 * (P6-12: the welcome notice and the setup hint asked up to three times per page load).
+	 *
+	 * @var array<string, bool>
+	 */
+	private static $setup_open = array();
+
+	/**
+	 * Whether required items of the setup checklist are open, evaluated once per request (and
+	 * again only when the settings change within the request).
+	 *
+	 * @return bool
+	 */
+	public static function setup_open() {
+		$key = md5( (string) wp_json_encode( Settings::all() ) );
+		if ( ! isset( self::$setup_open[ $key ] ) ) {
+			self::$setup_open = array( $key => DashboardPage::setup_open() );
+		}
+		return self::$setup_open[ $key ];
+	}
+
+	/**
+	 * Admin notice after the first activation or an update while required items of the setup
+	 * checklist are open: until the wizard is opened, finished, skipped or the notice is dismissed.
 	 */
 	public static function first_run_notice() {
 		if ( ! current_user_can( Capabilities::MANAGE_PROGRAM ) || ! function_exists( 'get_current_screen' ) ) {
@@ -546,7 +568,7 @@ final class SetupWizard {
 	 */
 	public static function notice_html() {
 		$state = self::state();
-		if ( '' !== $state['started'] || '' !== $state['finished'] || $state['dismissed'] || ! DashboardPage::setup_open() ) {
+		if ( '' !== $state['started'] || '' !== $state['finished'] || $state['dismissed'] || ! self::setup_open() ) {
 			return '';
 		}
 		ob_start();

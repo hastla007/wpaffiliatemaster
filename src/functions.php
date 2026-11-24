@@ -119,7 +119,8 @@ if ( ! function_exists( 'wpac_resolve_partner_code' ) ) {
 
 if ( ! function_exists( 'wpac_get_payout' ) ) {
 	/**
-	 * One payout (contract 1.3.0): number, partner, status, currency, amount, method and – for the
+	 * One payout (contract 1.3.0): number, partner, status, currency, amount, method (sepa, bank –
+	 * bank transfer outside SEPA, since 0.22.0 – or manual) and – for the
 	 * manual method with an e-mail address in the payment details – the PayPal address. Bank
 	 * details are never returned.
 	 *
@@ -138,7 +139,7 @@ if ( ! function_exists( 'wpac_get_payouts' ) ) {
 	 * Payouts, oldest first (contract 1.3.0).
 	 *
 	 * @since 0.12.0
-	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|manual), affiliate_id, after_id (cursor: only payouts with a greater ID), limit (1–200, default 50). Unknown status or method: empty list.
+	 * @param array $args status (pending|exported|paid|cancelled), method (sepa|bank|manual; bank since 0.22.0), affiliate_id, after_id (cursor: only payouts with a greater ID), limit (1–200, default 50). Unknown status or method: empty list.
 	 * @return array[] As wpac_get_payout().
 	 */
 	function wpac_get_payouts( array $args = array() ) {

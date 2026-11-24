@@ -482,7 +482,8 @@ final class AffiliatesPage {
 				break;
 
 			case 'dunning_send':
-				$level = \WPAffiliateCaptain\Commissions\Dunning::remind( $id, sanitize_text_field( Admin::post( 'currency' ) ) );
+				// The level shown on the button: a form submitted twice sends nothing the second time.
+				$level = \WPAffiliateCaptain\Commissions\Dunning::remind( $id, sanitize_text_field( Admin::post( 'currency' ) ), absint( Admin::post( 'level', 0 ) ) );
 				if ( is_wp_error( $level ) ) {
 					Admin::back( $level->get_error_message(), 'error' );
 				}
@@ -496,7 +497,8 @@ final class AffiliatesPage {
 				if ( null === $amount ) {
 					Admin::back( Admin::amount_error( (string) $problem, $cur ), 'error' );
 				}
-				$result = \WPAffiliateCaptain\Commissions\Dunning::record_repayment( $id, $cur, $amount, sanitize_text_field( Admin::post( 'note' ) ) );
+				// One token per displayed form: a form submitted twice books only once.
+				$result = \WPAffiliateCaptain\Commissions\Dunning::record_repayment( $id, $cur, $amount, sanitize_text_field( Admin::post( 'note' ) ), sanitize_key( Admin::post( 'repayment_token' ) ) );
 				if ( is_wp_error( $result ) ) {
 					Admin::back( $result->get_error_message(), 'error' );
 				}
@@ -1502,25 +1504,27 @@ final class AffiliatesPage {
 						) . '</li>';
 					}
 					echo '</ul>';
-					$dunning_levels = \WPAffiliateCaptain\Commissions\Dunning::levels();
-					if ( '' !== $dunning_due && count( $history ) < $dunning_levels && $dunning_due > \WPAffiliateCaptain\Core\Db::now() ) {
+					$dunning_next = \WPAffiliateCaptain\Commissions\Dunning::next_stage( $history );
+					if ( '' !== $dunning_due && $dunning_next && $dunning_due > \WPAffiliateCaptain\Core\Db::now() ) {
 						/* translators: %s: end of the payment deadline */
 						echo '<p class="description wpac-dunning-wait">' . esc_html( sprintf( __( 'The payment deadline of the last stage runs until %s. Send the next stage only after it has passed.', 'affiliate-captain' ), Admin::date( $dunning_due ) ) ) . '</p>';
 					}
 					$dunning_blocked = \WPAffiliateCaptain\Commissions\Dunning::blocked_reason( $partner );
-					if ( '' !== $dunning_blocked && count( $history ) < $dunning_levels ) {
+					if ( '' !== $dunning_blocked && $dunning_next ) {
 						echo '<p class="description">' . esc_html( $dunning_blocked ) . '</p>';
-					} elseif ( count( $history ) < $dunning_levels ) {
+					} elseif ( $dunning_next ) {
 						Admin::form_open( 'dunning_send', 'wpac-inline' );
 						/* translators: 1: amount, 2: e-mail address */
 						$dunning_confirm = sprintf( __( 'Send a payment request for %1$s to %2$s now?', 'affiliate-captain' ), html_entity_decode( Money::format( -$bal, $cur ), ENT_QUOTES, 'UTF-8' ), $partner->email );
 						/* translators: %d: level */
-						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><button class="button" data-wpac-confirm="' . esc_attr( $dunning_confirm ) . '">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'affiliate-captain' ), count( $history ) + 1 ) ) . '</button></form> ';
+						echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><input type="hidden" name="level" value="' . (int) $dunning_next['level'] . '"><button class="button" data-wpac-confirm="' . esc_attr( $dunning_confirm ) . '">' . esc_html( sprintf( __( 'Send payment request (level %d)', 'affiliate-captain' ), (int) $dunning_next['level'] ) ) . '</button></form> ';
+					} elseif ( \WPAffiliateCaptain\Commissions\Dunning::ended_without_final( $history ) ) {
+						echo '<p class="description wpac-dunning-no-final">' . esc_html__( 'No further stage: the number of stages was lowered after these were sent, so no final reminder was sent. Write the balance off or hand it over for collection.', 'affiliate-captain' ) . '</p>';
 					} else {
 						echo '<p class="description">' . esc_html__( 'All reminders were sent. Write the balance off or hand it over for collection.', 'affiliate-captain' ) . '</p>';
 					}
 					Admin::form_open( 'repayment', 'wpac-inline' );
-					echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><label>' . esc_html__( 'Payment received', 'affiliate-captain' ) . ' <input type="text" name="amount" size="8" inputmode="decimal"></label> <input type="text" name="note" aria-label="' . esc_attr__( 'Bank reference', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Bank reference', 'affiliate-captain' ) . '"> <button class="button">' . esc_html__( 'Book repayment', 'affiliate-captain' ) . '</button></form>';
+					echo '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="currency" value="' . esc_attr( $cur ) . '"><input type="hidden" name="repayment_token" value="' . esc_attr( strtolower( wp_generate_password( 20, false ) ) ) . '"><label>' . esc_html__( 'Payment received', 'affiliate-captain' ) . ' <input type="text" name="amount" size="8" inputmode="decimal"></label> <input type="text" name="note" aria-label="' . esc_attr__( 'Bank reference', 'affiliate-captain' ) . '" placeholder="' . esc_attr__( 'Bank reference', 'affiliate-captain' ) . '"> <button class="button">' . esc_html__( 'Book repayment', 'affiliate-captain' ) . '</button></form>';
 				}
 			}
 			if ( $problems ) {

@@ -7,7 +7,7 @@ Stand 16.11.2026. Optionaler Connector in Affiliate Captain für [Form Captain](
 Ein Formular in Form Captain kann eine Partnerbewerbung an Affiliate Captain übergeben. Die Übergabe nutzt den eingebauten Bewerbungsablauf von Affiliate Captain und keinen zweiten:
 
 1. Form Captain speichert die Einsendung und legt für die Aktion einen Outbox-Job an. Der Job läuft im Worker von Form Captain (WP-Cron oder `wp form-captain jobs run`), nie in der Anfrage der Einsendung.
-2. Affiliate Captain prüft die Werte wie beim eigenen Formular, legt die Bewerbung für höchstens zwei Tage in `Core\Pending` ab und schickt die eigene Bestätigungsmail („Bewerbung bestätigen“, Vorlage `confirm_application`).
+2. Affiliate Captain prüft die Werte wie beim eigenen Formular, legt die Bewerbung für die Gültigkeit des Bestätigungslinks in `Core\Pending` ab (Einstellung `application_confirm_days`, 1 bis 30 Tage, Standard 2) und schickt die eigene Bestätigungsmail („Bewerbung bestätigen“, Vorlage `confirm_application`).
 3. Erst der Klick auf den Link in der Mail legt den Partner an, über denselben Code wie beim eigenen Formular (`Registration::handle_confirm()` → `finalize()` → `AffiliateRepository::create()`), **immer mit Status `pending`**, auch wenn „Bewerbungen automatisch freigeben“ eingeschaltet ist. Die Admin-Mail „Neue Partnerbewerbung“ und die Eingangsbestätigung an den Bewerber kommen wie gewohnt.
 4. Freigabe, Ablehnung, Partnercode, Gutschein, Provisionsregeln und Provisionen bleiben in Affiliate Captain. Der Connector gibt nichts davon frei und legt nichts davon an.
 

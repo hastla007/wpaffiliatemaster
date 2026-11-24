@@ -1,0 +1,8 @@
+{
+	"Another payment request for this partner is being sent right now. Please reload the page.": "Für diesen Partner wird gerade eine andere Zahlungsaufforderung gesendet. Bitte lade die Seite neu.",
+	"Payment request level %d was already sent (the form was probably submitted twice). Nothing was sent again.": "Die Zahlungsaufforderung Stufe %d wurde bereits gesendet (das Formular wurde vermutlich doppelt abgeschickt). Es wurde nichts erneut gesendet.",
+	"Another booking for this partner is running right now. Please reload the page and check the account before booking again.": "Für diesen Partner läuft gerade eine andere Buchung. Bitte lade die Seite neu und prüfe das Konto, bevor du erneut buchst.",
+	"This repayment was already booked (the form was submitted twice). Nothing was booked again.": "Diese Rückzahlung wurde bereits gebucht (das Formular wurde doppelt abgeschickt). Es wurde nichts erneut gebucht.",
+	"A repayment with the same amount and bank reference was booked less than %d minutes ago. Check the partner account: if it is really a second payment, enter its own bank reference.": "Eine Rückzahlung mit demselben Betrag und Verwendungszweck wurde vor weniger als %d Minuten gebucht. Prüfe das Partnerkonto: Ist es wirklich eine zweite Zahlung, gib deren eigenen Verwendungszweck ein.",
+	"No further stage: the number of stages was lowered after these were sent, so no final reminder was sent. Write the balance off or hand it over for collection.": "Keine weitere Stufe: Die Zahl der Stufen wurde gesenkt, nachdem diese gesendet waren; eine letzte Mahnung wurde daher nicht gesendet. Schreibe den Betrag ab oder gib ihn ans Inkasso."
+}
