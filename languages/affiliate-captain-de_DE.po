@@ -373,6 +373,93 @@ msgstr "Der zweite Faktor (z. B. der Code deiner Authenticator-App) ist nicht ko
 msgid "The second factor could not be confirmed."
 msgstr "Der zweite Faktor konnte nicht bestätigt werden."
 
+msgid "Also export (optional):"
+msgstr "Zusätzlich exportieren (optional):"
+
+msgid "Rules and tier plans for single partners, partners and commissions are never exported. On import, items are matched by name (groups), by scope, group, products and note (rules), by group (tier plans) and by template and language (e-mail templates); nothing is deleted."
+msgstr "Regeln und Stufenpläne einzelner Partner, Partner und Provisionen werden nie exportiert. Beim Import werden Einträge über den Namen (Gruppen), über Geltungsbereich, Gruppe, Produkte und Notiz (Regeln), über die Gruppe (Stufenpläne) und über Vorlage und Sprache (E-Mail-Vorlagen) zugeordnet; gelöscht wird nichts."
+
+msgid "New"
+msgstr "Neu"
+
+msgid "Changed"
+msgstr "Geändert"
+
+msgid "Unchanged"
+msgstr "Unverändert"
+
+msgid "Not imported"
+msgstr "Nicht importiert"
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "Terms version"
+msgstr "Version der Bedingungen"
+
+msgid "Terms page"
+msgstr "Bedingungsseite"
+
+msgid "Selectable in the application form"
+msgstr "Im Bewerbungsformular wählbar"
+
+msgid "Application fields"
+msgstr "Bewerbungsfelder"
+
+msgid "Rate"
+msgstr "Satz"
+
+msgid "Maximum per line"
+msgstr "Höchstbetrag je Position"
+
+msgid "Minimum line amount"
+msgstr "Mindestbetrag der Position"
+
+msgid "Valid from"
+msgstr "Gültig ab"
+
+msgid "Valid until"
+msgstr "Gültig bis"
+
+msgid "Priority"
+msgstr "Priorität"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Basis"
+msgstr "Basis"
+
+msgid "Mode"
+msgstr "Modus"
+
+msgid "Steps"
+msgstr "Stufen"
+
+msgid "Note"
+msgstr "Notiz"
+
+msgid "Subject"
+msgstr "Betreff"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Layout"
+msgstr "Layout"
+
+msgid "%1$d new, %2$d changed, %3$d unchanged, %4$d not imported."
+msgstr "%1$d neu, %2$d geändert, %3$d unverändert, %4$d nicht importiert."
+
+msgid "Import this section"
+msgstr "Diesen Abschnitt importieren"
+
+msgid "Entry"
+msgstr "Eintrag"
+
+msgid "Changes"
+msgstr "Änderungen"
+
 msgid "%d partner without the current acceptance is asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week)."
 msgid_plural "%d partners without the current acceptance are asked by e-mail to accept the terms (sent in the background; nobody gets more than one reminder per week)."
 msgstr[0] "%d Partner ohne aktuelle Zustimmung wird per E-Mail gebeten, die Bedingungen zu akzeptieren (Versand im Hintergrund; niemand erhält mehr als eine Erinnerung pro Woche)."
@@ -694,9 +781,6 @@ msgstr "Bewertungen vom %1$s bis %2$s."
 msgid "From the review plugin: only verified, published reviews of orders attributed to this partner. Read only, not stored, never shown to the partner; it never changes commissions, rules or payouts."
 msgstr "Aus dem Review-Plugin: nur verifizierte, veröffentlichte Bewertungen von Bestellungen, die diesem Partner zugeordnet sind. Nur lesend, nicht gespeichert, nie dem Partner angezeigt; ändert nie Provisionen, Regeln oder Auszahlungen."
 
-msgid "Status"
-msgstr "Status"
-
 msgid "Processing restricted (Art. 18 GDPR)"
 msgstr "Verarbeitung eingeschränkt (Art. 18 DSGVO)"
 
@@ -909,9 +993,6 @@ msgstr "Leer = zufälliger Code (empfohlen). Sprechende Codes wie SEGELSCHULE-NO
 
 msgid "Usage limit"
 msgstr "Nutzungslimit"
-
-msgid "Valid until"
-msgstr "Gültig bis"
 
 msgid "Add"
 msgstr "Hinzufügen"
@@ -1140,9 +1221,6 @@ msgstr "Rundmail wird gesendet: %1$d von %2$d."
 
 msgid "Last broadcast mail on %1$s: %2$d sent, %3$d skipped (unsubscribed or restricted)."
 msgstr "Letzte Rundmail am %1$s: %2$d gesendet, %3$d übersprungen (abgemeldet oder eingeschränkt)."
-
-msgid "Subject"
-msgstr "Betreff"
 
 msgid "Text (plain text; an unsubscribe link is added)"
 msgstr "Text (reiner Text; ein Abmeldelink wird angefügt)"
@@ -1533,6 +1611,9 @@ msgstr "Einstellungen importiert"
 msgid "Settings exported"
 msgstr "Einstellungen exportiert"
 
+msgid "Groups, rules, tier plans or e-mail templates imported"
+msgstr "Gruppen, Regeln, Stufenpläne oder E-Mail-Vorlagen importiert"
+
 msgid "Settings reset to defaults"
 msgstr "Einstellungen auf Standard zurückgesetzt"
 
@@ -1622,9 +1703,6 @@ msgstr "Bonusmonat neu berechnet"
 
 msgid "Reason"
 msgstr "Grund"
-
-msgid "Changed"
-msgstr "Geändert"
 
 msgid "Number"
 msgstr "Anzahl"
@@ -1853,9 +1931,6 @@ msgstr "Position"
 msgid "Base"
 msgstr "Basis"
 
-msgid "Rate"
-msgstr "Satz"
-
 msgid "rule"
 msgstr "Regel"
 
@@ -1978,9 +2053,6 @@ msgstr "Werbemittel hinzufügen"
 
 msgid "Title"
 msgstr "Titel"
-
-msgid "Text"
-msgstr "Text"
 
 msgid "Image / banner"
 msgstr "Bild / Banner"
@@ -2372,6 +2444,12 @@ msgstr "Importierte aktive Partner erhalten eine Willkommens-E-Mail."
 
 msgid "Download the whole partner program as a ZIP file with one CSV file per list: partners, groups, codes, rules, tiers, terms acceptances, commissions, payouts, payout items, correction credit notes and payout requests. Use it as a backup, for your tax advisor or to move to another system."
 msgstr "Lade das gesamte Partnerprogramm als ZIP-Datei mit einer CSV-Datei je Liste herunter: Partner, Gruppen, Codes, Regeln, Stufenpläne, Zustimmungen zu den Partnerbedingungen, Provisionen, Auszahlungen, Auszahlungspositionen, Korrekturgutschriften und Auszahlungsanträge – zur Sicherung, für deine Steuerberatung oder für den Umzug in ein anderes System."
+
+msgid "To copy the configuration to another shop – settings, partner groups, commission rules, tier plans and e-mail templates, without partners or commissions – use the settings export:"
+msgstr "Um die Konfiguration in einen anderen Shop zu übernehmen – Einstellungen, Partnergruppen, Provisionsregeln, Stufenpläne und E-Mail-Vorlagen, ohne Partner und Provisionen –, nutze den Einstellungsexport:"
+
+msgid "Settings → Data & maintenance"
+msgstr "Einstellungen → Daten & Wartung"
 
 msgid "The program export needs the PHP extension \"zip\". Ask your hosting provider to enable it, or use the CSV exports of the individual lists."
 msgstr "Der Programm-Export benötigt die PHP-Erweiterung „zip“. Bitte deinen Hosting-Anbieter, sie zu aktivieren, oder nutze die CSV-Exporte der einzelnen Listen."
@@ -2776,9 +2854,6 @@ msgstr "Passe die E-Mails an deine Partner an, zum Beispiel für eine Ansprache 
 
 msgid "With several installed languages you can store a text per language: partners get the text of their language (partner profile, otherwise their user account), otherwise the text of the site language."
 msgstr "Mit mehreren installierten Sprachen kannst du je Sprache einen Text speichern: Partner erhalten den Text ihrer Sprache (Partnerprofil, sonst ihr Benutzerkonto), sonst den Text der Website-Sprache."
-
-msgid "Layout"
-msgstr "Layout"
 
 msgid "Plain text"
 msgstr "Reiner Text"
@@ -3264,9 +3339,6 @@ msgstr "Bankkonto"
 msgid "Period until"
 msgstr "Stichtag"
 
-msgid "Description"
-msgstr "Beschreibung"
-
 msgid "Net amount"
 msgstr "Nettobetrag"
 
@@ -3376,12 +3448,6 @@ msgstr "Gilt für"
 msgid "Products"
 msgstr "Produkte"
 
-msgid "Priority"
-msgstr "Priorität"
-
-msgid "Note"
-msgstr "Notiz"
-
 msgid "No rules yet – the program default applies to all sales."
 msgstr "Noch keine Regeln – für alle Verkäufe gilt der Programmstandard."
 
@@ -3423,9 +3489,6 @@ msgstr "Höchstprovision je Position"
 
 msgid "Empty = no cap. Limits the commission of one order line (all units together) under this rule."
 msgstr "Leer = kein Deckel. Begrenzt die Provision einer Bestellposition (alle Stück zusammen) nach dieser Regel."
-
-msgid "Minimum line amount"
-msgstr "Mindestbetrag der Position"
 
 msgid "Empty = always. The rule only applies to order lines with at least this commission basis; smaller lines fall to the next rule or the program default."
 msgstr "Leer = immer. Die Regel gilt nur für Bestellpositionen mit mindestens dieser Provisionsbasis; kleinere Positionen fallen an die nächste Regel oder den Standardsatz des Programms."
@@ -3495,15 +3558,6 @@ msgstr "Gruppe hinzufügen"
 
 msgid "Additional bonus in percent of the monthly net revenue (after refunds). The most specific active plan applies (partner > group > global). Months are closed automatically after the hold period; the plan is frozen in the booked bonus."
 msgstr "Zusatzbonus in Prozent des monatlichen Nettoumsatzes (nach Rückerstattungen). Es gilt der spezifischste aktive Plan (Partner > Gruppe > global). Monate werden nach Ablauf der Haltefrist automatisch abgeschlossen; der Plan wird im gebuchten Bonus eingefroren."
-
-msgid "Basis"
-msgstr "Basis"
-
-msgid "Mode"
-msgstr "Modus"
-
-msgid "Steps"
-msgstr "Stufen"
 
 msgid "No tier plans."
 msgstr "Keine Stufenpläne."
@@ -3654,9 +3708,6 @@ msgstr "Einstellung"
 msgid "Now"
 msgstr "Jetzt"
 
-msgid "New"
-msgstr "Neu"
-
 msgid "Nothing would change."
 msgstr "Es würde sich nichts ändern."
 
@@ -3749,6 +3800,9 @@ msgstr "Einstellungen Affiliate Captain"
 
 msgid "Settings sections"
 msgstr "Einstellungsbereiche"
+
+msgid "Fields marked with * are required."
+msgstr "Mit * markierte Felder sind Pflichtfelder."
 
 msgid "Sample credit note"
 msgstr "Muster-Gutschrift"
@@ -4025,6 +4079,171 @@ msgstr "Bild auswählen"
 
 msgid "The field holds the ID of the image in the media library (0 = none)."
 msgstr "Das Feld enthält die ID des Bildes in der Mediathek (0 = keins)."
+
+msgid "Setup wizard"
+msgstr "Einrichtungsassistent"
+
+msgid "Country & profile"
+msgstr "Land & Profil"
+
+msgid "A country profile proposes VAT rate, currency, your country, retention periods, cookie and hold periods, document number prefixes and notes on credit notes. You see every change before it is applied – nothing is changed before you confirm."
+msgstr "Ein Länderprofil schlägt Umsatzsteuersatz, Währung, dein Land, Aufbewahrungsfristen, Cookie- und Haltefristen, Präfixe der Belegnummern und Hinweise auf Gutschriften vor. Du siehst jede Änderung, bevor sie übernommen wird – vor deiner Bestätigung wird nichts geändert."
+
+msgid "Company details"
+msgstr "Firmendaten"
+
+msgid "Your details as printed on credit notes. Needed when you settle commissions by credit note (self-billing)."
+msgstr "Deine Angaben, wie sie auf Gutschriften gedruckt werden. Nötig, wenn du Provisionen per Gutschrift abrechnest."
+
+msgid "The default commission for partners without a matching rule, the hold period and the minimum payout. Rules for partners, groups and products can be added later under Rules & groups."
+msgstr "Die Standardprovision für Partner ohne passende Regel, die Haltefrist und die Mindestauszahlung. Regeln für Partner, Gruppen und Produkte kannst du später unter Regeln & Gruppen anlegen."
+
+msgid "Pages"
+msgstr "Seiten"
+
+msgid "The application page, the partner area and the partner program terms. Missing pages can be created automatically; the terms are created as a draft from a template – review them with your legal advisor, then publish them."
+msgstr "Die Bewerbungsseite, der Partnerbereich und die Teilnahmebedingungen. Fehlende Seiten können automatisch angelegt werden; die Bedingungen entstehen als Entwurf aus einer Vorlage – prüfe sie mit deiner Rechtsberatung und veröffentliche sie dann."
+
+msgid "Consent & cookie"
+msgstr "Einwilligung & Cookie"
+
+msgid "Whether the referral is kept in a browser cookie, for how long, and the texts applicants and readers see."
+msgstr "Ob die Empfehlung in einem Browser-Cookie gespeichert wird, wie lange, und die Texte, die Bewerber und Leser sehen."
+
+msgid "Test order"
+msgstr "Test-Bestellung"
+
+msgid "Check once that a sale through a partner link is recorded. The wizard creates no orders; you place the test order yourself in your shop."
+msgstr "Prüfe einmal, ob ein Verkauf über einen Partnerlink erfasst wird. Der Assistent legt keine Bestellungen an; die Test-Bestellung gibst du selbst in deinem Shop auf."
+
+msgid "The setup wizard notice is hidden. You can open the wizard at any time from the dashboard or the settings page."
+msgstr "Der Hinweis auf den Einrichtungsassistenten ist ausgeblendet. Du kannst den Assistenten jederzeit über das Dashboard oder die Einstellungsseite öffnen."
+
+msgid "Setup wizard skipped. You can open it again at any time from the dashboard checklist or the settings page."
+msgstr "Einrichtungsassistent übersprungen. Du kannst ihn jederzeit über die Checkliste im Dashboard oder die Einstellungsseite wieder öffnen."
+
+msgid "Setup wizard finished. Open points stay in the setup checklist; everything can be changed on the settings page."
+msgstr "Einrichtungsassistent abgeschlossen. Offene Punkte bleiben in der Einrichtungs-Checkliste; alles lässt sich auf der Einstellungsseite ändern."
+
+msgid "Welcome to Affiliate Captain."
+msgstr "Willkommen bei Affiliate Captain."
+
+msgid "The setup wizard guides you through country, company details, commission, pages, consent and a test order. Every step can be skipped."
+msgstr "Der Einrichtungsassistent führt dich durch Land, Firmendaten, Provision, Seiten, Einwilligung und eine Test-Bestellung. Jeder Schritt kann übersprungen werden."
+
+msgid "Start the setup wizard"
+msgstr "Einrichtungsassistent starten"
+
+msgid "Dismiss this notice"
+msgstr "Hinweis ausblenden"
+
+msgid "Open the setup wizard again"
+msgstr "Einrichtungsassistent erneut öffnen"
+
+msgid "Open the setup wizard"
+msgstr "Einrichtungsassistent öffnen"
+
+msgid "Guided steps for country, company details, commission, pages, consent and a test order; every step can be skipped."
+msgstr "Geführte Schritte für Land, Firmendaten, Provision, Seiten, Einwilligung und eine Test-Bestellung; jeder Schritt kann übersprungen werden."
+
+msgid "You skipped the setup wizard. You can still go through any step."
+msgstr "Du hast den Einrichtungsassistenten übersprungen. Du kannst trotzdem jeden Schritt durchgehen."
+
+msgid "You finished the setup wizard. You can go through any step again; everything can also be changed on the settings page."
+msgstr "Du hast den Einrichtungsassistenten abgeschlossen. Du kannst jeden Schritt erneut durchgehen; alles lässt sich auch auf der Einstellungsseite ändern."
+
+msgid "Six short steps for a first working setup. Every step can be skipped and the wizard can be opened again at any time from the dashboard or the settings page; all values can be changed later on the settings page."
+msgstr "Sechs kurze Schritte zu einer ersten funktionierenden Einrichtung. Jeder Schritt kann übersprungen werden, und der Assistent lässt sich jederzeit über das Dashboard oder die Einstellungsseite wieder öffnen; alle Werte können später auf der Einstellungsseite geändert werden."
+
+msgid "Setup steps"
+msgstr "Einrichtungsschritte"
+
+msgid "skipped"
+msgstr "übersprungen"
+
+msgid "Step %1$d of %2$d: %3$s"
+msgstr "Schritt %1$d von %2$d: %3$s"
+
+msgid "Skip the setup wizard"
+msgstr "Einrichtungsassistent überspringen"
+
+msgid "Nothing is changed; the setup checklist on the dashboard stays."
+msgstr "Es wird nichts geändert; die Einrichtungs-Checkliste im Dashboard bleibt."
+
+msgid "Start the wizard again"
+msgstr "Assistent neu beginnen"
+
+msgid "Clears the progress of the wizard; your settings stay as they are."
+msgstr "Löscht den Fortschritt des Assistenten; deine Einstellungen bleiben, wie sie sind."
+
+msgid "Finish the setup wizard"
+msgstr "Einrichtungsassistent abschließen"
+
+msgid "Skip this step"
+msgstr "Diesen Schritt überspringen"
+
+msgid "Save and continue"
+msgstr "Speichern und weiter"
+
+msgid "Back to the previous step"
+msgstr "Zurück zum vorigen Schritt"
+
+msgid "Please check these fields:"
+msgstr "Bitte prüfe diese Felder:"
+
+msgid "%s (draft)"
+msgstr "%s (Entwurf)"
+
+msgid "No country profile is available. Continue with the company details."
+msgstr "Es ist kein Länderprofil verfügbar. Mach mit den Firmendaten weiter."
+
+msgid "The values are not legally or tax reviewed – check them with your adviser."
+msgstr "Die Werte sind weder rechtlich noch steuerlich geprüft – prüfe sie mit deiner Beratung."
+
+msgid "Changes of the country profile"
+msgstr "Änderungen des Länderprofils"
+
+msgid "Apply and continue"
+msgstr "Übernehmen und weiter"
+
+msgid "The partner program terms are not published yet. Review the draft with your legal advisor, then publish it."
+msgstr "Die Teilnahmebedingungen sind noch nicht veröffentlicht. Prüfe den Entwurf mit deiner Rechtsberatung und veröffentliche ihn dann."
+
+msgid "Edit the terms page"
+msgstr "Seite der Bedingungen bearbeiten"
+
+msgid "No consent banner is connected yet (WP Consent API or the filter wpac_has_marketing_consent): with \"only with consent\" the affiliate cookie is never set, and only partner codes and the shop session count."
+msgstr "Noch kein Consent-Banner angebunden (WP Consent API oder der Filter wpac_has_marketing_consent): Mit „nur mit Einwilligung“ wird das Affiliate-Cookie nie gesetzt, und es zählen nur Partnercodes und die Shop-Sitzung."
+
+msgid "Check the system status"
+msgstr "Systemstatus prüfen"
+
+msgid "A consent banner is connected: the affiliate cookie is set once a visitor gives marketing consent."
+msgstr "Ein Consent-Banner ist angebunden: Das Affiliate-Cookie wird gesetzt, sobald ein Besucher in Marketing einwilligt."
+
+msgid "Approve a test partner (e.g. yourself with a second e-mail address) on the %s page."
+msgstr "Schalte auf der Seite %s einen Test-Partner frei (z. B. dich selbst mit einer zweiten E-Mail-Adresse)."
+
+msgid "Open the partner link in a private browser window, e.g. %s with the code of the test partner, and accept marketing in your consent banner. In the developer tools of the browser the cookie wpac_ref should now exist (with the cookie mode \"only with consent\")."
+msgstr "Öffne den Partnerlink in einem privaten Browserfenster, z. B. %s mit dem Code des Test-Partners, und willige in deinem Consent-Banner in Marketing ein. In den Entwicklerwerkzeugen des Browsers sollte jetzt das Cookie wpac_ref vorhanden sein (beim Cookie-Modus „nur mit Einwilligung“)."
+
+msgid "Place a small order in the same window, with a test payment method of your shop (e.g. cash on delivery, bank transfer or the sandbox mode of your payment provider), or enter the partner code at checkout."
+msgstr "Gib im selben Fenster eine kleine Bestellung auf, mit einer Testzahlart deines Shops (z. B. Nachnahme, Überweisung oder dem Sandbox-Modus deines Zahlungsanbieters), oder gib den Partnercode an der Kasse ein."
+
+msgid "Check on the %s page that the order shows up with the test partner (status \"pending\"). Then cancel or refund the test order: the commission is rejected automatically."
+msgstr "Prüfe auf der Seite %s, ob die Bestellung beim Test-Partner erscheint (Status „ausstehend“). Storniere oder erstatte die Test-Bestellung danach: Die Provision wird automatisch abgelehnt."
+
+msgid "If nothing shows up: the %s lists the sales source, the consent banner, scheduled tasks and failed jobs, and the audit log shows what happened."
+msgstr "Wenn nichts erscheint: Der %s zeigt Verkaufsquelle, Consent-Banner, geplante Aufgaben und fehlgeschlagene Jobs, und das Audit-Log zeigt, was passiert ist."
+
+msgid "system status"
+msgstr "Systemstatus"
+
+msgid "Still open in the setup checklist"
+msgstr "Noch offen in der Einrichtungs-Checkliste"
+
+msgid "Every required item of the setup checklist is done."
+msgstr "Alle nötigen Punkte der Einrichtungs-Checkliste sind erledigt."
 
 msgid "Website / channel"
 msgstr "Website / Kanal"
@@ -4732,9 +4951,6 @@ msgstr "Deine Bewerbung konnte nicht gespeichert werden. Bitte versuche es spät
 
 msgid "Which kind of partner are you?"
 msgstr "Welche Art von Partner bist du?"
-
-msgid "Fields marked with * are required."
-msgstr "Mit * markierte Felder sind Pflichtfelder."
 
 msgid "Application as: %s"
 msgstr "Bewerbung als: %s"
@@ -6051,9 +6267,6 @@ msgstr "Neue Bewerbungen werden direkt nach der Bestätigung der E-Mail-Adresse 
 msgid "Version, text and SHA-256 hash of this page are stored with every acceptance as evidence."
 msgstr "Version, Text und SHA-256-Hash dieser Seite werden bei jeder Zustimmung als Nachweis gespeichert."
 
-msgid "Terms version"
-msgstr "Version der Bedingungen"
-
 msgid "Increase the version only for material changes: partners are then asked to accept again on their next login (credit note payouts wait until they did). Corrections of the page without a new version do not require a new acceptance. Partners can be reminded by e-mail from the partner list."
 msgstr "Erhöhe die Version nur bei wesentlichen Änderungen: Partner werden dann bei der nächsten Anmeldung gebeten, erneut zuzustimmen (Auszahlungen per Gutschrift warten bis dahin). Korrekturen der Seite ohne neue Version erfordern keine neue Zustimmung. Aus der Partnerliste kannst du Partner per E-Mail erinnern."
 
@@ -6647,6 +6860,78 @@ msgstr "Beim Löschen des Plugins alle Daten entfernen"
 
 msgid "Off by default: deleting the plugin keeps all data. When switched on (type DELETE to confirm), deleting the plugin removes partners, links and codes, visits, commissions, payouts, applications, settings and the pages it created. Booking records, credit notes and the audit log stay as long as a credit note is within the retention period. On a multisite network this applies to this site only. Scheduled tasks are always removed. Not part of the settings export."
 msgstr "Standardmäßig aus: Beim Löschen des Plugins bleiben alle Daten erhalten. Ist es eingeschaltet (zur Bestätigung LÖSCHEN eintippen), entfernt das Löschen des Plugins Partner, Links und Codes, Besuche, Provisionen, Auszahlungen, Bewerbungen, Einstellungen und die vom Plugin angelegten Seiten. Buchungsdaten, Gutschriften und das Protokoll bleiben, solange eine Gutschrift in der Aufbewahrungsfrist liegt. In einem Multisite-Netzwerk gilt das nur für diese Website. Geplante Aufgaben werden immer entfernt. Wird nicht mit den Einstellungen exportiert."
+
+msgid "Commission rules"
+msgstr "Provisionsregeln"
+
+msgid "Monthly tier plans"
+msgstr "Monatsstufen-Pläne"
+
+msgid "The group has no name."
+msgstr "Die Gruppe hat keinen Namen."
+
+msgid "This name is in the file twice; only the first entry is used."
+msgstr "Dieser Name steht zweimal in der Datei; nur der erste Eintrag wird verwendet."
+
+msgid "Several groups with this name exist on this site. Rename them first."
+msgstr "Auf dieser Website gibt es mehrere Gruppen mit diesem Namen. Benenne sie zuerst um."
+
+msgid "Terms page \"%s\" not found on this site; the terms page of the group is not changed."
+msgstr "Bedingungsseite „%s“ auf dieser Website nicht gefunden; die Bedingungsseite der Gruppe bleibt unverändert."
+
+msgid "Rules for single partners are not imported."
+msgstr "Regeln für einzelne Partner werden nicht importiert."
+
+msgid "Unknown scope."
+msgstr "Unbekannter Geltungsbereich."
+
+msgid "Not found on this site: %s"
+msgstr "Auf dieser Website nicht gefunden: %s"
+
+msgid "The amounts are in %1$s, the program currency is %2$s. Amounts are not converted."
+msgstr "Die Beträge sind in %1$s, die Programmwährung ist %2$s. Beträge werden nicht umgerechnet."
+
+msgid "The group is created by this import (only when partner groups are imported too)."
+msgstr "Die Gruppe wird durch diesen Import angelegt (nur wenn die Partnergruppen mit importiert werden)."
+
+msgid "active"
+msgstr "aktiv"
+
+msgid "inactive"
+msgstr "inaktiv"
+
+msgid "Tier plans for single partners are not imported."
+msgstr "Stufenpläne für einzelne Partner werden nicht importiert."
+
+msgid "This plan is in the file twice; only the first entry is used."
+msgstr "Dieser Plan steht zweimal in der Datei; nur der erste Eintrag wird verwendet."
+
+msgid "Basis, mode or steps of the plan are not valid."
+msgstr "Basis, Modus oder Stufen des Plans sind ungültig."
+
+msgid "Replaces the plan in effect; the old plan is deactivated and kept."
+msgstr "Ersetzt den geltenden Plan; der alte Plan wird deaktiviert und bleibt erhalten."
+
+msgid "Layout of the e-mails"
+msgstr "Layout der E-Mails"
+
+msgid "This template is in the file twice; only the first entry is used."
+msgstr "Diese Vorlage steht zweimal in der Datei; nur der erste Eintrag wird verwendet."
+
+msgid "%1$s: %2$d new, %3$d changed, %4$d unchanged, %5$d skipped."
+msgstr "%1$s: %2$d neu, %3$d geändert, %4$d unverändert, %5$d übersprungen."
+
+msgid "Import of a settings file"
+msgstr "Import einer Einstellungsdatei"
+
+msgid "The group is missing."
+msgstr "Die Gruppe fehlt."
+
+msgid "Group \"%s\" not found on this site. Import the partner groups too, or create the group first."
+msgstr "Gruppe „%s“ auf dieser Website nicht gefunden. Importiere die Partnergruppen mit oder lege die Gruppe zuerst an."
+
+msgid "all products"
+msgstr "alle Produkte"
 
 msgid "This is not a settings export of Affiliate Captain."
 msgstr "Das ist kein Einstellungs-Export von Affiliate Captain."
@@ -8559,9 +8844,6 @@ msgstr "E-Mails zu Auszahlungen, Gutschriften, deinem Konto und geänderten Bedi
 msgid "To delete your data or get a copy, use the %1$s tab. To end the partnership, write to %2$s."
 msgstr "Um deine Daten zu löschen oder eine Kopie zu erhalten, nutze den Tab %1$s. Um die Partnerschaft zu beenden, schreib an %2$s."
 
-msgid "Pages"
-msgstr "Seiten"
-
 msgid "Paid on %s"
 msgstr "Bezahlt am %s"
 
@@ -8692,9 +8974,6 @@ msgstr "Angelegt durch Bestellung"
 
 msgid "waiting for the order to be completed"
 msgstr "wartet auf den Abschluss der Bestellung"
-
-msgid "active"
-msgstr "aktiv"
 
 msgid "Recruited by (partner ID)"
 msgstr "Geworben von (Partner-ID)"

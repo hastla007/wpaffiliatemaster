@@ -517,6 +517,10 @@ final class Admin {
 		if ( ! DashboardPage::setup_open() ) {
 			return;
 		}
+		// SET-AC-24: while the setup wizard notice is shown on this screen, it replaces this hint.
+		if ( in_array( (string) $screen->id, array( 'plugins', 'dashboard' ), true ) && '' !== Pages\SetupWizard::notice_html() ) {
+			return;
+		}
 		$state = 'setup';
 		if ( ! $ours && self::notice_hidden( 'setup', $state ) ) {
 			return;
