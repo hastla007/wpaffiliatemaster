@@ -1,0 +1,16 @@
+{
+ "Hide these hints": "Diese Hinweise ausblenden",
+ "Partner saved. The vanity slug \"%1$s\" is already taken (or too long), so \"%2$s\" was stored. Change it if you prefer another one.": "Partner gespeichert. Der Kurzname „%1$s“ ist schon vergeben (oder zu lang), deshalb wurde „%2$s“ gespeichert. Ändern Sie ihn, wenn Sie einen anderen möchten.",
+ "The partner was not saved. Please correct the marked fields; your input is kept.": "Der Partner wurde nicht gespeichert. Bitte korrigieren Sie die markierten Felder; Ihre Eingaben bleiben erhalten.",
+ "Where the partner link %s leads. Default: the landing page of the program settings.": "Wohin der Partnerlink %s führt. Standard: die Landingpage aus den Programmeinstellungen.",
+ "Public name of the partner: shown in the \"recommended by\" box, in creatives and in e-mails.": "Öffentlicher Name des Partners: erscheint in der Box „Empfohlen von“, in Werbemitteln und in E-Mails.",
+ "Notifications go to this address. It also decides which WordPress account can be linked to the partner.": "An diese Adresse gehen die Benachrichtigungen. Sie entscheidet auch, welches WordPress-Konto mit dem Partner verknüpft werden kann.",
+ "Optional. Shown together with the public name.": "Optional. Wird zusammen mit dem öffentlichen Namen angezeigt.",
+ "How the partner promotes you, e.g. blog, podcast or newsletter (optional).": "Wie der Partner für Sie wirbt, z. B. Blog, Podcast oder Newsletter (optional).",
+ "Short name in the partner link (e.g. /partner/{slug}/; letters, digits, hyphens). Links with the previous name stop working after a change. A name that is already taken gets a number added.": "Kurzname im Partnerlink (z. B. /partner/{slug}/; Buchstaben, Ziffern, Bindestriche). Nach einer Änderung funktionieren Links mit dem bisherigen Namen nicht mehr. Ein schon vergebener Name bekommt eine Nummer angehängt.",
+ "The rule was not saved. Please correct the marked fields; your input is kept.": "Die Regel wurde nicht gespeichert. Bitte korrigieren Sie die markierten Felder; Ihre Eingaben bleiben erhalten.",
+ "Higher number wins among equally specific rules.": "Bei gleich spezifischen Regeln gewinnt die höhere Zahl.",
+ "Reason for change (optional)": "Grund der Änderung (optional)",
+ "Comma separated. Empty = taken from the product.": "Durch Kommas getrennt. Leer = vom Produkt übernommen.",
+ "Country of residence": "Wohnsitzland"
+}

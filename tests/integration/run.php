@@ -1631,6 +1631,7 @@ require __DIR__ . '/set-ac-wiz-render.php'; // After the render files: SET-AC-24
 require __DIR__ . '/set-ac-xfer-render.php'; // After the render files: SET-AC-08a sections in the settings export and import preview.
 require __DIR__ . '/set-ac-fsec-render.php'; // After the render files: P4-05 program export with bank data asks for the password (fsec).
 require __DIR__ . '/r24-fpay-render.php'; // After the render files: P2-14 withholding in the partner area (agent fpay).
+require __DIR__ . '/r24-fux-render.php'; // After the render files: final review P5-08 … P5-14 (rule and partner forms, payout details, add-on notes, tables).
 check( 'ZF accounts consistent', array(), WPAffiliateCaptain\Commissions\Balance::verify_all() );
 $GLOBALS['wpac_test_deprecations_reported'] = true;
 check( 'R14-A4 no deprecations from the plugin\'s code during the run', array(), array_values( array_unique( $GLOBALS['wpac_test_deprecations'] ) ) );

@@ -2285,6 +2285,7 @@ final class Portal {
 		echo '<form method="post" class="wpac-form">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="profile">';
+		echo '<p class="wpac-required-note">' . esc_html__( 'Fields marked with * are required.', 'affiliate-captain' ) . '</p>';
 		echo '<p><label for="wpac_tax_status">' . esc_html__( 'Tax status', 'affiliate-captain' ) . ' *</label><select id="wpac_tax_status" name="wpac_tax_status" required><option value="">—</option>';
 		foreach ( $labels as $key => $label ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $v( 'tax_status' ), $key, false ), esc_html( $label ) );
@@ -2292,7 +2293,18 @@ final class Portal {
 		echo '</select></p>';
 		self::input( 'legal_name', __( 'Name / company for the statement', 'affiliate-captain' ), $v( 'legal_name' ), true, 'autocomplete="name"' );
 		echo '<p><label for="wpac_address">' . esc_html__( 'Address', 'affiliate-captain' ) . ' *</label><textarea id="wpac_address" name="wpac_address" rows="3" required autocomplete="street-address">' . esc_textarea( $v( 'address' ) ) . '</textarea></p>';
-		self::input( 'country', __( 'Country (ISO code, e.g. DE)', 'affiliate-captain' ), $v( 'country' ), true, 'maxlength="2" autocomplete="country"' );
+		// Country from a list; the stored value stays the ISO code (P5-11). An unknown stored code
+		// stays selectable.
+		$country   = strtoupper( $v( 'country' ) );
+		$countries = Settings::countries();
+		if ( '' !== $country && ! isset( $countries[ $country ] ) ) {
+			$countries[ $country ] = $country;
+		}
+		echo '<p><label for="wpac_country">' . esc_html__( 'Country of residence', 'affiliate-captain' ) . ' *</label><select id="wpac_country" name="wpac_country" required autocomplete="country"' . ( 'country' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '><option value="">—</option>';
+		foreach ( $countries as $code => $name ) {
+			printf( '<option value="%s" %s>%s</option>', esc_attr( $code ), selected( $country, $code, false ), esc_html( $name ) );
+		}
+		echo '</select></p>';
 		self::input( 'vat_id', __( 'VAT ID (businesses)', 'affiliate-captain' ), $v( 'vat_id' ) );
 		$tax_pending = \WPAffiliateCaptain\Payouts\TaxHistory::pending( (int) $aff->id );
 		if ( $tax_pending ) {
@@ -2354,8 +2366,8 @@ final class Portal {
 			/* translators: %s: masked payment details */
 			? sprintf( __( 'Payment details (stored: %s)', 'affiliate-captain' ), ProfileRepository::mask_details( str_replace( array( "\r\n", "\r", "\n" ), ' / ', $stored_details ) ) )
 			: __( 'Payment details', 'affiliate-captain' );
-		echo '<div class="wpac-method-manual"><p><label for="wpac_payment_details">' . esc_html( $details_label ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off" placeholder="' . esc_attr( $has_details ? __( 'Leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></textarea></p>';
-		echo '<p class="wpac-muted">' . esc_html__( 'Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually.', 'affiliate-captain' ) . '</p></div>';
+		echo '<div class="wpac-method-manual"><p><label for="wpac_payment_details">' . esc_html( $details_label ) . ( $has_details ? '' : ' *' ) . '</label><textarea id="wpac_payment_details" name="wpac_payment_details" rows="3" autocomplete="off" placeholder="' . esc_attr( $has_details ? __( 'Leave empty to keep', 'affiliate-captain' ) : __( 'e.g. PayPal: name@example.com', 'affiliate-captain' ) ) . '"' . ( 'payment_details' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-payment-details-help wpac-portal-error" autofocus' : ' aria-describedby="wpac-payment-details-help"' ) . '></textarea></p>';
+		echo '<p class="wpac-muted" id="wpac-payment-details-help">' . esc_html__( 'Where and how we should send your commission (e.g. PayPal address, Wise or foreign bank account). We pay these payouts manually.', 'affiliate-captain' ) . '</p></div>';
 		if ( $p && '' !== (string) $p->iban_encrypted ) {
 			// Needed only when the IBAN, the payment details or the method change (checked on saving).
 			echo '<p><label for="wpac_current_password">' . esc_html__( 'Current password (only needed to change your bank or payment details)', 'affiliate-captain' ) . '</label><input type="password" id="wpac_current_password" name="wpac_current_password" autocomplete="current-password"' . ( 'current_password' === self::$invalid ? ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus' : '' ) . '></p>';
@@ -2393,8 +2405,8 @@ final class Portal {
 		echo '</select></p>';
 		/* translators: %s: masked account number, e.g. US •••• 6789 */
 		self::input( 'account_number', $masked ? sprintf( __( 'Account number (stored: %s)', 'affiliate-captain' ), $masked ) : __( 'Account number', 'affiliate-captain' ) . ' *', '', false, 'autocomplete="off" dir="ltr"' . ( $masked ? ' placeholder="' . esc_attr__( 'Leave empty to keep', 'affiliate-captain' ) . '"' : '' ) );
-		self::input( 'bank_code', __( 'Bank code / sort code / routing number', 'affiliate-captain' ), $bv( 'bank_code' ), false, 'autocomplete="off" dir="ltr"' );
-		echo '<p class="wpac-muted">' . esc_html__( 'For example the routing number (USA, 9 digits), sort code (UK, 6 digits), institution and transit number (Canada), BSB (Australia) or IFSC (India). Leave empty if your bank has none.', 'affiliate-captain' ) . '</p>';
+		self::input( 'bank_code', __( 'Bank code / sort code / routing number', 'affiliate-captain' ), $bv( 'bank_code' ), false, 'autocomplete="off" dir="ltr"', 'wpac-bank-code-help' );
+		echo '<p class="wpac-muted" id="wpac-bank-code-help">' . esc_html__( 'For example the routing number (USA, 9 digits), sort code (UK, 6 digits), institution and transit number (Canada), BSB (Australia) or IFSC (India). Leave empty if your bank has none.', 'affiliate-captain' ) . '</p>';
 		self::input( 'bank_name', __( 'Bank name', 'affiliate-captain' ), $bv( 'bank_name' ), false, 'maxlength="100"' );
 		echo '</div>';
 	}
@@ -2421,10 +2433,16 @@ final class Portal {
 	 * @param string $value    Value.
 	 * @param bool   $required Required.
 	 * @param string $extra    Extra attributes (already escaped).
+	 * @param string $help     ID of a help text below the field ('' = none; P5-11).
 	 */
-	private static function input( $name, $label, $value, $required = false, $extra = '' ) {
+	private static function input( $name, $label, $value, $required = false, $extra = '', $help = '' ) {
+		$ids = '' !== $help ? array( $help ) : array();
 		if ( self::$invalid === $name ) {
-			$extra .= ' aria-invalid="true" aria-describedby="wpac-portal-error" autofocus';
+			$extra .= ' aria-invalid="true" autofocus';
+			$ids[]  = 'wpac-portal-error';
+		}
+		if ( $ids ) {
+			$extra .= ' aria-describedby="' . esc_attr( implode( ' ', $ids ) ) . '"';
 		}
 		printf(
 			'<p><label for="wpac_%1$s">%2$s%3$s</label><input type="text" id="wpac_%1$s" name="wpac_%1$s" value="%4$s" %5$s %6$s></p>',
@@ -2448,6 +2466,7 @@ final class Portal {
 		echo '<form method="post" class="wpac-form">';
 		wp_nonce_field( 'wpac_portal', '_wpac_nonce' );
 		echo '<input type="hidden" name="wpac_portal_action" value="account">';
+		echo '<p class="wpac-required-note">' . esc_html__( 'Fields marked with * are required.', 'affiliate-captain' ) . '</p>';
 		self::input( 'acc_name', __( 'Name / company', 'affiliate-captain' ), (string) $aff->name, true, 'maxlength="190" autocomplete="name"' );
 		printf( '<p><label for="wpac_acc_email">%1$s *</label><input type="email" id="wpac_acc_email" name="wpac_acc_email" value="%2$s" required autocomplete="email"></p>', esc_html__( 'E-mail for notifications', 'affiliate-captain' ), esc_attr( (string) $aff->email ) );
 		if ( is_array( $pending ) ) {

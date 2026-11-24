@@ -56,7 +56,7 @@ fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
 .notice .wpac-notice-details { list-style: disc; margin-block: 0 .5em; margin-inline: 1.5em 0; }
 .wpac-hide-notice { white-space: nowrap; }
 
-/* Wide tables scroll in their own box (admin.js wraps them; R5-O43). */
+/* Wide tables scroll in their own box (wrapped on the server – also without JavaScript – or by admin.js; R5-O43, P5-14). */
 .wpac-table-scroll { overflow-x: auto; max-width: 100%; }
 .wpac-table-scroll > table.widefat { min-width: 640px; }
 .wpac-table-scroll:focus-visible { outline: 2px solid #2271b1; outline-offset: 2px; }

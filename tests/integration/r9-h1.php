@@ -70,7 +70,7 @@ check(
 	'R6-QA8 admin page and portal show an error instead of "saved"',
 	array( true, true, true, true ),
 	array(
-		false !== strpos( $h1_src( 'src/Admin/Pages/AffiliatesPage.php' ), "if ( is_wp_error( \$saved ) ) {\n\t\t\t\t\tAdmin::back( \$saved->get_error_message(), 'error' );" ),
+		false !== strpos( $h1_src( 'src/Admin/Pages/AffiliatesPage.php' ), "if ( is_wp_error( \$saved ) ) {\n\t\t\t\t\tself::back_with_profile_errors( \$id, \$typed, array( '' => \$saved->get_error_message() ) );" ),
 		false !== strpos( $h1_src( 'src/Admin/Pages/AffiliatesPage.php' ), "if ( is_wp_error( \$resolved ) ) {" ),
 		false !== strpos( $h1_src( 'src/Portal/Portal.php' ), "'wpac_msg' => 'account_failed'" ),
 		false !== strpos( $h1_src( 'src/Portal/Portal.php' ), 'name="wpac_acc_website" value="%2$s" maxlength="255"' ),
