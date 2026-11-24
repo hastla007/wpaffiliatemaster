@@ -42,7 +42,7 @@ $rv_set( array( 'retention_hold' => 1, 'operator_country' => 'AT', 'vat_rate' =>
 $rv_rk_data = SettingsTransfer::reset_keys( 'data' );
 $rv_rk_pay  = SettingsTransfer::reset_keys( 'payouts' );
 $rv_imp     = SettingsTransfer::preview( array( 'format' => 1, 'settings' => array( 'retention_hold' => 0, 'hold_days' => 14 ) ) );
-check( 'P1-05 reset keeps retention hold, retention years, country and VAT rate; import cannot lift the hold', array( false, false, false, false, true, array( 'hold_days' => 14 ) ), array( in_array( 'retention_hold', $rv_rk_data, true ), in_array( 'statement_retention_years', $rv_rk_data, true ), in_array( 'operator_country', $rv_rk_pay, true ), in_array( 'vat_rate', $rv_rk_pay, true ), isset( $rv_imp['errors']['retention_hold'] ), $rv_imp['values'] ) );
+check( 'P1-05 reset keeps retention hold, retention years, country and VAT rate; import cannot lift the hold', array( false, false, false, false, true, array( 'hold_days' => 14 ) ), array( in_array( 'retention_hold', $rv_rk_data, true ), in_array( 'statement_retention_years', $rv_rk_data, true ), in_array( 'operator_country', $rv_rk_pay, true ), in_array( 'vat_rate', $rv_rk_pay, true ), ! isset( $rv_imp['errors']['retention_hold'] ) && isset( $rv_imp['notices']['retention_hold'] ), $rv_imp['values'] ) ); // P1-19: skipped with a notice, not an error.
 
 // P1-06 / P2-02 / P3-06: confirmation mail and privacy text name the configured validity.
 $rv_set( array( 'application_confirm_days' => 7 ) );
