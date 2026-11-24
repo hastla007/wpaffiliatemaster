@@ -924,5 +924,24 @@ check(
 	)
 );
 
+// AC-6 (contract 1.11.0): hooks see the refund of the source as refund_id, the booking key as refund_key.
+$ac6_h = \WPAffiliateCaptain\Commissions\Ledger::hook_refund( array( 'source' => 'woocommerce', 'order_id' => '1', 'refund_id' => 'status-refund-1', 'source_refund_id' => '815' ) );
+$ac6_p = \WPAffiliateCaptain\Commissions\Ledger::hook_refund( array( 'source' => 'x', 'order_id' => '1', 'refund_id' => 'r-1' ) );
+$ac6_c = (string) file_get_contents( $p607_root . '/docs/CONTRACT.md' );
+check(
+	'AC-6 hook refund shape, WooCommerce hook registered, contract documents refund_key and source_refund_id',
+	array( '815', 'status-refund-1', false, 'r-1', 'r-1', true, true, true ),
+	array(
+		$ac6_h['refund_id'],
+		$ac6_h['refund_key'],
+		array_key_exists( 'source_refund_id', $ac6_h ),
+		$ac6_p['refund_id'],
+		$ac6_p['refund_key'],
+		false !== strpos( (string) file_get_contents( $p607_root . '/src/Integrations/WooCommerce.php' ), "add_action( 'woocommerce_order_fully_refunded', array( OrderSync::class, 'fully_refunded' ), 10, 2 );" ),
+		false !== strpos( $ac6_c, "`\$refund['refund_key']`" ) && false !== strpos( $ac6_c, "'source_refund_id' =>" ),
+		false !== strpos( $ac6_c, '**1.11.0** (nach Plugin 0.22.0, abwärtskompatibel)' ),
+	)
+);
+
 echo "\n{$GLOBALS['wpac_count']} checks, {$GLOBALS['wpac_failures']} failures\n";
 exit( $GLOBALS['wpac_failures'] ? 1 : 0 );

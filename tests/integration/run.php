@@ -1605,6 +1605,7 @@ require __DIR__ . '/r24-fpay.php'; // Fix round 24, agent fpay: maximum payout, 
 require __DIR__ . '/set-ac-fintl.php'; // Final review fixes P3-08/09/10/11, P6-09 (before r8-render).
 require __DIR__ . '/r24-fops.php'; // Fix round 24.11.2026 (fops): dunning stages, locks, repeated repayments (P2-12).
 require __DIR__ . '/set-ac-fset.php'; // R24 fset: settings transfer, wizard, reset, pages, copy pause (before r8-render).
+require __DIR__ . '/r24-ac6.php'; // AC-6 (contract 1.11.0): WooCommerce refund ID in wpac_commission_adjusted for full refunds via the status (before r8-render).
 require __DIR__ . '/r8-render.php'; // Last: its template stubs must not pre-empt the stubs of the files above.
 require __DIR__ . '/r10-o47.php'; // After r8-render.php: renders the list pages with its template stubs.
 require __DIR__ . '/r11-api-portal.php'; // After r8-render.php: uses its template stubs.

@@ -1219,7 +1219,7 @@ final class Ledger {
 						}
 					}
 					self::maybe_forget_links( $refund['source'], $refund['order_id'] );
-					do_action( 'wpac_commission_adjusted', $refund, $result['adjustment_ids'] ); // After COMMIT.
+					do_action( 'wpac_commission_adjusted', self::hook_refund( $refund ), $result['adjustment_ids'] ); // After COMMIT.
 				}
 			);
 		}
@@ -1262,7 +1262,45 @@ final class Ledger {
 		 * @param string $credit_note Credit note number.
 		 * @param array  $corrections Correction credit note numbers.
 		 */
-		do_action( 'wpac_refund_after_correction', $refund, $p ? (string) $p->number : '', $numbers );
+		do_action( 'wpac_refund_after_correction', self::hook_refund( $refund ), $p ? (string) $p->number : '', $numbers );
+	}
+
+	/**
+	 * The refund as wpac_commission_adjusted and wpac_refund_after_correction pass it (contract
+	 * 1.11.0, AC-6): `refund_key` is the key the ledger booked under (unique per event, also for
+	 * a full reversal via the order status and for each round after a reinstatement);
+	 * `refund_id` is the refund of the sales source behind it (`source_refund_id` of the payload,
+	 * e.g. the WooCommerce refund of a full refund booked via the status "refunded"), otherwise
+	 * the key itself.
+	 *
+	 * @param array $refund Normalized refund.
+	 * @return array
+	 */
+	public static function hook_refund( array $refund ) {
+		$key    = isset( $refund['refund_id'] ) ? (string) $refund['refund_id'] : '';
+		$source = isset( $refund['source_refund_id'] ) ? (string) $refund['source_refund_id'] : '';
+		unset( $refund['source_refund_id'] );
+		$refund['refund_id']  = '' !== $source ? $source : $key;
+		$refund['refund_key'] = $key;
+		return $refund;
+	}
+
+	/**
+	 * Whether a refund of the source was already booked under its own ID for this order
+	 * (an adjustment or a reduced open increase carries it as source event), AC-6.
+	 *
+	 * @param string $source    Source.
+	 * @param string $order_id  Order.
+	 * @param string $refund_id Refund ID.
+	 * @return bool
+	 */
+	public static function refund_booked( $source, $order_id, $refund_id ) {
+		global $wpdb;
+		$t = Db::table( 'commissions' );
+		$e = Db::table( 'commission_events' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$hit = $wpdb->get_var( $wpdb->prepare( "SELECT ev.id FROM {$e} ev INNER JOIN {$t} c ON c.id = ev.commission_id WHERE c.source = %s AND c.source_order_id = %s AND ev.source_event_id = %s LIMIT 1", (string) $source, (string) $order_id, Db::cut( (string) $refund_id, 191 ) ) );
+		return null !== $hit;
 	}
 
 	/**
@@ -1634,7 +1672,7 @@ final class Ledger {
 						foreach ( $rejected_from as $rid => $info ) {
 							do_action( 'wpac_commission_rejected', (int) $rid, $info[0], $info[1] );
 						}
-						do_action( 'wpac_commission_adjusted', $refund, $rejected ); // Report cache, review count.
+						do_action( 'wpac_commission_adjusted', self::hook_refund( $refund ), $rejected ); // Report cache, review count.
 					}
 				);
 			}
