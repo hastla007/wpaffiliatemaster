@@ -157,10 +157,20 @@ final class AddonHints {
 		if ( $rows['fields'] ) {
 			echo '<h2>' . esc_html__( 'Add-ons', 'affiliate-captain' ) . '</h2><table class="form-table" role="presentation">';
 			foreach ( $rows['fields'] as $row ) {
+				// SET-AC-25: the add-on's controls form a group named by the row title; the description
+				// (id wpac-addon-desc-<id>) and an error of the field named like the row id
+				// (wpac_settings_errors, id wpac-addon-err-<id>) describe the group.
+				$error     = \WPAffiliateCaptain\Admin\Pages\SettingsPage::field_error( $row['id'] );
+				$described = trim( ( '' !== $error ? 'wpac-addon-err-' . $row['id'] : '' ) . ( '' !== $row['text'] ? ' wpac-addon-desc-' . $row['id'] : '' ) );
 				echo '<tr><th scope="row">' . esc_html( $row['title'] ) . '</th><td>';
+				echo '<fieldset class="wpac-addon-field"' . ( '' !== $described ? ' aria-describedby="' . esc_attr( $described ) . '"' : '' ) . '><legend class="screen-reader-text">' . esc_html( $row['title'] ) . '</legend>';
 				call_user_func( $row['render'], $tab );
+				echo '</fieldset>';
+				if ( '' !== $error ) {
+					echo '<p class="wpac-field-error" id="wpac-addon-err-' . esc_attr( $row['id'] ) . '">' . esc_html( $error ) . '</p>';
+				}
 				if ( '' !== $row['text'] ) {
-					echo '<p class="description">' . esc_html( $row['text'] ) . '</p>';
+					echo '<p class="description" id="wpac-addon-desc-' . esc_attr( $row['id'] ) . '">' . esc_html( $row['text'] ) . '</p>';
 				}
 				echo '</td></tr>';
 			}

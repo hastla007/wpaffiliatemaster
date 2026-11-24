@@ -118,6 +118,25 @@ On a multisite network `wp cron event run` only reaches the main site. Run it fo
 
 **Updating by FTP/rsync.** Since 0.10 the main file is `affiliate-captain.php` (folder `affiliate-captain`). If you copy a new version over an old folder `wp-affiliate-captain/`, the old main file `wp-affiliate-captain.php` may stay active: the plugin then switches the activation to the new main file in the same folder by itself (from the next request on; the schema version is part of the code, so nothing runs with old version numbers meanwhile). An old copy in another folder is taken over the same way; "Delete all data on uninstall" is then switched off, so deleting the old copy cannot remove the shared data. A deployment that deletes the old main file (e.g. git) deactivates the plugin – activate "Affiliate Captain" again; nothing is lost.
 
+### Accessibility of the settings page (new after plugin 0.21.0, SET-AC-25)
+
+Every field on Affiliate Captain → Settings is linked to its help text (`aria-describedby`); after a rejected save the message at the field is linked as well and the field is marked invalid. Number fields carry the lower and upper limit of the register (`min`/`max`), so the browser and screen readers know the allowed range; amounts stay text fields because they accept a decimal comma and thousands separators. Fields that cannot be saved empty (e.g. link parameter, terms version, document number prefixes, numbers with a lower limit above 0) have the attribute `required` and a red star; a note above the form explains the star. Add-on rows (`wpac_settings_rows`) are groups named by their title and described by their text.
+
+**Screen reader check (to be done by a person, once per release with changes to the settings page).** Use NVDA with Firefox or Chrome on Windows and VoiceOver with Safari on macOS; tick each point per tab and note the date, browser and screen reader version:
+
+1. Tab through the tab navigation: the current tab is announced as "current page".
+2. Tab to a text field (Tracking → Link parameter): label, "required", the value and then the help text are read.
+3. Tab to a number field (Tracking → Cookie lifetime): label and help text are read; arrow keys stop at the limits; VoiceOver/NVDA announce the value range where they support it.
+4. Tab to a checkbox (Payouts → SEPA bank transfer): label, state and help text are read.
+5. Tab to a dropdown (Commissions → Program currency, Program → pages): label and help text are read.
+6. Clear Tracking → Link parameter and save: the error summary at the top is announced once; tabbing to the field reads "invalid", the error message and the help text.
+7. Payouts tab: switch off all three payout methods and save: the message is read at the SEPA checkbox.
+8. Fields with the mark "Check legally": the mark is read with the help text.
+9. With an add-on that adds a row: entering the row announces its title as a group and its description.
+10. Zoom to 200 % and use the keyboard only: every field is reachable and the focus is visible.
+
+Report problems with the tab, field, browser and screen reader.
+
 ## 2. Partners
 
 **Applications.** The application form (block "Partner application form" or `[wpac_affiliate_registration]`) asks for name, e-mail, website and channel, plus the fields of the chosen partner group. Applicants confirm their e-mail address (double opt-in) and accept the terms; the version, time and accepted text are stored. Applications appear under Partners with the status "Application pending" unless automatic approval is on.

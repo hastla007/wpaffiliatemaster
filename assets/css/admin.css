@@ -65,3 +65,6 @@ fieldset.wpac-bulk legend{font-weight:600;padding:0 4px}
 .wpac-addon-notes th, .wpac-addon-notes td { color: #50575e; padding-top: 6px; padding-bottom: 6px; }
 .wpac-pro-mark { display: inline-block; padding: 0 .4em; border: 1px solid #8c8f94; border-radius: 3px; font-size: 11px; font-weight: 600; line-height: 1.6; color: #50575e; }
 .wpac-legal-mark { display: inline-block; margin-inline-start: .4em; padding: 0 .4em; border: 1px solid #996800; border-radius: 3px; font-size: 11px; font-weight: 600; line-height: 1.6; color: #6b4800; background: #fcf9e8; }
+/* Required settings fields (SET-AC-25): the star is explained by the note above the form. */
+.wpac-required { color: #b32d2e; font-weight: 600; }
+fieldset.wpac-addon-field { margin: 0; padding: 0; border: 0; }

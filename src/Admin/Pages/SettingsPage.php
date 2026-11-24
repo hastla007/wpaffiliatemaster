@@ -17,6 +17,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class SettingsPage {
 
+	/** @var string[] Whole-number fields that are percentages (saving allows at most 100). */
+	const PERCENT_KEYS = array( 'visit_log_percent', 'fraud_max_refund_rate' );
+
 	/**
 	 * Save.
 	 *
@@ -647,8 +650,7 @@ final class SettingsPage {
 		if ( '' !== $current && ! isset( $options[ $current ] ) ) {
 			$options[ $current ] = $current;
 		}
-		self::select( 'currency', null, $s, $options );
-		self::desc_row( $desc );
+		self::select( 'currency', null, $s, $options, SettingsSchema::help( 'currency' ) . ' ' . $desc ); // One linked description (SET-AC-25).
 	}
 
 	/**
@@ -688,9 +690,11 @@ final class SettingsPage {
 		$s        = Settings::all();
 		$currency = $s['currency'];
 		$kept     = Admin::kept_form( 'settings' );
-		if ( isset( $kept['values'], $kept['errors'] ) ) {
-			self::$kept = $kept;
-		}
+		// Errors of an earlier render (same request) are never shown again.
+		self::$kept = isset( $kept['values'], $kept['errors'] ) ? $kept : array(
+			'values' => array(),
+			'errors' => array(),
+		);
 		echo '<div class="wrap"><h1>' . esc_html__( 'Affiliate Captain settings', 'affiliate-captain' ) . '</h1>';
 		Admin::notice();
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Settings sections', 'affiliate-captain' ) . '">';
@@ -703,6 +707,10 @@ final class SettingsPage {
 		}
 		Admin::form_open( 'settings_save', 'wpac-tabs-content' );
 		echo '<input type="hidden" name="tab" value="' . esc_attr( self::$tab ) . '">';
+		$tab_keys = self::tab_keys();
+		if ( isset( $tab_keys[ self::$tab ] ) && array_intersect( $tab_keys[ self::$tab ], SettingsSchema::required() ) ) {
+			echo '<p class="wpac-required-note">' . esc_html__( 'Fields marked with * are required.', 'affiliate-captain' ) . '</p>';
+		}
 
 		self::render_program_tab( $s );
 		self::render_emails_tab( $s );
@@ -864,7 +872,7 @@ final class SettingsPage {
 		self::number( 'fraud_refund_window_days', null, $s );
 		self::number( 'fraud_refund_min_orders', null, $s );
 		self::checkbox( 'fraud_check_domains', null, $s );
-		echo '<tr><th><label for="wpac-fraud_blocked_domains">' . esc_html( SettingsSchema::label( 'fraud_blocked_domains' ) ) . '</label></th><td><textarea id="wpac-fraud_blocked_domains" name="wpac[fraud_blocked_domains]" rows="3" class="regular-text code">' . esc_textarea( (string) $s['fraud_blocked_domains'] ) . '</textarea><p class="description">' . esc_html( SettingsSchema::help( 'fraud_blocked_domains' ) ) . '</p></td></tr>';
+		self::textarea( 'fraud_blocked_domains', $s, 3, 'regular-text code' );
 		self::end();
 
 		self::section( __( 'Abuse protection', 'affiliate-captain' ), 'security' );
@@ -904,7 +912,7 @@ final class SettingsPage {
 		}
 		echo '</tbody></table>';
 		echo '<template data-wpac-row-template>';
-		self::exchange_rate_row( '__N__', array( 'currency' => '', 'rate' => '', 'min' => '' ), '', '' );
+		self::exchange_rate_row( '__N__', array( 'currency' => '', 'rate' => '', 'min' => '' ), ' aria-describedby="wpac-desc-exchange_rates"', '' );
 		echo '</template>';
 		echo '<p><button type="button" class="button" data-wpac-row-add hidden>' . esc_html__( 'Add currency', 'affiliate-captain' ) . '</button></p>';
 		echo $rate_err[1] . $min_err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() escapes.
@@ -1031,7 +1039,7 @@ final class SettingsPage {
 		self::i18n( 'default_disclosure_i18n', $s, false );
 		self::checkbox( 'embed_disclosure_label', null, $s );
 		self::checkbox( 'auto_apply_coupon', null, $s );
-		echo '<tr><th><label for="wpac-promotion_guidelines">' . esc_html( SettingsSchema::label( 'promotion_guidelines' ) ) . '</label></th><td><textarea id="wpac-promotion_guidelines" name="wpac[promotion_guidelines]" rows="6" class="large-text">' . esc_textarea( (string) $s['promotion_guidelines'] ) . '</textarea><p class="description">' . esc_html( SettingsSchema::help( 'promotion_guidelines' ) ) . '</p></td></tr>';
+		self::textarea( 'promotion_guidelines', $s, 6, 'large-text' );
 		self::i18n( 'promotion_guidelines_i18n', $s, true );
 		self::end();
 	}
@@ -1065,7 +1073,7 @@ final class SettingsPage {
 			$countries[ $s['operator_country'] ] = (string) $s['operator_country']; // Value from an older version.
 		}
 		self::select( 'operator_country', null, $s, $countries );
-		echo '<tr><th><label for="wpac-operator_address">' . esc_html( SettingsSchema::label( 'operator_address' ) ) . '</label></th><td><textarea id="wpac-operator_address" name="wpac[operator_address]" rows="3" class="regular-text">' . esc_textarea( (string) $s['operator_address'] ) . '</textarea><p class="description">' . esc_html( SettingsSchema::help( 'operator_address' ) ) . '</p></td></tr>';
+		self::textarea( 'operator_address', $s, 3, 'regular-text' );
 		self::text( 'operator_vat_id', null, $s );
 		self::text( 'operator_tax_number', null, $s );
 		self::end();
@@ -1217,6 +1225,70 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Lower and upper limit of a whole-number field from the register (SET-AC-25); percentages end
+	 * at 100 like the check when saving.
+	 *
+	 * @param string $key Setting key.
+	 * @return int[] [ min, max ]
+	 */
+	public static function int_limits( $key ) {
+		$min = SettingsSchema::int_min();
+		$max = SettingsSchema::int_max();
+		return array(
+			isset( $min[ $key ] ) ? (int) $min[ $key ] : 0,
+			in_array( $key, self::PERCENT_KEYS, true ) ? 100 : ( isset( $max[ $key ] ) ? (int) $max[ $key ] : 2147483647 ),
+		);
+	}
+
+	/**
+	 * Attribute "required" for keys that cannot be saved empty (SET-AC-25).
+	 *
+	 * @param string $key Setting key.
+	 * @return string
+	 */
+	private static function required_attr( $key ) {
+		return in_array( $key, SettingsSchema::required(), true ) ? ' required' : '';
+	}
+
+	/**
+	 * Visible mark of a required field in its label (SET-AC-25). Screen readers announce the
+	 * attribute "required" of the field, so the star itself is hidden from them; the note above
+	 * the form explains it.
+	 *
+	 * @param string $key Setting key.
+	 * @return string
+	 */
+	private static function required_mark( $key ) {
+		return in_array( $key, SettingsSchema::required(), true ) ? ' <span class="wpac-required" aria-hidden="true">*</span>' : '';
+	}
+
+	/**
+	 * Error message of a form field after saving ('' if none), e.g. for add-on rows.
+	 *
+	 * @param string $field Form field name.
+	 * @return string
+	 */
+	public static function field_error( $field ) {
+		return isset( self::$kept['errors'][ $field ] ) ? (string) self::$kept['errors'][ $field ] : '';
+	}
+
+	/**
+	 * Text area with its help text linked (SET-AC-25).
+	 *
+	 * @param string $key   Setting key.
+	 * @param array  $s     Settings.
+	 * @param int    $rows  Rows.
+	 * @param string $class CSS class.
+	 */
+	private static function textarea( $key, $s, $rows, $class ) {
+		list( $label, $desc ) = self::texts( $key, null, '' );
+		$err = self::error_parts( $key, '' !== trim( (string) $desc ) );
+		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><textarea id="wpac-%1$s" name="wpac[%1$s]" rows="%3$d" class="%4$s"%5$s>%6$s</textarea>%7$s', esc_attr( $key ), esc_html( $label ), (int) $rows, esc_attr( $class ), $err[0], esc_textarea( self::shown( $key, (string) $s[ $key ] ) ), $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		self::desc( $desc, $key );
+		echo '</td></tr>';
+	}
+
+	/**
 	 * Label and help text of a field: from the register unless the page passes its own (SET-AC-01).
 	 *
 	 * @param string      $key   Setting key.
@@ -1273,7 +1345,7 @@ final class SettingsPage {
 	private static function text( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		$err = self::error_parts( $key, '' !== trim( (string) $desc ) );
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="text" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="regular-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		printf( '<tr><th><label for="wpac-%1$s">%2$s%6$s</label></th><td><input type="text" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="regular-text"%4$s%7$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1], self::required_mark( $key ), self::required_attr( $key ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() and the required helpers are escaped.
 		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
@@ -1303,9 +1375,9 @@ final class SettingsPage {
 	 */
 	private static function number( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
-		$err = self::error_parts( $key, '' !== trim( (string) $desc ) );
-		$min = \WPAffiliateCaptain\Core\SettingsSchema::int_min();
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><input type="number" min="%6$d" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text"%4$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1], isset( $min[ $key ] ) ? (int) $min[ $key ] : 0 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		$err    = self::error_parts( $key, '' !== trim( (string) $desc ) );
+		$limits = self::int_limits( $key );
+		printf( '<tr><th><label for="wpac-%1$s">%2$s%8$s</label></th><td><input type="number" min="%6$d" max="%7$d" step="1" id="wpac-%1$s" name="wpac[%1$s]" value="%3$s" class="small-text"%4$s%9$s>%5$s', esc_attr( $key ), esc_html( $label ), esc_attr( self::shown( $key, $s[ $key ] ) ), $err[0], $err[1], $limits[0], $limits[1], self::required_mark( $key ), self::required_attr( $key ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() and the required helpers are escaped.
 		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
@@ -1322,8 +1394,10 @@ final class SettingsPage {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		// The checkbox is named by its full label (screen readers announce what is switched on).
 		// P5-06: the row title only when it is shorter than the label.
-		$described = '' !== trim( (string) $desc ) ? ' aria-describedby="wpac-desc-' . esc_attr( $key ) . '"' : '';
-		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>', esc_attr( $key ), esc_html( self::short_label( $label ) === $label ? '' : self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $described ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $described is built from esc_attr() above.
+		// SET-AC-25: a field error after saving (e.g. the last payout method) is shown and linked at the
+		// checkbox; "delete all data" shows its error at the confirmation field instead.
+		$err = 'delete_on_uninstall' === $key ? array( '' !== trim( (string) $desc ) ? ' aria-describedby="wpac-desc-' . esc_attr( $key ) . '"' : '', '' ) : self::error_parts( $key, '' !== trim( (string) $desc ) );
+		printf( '<tr><th scope="row">%2$s</th><td><label for="wpac-%1$s"><input type="checkbox" id="wpac-%1$s" name="wpac[%1$s]" value="1"%5$s %3$s> %4$s</label>%6$s', esc_attr( $key ), esc_html( self::short_label( $label ) === $label ? '' : self::short_label( $label ) ), checked( (int) $s[ $key ], 1, false ), esc_html( $label ), $err[0], $err[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
 		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
@@ -1373,7 +1447,7 @@ final class SettingsPage {
 			esc_html__( 'Confirmation', 'affiliate-captain' ),
 			'' !== $error ? 'wpac-err-delete_on_uninstall ' : '',
 			'' !== $error ? ' aria-invalid="true"' : '',
-			'' !== $error ? '<p class="wpac-field-error" id="wpac-err-delete_on_uninstall" role="alert">' . esc_html( $error ) . '</p>' : '', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped here.
+			'' !== $error ? '<p class="wpac-field-error" id="wpac-err-delete_on_uninstall">' . esc_html( $error ) . '</p>' : '', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped here.
 			esc_html__( 'Only to switch it on: type DELETE (or LÖSCHEN). Switching off and saving other fields need no word.', 'affiliate-captain' )
 		);
 	}
@@ -1440,7 +1514,7 @@ final class SettingsPage {
 	private static function select( $key, $label, $s, array $options, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		$err = self::error_parts( $key, '' !== trim( (string) $desc ) );
-		printf( '<tr><th><label for="wpac-%1$s">%2$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]"%3$s>', esc_attr( $key ), esc_html( $label ), $err[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() is escaped.
+		printf( '<tr><th><label for="wpac-%1$s">%2$s%4$s</label></th><td><select id="wpac-%1$s" name="wpac[%1$s]"%3$s%5$s>', esc_attr( $key ), esc_html( $label ), $err[0], self::required_mark( $key ), self::required_attr( $key ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- error_parts() and the required helpers are escaped.
 		foreach ( $options as $v => $l ) {
 			printf( '<option value="%s" %s>%s</option>', esc_attr( $v ), selected( self::shown( $key, $s[ $key ] ), (string) $v, false ), esc_html( $l ) );
 		}
@@ -1490,15 +1564,19 @@ final class SettingsPage {
 	private static function page_select( $key, $label, $s, $desc = '' ) {
 		list( $label, $desc ) = self::texts( $key, $label, $desc );
 		echo '<tr><th><label for="wpac-' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td>';
-		wp_dropdown_pages(
+		$err      = self::error_parts( $key, '' !== trim( (string) $desc ) );
+		$dropdown = (string) wp_dropdown_pages(
 			array(
 				'name'              => 'wpac[' . $key . ']', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				'id'                => 'wpac-' . $key, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				'selected'          => (int) $s[ $key ],
 				'show_option_none'  => '—', // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				'option_none_value' => '0',
+				'echo'              => 0,
 			)
 		);
+		// SET-AC-25: the help text is linked to the dropdown (wp_dropdown_pages() takes no attributes).
+		echo preg_replace( '/<select\b/', '<select' . $err[0], $dropdown, 1 ) . $err[1]; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_dropdown_pages() and error_parts() are escaped.
 		self::desc( $desc, $key );
 		echo '</td></tr>';
 	}
