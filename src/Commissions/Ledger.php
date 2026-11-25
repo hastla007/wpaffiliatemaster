@@ -847,8 +847,10 @@ final class Ledger {
 		}
 		$rule = is_array( $snap ) && ! empty( $snap['rule'] ) ? $snap['rule'] : null;
 		if ( is_array( $rule ) && ! empty( $rule['max_amount_minor'] ) ) {
-			// Cap of the original rule per line (SET-AC-22): original + increases stay below it.
-			$amount = min( (int) $amount, max( 0, (int) $rule['max_amount_minor'] - (int) $parent->amount_minor - (int) $inc['amount'] ) );
+			// Cap of the original rule per line (SET-AC-22): what the line keeps (original + increases
+			// − refunds, P2-13 "cap on the rest") stays below it.
+			$kept   = (int) $parent->amount_minor + self::adjusted_sum( (int) $parent->id, $lock, true );
+			$amount = min( (int) $amount, max( 0, (int) $rule['max_amount_minor'] - $kept ) );
 		}
 		$amount = Calculator::filter_amount(
 			max( 0, (int) $amount ),
@@ -1143,8 +1145,14 @@ final class Ledger {
 					// bonuses) stay untouched – they are neither netted as earlier refunds nor reversed.
 					$adjusted = self::adjusted_sum( (int) $parent->id, true, true ) - $inc['amount'];
 					$refunded = self::refunded_base( (int) $parent->id, true );
-					$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor + $inc['amount'], $eff_base, $adjusted, $refunded_net, $refund['full'], $refunded );
-					if ( 0 === $amount ) {
+					// P2-13 ("cap on the rest", owner decision 25.11.2026): a line capped by its rule
+					// keeps the commission on its remaining base, capped again – not a proportional cut.
+					$kept     = $refund['full'] ? null : self::capped_rest( $parent, $inc, $eff_base, $eff_base - min( $eff_base, $refunded + (int) $refunded_net ) );
+					$amount   = Calculator::refund_adjustment( (int) $parent->amount_minor + $inc['amount'], $eff_base, $adjusted, $refunded_net, $refund['full'], $refunded, $kept );
+					$part     = $refund['full'] ? max( 0, $eff_base - $refunded ) : min( abs( (int) $refunded_net ), max( 0, $eff_base - $refunded ) );
+					// A refund that leaves a capped line at the cap deducts nothing, but its base is
+					// still booked (row with 0): later refunds, increases and edits count from it.
+					if ( 0 === $amount && ( null === $kept || $part <= 0 || (int) $parent->amount_minor + $inc['amount'] + $adjusted <= 0 ) ) {
 						continue;
 					}
 					// Pending/review parents: adjustment follows the parent. Approved/paid: offset in next payout.
@@ -1161,7 +1169,7 @@ final class Ledger {
 							'product_ref'     => $parent->product_ref,
 							'description'     => Db::cut( $refund['reason'], 255 ),
 							'currency'        => $parent->currency,
-							'base_minor'      => -( $refund['full'] ? max( 0, $eff_base - $refunded ) : min( abs( (int) $refunded_net ), max( 0, $eff_base - $refunded ) ) ),
+							'base_minor'      => -$part,
 							'amount_minor'    => $amount,
 							'rate_type'       => $parent->rate_type,
 							'rate'            => $parent->rate,
@@ -1182,7 +1190,7 @@ final class Ledger {
 					}
 					$aid   = (int) $wpdb->insert_id;
 					$ids[] = $aid;
-					if ( 'approved' === $status ) {
+					if ( 'approved' === $status && 0 !== $amount ) {
 						// Correction of an approved/paid commission: payable balance changes immediately.
 						Balance::post( (int) $parent->affiliate_id, $parent->currency, 'approved', $amount, $aid, 0, $refund['type'] );
 					}
@@ -1224,6 +1232,35 @@ final class Ledger {
 			);
 		}
 		return $result;
+	}
+
+	/**
+	 * Commission a line capped by its rule keeps on its remaining base (P2-13, "cap on the
+	 * rest"): rate of the sale on what is left of the line (original + increases − refunds),
+	 * rule cap of the snapshot applied again (Calculator::capped_rest()).
+	 *
+	 * @param object $parent         Original sale commission.
+	 * @param array  $inc            Increases (increased()).
+	 * @param int    $eff_base       Base booked for the line (original + increases).
+	 * @param int    $remaining_base Base left after the refunds including the current one.
+	 * @return int|null Commission kept; null for lines without a cap, lines below the cap and
+	 *                  lines whose amount a wpac_commission_amount filter changed (they are
+	 *                  reduced in proportion, as before).
+	 */
+	private static function capped_rest( $parent, array $inc, $eff_base, $remaining_base ) {
+		$snap = $parent->rule_snapshot ? json_decode( (string) $parent->rule_snapshot, true ) : null;
+		$rule = is_array( $snap ) && ! empty( $snap['rule'] ) && is_array( $snap['rule'] ) ? $snap['rule'] : null;
+		$cap  = $rule && ! empty( $rule['max_amount_minor'] ) ? (int) $rule['max_amount_minor'] : 0;
+		if ( $cap <= 0 ) {
+			return null;
+		}
+		$qty = is_array( $snap ) && isset( $snap['quantity'] ) ? (int) $snap['quantity'] : 1;
+		// Only as booked by the rule: the sale was capped by it or kept below it unfiltered.
+		$sale = Calculator::capped_rest( (string) $parent->rate_type, (string) $parent->rate, $cap, (int) $parent->base_minor, (int) $parent->base_minor, $qty );
+		if ( null !== $sale && $sale !== (int) $parent->amount_minor ) {
+			return null; // An amount filter changed the commission: proportional.
+		}
+		return Calculator::capped_rest( (string) $parent->rate_type, (string) $parent->rate, $cap, (int) $eff_base, (int) $remaining_base, $qty + (int) $inc['quantity'] );
 	}
 
 	/**

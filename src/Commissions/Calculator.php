@@ -359,15 +359,21 @@ final class Calculator {
 	 * CUMULATIVE refunded net (so rounding never leaves cents behind), capped so
 	 * the total of all adjustments never exceeds the original commission.
 	 *
+	 * With $kept (P2-13, "cap on the rest"): the commission the line keeps after all refunds so
+	 * far (recalculated on the remaining base, rule cap applied again, see
+	 * Calculator::capped_rest()); the adjustment takes the line from what it keeps now to $kept,
+	 * never above it, so repeated partial refunds stay cumulative.
+	 *
 	 * @param int  $original_amount      Original commission (minor).
 	 * @param int  $original_base        Original base (minor).
 	 * @param int  $already_adjusted     Sum of earlier adjustments (<= 0).
 	 * @param int  $refunded_net_minor   Net amount refunded now (positive).
 	 * @param bool $full                 Reverse everything that remains.
 	 * @param int  $already_refunded_net Net amount refunded earlier (positive).
+	 * @param int|null $kept             Commission the line keeps after this refund (null = in proportion).
 	 * @return int Adjustment (<= 0).
 	 */
-	public static function refund_adjustment( $original_amount, $original_base, $already_adjusted, $refunded_net_minor, $full = false, $already_refunded_net = 0 ) {
+	public static function refund_adjustment( $original_amount, $original_base, $already_adjusted, $refunded_net_minor, $full = false, $already_refunded_net = 0, $kept = null ) {
 		$remaining = max( 0, (int) $original_amount + (int) $already_adjusted );
 		if ( 0 === $remaining ) {
 			return 0;
@@ -375,9 +381,49 @@ final class Calculator {
 		if ( $full || (int) $original_base <= 0 ) {
 			return -$remaining;
 		}
-		$cumulative = min( (int) $original_base, abs( (int) $already_refunded_net ) + abs( (int) $refunded_net_minor ) );
-		$target     = Money::prorate( (int) $original_amount, $cumulative, (int) $original_base );
-		$adj        = $target - abs( min( 0, (int) $already_adjusted ) );
+		if ( null !== $kept ) {
+			$target = max( 0, (int) $original_amount - max( 0, (int) $kept ) );
+		} else {
+			$cumulative = min( (int) $original_base, abs( (int) $already_refunded_net ) + abs( (int) $refunded_net_minor ) );
+			$target     = Money::prorate( (int) $original_amount, $cumulative, (int) $original_base );
+		}
+		$adj = $target - abs( min( 0, (int) $already_adjusted ) );
 		return -min( $remaining, max( 0, $adj ) );
+	}
+
+	/**
+	 * Commission a capped line keeps on its remaining base (P2-13, owner decision 25.11.2026:
+	 * "cap on the rest"): the commission is calculated again on what is left of the line with
+	 * the rate of the sale, then the rule cap applies again. Example: 10 % of 800 = 80, capped at
+	 * 50; after refunding half the line 10 % of 400 = 40 is below the cap, so 40 stays (not 25).
+	 *
+	 * @param string $rate_type      percent|fixed (rate of the sale).
+	 * @param string $rate           Rate of the sale (fixed: minor units per piece, sale currency).
+	 * @param int    $cap            Cap of the rule per line (sale currency, > 0).
+	 * @param int    $base           Base booked for the line (original + increases).
+	 * @param int    $remaining_base Base left after all refunds (0 … $base).
+	 * @param int    $quantity       Pieces booked for the line (fixed rates).
+	 * @return int|null Commission kept, null when the line is not capped at its full base (it is
+	 *                  then reduced in proportion, as before).
+	 */
+	public static function capped_rest( $rate_type, $rate, $cap, $base, $remaining_base, $quantity = 1 ) {
+		$cap  = (int) $cap;
+		$base = (int) $base;
+		if ( $cap <= 0 || $base <= 0 || ! in_array( $rate_type, array( 'percent', 'fixed' ), true ) ) {
+			return null;
+		}
+		$rest = max( 0, min( $base, (int) $remaining_base ) );
+		if ( 'fixed' === $rate_type ) {
+			// Refunds arrive as net amounts, not pieces: the uncapped fixed amount in proportion.
+			$full     = min( (int) $rate * max( 1, (int) $quantity ), $base );
+			$uncapped = Money::prorate( $full, $rest, $base );
+		} else {
+			$full     = Money::percent_of( $base, (string) $rate );
+			$uncapped = Money::percent_of( $rest, (string) $rate );
+		}
+		if ( $full <= $cap ) {
+			return null; // Not capped: proportional reduction gives the same.
+		}
+		return max( 0, min( $cap, $uncapped ) );
 	}
 }

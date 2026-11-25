@@ -1,7 +1,8 @@
-# Steuerfragen an die Steuerberatung (R12-L1 bis R12-L3)
+# Steuerfragen an die Steuerberatung (R12-L1 bis R12-L3, P3-13)
 
-Stand: 16.11.2026, Affiliate Captain 0.16.0. Grundlage: Aufgaben R12-L1 bis R12-L3 in
-`TODO.md` (Entscheidung E7) und der Code in `src/Payouts/` und `src/Commissions/Ledger.php`.
+Stand: 16.11.2026, Affiliate Captain 0.16.0; Frage 4 ergänzt am 25.11.2026 (Affiliate
+Captain 0.22.0). Grundlage: Aufgaben R12-L1 bis R12-L3 (Entscheidung E7) und P3-13 in
+`TODO.md` und der Code in `src/Payouts/` und `src/Commissions/Ledger.php`.
 
 > **Keine Rechtsberatung.** Die genannten Normen geben wieder, wie die Entwickler die Rechtslage
 > verstehen. Sie sind ausdrücklich zur Prüfung gedacht. Bis zur Antwort bleibt der Code
@@ -222,3 +223,61 @@ Dezember 350,00 €.
    zulässig? Dürfen die Korrekturbelege eines Auszahlungslaufs im `GS-`-Kreis bleiben?
 3. Muss die Gutschrift Entgelte mit Reverse Charge und mit § 19 getrennt aufschlüsseln, obwohl
    beide 0 % haben (Zusatz G)?
+
+---
+
+## Frage 4 (P3-13): Gemeinsame Umsatzsteuergebiete (CH+LI, FR+MC, GB+IM)
+
+Aufgenommen am 25.11.2026 (Entscheidung des Inhabers: „Steuerberatung fragt“). Bis zur Antwort
+bleibt der Code unverändert.
+
+### Sachverhalt
+
+Einige Länder bilden mit einem Nachbarn ein gemeinsames Umsatzsteuergebiet: Liechtenstein gehört
+zum schweizerischen MWST-Gebiet, Monaco zum französischen, die Isle of Man zum britischen
+VAT-Gebiet. Beispiel: Der Betreiber sitzt in der Schweiz (MWST-pflichtig), ein Partner ist ein
+MWST-pflichtiges Unternehmen in Liechtenstein und erhält 1.000,00 CHF Provision.
+
+### Aktuelles Verhalten
+
+- `Vat::treatment()` (`src/Payouts/Vat.php:78`) vergleicht nur die ISO-Länder von Partner und
+  Betreiber. Sind sie verschieden, gilt für einen Unternehmer (und einen ausländischen
+  Kleinunternehmer) **Reverse Charge**: Gutschrift ohne MWST mit dem Hinweis auf die
+  Steuerschuldnerschaft des Leistungsempfängers.
+- Im Beispiel (CH → LI) entsteht also eine Gutschrift über 1.000,00 CHF ohne MWST mit
+  Reverse-Charge-Hinweis, obwohl beide im selben MWST-Gebiet sitzen. Gleiches gilt für FR ↔ MC
+  und GB ↔ IM.
+- Ein Partner im gleichen Land wie der Betreiber erhält die Behandlung `standard` (Steuer wird
+  ausgewiesen) bzw. `small_business`, wenn er Kleinunternehmer ist.
+
+### Normen (nach unserem Verständnis)
+
+- Schweiz/Liechtenstein: Zollanschlussvertrag und Staatsvertrag über die Mehrwertsteuer
+  (1994); Liechtenstein übernimmt das schweizerische MWSTG, das Gebiet gilt als ein Inland
+  (Art. 3 Bst. a MWSTG).
+- Frankreich/Monaco: Monaco wird umsatzsteuerlich als Teil Frankreichs behandelt (Art. 7
+  Abs. 1 MwStSystRL, Konvention 1963); Leistungen zwischen beiden sind Inlandsumsätze.
+- Vereinigtes Königreich/Isle of Man: gemeinsames VAT-Gebiet (Customs and Excise Agreement
+  1979); Leistungen zwischen beiden gelten als Inlandsumsätze.
+- Reverse Charge setzt nach unserem Verständnis einen im Inland nicht ansässigen leistenden
+  Unternehmer voraus (z. B. § 13b Abs. 7 UStG, Art. 45 MWSTG, Art. 196 MwStSystRL).
+
+### Optionen
+
+| | Bedeutung | Umsetzung |
+|---|---|---|
+| **A** Beibehalten: verschiedene ISO-Länder = Reverse Charge | einfach, nach unserem Verständnis aber falsch für Leistungen innerhalb eines gemeinsamen Gebiets | Kein Code. |
+| **B** Gemeinsame Gebiete als ein Land behandeln (CH = LI, FR = MC, GB = IM): Inlandsbehandlung mit ausgewiesener Steuer bzw. Kleinunternehmer | wie Partner im gleichen Land | Klein (ca. 1 Tag): Zuordnung in `Vat::treatment()` (ggf. als Filter), Tests; Texte unverändert. Keine Migration; bereits ausgestellte Gutschriften bleiben, wie sie sind. |
+| **C** Wie B, aber zusätzlich mit eigenem Hinweis auf dem Beleg (z. B. „Leistung im gemeinsamen MWST-Gebiet CH/LI“) | wie B, mit Erläuterung | Klein bis mittel (ca. 1–2 Tage, neue Texte und Übersetzungen). |
+
+### Frage an die Steuerberatung
+
+1. Wie sind Provisionen (Vermittlungsleistungen) zwischen Ländern eines gemeinsamen
+   Umsatzsteuergebiets (CH+LI, FR+MC, GB+IM) zu behandeln: als Inlandsumsatz mit Ausweis der
+   Steuer des gemeinsamen Gebiets (bzw. Kleinunternehmerregelung) oder anders?
+2. Ist die heutige Behandlung als **Reverse Charge** in diesen Fällen richtig, vertretbar oder
+   falsch? Muss eine bereits so ausgestellte Gutschrift berichtigt werden?
+3. Gilt dasselbe, wenn der Betreiber im kleineren Land sitzt (z. B. Betreiber LI, Partner CH;
+   Betreiber MC, Partner FR; Betreiber IM, Partner GB)?
+4. Welche Angaben braucht die Gutschrift in diesen Fällen (Steuernummer des gemeinsamen
+   Gebiets, Hinweistext)?

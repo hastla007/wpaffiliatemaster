@@ -1374,11 +1374,27 @@ final class OrderSync {
 			);
 			if ( is_wp_error( $result ) ) {
 				self::report_error( $order, $result, 'refund' );
-			} elseif ( ! empty( $result['adjustment_ids'] ) ) {
+			} elseif ( ! empty( $result['adjustment_ids'] ) && self::adjusted_amount( (array) $result['adjustment_ids'] ) < 0 ) {
+				// A capped line can stay at its cap (P2-13): its correction row books the base only.
 				$order->add_order_note( __( 'Affiliate Captain: the partner commission was reduced because the order items were changed.', 'affiliate-captain' ) );
 			}
 		}
 		self::book_increase( $order, $payload );
+	}
+
+	/**
+	 * Commission changed by correction rows (sum of their amounts, minor units).
+	 *
+	 * @param int[] $ids Correction rows.
+	 * @return int
+	 */
+	private static function adjusted_amount( array $ids ) {
+		$sum = 0;
+		foreach ( $ids as $id ) {
+			$row  = Ledger::find( (int) $id );
+			$sum += $row ? (int) $row->amount_minor : 0;
+		}
+		return $sum;
 	}
 
 	/**

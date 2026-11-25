@@ -682,7 +682,7 @@ $l1_doc['payment'] = array( 'code' => '58', 'info' => 'SEPA' );
 check( 'R14-L1 checker: SEPA credit transfer without IBAN (BR-61)', array( 'BR-61' ), array_keys( EInvoice::check( EInvoice::xml( $l1_doc ) ) ) );
 
 // R16-1: the version statements agree. Header, WPAC_VERSION, "Stable tag" and the newest changelog
-// entry name the same plugin version, the documents name the constants of the main file, and no
+// entry name the same plugin version (an "= Unreleased =" entry above it is skipped), the documents name the constants of the main file, and no
 // "since X" in the shipped code or the contract document is ahead of the plugin or contract version.
 $r16_root = dirname( __DIR__ );
 $r16_main = (string) file_get_contents( $r16_root . '/affiliate-captain.php' );
@@ -697,7 +697,7 @@ $r16_readme   = str_replace( "\r", '', (string) file_get_contents( $r16_root . '
 $r16_log      = (string) substr( $r16_readme, (int) strpos( $r16_readme, '== Changelog ==' ) );
 $r16_notice   = (string) substr( $r16_readme, (int) strpos( $r16_readme, '== Upgrade Notice ==' ) );
 check( 'R16-1 plugin version is a release version', 1, preg_match( '/^\d+\.\d+\.\d+$/', $r16_header ) );
-check( 'R16-1 header, WPAC_VERSION, Stable tag, newest changelog entry and newest upgrade notice agree', array( $r16_header, $r16_header, $r16_header, $r16_header ), array( $r16_const, $r16_get( '/^Stable tag:\s*(\S+)/m', $r16_readme ), $r16_get( '/^= (\S+) =$/m', $r16_log ), $r16_get( '/^= (\S+) =$/m', $r16_notice ) ) );
+check( 'R16-1 header, WPAC_VERSION, Stable tag, newest changelog entry and newest upgrade notice agree', array( $r16_header, $r16_header, $r16_header, $r16_header ), array( $r16_const, $r16_get( '/^Stable tag:\s*(\S+)/m', $r16_readme ), $r16_get( '/^= (?!Unreleased =)(\S+) =$/m', $r16_log ), $r16_get( '/^= (\S+) =$/m', $r16_notice ) ) );
 $r16_docs_readme = (string) file_get_contents( $r16_root . '/README.md' );
 check( 'R16-1 README names plugin version, schema and contract of the main file', array( $r16_header, $r16_schema, $r16_contract ), array( $r16_get( '/^> Status: \*\*([0-9.]+)\*\*/m', $r16_docs_readme ), $r16_get( '/^> Status: .*?Datenbankschema (\d+)/m', $r16_docs_readme ), $r16_get( '/^> Status: .*?Integrationsvertrag ([0-9.]+)/m', $r16_docs_readme ) ) );
 $r16_contract_doc = (string) file_get_contents( $r16_root . '/docs/CONTRACT.md' );
