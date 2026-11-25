@@ -124,6 +124,10 @@ The operator handbook (setup, tracking, commissions, payouts, credit notes, priv
 
 == Changelog ==
 
+= Unreleased =
+Owner decision; add-on contract 1.11.0 and database schema 17 (both unchanged):
+* Changed: a partial refund of an order line whose commission was limited by the rule's maximum per line recalculates the commission on the remaining amount and applies the maximum again ("cap on the rest") instead of reducing the capped amount in proportion – e.g. maximum 50, 10 % of 800 = 80 → 50; after refunding half the line 10 % of 400 = 40 stays (before: 25). Repeated partial refunds count together, a full refund still ends at 0; a refund that leaves the line at the maximum is booked with 0 (its amount still counts for later refunds and order edits); raising the line again pays up to the maximum. Lines without a maximum, below it or changed by the wpac_commission_amount filter are reduced in proportion as before
+
 = 0.22.0 =
 Settings for selling in more countries, part 2; add-on contract 1.10.0 (backwards compatible); database schema 17 (unchanged):
 * New: setup wizard (Affiliate Captain → Setup wizard) – guided, skippable steps for country profile, company details, commission, pages, consent/cookie and a test order; every field uses the settings register and its checks, re-openable from the dashboard checklist and the settings page
