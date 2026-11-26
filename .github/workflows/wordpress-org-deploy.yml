@@ -50,7 +50,7 @@ jobs:
         run: |
           printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$' || { echo "Not a release tag: $TAG"; exit 1; }
           printf '%s' "$SLUG" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' || { echo "Not a plugin slug: $SLUG"; exit 1; }
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.HAS_SVN_SECRETS == 'true'
         with:
           ref: refs/tags/${{ inputs.tag }}
